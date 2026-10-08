@@ -1,0 +1,16 @@
+[package]
+name = "plajah-color"
+version = "0.1.0"
+edition = "2024"
+description = "High-performance color science, 3D LUT parser/interpolator, and color grading engine for Fabula"
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]

@@ -4,6 +4,7 @@
 // a persisted service plan later; the shapes are the canonical showModel ones.
 
 import { newId, type Show, type Slide } from './showModel';
+import { sceneText, decodeScene } from './slideTemplates/freeform';
 
 // Group colours (Plajah palette): cyan / gold / magenta / lilac / orange.
 const GC = {
@@ -113,6 +114,10 @@ export interface PlanItem {
   plannedSec: number;
   /** The item currently on air. */
   live?: boolean;
+  /** Assigned default outputs for this presentation */
+  defaultOutputs?: string[];
+  /** Default duties mapped to devices when this item takes air */
+  defaultDuties?: Record<string, any>;
 }
 
 /** The ordered service — the open playlist. */
@@ -130,6 +135,11 @@ export const DEMO_PLAYLIST: PlanItem[] = [
 export function slideText(s: Slide): string {
   for (const ly of s.layers) {
     if (ly.content.kind === 'TEXT') return ly.content.blocks.map(b => b.text).join(' ');
+    // Slide-editor scenes (freeform TELA_TEMPLATE): the words of the text objects.
+    if (ly.content.kind === 'TELA_TEMPLATE' && ly.content.templateId === 'freeform') {
+      const t = sceneText(decodeScene(ly.content.fields?.scene));
+      if (t) return t;
+    }
   }
   return s.label ?? '';
 }

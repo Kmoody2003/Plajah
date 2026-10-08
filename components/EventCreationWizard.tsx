@@ -4,11 +4,12 @@ import {
   Calendar, MapPin, Globe, Video, Ticket, List, Image, Settings2,
   Plus, Trash2, ChevronDown, ChevronUp, X, Check, Upload,
   Zap, Clock, Users, DollarSign, Package, Printer, AlertCircle,
-  Eye, Send, ArrowLeft, Tv, Heart, Info, RefreshCw,
+  Eye, Send, ArrowLeft, Tv, Heart, Info, RefreshCw, Sparkles, Palette, Disc,
+  Wine, Utensils, Award
 } from 'lucide-react';
-import { createOrUpdateEvent } from '../services/backendService';
-import { UserProfile, PlajahEvent, TicketTier, ItineraryItem, EventType } from '../types';
-import { uploadFile } from '../services/backendService';
+import { createOrUpdateEvent, DEFAULT_VENUE_PACKAGES, uploadFile } from '../services/backendService';
+import { UserProfile, PlajahEvent, TicketTier, ItineraryItem, EventType, AlbumArtTransform, EventPackageAddon } from '../types';
+import { TELA_STYLE_ERAS } from '../services/telaStyleEraLibrary';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -19,15 +20,17 @@ interface Props {
   onBack: () => void;
 }
 
-type Section = 'basics' | 'datetime' | 'location' | 'tiers' | 'itinerary' | 'media' | 'advanced';
+type Section = 'basics' | 'datetime' | 'location' | 'tiers' | 'packages' | 'itinerary' | 'media' | 'tela' | 'advanced';
 
 const SECTION_META: { key: Section; label: string; icon: React.ComponentType<any>; desc: string }[] = [
   { key: 'basics',    label: 'Event Basics',    icon: Calendar,  desc: 'Name, type, description' },
   { key: 'datetime',  label: 'Date & Time',     icon: Clock,     desc: 'When does it start?' },
   { key: 'location',  label: 'Location',        icon: MapPin,    desc: 'Venue, virtual, or hybrid' },
   { key: 'tiers',     label: 'Ticket Tiers',    icon: Ticket,    desc: 'Pricing and availability' },
+  { key: 'packages',  label: 'Beverage & F&B Packages', icon: Wine, desc: 'Cruise-style drink & food add-ons' },
   { key: 'itinerary', label: 'Itinerary',       icon: List,      desc: 'Schedule and lineup' },
   { key: 'media',     label: 'Media & Promo',   icon: Image,     desc: 'Cover art and promo video' },
+  { key: 'tela',      label: 'Tela Ticket Design', icon: Sparkles, desc: 'Era, 3D album art & video loop' },
   { key: 'advanced',  label: 'Advanced',        icon: Settings2, desc: 'Kiosk, printing, integrations' },
 ];
 
@@ -116,12 +119,44 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent, onSav
   const [plajahPlusDiscount, setPlajahPlusDiscount] = useState(editingEvent?.plajahPlusDiscount ?? 0);
   const [linkedAlbumId, setLinkedAlbumId] = useState(editingEvent?.linkedAlbumId ?? '');
 
+  // Tela Ticket Design state
+  const [selectedEraId, setSelectedEraId] = useState(editingEvent?.ticketDesign?.eraId || 'art-deco');
+  const [selectedTransform, setSelectedTransform] = useState<AlbumArtTransform>(editingEvent?.ticketDesign?.albumArtTransform || 'VINYL_RECORD');
+  const [ticketVideoUrl, setTicketVideoUrl] = useState(editingEvent?.ticketDesign?.videoUrl || '');
+
+  // Beverage & Dining Packages state (Smart All-Inclusive Pass model)
+  const [packages, setPackages] = useState<EventPackageAddon[]>(editingEvent?.packages ?? DEFAULT_VENUE_PACKAGES);
+
   const [openSection, setOpenSection] = useState<Section>('basics');
   const [saving, setSaving]           = useState(false);
   const [saveError, setSaveError]     = useState('');
   const [savedDraft, setSavedDraft]   = useState(false);
 
   const toggleSection = (s: Section) => setOpenSection(prev => prev === s ? 'basics' : s);
+
+  const togglePackage = (id: string) => {
+    setPackages(prev => prev.map(p => p.id === id ? { ...p, isActive: !p.isActive } : p));
+  };
+  const updatePackagePrice = (id: string, priceCents: number) => {
+    setPackages(prev => prev.map(p => p.id === id ? { ...p, priceCents } : p));
+  };
+  const addCustomPackage = () => {
+    const newPkg: EventPackageAddon = {
+      id: `pkg_custom_${Date.now()}`,
+      name: 'Custom VIP Beverage / Tasting Pass',
+      category: 'CUSTOM',
+      type: 'QUANTITY_CREDITS',
+      description: 'Specialty package addon for this event',
+      priceCents: 2500,
+      totalUnits: 3,
+      unitName: 'Items',
+      eligibleItems: ['Any Craft Beer', 'Signature Cocktail', 'Specialty Appetizer'],
+      eligibleItemsDescription: 'Valid across all venue bars & food trucks',
+      stations: ['Main Bar', 'Patio Lounge'],
+      isActive: true,
+    };
+    setPackages(prev => [...prev, newPkg]);
+  };
 
   // ── Cover image upload ────────────────────────────────────────────────────
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,13 +191,25 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent, onSav
     timezone,
     venueName, venueAddress, city, state, country,
     streamUrl, streamPassword,
-    tiers, itinerary,
+    tiers, packages, itinerary,
     coverImage, heroVideoUrl,
     kioskEnabled, printingEnabled, printNodePrinterId,
     refundPolicy, ageRestriction, dresscode, accessibilityInfo,
     sanctuaryMembersOnly: sanctuaryOnly,
     plajahPlusDiscount: plajahPlusDiscount || undefined,
     linkedAlbumId: linkedAlbumId || undefined,
+    ticketDesign: {
+      eraId: selectedEraId,
+      eraName: TELA_STYLE_ERAS.find(e => e.id === selectedEraId)?.name || 'Art Deco',
+      palette: TELA_STYLE_ERAS.find(e => e.id === selectedEraId)?.palette || ['#101820', '#D4AF37', '#FF8C00', '#F4E8D0'],
+      typography: TELA_STYLE_ERAS.find(e => e.id === selectedEraId)?.typography || 'Geometric display',
+      albumArtTransform: selectedTransform,
+      videoUrl: ticketVideoUrl || undefined,
+      videoLoopEnabled: !!ticketVideoUrl,
+    },
+    photoPoolEnabled: true,
+    geofenceRadiusMeters: 250,
+    autoCheckInEnabled: true,
     totalCapacity: tiers.reduce((s, t) => s + t.quantity, 0),
     creatorName: currentUser.displayName,
     creatorPhotoURL: currentUser.photoURL,
@@ -381,6 +428,69 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent, onSav
                         </button>
                       </>}
 
+                      {/* ── PACKAGES ── */}
+                      {sec.key === 'packages' && <>
+                        <div className="space-y-4">
+                          <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-400/20 text-xs space-y-1">
+                            <p className="font-bold text-blue-300">Smart All-Inclusive Pass & Beverage Packages</p>
+                            <p className="text-white/60 text-[11px]">
+                              Offer beverage and dining packages that attach directly to tickets. Attendees redeem by presenting their living pass at any venue bar, concession, or food truck.
+                            </p>
+                          </div>
+
+                          {packages.map((pkg) => (
+                            <div key={pkg.id} className={`p-4 rounded-2xl border transition-all space-y-3 ${pkg.isActive ? 'bg-white/[0.04] border-white/15' : 'bg-black/20 border-white/5 opacity-50'}`}>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={pkg.isActive}
+                                    onChange={() => togglePackage(pkg.id)}
+                                    className="accent-blue-500 w-4 h-4 rounded"
+                                  />
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <h4 className="text-sm font-black text-white">{pkg.name}</h4>
+                                      <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-white/10 text-white/70">
+                                        {pkg.type}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-white/40 line-clamp-1">{pkg.description}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="relative inline-block w-24">
+                                    <span className="absolute left-2.5 top-2 text-white/40 text-xs">$</span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={fmt(pkg.priceCents)}
+                                      onChange={e => updatePackagePrice(pkg.id, Math.round(parseFloat(e.target.value || '0') * 100))}
+                                      className="field-input pl-6 py-1.5 text-xs text-right font-mono"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {pkg.eligibleItems.map((item, idx) => (
+                                  <span key={idx} className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[9px] text-white/60">
+                                    ✓ {item}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={addCustomPackage}
+                          className="w-full py-3 border border-dashed border-white/15 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/30 hover:border-white/30 hover:text-white/60 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Plus size={13} /> Add Custom Package
+                        </button>
+                      </>}
+
                       {/* ── ITINERARY ── */}
                       {sec.key === 'itinerary' && <>
                         <div className="space-y-3">
@@ -432,6 +542,73 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent, onSav
                           <label className="field-label">Promo Video URL</label>
                           <input value={heroVideoUrl} onChange={e => setHeroVideoUrl(e.target.value)} placeholder="YouTube, Mux, or direct .mp4 URL" className="field-input" />
                           <p className="text-[9px] text-white/25 mt-1">Plays as an auto-muted hero on the event page</p>
+                        </div>
+                      </>}
+
+                      {/* ── TELA TICKET DESIGN ── */}
+                      {sec.key === 'tela' && <>
+                        <div>
+                          <label className="field-label">1. Design History Era</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                            {TELA_STYLE_ERAS.slice(0, 9).map(era => (
+                              <button
+                                key={era.id}
+                                type="button"
+                                onClick={() => setSelectedEraId(era.id)}
+                                className={`p-3 rounded-xl border text-left transition-all ${
+                                  selectedEraId === era.id
+                                    ? 'border-pink-500 bg-pink-500/10'
+                                    : 'border-white/8 bg-white/[0.02] hover:bg-white/5'
+                                }`}
+                              >
+                                <p className="text-xs font-black text-white truncate">{era.name}</p>
+                                <div className="flex gap-1 mt-1.5">
+                                  {era.palette.map((c, i) => (
+                                    <span key={i} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
+                                  ))}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="field-label">2. 3D Album Art Treatment</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                            {[
+                              { id: 'VINYL_RECORD', label: '12" Vinyl Disc' },
+                              { id: 'HOLOGRAPHIC_FOIL', label: 'Holographic Foil' },
+                              { id: 'CASSETTE_TAPE', label: 'Cassette Tape' },
+                              { id: 'NEON_CYBERPUNK', label: 'Neon Cyberpunk' },
+                              { id: 'GOLD_EMBOSSED', label: 'VIP Gold Leaf' },
+                              { id: 'CRT_GLITCH', label: 'Analog CRT' },
+                              { id: 'MATTE_EDITORIAL', label: 'Matte Minimal' },
+                            ].map(t => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setSelectedTransform(t.id as any)}
+                                className={`p-2.5 rounded-xl border text-xs font-black truncate transition-all ${
+                                  selectedTransform === t.id
+                                    ? 'border-purple-400 bg-purple-500/10 text-white'
+                                    : 'border-white/8 bg-white/[0.02] text-white/50 hover:text-white'
+                                }`}
+                              >
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="field-label">3. Looping Video Background (Optional)</label>
+                          <input
+                            value={ticketVideoUrl}
+                            onChange={e => setTicketVideoUrl(e.target.value)}
+                            placeholder="Direct .mp4 or .webm loop URL"
+                            className="field-input"
+                          />
+                          <p className="text-[9px] text-white/25 mt-1">Loops seamlessly behind the attendee pass.</p>
                         </div>
                       </>}
 

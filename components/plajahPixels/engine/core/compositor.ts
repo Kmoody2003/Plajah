@@ -365,13 +365,18 @@ export interface InputGrade {
     feather?: number; invert?: boolean;
   } | null;
 }
-export function isGradeIdentity(g?: InputGrade | null): boolean {
+export function isGradeIdentity(g?: InputGrade | any | null): boolean {
   if (!g) return true;
   if (g.curveLut) return false; // a curves-only grade is still a grade
   if (g.qualifier) return false; // a qualifier-only grade is still a grade
+  const lift = g.lift ?? g.wheel?.lift;
+  const gamma = g.gamma ?? g.wheel?.gamma;
+  const gain = g.gain ?? g.wheel?.gain;
+  const temp = g.temp ?? g.wheel?.temp;
+  const tint = g.tint ?? g.wheel?.tint;
   const v3 = (a?: [number, number, number], d = 0) => !a || (a[0] === d && a[1] === d && a[2] === d);
-  return v3(g.lift, 0) && v3(g.gamma, 1) && v3(g.gain, 1)
-    && (g.contrast ?? 1) === 1 && (g.sat ?? 1) === 1 && !(g.hue) && !(g.temp) && !(g.tint);
+  return v3(lift, 0) && v3(gamma, 1) && v3(gain, 1)
+    && (g.contrast ?? 1) === 1 && (g.sat ?? 1) === 1 && !(g.hue) && !(temp) && !(tint);
 }
 
 export interface LayerInput {

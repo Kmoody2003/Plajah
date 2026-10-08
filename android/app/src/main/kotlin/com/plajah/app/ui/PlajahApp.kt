@@ -144,7 +144,11 @@ fun PlajahApp(
         ) { inner ->
             Box(Modifier.padding(inner)) {
                 when (current.id) {
-                    Destinations.Home.id, Destinations.Chora.id, Destinations.Reello.id, Destinations.Lorea.id -> PlatformScreen(current.id) { item ->
+                    Destinations.Chora.id -> com.plajah.app.ui.screens.ChoraScreen(
+                        onOpenPlatform = onOpenContent,
+                        onExit = onExitToClassic
+                    )
+                    Destinations.Home.id, Destinations.Reello.id, Destinations.Lorea.id -> PlatformScreen(current.id) { item ->
                         if(item.kind=="album")selectedAlbum=item else onOpenContent(item.platformUrl)
                     }
                     else -> PlaceholderScreen(current, onExitToClassic)

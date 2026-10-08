@@ -1,0 +1,912 @@
+[
+  {
+    "at": "2026-10-06T16:27:09.792Z",
+    "scene": "recon-printing-office",
+    "model": "flux-2-klein",
+    "taskId": "616c7d87-f430-4b3f-bd49-fb45d93165e0",
+    "refs": 1,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:27:47.592Z",
+    "scene": "recon-printing-office",
+    "model": "flux-2-klein",
+    "taskId": "c0a8478d-5446-49b1-bac7-4cc8609f1859",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:28:10.292Z",
+    "scene": "recon-shipyard",
+    "model": "seedream-v4-5",
+    "taskId": "7403bfa6-474e-4d88-b451-d683aff935cb",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:28:26.962Z",
+    "scene": "recon-covey-field",
+    "model": "seedream-v4-5",
+    "taskId": "c91b717e-3d84-4902-bcc2-cc6c1f1bb018",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:28:44.233Z",
+    "scene": "recon-escape",
+    "model": "seedream-v4-5",
+    "taskId": "0eebfed5-a76d-45eb-be5a-0fb2730baa9d",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:29:03.500Z",
+    "scene": "recon-nantucket",
+    "model": "seedream-v4-5",
+    "taskId": "d3c1bec4-cc18-4e93-ad43-3092ee30e208",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:29:38.469Z",
+    "scene": "recon-shipyard",
+    "model": "seedream-v4-5",
+    "taskId": "d3ebabb1-9340-4bb6-9f34-936ff13c2cca",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:29:52.855Z",
+    "scene": "recon-escape",
+    "model": "seedream-v4-5",
+    "taskId": "85dd7466-ce1e-48a9-ad25-5fbd7777b8dc",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:30:10.923Z",
+    "scene": "recon-fourth",
+    "model": "flux-2-klein",
+    "taskId": "52572ff2-7d71-4c7b-9328-ce3e11fb0334",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:30:21.349Z",
+    "scene": "recon-anteroom",
+    "model": "flux-2-klein",
+    "taskId": "7f113038-921e-4467-8883-d3350e33dfee",
+    "refs": 3,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:30:33.909Z",
+    "scene": "recon-cedarhill",
+    "model": "flux-2-klein",
+    "taskId": "87913f08-9508-4637-86f7-22c87351f5cb",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:31:18.568Z",
+    "scene": "recon-escape",
+    "model": "seedream-v4-5",
+    "taskId": "4d51b566-ce8d-4806-ac65-f217ea1a6002",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:31:42.147Z",
+    "scene": "recon-anteroom",
+    "model": "flux-2-klein",
+    "taskId": "e810b7bc-c3d7-4187-94d9-e2c9b918035f",
+    "refs": 3,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:31:55.015Z",
+    "scene": "recon-fourth",
+    "model": "flux-2-klein",
+    "taskId": "246d1c9d-fad2-454a-bbe5-e12a49549334",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:32:05.833Z",
+    "scene": "recon-printing-office",
+    "model": "flux-2-klein",
+    "taskId": "28ddd2db-d079-4059-a9e8-faadd06551d3",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:32:38.673Z",
+    "scene": "recon-anteroom",
+    "model": "flux-2-klein",
+    "taskId": "d9b34d10-bd22-4ecf-bd51-6e40a05e5468",
+    "refs": 3,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:33:15.655Z",
+    "scene": "recon-anteroom",
+    "model": "flux-2-klein",
+    "taskId": "7003f1f6-3345-4e9e-8159-5191e75cf812",
+    "refs": 3,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-printing-office",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-fourth",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-anteroom",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-cedarhill",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-escape",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 0
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-0",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 28
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-1",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 38
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-2",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 30
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-3",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 26
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-4",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 18
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-5",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 26
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-6",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 26
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-7",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 30
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-8",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 32
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "score-douglass",
+    "model": "google-lyria-3-pro 90s requested (174s returned)",
+    "via": "magnific-mcp",
+    "credits": 160
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-road-engine",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-watch-table",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-quadricycle",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-fiveday-gate",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-independent-press",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-willow-run",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-willow-run (regenerated as B-24)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-highland-line",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-peaceship",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-syriac-lectern",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ctesiphon-vault",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-synod-hall",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-stele-courtyard",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-silk-road-caravan",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-silk-road-caravan (regen 1)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-silk-road-caravan (regen 2, used)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-arghun-letter",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-julfa-lane",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-urmia-press",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "score-ford",
+    "model": "google-lyria-3-pro 90s",
+    "via": "magnific-mcp",
+    "credits": 160
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "score-persia",
+    "model": "google-lyria-3-pro 90s",
+    "via": "magnific-mcp",
+    "credits": 160
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-0",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 30
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-1",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 30
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-2",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 26
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-3",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 38
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-4",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 34
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-5",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 44
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-6",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 34
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-7",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 32
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-8",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 38
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-9",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 36
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-0",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 40
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-1",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 24
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-2",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 24
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-3",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 48
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-4",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 36
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-5",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 22
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-6",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 32
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-7",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 38
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-8",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 34
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-9",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 50
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-piquette-third-floor",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 1
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-model-t-street",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-rouge-1927",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-ford-trimotor-1927",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-greenfield-1929",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-v8-test-cell-1932",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-eagle-boat-hall-1918",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-jeep-line-1942",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-willow-village-1943",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-fair-lane-1947",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:10:00.000Z",
+    "scene": "recon-census-office",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:12:00.000Z",
+    "scene": "recon-simla-table",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:14:00.000Z",
+    "scene": "recon-radcliffe-desk",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:16:00.000Z",
+    "scene": "recon-empty-platform",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:18:00.000Z",
+    "scene": "recon-camp-tents",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:20:00.000Z",
+    "scene": "recon-vacant-house",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:22:00.000Z",
+    "scene": "recon-boundary-pillar",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:24:00.000Z",
+    "scene": "recon-kartarpur-dawn",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:26:00.000Z",
+    "scene": "recon-lectern-empty",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:28:00.000Z",
+    "scene": "recon-study-desk",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:30:00.000Z",
+    "scene": "recon-highland-line-workers (regen 1, rejected: workers shown in profile, superseded)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:32:00.000Z",
+    "scene": "recon-highland-line-workers (used)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:41:00.000Z",
+    "scene": "recon-printing-shop",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:42:00.000Z",
+    "scene": "recon-tea-wharf",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:43:00.000Z",
+    "scene": "recon-tobacco-barn",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:44:00.000Z",
+    "scene": "recon-rice-field",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:45:00.000Z",
+    "scene": "recon-assembly-room",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:46:00.000Z",
+    "scene": "recon-philadelphia-street",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:47:00.000Z",
+    "scene": "recon-survey-table",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:48:00.000Z",
+    "scene": "recon-capitol-construction",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:49:00.000Z",
+    "scene": "recon-keelboat-journal (rejected: open boat not a keelboat, bare winter trees; superseded by regen)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:50:00.000Z",
+    "scene": "recon-keelboat-journal (regen 1, used)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:51:00.000Z",
+    "scene": "recon-mulberry-row",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:52:00.000Z",
+    "scene": "recon-burned-presidents-house",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T14:10:00.000Z",
+    "scene": "recon-franklin-paris-court-1778",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:11:00.000Z",
+    "scene": "recon-jefferson-graff-house-1776",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:12:00.000Z",
+    "scene": "recon-adams-congress-1776 (rejected: delegates' faces in profile; superseded by regen)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:13:00.000Z",
+    "scene": "recon-adams-congress-1776 (regen 1, used; two foreground delegates show a sliver of rear three-quarter cheek)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:14:00.000Z",
+    "scene": "recon-washington-valley-forge-1778",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:15:00.000Z",
+    "scene": "recon-madison-convention-1787",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:16:00.000Z",
+    "scene": "recon-hamilton-treasury-1790",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:17:00.000Z",
+    "scene": "recon-abigail-adams-letter-1776",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 1,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:18:00.000Z",
+    "scene": "recon-washington-federal-hall-1789 (rejected: individual faces in the crowd; superseded by regen)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:19:00.000Z",
+    "scene": "recon-washington-federal-hall-1789 (regen 2, used cropped to 2140x1204 to drop crowd faces at the lower edge)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:20:00.000Z",
+    "scene": "recon-washington-farewell-1796",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:21:00.000Z",
+    "scene": "recon-jefferson-louisiana-1803",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:22:00.000Z",
+    "scene": "recon-madison-1814",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 1,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:23:00.000Z",
+    "scene": "recon-adams-quincy-1801",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T15:25:00.000Z",
+    "scene": "recon-abigail-adams-letter-1776 (replacement regen 1, used: younger face closer to the Blyth pastel; the first image showed her about 40 or older; a light switch on the wall was painted out locally with Pillow, no credits)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped): Blyth pastel c. 1766 (exhibit asset a-abigail-adams) and Gilbert Stuart, Abigail Smith Adams, NGA 42934, 1800-1815 (CC0, structure only, age note in prompt); prompt built with services/dossier/characterGateway.ts, with an Avoid: line appended"
+  }
+]

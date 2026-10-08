@@ -32,7 +32,7 @@ test('product teardown leaves other product buses and the audio device alive', (
   assert.equal(runtime.getContext(),context);assert.equal(created,1);
   assert.notEqual(fabula,melos);assert.equal(runtime.output('fabula'),fabula);
   runtime.releaseOutput('melos');
-  assert.equal(nodes[0].disconnected,false);assert.equal(nodes[1].disconnected,true);
+  assert.equal((fabula as any).disconnected,false);assert.equal((melos as any).disconnected,true);
   assert.deepEqual(runtime.diagnostics().products,['fabula']);
   assert.equal(runtime.getContext().state,'running');
 });

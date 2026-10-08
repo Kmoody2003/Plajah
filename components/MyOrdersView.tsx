@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Package, Check, Clock, Truck, ShoppingBag, Loader2, ChevronRight } from 'lucide-react';
 import { fetchMyStoreOrders, type StoreOrderRecord } from '../services/businessOpsService';
+import { trackingUrl } from '../services/inventoryCore';
 
 /**
  * Customer-facing order tracking — the orders a person has placed through the store/kiosk/POS spine,
@@ -67,7 +68,7 @@ const MyOrdersView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/50">
                     {ship ? <Truck size={13} /> : <ShoppingBag size={13} />} {ship ? 'Delivery' : 'Pickup'} · {count} item{count === 1 ? '' : 's'}
                   </div>
-                  <span className="text-sm font-black">{fmt(o.subtotalCents)}</span>
+                  <span className="text-sm font-black">{fmt(o.totalCents ?? o.subtotalCents)}</span>
                 </div>
                 <div className="mt-2 space-y-0.5">
                   {o.items.slice(0, 4).map((it, i) => (
@@ -76,6 +77,12 @@ const MyOrdersView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   {o.items.length > 4 && <p className="text-[10px] text-white/30">+{o.items.length - 4} more</p>}
                 </div>
                 <Timeline status={o.status} ship={ship} />
+                {o.trackingNumber && (
+                  <p className="text-[11px] text-white/60 mt-3 flex items-center gap-1.5">
+                    <Truck size={12} /> {o.trackingCarrier} {o.trackingNumber}
+                    {trackingUrl(o.trackingCarrier, o.trackingNumber) && <a href={trackingUrl(o.trackingCarrier, o.trackingNumber)!} target="_blank" rel="noopener noreferrer" className="underline text-small-orange ml-1">Track package</a>}
+                  </p>
+                )}
                 {o.note && <p className="text-[10px] text-white/30 mt-2 italic">“{o.note}”</p>}
               </div>
             );

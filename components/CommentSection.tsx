@@ -16,9 +16,10 @@ import {
   addPostComment,
   deletePostComment,
   toggleCommentLike,
-  searchUserProfiles,
   uploadFile,
 } from '../services/backendService';
+import { searchUserProfilesSafe as searchUserProfiles } from '../services/searchUsersSafe';
+import { useVisibleComments } from './safety/HiddenCommentGate';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { UserProfile } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -43,12 +44,16 @@ export interface PostComment {
   videoUrl?: string;
   audioUrl?: string;
   gifUrl?: string;
+  /** Optional spot in the media this comment is pinned to (seconds). */
+  mediaTimestamp?: number;
 }
 
 interface CommentSectionProps {
   // Self-contained mode (for posts)
   postId?: string;
   postAuthorId?: string;
+  /** Collection holding the post + its comments subcollection. Defaults to 'posts'. */
+  postCollection?: 'posts' | 'private_posts';
   initialCount?: number;
   // Legacy pass-through mode (albums, articles, videos)
   comments?: any[];
@@ -61,6 +66,10 @@ interface CommentSectionProps {
   onVisitUser?: (uid: string) => void;
   onClose?: () => void;
   layout?: 'inline' | 'panel';
+  /** Video/audio comments: current playback position (seconds). Presence turns on the optional "pin to this moment" toggle. */
+  playbackTime?: number;
+  /** Jump the media to a pinned comment's moment. */
+  onSeek?: (seconds: number) => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -102,10 +111,11 @@ interface BubbleProps {
   onVisitUser?: (uid: string) => void;
   depth: number;
   isDark: boolean;
+  onSeek?: (seconds: number) => void;
 }
 
 const CommentBubble: React.FC<BubbleProps> = ({
-  comment, allComments, postId, onReply, onDelete, onLikeToggle, onVisitUser, depth, isDark
+  comment, allComments, postId, onReply, onDelete, onLikeToggle, onVisitUser, depth, isDark, onSeek
 }) => {
   const [showReplies, setShowReplies] = useState(true);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -197,6 +207,16 @@ const CommentBubble: React.FC<BubbleProps> = ({
             <span className={`${TYPE.labelSm} ${isDark ? 'text-white/20' : 'text-black/20'}`}>
               {formatDistanceToNow(comment.timestamp, { addSuffix: false })} ago
             </span>
+            {typeof comment.mediaTimestamp === 'number' && onSeek && (
+              <button
+                type="button"
+                onClick={() => onSeek(comment.mediaTimestamp!)}
+                title="Jump to this moment"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border border-[#D40055]/40 bg-[#D40055]/10 text-[#ff7fb0] hover:bg-[#D40055]/20 transition-colors"
+              >
+                <Clock size={9} /> {Math.floor(comment.mediaTimestamp / 60)}:{String(Math.floor(comment.mediaTimestamp % 60)).padStart(2, '0')}
+              </button>
+            )}
 
             {/* Like */}
             <button
@@ -317,6 +337,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
                     onVisitUser={onVisitUser}
                     depth={depth + 1}
                     isDark={isDark}
+                    onSeek={onSeek}
                   />
                 ))}
               </motion.div>
@@ -803,20 +824,33 @@ const PollComposer: React.FC<{ postId: string; onDone: () => void; isDark: boole
 
 const mapLegacyComment = (c: any): PostComment => ({
   id: c.id,
-  text: c.text || '',
-  authorId: c.uid || c.authorId || '',
-  authorName: c.author || c.authorName || 'User',
-  authorPhoto: c.authorPhoto || '',
+  text: c.text || c.comment || '',
+  authorId: c.authorId || c.userId || c.uid || '',
+  authorName: c.authorName || c.userName || c.author || c.displayName || 'User',
+  authorPhoto: c.authorPhoto || c.userPhoto || c.photoURL || '',
   timestamp: c.timestamp || 0,
   parentId: c.parentId || null,
   likedBy: c.likedBy || [],
   likesCount: c.likesCount || 0,
   ...(c.gifUrl ? { gifUrl: c.gifUrl } : {}),
+  ...(typeof c.mediaTimestamp === 'number' ? { mediaTimestamp: c.mediaTimestamp } : {}),
 });
+
+const isMatchingComment = (pending: PostComment, real: PostComment): boolean => {
+  if (pending.id === real.id) return true;
+  if (pending.text.trim() !== real.text.trim()) return false;
+  if ((pending.parentId ?? null) !== (real.parentId ?? null)) return false;
+  if (pending.authorId && real.authorId && pending.authorId === real.authorId) return true;
+  if (pending.authorName && real.authorName && pending.authorName.toLowerCase() === real.authorName.toLowerCase()) return true;
+  const currentUid = auth.currentUser?.uid;
+  if (currentUid && (real.authorId === currentUid || pending.authorId === currentUid)) return true;
+  return false;
+};
 
 const CommentSection: React.FC<CommentSectionProps> = ({
   postId,
   postAuthorId,
+  postCollection = 'posts',
   initialCount = 0,
   comments: externalComments,
   onPostComment,
@@ -826,7 +860,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   themeColor: _themeColor,
   onVisitUser,
   onClose,
-  layout = 'inline'
+  layout = 'inline',
+  playbackTime,
+  onSeek,
 }) => {
   const isLegacy = externalComments !== undefined;
   const { theme } = useGlobalPlayerState();
@@ -840,6 +876,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [showSignIn, setShowSignIn] = useState(false);
   const [polls, setPolls] = useState<PollData[]>([]);
   const [showPollComposer, setShowPollComposer] = useState(false);
+  const [pinTime, setPinTime] = useState(false);   // optional: pin the next comment to the current moment
   const [showGifPicker, setShowGifPicker] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -865,9 +902,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       });
       setPendingIds(new Set());
       setIsLoading(false);
-    });
+    }, postCollection);
     return unsub;
-  }, [postId, isLegacy]);
+  }, [postId, isLegacy, postCollection]);
 
   // In legacy mode the real comment arrives via externalComments (the parent's
   // subscription). Dedupe the optimistic against it by author+text so we never
@@ -875,8 +912,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const comments = isLegacy
     ? (() => {
         const ext = (externalComments || []).map(mapLegacyComment);
-        const seen = new Set(ext.map(c => `${c.authorName} ${c.text}`));
-        const stillPending = pendingLegacy.filter(p => !seen.has(`${p.authorName} ${p.text}`));
+        const stillPending = pendingLegacy.filter(p => !ext.some(real => isMatchingComment(p, real)));
         return [...ext, ...stillPending].sort((a, b) => a.timestamp - b.timestamp);
       })()
     : internalComments;
@@ -903,19 +939,19 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   // Once the parent's subscription delivers the real comment, drop the optimistic.
   useEffect(() => {
     if (!isLegacy) return;
-    const seen = new Set((externalComments || []).map((c: any) => `${c.author || c.authorName} ${c.text}`));
-    setPendingLegacy(prev => prev.filter(p => !seen.has(`${p.authorName} ${p.text}`)));
+    const ext = (externalComments || []).map(mapLegacyComment);
+    setPendingLegacy(prev => prev.filter(p => !ext.some(real => isMatchingComment(p, real))));
   }, [externalComments, isLegacy]);
 
   const handleDelete = useCallback(async (commentId: string) => {
     if (isLegacy) return;
     setInternalComments(prev => prev.filter(c => c.id !== commentId));
     try {
-      await deletePostComment(postId!, commentId);
+      await deletePostComment(postId!, commentId, postCollection);
     } catch {
       // If delete fails, snapshot will restore it
     }
-  }, [postId]);
+  }, [postId, postCollection]);
 
   const handleLikeToggle = useCallback(async (commentId: string) => {
     if (isLegacy || !postId) return;
@@ -932,14 +968,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       };
     }));
     try {
-      await toggleCommentLike(postId, commentId);
+      await toggleCommentLike(postId, commentId, postCollection);
     } catch {
       // snapshot will correct
     }
-  }, [postId, isLegacy]);
+  }, [postId, isLegacy, postCollection]);
 
-  const rootComments = comments.filter(c => !c.parentId);
-  const count = comments.filter(c => !c.isPending).length;
+  // Blocked / blocked-by / muted authors' comments are dropped (their replies go with them).
+  const visibleComments = useVisibleComments(comments);
+  const rootComments = visibleComments.filter(c => !c.parentId);
+  const count = visibleComments.filter(c => !c.isPending).length;
   const safePostId = postId || '';
 
   // ── Theme tokens ───────────────────────────────────────────────────────────
@@ -970,15 +1008,21 @@ const CommentSection: React.FC<CommentSectionProps> = ({
             </p>
           </div>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all active:scale-90
-              ${isDark ? 'text-white/30 hover:text-white hover:bg-white/5' : 'text-black/30 hover:text-black hover:bg-black/5'}`}
-          >
-            <X size={16} />
-          </button>
-        )}
+        <div className="flex items-center gap-2.5">
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-purple-300 bg-purple-500/10 border border-purple-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+            Realtime Sync Active
+          </span>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all active:scale-90
+                ${isDark ? 'text-white/30 hover:text-white hover:bg-white/5' : 'text-black/30 hover:text-black hover:bg-black/5'}`}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Comment list ── */}
@@ -1019,7 +1063,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
               <CommentBubble
                 key={comment.id}
                 comment={comment}
-                allComments={comments}
+                allComments={visibleComments}
                 postId={safePostId}
                 onReply={(id, name) => setReplyTo({ id, name })}
                 onDelete={handleDelete}
@@ -1027,6 +1071,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 onVisitUser={onVisitUser}
                 depth={0}
                 isDark={isDark}
+                onSeek={onSeek}
               />
             ))}
           </AnimatePresence>
@@ -1105,7 +1150,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   id: `pending-${now}`,
                   text: data.text.trim(),
                   authorId: user.uid,
-                  authorName: user.displayName || 'Anonymous',
+                  authorName: user.displayName || 'User',
                   authorPhoto: user.photoURL || '',
                   timestamp: now,
                   parentId: replyTo?.id ?? null,
@@ -1120,14 +1165,26 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 const parentId = replyTo?.id;
                 setReplyTo(null);
                 if (isLegacy && onPostComment) {
-                  await onPostComment(data.text.trim(), parentId);
+                  await onPostComment(data.text.trim(), parentId, pinTime && typeof playbackTime === 'number' ? Math.floor(playbackTime) : undefined);
                   if (gifUrl && onPostGif) await onPostGif(gifUrl, parentId);
                 } else {
-                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl, imageUrl);
+                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl, imageUrl, postCollection);
                 }
               }}
             />
             <div className="flex items-center gap-4">
+              {isLegacy && typeof playbackTime === 'number' && (
+                <button
+                  type="button"
+                  onClick={() => setPinTime(v => !v)}
+                  aria-pressed={pinTime}
+                  title={pinTime ? 'This comment will jump to this moment. Click to turn off.' : 'Click to pin the next comment to the current moment.'}
+                  className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${pinTime ? 'text-[#ff7fb0]' : isDark ? 'text-white/30 hover:text-white/60' : 'text-black/30 hover:text-black/60'}`}
+                >
+                  <Clock size={11} />
+                  {pinTime ? `Pinned at ${Math.floor(playbackTime / 60)}:${String(Math.floor(playbackTime % 60)).padStart(2, '0')}` : 'Pin to this moment'}
+                </button>
+              )}
               {postId && !isLegacy && (
                 <button
                   onClick={() => setShowPollComposer(p => !p)}
@@ -1178,7 +1235,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                           if (isLegacy) {
                             if (onPostGif) await onPostGif(url, parentId);
                           } else {
-                            await addPostComment(safePostId, '', parentId, undefined, undefined, url);
+                            await addPostComment(safePostId, '', parentId, undefined, undefined, url, undefined, postCollection);
                           }
                         }}
                       />

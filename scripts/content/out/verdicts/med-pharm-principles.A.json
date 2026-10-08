@@ -1,0 +1,1150 @@
+{
+ "courseId": "med-pharm-principles",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "med-pharm-principles.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Answer D is best (36 h half-life, only 2 days since change), but the stem's 'well below target although dose should produce in-range' is awkwardly worded."
+  },
+  {
+   "id": "med-pharm-principles.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "C best; stem says heart failure but changes are renal-clearance related; 'slowly' qualifier makes C better than A."
+  },
+  {
+   "id": "med-pharm-principles.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Standard receptor-reserve teaching: rightward shift first."
+  },
+  {
+   "id": "med-pharm-principles.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Furosemide vs thiazide: efficacy (maximal effect) is higher for loop; D correct."
+  },
+  {
+   "id": "med-pharm-principles.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q5",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "G6PD hemolysis is classically idiosyncratic/genetic; a type B/pharmacogenetic framing is also used but D is best."
+  },
+  {
+   "id": "med-pharm-principles.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "HIT is often classed as type II (non-IgE antibody) but not a clean Gell-Coombs fit; D is the only correct mechanism."
+  },
+  {
+   "id": "med-pharm-principles.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-pharm-principles.l01",
+   "claim": "Weak acids are mostly un-ionized when pH is below pKa; urinary alkalinization increases excretion of weak acids such as salicylate",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK557749/"
+   ],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l01",
+   "claim": "Propranolol and lidocaine are high hepatic-extraction drugs with large oral vs IV differences; sublingual route bypasses first pass (nitroglycerin)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l01",
+   "claim": "Worked example: AUC oral 20 / IV 100 gives F = 0.2",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic correct."
+  },
+  {
+   "lessonId": "med-pharm-principles.l02",
+   "claim": "Warfarin is ~99% albumin bound; protein-binding displacement interactions are usually clinically minor",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l02",
+   "claim": "Vd approx 3 L for plasma-confined drugs and ~15 L for extracellular-restricted drugs; amiodarone/chloroquine have very large Vd",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l02",
+   "claim": "Worked example: 500 mg / 5 mg per L = 100 L Vd, exceeding total body water",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic correct; total body water ~42 L."
+  },
+  {
+   "lessonId": "med-pharm-principles.l03",
+   "claim": "CYP3A4 handles the largest share of drugs, followed by CYP2D6 and the 2C family",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch. Commonly cited ~30-50% for 3A4."
+  },
+  {
+   "lessonId": "med-pharm-principles.l03",
+   "claim": "Lorazepam, oxazepam and temazepam undergo direct glucuronidation, preferred in liver disease/elderly",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l03",
+   "claim": "Acetaminophen NAPQI formed by CYP2E1/3A4, neutralized by glutathione; N-acetylcysteine is antidote; chronic alcohol and fasting raise risk",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l04",
+   "claim": "Probenecid blocks organic anion secretion, raising penicillin and methotrexate levels; quinidine reduces renal digoxin clearance",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l04",
+   "claim": "Alkalinizing urine increases excretion of weak acids (salicylate, phenobarbital); acidifying favors weak bases such as amphetamine",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l04",
+   "claim": "Biliary excretion favors molecules over about 300-500 Da; enterohepatic circulation prolongs half-life and gives secondary peaks",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l05",
+   "claim": "t1/2 = 0.693 x Vd / CL and k = CL/Vd",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l05",
+   "claim": "After 1,2,3,4,5 half-lives 50, 75, 87.5, ~94, ~97 percent eliminated",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic: 93.75% and 96.9%."
+  },
+  {
+   "lessonId": "med-pharm-principles.l05",
+   "claim": "Amiodarone has very large Vd and a half-life of weeks",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch. Typically ~40-55 days."
+  },
+  {
+   "lessonId": "med-pharm-principles.l06",
+   "claim": "~90% of plateau reached at ~3.3 half-lives; Css,avg = F x dose rate / CL",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l06",
+   "claim": "Accumulation factor is about 2 when dosing interval equals half-life",
+   "verdict": "supported",
+   "sources": [],
+   "note": "1/(1-0.5)=2."
+  },
+  {
+   "lessonId": "med-pharm-principles.l06",
+   "claim": "Digoxin levels should be drawn after distribution phase (about 6-8 h post dose or pre-dose trough)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l07",
+   "claim": "Loading dose = target concentration x Vd / F; maintenance rate = CL x Css / F",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l07",
+   "claim": "Loading dose is unchanged in renal failure unless Vd changes; maintenance dose reduced",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l07",
+   "claim": "Loading doses of narrow-index drugs should be given slowly or divided to avoid transient high levels in central compartment",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l08",
+   "claim": "Phenytoin shows saturable (Michaelis-Menten) kinetics in the therapeutic range, metabolized mainly by CYP2C9 with CYP2C19 contribution",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l08",
+   "claim": "Ethanol is eliminated by zero-order kinetics at typical amounts; aspirin/salicylate shifts from first- to zero-order at higher doses",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l08",
+   "claim": "With saturable kinetics, half-life lengthens and clearance falls as concentration rises",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l09",
+   "claim": "Gq: alpha-1, M1/M3 via PLC, IP3, DAG; Gs: beta-1, beta-2; Gi: alpha-2, M2",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l09",
+   "claim": "Irreversible antagonist in a tissue with receptor reserve first shifts the curve right with maximum unchanged",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l09",
+   "claim": "Abrupt beta-blocker withdrawal causes rebound tachycardia/hypertension from up-regulated receptors",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l10",
+   "claim": "Buprenorphine is a high-affinity partial mu agonist with ceiling on respiratory depression and can precipitate withdrawal in full-agonist dependence",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l10",
+   "claim": "Phenoxybenzamine binds alpha-adrenergic receptors covalently (non-competitive); protamine-heparin is chemical antagonism",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l10",
+   "claim": "Naloxone duration is shorter than many opioids so renarcotization can occur",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l11",
+   "claim": "Potency is position on dose axis (EC50), efficacy is Emax; independent properties",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l11",
+   "claim": "Loop diuretics have higher maximal diuresis (efficacy) than thiazides",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l11",
+   "claim": "Worked example: X more potent, Y more efficacious",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Logically correct."
+  },
+  {
+   "lessonId": "med-pharm-principles.l12",
+   "claim": "Narrow-index drugs include warfarin, digoxin, lithium, phenytoin, theophylline, aminoglycosides, cyclosporine, tacrolimus",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l12",
+   "claim": "Certain safety factor = LD1/ED99",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l12",
+   "claim": "With opioids, tolerance to respiratory depression develops more slowly than to analgesia/euphoria; limited tolerance to constipation and miosis",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch. Commonly taught; mechanism evidence is debated."
+  },
+  {
+   "lessonId": "med-pharm-principles.l13",
+   "claim": "Induction via PXR/CAR/AhR takes days to ~2 weeks; rifampin, carbamazepine, phenytoin, phenobarbital, St John's wort are inducers; smoking induces CYP1A2",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l13",
+   "claim": "Strong CYP3A4 inhibitors: ketoconazole, itraconazole, clarithromycin, ritonavir, grapefruit (intestinal); CYP2D6 inhibitors include fluoxetine, paroxetine, quinidine, bupropion",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l13",
+   "claim": "Warfarin S-isomer is cleared by CYP2C9; fluconazole and amiodarone inhibit CYP2C9; ciprofloxacin and fluvoxamine inhibit CYP1A2",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l14",
+   "claim": "Tyramine from aged cheese causes hypertensive crisis with non-selective MAOIs",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l14",
+   "claim": "Serotonin syndrome features: hyperthermia, clonus, hyperreflexia, agitation, autonomic instability; SSRI+MAOI, tramadol, linezolid contributors",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l14",
+   "claim": "Alcohol with metronidazole disulfiram-like reaction is traditional teaching with debated evidence",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Evidence is weak/debated, as the lesson states."
+  },
+  {
+   "lessonId": "med-pharm-principles.l15",
+   "claim": "Type A/B/C/D/E ADR classification; Gell-Coombs types I-IV",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l15",
+   "claim": "HIT is mediated by antibodies against PF4-heparin complexes (listed under type II)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch. HIT is non-IgE immune; Gell-Coombs placement varies by source."
+  },
+  {
+   "lessonId": "med-pharm-principles.l15",
+   "claim": "Fomepizole is antidote for methanol/ethylene glycol; physostigmine/pralidoxime atropine uses; FDA MedWatch and FAERS exist",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l16",
+   "claim": "HLA-B*57:01 predicts abacavir hypersensitivity; HLA-B*15:02 carbamazepine SJS/TEN; HLA-B*58:01 allopurinol",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/guidelines/"
+   ],
+   "note": "CPIC guidelines."
+  },
+  {
+   "lessonId": "med-pharm-principles.l16",
+   "claim": "TPMT/NUDT15 variants cause thiopurine myelosuppression; DPYD deficiency causes fluoropyrimidine toxicity; UGT1A1*28 irinotecan neutropenia",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/guidelines/"
+   ],
+   "note": "CPIC guidelines."
+  },
+  {
+   "lessonId": "med-pharm-principles.l16",
+   "claim": "CYP2D6 ultrarapid metabolizers risk morphine toxicity from codeine; CYP2C19 loss-of-function reduces clopidogrel activation",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/guidelines/"
+   ],
+   "note": "CPIC guidelines; also FDA boxed warnings."
+  },
+  {
+   "lessonId": "med-pharm-principles.l17",
+   "claim": "Sweat glands receive sympathetic cholinergic fibers acting on muscarinic receptors; adrenal medulla innervated by preganglionic fibers",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l17",
+   "claim": "Tyrosine hydroxylase is the rate-limiting enzyme for catecholamine synthesis",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l17",
+   "claim": "Neostigmine (quaternary) does not enter brain; physostigmine (tertiary) does and treats central anticholinergic toxicity",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l18",
+   "claim": "IND under 21 CFR Part 312 with 30-day FDA review; Kefauver-Harris Amendments 1962 added effectiveness requirement after thalidomide",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-312"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l18",
+   "claim": "PDUFA goals about 10 months standard and 6 months priority (counted from the 60-day filing date for NMEs)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/patients/drug-development-process/step-3-clinical-research"
+   ],
+   "note": "Clock for NMEs runs from filing date, i.e. about 12 and 8 months from submission; lesson says 'from filing', acceptable."
+  },
+  {
+   "lessonId": "med-pharm-principles.l18",
+   "claim": "Rule of thumb: an event with incidence 1 in 10,000 is unlikely seen in 3,000-patient trial",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Rule of three: ~95% chance to see none at 1/1000 requires 3000; for 1/10,000 certainly unlikely."
+  },
+  {
+   "lessonId": "med-pharm-principles.l19",
+   "claim": "FDA Pregnancy and Lactation Labeling Rule replaced letter categories, effective June 2015",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/labeling-information-drug-products/pregnancy-and-lactation-labeling-drugs-final-rule"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l19",
+   "claim": "ACE inhibitors/ARBs in second/third trimester cause fetal renal injury and oligohydramnios; valproate causes neural tube defects",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l19",
+   "claim": "Chloramphenicol causes gray baby syndrome in neonates via immature glucuronidation; sulfonamides displace bilirubin (kernicterus)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l20",
+   "claim": "Beers Criteria are from the American Geriatrics Society; polypharmacy commonly defined as five or more medicines",
+   "verdict": "supported",
+   "sources": [
+    "https://americangeriatrics.org/"
+   ],
+   "note": "Definitions of polypharmacy vary (commonly 5+)."
+  },
+  {
+   "lessonId": "med-pharm-principles.l20",
+   "claim": "Cockcroft-Gault used in many drug labels; serum creatinine misleading in low muscle mass",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  },
+  {
+   "lessonId": "med-pharm-principles.l20",
+   "claim": "Morphine-6-glucuronide accumulates in kidney disease; normeperidine causes seizures; lorazepam relatively preserved in cirrhosis",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard pharmacology reference knowledge (Goodman & Gilman; Katzung); no live fetch."
+  }
+ ]
+}

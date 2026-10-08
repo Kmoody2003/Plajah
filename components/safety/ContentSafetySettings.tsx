@@ -9,10 +9,28 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Shield, ShieldAlert, VolumeX, Sparkles, Plus, X, MessageSquareOff, BookOpenCheck } from 'lucide-react';
+import PrivacySettings from './PrivacySettings';
+import DiscoverySettings from '../discovery/DiscoverySettings';
+import type { UserProfile } from '../../types';
+import { auth } from '../../services/firebase';
 import {
   type SafetySettings, loadSafetySettings, saveSafetySettings,
   DEFAULT_SAFETY_SETTINGS, PROHIBITED_CONTENT, GUIDELINES_SUMMARY,
 } from '../../services/contentSafetyService';
+
+/** People-discovery privacy (suggest me, optional region matching, say-hi opt-out). Loads the viewer's profile itself. */
+const DiscoverySettingsMount: React.FC = () => {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const uid = auth.currentUser?.uid;
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    import('../../services/backendService').then(m => m.fetchUserProfile(uid)).then(p => { if (alive && p) setProfile(p); }).catch(() => {});
+    return () => { alive = false; };
+  }, [uid]);
+  if (!profile) return null;
+  return <DiscoverySettings viewer={profile} />;
+};
 
 const Toggle: React.FC<{ on: boolean; onChange: (v: boolean) => void }> = ({ on, onChange }) => (
   <button
@@ -178,6 +196,9 @@ export const ContentSafetySettings: React.FC = () => {
       </div>
 
       {/* Community guidelines */}
+      <PrivacySettings />
+      <DiscoverySettingsMount />
+
       <div className="p-5 bg-[#FF8C00]/[0.05] border border-[#FF8C00]/20 rounded-[1.5rem] space-y-3">
         <div className="flex items-center gap-3">
           <BookOpenCheck size={15} className="text-[#FF8C00]" />

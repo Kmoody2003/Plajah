@@ -38,36 +38,83 @@ function Wheel({ label, rgb, def, min, max, onChange, onMaster, master }) {
   const avg = (rgb[0] + rgb[1] + rgb[2]) / 3;
   return (
     <div className="cw">
+      <div className="cw-header">
+        <span className="cw-label">{label}</span>
+        <button className="cw-reset-btn" onClick={() => onChange([def, def, def])} title="Reset wheel">↺</button>
+      </div>
       <div className="cw-disc" ref={ref} onPointerDown={onDown} onDoubleClick={() => onChange([def, def, def])} title="Drag to balance color · double-click resets">
         <div className="cw-cross" /><div className="cw-cross v" />
         <div className="cw-puck" style={{ left: `calc(50% + ${px * 50}% )`, top: `calc(50% + ${py * 50}% )` }} />
       </div>
-      <div className="cw-label">{label}</div>
       <input className="cw-master" type="range" min={min} max={max} step="0.005" value={master ?? avg}
         onChange={(e) => onMaster(parseFloat(e.target.value))} onDoubleClick={() => onChange([def, def, def])} title="Master (luma)" />
-      <div className="cw-val mono">{avg.toFixed(2)}</div>
+      <div className="cw-channels">
+        <span style={{ color: "#ff6e6e" }}>{rgb[0].toFixed(2)}</span>
+        <span style={{ color: "#7ee88a" }}>{rgb[1].toFixed(2)}</span>
+        <span style={{ color: "#54c8ff" }}>{rgb[2].toFixed(2)}</span>
+      </div>
     </div>
   );
 }
 
 export default function ColorWheels({ wheel, setWheel }) {
   const shift = (key, delta) => setWheel({ [key]: wheel[key].map((v) => v + delta) });
+
+  const applyPreset = (name) => {
+    if (name === "neutral") {
+      setWheel({ lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1], temp: 0, tint: 0 });
+    } else if (name === "teal_orange") {
+      setWheel({
+        lift: [-0.04, 0.01, 0.06],
+        gamma: [1.02, 0.98, 0.94],
+        gain: [1.12, 1.02, 0.90],
+      });
+    } else if (name === "warm_golden") {
+      setWheel({
+        lift: [0.02, 0.01, -0.02],
+        gamma: [1.05, 1.02, 0.95],
+        gain: [1.15, 1.08, 0.92],
+      });
+    } else if (name === "punchy_film") {
+      setWheel({
+        lift: [-0.08, -0.08, -0.08],
+        gamma: [1.10, 1.10, 1.10],
+        gain: [1.18, 1.18, 1.18],
+      });
+    }
+  };
+
   return (
-    <div className="cwrap">
+    <div className="cwrap-outer">
       <style>{CW_CSS}</style>
-      <Wheel label="LIFT" rgb={wheel.lift} def={0} min={-0.5} max={0.5} onChange={(v) => setWheel({ lift: v })}
-        onMaster={(m) => shift("lift", m - (wheel.lift[0] + wheel.lift[1] + wheel.lift[2]) / 3)} />
-      <Wheel label="GAMMA" rgb={wheel.gamma} def={1} min={0.3} max={2.5} onChange={(v) => setWheel({ gamma: v })}
-        onMaster={(m) => shift("gamma", m - (wheel.gamma[0] + wheel.gamma[1] + wheel.gamma[2]) / 3)} />
-      <Wheel label="GAIN" rgb={wheel.gain} def={1} min={0} max={2.5} onChange={(v) => setWheel({ gain: v })}
-        onMaster={(m) => shift("gain", m - (wheel.gain[0] + wheel.gain[1] + wheel.gain[2]) / 3)} />
+      <div className="cw-presets">
+        <button className="cw-preset-btn" onClick={() => applyPreset("neutral")}>Reset</button>
+        <button className="cw-preset-btn" onClick={() => applyPreset("teal_orange")}>Teal / Orange</button>
+        <button className="cw-preset-btn" onClick={() => applyPreset("warm_golden")}>Warm Film</button>
+        <button className="cw-preset-btn" onClick={() => applyPreset("punchy_film")}>Punch</button>
+      </div>
+      <div className="cwrap">
+        <Wheel label="LIFT" rgb={wheel.lift} def={0} min={-0.5} max={0.5} onChange={(v) => setWheel({ lift: v })}
+          onMaster={(m) => shift("lift", m - (wheel.lift[0] + wheel.lift[1] + wheel.lift[2]) / 3)} />
+        <Wheel label="GAMMA" rgb={wheel.gamma} def={1} min={0.3} max={2.5} onChange={(v) => setWheel({ gamma: v })}
+          onMaster={(m) => shift("gamma", m - (wheel.gamma[0] + wheel.gamma[1] + wheel.gamma[2]) / 3)} />
+        <Wheel label="GAIN" rgb={wheel.gain} def={1} min={0} max={2.5} onChange={(v) => setWheel({ gain: v })}
+          onMaster={(m) => shift("gain", m - (wheel.gain[0] + wheel.gain[1] + wheel.gain[2]) / 3)} />
+      </div>
     </div>
   );
 }
 
 const CW_CSS = `
-.cwrap{display:flex;gap:12px;justify-content:space-between;padding:6px 2px 2px}
-.cw{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+.cwrap-outer{display:flex;flex-direction:column;gap:6px;padding:4px 2px}
+.cw-presets{display:flex;gap:5px;padding:0 4px;margin-bottom:2px}
+.cw-preset-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-radius:4px;color:rgba(255,255,255,.65);font-size:9px;font-weight:700;padding:2px 7px;cursor:pointer;transition:all .15s ease}
+.cw-preset-btn:hover{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)}
+.cwrap{display:flex;gap:12px;justify-content:space-between;padding:2px}
+.cw{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.cw-header{display:flex;align-items:center;justify-content:center;gap:4px;width:100%}
+.cw-reset-btn{background:none;border:none;color:rgba(255,255,255,.35);font-size:9px;cursor:pointer;padding:0 2px;transition:color .15s}
+.cw-reset-btn:hover{color:#00DAF3}
 .cw-disc{position:relative;width:100%;max-width:96px;aspect-ratio:1;border-radius:50%;cursor:crosshair;touch-action:none;
   background:
     radial-gradient(circle at 50% 50%,#2b2b31 0%,#2b2b31 30%,transparent 62%),
@@ -81,5 +128,5 @@ const CW_CSS = `
   box-shadow:0 1px 4px rgba(0,0,0,.7),0 0 8px rgba(255,255,255,.35);pointer-events:none;z-index:2}
 .cw-label{font-size:8.5px;font-weight:900;letter-spacing:.16em;color:#a8a8b2}
 .cw-master{width:100%;max-width:96px}
-.cw-val{font-size:9px;color:#d8d8e0;background:rgba(0,0,0,.4);border:1px solid var(--line-2);border-radius:3px;padding:0 6px}
+.cw-channels{display:flex;gap:6px;font-size:8px;font-family:monospace;font-weight:700;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:3px;padding:1px 5px}
 `;

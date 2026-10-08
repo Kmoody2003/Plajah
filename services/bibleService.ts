@@ -14,6 +14,7 @@ export interface BibleTranslation {
 
 // The translations the reader offers. Greek/Hebrew are testament-specific.
 export const TRANSLATIONS: BibleTranslation[] = [
+  { slug: 'douayrheims', label: 'Douay-Rheims (Catholic)', lang: 'en', testament: 'BOTH' },
   { slug: 'kjv',            label: 'King James',        lang: 'en', testament: 'BOTH' },
   { slug: 'vulgate',        label: 'Latin Vulgate',     lang: 'la', testament: 'BOTH' },
   { slug: 'textusreceptus', label: 'Greek (NT · TR)',   lang: 'el', testament: 'NT' },

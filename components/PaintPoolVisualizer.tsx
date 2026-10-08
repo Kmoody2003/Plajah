@@ -466,11 +466,12 @@ const PaintPoolVisualizer: React.FC<Props> = ({ analyser, isPlaying, alwaysAnima
       bassAvg   = bassAvg   * 0.93 + bass   * 0.07;
       energyAvg = energyAvg * 0.96 + energy * 0.04;
 
-      if (isPlaying && analyser && bass > bassAvg * BEAT_RATIO && bass > 0.10 && now - lastBeat > BEAT_COOLDOWN) {
+      const dynBeatFloor = Math.max(0.05, bassAvg * 0.65);
+      if (isPlaying && analyser && bass > bassAvg * BEAT_RATIO && bass > dynBeatFloor && now - lastBeat > BEAT_COOLDOWN) {
         lastBeat = now;
 
         // Beat strength: 0 = barely above threshold, 1 = massive hit
-        const beatStr = Math.min((bass / (bassAvg * BEAT_RATIO) - 1.0) * 0.8, 1.0);
+        const beatStr = Math.min((bass / (bassAvg * BEAT_RATIO) - 1.0) * 1.1, 1.0);
 
         const col = dropColor(bass, mid, treble, vocal);
 

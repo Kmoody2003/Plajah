@@ -1,0 +1,22 @@
+# med-micro: claims for expert review
+
+- l01: Legionella listed among poorly Gram-staining organisms (true, but safranin detail is textbook shorthand).
+- l02: botulinum toxin phage conversion (types C and D) and Shiga/cholera lysogeny; cholera toxin is phage-encoded (CTX phage), verify wording.
+- l03: "up to a fifth of T cells" for superantigen activation (commonly quoted approximation).
+- l05: S. saprophyticus novobiocin-resistant vs S. epidermidis sensitive; PYR/bacitracin identification schemes; "specific anti-MRSA cephalosporins" (ceftaroline) left unnamed.
+- l06: Bacillus cereus emetic vs diarrheal timing; C. perfringens "double zone of hemolysis"; C. difficile toxin gene testing statement vs current IDSA/SHEA testing algorithms.
+- l07: antibiotics possibly raising HUS risk with O157:H7 (evidence mixed, stated as "may"); E. coli K1 neonatal meningitis.
+- l08: Legionella urinary antigen limited to serogroup 1; Stenotrophomonas intrinsic carbapenem resistance; Campylobacter 42 C growth.
+- l09: tuberculin induration thresholds not given; first-line drug adverse effects; "Mycobacterium avium prophylaxis below about 50" is older practice and current guidelines differ (lesson l16 repeats this); Ghon complex timing (2 to 3 weeks); guideline anchor ATS/CDC/ERS/IDSA 2016.
+- l10: Argyll Robertson pupils/tabes dorsalis placement under neurosyphilis; "many labs run the sequence in reverse" (reverse algorithm); Ixodes tick attachment time "more than a day" (commonly 36 hours); doxycycline for children above eight years (current AAP guidance allows shorter courses in younger children).
+- l11: Rocky Mountain spotted fever region statement (southeastern and south-central US); Chlamydophila naming (now Chlamydia); Weil-Felix described as historical.
+- l12: Capnocytophaga risk groups; Amblyomma (lone star) as vector of E. chaffeensis; "bipolar staining safety pin" for Y. pestis; Babesia coinfection with Borrelia.
+- l13: Poxvirus statement that molluscum causes pearly papules; mpox described briefly with no clade detail; HPV types 6, 11, 16, 18 only.
+- l14: Heterophile test false negatives in young children; HSV-1 trigeminal vs HSV-2 sacral latency simplification; recombinant zoster vaccine age statement left vague.
+- l15: Baloxavir class named; RSV prevention products described generically (maternal vaccine and monoclonal antibodies, as of this writing); Ebola vaccine/monoclonal availability; rhinovirus acid lability; hepatitis C taxonomy (Flaviviridae); prions mentioned briefly.
+- l16: "HIV AIDS-defining CD4 below 200"; toxoplasma prophylaxis threshold (about 100); fourth-generation test algorithm wording; HHS guideline anchor year 2024 (verify); "screening recommended for adults by current US guidelines" for HCV.
+- l17: Coccidioides desert rheumatism; Paracoccidioides pilot-wheel; aflatoxin as hepatocarcinogen from A. flavus; flucytosine and griseofulvin mechanisms; mucormycosis and voriconazole inactivity.
+- l18: P. vivax Duffy requirement; tafenoquine G6PD testing; Giardia and Entamoeba treatment generalization; "chlorine resistant" Cryptosporidium; Babesia Maltese cross.
+- l19: Praziquantel exception for echinococcus; doxycycline against Wolbachia; Clonorchis cholangiocarcinoma; Loa loa vector (deer fly, Chrysops).
+- l20: Autoclave 121 C times "15 to 30 minutes" approximate; CDC Isolation Precautions 2007 anchor; MBC definition; high-level disinfectant list.
+- Questions: several level-3 vignettes simplify real presentations (e.g., l14 q4 atypical lymphocytes as CD8 T cells; l18 q5 empirical toxoplasma approach); expert review of stems recommended.

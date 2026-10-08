@@ -19,6 +19,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ analyser, themeColor, trackTitl
   const animationRef = useRef<number | null>(null);
   const rotationRef = useRef(0);
   const lyricPosRef = useRef(0);
+  const bassMaxRef = useRef(0.35);
+  const midMaxRef = useRef(0.30);
 
   useEffect(() => {
     if (!canvasRef.current || isVideoMode || (!analyser && !alwaysAnimate)) {
@@ -61,8 +63,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ analyser, themeColor, trackTitl
 
       let isFlat = !analyser;
       if (analyser) {
-        for(let i = 0; i < dataArray.length; i++) {
-          if (dataArray[i] > 0) { isFlat = false; break; }
+        for(let i = 0; i < Math.min(dataArray.length, 64); i++) {
+          if (dataArray[i] > 2) { isFlat = false; break; }
         }
       }
 
@@ -71,15 +73,29 @@ const Visualizer: React.FC<VisualizerProps> = ({ analyser, themeColor, trackTitl
         bass = (Math.sin(time * 2) * 0.5 + 0.5 + Math.random() * 0.2) * 0.8;
         mid = (Math.cos(time * 4) * 0.5 + 0.5 + Math.random() * 0.3) * 0.6;
       } else {
-        for(let i=0; i<15; i++) bass += dataArray[i];
-        for(let i=15; i<80; i++) mid += dataArray[i];
-        bass = (bass / 15) / 255;
-        mid = (mid / 65) / 255;
+        let rawBass = 0;
+        let rawMid = 0;
+        for(let i=0; i<15; i++) rawBass += dataArray[i];
+        for(let i=15; i<80; i++) rawMid += dataArray[i];
+        rawBass = (rawBass / 15) / 255;
+        rawMid = (rawMid / 65) / 255;
+
+        // Adaptive Gain Control (AGC): dynamically adapts to track volume and mastering levels
+        // so quiet acoustic tracks and loud electronic tracks both achieve full visual excursion.
+        bassMaxRef.current = Math.max(bassMaxRef.current * 0.996, 0.22, rawBass);
+        midMaxRef.current = Math.max(midMaxRef.current * 0.996, 0.18, rawMid);
+
+        const normBass = Math.min(1.0, rawBass / Math.max(0.12, bassMaxRef.current));
+        const normMid = Math.min(1.0, rawMid / Math.max(0.10, midMaxRef.current));
+
+        // Power-curve mapping: kicks and transient drops snap punchily instead of linear numbness
+        bass = Math.pow(normBass, 1.35) * 1.30;
+        mid = Math.pow(normMid, 1.20) * 1.15;
       }
 
       if (isPlaying || alwaysAnimate) {
-        rotationRef.current += 0.002 + (bass * 0.01);
-        lyricPosRef.current += 1 + (bass * 2);
+        rotationRef.current += 0.003 + (bass * 0.02);
+        lyricPosRef.current += 1.2 + (bass * 2.5);
       }
 
       // 1. 16-Band Visualizer Bars (Removed as requested)
@@ -99,8 +115,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ analyser, themeColor, trackTitl
         ctx.moveTo(baseRadius * 0.5, 0);
         
         const cp1x = baseRadius * (1.5 + mid * 2);
-        const cp1y = -baseRadius * (1 + bass * 2);
-        const cp2x = baseRadius * (2 + bass * 3);
+        const cp1y = -baseRadius * (1 + bass * 2.5);
+        const cp2x = baseRadius * (2 + bass * 3.5);
         const cp2y = baseRadius * (1 + mid * 2);
         
         const grad = ctx.createLinearGradient(0, 0, cp2x, cp2y);
@@ -121,8 +137,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ analyser, themeColor, trackTitl
 
         ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, baseRadius, baseRadius);
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 2 + bass * 15;
-        ctx.globalAlpha = 0.4 + mid * 0.4;
+        ctx.lineWidth = 2.5 + bass * 22;
+        ctx.globalAlpha = 0.45 + mid * 0.45;
         ctx.stroke();
         ctx.restore();
       }

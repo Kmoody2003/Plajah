@@ -1,0 +1,156 @@
+[
+  {
+    "lesson": "history-europe.l15",
+    "id": "reformation-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-europe.l20",
+    "id": "revolution-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-europe.l23",
+    "id": "unification-dates",
+    "verdict": "ok",
+    "issue": "Dates match lesson. Caption \"completed in 1870\" is true to the lesson (Rome) though Trento/Trieste came in 1918; minor.",
+    "fix": "Optional: \"Italy took Rome in 1870 and the German Empire was proclaimed in January 1871.\""
+  },
+  {
+    "lesson": "history-europe.l25",
+    "id": "alliance-blocs",
+    "verdict": "unsure",
+    "issue": "Matches lesson, but in 1914 Italy stayed neutral and joined the Entente in 1915; diagram titled \"in 1914\" shows it as a Triple Alliance member without qualification.",
+    "fix": "Title/alt: \"The two blocs before 1914 (Italy stayed neutral in 1914 and joined the Entente in 1915)\"."
+  },
+  {
+    "lesson": "history-europe.l25",
+    "id": "ww1-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-europe.l26",
+    "id": "soviet-dates",
+    "verdict": "wrong",
+    "issue": "Caption says months are given in the Western calendar, but \"Feb 1917\" and \"Oct 1917\" are the Julian (old style) months; Western dates are March and November. Caption contradicts the labels and the lesson.",
+    "fix": "Caption: \"The 1917 months follow the older Julian calendar, which is why they are called the February and October revolutions (March and November in the Western calendar).\""
+  },
+  {
+    "lesson": "history-europe.l28",
+    "id": "ww2-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-europe.l29",
+    "id": "cold-war-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-europe.l31",
+    "id": "eu-dates",
+    "verdict": "unsure",
+    "issue": "Label \"1992 Maastricht Treaty creates the European Union\": treaty was signed 1992 but the EU came into being when it took effect in November 1993 (lesson says \"signed in 1992, created the EU\").",
+    "fix": "Label: \"Maastricht Treaty signed; European Union established 1993\"."
+  },
+  {
+    "lesson": "history-europe.l32",
+    "id": "1989-dates",
+    "verdict": "wrong",
+    "issue": "Caption \"about two years\" from June 1989 to December 1991 is about two and a half years.",
+    "fix": "Caption: \"...took about two and a half years, from partly free elections in Poland (June 1989) to the dissolution of the Soviet Union (December 1991).\""
+  },
+  {
+    "lesson": "history-asia.l20",
+    "id": "opium-war-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-asia.l22",
+    "id": "meiji-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-asia.l24",
+    "id": "partition-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-asia.l26",
+    "id": "china-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-arab-world.l05",
+    "id": "rashidun-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "history-arab-world.l23",
+    "id": "mandate-dates",
+    "verdict": "wrong",
+    "issue": "Caption \"Three agreements made within two years\": McMahon correspondence began July 1915 and Balfour was Nov 1917 (about 28 months); also McMahon letters and Balfour Declaration are not agreements between parties, and the lesson dates them 1916-1917.",
+    "fix": "Caption: \"Three commitments made between 1915 and 1917 promised different things to different parties, before the mandates settled the matter.\""
+  },
+  {
+    "lesson": "history-south-america.l08",
+    "id": "inca-end-dates",
+    "verdict": "wrong",
+    "issue": "Caption \"in a state that began with an Inca civil war\" is misleading: the Vilcabamba (Neo-Inca) state arose from Manco Inca rebellion c. 1536-1537, not the civil war. The lesson does not give that date.",
+    "fix": "Caption: \"The empire fell quickly, but a rebel Inca state at Vilcabamba held out until 1572, four decades after Cajamarca.\""
+  },
+  {
+    "lesson": "history-south-america.l16",
+    "id": "north-campaign-dates",
+    "verdict": "wrong",
+    "issue": "Label puts the Angostura congress creating Gran Colombia under \"Aug 1819\" (Boyaca). The congress opened Feb 1819 and Gran Colombia was proclaimed in December 1819; lesson says only \"that year\".",
+    "fix": "Label: \"Boyaca (Aug): New Granada freed; Gran Colombia created at Angostura (Dec)\" with when \"1819\"."
+  },
+  {
+    "lesson": "history-south-america.l17",
+    "id": "south-campaign-dates",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "founding-documents.l07",
+    "id": "preamble-purposes",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "founding-documents.l09",
+    "id": "first-amendment-map",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  },
+  {
+    "lesson": "founding-documents.l12",
+    "id": "thread-timeline",
+    "verdict": "ok",
+    "issue": "",
+    "fix": ""
+  }
+]

@@ -35,7 +35,7 @@ const ButterchurnLayer: React.FC<Props> = ({
 
   // Capture a thumbnail for the current preset (debounced).
   const captureThumbnail = (name: string, delay: number) => {
-    if (thumbnailsRef.current[name]) return; // already captured
+    if (!onThumbnail || thumbnailsRef.current[name]) return; // already captured or not requested
     if (thumbTimerRef.current) clearTimeout(thumbTimerRef.current);
     thumbTimerRef.current = setTimeout(() => {
       const canvas = canvasRef.current;

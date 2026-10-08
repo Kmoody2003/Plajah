@@ -68,6 +68,50 @@ export interface DirectorFeed {
   joinedAt: number;
   /** Last time this feed was on PROGRAM (ms). Used by the director for recency. */
   lastOnAt?: number;
+  /** When this contributor acknowledged the production's filming policy (school events). */
+  policyAckAt?: number;
+}
+
+/** Who can watch. 'school' = signed-in members of the linked school/org community only. */
+export type ProductionAudience = 'public' | 'unlisted' | 'school';
+
+/** The school / team a production belongs to (Sports Director for schools). */
+export interface SchoolContext {
+  /** organizations/{orgId} — the school or team org (OrgType SCHOOL/TEAM). */
+  orgId?: string;
+  schoolName?: string;
+  /** "Varsity", "JV", "U12 Girls", … */
+  level?: string;
+  sport?: string;
+}
+
+/** Filming-consent record for an event involving minors. Going live is gated on `confirmed`. */
+export interface MediaConsent {
+  /** The organiser confirms the school/league media release covers this event. */
+  confirmed: boolean;
+  confirmedBy?: string;
+  confirmedAt?: number;
+  /** Policy text contributors acknowledge before their camera joins. */
+  policy?: string;
+  /** Jersey numbers whose guardians opted out of filming: never tagged in highlights. */
+  restrictedJerseys?: string[];
+}
+
+/** Where the production's program went (set by the producer's device). */
+export interface ProductionOutputs {
+  liveStreamId?: string;
+  watchUrl?: string;
+  recordingIds?: string[];
+}
+
+/** Advanced setup: a Control Room switcher is driving (or being driven by) this production. */
+export interface ConsoleLink {
+  active: boolean;
+  /** 'director-drives-switcher' = this production's auto-director cues the switcher;
+   *  'switcher-is-program' = the switcher's program output is the production's program. */
+  mode: 'director-drives-switcher' | 'switcher-is-program';
+  by: string;
+  at: number;
 }
 
 /** The shared "who is live" truth every viewer renders. */
@@ -101,7 +145,21 @@ export interface SmartProduction {
   settings: ProductionSettings;
   createdAt: number;
   updatedAt: number;
+  // ── Sports Director for schools (all optional — older docs lack them) ──
+  audience?: ProductionAudience;
+  school?: SchoolContext;
+  consent?: MediaConsent;
+  outputs?: ProductionOutputs;
+  consoleLink?: ConsoleLink;
 }
+
+export const DEFAULT_FILMING_POLICY =
+  'This is a school event. Film the game, not individuals off the field. Don\'t post clips of students ' +
+  'separately — the production saves and shares them. Stop filming if a coach, official, or parent asks.';
+
+/** Link a contributor opens to join (or watch) a production. */
+export const directorJoinUrl = (productionId: string) =>
+  `${typeof window !== 'undefined' ? window.location.origin : ''}/?director=${productionId}`;
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -153,6 +211,9 @@ export interface CreateProductionParams {
   ownerJoinsAsCamera?: boolean;
   ownerRole?: ContributorRole;
   ownerLabel?: string;
+  audience?: ProductionAudience;
+  school?: SchoolContext;
+  consent?: MediaConsent;
 }
 
 export async function createProduction(params: CreateProductionParams): Promise<SmartProduction | null> {
@@ -190,6 +251,9 @@ export async function createProduction(params: CreateProductionParams): Promise<
       settings: { ...DEFAULT_SETTINGS, ...(params.settings ?? {}) },
       createdAt: now,
       updatedAt: now,
+      audience: params.audience ?? 'public',
+      school: params.school,
+      consent: params.consent,
     };
     await setDoc(ref, stripUndefined(production));
     return production;
@@ -219,6 +283,8 @@ export interface JoinParams {
   label?: string;
   /** Feed id (defaults to contributorId so rtc peer ids line up with tiles). */
   feedId?: string;
+  /** When they acknowledged the filming policy (required by the UI for school events). */
+  policyAckAt?: number;
 }
 
 /** Join a production as a contributor. Idempotent on contributorId: re-joining
@@ -244,6 +310,7 @@ export async function joinAsContributor(productionId: string, params: JoinParams
         active: true,
         joinedAt: existing >= 0 ? feeds[existing].joinedAt : now,
         lastOnAt: existing >= 0 ? feeds[existing].lastOnAt : undefined,
+        policyAckAt: params.policyAckAt ?? (existing >= 0 ? feeds[existing].policyAckAt : undefined),
       };
       if (existing >= 0) feeds[existing] = { ...feeds[existing], ...slot };
       else feeds.push(slot);
@@ -358,6 +425,25 @@ export async function updateSettings(productionId: string, patch: Partial<Produc
   } catch (e) {
     console.warn('[smartDirector] updateSettings failed:', (e as Error)?.message);
   }
+}
+
+/** Owner edits: audience, school context, consent, outputs, console link. Merged, not replaced. */
+export async function updateProduction(
+  productionId: string,
+  patch: Partial<Pick<SmartProduction, 'eventTitle' | 'audience' | 'school' | 'consent' | 'outputs' | 'consoleLink'>>,
+): Promise<void> {
+  try {
+    await setDoc(productionRef(productionId), stripUndefined({ ...patch, updatedAt: Date.now() }), { merge: true });
+  } catch (e) {
+    console.warn('[smartDirector] updateProduction failed:', (e as Error)?.message);
+  }
+}
+
+/** The organiser confirms the media release covers this event (gates going live). */
+export function confirmMediaRelease(productionId: string, by: string, consent: Omit<MediaConsent, 'confirmed' | 'confirmedBy' | 'confirmedAt'> = {}) {
+  return updateProduction(productionId, {
+    consent: { ...consent, confirmed: true, confirmedBy: by, confirmedAt: Date.now() },
+  });
 }
 
 export async function endProduction(productionId: string): Promise<void> {

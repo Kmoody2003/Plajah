@@ -60,6 +60,9 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
   const [journalBody, setJournalBody] = useState('');
   const [savingJournal, setSavingJournal] = useState(false);
   const [lastMood, setLastMood] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [isDismissed, setIsDismissed] = useState(() => {
+    try { return sessionStorage.getItem('ora:orb:dismissed') === '1'; } catch { return false; }
+  });
   const holdTimer = useRef<number | null>(null);
   const nudgeTimer = useRef<number | null>(null);
   const autoRecedeTimer = useRef<number | null>(null);
@@ -387,52 +390,50 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
             </div>
           )}
 
-          {/* ── JOURNAL MODE: inline textarea ── */}
+          {/* ── JOURNAL INLINE MODE ── */}
           {mode === 'JOURNAL' && (
-            <div style={{ padding: 'var(--pj-space-4)' }}>
-              <p className="type-label-sm" style={{ margin: '0 0 var(--pj-space-2)', color: 'var(--pj-lilac)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                {nudgeDaypart ? DAYPART_LABELS[nudgeDaypart] : 'Quick entry'}
-              </p>
+            <div style={{ padding: 'var(--pj-space-3) var(--pj-space-4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--pj-space-2)' }}>
+                <span className="type-label-sm" style={{ color: 'var(--pj-lilac)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  {nudgeDaypart ? DAYPART_LABELS[nudgeDaypart] : 'Journal'}
+                </span>
+                <IconButton variant="ghost" size="sm" aria-label="Close journal" onClick={() => setMode('ACTIONS')}>
+                  <X size={12} />
+                </IconButton>
+              </div>
               <textarea
                 ref={textareaRef}
                 value={journalBody}
-                onChange={(e) => {
-                  clearAutoRecede();
-                  setJournalBody(e.target.value);
-                }}
-                onFocus={clearAutoRecede}
-                placeholder={nudgePrompt?.prompt ?? 'Write as much or as little as you want.'}
+                onChange={(e) => setJournalBody(e.target.value)}
+                placeholder="What's present for you right now?"
                 rows={4}
                 style={{
-                  width: '100%', resize: 'vertical',
-                  background: 'var(--pj-glass-2)',
-                  border: '1px solid var(--pj-border)',
-                  borderRadius: 12, padding: 'var(--pj-space-3)',
-                  color: 'var(--text-primary)', fontFamily: 'inherit',
-                  fontSize: 14, lineHeight: 1.5,
+                  width: '100%',
+                  background: 'var(--pj-glass-1)',
+                  border: '1px solid var(--pj-border-strong)',
+                  borderRadius: 'var(--pj-radius-md)',
+                  color: 'var(--text-primary)',
+                  fontSize: 13,
+                  padding: 'var(--pj-space-2) var(--pj-space-3)',
+                  resize: 'none',
                   outline: 'none',
+                  marginBottom: 'var(--pj-space-2)',
+                  fontFamily: 'inherit',
+                  lineHeight: 1.5,
                 }}
               />
-              <p className="type-body-xs" style={{ margin: 'var(--pj-space-2) 0 var(--pj-space-3)', color: 'var(--on-surface-variant)' }}>
-                Encrypted before it leaves this device.
-              </p>
-              <div style={{ display: 'flex', gap: 'var(--pj-space-2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--pj-space-2)' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    clearAutoRecede();
-                    setMode('ACTIONS');
-                    setJournalBody('');
-                    setOpen(false);
-                  }}
+                  onClick={() => setMode('ACTIONS')}
                   className="tap"
                   style={{
-                    flex: 1, padding: 'var(--pj-space-2)',
+                    padding: 'var(--pj-space-1) var(--pj-space-3)',
                     borderRadius: 'var(--pj-radius-full)',
                     background: 'transparent',
-                    border: '1px solid var(--pj-border)',
-                    color: 'var(--on-surface-variant)', fontWeight: 600,
-                    fontSize: 13, cursor: 'pointer',
+                    border: 'none',
+                    color: 'var(--on-surface-variant)',
+                    fontSize: 12, cursor: 'pointer',
                   }}
                 >
                   Cancel
@@ -440,15 +441,16 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
                 <button
                   type="button"
                   onClick={handleSaveJournal}
-                  disabled={!journalBody.trim() || savingJournal}
+                  disabled={savingJournal || !journalBody.trim()}
                   className="tap"
                   style={{
-                    flex: 1, padding: 'var(--pj-space-2)',
+                    padding: 'var(--pj-space-1) var(--pj-space-4)',
                     borderRadius: 'var(--pj-radius-full)',
-                    background: journalBody.trim() ? 'var(--pj-grad-ethereal)' : 'var(--pj-glass-3)',
+                    background: journalBody.trim() ? 'var(--pj-grad-ethereal)' : 'var(--pj-glass-2)',
                     border: 'none',
                     color: journalBody.trim() ? '#160826' : 'var(--on-surface-variant)',
-                    fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: 12, cursor: journalBody.trim() ? 'pointer' : 'default',
                     opacity: savingJournal ? 0.6 : 1,
                   }}
                 >
@@ -458,38 +460,42 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
             </div>
           )}
 
-          {/* ── ACTIONS MODE: the three-action menu ── */}
+          {/* ── ACTIONS MODE (default) ── */}
           {mode === 'ACTIONS' && (
             <>
               {/* Row 1: Mood check-in */}
-              <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 'var(--pj-space-2)' }}>
-                <p className="type-label-lg" style={{ margin: 0 }}>
-                  {done ? 'Checked in ✓' : 'How are you?'}
+              <div style={{ padding: 'var(--pj-space-3) var(--pj-space-4)' }}>
+                <p className="type-label-sm" style={{ margin: '0 0 var(--pj-space-2)', color: 'var(--on-surface-variant)' }}>
+                  {done ? 'Checked in today' : 'How are you right now?'}
                 </p>
-                {!done && (
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {MOODS.map((m) => (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--pj-space-1)' }}>
+                  {MOODS.map((m) => {
+                    const isSaving = saving === m.v;
+                    return (
                       <button
                         key={m.v}
                         type="button"
-                        aria-label={m.label}
-                        disabled={saving !== null}
                         onClick={() => record(m.v)}
+                        disabled={saving !== null}
+                        aria-label={`Mood: ${m.label}`}
+                        title={m.label}
                         className="tap"
                         style={{
-                          width: 34, height: 34, borderRadius: '50%',
+                          width: 36, height: 36, borderRadius: '50%',
+                          display: 'grid', placeItems: 'center',
+                          background: 'var(--pj-glass-2)',
                           border: '1px solid var(--pj-border)',
-                          background: saving === m.v ? 'var(--pj-orange)' : 'var(--pj-glass-2)',
-                          color: saving === m.v ? '#12080a' : 'var(--text-primary)',
-                          fontSize: 15, lineHeight: 1, cursor: 'pointer',
-                          transition: 'background-color var(--pj-dur-base) var(--pj-ease-standard)',
+                          color: 'var(--text-primary)',
+                          fontSize: 16, cursor: 'pointer',
+                          transition: 'transform var(--pj-dur-fast) var(--pj-ease-standard)',
+                          opacity: isSaving ? 0.5 : 1,
                         }}
                       >
                         {m.glyph}
                       </button>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
               </div>
 
               <div style={dividerStyle} />
@@ -536,37 +542,98 @@ export const OraRail: React.FC<OraRailProps> = ({ currentView, onOpenRoom }) => 
         </div>
       )}
 
-      {/* The orb. Unlabelled and unrevealing by design — handing someone your
-          phone should not advertise that you keep a journal on it. */}
-      <button
-        type="button"
-        aria-label={open ? 'Close Ora' : 'Ora — tap to check in, hold to open'}
-        aria-expanded={open}
-        onPointerDown={startHold}
-        onPointerUp={endHold}
-        onPointerLeave={() => { if (holdTimer.current) { window.clearTimeout(holdTimer.current); holdTimer.current = null; } }}
-        style={{
-          pointerEvents: 'auto',
-          width: 44, height: 44, borderRadius: '50%', flex: 'none',
-          border: '1px solid var(--pj-border-strong)',
-          background: done || dismissedToday
-            ? 'var(--pj-glass-3)'
-            : 'var(--pj-grad-ethereal)',
-          boxShadow: done || dismissedToday ? 'var(--pj-elev-2)' : 'var(--pj-glow-cyan)',
-          display: 'grid', placeItems: 'center',
-          cursor: 'pointer', touchAction: 'manipulation',
-          transition: 'background var(--pj-dur-slow) var(--pj-ease-standard), box-shadow var(--pj-dur-slow) var(--pj-ease-standard)',
-        }}
-      >
-        <span
-          aria-hidden="true"
-          style={{
-            width: 14, height: 14, borderRadius: '50%',
-            border: '2px solid ' + (done || dismissedToday ? 'var(--on-surface-variant)' : '#160826'),
+      {/* The orb with touch drag capture */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <button
+          type="button"
+          aria-label={open ? 'Close Ora' : 'Ora — tap to check in, hold to open'}
+          aria-expanded={open}
+          {...floating.dragProps}
+          onPointerDown={(e) => {
+            floating.dragProps.onPointerDown(e);
+            startHold();
           }}
-        />
-      </button>
-      <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={floating.togglePinned} aria-label={floating.pinned ? 'Unpin Ora' : 'Pin Ora here'} aria-pressed={floating.pinned} style={{ pointerEvents: 'auto', position: 'absolute', right: -5, top: -7, width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--bg-color)', border: '1px solid var(--pj-border-strong)', color: 'var(--on-surface-variant)' }}>{floating.pinned ? <Pin size={10} /> : <PinOff size={10} />}</button>
+          onPointerUp={endHold}
+          onPointerCancel={endHold}
+          onPointerLeave={() => { if (holdTimer.current) { window.clearTimeout(holdTimer.current); holdTimer.current = null; } }}
+          style={{
+            pointerEvents: 'auto',
+            width: 44, height: 44, borderRadius: '50%', flex: 'none',
+            border: '1px solid var(--pj-border-strong)',
+            background: done || dismissedToday
+              ? 'var(--pj-glass-3)'
+              : 'var(--pj-grad-ethereal)',
+            boxShadow: done || dismissedToday ? 'var(--pj-elev-2)' : 'var(--pj-glow-cyan)',
+            display: 'grid', placeItems: 'center',
+            cursor: 'grab', touchAction: 'none',
+            transition: 'background var(--pj-dur-slow) var(--pj-ease-standard), box-shadow var(--pj-dur-slow) var(--pj-ease-standard)',
+            ...floating.dragProps.style,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 14, height: 14, borderRadius: '50%',
+              border: '2px solid ' + (done || dismissedToday ? 'var(--on-surface-variant)' : '#160826'),
+            }}
+          />
+        </button>
+
+        {/* Pin toggle button */}
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={floating.togglePinned}
+          aria-label={floating.pinned ? 'Unpin Ora' : 'Pin Ora here'}
+          aria-pressed={floating.pinned}
+          style={{
+            pointerEvents: 'auto',
+            position: 'absolute',
+            right: -6,
+            top: -6,
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            background: 'var(--bg-color)',
+            border: '1px solid var(--pj-border-strong)',
+            color: 'var(--on-surface-variant)',
+            zIndex: 2,
+          }}
+        >
+          {floating.pinned ? <Pin size={10} /> : <PinOff size={10} />}
+        </button>
+
+        {/* 1-tap dismiss button on mobile/desktop so orb never traps user */}
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => {
+            setIsDismissed(true);
+            try { sessionStorage.setItem('ora:orb:dismissed', '1'); } catch {}
+          }}
+          aria-label="Hide Ora"
+          title="Hide Ora"
+          style={{
+            pointerEvents: 'auto',
+            position: 'absolute',
+            left: -6,
+            top: -6,
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            background: 'var(--bg-color)',
+            border: '1px solid var(--pj-border-strong)',
+            color: 'var(--on-surface-variant)',
+            zIndex: 2,
+          }}
+        >
+          <X size={10} />
+        </button>
+      </div>
     </div>
   );
 };

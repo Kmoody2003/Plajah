@@ -1,0 +1,1252 @@
+{
+ "courseId": "law-legalwriting",
+ "verifier": "B",
+ "note": "ABA (americanbar.org) pages returned 403 to WebFetch and curl; Model Rule 3.1/3.3/3.4 text checked via mirrored PDFs (Sedona Conference, Univ. of Houston). case.law homepage rendered empty; CAP checked via Harvard LIL page. Twombly LII page 404. No contradicted claims; Chevron/Loper Bright treatment is current.",
+ "fetched": 36,
+ "questions": [
+  {
+   "id": "law-legalwriting.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Correct choice is a short stub while distractors are long; length cue gives the answer away."
+  },
+  {
+   "id": "law-legalwriting.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Correct choice is truncated (\"State substantive law supplies the claim\") and omits the federal-procedure half; still the only defensible option."
+  },
+  {
+   "id": "law-legalwriting.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l07.q2",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "List ends with \"and other tools\", a catch-all that undercuts an expressio unius inference; choice 0 is also defensible on the text. Use a list without a catch-all."
+  },
+  {
+   "id": "law-legalwriting.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l08.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Prompt has the State X court of appeals facing its own prior decision, but the option speaks of binding lower courts; wording muddled though it is the only accurate choice."
+  },
+  {
+   "id": "law-legalwriting.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/07-1015"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_56"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/07-1015"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_11"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_52",
+    "https://www.law.cornell.edu/supremecourt/text/470/564"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/470/564"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/517/690"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l14.q3",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-202"
+   ],
+   "note": "Correct choice is truncated mid-sentence (\"Evidence of prior or contemporaneous agreements\") with no predicate; answerable only by elimination. Fix the choice text."
+  },
+  {
+   "id": "law-legalwriting.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l15.q1",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Correct choice is truncated (\"States that if one provision is held invalid\") with no consequence clause; answerable only by elimination."
+  },
+  {
+   "id": "law-legalwriting.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.thesedonaconference.org/sites/default/files/meeting_paper/9.5%20Rule%203.3_%20Candor%20Toward%20the%20Tribunal.pdf"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.thesedonaconference.org/sites/default/files/meeting_paper/9.5%20Rule%203.3_%20Candor%20Toward%20the%20Tribunal.pdf"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/475/157"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.thesedonaconference.org/sites/default/files/meeting_paper/9.5%20Rule%203.3_%20Candor%20Toward%20the%20Tribunal.pdf"
+   ],
+   "note": "Correct choice truncated (\"Lena must disclose the decision\"); length cue."
+  },
+  {
+   "id": "law-legalwriting.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.thesedonaconference.org/sites/default/files/meeting_paper/9.5%20Rule%203.3_%20Candor%20Toward%20the%20Tribunal.pdf"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l19.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l19.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mata_v._Avianca,_Inc."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l19.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Correct choice truncated (\"Review the terms, assess confidentiality risks\"); length cue."
+  },
+  {
+   "id": "law-legalwriting.l20.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2019/006.pdf"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2019/006.pdf"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-legalwriting.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2019/006.pdf"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-legalwriting.l01",
+   "claim": "Restatements are written by the American Law Institute and are secondary authority.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ali.org/about-ali/"
+   ],
+   "note": "ALI describes Restatements as scholarly works written primarily for judges."
+  },
+  {
+   "lessonId": "law-legalwriting.l01",
+   "claim": "Court rules such as the Federal Rules of Civil Procedure are primary authority.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard taxonomy; no page opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l01",
+   "claim": "A decision from a higher court in the same system is mandatory; out-of-state decisions are persuasive at most.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard doctrine; not checked against an opened page."
+  },
+  {
+   "lessonId": "law-legalwriting.l02",
+   "claim": "Erie Railroad Co. v. Tompkins (1938): a federal court in diversity applies state substantive law, including state common law as declared by its courts; no general federal common law.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/304/64"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l02",
+   "claim": "Under the Supremacy Clause (Art. VI) valid federal law prevails over conflicting state law.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Correct; no page opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l02",
+   "claim": "A regulation that exceeds its authorizing statute is invalid.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/706"
+   ],
+   "note": "APA 706(2)(C): set aside agency action in excess of statutory authority."
+  },
+  {
+   "lessonId": "law-legalwriting.l03",
+   "claim": "The Caselaw Access Project was created by Harvard Law School Library from its printed reporters and made a very large body of U.S. case law public.",
+   "verdict": "supported",
+   "sources": [
+    "https://lil.law.harvard.edu/our-work/caselaw-access-project"
+   ],
+   "note": "Over 6.5 million decisions digitized 2013-2018; unrestricted release March 2024. Still available as open data (case.law); the original API/search service has been restructured, so describing it as a searchable site may be dated."
+  },
+  {
+   "lessonId": "law-legalwriting.l03",
+   "claim": "CourtListener is run by the nonprofit Free Law Project and offers opinions, oral argument audio and citation tools.",
+   "verdict": "supported",
+   "sources": [
+    "https://free.law/projects/courtlistener",
+    "https://www.courtlistener.com/about/"
+   ],
+   "note": "FLP: 10M+ opinions, largest oral-argument collection, RECAP archive of PACER data."
+  },
+  {
+   "lessonId": "law-legalwriting.l03",
+   "claim": "govinfo is the GPO site; the eCFR is a continuously updated unofficial version; PACER charges per page with a waiver for small amounts.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.govinfo.gov/about",
+    "https://www.archives.gov/federal-register/cfr/about-ecfr",
+    "https://pacer.uscourts.gov/pacer-pricing-how-fees-work"
+   ],
+   "note": "eCFR updated daily, unofficial editorial compilation. PACER $0.10/page, $3 cap per document; fees waived at $30 or less per quarter."
+  },
+  {
+   "lessonId": "law-legalwriting.l04",
+   "claim": "Loper Bright Enterprises v. Raimondo (2024) overruled Chevron and requires courts to exercise independent judgment on statutory meaning.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ],
+   "note": "Decided June 28, 2024: \"Chevron is overruled.\" Still current as of Oct 2026."
+  },
+  {
+   "lessonId": "law-legalwriting.l04",
+   "claim": "Prior decisions that relied on Chevron are not automatically invalid; their statutory holdings keep stare decisis effect.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ],
+   "note": "Court: mere reliance on Chevron is not a special justification for overruling such holdings."
+  },
+  {
+   "lessonId": "law-legalwriting.l04",
+   "claim": "Chevron U.S.A. v. NRDC was decided in 1984.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Correct to my knowledge; no page opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l05",
+   "claim": "A ruling on a motion to dismiss assumes the well-pleaded facts alleged are true.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/07-1015"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l05",
+   "claim": "Dicta are statements not necessary to the result and do not bind later courts.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard definition; no page opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l05",
+   "claim": "Disposition terms: affirmed, reversed, vacated, remanded.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard; no page opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l06",
+   "claim": "CREAC stands for Conclusion, Rule, Explanation, Application, Conclusion.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Pedagogical convention; not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l06",
+   "claim": "IRAC stands for Issue, Rule, Application, Conclusion.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l06",
+   "claim": "A promise to make a gift with nothing sought in return lacks consideration.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard contract doctrine; not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l07",
+   "claim": "Church of the Holy Trinity v. United States (1892) held the alien contract-labor statute did not reach a church hiring a pastor from England, reasoning Congress aimed at manual labor.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/143/457"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l07",
+   "claim": "After Loper Bright courts decide the best meaning of a statute themselves, giving agency views weight only for persuasiveness.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ],
+   "note": "Opinion requires independent judgment; agency views may inform (Skidmore-style respect)."
+  },
+  {
+   "lessonId": "law-legalwriting.l07",
+   "claim": "Definitions of ejusdem generis, expressio unius and noscitur a sociis.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard; no page opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l08",
+   "claim": "A higher-court case in the jurisdiction controls and can only be distinguished, not disregarded.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l08",
+   "claim": "Rule synthesis combines several cases into one consistent statement of the rule.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Pedagogical; not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l08",
+   "claim": "Mandatory adverse authority must be addressed.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.thesedonaconference.org/sites/default/files/meeting_paper/9.5%20Rule%203.3_%20Candor%20Toward%20the%20Tribunal.pdf"
+   ],
+   "note": "Model Rule 3.3(a)(2) requires disclosure of directly adverse controlling authority not disclosed by opposing counsel."
+  },
+  {
+   "lessonId": "law-legalwriting.l09",
+   "claim": "ABA Model Rule 1.1 requires competent representation (knowledge, skill, thoroughness, preparation).",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ABA site blocked (403); rule text not opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l09",
+   "claim": "Objective memo parts: heading, question presented, brief answer, facts, discussion, conclusion.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Pedagogical convention."
+  },
+  {
+   "lessonId": "law-legalwriting.l09",
+   "claim": "Work product protects material prepared in anticipation of litigation from discovery in many circumstances.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "FRCP 26(b)(3); not opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l10",
+   "claim": "Twombly (2007) and Iqbal (2009): complaint must state a plausible claim; conclusory allegations are not entitled to the presumption of truth.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/07-1015"
+   ],
+   "note": "Iqbal (2009) applies Twombly plausibility; Twombly LII page returned 404 so its year was not separately opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l10",
+   "claim": "Rule 56: summary judgment if no genuine dispute as to any material fact and movant entitled to judgment as a matter of law.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_56"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l10",
+   "claim": "Celotex v. Catrett (1986): party bearing the burden at trial must go beyond the pleadings with evidence.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/477/317"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l11",
+   "claim": "FRAP 28 lists statement of issues, statement of the case, summary of argument, argument with standard of review, and a short conclusion stating relief sought.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frap/rule_28"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l11",
+   "claim": "FRCP 11: signer certifies after reasonable inquiry that legal contentions are warranted by existing law or a nonfrivolous argument for change, and factual contentions have evidentiary support.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_11"
+   ],
+   "note": "Rule 11(b)(3) also allows contentions identified as likely to have support after discovery."
+  },
+  {
+   "lessonId": "law-legalwriting.l11",
+   "claim": "On a motion to dismiss extra factual evidence is generally not considered.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_12"
+   ],
+   "note": "Rule 12(d): outside matters convert the motion to summary judgment."
+  },
+  {
+   "lessonId": "law-legalwriting.l12",
+   "claim": "Anderson v. City of Bessemer City (1985): clear error means a definite and firm conviction of mistake; no reversal merely because the court would have decided differently.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/470/564"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l12",
+   "claim": "FRCP 52(a)(6) states the clear-error standard for findings of fact with due regard to credibility.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_52"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l12",
+   "claim": "Ornelas v. United States (1996): reasonable suspicion and probable cause reviewed de novo; historical facts for clear error with due weight to local inferences.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/517/690"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l13",
+   "claim": "The Bluebook is published by a consortium of law reviews; the Indigo Book is a free open alternative.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bluebook",
+    "https://law.resource.org/pub/us/code/blue/IndigoBook.html"
+   ],
+   "note": "Current Bluebook is the 22nd edition (May 2025), compiled by Columbia, Harvard, Penn and Yale law reviews; the 22nd ed. added a \"contrast\" signal the lesson does not mention."
+  },
+  {
+   "lessonId": "law-legalwriting.l13",
+   "claim": "The ALWD Guide to Legal Citation is a competing manual.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Exists (8th ed. 2026 per search snippet) but no page opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l13",
+   "claim": "Signal definitions: no signal = direct support; see = clear but indirect support; cf.; but see; contra.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; note Bluebook 22nd ed. added \"contrast\"."
+  },
+  {
+   "lessonId": "law-legalwriting.l14",
+   "claim": "UCC Article 2 supplies gap-filling terms such as a reasonable price.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-305"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l14",
+   "claim": "The parol evidence rule bars prior or contemporaneous agreements contradicting a fully integrated writing.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-202"
+   ],
+   "note": "UCC 2-202 version opened; the Restatement (Second) of Contracts version was not opened."
+  },
+  {
+   "lessonId": "law-legalwriting.l14",
+   "claim": "Contra proferentem construes ambiguity against the drafter, often as a last resort.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l15",
+   "claim": "Many regulations require notice and comment under the APA.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ],
+   "note": "5 U.S.C. 553, with exceptions for interpretive rules, policy statements and good cause."
+  },
+  {
+   "lessonId": "law-legalwriting.l15",
+   "claim": "Courts consider severability clauses but are not bound by them.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l15",
+   "claim": "Regulations must stay within the authorizing statute.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/706"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l16",
+   "claim": "The Plain Writing Act of 2010 requires federal agencies to use clear government communication the public can understand and use.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.govinfo.gov/app/details/PLAW-111publ274"
+   ],
+   "note": "Pub. L. 111-274, approved Oct. 13, 2010."
+  },
+  {
+   "lessonId": "law-legalwriting.l16",
+   "claim": "A nominalization turns a verb into a noun (make a decision vs decide).",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l16",
+   "claim": "Some courts and states have adopted plain-language standards for forms.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l17",
+   "claim": "FRAP 34 governs oral argument and allows deciding without argument in certain circumstances.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frap/rule_34"
+   ],
+   "note": "Panel must unanimously agree: frivolous appeal, issues authoritatively decided, or argument would not significantly aid."
+  },
+  {
+   "lessonId": "law-legalwriting.l17",
+   "claim": "The Supreme Court sets its own time rules for argument.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "law-legalwriting.l17",
+   "claim": "Answer yes/no first; concede where necessary.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Advocacy advice; not checkable."
+  },
+  {
+   "lessonId": "law-legalwriting.l18",
+   "claim": "Model Rule 3.3(a)(1)-(3): no false statements; disclose directly adverse controlling authority not disclosed by opposing counsel; no knowingly false evidence; reasonable remedial measures.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.thesedonaconference.org/sites/default/files/meeting_paper/9.5%20Rule%203.3_%20Candor%20Toward%20the%20Tribunal.pdf",
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2019/006.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l18",
+   "claim": "Rule 3.3 duties continue to the conclusion of the proceeding and apply even if compliance requires disclosing Rule 1.6 information.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.thesedonaconference.org/sites/default/files/meeting_paper/9.5%20Rule%203.3_%20Candor%20Toward%20the%20Tribunal.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l18",
+   "claim": "Nix v. Whiteside (1986): no right to present perjured testimony; the lawyer response was not ineffective assistance.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/475/157"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l19",
+   "claim": "Mata v. Avianca (S.D.N.Y. 2023): sanctions for a brief citing nonexistent AI-generated cases.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mata_v._Avianca,_Inc."
+   ],
+   "note": "June 22, 2023; $5,000 sanction."
+  },
+  {
+   "lessonId": "law-legalwriting.l19",
+   "claim": "ABA Formal Opinion 512 (2024) addresses generative AI: competence, confidentiality, communication, candor, supervision, fees.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.floridabar.org/the-florida-bar-news/aba-issues-first-ethics-guidance-on-a-lawyers-use-of-ai-tools/"
+   ],
+   "note": "Issued July 29, 2024."
+  },
+  {
+   "lessonId": "law-legalwriting.l19",
+   "claim": "A comment to Rule 1.1 includes keeping abreast of the benefits and risks of relevant technology.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.naag.org/attorney-general-journal/the-ethical-duty-of-technology-competence-what-does-it-mean-for-you/"
+   ],
+   "note": "Comment 8, added 2012."
+  },
+  {
+   "lessonId": "law-legalwriting.l20",
+   "claim": "Model Rule 3.1: non-frivolous basis in law and fact, including a good-faith argument to extend, modify or reverse law.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2019/006.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l20",
+   "claim": "Model Rule 3.4 bars destroying evidence, frivolous discovery requests, and stating personal opinion on the justness of a cause or credibility.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2019/006.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-legalwriting.l20",
+   "claim": "Rule 4.1 comment: estimates of price or value and settlement intentions are ordinarily not statements of material fact.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ABA and state bar pages blocked (403); only a search snippet seen."
+  }
+ ]
+}

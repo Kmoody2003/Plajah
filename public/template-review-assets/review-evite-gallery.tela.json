@@ -1,0 +1,293 @@
+{
+  "id": "review-evite-gallery-copy-724f3a58-ff0d-4fb4-a7cd-7121eaf0963d",
+  "ownerId": "local-review",
+  "title": "Private View · review copy",
+  "createdAt": 1790719091284,
+  "updatedAt": 1790719091284,
+  "frames": [
+    {
+      "id": "review-evite-gallery-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-gallery-vector"
+      ],
+      "label": "Private View"
+    }
+  ],
+  "devices": {
+    "review-evite-gallery-vector": {
+      "id": "review-evite-gallery-vector",
+      "type": "VECTOR",
+      "name": "Private View",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-gallery-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#efece6",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-gallery-frame",
+          "kind": "RECT",
+          "x": 95,
+          "y": 86,
+          "w": 410,
+          "h": 274,
+          "fill": "none",
+          "stroke": "#2a2a28",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-gallery-small-work",
+          "kind": "RECT",
+          "x": 365,
+          "y": 230,
+          "w": 44,
+          "h": 44,
+          "fill": "#aa4631",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-gallery-caption-rule",
+          "kind": "LINE",
+          "x": 95,
+          "y": 384,
+          "w": 65,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#2a2a28",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            95,
+            384,
+            160,
+            384
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-gallery-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#2a2a28",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-gallery-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#9aa394",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-gallery-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#2a2a28",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Private view",
+          "fontSize": 41,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-gallery-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#2a2a28",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "New work / an intimate first look",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-gallery-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#2a2a28",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-gallery-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#2a2a28",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-gallery-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#2a2a28",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-gallery-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#2a2a28",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-gallery-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#2a2a28",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-gallery",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-gallery-frame",
+          "property": "rotation",
+          "from": 0,
+          "to": -3,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-gallery-small-work",
+          "property": "rotation",
+          "from": 0,
+          "to": 3,
+          "delay": 140,
+          "duration": 3060
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        54,
+        61,
+        66,
+        68
+      ],
+      "tempo": 76
+    }
+  }
+}

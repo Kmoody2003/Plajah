@@ -1,0 +1,415 @@
+{
+  "id": "review-evite-baby-copy-34fb6df0-416f-4c86-be07-0f6579d09303",
+  "ownerId": "local-review",
+  "title": "Little Orbit · review copy",
+  "createdAt": 1790719091250,
+  "updatedAt": 1790719091250,
+  "frames": [
+    {
+      "id": "review-evite-baby-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-baby-vector"
+      ],
+      "label": "Little Orbit"
+    }
+  ],
+  "devices": {
+    "review-evite-baby-vector": {
+      "id": "review-evite-baby-vector",
+      "type": "VECTOR",
+      "name": "Little Orbit",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-baby-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#f3eade",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-baby-mobile",
+          "kind": "LINE",
+          "x": 110,
+          "y": 100,
+          "w": 380,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#49415a",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            110,
+            100,
+            490,
+            100
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-baby-thread-0",
+          "kind": "LINE",
+          "x": 152,
+          "y": 100,
+          "w": 0,
+          "h": 70,
+          "fill": "none",
+          "stroke": "#49415a",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            152,
+            100,
+            152,
+            170
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-baby-mobile-0",
+          "kind": "ELLIPSE",
+          "x": 128,
+          "y": 170,
+          "w": 48,
+          "h": 48,
+          "fill": "#d6a476",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-baby-thread-1",
+          "kind": "LINE",
+          "x": 250,
+          "y": 100,
+          "w": 0,
+          "h": 160,
+          "fill": "none",
+          "stroke": "#49415a",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            250,
+            100,
+            250,
+            260
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-baby-mobile-1",
+          "kind": "ELLIPSE",
+          "x": 226,
+          "y": 260,
+          "w": 68,
+          "h": 68,
+          "fill": "#b8b2d8",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-baby-thread-2",
+          "kind": "LINE",
+          "x": 348,
+          "y": 100,
+          "w": 0,
+          "h": 70,
+          "fill": "none",
+          "stroke": "#49415a",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            348,
+            100,
+            348,
+            170
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-baby-mobile-2",
+          "kind": "ELLIPSE",
+          "x": 324,
+          "y": 170,
+          "w": 48,
+          "h": 48,
+          "fill": "#d6a476",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-baby-thread-3",
+          "kind": "LINE",
+          "x": 446,
+          "y": 100,
+          "w": 0,
+          "h": 160,
+          "fill": "none",
+          "stroke": "#49415a",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            446,
+            100,
+            446,
+            260
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-baby-mobile-3",
+          "kind": "ELLIPSE",
+          "x": 422,
+          "y": 260,
+          "w": 68,
+          "h": 68,
+          "fill": "#b8b2d8",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-baby-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#49415a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-baby-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#d6a476",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-baby-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#49415a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "A little orbit",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-baby-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#49415a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Welcoming a wonderful new arrival",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-baby-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#49415a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-baby-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#49415a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-baby-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#49415a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-baby-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#49415a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-baby-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#49415a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-baby",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-baby-mobile-0",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-baby-mobile-1",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 140,
+          "duration": 3060
+        },
+        {
+          "objectId": "review-evite-baby-mobile-2",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 280,
+          "duration": 3320
+        },
+        {
+          "objectId": "review-evite-baby-mobile-3",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 420,
+          "duration": 3580
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        52,
+        59,
+        64,
+        66
+      ],
+      "tempo": 100
+    }
+  }
+}

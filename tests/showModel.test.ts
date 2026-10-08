@@ -94,7 +94,7 @@ describe('per-layer clearing', () => {
 
 describe('composite order', () => {
   test('bottom to top, mask last', () => {
-    assert.deepEqual([...LAYER_ORDER], ['background', 'fill', 'slide', 'scripture', 'prop', 'overlay', 'mask']);
+    assert.deepEqual([...LAYER_ORDER], ['background', 'fill', 'slide', 'scripture', 'lyrics', 'prop', 'overlay', 'audio', 'mask']);
   });
 
   test('returns only occupied layers, in order', () => {

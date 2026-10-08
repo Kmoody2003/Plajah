@@ -1,0 +1,1778 @@
+{
+ "courseId": "audio-engineering",
+ "label": "Audio Engineering",
+ "lessons": [
+  {
+   "id": "audio-engineering.l01",
+   "title": "What Sound Is",
+   "body": [
+    "Clap your hands. Your palms push on the air between them, squeezing it for an instant. That squeeze spreads outward as a chain reaction: each patch of air bumps the next, so a region of higher pressure (a compression) is followed by a region of lower pressure (a rarefaction). Sound is this pressure disturbance travelling through a medium such as air, water or a solid. Because it needs a medium, sound cannot travel through a vacuum.",
+    "Notice what moves and what does not. The air molecules wobble back and forth around where they started; the disturbance itself is what travels to your ear. In air at about 20 degrees Celsius (68 degrees Fahrenheit), sound travels at roughly 343 metres per second. It is faster in warmer air, and much faster in water and in solids.",
+    "Two measurements describe a simple sound wave. Amplitude is how large the pressure changes are, and it is closely linked to how loud we perceive the sound. Frequency is how many complete cycles occur each second, measured in hertz (Hz), and it is closely linked to perceived pitch. A third quantity connects them: wavelength, the distance one cycle covers, equals the speed of sound divided by the frequency.",
+    "Worked example: a 1,000 Hz tone has a wavelength of 343 / 1,000 = 0.343 metres. A 100 Hz tone has a wavelength of 343 / 100 = 3.43 metres. This is why bass is hard to control in rooms: its waves are as long as the room itself, so they interact with walls in ways short waves do not. Keep this wavelength idea in mind; it returns in microphone placement, room acoustics and live sound."
+   ]
+  },
+  {
+   "id": "audio-engineering.l02",
+   "title": "Hearing and Decibels",
+   "body": [
+    "Healthy young listeners can typically hear from about 20 Hz to 20,000 Hz (20 kHz). This range narrows with age and with exposure to loud sound, so protecting hearing is part of the job, not an extra.",
+    "Our ears cope with an enormous range of pressures, so engineers use the decibel (dB), a logarithmic unit. A decibel always compares two values. For quantities like voltage or sound pressure, the difference in dB is 20 times the base-10 logarithm of the ratio. For power it is 10 times the logarithm. Three anchors cover most daily work: doubling a voltage or pressure adds about 6 dB, multiplying it by ten adds 20 dB, and doubling power adds about 3 dB.",
+    "When dB is tied to a reference it describes an absolute level. Sound pressure level (dB SPL) uses a reference of 20 micropascals, close to the quietest sound a young, healthy ear can detect at around 1 kHz. So 0 dB SPL is not silence; it is the reference point. As a rule of thumb, a 10 dB increase is heard as roughly twice as loud.",
+    "Hearing damage depends on level and time. The U.S. National Institute for Occupational Safety and Health (NIOSH) recommends limiting exposure to 85 A-weighted decibels (dBA) over 8 hours, and halving the time for every 3 dB increase. At 88 dBA that is 4 hours, and at 91 dBA it is 2 hours.",
+    "Finally, the ear is not equally sensitive at all frequencies, especially at low listening levels, when bass and extreme treble seem to fade. That is why engineers check mixes at more than one volume."
+   ]
+  },
+  {
+   "id": "audio-engineering.l03",
+   "title": "Waveforms, Harmonics and Phase",
+   "body": [
+    "A waveform is a graph of pressure against time. The simplest is the sine wave, which contains a single frequency and nothing else. Real instruments are richer: a played note consists of a fundamental frequency plus harmonics, which are whole-number multiples of it. If the fundamental is 220 Hz, the second harmonic is 440 Hz, the third is 660 Hz, and so on.",
+    "The balance of harmonics, together with how the sound begins and fades (its envelope: attack, decay, sustain, release), gives each instrument its timbre. That is why a violin and a flute playing the same note at the same loudness still sound different. Common synthesizer shapes illustrate the idea: a square wave contains the fundamental plus only odd harmonics, while a sawtooth contains all of them.",
+    "Pitch and frequency are linked logarithmically. Doubling the frequency raises the pitch by one octave. Standard concert pitch places the A above middle C at 440 Hz, so 220 Hz and 880 Hz are the A notes an octave below and above.",
+    "Phase describes where a wave is within its cycle, measured in degrees. When two identical sine waves are combined with a 180 degree offset, every peak meets a trough and they cancel, leaving silence. In real recordings the cancellation is partial and varies with frequency, which produces a thin or hollow tone. Polarity inversion, the button marked with a circle and a slash, flips a signal upside down. Summing a signal with an inverted copy of itself gives silence, which is a handy test of whether two files are truly identical."
+   ]
+  },
+  {
+   "id": "audio-engineering.l04",
+   "title": "Sampling and the Nyquist Limit",
+   "body": [
+    "A computer cannot store a smooth, continuous wave, so an analog-to-digital converter (ADC) measures it at regular instants. Each measurement is a sample, and the number taken each second is the sample rate. Audio CDs use 44,100 samples per second (44.1 kHz). Video and film work commonly uses 48 kHz, and 88.2, 96 and 192 kHz are also used.",
+    "The Nyquist theorem says the highest frequency that can be captured is half the sample rate. At 44.1 kHz that is 22,050 Hz, which covers the 20 kHz limit of human hearing. At 48 kHz it is 24,000 Hz.",
+    "What if a frequency above that limit reaches the converter? It does not vanish; it is misread as a lower frequency, a distortion called aliasing. The alias lands at a distance below the limit equal to how far the tone sits above it. Worked example: sampled at 44.1 kHz, a 30 kHz tone is misrepresented as 44.1 - 30 = 14.1 kHz, a sound that was never in the room. To prevent this, converters use an anti-aliasing filter that removes content above the Nyquist frequency before sampling.",
+    "A common misconception is that digital audio is a staircase. When properly converted back to analog, the samples reconstruct the original band-limited wave smoothly, with no stair steps. Higher sample rates are used for reasons such as lower processing latency and extra headroom for some effects; whether they change what listeners can hear is debated, and the 20 kHz limit is the same for every rate."
+   ]
+  },
+  {
+   "id": "audio-engineering.l05",
+   "title": "Bit Depth, Dither and Bit Rate",
+   "body": [
+    "Each sample is stored as a number, and the bit depth is how many binary digits that number has. An N-bit sample can take 2 to the power N values. So 16-bit audio has 65,536 possible levels and 24-bit audio has 16,777,216. Each added bit gives about 6.02 dB of theoretical dynamic range, so 16-bit offers roughly 96 dB and 24-bit roughly 144 dB. Bit depth therefore sets how far down the noise floor of the digital system sits; it does not change the highest frequency captured.",
+    "When a recording is reduced to a lower bit depth, for example from 24 to 16 bits for a CD, rounding errors occur that correlate with the music and can sound like gritty distortion on quiet passages. Dither is a very small amount of random noise added just before the reduction, which turns that distortion into a steady, much less objectionable hiss. Apply dither once, at the final reduction, not at every stage. Many programs process internally in 32-bit floating point, which offers vast headroom.",
+    "Bit rate is the amount of data per second. For uncompressed PCM audio: sample rate x bit depth x number of channels. Worked example: CD audio is 44,100 x 16 x 2 = 1,411,200 bits per second, or 1,411.2 kbps. Divide by 8 for bytes: 176,400 bytes per second, which is 10,584,000 bytes, or about 10.6 MB, per minute. A 48 kHz, 24-bit stereo recording runs at 48,000 x 24 x 2 = 2,304,000 bits per second, or 2,304 kbps."
+   ]
+  },
+  {
+   "id": "audio-engineering.l06",
+   "title": "Microphone Types",
+   "body": [
+    "A microphone is a transducer: it converts sound pressure into a small electrical voltage. The three main types do this differently.",
+    "A dynamic microphone attaches a thin diaphragm to a coil of wire that moves in a magnetic field, generating voltage by induction. Dynamics are rugged, need no power, and tolerate very high sound levels, so they are the usual choice for close-miking loud sources such as snare drums and guitar amplifiers, and for handheld stage vocals.",
+    "A condenser (capacitor) microphone uses a diaphragm placed close to a fixed backplate, forming a capacitor whose capacitance changes as the diaphragm moves. It needs electrical power for its circuitry, normally 48 volts of phantom power sent from the preamp or interface down the same XLR cable, or sometimes a battery. Condensers are generally more sensitive and capture fine detail and high frequencies, which suits vocals, acoustic instruments and room sound in the studio. Large-diaphragm models are often chosen for vocals and small-diaphragm models for precise sources such as cymbals or acoustic guitar.",
+    "A ribbon microphone suspends a very thin metal ribbon in a magnetic field. Ribbons are often described as smooth and natural sounding, and many have a figure-8 pattern. They can be delicate, and handling or very strong air blasts may damage a ribbon. Some ribbon models can also be damaged by phantom power depending on design and wiring, so always follow the manufacturer's guidance.",
+    "Example: for a close-miked snare in a loud rock session, a dynamic microphone is a dependable first choice."
+   ]
+  },
+  {
+   "id": "audio-engineering.l07",
+   "title": "Polar Patterns",
+   "body": [
+    "Microphones do not hear equally in all directions. The polar pattern shows sensitivity as a function of the angle from which sound arrives, where 0 degrees is straight in front of the capsule.",
+    "An omnidirectional microphone responds equally from all directions. It picks up a lot of the room, and, because it is a pressure-type design, it has no proximity effect (the bass boost that directional microphones show up close; see the next lesson).",
+    "A cardioid microphone, named for its heart-shaped pattern, is most sensitive at the front, less at the sides and least at the rear, directly behind the capsule. This makes it the standard for live stages and studios because it helps reject sound from behind, such as a monitor wedge or another instrument. Supercardioid and hypercardioid patterns are narrower at the front but gain a small area of sensitivity at the rear.",
+    "A figure-8 (bidirectional) microphone is equally sensitive to the front and back and almost deaf to sound arriving from the sides, at 90 degrees. Figure-8 capsules are used in stereo techniques such as mid-side and for isolating a source with the null aimed at a problem.",
+    "Worked example: a drummer's tom is picked up by its own mic, but the loud hi-hat next to it leaks in. That leakage is called bleed. Choosing a tighter pattern and aiming the least sensitive part of the microphone, its null, toward the hi-hat reduces bleed without any processing. Patterns also change with frequency, and sound arriving off-axis is often duller in tone."
+   ]
+  },
+  {
+   "id": "audio-engineering.l08",
+   "title": "Microphone Placement and Phase",
+   "body": [
+    "Where you put a microphone often matters more than which microphone you pick. Moving closer captures more direct sound and less room, giving an intimate, dry result. Moving farther away brings in more room ambience.",
+    "Distance also changes level. In an open space, sound from a point source follows the inverse square law: each time you double the distance, the sound pressure level falls by about 6 dB. Directional microphones also show the proximity effect, an increase in low frequencies as the source gets very close, which engineers use for warmth and control with a pop filter to tame plosive bursts of air.",
+    "Using more than one microphone on a source introduces a risk. Sound reaches each microphone at slightly different times, and when the signals are summed some frequencies reinforce while others cancel, a pattern called comb filtering that sounds thin or hollow. A well-known guideline is the 3:1 rule: place a second microphone at least three times as far from the first microphone as the first is from its source. If two singers each stand 20 cm from their mics, keep the mics at least 60 cm apart.",
+    "For stereo recording, three common arrangements are a spaced pair (A/B), a coincident pair such as X/Y with capsules at the same point, and ORTF, with cardioids angled at 110 degrees and spaced 17 cm apart. Each captures different time and level differences between the channels, and so a different sense of width. Always listen first; moving the microphone beats fixing it with EQ later."
+   ]
+  },
+  {
+   "id": "audio-engineering.l09",
+   "title": "Signal Flow and Signal Levels",
+   "body": [
+    "A typical recording chain is: sound source, microphone, preamplifier, optional processing, ADC, recording software, DAC, power amplifier, loudspeakers. Understanding the order lets you find faults quickly and place processing sensibly.",
+    "Signals come at different levels. Microphone level is tiny, on the order of millivolts, so a preamp raises it to line level. In professional gear, nominal line level is +4 dBu, which equals about 1.228 volts RMS. Consumer equipment commonly uses -10 dBV, about 0.316 volts. Instrument level, from an electric guitar pickup, is higher in impedance than a microphone and is usually handled by a direct input (DI) box, which converts it to a low-impedance balanced signal suitable for long cable runs and microphone inputs. Speaker level is high power, meant for loudspeakers only and never for line inputs.",
+    "Cables matter too. A balanced connection uses two conductors that carry the signal in opposite polarity, plus a shield. Interference picked up along the cable lands equally on both conductors; the receiving input flips one and sums them, so the noise cancels while the wanted signal is reinforced. This common-mode rejection is why balanced XLR and TRS cables can run long distances quietly. Unbalanced TS cables lack this protection.",
+    "Example: if no sound reaches the speakers, trace forward from the source. Is the mic cable seated, phantom power on if needed, preamp gain up, track unmuted, output routed to the right interface output, and monitor volume up? Checking each stage in order is faster than guessing."
+   ]
+  },
+  {
+   "id": "audio-engineering.l10",
+   "title": "Gain Staging and Headroom",
+   "body": [
+    "Every device in the chain has a noise floor at the bottom and a point where it distorts at the top. Gain staging means setting the level at each stage so the signal stays well above the noise and well below the clipping point. The space between your normal level and the ceiling is headroom.",
+    "In digital systems the ceiling is 0 dBFS (decibels relative to full scale), the largest value that can be represented. A fixed-point signal that tries to go higher is clipped flat, which sounds harsh. Analog gear usually distorts more gradually, but it too has limits.",
+    "With 24-bit recording the noise floor is so low that you do not need to push levels toward 0 dBFS. A common practice is to let peaks fall roughly between -18 and -6 dBFS, leaving ample room for a surprise loud note. Many studios treat -18 dBFS or -20 dBFS (depending on the standard) as the level that corresponds to 0 VU on an analog meter, which is a convention rather than a law. Peak meters show the instantaneous maximum, while VU and RMS-style meters show an average closer to perceived loudness.",
+    "Gain adds in dB. Worked example: a vocal peaks at -18 dBFS, and you raise the preamp by 9 dB. Peaks now reach -18 + 9 = -9 dBFS, still safe.",
+    "Two cautions. First, a clipped recording cannot be repaired by turning it down later; lower the gain at the source instead. Second, levels sum: when many tracks play together, the master bus meter climbs, so leave headroom there as well."
+   ]
+  },
+  {
+   "id": "audio-engineering.l11",
+   "title": "Monitoring and Room Acoustics",
+   "body": [
+    "Mix decisions are only as good as what you hear. Studio monitors are loudspeakers designed to reproduce sound as neutrally as possible, and many home studios use nearfield monitors placed fairly close to the listener so the room contributes less. A standard layout puts the two speakers and the listener at the corners of an equilateral triangle, with the tweeters at ear height and angled toward the listening position.",
+    "The room still shapes what you hear. Sound reflects from walls, and low frequencies form room modes, also called standing waves, between parallel surfaces. The lowest axial mode between two walls a distance L apart has a frequency of about the speed of sound divided by twice the distance. Worked example: for walls 4 metres apart, 343 / (2 x 4) = about 42.9 Hz. Notes near that frequency will sound boomy in some spots and weak in others.",
+    "Acoustic tools do different jobs. Absorbers, such as thick mineral wool panels, soak up energy and reduce reflections. Diffusers scatter sound so a room feels less dead. Bass traps, usually thick absorbers placed in corners where low-frequency pressure builds up, calm the low end. Thin foam mostly absorbs high frequencies and does little for bass. Note also that acoustic treatment, which shapes sound inside the room, is different from soundproofing, which stops sound passing through walls and requires mass, sealing and decoupling.",
+    "Headphones remove the room but give an exaggerated stereo image and a different bass experience. Experienced engineers check mixes on monitors, headphones, a car and a phone, because the goal is a mix that translates everywhere."
+   ]
+  },
+  {
+   "id": "audio-engineering.l12",
+   "title": "Running a Recording Session",
+   "body": [
+    "A smooth session starts before anyone plays. Plan the arrangement, tempo, instrument tuning, and which microphones and inputs go with each source. Create a session in your recording software with a clear folder structure and consistent track names. Decide the sample rate and bit depth at the start; 48 kHz at 24-bit is a common choice for modern projects. Changing the rate later requires conversion and can complicate files that came from different sources.",
+    "Performers need to hear themselves. A cue mix, sent to headphones and separate from the control-room mix, lets each player have more of what they need. Latency, the delay between playing and hearing, depends on the buffer size, the number of samples the system processes at once. Delay from one buffer is the buffer size divided by the sample rate. Worked example: 128 samples at 48,000 Hz is 128 / 48,000 = 0.00267 seconds, about 2.67 ms. A larger buffer raises latency but eases the load on the computer, so use a small buffer while recording and a larger one while mixing. Many interfaces also offer direct monitoring, which routes the input to the headphones before the computer.",
+    "Record multiple takes, label them, and note good moments so they are easy to find during editing. Keep the room comfortable; the performance matters more than the perfect microphone.",
+    "Back up as you go. A widely cited guideline is the 3-2-1 rule: keep three copies of important data, on two kinds of storage, with one copy stored off-site."
+   ]
+  },
+  {
+   "id": "audio-engineering.l13",
+   "title": "Editing Audio",
+   "body": [
+    "Modern recording software edits non-destructively: it stores references to portions of the original audio files rather than rewriting them. You can trim, split, move and undo without altering the recorded file, which stays safe on disk.",
+    "A sudden jump in the waveform at a cut produces an audible click, because the signal makes an instantaneous leap. Editors avoid this by placing cuts at zero crossings, where the waveform passes through zero, or by adding a short fade at the start and end of each clip. A crossfade overlaps two clips, fading one out while the other fades in, so that the join is smooth. Fades also help hide changes in background noise.",
+    "Comping, short for compiling, is the practice of recording several takes of a part and assembling the best sections from each into one composite performance. Good comping pays attention to timing, pitch, tone and, most importantly, emotional continuity. Timing and pitch correction tools can polish a performance, but heavy correction can introduce artifacts or flatten the life of the music, so use the least that serves the song.",
+    "Clip gain adjusts the level of individual pieces before they reach plug-ins. Evening out a loud word in a vocal with clip gain means a compressor later reacts more consistently. In dialogue editing, a recording of the location with no one speaking, called room tone, is used to fill gaps so the background does not drop out.",
+    "Example: a singer nails the verse in take two but the chorus in take five. Comp them together, crossfade at a natural pause, and check the join in context."
+   ]
+  },
+  {
+   "id": "audio-engineering.l14",
+   "title": "Noise, Hum and Grounding",
+   "body": [
+    "Noise is unwanted sound or electrical interference. Several kinds appear in audio work. Hiss is broadband noise from electronics and sets the noise floor. Hum is a low-pitched tone at the frequency of the mains power, 60 Hz in the United States and 50 Hz in many other countries, often with a harmonic at double that frequency. Buzz is a harsher, harmonic-rich relative of hum, often caused by lighting dimmers or poorly shielded equipment. Radio-frequency interference can add clicks or chatter.",
+    "The signal-to-noise ratio (SNR) is the difference in dB between the wanted signal and the noise. Worked example: a signal at -10 dBFS with noise at -70 dBFS has an SNR of 60 dB. A higher SNR is better.",
+    "A frequent cause of hum is a ground loop. When two or more pieces of equipment are connected by more than one path to ground, such as through both mains power and a cable shield, a small current can flow around the loop and be heard as hum. Remedies include using balanced connections, plugging related gear into the same properly wired power strip, using a DI box or isolation transformer, and using a ground-lift switch on the audio path where one is provided. Keep audio cables away from power cables, and cross them at right angles if they must meet, to reduce induced noise.",
+    "Safety comes first. Never remove or defeat the grounding pin on a power cord to cure hum. That protective ground guards against electric shock, and cures belong in the audio signal path instead."
+   ]
+  },
+  {
+   "id": "audio-engineering.l15",
+   "title": "File Formats: Lossless and Lossy",
+   "body": [
+    "Digital audio files fall into three families. Uncompressed formats, such as WAV and AIFF, store raw PCM samples exactly as captured. Classic WAV files have a size limit of about 4 gigabytes, which the Broadcast Wave (BWF) variant with RF64 extensions addresses for very long recordings; BWF also stores useful metadata such as timestamps.",
+    "Lossless compressed formats, such as FLAC and Apple Lossless (ALAC), shrink the file but decode to a bit-for-bit identical copy of the original, much as a zip file does. They are smaller than WAV but not dramatically so.",
+    "Lossy formats, such as MP3, AAC, Ogg Vorbis and Opus, throw away information that models of human hearing suggest is least noticeable, often relying on masking, where louder sounds hide quieter nearby ones. This allows much smaller files, at the cost of permanent changes. How audible those changes are depends on the encoder and the bit rate.",
+    "Worked example: CD-quality stereo audio runs at 1,411.2 kbps. A 128 kbps lossy file is about 1,411.2 / 128 = 11 times smaller. A 3-minute song (180 seconds) is 1,411,200 x 180 / 8 = 31,752,000 bytes, about 31.8 MB, as PCM, and 128,000 x 180 / 8 = 2,880,000 bytes, about 2.9 MB, at 128 kbps.",
+    "Best practice is to record, edit, mix and archive in lossless or uncompressed formats, and to create lossy copies only at the end for delivery. Re-encoding a lossy file discards more each time, and converting an MP3 to FLAC cannot restore what was thrown away; the file merely becomes a larger container of the same damaged audio."
+   ]
+  },
+  {
+   "id": "audio-engineering.l16",
+   "title": "Balance and Panning",
+   "body": [
+    "Mixing combines recorded tracks into a finished stereo (or surround) result. The goals are clarity, balance, depth and emotional impact. The most important tool is also the simplest: the fader. Many engineers begin by building a rough static balance with only faders, deciding what matters most (often the vocal, or the kick and bass in dance music), and bringing everything else around it. Reference tracks, professional mixes in a similar style, are useful for checking your balance and tone.",
+    "Panning places a sound between the left and right speakers. A mono track panned hard left plays only from the left speaker. Instruments that carry strong low-frequency energy, such as kick drum and bass, are typically kept in the centre, partly because low frequencies carry a lot of energy and centring shares the load evenly between both speakers. Other parts, such as two guitars panned left and right, create width and leave the centre free for the vocal.",
+    "Most software uses a pan law: when a mono track sits in the centre, its level is lowered by a small amount, often 3 dB, so that its perceived loudness stays about the same as it moves across the stereo field. Different programs offer different pan laws, so be aware of your setting.",
+    "Always check your mix in mono. If two parts partly cancel when summed, for example because of phase problems in stereo effects or multi-microphone recordings, they will shrink or vanish. Mono checks also reveal balance issues on small speakers. Work at moderate volume, take breaks, and trust fresh ears."
+   ]
+  },
+  {
+   "id": "audio-engineering.l17",
+   "title": "Equalization",
+   "body": [
+    "An equalizer (EQ) changes the level of selected frequency ranges. Common filters include the high-pass filter (low cut), which removes frequencies below a cutoff, and the low-pass filter, which removes frequencies above one. Shelving filters raise or lower everything above or below a corner frequency. A bell, or peaking, filter boosts or cuts around a centre frequency, with Q controlling how narrow it is: a higher Q means a narrower band.",
+    "Rough regions help communication, though instruments vary: sub-bass lies below roughly 60 Hz, bass from about 60 to 250 Hz, low mids around 250 to 500 Hz (excess here is often called mud), mids to about 2 kHz, upper mids from roughly 2 to 5 kHz (important for presence and sometimes harshness), and highs above that, with the top range often called air.",
+    "Why EQ at all? Mainly to deal with masking, which occurs when one sound obscures another that occupies a similar frequency range. When a guitar crowds a vocal, rather than turning the vocal up, you can reduce the guitar slightly where the vocal lives. This carving makes room for both. A useful habit is to cut problems and boost for character, and to use the least amount that does the job.",
+    "Worked example: a vocal recording has low-frequency rumble from a stand. A high-pass filter set around 80 Hz removes it without harming the voice, which has little useful energy that low. The setting depends on the singer.",
+    "When comparing an EQ against the bypassed sound, match the levels. A slightly louder version almost always sounds better, which can fool you into keeping a boost that really only added volume."
+   ]
+  },
+  {
+   "id": "audio-engineering.l18",
+   "title": "Compression and Dynamics",
+   "body": [
+    "Dynamic range is the span between the quietest and loudest parts of a performance. A compressor narrows it by turning down the signal when it rises above a set level. The main controls are threshold (the level above which compression begins), ratio (how strongly the overshoot is reduced), attack (how quickly it reacts), release (how quickly it lets go) and make-up gain (a boost afterward to restore overall level).",
+    "The ratio is easiest to see with numbers. At 4:1, every 4 dB the input goes over the threshold produces only 1 dB over at the output. Worked example 1: threshold -20 dB, ratio 4:1, input peak -8 dB. The input is 12 dB over; the output is 12 / 4 = 3 dB over, so it comes out at -17 dB, and the gain reduction is 9 dB. Worked example 2: threshold -10 dB, ratio 2:1, input -2 dB. That is 8 dB over, so 4 dB over at the output (-6 dB), and 4 dB of gain reduction.",
+    "Timing shapes character. A slower attack lets the initial transient of a drum hit pass through before clamping, which keeps punch. A fast attack tames peaks and can make a sound feel flatter. A very fast release can cause audible pumping, with the background level jumping up and down.",
+    "A limiter is a compressor with a very high ratio acting as a ceiling. Other techniques include parallel compression, mixing a heavily compressed copy with the original, and sidechain compression, where another signal, such as the kick, controls the compressor.",
+    "Compression is not a loudness switch. Used heavily, it can drain a performance of life, so judge it by ear."
+   ]
+  },
+  {
+   "id": "audio-engineering.l19",
+   "title": "Reverb and Delay",
+   "body": [
+    "Reverb simulates the dense pattern of reflections in a space, adding depth and glue. Key controls include decay time, often described as RT60, the time it takes for the reverb tail to fall by 60 dB; pre-delay, a short gap before the reverb starts, which lets the dry sound speak clearly before the space arrives; size; and damping or EQ, which removes harsh highs or boomy lows. Types include room, hall, chamber, plate and spring, and they can be algorithmic (generated by math) or convolution-based (using recorded impulse responses of real spaces).",
+    "A delay repeats a sound after a set time, with feedback controlling how many repeats occur. Delays can be set in milliseconds or synced to the tempo. For a quarter note, the delay time in milliseconds is 60,000 divided by the beats per minute. Worked examples: at 120 BPM a quarter note is 500 ms, an eighth note is 250 ms, and a dotted eighth (1.5 eighths) is 375 ms. At 100 BPM a quarter note is 600 ms. Very short delays, roughly under 30 ms, tend to blend with the original sound rather than being heard as a separate echo.",
+    "Practical workflow: use an auxiliary send to feed a single reverb or delay from many tracks, rather than placing the effect on every channel. This keeps a consistent sense of space, saves processing power, and lets you control how much of each track goes to the effect. Filter low frequencies from the effect return to keep the mix clear.",
+    "Dry sounds feel close and wet ones feel far away; use that contrast intentionally."
+   ]
+  },
+  {
+   "id": "audio-engineering.l20",
+   "title": "Automation, Buses and Stems",
+   "body": [
+    "A mix is not static. Automation records changes to a control, such as a fader, pan, mute or plug-in parameter, and replays them as the song plays. A classic use is riding a vocal fader up in quiet phrases and down on loud ones, adding detail that compression alone cannot. Common modes are Read (play back existing automation), Write (overwrite as playback runs), Touch (write only while you hold a control, then return to the previous value on release) and Latch (start writing when you touch and continue at the last value until playback stops).",
+    "A bus is a path that combines several signals. A group bus, such as a drum bus, sums related tracks so they can be processed together; gentle compression on a drum bus can make the kit sound as if it belongs together, an effect often called glue. An aux bus feeds effects such as reverb, as in the previous lesson. All channels ultimately feed the master bus.",
+    "A VCA fader controls the level of assigned channels without summing their audio, so you can move a whole group with one fader while keeping individual levels intact.",
+    "A stem is a group of related tracks, such as all drums, all vocals or all music, mixed down into one file. Stems are used for delivery to mastering, for remixes, for film and television, and for live performance backing. Print stems with the same start point and length so they line up when stacked.",
+    "Finally, save notes and versions. Clients and artists will ask for revisions, and being able to recall exactly what you did is a professional habit."
+   ]
+  },
+  {
+   "id": "audio-engineering.l21",
+   "title": "Loudness, LUFS and True Peak",
+   "body": [
+    "A peak meter shows the highest instant of the waveform, but our sense of loudness follows the average energy over time, weighted by how sensitive the ear is at different frequencies. LUFS (Loudness Units relative to Full Scale, also written LKFS) is a measurement built for this. It follows the ITU-R BS.1770 algorithm, which applies a frequency weighting and a gating process that ignores near-silence. One loudness unit (LU) equals one dB, so a change of 1 dB changes the reading by 1 LU. Meters typically show momentary, short-term and integrated (whole-programme) values.",
+    "True peak, in dBTP, estimates the highest level the waveform reaches between samples. After conversion to analog or lossy encoding, these inter-sample peaks can exceed the highest sample value and cause clipping, so many delivery specifications set a true-peak ceiling.",
+    "Targets depend on where the audio will play. European broadcast guidance (EBU R128) specifies an integrated loudness of -23 LUFS. In the United States, broadcast television follows ATSC A/85 under the CALM Act, with a target of -24 LKFS. Streaming services apply their own loudness normalization, with targets that differ between services and change over time, so check current specifications before delivery.",
+    "Worked example: a master measures -8 LUFS integrated and plays on a service that normalizes to -14 LUFS. The player lowers it by 6 dB (-14 minus -8 is -6). The extra loudness bought by heavy limiting is simply taken back, while the lost dynamics stay lost. This is why the so-called loudness war has lost much of its point.",
+    "LUFS tells you how loud, not how good. A number never replaces listening."
+   ]
+  },
+  {
+   "id": "audio-engineering.l22",
+   "title": "Mastering Overview",
+   "body": [
+    "Mastering is the last creative and technical step before release. A mastering engineer, typically in a carefully treated room with accurate monitoring, brings a fresh perspective to a finished mix. The aims are a balanced tone, appropriate loudness, consistency across an album, and files prepared correctly for each format.",
+    "Typical tasks include subtle EQ and compression, limiting, adjusting stereo width, setting the order and spacing of songs, fades, and creating the formats required. Consistency matters: if one track on an album plays 4 LU louder than its neighbour, listeners must adjust the volume between songs. The engineer also embeds or supplies metadata. An ISRC (International Standard Recording Code) is a code that identifies an individual sound recording. The Red Book standard for audio CDs is 44.1 kHz and 16-bit stereo, so masters made at higher resolution are converted, with dither, at the end. Disc manufacturing often uses a DDP image file.",
+    "Preparing a mix for mastering helps everyone. Common advice: leave headroom, such as peaks around -6 dBFS; avoid heavy limiting or loudness maximizing on the master bus; deliver at the session sample rate and bit depth in WAV format; and include notes and a reference if you have one. If the mix has strong problems, such as a buried vocal, mastering cannot fully fix them, and a revised mix is the correct solution.",
+    "Example: an artist delivers ten songs mixed over several months. The mastering engineer matches tone and level between them, sets two-second gaps, and delivers a CD master, a high-resolution WAV and files for streaming."
+   ]
+  },
+  {
+   "id": "audio-engineering.l23",
+   "title": "Stereo, Surround and Spatial Audio",
+   "body": [
+    "Mono uses one channel; stereo uses two, left and right. Sounds of equal level in both create a phantom centre between the speakers. Mid-side processing views stereo differently: the mid signal holds what is common to both channels, and the side signal holds the difference. One common convention is mid = (L + R) / 2 and side = (L - R) / 2; scaling varies between tools. Narrowing the side signal reduces width, and a good mix should still work when summed to mono.",
+    "We locate sounds partly through two cues: a sound from the left arrives at the left ear slightly sooner (interaural time difference) and slightly louder (interaural level difference), and the shape of the head and ears also filters the sound by direction.",
+    "Surround sound adds channels. The 5.1 format has six: left, centre, right, left surround, right surround and a low-frequency effects (LFE) channel, which is the \".1\". 7.1 adds more surround channels. Channel-based formats assign sounds to specific speakers. Object-based formats, such as Dolby Atmos, store audio with position metadata, and a renderer in the playback system decides how to reproduce it for the available speakers, whether a cinema array, a soundbar or headphones.",
+    "Binaural audio is a two-channel headphone format that reproduces the cues above using head-related transfer functions (HRTFs), creating a convincing sense of direction. Ambisonics represents the full sphere of sound around a point and can be decoded to many layouts.",
+    "Example: in a film scene, rain overhead can be placed as an object above the audience, and the renderer adapts it for each venue."
+   ]
+  },
+  {
+   "id": "audio-engineering.l24",
+   "title": "Live Sound Basics",
+   "body": [
+    "Live sound follows the same chain as recording with extra challenges. Stage microphones connect through a multicore cable (the snake) to the front-of-house (FOH) console, where the engineer mixes for the audience. The mix goes through processors and amplifiers to the main loudspeakers, usually with subwoofers for low frequencies. Performers hear themselves through a separate monitor mix, sent to floor wedges or in-ear systems.",
+    "The central problem is feedback. When a microphone picks up sound from a loudspeaker, amplifies it, and sends it out again, a loop forms. If the gain around the loop reaches one or more at some frequency, a ringing howl builds. To maximize gain before feedback: place microphones close to their sources, use directional patterns, aim the quietest part of a cardioid, its rear null, at the monitor wedge, keep speakers pointed away from mics, and lower the level of channels that ring. Engineers also ring out a system by raising gain until a frequency begins to ring and reducing that frequency with an equalizer.",
+    "Sound travels about 343 m/s, which matters in large venues. Delay speakers placed partway back should be delayed so their sound lines up with the sound from the stage. Worked example: a delay speaker 34.3 m from the mains needs 34.3 / 343 = 0.1 s, or 100 ms, of delay. Because level falls about 6 dB per doubling of distance, such fill speakers are needed to keep the back of a hall at a similar loudness.",
+    "Do a line check and sound check before the audience arrives. And protect hearing: crew and listeners deserve sensible levels and access to hearing protection, and local venue rules may set limits."
+   ]
+  },
+  {
+   "id": "audio-engineering.l25",
+   "title": "Audio for Picture: Post, Foley and Sound Design",
+   "body": [
+    "On a film set, production sound is captured with boom microphones and small wireless lavalier mics. In post-production, dialogue editors clean and select the best takes. Where production audio is unusable, actors re-record lines in a studio while watching the picture, a process called ADR (automated or additional dialogue replacement). Editors also record room tone, a minute or so of the location with no one speaking, to fill gaps so backgrounds stay consistent.",
+    "Foley is the performance of everyday sounds, such as footsteps, cloth movement and handled props, recorded in sync with picture on a specialised stage. It is named after Jack Foley, an early sound-effects artist at Universal Studios. Sound effects and ambiences come from libraries and field recordings, and music is added. The final mix combines these into stems, commonly dialogue, music and effects, so that a version in another language can be made by replacing only the dialogue.",
+    "Sync matters. At 24 frames per second, one frame lasts 1 / 24 of a second, about 41.7 ms. Timecode labels each frame so that sounds can be placed precisely.",
+    "Sound design is the creation of sounds that do not exist or cannot be recorded, using layering, synthesis, field recording, and manipulation. Layering a low rumble, a mid-range crackle and a high metallic scrape can build one convincing explosion. Playing a recording at half speed (varispeed) lowers the pitch by one octave and doubles its duration, a quick way to make small things sound enormous.",
+    "Dialogue is usually the priority, so music and effects are shaped to leave room for it."
+   ]
+  },
+  {
+   "id": "audio-engineering.l26",
+   "title": "Careers, Ethics and Professional Practice",
+   "body": [
+    "Audio offers many roles: recording engineer, mixer, mastering engineer, live sound engineer, post-production editor or re-recording mixer, broadcast engineer, sound designer, producer and equipment technician. Most careers start by assisting: learning in a studio, venue or post house, building a portfolio of finished work, and earning trust through reliability. Formal education, short courses and self-study can all help, and none replaces listening practice and communication skills.",
+    "Ethics begin with your own ears. Hearing damage from loud sound is permanent, so use hearing protection, take listening breaks and monitor at moderate levels. A career that lasts decades depends on it.",
+    "Respect for people and their work follows. Treat unreleased material as confidential. When recording people, get consent; laws on recording conversations differ by place, and some jurisdictions require every party to agree, so check local rules. Agree in writing, before work begins, on fees, deadlines, credits, and who owns the recordings and files. Without an agreement, ownership can be unclear, and arrangements such as work made for hire have specific legal meanings, so this is a place to seek proper advice.",
+    "A song recording typically involves two separate copyrights in the United States: one in the sound recording and one in the underlying musical composition. Using a sample of someone else's recording generally requires permission from the rights holders unless a legal exception applies. Rules differ by country and change, and this is general education, not legal advice.",
+    "Finally, be honest about your skills and billing, store client files carefully, and credit collaborators."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "audio-engineering.l01.q1",
+   "lessonId": "audio-engineering.l01",
+   "kind": "tf",
+   "prompt": "Sound can travel through a perfect vacuum, such as empty space.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l01.q2",
+   "lessonId": "audio-engineering.l01",
+   "kind": "mcq",
+   "prompt": "Which unit measures frequency?",
+   "choices": [
+    "Volts",
+    "Hertz (Hz)",
+    "Decibels (dB)",
+    "Metres per second"
+   ]
+  },
+  {
+   "id": "audio-engineering.l01.q3",
+   "lessonId": "audio-engineering.l01",
+   "kind": "mcq",
+   "prompt": "Taking the speed of sound as 343 m/s, what is the wavelength of a 500 Hz tone?",
+   "choices": [
+    "0.343 m",
+    "171.5 m",
+    "0.686 m",
+    "1.46 m"
+   ]
+  },
+  {
+   "id": "audio-engineering.l01.q4",
+   "lessonId": "audio-engineering.l01",
+   "kind": "mcq",
+   "prompt": "When you clap, what actually travels from your hands to a listener across the room?",
+   "choices": [
+    "The same air molecules, moving the whole distance",
+    "A stream of heat only",
+    "A flow of electrons",
+    "A pressure disturbance passed from one patch of air to the next"
+   ]
+  },
+  {
+   "id": "audio-engineering.l01.q5",
+   "lessonId": "audio-engineering.l01",
+   "kind": "tf",
+   "prompt": "If the speed of sound stays the same, doubling a tones frequency doubles its wavelength.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l02.q1",
+   "lessonId": "audio-engineering.l02",
+   "kind": "tf",
+   "prompt": "A level of 0 dB SPL means there is no sound at all.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l02.q2",
+   "lessonId": "audio-engineering.l02",
+   "kind": "mcq",
+   "prompt": "Roughly how many dB does doubling a voltage or sound pressure add?",
+   "choices": [
+    "About 6 dB",
+    "About 3 dB",
+    "About 10 dB",
+    "About 20 dB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l02.q3",
+   "lessonId": "audio-engineering.l02",
+   "kind": "mcq",
+   "prompt": "A sound pressure increases by a factor of 10. By how many dB does the level rise?",
+   "choices": [
+    "100 dB",
+    "20 dB",
+    "10 dB",
+    "6 dB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l02.q4",
+   "lessonId": "audio-engineering.l02",
+   "kind": "mcq",
+   "prompt": "Using the NIOSH guideline of 85 dBA for 8 hours with time halving for every 3 dB increase, how long is the recommended limit at 91 dBA?",
+   "choices": [
+    "1 hour",
+    "6 hours",
+    "2 hours",
+    "4 hours"
+   ]
+  },
+  {
+   "id": "audio-engineering.l02.q5",
+   "lessonId": "audio-engineering.l02",
+   "kind": "mcq",
+   "prompt": "Why do engineers often check a mix at several different volumes?",
+   "choices": [
+    "Loudness never affects how a mix sounds",
+    "Speakers only work at one level",
+    "Decibels cannot be measured at low levels",
+    "Hearing sensitivity to bass and treble changes with listening level"
+   ]
+  },
+  {
+   "id": "audio-engineering.l03.q1",
+   "lessonId": "audio-engineering.l03",
+   "kind": "tf",
+   "prompt": "Doubling a frequency raises the pitch by one octave.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l03.q2",
+   "lessonId": "audio-engineering.l03",
+   "kind": "mcq",
+   "prompt": "A note has a fundamental of 110 Hz. What is its third harmonic?",
+   "choices": [
+    "220 Hz",
+    "440 Hz",
+    "113 Hz",
+    "330 Hz"
+   ]
+  },
+  {
+   "id": "audio-engineering.l03.q3",
+   "lessonId": "audio-engineering.l03",
+   "kind": "mcq",
+   "prompt": "Two identical sine waves are summed with a 180 degree phase offset. What is the result?",
+   "choices": [
+    "They cancel to silence",
+    "The level doubles",
+    "The pitch rises an octave",
+    "A square wave"
+   ]
+  },
+  {
+   "id": "audio-engineering.l03.q4",
+   "lessonId": "audio-engineering.l03",
+   "kind": "mcq",
+   "prompt": "A violin and a flute play the same note at the same loudness yet sound different. What mainly explains this?",
+   "choices": [
+    "The sample rate differs",
+    "Their harmonic content and envelopes differ",
+    "They have different fundamental frequencies",
+    "One must be louder in dB SPL"
+   ]
+  },
+  {
+   "id": "audio-engineering.l03.q5",
+   "lessonId": "audio-engineering.l03",
+   "kind": "mcq",
+   "prompt": "Which description fits a square wave?",
+   "choices": [
+    "A single frequency with no harmonics",
+    "Only even harmonics",
+    "The fundamental plus only odd harmonics",
+    "The fundamental plus all harmonics"
+   ]
+  },
+  {
+   "id": "audio-engineering.l04.q1",
+   "lessonId": "audio-engineering.l04",
+   "kind": "mcq",
+   "prompt": "What is the highest frequency that can be captured at a 48 kHz sample rate?",
+   "choices": [
+    "12 kHz",
+    "24 kHz",
+    "48 kHz",
+    "96 kHz"
+   ]
+  },
+  {
+   "id": "audio-engineering.l04.q2",
+   "lessonId": "audio-engineering.l04",
+   "kind": "tf",
+   "prompt": "A 30 kHz tone can be captured accurately at a 44.1 kHz sample rate.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l04.q3",
+   "lessonId": "audio-engineering.l04",
+   "kind": "mcq",
+   "prompt": "A 30 kHz tone is sampled at 44.1 kHz with no anti-aliasing filter. At what frequency does the alias appear?",
+   "choices": [
+    "30 kHz",
+    "22.05 kHz",
+    "74.1 kHz",
+    "14.1 kHz"
+   ]
+  },
+  {
+   "id": "audio-engineering.l04.q4",
+   "lessonId": "audio-engineering.l04",
+   "kind": "mcq",
+   "prompt": "What does an anti-aliasing filter do?",
+   "choices": [
+    "Removes content above the Nyquist frequency before sampling",
+    "Adds noise to hide distortion",
+    "Raises the bit depth",
+    "Reduces the file size after recording"
+   ]
+  },
+  {
+   "id": "audio-engineering.l04.q5",
+   "lessonId": "audio-engineering.l04",
+   "kind": "tf",
+   "prompt": "When digital audio is properly converted back to analog, the output is a smooth wave rather than visible stair steps.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l05.q1",
+   "lessonId": "audio-engineering.l05",
+   "kind": "tf",
+   "prompt": "Each additional bit of depth adds roughly 6 dB of theoretical dynamic range.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l05.q2",
+   "lessonId": "audio-engineering.l05",
+   "kind": "mcq",
+   "prompt": "What is the bit rate of uncompressed stereo audio at 48 kHz and 24 bits?",
+   "choices": [
+    "4,608 kbps",
+    "2,304 kbps",
+    "1,411.2 kbps",
+    "1,152 kbps"
+   ]
+  },
+  {
+   "id": "audio-engineering.l05.q3",
+   "lessonId": "audio-engineering.l05",
+   "kind": "mcq",
+   "prompt": "About how large is one minute of mono 48 kHz, 16-bit audio?",
+   "choices": [
+    "About 11.5 MB",
+    "About 0.96 MB",
+    "About 5.76 MB",
+    "About 1.44 MB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l05.q4",
+   "lessonId": "audio-engineering.l05",
+   "kind": "tf",
+   "prompt": "Dither should be applied at every processing stage in a project.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l05.q5",
+   "lessonId": "audio-engineering.l05",
+   "kind": "mcq",
+   "prompt": "What is the main purpose of dither?",
+   "choices": [
+    "To turn quantization distortion into steady low-level noise",
+    "To raise the sample rate",
+    "To make a file smaller",
+    "To remove hum"
+   ]
+  },
+  {
+   "id": "audio-engineering.l06.q1",
+   "lessonId": "audio-engineering.l06",
+   "kind": "tf",
+   "prompt": "Condenser microphones normally require power for their circuitry.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l06.q2",
+   "lessonId": "audio-engineering.l06",
+   "kind": "mcq",
+   "prompt": "What is the nominal voltage of standard phantom power?",
+   "choices": [
+    "48 volts",
+    "5 volts",
+    "12 volts",
+    "120 volts"
+   ]
+  },
+  {
+   "id": "audio-engineering.l06.q3",
+   "lessonId": "audio-engineering.l06",
+   "kind": "mcq",
+   "prompt": "Which type is the usual first choice for close-miking a loud guitar amplifier?",
+   "choices": [
+    "A small piezo transducer only",
+    "A dynamic microphone",
+    "A ribbon microphone with phantom power forced on",
+    "A battery-powered measurement microphone"
+   ]
+  },
+  {
+   "id": "audio-engineering.l06.q4",
+   "lessonId": "audio-engineering.l06",
+   "kind": "mcq",
+   "prompt": "Before connecting an unfamiliar ribbon microphone with phantom power on, what should you do?",
+   "choices": [
+    "Switch to an unbalanced cable",
+    "Nothing, all ribbons are phantom-safe",
+    "Check the manufacturer guidance, because phantom power can harm some models",
+    "Raise the preamp gain to maximum"
+   ]
+  },
+  {
+   "id": "audio-engineering.l06.q5",
+   "lessonId": "audio-engineering.l06",
+   "kind": "mcq",
+   "prompt": "Which design converts sound to voltage by moving a coil in a magnetic field?",
+   "choices": [
+    "Condenser",
+    "Piezo contact only",
+    "Optical",
+    "Dynamic"
+   ]
+  },
+  {
+   "id": "audio-engineering.l07.q1",
+   "lessonId": "audio-engineering.l07",
+   "kind": "mcq",
+   "prompt": "Where is a cardioid microphone least sensitive?",
+   "choices": [
+    "At 90 degrees on one side only",
+    "Everywhere equally",
+    "Directly behind the capsule",
+    "Directly in front"
+   ]
+  },
+  {
+   "id": "audio-engineering.l07.q2",
+   "lessonId": "audio-engineering.l07",
+   "kind": "tf",
+   "prompt": "An omnidirectional microphone responds equally to sound from all directions.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l07.q3",
+   "lessonId": "audio-engineering.l07",
+   "kind": "mcq",
+   "prompt": "At which angle is a figure-8 microphone least sensitive?",
+   "choices": [
+    "90 degrees, at the sides",
+    "0 degrees, at the front",
+    "180 degrees, at the back",
+    "It is equally sensitive at all angles"
+   ]
+  },
+  {
+   "id": "audio-engineering.l07.q4",
+   "lessonId": "audio-engineering.l07",
+   "kind": "mcq",
+   "prompt": "A loud hi-hat leaks into a tom microphone. Which approach best reduces this bleed?",
+   "choices": [
+    "Add reverb to the tom",
+    "Choose a tighter pattern and aim its null toward the hi-hat",
+    "Switch to an omnidirectional microphone",
+    "Raise the preamp gain"
+   ]
+  },
+  {
+   "id": "audio-engineering.l07.q5",
+   "lessonId": "audio-engineering.l07",
+   "kind": "mcq",
+   "prompt": "Which kind of pattern does not show the proximity effect?",
+   "choices": [
+    "Figure-8",
+    "Hypercardioid",
+    "Omnidirectional (pressure type)",
+    "Cardioid"
+   ]
+  },
+  {
+   "id": "audio-engineering.l08.q1",
+   "lessonId": "audio-engineering.l08",
+   "kind": "mcq",
+   "prompt": "In an open space, how does the sound pressure level change when the distance from a point source doubles?",
+   "choices": [
+    "It stays the same",
+    "It falls by about 6 dB",
+    "It falls by about 3 dB",
+    "It falls by about 12 dB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l08.q2",
+   "lessonId": "audio-engineering.l08",
+   "kind": "tf",
+   "prompt": "The proximity effect increases low frequencies as a directional microphone moves very close to a source.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l08.q3",
+   "lessonId": "audio-engineering.l08",
+   "kind": "mcq",
+   "prompt": "Two microphones are each 20 cm from their sources. By the 3:1 rule, how far apart should the microphones be at minimum?",
+   "choices": [
+    "20 cm",
+    "40 cm",
+    "10 cm",
+    "60 cm"
+   ]
+  },
+  {
+   "id": "audio-engineering.l08.q4",
+   "lessonId": "audio-engineering.l08",
+   "kind": "mcq",
+   "prompt": "Which stereo arrangement uses two capsules at the same point?",
+   "choices": [
+    "X/Y coincident pair",
+    "A/B spaced pair",
+    "ORTF",
+    "Close-miked pair"
+   ]
+  },
+  {
+   "id": "audio-engineering.l08.q5",
+   "lessonId": "audio-engineering.l08",
+   "kind": "mcq",
+   "prompt": "Two microphones are on one source and the summed sound is thin and hollow. What is the most likely cause?",
+   "choices": [
+    "Dither was applied",
+    "Comb filtering from time-of-arrival differences",
+    "Too much phantom power",
+    "The sample rate is too high"
+   ]
+  },
+  {
+   "id": "audio-engineering.l09.q1",
+   "lessonId": "audio-engineering.l09",
+   "kind": "mcq",
+   "prompt": "Which signal is stronger?",
+   "choices": [
+    "Line level",
+    "Microphone level",
+    "They are the same",
+    "Neither is a voltage"
+   ]
+  },
+  {
+   "id": "audio-engineering.l09.q2",
+   "lessonId": "audio-engineering.l09",
+   "kind": "tf",
+   "prompt": "Balanced connections reject noise by cancelling interference that appears equally on both conductors.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l09.q3",
+   "lessonId": "audio-engineering.l09",
+   "kind": "mcq",
+   "prompt": "Professional nominal line level of +4 dBu corresponds to about how many volts RMS?",
+   "choices": [
+    "4 V",
+    "0.775 V",
+    "1.228 V",
+    "0.316 V"
+   ]
+  },
+  {
+   "id": "audio-engineering.l09.q4",
+   "lessonId": "audio-engineering.l09",
+   "kind": "mcq",
+   "prompt": "What does a DI box do for an electric bass plugged into it?",
+   "choices": [
+    "Adds phantom power to the pickup",
+    "Raises the signal to speaker level",
+    "Converts audio to digital",
+    "Converts a high-impedance signal to a low-impedance balanced one"
+   ]
+  },
+  {
+   "id": "audio-engineering.l09.q5",
+   "lessonId": "audio-engineering.l09",
+   "kind": "mcq",
+   "prompt": "No sound reaches the speakers. Which is the most sensible approach?",
+   "choices": [
+    "Trace the signal stage by stage from the source forward",
+    "Replace the speakers first",
+    "Raise the master fader to maximum",
+    "Change the sample rate"
+   ]
+  },
+  {
+   "id": "audio-engineering.l10.q1",
+   "lessonId": "audio-engineering.l10",
+   "kind": "tf",
+   "prompt": "In a fixed-point digital system, signal above 0 dBFS cannot be represented and is clipped.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l10.q2",
+   "lessonId": "audio-engineering.l10",
+   "kind": "mcq",
+   "prompt": "A vocal peaks at -18 dBFS and you add 9 dB of gain. Where do the peaks now sit?",
+   "choices": [
+    "-9 dBFS",
+    "-27 dBFS",
+    "-18 dBFS",
+    "+9 dBFS"
+   ]
+  },
+  {
+   "id": "audio-engineering.l10.q3",
+   "lessonId": "audio-engineering.l10",
+   "kind": "mcq",
+   "prompt": "Why is it unnecessary to record 24-bit audio with peaks right at 0 dBFS?",
+   "choices": [
+    "Because 0 dBFS is quieter than -18 dBFS",
+    "The noise floor is already very low, and extra level only risks clipping",
+    "Because 24-bit audio cannot clip",
+    "Because peaks do not matter in digital audio"
+   ]
+  },
+  {
+   "id": "audio-engineering.l10.q4",
+   "lessonId": "audio-engineering.l10",
+   "kind": "tf",
+   "prompt": "Turning down the channel fader after recording removes clipping distortion that is already in the file.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l10.q5",
+   "lessonId": "audio-engineering.l10",
+   "kind": "mcq",
+   "prompt": "Why does the master bus meter rise as more tracks are added?",
+   "choices": [
+    "Digital audio gets louder over time",
+    "The sample rate changes",
+    "Phantom power adds gain",
+    "Their signals sum together"
+   ]
+  },
+  {
+   "id": "audio-engineering.l11.q1",
+   "lessonId": "audio-engineering.l11",
+   "kind": "tf",
+   "prompt": "Soundproofing and acoustic treatment are two names for the same thing.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l11.q2",
+   "lessonId": "audio-engineering.l11",
+   "kind": "mcq",
+   "prompt": "Using the speed of sound as 343 m/s, what is the lowest axial mode frequency between walls 5 m apart?",
+   "choices": [
+    "68.6 Hz",
+    "17.15 Hz",
+    "171.5 Hz",
+    "34.3 Hz"
+   ]
+  },
+  {
+   "id": "audio-engineering.l11.q3",
+   "lessonId": "audio-engineering.l11",
+   "kind": "mcq",
+   "prompt": "Where are bass traps most commonly placed?",
+   "choices": [
+    "In room corners",
+    "In the exact centre of the ceiling only",
+    "Directly on the speaker cones",
+    "Outside the building"
+   ]
+  },
+  {
+   "id": "audio-engineering.l11.q4",
+   "lessonId": "audio-engineering.l11",
+   "kind": "mcq",
+   "prompt": "Why do engineers check a mix on several playback systems?",
+   "choices": [
+    "Because monitors cannot play bass",
+    "No single system or room is perfectly neutral, so checking shows how the mix translates",
+    "Every speaker sounds identical",
+    "To make the mix quieter"
+   ]
+  },
+  {
+   "id": "audio-engineering.l11.q5",
+   "lessonId": "audio-engineering.l11",
+   "kind": "mcq",
+   "prompt": "Thin acoustic foam on a wall mainly does what?",
+   "choices": [
+    "Removes room modes completely",
+    "Boosts bass energy",
+    "Absorbs high frequencies but does little for bass",
+    "Stops all sound leaving the room"
+   ]
+  },
+  {
+   "id": "audio-engineering.l12.q1",
+   "lessonId": "audio-engineering.l12",
+   "kind": "mcq",
+   "prompt": "What is the delay from a 128-sample buffer at 48,000 Hz?",
+   "choices": [
+    "About 26.7 ms",
+    "About 2.67 ms",
+    "About 0.37 ms",
+    "About 128 ms"
+   ]
+  },
+  {
+   "id": "audio-engineering.l12.q2",
+   "lessonId": "audio-engineering.l12",
+   "kind": "tf",
+   "prompt": "Increasing the buffer size lowers latency.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l12.q3",
+   "lessonId": "audio-engineering.l12",
+   "kind": "mcq",
+   "prompt": "What is a cue mix for?",
+   "choices": [
+    "Mastering the final song",
+    "Converting file formats",
+    "Measuring loudness",
+    "Giving performers a custom headphone balance"
+   ]
+  },
+  {
+   "id": "audio-engineering.l12.q4",
+   "lessonId": "audio-engineering.l12",
+   "kind": "mcq",
+   "prompt": "The 3-2-1 backup guideline calls for what?",
+   "choices": [
+    "Three copies, on two kinds of storage, with one off-site",
+    "Three drives, two cables, one computer",
+    "One copy on three drives",
+    "Three backups per year"
+   ]
+  },
+  {
+   "id": "audio-engineering.l12.q5",
+   "lessonId": "audio-engineering.l12",
+   "kind": "mcq",
+   "prompt": "Why decide the sample rate before starting to record?",
+   "choices": [
+    "Phantom power depends on it",
+    "Changing it later needs conversion and can complicate mixed-rate material",
+    "Software cannot play different rates",
+    "Sample rate controls the volume"
+   ]
+  },
+  {
+   "id": "audio-engineering.l13.q1",
+   "lessonId": "audio-engineering.l13",
+   "kind": "tf",
+   "prompt": "Non-destructive editing rewrites the original audio file each time you make a cut.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l13.q2",
+   "lessonId": "audio-engineering.l13",
+   "kind": "mcq",
+   "prompt": "What is the purpose of a crossfade?",
+   "choices": [
+    "To add reverb",
+    "To smooth the join between two clips and avoid clicks",
+    "To raise the pitch",
+    "To compress the dynamics"
+   ]
+  },
+  {
+   "id": "audio-engineering.l13.q3",
+   "lessonId": "audio-engineering.l13",
+   "kind": "mcq",
+   "prompt": "What is comping?",
+   "choices": [
+    "Converting stereo to mono",
+    "Cleaning microphone capsules",
+    "Assembling the best sections of several takes into one performance",
+    "Compressing audio files"
+   ]
+  },
+  {
+   "id": "audio-engineering.l13.q4",
+   "lessonId": "audio-engineering.l13",
+   "kind": "mcq",
+   "prompt": "Why use clip gain before a compressor?",
+   "choices": [
+    "It replaces the compressor",
+    "It raises the sample rate",
+    "It adds phantom power",
+    "It evens out levels so the compressor reacts more consistently"
+   ]
+  },
+  {
+   "id": "audio-engineering.l13.q5",
+   "lessonId": "audio-engineering.l13",
+   "kind": "mcq",
+   "prompt": "An audible click appears at an edit point. What is the most likely cause?",
+   "choices": [
+    "A sudden discontinuity in the waveform at the cut",
+    "Too much headroom",
+    "A sample rate that is too low",
+    "Phantom power being on"
+   ]
+  },
+  {
+   "id": "audio-engineering.l14.q1",
+   "lessonId": "audio-engineering.l14",
+   "kind": "mcq",
+   "prompt": "In the United States, what is the frequency of mains power?",
+   "choices": [
+    "50 Hz",
+    "44.1 Hz",
+    "120 kHz",
+    "60 Hz"
+   ]
+  },
+  {
+   "id": "audio-engineering.l14.q2",
+   "lessonId": "audio-engineering.l14",
+   "kind": "tf",
+   "prompt": "Removing the grounding pin from a power cord is a safe way to cure hum.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l14.q3",
+   "lessonId": "audio-engineering.l14",
+   "kind": "mcq",
+   "prompt": "A signal at -10 dBFS has noise at -70 dBFS. What is the signal-to-noise ratio?",
+   "choices": [
+    "-60 dB",
+    "60 dB",
+    "80 dB",
+    "7 dB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l14.q4",
+   "lessonId": "audio-engineering.l14",
+   "kind": "mcq",
+   "prompt": "What produces a ground loop?",
+   "choices": [
+    "A sample rate mismatch",
+    "Phantom power",
+    "More than one path to ground between connected devices",
+    "Using only balanced cables"
+   ]
+  },
+  {
+   "id": "audio-engineering.l14.q5",
+   "lessonId": "audio-engineering.l14",
+   "kind": "mcq",
+   "prompt": "What should you do if audio and power cables must meet?",
+   "choices": [
+    "Run them in parallel and bundle them",
+    "Wrap them around each other",
+    "Tape them together tightly",
+    "Cross them at right angles"
+   ]
+  },
+  {
+   "id": "audio-engineering.l15.q1",
+   "lessonId": "audio-engineering.l15",
+   "kind": "tf",
+   "prompt": "Converting an MP3 to FLAC restores the information lost in the MP3 encoding.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l15.q2",
+   "lessonId": "audio-engineering.l15",
+   "kind": "mcq",
+   "prompt": "Which of these is a lossless compressed format?",
+   "choices": [
+    "MP3",
+    "AAC",
+    "Opus",
+    "FLAC"
+   ]
+  },
+  {
+   "id": "audio-engineering.l15.q3",
+   "lessonId": "audio-engineering.l15",
+   "kind": "mcq",
+   "prompt": "How many bytes is 60 seconds of audio at 128 kbps?",
+   "choices": [
+    "960,000 bytes",
+    "128,000 bytes",
+    "7,680,000 bytes",
+    "480,000 bytes"
+   ]
+  },
+  {
+   "id": "audio-engineering.l15.q4",
+   "lessonId": "audio-engineering.l15",
+   "kind": "mcq",
+   "prompt": "Which workflow is best practice?",
+   "choices": [
+    "Keep only the lossy copy",
+    "Archive in lossless and make lossy copies only for delivery",
+    "Edit in MP3 and export WAV at the end",
+    "Re-encode lossy files repeatedly to save space"
+   ]
+  },
+  {
+   "id": "audio-engineering.l15.q5",
+   "lessonId": "audio-engineering.l15",
+   "kind": "mcq",
+   "prompt": "Why does repeated lossy re-encoding degrade audio?",
+   "choices": [
+    "It adds dither automatically",
+    "It removes the metadata only",
+    "Each pass discards more information and adds artifacts",
+    "It lowers the sample rate each time"
+   ]
+  },
+  {
+   "id": "audio-engineering.l16.q1",
+   "lessonId": "audio-engineering.l16",
+   "kind": "tf",
+   "prompt": "A mono track panned hard left plays only from the left speaker.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l16.q2",
+   "lessonId": "audio-engineering.l16",
+   "kind": "mcq",
+   "prompt": "Why are kick drum and bass usually kept in the centre?",
+   "choices": [
+    "Panning is impossible below 100 Hz",
+    "It makes the mix quieter",
+    "Low frequencies carry much energy, and centring shares it between both speakers",
+    "Bass cannot be heard on the sides"
+   ]
+  },
+  {
+   "id": "audio-engineering.l16.q3",
+   "lessonId": "audio-engineering.l16",
+   "kind": "mcq",
+   "prompt": "What is the purpose of a pan law of -3 dB at the centre?",
+   "choices": [
+    "Make the vocal quieter",
+    "Reduce noise",
+    "Convert to mono",
+    "Keep perceived loudness steady as a track moves across the field"
+   ]
+  },
+  {
+   "id": "audio-engineering.l16.q4",
+   "lessonId": "audio-engineering.l16",
+   "kind": "mcq",
+   "prompt": "What is a common first step in building a mix?",
+   "choices": [
+    "A rough balance using only faders",
+    "Adding reverb to every track",
+    "Mastering each stem",
+    "Applying dither"
+   ]
+  },
+  {
+   "id": "audio-engineering.l16.q5",
+   "lessonId": "audio-engineering.l16",
+   "kind": "mcq",
+   "prompt": "Why check a mix in mono?",
+   "choices": [
+    "It changes the sample rate",
+    "It reveals phase cancellation and balance problems",
+    "It removes noise",
+    "It raises loudness"
+   ]
+  },
+  {
+   "id": "audio-engineering.l17.q1",
+   "lessonId": "audio-engineering.l17",
+   "kind": "mcq",
+   "prompt": "What does a high-pass filter do?",
+   "choices": [
+    "Removes frequencies below its cutoff",
+    "Removes frequencies above its cutoff",
+    "Boosts only the mids",
+    "Adds harmonics"
+   ]
+  },
+  {
+   "id": "audio-engineering.l17.q2",
+   "lessonId": "audio-engineering.l17",
+   "kind": "tf",
+   "prompt": "Raising the Q of a bell filter makes its affected band narrower.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l17.q3",
+   "lessonId": "audio-engineering.l17",
+   "kind": "mcq",
+   "prompt": "What is masking?",
+   "choices": [
+    "Removing hum",
+    "A type of reverb",
+    "One sound obscuring another that occupies a similar frequency range",
+    "A way of covering microphones"
+   ]
+  },
+  {
+   "id": "audio-engineering.l17.q4",
+   "lessonId": "audio-engineering.l17",
+   "kind": "mcq",
+   "prompt": "Why match levels when comparing EQ on and off?",
+   "choices": [
+    "EQ always lowers volume",
+    "The ear ignores level differences",
+    "Plug-ins cannot be bypassed",
+    "A louder version tends to sound better, which can bias judgment"
+   ]
+  },
+  {
+   "id": "audio-engineering.l17.q5",
+   "lessonId": "audio-engineering.l17",
+   "kind": "mcq",
+   "prompt": "A guitar and a vocal mask each other in the midrange. Which move best helps?",
+   "choices": [
+    "Slightly cut the guitar where the vocal lives",
+    "Boost both by 6 dB in the same range",
+    "Add more reverb to both",
+    "Raise the sample rate"
+   ]
+  },
+  {
+   "id": "audio-engineering.l18.q1",
+   "lessonId": "audio-engineering.l18",
+   "kind": "tf",
+   "prompt": "At a 4:1 ratio, an input 4 dB over the threshold comes out 1 dB over the threshold.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l18.q2",
+   "lessonId": "audio-engineering.l18",
+   "kind": "mcq",
+   "prompt": "With threshold -20 dB, ratio 4:1 and an input peak of -8 dB, what is the output peak?",
+   "choices": [
+    "-17 dB",
+    "-14 dB",
+    "-8 dB",
+    "-12 dB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l18.q3",
+   "lessonId": "audio-engineering.l18",
+   "kind": "mcq",
+   "prompt": "With threshold -10 dB, ratio 2:1 and an input of -2 dB, how much gain reduction occurs?",
+   "choices": [
+    "6 dB",
+    "4 dB",
+    "8 dB",
+    "2 dB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l18.q4",
+   "lessonId": "audio-engineering.l18",
+   "kind": "mcq",
+   "prompt": "What does a slower attack setting typically do to a drum hit?",
+   "choices": [
+    "Raises the pitch",
+    "Reverses the polarity",
+    "Lets more of the initial transient through",
+    "Removes the transient completely"
+   ]
+  },
+  {
+   "id": "audio-engineering.l18.q5",
+   "lessonId": "audio-engineering.l18",
+   "kind": "mcq",
+   "prompt": "What can a very fast release cause on bass-heavy material?",
+   "choices": [
+    "A lower sample rate",
+    "More headroom",
+    "Improved stereo width",
+    "Audible pumping or distortion"
+   ]
+  },
+  {
+   "id": "audio-engineering.l19.q1",
+   "lessonId": "audio-engineering.l19",
+   "kind": "mcq",
+   "prompt": "What does RT60 measure?",
+   "choices": [
+    "The number of reflections in 60 ms",
+    "The delay at 60 BPM",
+    "The time for the reverb tail to fall by 60 dB",
+    "The reverb level at 60 Hz"
+   ]
+  },
+  {
+   "id": "audio-engineering.l19.q2",
+   "lessonId": "audio-engineering.l19",
+   "kind": "mcq",
+   "prompt": "At 100 BPM, how long is a quarter-note delay?",
+   "choices": [
+    "500 ms",
+    "750 ms",
+    "400 ms",
+    "600 ms"
+   ]
+  },
+  {
+   "id": "audio-engineering.l19.q3",
+   "lessonId": "audio-engineering.l19",
+   "kind": "mcq",
+   "prompt": "At 120 BPM, how long is a dotted-eighth-note delay?",
+   "choices": [
+    "375 ms",
+    "250 ms",
+    "500 ms",
+    "750 ms"
+   ]
+  },
+  {
+   "id": "audio-engineering.l19.q4",
+   "lessonId": "audio-engineering.l19",
+   "kind": "tf",
+   "prompt": "Pre-delay lets the dry sound arrive before the reverb begins.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l19.q5",
+   "lessonId": "audio-engineering.l19",
+   "kind": "mcq",
+   "prompt": "Why use an auxiliary send for reverb rather than inserting one on every track?",
+   "choices": [
+    "It removes the need for panning",
+    "It lowers the sample rate",
+    "It shares one space across tracks and saves processing",
+    "It makes tracks louder"
+   ]
+  },
+  {
+   "id": "audio-engineering.l20.q1",
+   "lessonId": "audio-engineering.l20",
+   "kind": "tf",
+   "prompt": "Automation records movements of controls over time.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l20.q2",
+   "lessonId": "audio-engineering.l20",
+   "kind": "mcq",
+   "prompt": "What is a stem?",
+   "choices": [
+    "A type of cable",
+    "A reverb setting",
+    "A group of related tracks mixed down into one file",
+    "A single microphone"
+   ]
+  },
+  {
+   "id": "audio-engineering.l20.q3",
+   "lessonId": "audio-engineering.l20",
+   "kind": "mcq",
+   "prompt": "What does a VCA fader do?",
+   "choices": [
+    "Adds reverb to channels",
+    "Converts to digital",
+    "Applies dither",
+    "Controls the levels of assigned channels without summing their audio"
+   ]
+  },
+  {
+   "id": "audio-engineering.l20.q4",
+   "lessonId": "audio-engineering.l20",
+   "kind": "mcq",
+   "prompt": "What is the purpose of gentle compression on a drum bus?",
+   "choices": [
+    "To glue the kit together as one sound",
+    "To add phantom power",
+    "To raise the sample rate",
+    "To remove all dynamics"
+   ]
+  },
+  {
+   "id": "audio-engineering.l20.q5",
+   "lessonId": "audio-engineering.l20",
+   "kind": "mcq",
+   "prompt": "In Touch automation mode, what happens when you let go of the control?",
+   "choices": [
+    "The track mutes",
+    "The control returns to its previous automated value",
+    "It continues at the last value until playback stops",
+    "Automation is deleted"
+   ]
+  },
+  {
+   "id": "audio-engineering.l21.q1",
+   "lessonId": "audio-engineering.l21",
+   "kind": "mcq",
+   "prompt": "One loudness unit (LU) equals how many dB?",
+   "choices": [
+    "1 dB",
+    "3 dB",
+    "6 dB",
+    "10 dB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l21.q2",
+   "lessonId": "audio-engineering.l21",
+   "kind": "tf",
+   "prompt": "LUFS simply reports the highest sample peak in a file.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l21.q3",
+   "lessonId": "audio-engineering.l21",
+   "kind": "mcq",
+   "prompt": "A master at -8 LUFS plays on a service that normalizes to -14 LUFS. How much is it turned down?",
+   "choices": [
+    "14 dB",
+    "22 dB",
+    "6 dB",
+    "8 dB"
+   ]
+  },
+  {
+   "id": "audio-engineering.l21.q4",
+   "lessonId": "audio-engineering.l21",
+   "kind": "mcq",
+   "prompt": "What is true peak measurement meant to catch?",
+   "choices": [
+    "Hum at 60 Hz",
+    "Reverb decay time",
+    "Phase cancellation",
+    "Inter-sample peaks that can clip after conversion or encoding"
+   ]
+  },
+  {
+   "id": "audio-engineering.l21.q5",
+   "lessonId": "audio-engineering.l21",
+   "kind": "mcq",
+   "prompt": "Why does the loudness war matter less on normalizing platforms?",
+   "choices": [
+    "Loud masters are turned down, so only the lost dynamics remain",
+    "Normalization raises quiet masters to 0 dBFS",
+    "LUFS rewards limiting",
+    "Streaming removes dynamics anyway"
+   ]
+  },
+  {
+   "id": "audio-engineering.l22.q1",
+   "lessonId": "audio-engineering.l22",
+   "kind": "tf",
+   "prompt": "Mastering can fully fix any problem in a mix.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l22.q2",
+   "lessonId": "audio-engineering.l22",
+   "kind": "mcq",
+   "prompt": "What is the Red Book audio CD format?",
+   "choices": [
+    "44.1 kHz, 16-bit stereo",
+    "48 kHz, 24-bit stereo",
+    "96 kHz, 24-bit surround",
+    "22.05 kHz, 8-bit mono"
+   ]
+  },
+  {
+   "id": "audio-engineering.l22.q3",
+   "lessonId": "audio-engineering.l22",
+   "kind": "mcq",
+   "prompt": "What does an ISRC identify?",
+   "choices": [
+    "A sample rate",
+    "An individual sound recording",
+    "A microphone model",
+    "A mastering studio"
+   ]
+  },
+  {
+   "id": "audio-engineering.l22.q4",
+   "lessonId": "audio-engineering.l22",
+   "kind": "mcq",
+   "prompt": "What is common advice for a mix sent to mastering?",
+   "choices": [
+    "Deliver only MP3 files",
+    "Remove all dynamics",
+    "Leave headroom and avoid heavy master-bus limiting",
+    "Limit as hard as possible"
+   ]
+  },
+  {
+   "id": "audio-engineering.l22.q5",
+   "lessonId": "audio-engineering.l22",
+   "kind": "mcq",
+   "prompt": "Why does an album master aim for consistency between tracks?",
+   "choices": [
+    "So all songs sound identical",
+    "So files are smaller",
+    "To avoid using metadata",
+    "So listeners need not keep adjusting the volume or tone between songs"
+   ]
+  },
+  {
+   "id": "audio-engineering.l23.q1",
+   "lessonId": "audio-engineering.l23",
+   "kind": "mcq",
+   "prompt": "How many channels does a 5.1 format have?",
+   "choices": [
+    "Seven",
+    "Eight",
+    "Six",
+    "Five"
+   ]
+  },
+  {
+   "id": "audio-engineering.l23.q2",
+   "lessonId": "audio-engineering.l23",
+   "kind": "tf",
+   "prompt": "The .1 in 5.1 refers to a low-frequency effects channel.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l23.q3",
+   "lessonId": "audio-engineering.l23",
+   "kind": "mcq",
+   "prompt": "In mid-side processing, what does the mid signal contain?",
+   "choices": [
+    "Content common to both left and right channels",
+    "Only the difference between channels",
+    "Only the low frequencies",
+    "The surround channels"
+   ]
+  },
+  {
+   "id": "audio-engineering.l23.q4",
+   "lessonId": "audio-engineering.l23",
+   "kind": "mcq",
+   "prompt": "What defines object-based audio such as Dolby Atmos?",
+   "choices": [
+    "It cannot be played on headphones",
+    "Sounds carry position metadata and are rendered for the playback system",
+    "Each sound is fixed to one speaker",
+    "It uses only two channels"
+   ]
+  },
+  {
+   "id": "audio-engineering.l23.q5",
+   "lessonId": "audio-engineering.l23",
+   "kind": "mcq",
+   "prompt": "Binaural audio for headphones relies on what?",
+   "choices": [
+    "Only an LFE channel",
+    "Raising the sample rate",
+    "Head-related cues such as timing, level and filtering differences between the ears",
+    "Five loudspeakers"
+   ]
+  },
+  {
+   "id": "audio-engineering.l24.q1",
+   "lessonId": "audio-engineering.l24",
+   "kind": "mcq",
+   "prompt": "A delay speaker sits 17.15 m from the mains. With sound at 343 m/s, what delay aligns it?",
+   "choices": [
+    "500 ms",
+    "50 ms",
+    "100 ms",
+    "5 ms"
+   ]
+  },
+  {
+   "id": "audio-engineering.l24.q2",
+   "lessonId": "audio-engineering.l24",
+   "kind": "tf",
+   "prompt": "Feedback occurs when sound from a loudspeaker re-enters a microphone and is amplified in a loop.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l24.q3",
+   "lessonId": "audio-engineering.l24",
+   "kind": "mcq",
+   "prompt": "Where should a cardioid microphone aim its null relative to a monitor wedge?",
+   "choices": [
+    "Away from the wedge",
+    "At the audience",
+    "At the ceiling",
+    "At the wedge"
+   ]
+  },
+  {
+   "id": "audio-engineering.l24.q4",
+   "lessonId": "audio-engineering.l24",
+   "kind": "mcq",
+   "prompt": "What does FOH stand for?",
+   "choices": [
+    "Front of house",
+    "Feedback on hold",
+    "Full output headroom",
+    "Floor of hall"
+   ]
+  },
+  {
+   "id": "audio-engineering.l24.q5",
+   "lessonId": "audio-engineering.l24",
+   "kind": "mcq",
+   "prompt": "A channel begins to ring with feedback. What is a sensible first action?",
+   "choices": [
+    "Turn on phantom power",
+    "Lower the gain or level of the ringing channel",
+    "Raise the master fader",
+    "Move the microphone farther from the singer"
+   ]
+  },
+  {
+   "id": "audio-engineering.l25.q1",
+   "lessonId": "audio-engineering.l25",
+   "kind": "mcq",
+   "prompt": "What is room tone used for?",
+   "choices": [
+    "Filling gaps with the sound of the location with no one speaking",
+    "Adding artificial reverb",
+    "Re-recording dialogue",
+    "Setting the frame rate"
+   ]
+  },
+  {
+   "id": "audio-engineering.l25.q2",
+   "lessonId": "audio-engineering.l25",
+   "kind": "tf",
+   "prompt": "Foley is performed live, in sync with picture, on a specialised stage.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l25.q3",
+   "lessonId": "audio-engineering.l25",
+   "kind": "mcq",
+   "prompt": "About how long does one frame last at 24 frames per second?",
+   "choices": [
+    "About 100 ms",
+    "About 4.2 ms",
+    "About 41.7 ms",
+    "About 24 ms"
+   ]
+  },
+  {
+   "id": "audio-engineering.l25.q4",
+   "lessonId": "audio-engineering.l25",
+   "kind": "mcq",
+   "prompt": "What is ADR?",
+   "choices": [
+    "A reverb type",
+    "An audio compression format",
+    "A microphone pattern",
+    "Re-recording dialogue in a studio while watching the picture"
+   ]
+  },
+  {
+   "id": "audio-engineering.l25.q5",
+   "lessonId": "audio-engineering.l25",
+   "kind": "tf",
+   "prompt": "Playing a recording at half speed by resampling lowers its pitch by one octave and doubles its duration.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l26.q1",
+   "lessonId": "audio-engineering.l26",
+   "kind": "tf",
+   "prompt": "Every jurisdiction allows recording any conversation without the consent of the people involved.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "audio-engineering.l26.q2",
+   "lessonId": "audio-engineering.l26",
+   "kind": "mcq",
+   "prompt": "A recorded song in the United States typically involves which two copyrights?",
+   "choices": [
+    "The sound recording and the underlying musical composition",
+    "The microphone and the studio",
+    "The mix and the master only",
+    "The file format and the cable"
+   ]
+  },
+  {
+   "id": "audio-engineering.l26.q3",
+   "lessonId": "audio-engineering.l26",
+   "kind": "mcq",
+   "prompt": "When is the best time to agree on credits and ownership?",
+   "choices": [
+    "Only if a dispute occurs",
+    "In writing, before the work begins",
+    "After release",
+    "Never, it is automatic"
+   ]
+  },
+  {
+   "id": "audio-engineering.l26.q4",
+   "lessonId": "audio-engineering.l26",
+   "kind": "mcq",
+   "prompt": "Which habit best protects your ability to work for decades?",
+   "choices": [
+    "Skipping listening breaks",
+    "Avoiding monitors",
+    "Limiting exposure to loud sound and using hearing protection",
+    "Always mixing as loudly as possible"
+   ]
+  },
+  {
+   "id": "audio-engineering.l26.q5",
+   "lessonId": "audio-engineering.l26",
+   "kind": "mcq",
+   "prompt": "Using a sample of another artist recording in your track generally requires what?",
+   "choices": [
+    "Nothing, if it is short",
+    "Only a credit",
+    "Only a different file format",
+    "Permission from the rights holders unless a legal exception applies"
+   ]
+  }
+ ]
+}

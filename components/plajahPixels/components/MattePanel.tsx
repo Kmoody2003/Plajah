@@ -13,8 +13,8 @@ interface Props {
   onClose: () => void;
 }
 
-const MODES: KeyMode[] = ['none', 'luma', 'chroma', 'ai'];
-const LABELS: Record<KeyMode, string> = { none: 'Off', luma: 'Luma', chroma: 'Chroma', ai: 'AI matte' };
+const MODES: KeyMode[] = ['none', 'luma', 'chroma', 'ai', 'sam'];
+const LABELS: Record<KeyMode, string> = { none: 'Off', luma: 'Luma', chroma: 'Chroma', ai: 'AI', sam: 'SAM 2' };
 
 const MattePanel: React.FC<Props> = ({ engine, settings, setSettings, visible, onClose }) => {
   const [status, setStatus] = useState('No layer loaded.');
@@ -23,7 +23,7 @@ const MattePanel: React.FC<Props> = ({ engine, settings, setSettings, visible, o
   (engine as any).onStatus = setStatus;
 
   const wrap: React.CSSProperties = {
-    position: 'absolute', top: 84, right: 18, zIndex: 26, width: 260,
+    position: 'absolute', top: 84, right: 18, zIndex: 26, width: 280,
     background: 'rgba(18,18,26,0.5)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 18,
     backdropFilter: 'blur(26px)', WebkitBackdropFilter: 'blur(26px)', padding: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
   };
@@ -44,7 +44,11 @@ const MattePanel: React.FC<Props> = ({ engine, settings, setSettings, visible, o
       <div style={{ ...label }}>Key mode</div>
       <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: 3, marginBottom: 12 }}>
         {MODES.map(m => (
-          <button key={m} onClick={() => { setSettings({ ...settings, mode: m }); if (m === 'ai') engine.tryAI(); }}
+          <button key={m} onClick={() => {
+            setSettings({ ...settings, mode: m });
+            if (m === 'ai') engine.tryAI();
+            if (m === 'sam') engine.trySAM();
+          }}
             style={{ flex: 1, padding: 6, border: 'none', borderRadius: 7, fontSize: 10, cursor: 'pointer', background: settings.mode === m ? '#b56cff' : 'transparent', color: settings.mode === m ? '#fff' : 'rgba(244,242,255,0.55)' }}>{LABELS[m]}</button>
         ))}
       </div>

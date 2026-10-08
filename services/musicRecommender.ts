@@ -11,7 +11,7 @@
 // items (that's the "native-first" guarantee); Audius supplies breadth and fills the tail.
 
 import type { Album, Track } from '../types';
-import { fetchAllPublicAlbums, fetchUserProfile, auth } from './backendService';
+import { fetchAllPublicAlbums, fetchUserProfile, fetchFollowingIds, auth } from './backendService';
 import {
   fetchAudiusChartsByGenre, fetchAudiusTrending, fetchAudiusArtistTracks,
   archiveTrackToNativeTrack, audiusTrackToNativeAlbum, isAudiusOwner,
@@ -48,10 +48,10 @@ async function userSignals(): Promise<Signals> {
   const empty: Signals = { followingIds: new Set(audiusFollows), libraryIds: new Set(), taste: EMPTY_TASTE };
   if (!uid) return empty;
   try {
-    const [profile, taste] = await Promise.all([fetchUserProfile(uid) as any, getTasteVector()]);
+    const [profile, taste, followIds] = await Promise.all([fetchUserProfile(uid) as any, getTasteVector(), fetchFollowingIds(uid).catch(() => [] as string[])]);
     const signals: Signals = {
       followingIds: new Set<string>([
-        ...(Array.isArray(profile?.following) ? profile.following : []),
+        ...followIds, // `follows` collection; UserProfile.following is never written
         ...audiusFollows,
       ]),
       libraryIds: new Set<string>(Array.isArray(profile?.library) ? profile.library : []),

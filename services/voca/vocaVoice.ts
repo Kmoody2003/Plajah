@@ -6,53 +6,28 @@
  *  • short utterances only (Chrome cuts off long ones), cancel-before-speak so lines never pile up.
  */
 
-let voice: SpeechSynthesisVoice | null = null;
-let ready: Promise<void> | null = null;
-const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+import { webSpeechProvider, webSpeechSupported, ensureVoices } from '../voice/aria/providers/webSpeech';
+import type { VoiceProfile } from '../voice/aria/types';
 
-export const ttsSupported = () => !!synth && typeof SpeechSynthesisUtterance !== 'undefined';
+// Public API unchanged; the speech machinery now lives in the shared Aria voice webSpeech provider
+// (voiceschanged wait, English-only voice choice, per-chunk safety timeouts, always-resolve).
+let lang = 'en-US';
 
-const PREFERRED = [/natural/i, /neural/i, /aria|jenny|ava|emma|libby|sonia/i, /google us english/i, /samantha|karen|moira|tessa/i, /google uk english female/i];
+export const ttsSupported = () => webSpeechSupported();
 
-function choose(lang: string): SpeechSynthesisVoice | null {
-  const all = synth?.getVoices() ?? [];
-  const pool = all.filter(v => v.lang?.toLowerCase().startsWith(lang.slice(0, 2).toLowerCase()));
-  for (const re of PREFERRED) { const v = pool.find(x => re.test(x.name)); if (v) return v; }
-  return pool.find(v => v.lang === lang) ?? pool[0] ?? all[0] ?? null;
+export function initVoice(l = 'en-US'): Promise<void> {
+  lang = l;
+  return ensureVoices();
 }
 
-export function initVoice(lang = 'en-US'): Promise<void> {
-  if (!ttsSupported()) return Promise.resolve();
-  if (ready) return ready;
-  ready = new Promise<void>(resolve => {
-    const pick = () => { voice = choose(lang); if (voice) resolve(); };
-    pick();
-    if (!voice) {
-      synth!.addEventListener?.('voiceschanged', pick, { once: true } as any);
-      setTimeout(() => { voice = choose(lang); resolve(); }, 1500);   // some browsers never fire voiceschanged
-    }
-  });
-  return ready;
-}
-
-export function cancelSpeech() { try { synth?.cancel(); } catch { /* nothing speaking */ } }
+export function cancelSpeech() { webSpeechProvider.cancel(); }
 
 /** Speak a short line; always resolves (on end, on error, or on a safety timeout). */
 export function speak(text: string, opts: { rate?: number; pitch?: number } = {}): Promise<void> {
   if (!ttsSupported() || !text.trim()) return Promise.resolve();
-  return new Promise<void>(resolve => {
-    let done = false;
-    const finish = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
-    cancelSpeech();
-    const u = new SpeechSynthesisUtterance(text);
-    if (voice) u.voice = voice;
-    u.lang = voice?.lang ?? 'en-US';
-    u.rate = opts.rate ?? 0.95; u.pitch = opts.pitch ?? 1.08; u.volume = 1;
-    u.onend = finish; u.onerror = finish;
-    const est = (text.length * 75) / (u.rate || 1) + 1200;
-    const safety = setTimeout(finish, Math.min(est, 12000));
-    try { synth!.speak(u); } catch { finish(); }
-  });
+  cancelSpeech();                                   // lines never pile up
+  const profile: VoiceProfile = { id: 'voca', name: 'Voca', persona: 'buddy', rate: opts.rate ?? 0.95, pitch: opts.pitch ?? 1.08, providerPrefs: {}, fallbackOrder: ['webSpeech'] };
+  return webSpeechProvider.speak(text, profile, { lang });
 }
 
 /** Model a word: syllables slowly, then the whole word at a natural pace. */

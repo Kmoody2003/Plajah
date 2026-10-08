@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hold the Pen — Punjab, 1947</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Nastaliq+Urdu&display=swap" rel="stylesheet">
+<style>
+html.embed header{display:none}html.embed body{background:transparent}html.embed .wrap{padding:0}
+:root{--bg:#120f0c;--ink:#f4efe6;--mute:#a79f94;--line:rgba(255,255,255,.14);--red:#ff5a44;--blue:#5b8cff}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Source Serif 4',serif}
+header{padding:5vh 5vw 2vh}
+.k{font:500 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--red)}
+h1{font:800 clamp(44px,8vw,120px)/.9 'Fraunces',serif;letter-spacing:-.025em;margin:10px 0 14px}
+.sub{max-width:62ch;color:#d6cdbf;font-size:19px;line-height:1.55}
+.wrap{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:22px;padding:0 5vw 6vh}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.stage{align-self:start;position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#0c0a08;touch-action:none}
+svg{display:block;width:100%;height:auto}
+.tools{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap;z-index:2}
+.tools button{font:500 12px 'IBM Plex Mono';color:var(--ink);background:rgba(12,10,8,.82);border:1px solid var(--line);border-radius:99px;padding:7px 12px;cursor:pointer;backdrop-filter:blur(6px)}
+.tools button[aria-pressed=true]{border-color:var(--ink);background:rgba(244,239,230,.14)}
+.leg{position:absolute;left:10px;bottom:10px;z-index:2;background:rgba(12,10,8,.82);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:500 11px 'IBM Plex Mono';color:var(--mute);display:grid;gap:5px}
+.leg i{display:inline-block;width:22px;height:4px;vertical-align:middle;margin-right:8px;border-radius:2px}
+.panel{display:grid;gap:16px;align-content:start}
+.card{border:1px solid var(--line);border-radius:14px;padding:20px;background:#17120e}
+.cap{font:500 11px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-bottom:8px}
+.big{font:800 clamp(34px,4.4vw,60px)/1 'Fraunces';color:var(--red)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 12px 'IBM Plex Mono';padding:4px 10px;border-radius:99px;border:1px solid var(--line)}
+.chip.same{border-color:#7fd1a0;color:#9fe3bb}
+.chip.diff{border-color:var(--red);color:#ff9d8f}
+.chip.u{color:var(--mute)}
+p.s{color:#d4ccc0;font-size:16px;line-height:1.55}
+.note{font:500 11px 'IBM Plex Mono';color:var(--mute);line-height:1.6}
+.cta{font:600 14px 'Source Serif 4';background:var(--red);color:#1a0d09;border:0;border-radius:99px;padding:12px 18px;cursor:pointer}
+.cta.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.handle{cursor:grab;touch-action:none}
+.handle:active{cursor:grabbing}
+.town text{font:500 13px 'IBM Plex Mono';fill:#1a1209;paint-order:stroke;stroke:#f4efe6;stroke-width:3px;stroke-linejoin:round}
+.town circle{stroke:#1a1209;stroke-width:2}
+.urdu{font-family:'Noto Nastaliq Urdu',serif}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="k">Exhibit 04 · Partition · Centrepiece · The Pen</div>
+  <h1>Hold the pen</h1>
+  <p class="sub">This is the map the line was drawn on. Draw your own boundary between the same two ends Cyril Radcliffe had, then lay his over it. Every choice separates something from something.</p>
+</header>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="tools">
+      <button id="bScan" aria-pressed="true">Original map</button>
+      <button id="bMine" aria-pressed="true">Your line</button>
+      <button id="bNot" aria-pressed="false">Notional line (blue)</button>
+      <button id="bFin" aria-pressed="false">Final line (red)</button>
+    </div>
+    <svg id="svg" viewBox="0 0 1280 949" role="img" aria-label="1948 Foreign Office map of the Punjab with the boundary between India and Pakistan">
+      <defs>
+        <filter id="fRed" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+          <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .35  0 0 0 0 .27  1.7 -.9 -.9 0 -.12"/>
+          <feMorphology operator="dilate" radius="1.2" result="d"/>
+          <feGaussianBlur in="d" stdDeviation="5" result="g"/>
+          <feMerge><feMergeNode in="g"/><feMergeNode in="g"/><feMergeNode in="d"/></feMerge>
+        </filter>
+        <filter id="fBlue" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+          <feColorMatrix type="matrix" values="0 0 0 0 .36  0 0 0 0 .55  0 0 0 0 1  -5 -4 9 0 -.8"/>
+          <feMorphology operator="dilate" radius="1.2" result="d"/>
+          <feGaussianBlur in="d" stdDeviation="5" result="g"/>
+          <feMerge><feMergeNode in="g"/><feMergeNode in="g"/><feMergeNode in="d"/></feMerge>
+        </filter>
+        <clipPath id="wipeF"><rect id="wipeFr" x="0" y="0" width="1280" height="0"/></clipPath>
+        <clipPath id="wipeN"><rect id="wipeNr" x="0" y="0" width="1280" height="0"/></clipPath>
+      </defs>
+      <image id="scan" href="partition/maps/punjab-fo-1948.jpg" width="1280" height="949" style="filter:grayscale(.85) brightness(.62) contrast(1.05);transition:filter .6s,opacity .4s"/>
+      <g id="layerN" clip-path="url(#wipeN)" style="display:none"><image href="partition/maps/punjab-fo-1948.jpg" width="1280" height="949" filter="url(#fBlue)"/></g>
+      <g id="layerF" clip-path="url(#wipeF)" style="display:none"><image href="partition/maps/punjab-fo-1948.jpg" width="1280" height="949" filter="url(#fRed)"/></g>
+      <g id="mine"></g>
+      <g id="towns"></g>
+    </svg>
+    <div class="leg"><span><i style="background:#ff5a44"></i>Final boundary, as demarcated</span><span><i style="background:#5b8cff"></i>Notional boundary of the Act</span><span><i style="background:#f4efe6"></i>Your line</span></div>
+  </div>
+
+  <div class="panel">
+    <div class="card">
+      <div class="cap">Your line puts</div>
+      <div class="cap" style="margin-top:6px">West of it</div><div class="chips" id="west"></div>
+      <div class="cap" style="margin-top:12px">East of it</div><div class="chips" id="east"></div>
+      <p class="note" style="margin-top:12px">Green = same side as Radcliffe's final award. Red = a different side. Positions are read off the map.</p>
+    </div>
+    <div class="card">
+      <div class="cap">Match with the award</div>
+      <div class="big" id="score">—</div>
+      <p class="s" id="verdict">Drag the three handles, then lay Radcliffe's line over yours.</p>
+      <div class="row" style="margin-top:14px"><button class="cta" id="reveal">Lay the award over mine</button><button class="cta sec" id="reset">Reset my line</button></div>
+    </div>
+    <div class="card">
+      <div class="cap">What you are looking at</div>
+      <p class="s">A Foreign Office research map of September 1948. Blue is the <b>notional boundary</b> that applied at independence; red is the line <b>as finally demarcated</b> by the Boundary Commission. The award itself was announced on 17 August 1947, two days after independence. Radcliffe had five weeks and had never been to India.</p>
+      <p class="note" style="margin-top:12px">Source: Research Dept., Foreign Office, Sept. 1948, via Wikimedia Commons (public domain tag; rights review pending). The coloured lines on this page are the map's own printed lines, isolated by colour, not redrawn. Town positions are placed by hand from the map and are approximate. People, villages, canals and rail are not shown; the real exhibit adds them with sourced claims. Numbers about the violence are contested and are not given here.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+if(/embed/.test(location.search))document.documentElement.classList.add('embed');
+const NS='http://www.w3.org/2000/svg',svg=document.getElementById('svg'),$=id=>document.getElementById(id);
+const still=matchMedia('(prefers-reduced-motion:reduce)').matches;
+// The award's two ends (read off the printed red line): top at the Gurdaspur-Chamba edge, bottom at the Sutlej
+const TOP={x:887,y:292},BOT={x:707,y:593};
+let pts=[{x:TOP.x-12,y:TOP.y+70},{x:800,y:420},{x:BOT.x+30,y:BOT.y-70}].map(p=>({...p}));
+const init=JSON.stringify(pts);
+// outcome of each place under the final award (established; India=I, Pakistan=P). Positions are approximate, read from the map.
+const towns=[
+ {n:'Sialkot',x:790,y:282,a:'P'},{n:'Gurdaspur',x:881,y:343,a:'I'},{n:'Amritsar',x:840,y:413,a:'I'},
+ {n:'Lahore',x:762,y:424,a:'P'},{n:'Sheikhupura',x:716,y:383,a:'P'},{n:'Kapurthala',x:852,y:434,a:'I'},
+ {n:'Jullundur',x:924,y:458,a:'I'},{n:'Hoshiarpur',x:962,y:420,a:'I'},{n:'Ferozepore',x:800,y:497,a:'I'},
+ {n:'Montgomery',x:612,y:540,a:'P'},{n:'Lyallpur',x:606,y:428,a:'P'}
+];
+const tg=$('towns');
+towns.forEach(t=>{const g=document.createElementNS(NS,'g');g.setAttribute('class','town');g.innerHTML=`<circle cx="${t.x}" cy="${t.y}" r="6" fill="#f4efe6"/><text x="${t.x+10}" y="${t.y+4}">${t.n}</text>`;t.el=g.firstChild;tg.appendChild(g)});
+const mine=$('mine');
+function draw(){
+  const full=[TOP,...pts,BOT];
+  mine.innerHTML='';
+  const pl=document.createElementNS(NS,'polyline');pl.setAttribute('points',full.map(p=>p.x+','+p.y).join(' '));pl.setAttribute('fill','none');pl.setAttribute('stroke','#f4efe6');pl.setAttribute('stroke-width','5');pl.setAttribute('stroke-linejoin','round');pl.setAttribute('stroke-dasharray','2 9');pl.setAttribute('stroke-linecap','round');mine.appendChild(pl);
+  [TOP,BOT].forEach(p=>{const c=document.createElementNS(NS,'circle');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',6);c.setAttribute('fill','#120f0c');c.setAttribute('stroke','#f4efe6');c.setAttribute('stroke-width','3');mine.appendChild(c)});
+  pts.forEach((p,i)=>{const c=document.createElementNS(NS,'circle');c.setAttribute('class','handle');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',15);c.setAttribute('fill','#f4efe6');c.setAttribute('stroke','#120f0c');c.setAttribute('stroke-width','4');c.setAttribute('tabindex','0');c.setAttribute('role','slider');c.setAttribute('aria-label','Boundary handle '+(i+1)+', arrow keys to move');
+    c.addEventListener('pointerdown',e=>{c.setPointerCapture(e.pointerId);c._d=true});
+    c.addEventListener('pointermove',e=>{if(!c._d)return;const q=pt(e);p.x=q.x;p.y=q.y;draw();classify()});
+    c.addEventListener('pointerup',()=>c._d=false);
+    c.addEventListener('keydown',e=>{const s=e.shiftKey?20:6,m={ArrowLeft:[-s,0],ArrowRight:[s,0],ArrowUp:[0,-s],ArrowDown:[0,s]}[e.key];if(!m)return;e.preventDefault();p.x+=m[0];p.y+=m[1];draw();classify();mine.querySelectorAll('.handle')[i].focus()});
+    mine.appendChild(c)});
+}
+function pt(e){const r=svg.getBoundingClientRect();return{x:Math.max(40,Math.min(1240,(e.clientX-r.left)/r.width*1280)),y:Math.max(30,Math.min(920,(e.clientY-r.top)/r.height*949))}}
+// Which side of my line is a point on? Extend the two ends straight up/down; cast a ray to the west.
+function westOf(p){
+  const full=[{x:TOP.x,y:0},TOP,...pts,BOT,{x:BOT.x,y:949}];let n=0;
+  for(let i=0;i<full.length-1;i++){const a=full[i],b=full[i+1];if((a.y>p.y)!==(b.y>p.y)){const x=a.x+(p.y-a.y)/(b.y-a.y)*(b.x-a.x);if(x<p.x)n++}}
+  return n%2===1; // odd crossings to its west => the line is west of the town => town is EAST of line
+}
+function classify(){
+  let match=0;const W=[],E=[];
+  towns.forEach(t=>{const east=westOf(t);const myIndia=east; /* east of my line = India */const ok=(myIndia?'I':'P')===t.a;if(ok)match++;
+    t.el.setAttribute('fill',ok?'#7fd1a0':'#ff5a44');
+    const c=document.createElement('span');c.className='chip '+(ok?'same':'diff');c.textContent=t.n;(east?E:W).push(c)});
+  const w=$('west'),e=$('east');w.innerHTML='';e.innerHTML='';W.forEach(c=>w.appendChild(c));E.forEach(c=>e.appendChild(c));
+  if(!W.length)w.innerHTML='<span class="chip u">nothing</span>';if(!E.length)e.innerHTML='<span class="chip u">nothing</span>';
+  $('score').textContent=match+' / '+towns.length;
+  $('verdict').textContent=match===towns.length?'Every place sits on the same side as in the final award. Radcliffe’s line still cuts through more than towns: canals, rail and villages are where it was fought over.':match>=towns.length-2?'Close. The places that disagree are where the award was most contested.':'Quite different. Every place that differs is a town whose fate a real commission had to decide on partial evidence.';
+}
+// layers
+const state={scan:true,mine:true,not:false,fin:false};
+function applyLayers(){
+  $('scan').style.opacity=state.scan?1:.15;$('mine').style.display=state.mine?'':'none';
+  $('layerN').style.display=state.not?'':'none';$('layerF').style.display=state.fin?'':'none';
+  [['bScan','scan'],['bMine','mine'],['bNot','not'],['bFin','fin']].forEach(([b,k])=>$(b).setAttribute('aria-pressed',state[k]));
+}
+function wipe(rect,done){const r=$(rect);if(still){r.setAttribute('height',949);done&&done();return}let t0=null;r.setAttribute('height',0);
+  (function f(t){if(!t0)t0=t;const k=Math.min(1,(t-t0)/2200),e=1-Math.pow(1-k,3);r.setAttribute('height',e*949);if(k<1)requestAnimationFrame(f);else done&&done()})(performance.now())}
+['bScan','bMine'].forEach((b,i)=>$(b).onclick=()=>{const k=i?'mine':'scan';state[k]=!state[k];applyLayers()});
+$('bNot').onclick=()=>{state.not=!state.not;applyLayers();if(state.not)wipe('wipeNr')};
+$('bFin').onclick=()=>{state.fin=!state.fin;applyLayers();if(state.fin)wipe('wipeFr')};
+$('reveal').onclick=()=>{state.fin=true;state.not=false;applyLayers();wipe('wipeFr');$('scan').style.filter='grayscale(1) brightness(.5)'};
+$('reset').onclick=()=>{pts=JSON.parse(init);state.fin=false;state.not=false;$('scan').style.filter='grayscale(.85) brightness(.62) contrast(1.05)';applyLayers();draw();classify()};
+applyLayers();draw();classify();
+</script>
+</body>
+</html>

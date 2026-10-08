@@ -1,0 +1,1459 @@
+{
+ "courseId": "law-legalwriting",
+ "label": "Legal Research, Writing and Advocacy",
+ "lessons": [
+  {
+   "id": "law-legalwriting.l01",
+   "title": "Primary and Secondary Authority",
+   "body": [
+    "Legal research starts with a sorting question: is this source the law, or is it commentary about the law? Primary authority is the law itself, issued by a government body with power to make law. The main kinds are constitutions, statutes passed by legislatures, regulations written by administrative agencies, court opinions (case law), and court rules such as the Federal Rules of Civil Procedure. Secondary authority explains, summarizes, or criticizes primary authority. Examples are legal encyclopedias, treatises, law review articles, practice guides, and the Restatements of the Law.",
+    "A second sorting question is about weight. Mandatory (binding) authority is primary authority that a court must follow in the case before it. Persuasive authority is anything the court may consider but need not follow. A decision from a higher court in the same judicial system is mandatory. A decision from a court in another state, or a lower court, is persuasive at most. Secondary sources are never mandatory, however respected. The same source can be mandatory in one case and persuasive in another: a Texas Supreme Court opinion binds Texas trial courts on Texas law but only persuades a Michigan court.",
+    "The Restatements are a good example of a trap. A Restatement is written by the American Law Institute and summarizes what its authors say the common law is or should be. It is secondary authority. But when a court adopts a Restatement section as the law of its state, the court opinion adopting it is the primary authority, and the Restatement becomes the explanation for it. Cite the opinion that adopts the rule, not just the Restatement.",
+    "Why use secondary sources at all? Because they are the best place to begin. A treatise or practice guide gives you the vocabulary of an unfamiliar area, the major cases, the elements of a claim, and citations to primary authority you can then read and confirm. Think of a secondary source as a map and the primary authority as the territory. You may use the map to get oriented, but you cite and rely on the territory.",
+    "Worked example. You are asked whether a landlord in your state must return a security deposit within a set time. You begin with a state practice guide to learn that the topic is governed by a landlord-tenant statute. You then read the statute itself and any cases applying it. In your memo, the statute and the cases carry the argument. The practice guide appears, if at all, only as a pointer. If the only support you can find for a rule is a law review article, that is a warning sign that the rule may not be settled law."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l02",
+   "title": "The Hierarchy of Authority and Federalism",
+   "body": [
+    "When sources of law conflict, a hierarchy decides which one controls. Within a single government, the constitution is highest. A statute that violates the constitution can be struck down by a court. Below the constitution, statutes generally outrank regulations, because an agency has only the power the legislature gave it, and a regulation that exceeds its statute is invalid. Case law fills gaps and interprets statutes, but a legislature can usually override a common law rule by statute, and courts interpreting a statute remain bound by its text.",
+    "Federalism adds a second axis. Under the Supremacy Clause in Article VI, valid federal law prevails over conflicting state law. But federal law covers only certain subjects. Most everyday private law, such as contracts, property, torts, and family law, is state law, so you must first ask which sovereign's law governs the question, and only then which source within that system.",
+    "That is why court systems matter. The United States has a federal system and fifty state systems. Each has trial courts, intermediate appellate courts in most places, and a highest court. Within a system, a higher court's decisions bind lower courts. Courts of different systems do not bind each other on questions of the other system's law. A federal court of appeals decides questions of federal law for the circuits it covers; the Supreme Court of the United States has the final word on federal law. A state's highest court has the final word on that state's law, except where federal law intervenes.",
+    "A classic complication arises when a federal court hears a state-law claim, as in diversity jurisdiction, where the parties are from different states. In Erie Railroad Co. v. Tompkins (U.S. 1938) the Supreme Court held that a federal court sitting in diversity must apply the substantive law of the state, including the state's common law as declared by its courts, rather than a general federal common law. Procedure in that federal court is still governed by federal rules. So a federal judge deciding a state-law tort claim looks to state supreme court decisions as controlling, and if that court has not spoken, the federal judge predicts what it would do.",
+    "Worked example. An Ohio resident sues a Kentucky company in federal court in Ohio for breach of contract. Which law supplies the elements of breach? State law, chosen through the forum state's choice-of-law rules, not a federal common law of contracts. Which law governs the deadline to file a motion? The Federal Rules of Civil Procedure. A common error is to cite a federal circuit decision as if it were the controlling statement of state law. It is at best persuasive evidence of how the federal court read state law."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l03",
+   "title": "Finding Law with Free Resources",
+   "body": [
+    "You can do serious legal research without a paid subscription, and a good researcher should know how. Free sources fall into three groups. Government sites publish enacted law and court output directly. Open archives collect case law and make it searchable. Secondary help is also available through legal aid and library guides.",
+    "Government sources. Federal statutes appear in the United States Code, available through the House Office of the Law Revision Counsel and through govinfo, the Government Publishing Office's site. Congress.gov carries bill text and legislative history for recent Congresses. Federal agency rules are published daily in the Federal Register, and the codified, subject-organized rules appear in the Code of Federal Regulations, which has a continuously updated unofficial online version called the eCFR. The United States Supreme Court posts its opinions on its own website, and federal appellate and district courts post opinions on their sites or through govinfo. Nearly every state publishes its statutes, constitution, and administrative code online, and most state courts post recent opinions and court rules.",
+    "Open case-law archives. The Caselaw Access Project, created by Harvard Law School's library from its collection of printed reporters, digitized a very large body of American published case law. Since 2024 its data has been released without access limits, but the project is now a static archive: the Library keeps hosting the bulk data and individual readable cases at case.law while winding down services that others can provide better, such as its search function and API. Its cases are also included in CourtListener, which is where most researchers now search them. CourtListener, run by the nonprofit Free Law Project, offers searchable opinions, oral argument audio, and tools that show which later opinions cite a case. Google Scholar also indexes many court opinions. Coverage, update speed, and completeness vary, so a free archive is excellent for finding and reading a case but you should confirm the text against the court's own site before quoting it in a filing.",
+    "PACER is the federal courts' electronic filing system. It is not free, since it charges per page with a waiver for small amounts, but it is the authoritative source for dockets and filings in federal cases. Some free projects mirror popular filings.",
+    "A sound method. First identify your jurisdiction and the type of law. Second, start with a secondary or a statute index to learn vocabulary. Third, read the statute or regulation itself, including its definitions section. Fourth, find cases interpreting the exact words. Fifth, check that each source is current. Keep a research log of the sources, dates, and search terms so that you can retrace your steps and show the supervising attorney what you did.",
+    "Caution. Free does not mean unreliable, but it does mean you must verify. Official sources are better than aggregators. Statutory text on a convenience site may lag the latest amendment. Unofficial compilations such as the eCFR carry a disclaimer that the official version is the published edition. Worked example: to research a state's rule on small claims limits, go to the legislature's own site for the statute and to the court system's site for the forms and current dollar limit, rather than relying on a blog summary that may be years old."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l04",
+   "title": "Validating Authority",
+   "body": [
+    "Finding a case that supports your argument is only half the task. You must confirm that the case is still good law. Validating authority means checking what happened to a source after it was issued. Lawyers use citators, which are research tools that list every later document citing a source and flag how those documents treated it. Commercial citators are the best known; free tools exist too, including citing-case lists on open archives, but they are usually less complete in labeling treatment. Whatever tool you use, the underlying ideas are the same.",
+    "Two kinds of information matter. Subsequent history is what happened to this very case in the same litigation: affirmed, reversed, vacated, remanded, or review granted or denied by a higher court. If a court of appeals reversed the decision you rely on, the trial court opinion is not authority for the point. Subsequent treatment is how other, later cases have treated the principle: followed, distinguished, criticized, questioned, or overruled. Overruled means a court with the power to do so rejected the rule; the case no longer states the law.",
+    "Statutes need the same care. A statute may have been amended, repealed, or declared unconstitutional in whole or part, and a regulation may be rescinded or withdrawn. Check effective dates, since an amendment may apply only to events after a given date, and the version in force when your client's events occurred may differ from today's text.",
+    "Not all negative treatment is equal. A case that has been distinguished on its facts remains good law for its holding. A case that is merely criticized may be shaky but still binding. A case overruled in part may survive for other points. Read the later cases rather than trusting a warning symbol, because the symbol cannot tell you whether the criticized part is the part you cite.",
+    "Doctrines can change dramatically. For decades, federal courts applied Chevron deference (Chevron U.S.A. v. Natural Resources Defense Council, 1984), under which courts deferred to reasonable agency readings of ambiguous statutes. In Loper Bright Enterprises v. Raimondo (U.S. 2024), the Supreme Court overruled Chevron and held that courts must exercise their own independent judgment in interpreting statutes. A brief that still cited Chevron as controlling after that decision would have a serious flaw. Note that earlier decisions that applied Chevron were not automatically invalid; the Court said reliance on them still counts for statutory holdings.",
+    "Worked example. You cite a 2009 circuit opinion for a rule. Your check shows that the full circuit court, sitting en banc, granted rehearing and vacated that opinion in 2010. The 2009 opinion has no precedential force. You would look for the en banc decision instead. Validation should be the last step before filing and again just before any final deadline."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l05",
+   "title": "Reading and Briefing a Case",
+   "body": [
+    "A judicial opinion is not a story told for its own sake. It is a decision with reasons, and your task as a reader is to extract what the decision stands for. A case brief is a short, structured summary that helps you do this. The standard parts are the facts, the procedural posture, the issue, the holding, the reasoning, and the disposition.",
+    "Facts. Separate the legally significant facts from background detail. A significant fact is one the court relied on, or one that would change the outcome if it were different. Procedural posture is how the case reached this court: who sued, what the trial court did, who appealed, and what the appellate court is being asked to review. The posture matters because it controls the standard of review and because a ruling on a motion to dismiss assumes the facts alleged are true, while a ruling after trial rests on found facts.",
+    "Issue. State the legal question the court answered, tied to the key facts, in a form that can be answered yes or no. A useful form is: under what rule, does this conduct or fact produce this result? Holding. The holding is the court's answer to the issue, together with the reasoning necessary to reach it. It is the part that creates precedent. The disposition is what the court did with the judgment: affirmed, reversed, vacated, or remanded.",
+    "Holding versus dicta. Dicta, short for obiter dicta, means statements in an opinion that were not necessary to the result. A court that says, in passing, what it would do in a different case is speaking in dicta. Dicta may be persuasive, especially from a high court, but it does not bind later courts. A narrow reading of a holding limits it to the facts the court faced and the reasoning it used; a broad reading extends the rule to more situations. Advocates read the same holding differently depending on which client they represent, but a reading must be honest to the text of the opinion.",
+    "Stare decisis is the doctrine that courts follow their earlier decisions and those of higher courts in the same system. It gives the law stability and predictability. It is not absolute: higher courts can overrule precedent, and a court may distinguish a case, meaning explain why the earlier rule does not apply to different facts.",
+    "Worked example. A court of appeals reviews a ruling that a store was not liable to a customer who slipped on a spill. The court holds that the store owed the customer a duty of reasonable care to inspect, and reverses because the trial court had not asked whether the spill existed long enough for the store to find it. In the margin, the court speculates that a different rule might apply to a spill caused by a customer on the same day. That speculation is dicta. Your case brief should treat the duty to inspect as the holding and mention the speculation only as a signal of how the court might think."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l06",
+   "title": "IRAC and CREAC: Organizing Legal Analysis",
+   "body": [
+    "Legal analysis follows a pattern because readers are busy and need to find the reasoning quickly. IRAC stands for Issue, Rule, Application, Conclusion. CREAC, a variant used widely in legal writing courses, stands for Conclusion, Rule, Explanation, Application, Conclusion. Other schools use CRAC, CREXAC, or TREAT; the labels differ but the logic is the same: tell the reader your answer, state the governing rule, prove the rule is what you say it is, apply it to the facts, and close the loop.",
+    "In CREAC the first C is a conclusion stated up front. It tells the reader where the paragraph or section is going, such as: the landlord probably breached the implied warranty of habitability. The R is the rule, stated precisely. A rule often has elements, which are the requirements that must all be met, or factors, which a court weighs. Name which it is. State the rule with its source, for instance a statute section or the leading case, and in your own words unless the language is exact and important.",
+    "The E, explanation, is what first-year writers most often skip. A rule on a page is only words. Explanation shows how courts have actually applied it, using cases: what the facts were, what the court did, and why. It supports the rule's meaning and gives you comparison material. A good explanation uses a few well-chosen precedents rather than a long catalogue. Describe each in enough detail that a reader can judge whether your facts are similar.",
+    "Application is the heart of the analysis. Connect the specific facts of your client's situation to the rule, element by element, using the explanation. Analogize by pointing to facts that match a favorable precedent. Distinguish by pointing to facts that differ from an unfavorable one. Do not simply say the rule is satisfied. Say which fact satisfies which element and why. Address the counterargument fairly. In an objective memo, give the other side its strongest version. In a persuasive brief, present it and answer it. The final C restates the conclusion, now earned.",
+    "Common errors include burying the conclusion, stating a rule with no source, skipping explanation, treating a multi-element rule as a single question, and jumping to a conclusion without applying facts to elements. A frequent structural error is to use one IRAC paragraph for several issues. Use a separate paragraph or a section for each issue or element, with a roadmap at the top when the analysis is long.",
+    "Worked example. Rule: a contract requires offer, acceptance, and consideration. Conclusion: no contract formed when Rhea promised a gift to her nephew, because there was no consideration. Explanation: courts treat a promise to give a gift, with nothing sought in return, as not supported by consideration. Application: Rhea asked nothing of her nephew, and he gave nothing, so the element is missing. Conclusion: the promise is not enforceable as a contract."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l07",
+   "title": "Reading and Interpreting Statutes",
+   "body": [
+    "Most modern law begins with a statute, and statutory analysis is a distinct skill. The first step is to read the whole statute and not only the provision that looks relevant. Check the definitions section, because a legislature may define a common word in a special way. Check the structure: headings, exceptions that begin with except or unless, and how the section relates to its neighbors. Ask who must do what, and under which conditions.",
+    "Textualism begins with the ordinary meaning of the words, in context, at the time the statute was enacted. Purposivism asks what problem the legislature meant to solve and reads the words in light of that aim. Most courts use text first, and many consider purpose or history when the text is ambiguous. The balance differs by judge, by court, and by statute. Whichever method a court prefers, a lawyer must argue from the text, because courts almost always begin there.",
+    "Canons of construction are conventional presumptions about how to read language. Ejusdem generis says that when a general term follows a list of specific ones, the general term covers things of the same kind: a law covering cars, trucks, and other vehicles probably does not cover aircraft. Expressio unius says that listing some things implies the exclusion of others not listed. Noscitur a sociis says that a word takes meaning from the words around it. There are also substantive canons, such as a presumption against reading a statute to violate the constitution. Canons are aids and not rules; each has a counter-canon, and a court may decline to apply one when context points elsewhere.",
+    "Legislative history, such as committee reports and floor statements, is a contested tool. Some judges treat it as helpful evidence of purpose; others reject it as unreliable, since a few members' statements may not reflect what the legislature as a whole enacted. Be ready to argue from text first and to use history only as support. Agency interpretations may also matter. After Loper Bright (2024), courts give an agency's reading careful attention for its persuasiveness but decide the best meaning of the statute for themselves.",
+    "In Church of the Holy Trinity v. United States (U.S. 1892) the Supreme Court read a statute barring the importation of foreigners under contract to perform labor or service as not reaching a church's hiring of a pastor from England, reasoning that the legislature's purpose was aimed at manual labor. It is often cited as a classic purpose-based reading and criticized by textualists.",
+    "Worked example. A city ordinance bans vehicles in a park. A resident wants to install a child's motorized toy car track. Text: is a toy a vehicle? Definition section: it defines vehicle as a device for carrying people or goods on wheels over land. Purpose: the ordinance aimed at safety and quiet. Canons and structure may point either way, and a good analysis lays out both readings and gives a reasoned prediction, noting the uncertainty."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l08",
+   "title": "Reasoning from Precedent: Analogy and Distinction",
+   "body": [
+    "Precedent works by comparison. A lawyer rarely finds a case with the same facts as the client's. Instead, the lawyer reasons by analogy: like cases should be treated alike, and different cases may be treated differently. The skill is deciding which similarities and differences matter.",
+    "Start with rule synthesis. Often no single case states the whole rule. One case may establish that a duty exists, another may define what counts as a breach, and a third may show how courts treat a particular excuse. Synthesis means combining them into one statement of the rule that is consistent with all of them. The statement should be accurate to each case and usable on your facts. Where cases appear to conflict, look for facts that explain the difference, such as a setting, a relationship between the parties, or a degree of harm.",
+    "Next, identify the facts that drove each earlier decision. Courts do not give equal weight to every fact. The rule of a case is tied to the facts the court treated as material. If a court denied a defendant's liability because the plaintiff had been warned in writing, the written warning is probably a material fact, while the color of the building probably is not. Reading the court's reasoning, not just its result, tells you which facts mattered.",
+    "To analogize, show that your facts share the material features of a favorable case, and explain why the same reasoning should lead to the same result. To distinguish, show that your facts differ in a way that matters under the court's own reasoning. A weak distinction points to a difference the earlier court never treated as important. A strong one explains why the difference removes the justification for the earlier outcome. Candor matters: if an unfavorable case is mandatory, you must address it, and honesty about its strength is part of persuasion.",
+    "The hierarchy shapes the work. A case from a higher court in the jurisdiction controls and can only be distinguished, not disregarded. A case from a different jurisdiction can be followed or rejected on reasoning. When cases are only persuasive, the quality of reasoning, the stature of the court, and how well facts match all count.",
+    "Worked example. Case A held a landlord liable when a tenant told him for weeks about a broken stair railing and he did nothing. Case B held a landlord not liable when a tenant fell on a stair that had been repaired a day earlier. A client slipped on a loose stair tile the landlord had been told about once, three days before. Synthesized rule: liability depends on notice and a reasonable time to repair. The client's facts fall between A and B. The honest analysis: notice existed, as in A, but the time was short, as in B, so the outcome turns on whether three days is a reasonable time to repair a tile."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l09",
+   "title": "The Objective Legal Memorandum",
+   "body": [
+    "An objective memorandum is an internal document that predicts how a court would likely rule on a client's problem. Its reader is a supervising attorney or the client's counsel who will decide strategy: whether to sue, settle, advise the client to act differently, or draft a motion. Because decisions rest on it, the memo must be accurate and candid. A memo that flatters the client's position by hiding weaknesses is worse than useless, because the lawyer will be surprised later by opposing counsel or a judge.",
+    "The standard parts are a heading that identifies author, reader, date, and subject; the question presented; a brief answer; a statement of facts; the discussion; and a conclusion. The question presented states the legal issue with the key facts in a single question, normally beginning with under what law, does a particular fact result in a particular outcome. The brief answer gives a short, direct response, beginning with yes, probably yes, no, or probably no, followed by the main reasons. A reader who stops after the brief answer should still know what you think.",
+    "The statement of facts is neutral and complete. Include the facts that matter to the analysis, the facts that help the other side, and the background needed to understand what happened, in a sensible order, often chronological. Do not argue. Do not invent or assume facts; if a fact is unknown but important, say so and say what it would change. Cite the source of the facts, such as the client interview or a document.",
+    "The discussion applies CREAC to each issue. Begin with a short overview or roadmap if there are multiple issues. Treat each element or sub-issue in its own section, and address counterarguments with the same seriousness as the preferred argument. If authority is split or the law is unsettled, say so, name the competing rules, and predict which a court is likely to follow. Include risk assessments in words such as likely, uncertain, or unlikely; avoid fake precision in percentages.",
+    "The conclusion summarizes the answer and may recommend next steps, such as additional facts to gather or authorities to check. Remember that the memo is confidential. It is typically work product, meaning material prepared in anticipation of litigation that the law protects from discovery in many circumstances, and it may also reflect privileged communications with the client. Do not circulate it outside the legal team, and be careful in how you store it.",
+    "Rule 1.1 of the ABA Model Rules of Professional Conduct requires competent representation, which includes the legal knowledge, skill, thoroughness, and preparation reasonably necessary. A careful memo is part of that duty.",
+    "Worked example. A tenant asks whether she can withhold rent for a broken heater. The brief answer says: probably yes, if the landlord had notice and failed to repair within a reasonable time, but the answer depends on whether the state allows withholding without a court order, which is unsettled by case law. The memo would then explain both views, identify the facts to confirm, and flag the risk of eviction if the tenant guesses wrong."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10",
+   "title": "Motions, Pleadings and Trial-Level Standards",
+   "body": [
+    "Before a case is decided on the merits, trial courts rule on motions, and the legal test for each motion differs. A writer must know which test applies and tailor the argument to it.",
+    "A motion to dismiss for failure to state a claim, found in Federal Rule of Civil Procedure 12(b)(6) and in similar state rules, asks whether the complaint, taken as true, states a claim on which relief can be granted. The court assumes the well-pleaded facts are true and draws reasonable inferences for the plaintiff, but it does not accept bare legal conclusions. In Bell Atlantic Corp. v. Twombly (U.S. 2007) and Ashcroft v. Iqbal (U.S. 2009), the Supreme Court held that a federal complaint must contain enough factual matter to state a claim that is plausible on its face, and that conclusory allegations are not entitled to the presumption of truth. A claim is plausible when the facts allow a reasonable inference that the defendant is liable. Many states follow different pleading standards, and some retain older notice-pleading tests, so the forum matters.",
+    "A motion for summary judgment, under Rule 56, asks whether a trial is needed at all. The court grants it if the moving party shows there is no genuine dispute as to any material fact and that the movant is entitled to judgment as a matter of law. Evidence is viewed in the light most favorable to the non-moving party. A dispute is genuine if a reasonable jury could return a verdict for the non-movant, and a fact is material if it could affect the outcome under the governing law. A party that will bear the burden of proof at trial must come forward with evidence on the key elements; it cannot rest on denials in its pleadings. The Supreme Court elaborated this burden in Celotex Corp. v. Catrett (U.S. 1986).",
+    "The differences shape the writing. On a motion to dismiss, the brief focuses on the face of the complaint and the law; extra factual evidence is generally not considered. On summary judgment the brief cites the record, such as depositions, declarations, and documents, and shows either that no dispute exists or that the opposing evidence is too weak to support a verdict.",
+    "The moving party's brief begins with the standard. An error such as arguing credibility at summary judgment is fatal, since a judge should not weigh credibility on that motion.",
+    "Worked example. A plaintiff alleges that a company wrongfully fired her, and the complaint says only that the company discriminated against her because of her age. On a motion to dismiss, a court may find this a bare conclusion. If she adds facts, such as that her replacement was thirty years younger, that she had positive reviews, and that a manager made age-related remarks on identified dates, the complaint is more likely to cross the plausibility line."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l11",
+   "title": "The Persuasive Brief",
+   "body": [
+    "A persuasive brief is a written argument to a court asking it to take a specific action. Unlike a memo, its goal is not prediction but advocacy, though it must still be honest and accurate. Courts value briefs that are clear, well organized, and credible, and punish overstatement.",
+    "Structure varies by court, and every court has rules about form and length. Federal Rule of Appellate Procedure 28 lists the parts of an appellate brief, including a statement of the issues, a statement of the case, a summary of the argument, the argument itself with the applicable standard of review, and a short conclusion stating the relief sought. Trial court briefs and local rules can differ, so always read the rules that govern the court.",
+    "Start with a theme: a short, fact-grounded explanation of why your side should win, usually tied to fairness or common sense and the law. A theme is not a slogan. It guides which facts you emphasize and how you frame the rules. For example, a theme for a tenant might be that a landlord who ignored repeated warnings cannot ask the court to excuse his delay.",
+    "The questions presented or issues are written persuasively but fairly, embedding favorable facts in the question. The statement of the case or facts is where much persuasion occurs. It must be accurate and cite the record, and it must not argue in a conclusory way, but you may choose emphasis, order, and wording: give favorable facts prominence and put unfavorable facts in context. Never misstate the record. A statement that omits or distorts a fact, once discovered, can destroy credibility and invite sanctions.",
+    "The argument is organized with point headings, full-sentence conclusions that tell the judge what you want and why. A good heading combines the rule and the key facts: Because the landlord had notice for three weeks and made no repair, he breached the implied warranty. A reader skimming only the headings should grasp the argument. Lead with the strongest argument unless logic requires another order. Within each section, use CREAC, and deal squarely with adverse authority.",
+    "Tone matters. Avoid personal attacks on the other side or a lower court, avoid adjectives like absurd, and avoid overstatement of precedent. The brief should state what a case actually held. Under Federal Rule of Civil Procedure 11, an attorney signing a filing certifies after reasonable inquiry that legal contentions are warranted by existing law or by a nonfrivolous argument for changing it, and that factual contentions have evidentiary support.",
+    "Worked example. On appeal, the appellee's lawyer opens with the standard of review, then argues that the trial court's factual finding deserves deference, and only then explains why the legal rule was correctly applied. Because the standard decides how much room the appellate court has, placing it early serves the theme."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l12",
+   "title": "Standards of Review",
+   "body": [
+    "An appeal is not a second trial. An appellate court reviews what happened below, and the standard of review states how much deference it gives to the lower decision-maker. It is among the most important variables in an appeal, and a lawyer who argues the wrong standard may lose even a good argument.",
+    "There are three core standards, with variations. De novo review means the appellate court decides the question fresh, giving no deference to the lower court. It applies to pure questions of law, such as how to interpret a statute or what a contract term means when the meaning does not depend on credibility. Clear error review applies to a trial judge's findings of fact after a bench trial. The appellate court will not reverse unless, on the whole evidence, it is left with a definite and firm conviction that a mistake was made; a finding is not clearly erroneous merely because the court would have decided differently. The Supreme Court described this deference in Anderson v. City of Bessemer City (U.S. 1985), and Federal Rule of Civil Procedure 52(a)(6) states it for federal bench trials. The reason is that the trial judge saw the witnesses and heard the testimony.",
+    "Abuse of discretion applies to decisions the law commits to the trial judge's judgment, such as many evidentiary rulings, case management orders, and some equitable remedies. A court abuses discretion when its decision rests on an error of law, a clearly erroneous finding, or a ruling outside the range of reasonable choices. This is a deferential standard.",
+    "Other standards appear in other settings. A jury verdict is reviewed to see whether substantial evidence supports it, and a ruling on a motion for judgment as a matter of law is usually reviewed de novo. Administrative decisions are reviewed under statutes such as the Administrative Procedure Act, whose standards include arbitrary and capricious review for agency actions.",
+    "Mixed questions of law and fact are common and sorted by what the question requires. In Ornelas v. United States (U.S. 1996), the Court held that determinations of reasonable suspicion and probable cause are reviewed de novo on appeal, while the trial court's underlying findings of historical fact are reviewed for clear error and due weight is given to inferences from local police experience.",
+    "Strategy. If you are appealing, frame the issue as a question of law, if honestly possible, because de novo review gives you a better chance. If you are defending the ruling, frame the issue as a factual or discretionary call. Both sides must be honest about how the courts actually categorize the issue.",
+    "Worked example. After a bench trial a judge finds that a contractor never notified the owner about a delay. On appeal the owner asks for reversal. The contractor will argue that this is a factual finding reviewed for clear error and supported by testimony the judge found credible. The owner would need to show a definite and firm conviction of a mistake, or recast the issue as a legal error in applying the notice clause."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l13",
+   "title": "Citation Systems: The Ideas Behind the Format",
+   "body": [
+    "Citation is the way a lawyer tells the reader where a proposition comes from. It is not decoration. A reader, often a judge or clerk, uses the citation to find the source, check that it says what you claim, and judge how much weight it carries. Legal readers expect a source for every statement of law, and for factual statements in a brief, a citation to the record.",
+    "Several systems exist. The Bluebook, compiled by the law reviews of Columbia, Harvard, Penn, and Yale and now in its 22nd edition (2025), is the most widely taught and used for academic and many practice contexts. The ALWD Guide to Legal Citation is a competing manual with similar rules and some different formatting. Open alternatives exist as well, such as the free Indigo Book. Many courts also impose their own local rules, and some states adopt public-domain or universal citation formats that identify an opinion by year, court, and paragraph numbers instead of a printed volume page. The details differ, so the rule is: when a court or supervisor specifies a system, follow it exactly; otherwise follow one system consistently. This course teaches the ideas rather than the exact punctuation, which you will look up each time.",
+    "A full citation to a case generally gives the case name, the reporter volume, the reporter abbreviation, the first page, a pinpoint page for the specific passage, the court if it is not obvious from the reporter, and the year. A statute citation gives the code, the title or volume, and the section number, with the year in some formats. A regulation cites the Code of Federal Regulations by title and section. Every element serves a purpose: the reporter and page let a reader find the opinion, the court and year show its weight and age.",
+    "Pinpoint citations send the reader to the exact page or paragraph that supports your statement. A citation to an entire fifty-page opinion for a narrow point is a mark of careless work. After the first full citation, short forms avoid repetition. Id. refers to the immediately preceding authority, and shortened case names refer to earlier ones. Use them with care, because inserting a new citation in between can make id. point to the wrong source.",
+    "Signals tell the reader how the source relates to the proposition. No signal means the source directly states the proposition or is the source of a quotation. See means the source clearly supports the proposition but does not state it directly. See also adds further support, cf. offers analogous support, but see signals that the source points the other way, and contra signals direct contradiction. (The 22nd edition of the Bluebook also adds a contrast signal.) Misusing a signal misleads the reader about strength.",
+    "Another core idea is accuracy of the parenthetical and quotation. A quotation must be exact; use brackets for alterations and ellipses for omissions, and never change meaning. Explanatory parentheticals should describe the holding faithfully.",
+    "Worked example. If you write that a court may not weigh credibility at summary judgment, and cite a case that says so, no signal is needed. If the case says something similar about directed verdicts that supports your point by analogy, use cf. If you cite a case that holds the opposite in your jurisdiction, you may need but see, and you must still address why it does not control."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l14",
+   "title": "Drafting Contracts",
+   "body": [
+    "A contract is a set of private rules the parties write for themselves, and a drafter's job is to turn a business deal into words that a stranger, such as a judge, could apply the way the parties intended. Good drafting anticipates disputes. Most litigation over contracts comes from ambiguity, from missing terms, or from risks nobody allocated.",
+    "Start with the deal. Before drafting, understand who the parties are, what each will do, when, for what price, and what happens if things go wrong. Draft from the client's goals, and use a precedent or form only as a starting point, adjusting it to the facts. A form copied without thought imports terms nobody chose.",
+    "Typical structure is a title, a preamble identifying the parties and date, recitals describing background, operative provisions with definitions, the parties' obligations, representations and warranties, conditions, remedies, term and termination, and general or boilerplate provisions, then signature blocks. Recitals are often not operative, and the operative terms should not depend on them.",
+    "Precision with words matters. Use defined terms consistently: if you define Goods in one place, do not use products elsewhere. Distinguish covenants, which are promises, from conditions, which are events that must occur before a duty arises, and from representations, which are statements of fact. Words signal the difference: shall or will creates a duty, may grants discretion, shall not or may not prohibits, and if, unless, or subject to creates a condition. Many drafters choose shall for duties and use it consistently; some prefer will or must. Pick one and stay with it. Avoid terms like and/or and best efforts without definition, because courts disagree about what they require.",
+    "Ambiguity is the enemy. A sentence is ambiguous if it reasonably supports more than one meaning, and courts often construe ambiguity against the drafter (contra proferentem) as a last resort. Read each clause from the viewpoint of an unfriendly reader: could this sentence be read in a way that harms my client?",
+    "The integration clause states that the writing is the entire agreement. Under the parol evidence rule, a fully integrated writing generally bars evidence of prior or contemporaneous agreements that would contradict or add to its terms, with exceptions for fraud, mistake, and interpretation of ambiguous terms, and the rule is stated in the Restatement (Second) of Contracts and applied by state courts. For sales of goods, UCC Article 2 supplies gap-filling terms, such as a reasonable price or time, and it governs in place of common law for those contracts unless the parties agree otherwise within its limits.",
+    "Worked example. A draft says: The Seller shall deliver the goods promptly after payment. Problems: promptly is vague, and the sentence makes delivery depend on payment without saying how or by whom. A better draft: The Seller shall deliver the Goods to the Buyer's warehouse within ten days after the Seller receives the Purchase Price. Now the duty, the deadline, the place, and the trigger are clear."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l15",
+   "title": "Drafting Statutes and Regulations",
+   "body": [
+    "Statutes and regulations do something contracts do not: they bind people who never agreed to them. A statute drafter turns a policy decision into text that officials, courts, and the public can apply. The drafter does not decide the policy, but the words chosen decide how that policy works in practice.",
+    "Begin with the purpose and the problem. Ask what behavior is to be required, prohibited, or allowed, who is subject to the rule, who enforces it, and what happens on violation. A drafter often works from a policy memo or legislator's request, and must ask clarifying questions where it is silent.",
+    "A typical bill includes a short title, sometimes a statement of purpose or findings, definitions, the operative provisions stating rights and duties, enforcement and penalty provisions, any grants of authority to an agency to write rules, an effective date, and clauses for transition. Definitions matter greatly: define a term once, in one place, and use it consistently, and define terms in the section where most readers will look. A broad definition expands the law's reach, and a narrow one limits it. Use exclusions deliberately, and avoid circular definitions.",
+    "Choose the right operative verb. Must or shall imposes a duty, may grants permission or discretion, and must not or may not prohibits. Draft in the active voice and name the actor: the Department shall issue a permit within thirty days, rather than a permit shall be issued. Passive sentences hide who is responsible. Prefer the present tense and singular nouns, which also avoid ambiguity.",
+    "Severability and savings clauses address what happens if part of the law is struck down or if prior law continues. A severability clause states that if one provision is held invalid, the rest remains in effect; courts consider such clauses but are not bound by them. Effective-date and transition provisions say whether the law applies to events already underway.",
+    "The canons of construction are in the background. A drafter who lists specific items followed by a general phrase knows a court may read the general phrase to cover only similar items. A drafter who lists some examples but intends the list to be open-ended should say including but not limited to. Exceptions should be drafted to show clearly whether the person invoking the exception bears the burden.",
+    "Regulations follow similar principles but must also stay within the statute that authorizes them and follow rulemaking procedure, including notice and comment under the Administrative Procedure Act for many rules.",
+    "Worked example. A city wants to limit sidewalk scooters. A weak draft: No person shall use a scooter on a sidewalk. Questions: does scooter include a child's kick scooter or a mobility scooter? A better draft defines motorized scooter, excludes devices used by persons with disabilities, states the penalty and the enforcing office, and sets an effective date after a notice period."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l16",
+   "title": "Plain Language and Editing",
+   "body": [
+    "Plain language is writing that readers can understand the first time they read it. In law it does not mean dumbing down. It means choosing the clearest words and structure that still say exactly what is needed. The Plain Writing Act of 2010 requires United States federal agencies to use clear government communication that the public can understand and use, which reflects a broad view that legal and official documents should be accessible. Many state and local governments and some courts have adopted similar standards for forms and notices.",
+    "Legal readers are busy and often skeptical. A judge with a stack of briefs rewards a writer who gets to the point. A client who cannot understand a contract or a notice cannot make informed choices. Clarity also reduces disputes, since a clearer text leaves less room for competing interpretations.",
+    "Several habits make legal writing hard to read. Long sentences with several clauses strain memory; try to keep subject and verb close together and to limit each sentence to one main idea. Nominalizations, which turn verbs into nouns, hide action: write decide instead of make a decision. The passive voice can hide the actor; prefer the active unless the actor is unknown or unimportant. Stacked prepositional phrases, doublets such as null and void, and archaic words like hereinafter and aforesaid add length without adding precision. Defined terms help when used consistently, but too many make a text harder to follow.",
+    "Legal writers should still keep terms of art. A term like consideration, estoppel, or hearsay has precise meaning, and replacing it with an everyday word may change the meaning. The rule is to use the term of art when you need its precise legal meaning and to explain it briefly if the reader may not know it.",
+    "The editing process works best in passes. First, check substance: is the argument or the rule correct and complete? Second, check structure: does each paragraph start with a topic sentence, and does the order serve the reader? Third, edit sentences for length and voice. Fourth, proofread for grammar, citation, and typographical errors. Reading aloud and allowing time between drafting and editing both help. Typos undermine credibility.",
+    "Formatting is also part of clarity: headings, short paragraphs, and lists for parallel items, while avoiding walls of text.",
+    "Worked example. Original: It is the position of the Defendant that the Plaintiff's failure to give notice of the alleged defect in a timely manner results in a bar to recovery. Revised: The defendant argues that the plaintiff cannot recover because she did not give timely notice of the defect. The revision is shorter, uses an active verb, and keeps the legal substance."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l17",
+   "title": "Oral Argument",
+   "body": [
+    "Oral argument is a structured conversation with judges who have usually read the briefs. In many appellate courts it is limited in length and sometimes decided without argument; in federal courts of appeals, Federal Rule of Appellate Procedure 34 governs when argument is held and allows a court to decide a case without it in certain circumstances. The Supreme Court of the United States sets its own time rules. Check the court's rules and the scheduling order for time limits, and plan for less time than you are allotted, because questions consume time.",
+    "The judges' questions are the core of the event. A judge's question reveals what concerns that judge, which may be the very point that decides the case. Treat each question as an opportunity, not an interruption. Answer directly and early. If the question can be answered yes or no, begin with yes or no and then explain. Do not say that you will get to the point later, because the judge may not give you time. If the question depends on a hypothetical, engage with it honestly, since the judge is testing the limits of the rule you propose.",
+    "Start strong. Introduce yourself and your client, then state your request in a sentence: what relief you want and the main reason. A brief roadmap tells the judges how you will proceed. Then address your best argument first, and be ready to give it up midstream to answer questions. Many experienced advocates prepare a few key points they must make in any order, instead of a script that does not survive interruption.",
+    "Know the record and the law cold. You must be able to say where a fact appears in the record, to describe the key cases accurately, and to state the standard of review. If you do not know an answer, say so and offer to provide it later in a short supplemental filing, if permitted. Never guess about the record or a case. Concessions, when honest and strategic, build credibility: if a judge points out a weakness, concede what must be conceded and explain why it does not decide the case. Refusing to concede an obvious point costs you trust.",
+    "Handle bad facts and adverse authority directly. If a case against you is controlling, acknowledge it and explain why it is distinguishable or should be limited. The opposing lawyer or a judge will raise it if you do not.",
+    "Tone matters: be respectful to the court and to opposing counsel, avoid reading from a script, and speak at a pace the judges can follow. Use plain words and avoid jargon. Do not argue with a judge or interrupt one.",
+    "Rebuttal, if reserved, is short. Pick the one or two most important points of your opponent's argument and respond, rather than repeating your argument. Sit down when you are done even if time remains.",
+    "Worked example. A judge asks whether your proposed rule would cover a hypothetical case with a sympathetic plaintiff whose facts differ slightly from your client's. A weak answer avoids the hypothetical. A strong answer says yes or no, explains the principle that draws the line, and ties it back to why your client falls on the favorable side."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18",
+   "title": "Candor to the Tribunal",
+   "body": [
+    "A lawyer is an advocate for a client but also an officer of the court. The adversary system depends on judges being able to trust what lawyers tell them, because judges cannot check every statement. For that reason, the professional rules impose a duty of candor to the tribunal. Rule 3.3 of the ABA Model Rules of Professional Conduct is the model; each state adopts its own version, and the details differ, so a practicing lawyer must read the local rule.",
+    "The model rule has three core prohibitions. First, a lawyer shall not knowingly make a false statement of fact or law to a tribunal or fail to correct a false statement of material fact or law previously made to the tribunal by the lawyer. Second, a lawyer shall not fail to disclose to the tribunal legal authority in the controlling jurisdiction known to the lawyer to be directly adverse to the client's position and not disclosed by opposing counsel. Third, a lawyer shall not offer evidence the lawyer knows to be false. If a lawyer has offered material evidence and later comes to know it is false, the lawyer must take reasonable remedial measures, including, if necessary, disclosure to the tribunal. The model rule says these duties continue to the conclusion of the proceeding and apply even when compliance requires disclosing information that would otherwise be confidential under Rule 1.6, which is a rare and important override.",
+    "Several points trip up students. The adverse authority duty is limited: it applies to controlling authority in the jurisdiction that is directly adverse, such as a binding decision from the court's own supreme court, and not to every unfavorable case in the country. A lawyer need not make the opponent's argument or cite persuasive cases from elsewhere, though strategy often favors addressing them. A knowing standard is actual knowledge, which may be inferred from circumstances. A lawyer may refuse to offer evidence the lawyer reasonably believes, though does not know, is false, except for a criminal defendant's own testimony in many jurisdictions.",
+    "The Supreme Court addressed a related problem in Nix v. Whiteside (U.S. 1986). A defense lawyer told his client he would withdraw and might reveal the plan if the client insisted on testifying falsely. The Court held that the client had no constitutional right to present perjured testimony and that the lawyer's response did not amount to ineffective assistance of counsel under the Sixth Amendment.",
+    "Candor also overlaps with Rule 11 in federal civil cases and with the rules on meritorious claims. A lawyer may argue for a change in the law, but must not misstate the law. Quoting a case out of context to reverse its meaning, citing an overruled case as good law, or hiding a controlling adverse decision are ways to breach the duty. Sanctions can include fines, discipline, or loss of reputation, and the duty applies to written filings as well as to oral argument.",
+    "Worked example. In a state trial court, your client wants to argue that a statute's deadline does not apply. Your research finds a decision of that state's supreme court holding the deadline applies to exactly this situation. The other side has not cited it. You must disclose it to the court, and you can argue that it was wrongly decided, that it is distinguishable on a real basis, or that the court should ask the higher court to reconsider. You may not omit it."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l19",
+   "title": "Competence, Verification and Technology",
+   "body": [
+    "Technology changes how legal research and writing are done, but the lawyer's duties do not change. Rule 1.1 requires competence, and the comments to the model rule include keeping abreast of changes in law and its practice, including the benefits and risks of relevant technology. Rule 1.6 requires reasonable efforts to prevent unauthorized disclosure of information relating to the representation. Rule 5.3 makes lawyers responsible for supervising nonlawyer assistance, which many authorities apply to vendors and software.",
+    "The central rule of verification is simple: a lawyer who signs a filing is responsible for every citation and statement in it, no matter who or what produced the draft. In Mata v. Avianca, Inc. (S.D.N.Y. 2023), lawyers filed a brief containing citations to cases that did not exist, produced by a generative artificial intelligence tool and not checked. The federal court imposed sanctions. The lesson is not that technology is forbidden but that unverified output is dangerous. Generative tools can produce fluent text that includes invented cases, wrong quotations, and misdescribed holdings, often called hallucinations, and they present the errors confidently.",
+    "A sound verification routine applies to every source, whether it came from a person, a database, or a tool. Locate the actual document in an authoritative source. Read it. Confirm that it says what you claim, that the quotation is exact, that the pinpoint is right, and that the authority is still good law. Check that the court and year match. If you cannot find a case, do not cite it. Keep a record of what you checked.",
+    "Confidentiality is the second concern. Entering client information into a tool may disclose it to a third party, depending on the tool's terms and settings. In 2024 the American Bar Association issued a formal ethics opinion, Formal Opinion 512, addressing lawyers' use of generative AI and discussing competence, confidentiality, communication, candor, supervision, and fees. A lawyer should understand how a tool handles data, avoid placing confidential information into tools that lack adequate protection without informed client consent where required, and charge fees reasonably when tools speed up work. Courts have also adopted standing orders or local rules requiring disclosure or certification of AI use, so check the rules of the court.",
+    "Other technology habits matter too: use secure storage and communication, take care with metadata in documents shared externally, and double check auto-completed text, citations from cite-checking tools, and templates.",
+    "Learners and new lawyers also owe honesty about their own work. Using a source without credit, in school, is plagiarism, and in practice, copying another lawyer's brief without understanding it can import errors.",
+    "Worked example. An associate asks a chatbot for cases supporting a position and receives five citations with quotations. She finds two of the cases in an official database, confirms they say what the tool claimed, and cannot find the other three anywhere. She drops the three, tells her supervisor what happened, and uses only what she verified. Had she included all five, she would have risked sanctions and discipline."
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20",
+   "title": "The Advocate's Ethical Limits",
+   "body": [
+    "The adversary system assumes each side is represented by a vigorous advocate, and that a neutral judge decides after hearing both. Lawyers are expected to advance a client's interests within the law, a principle often called zealous advocacy, but that principle sits inside a set of limits. Understanding them is part of the craft of legal writing and argument.",
+    "Meritorious claims. Rule 3.1 of the ABA Model Rules provides that a lawyer shall not bring or defend a proceeding, or assert or controvert an issue, unless there is a basis in law and fact for doing so that is not frivolous, which includes a good faith argument for an extension, modification, or reversal of existing law. A weak argument is not necessarily frivolous; a lawyer may press a novel theory if there is a genuine basis. Rule 11 of the Federal Rules of Civil Procedure creates a related certification in federal civil practice, enforced by sanctions.",
+    "Fairness to the opposing party and counsel. Rule 3.4 prohibits unlawfully obstructing access to evidence, altering or destroying evidence, falsifying evidence, or knowingly disobeying a court rule. It also bars making a frivolous discovery request or failing to comply with a legally proper discovery request, and, in trial, alluding to matters the lawyer does not reasonably believe are relevant or supported by admissible evidence, or asserting personal knowledge of facts or personal opinion about the justness of a cause, the credibility of a witness, or the guilt or innocence of an accused. That last point is why briefs argue from the record and avoid saying I believe.",
+    "Truthfulness to others. Rule 4.1 says that in the course of representing a client, a lawyer shall not knowingly make a false statement of material fact or law to a third person. This covers negotiations. The comments distinguish false statements from statements of opinion or puffery, so that estimates of price or value and a party's intentions regarding a settlement are not generally treated as statements of material fact, but the line varies, and outright lies about facts are prohibited.",
+    "Integrity of the profession. Rule 8.4 treats as misconduct violating the rules, committing certain criminal acts that reflect on honesty or fitness, engaging in dishonesty, fraud, deceit, or misrepresentation, and conduct prejudicial to the administration of justice. A lawyer may not do through another person what the lawyer may not do directly.",
+    "Confidentiality and loyalty also shape writing: a lawyer must not disclose client confidences in public writing, such as blogs and articles, without consent or a rule exception, and must avoid conflicts of interest.",
+    "A frequent confusion is the idea that a lawyer must believe the client is right. The rules say no: a lawyer may represent a client whose position the lawyer finds unattractive, so long as the claims have a legal basis and the lawyer does not lie or assist fraud. A lawyer cannot, however, counsel or assist conduct that the lawyer knows is criminal or fraudulent, though the lawyer can discuss the legal consequences of any proposed course of conduct with a client.",
+    "Worked example. In negotiating a settlement, your client tells you privately that he will accept less than the amount he claims he demands. You may say that your client will not settle for less than a number if it is a negotiating position within accepted bounds, but you may not fabricate a fact such as a nonexistent competing offer from another buyer. The first is permitted bargaining and the second is a false statement of material fact."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-legalwriting.l01.q1",
+   "lessonId": "law-legalwriting.l01",
+   "kind": "mcq",
+   "prompt": "Which of the following is primary authority?",
+   "choices": [
+    "A published opinion of a state supreme court deciding a dispute",
+    "A law review article analyzing recent changes in a field of law",
+    "A legal encyclopedia entry summarizing the elements of negligence",
+    "A Restatement section describing the general common law rule"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l01.q2",
+   "lessonId": "law-legalwriting.l01",
+   "kind": "mcq",
+   "prompt": "A supervising attorney asks for mandatory authority in a Georgia trial court on a Georgia contract question. Which source qualifies?",
+   "choices": [
+    "A decision of a Georgia trial court in a different county on point",
+    "A decision of the Georgia Supreme Court on that contract question",
+    "A thorough treatise on contract law published by a leading scholar",
+    "A well-reasoned decision from the California Supreme Court on point"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l01.q3",
+   "lessonId": "law-legalwriting.l01",
+   "kind": "mcq",
+   "prompt": "Why should a researcher usually start with a secondary source in an unfamiliar area?",
+   "choices": [
+    "It is guaranteed to reflect the most recent amendments to every statute",
+    "It removes the need to verify the cited cases because editors have already done so",
+    "It supplies vocabulary and leads to primary authority that must then be read",
+    "It is binding in most courts, so it can substitute for reading any cases"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l01.q4",
+   "lessonId": "law-legalwriting.l01",
+   "kind": "mcq",
+   "prompt": "A client asks whether a state recognizes a particular tort. The only support you find is a Restatement (Second) of Torts section and a law review article urging courts to adopt the rule. No decision in the state has addressed the tort. What is the most accurate assessment?",
+   "choices": [
+    "The Restatement section is mandatory because the American Law Institute is a national body",
+    "The tort is clearly recognized because secondary sources of this quality establish it",
+    "The law review article controls since it is more recent than the Restatement",
+    "The rule is unsettled in the state because no court or legislature there has adopted it"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l01.q5",
+   "lessonId": "law-legalwriting.l01",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Dana, a junior associate, writes that a rule is mandatory because it appears in a Restatement section her state supreme court discussed approvingly in a footnote of an unrelated case. The opposing party argues the rule is not law in the state. Which response is strongest?",
+   "choices": [
+    "The footnote is dicta from an unrelated case, so it does not adopt the rule as law in the state",
+    "The Restatement is binding because courts cite it, so the footnote proves the rule is adopted",
+    "The footnote is a holding because any statement by a supreme court is binding on lower courts",
+    "The rule is established because a Restatement is primary authority once a case mentions it"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l02.q1",
+   "lessonId": "law-legalwriting.l02",
+   "kind": "mcq",
+   "prompt": "Under the Supremacy Clause, what happens when valid federal law conflicts with state law?",
+   "choices": [
+    "The state law prevails because states govern private disputes",
+    "The more recently enacted of the two laws prevails in every case",
+    "A court must apply whichever law favors the party who sued first",
+    "The federal law prevails over the conflicting state law"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l02.q2",
+   "lessonId": "law-legalwriting.l02",
+   "kind": "mcq",
+   "prompt": "An agency regulation requires a permit that the authorizing statute does not allow the agency to require. How does the hierarchy treat this regulation?",
+   "choices": [
+    "It is valid because agencies may expand their own authority by rulemaking",
+    "It overrides the statute because it was written by experts in the subject",
+    "It is vulnerable to being held invalid because it exceeds the agency's statutory authority",
+    "It controls because regulations are more specific than the statute that authorized them"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l02.q3",
+   "lessonId": "law-legalwriting.l02",
+   "kind": "mcq",
+   "prompt": "Under Erie Railroad Co. v. Tompkins, what law does a federal court apply to a state-law tort claim in diversity jurisdiction?",
+   "choices": [
+    "The Restatement of Torts, which federal courts treat as binding",
+    "The substantive law of the state, as declared by the state's courts",
+    "A general federal common law of torts developed by the federal courts",
+    "The law of the state where the federal judge was originally appointed"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l02.q4",
+   "lessonId": "law-legalwriting.l02",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Priya, a Michigan resident, sues Northline Corp., an Indiana company, in federal court in Michigan for breach of warranty under state law. The Michigan Supreme Court has not decided the precise warranty question, but the Sixth Circuit once predicted Michigan law on it. Which statement best describes the Sixth Circuit prediction?",
+   "choices": [
+    "It is persuasive evidence of Michigan law but the Michigan Supreme Court is the final authority",
+    "It binds Michigan state courts because the federal court of appeals is higher in rank",
+    "It controls over any later Michigan Supreme Court decision on the same question",
+    "It states federal common law that overrides inconsistent Michigan statutes"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l02.q5",
+   "lessonId": "law-legalwriting.l02",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Marcus files a federal diversity suit on a state-law negligence claim. The defense moves to dismiss, arguing a state-court deadline for filing expert affidavits applies. Marcus argues the Federal Rules of Civil Procedure control the filing process. Which analysis is most consistent with the Erie framework as taught in introductory courses?",
+   "choices": [
+    "State law controls every rule because the claim is based on state law, so federal procedure never applies",
+    "Federal law controls everything because the case is in a federal courthouse and federal courts apply their own law",
+    "The answer depends only on which party filed first, since Erie turns on the order of filing",
+    "State substantive law supplies the claim, while federal procedure governs how the case is filed and litigated"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l03.q1",
+   "lessonId": "law-legalwriting.l03",
+   "kind": "mcq",
+   "prompt": "Which federal publication contains agency rules in a subject-organized, codified form?",
+   "choices": [
+    "The Federal Reporter series of circuit court opinions",
+    "The Statutes at Large",
+    "The Code of Federal Regulations",
+    "The Congressional Record"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l03.q2",
+   "lessonId": "law-legalwriting.l03",
+   "kind": "mcq",
+   "prompt": "You find a case on a free open-archive website and plan to quote it in a court filing. What is the best practice?",
+   "choices": [
+    "Quote it directly because any free archive is an official publication",
+    "Skip checking because open archives are updated hourly by the courts",
+    "Quote only the headnotes written by the archive, which are authoritative",
+    "Confirm the text and citation against the court's official source"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l03.q3",
+   "lessonId": "law-legalwriting.l03",
+   "kind": "mcq",
+   "prompt": "Why does the eCFR carry a notice that the Federal Register and official CFR editions are authoritative?",
+   "choices": [
+    "The online version is continuously updated and unofficial",
+    "The online version is always older than the printed edition and cannot be used",
+    "The online version is limited to proposed rules rather than final rules",
+    "The online version is written by a private publisher that owns the text"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l03.q4",
+   "lessonId": "law-legalwriting.l03",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Imani is a legal aid volunteer asked whether a tenant can cure a late rent payment under current state law. She finds a landlord-tenant blog post summarizing the statute, a free case archive containing a decision applying it, and the legislature's own website containing the statute. What is the soundest research order?",
+   "choices": [
+    "Cite the blog post in the memo as authority and attach the statute as a courtesy copy",
+    "Read the statute on the legislature's site, then find cases interpreting its exact words",
+    "Rely on the blog summary first because it is written in plain language and quicker to read",
+    "Quote the archive decision first because it contains the court's interpretation of the statute"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l03.q5",
+   "lessonId": "law-legalwriting.l03",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Tomas needs the actual filings in a federal case to see what motions were made. A free case-law archive gives him the judge's final opinion but not the briefs. Which resource is the authoritative source for the docket and the filings?",
+   "choices": [
+    "The Code of Federal Regulations, organized by court and case number",
+    "Congress.gov, which hosts the dockets of all federal courts",
+    "PACER, the federal courts' electronic access system",
+    "The Federal Register, which publishes every federal trial court filing"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l04.q1",
+   "lessonId": "law-legalwriting.l04",
+   "kind": "mcq",
+   "prompt": "What does subsequent history refer to?",
+   "choices": [
+    "The earlier cases that the court relied on in writing its opinion",
+    "What happened to the same case on appeal or review",
+    "How unrelated later cases have cited the case in other lawsuits",
+    "The amount of damages awarded after the final judgment was entered"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l04.q2",
+   "lessonId": "law-legalwriting.l04",
+   "kind": "mcq",
+   "prompt": "A decision you want to cite has been distinguished on its facts in several later cases. What is the proper conclusion?",
+   "choices": [
+    "It remains good law for its holding but you must show your facts match it",
+    "It has been overruled and can no longer be cited for any purpose",
+    "It is binding only on the specific parties and nobody else",
+    "It has lost its precedential force in the jurisdiction where it issued"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l04.q3",
+   "lessonId": "law-legalwriting.l04",
+   "kind": "mcq",
+   "prompt": "Why must you read later cases and not rely only on a warning symbol from a citator?",
+   "choices": [
+    "The symbol is always wrong and is used only for decoration in a research tool",
+    "Later cases are never relevant if a symbol appears next to the entry",
+    "The symbol means the case has been formally withdrawn by the court",
+    "The symbol cannot tell you whether the criticized part is the part you rely on"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l04.q4",
+   "lessonId": "law-legalwriting.l04",
+   "kind": "mcq",
+   "prompt": "Fact pattern: An associate's brief for a 2026 case cites Chevron U.S.A. v. NRDC (1984) as controlling authority requiring a court to defer to an agency's reading of an ambiguous statute. What is the most serious problem?",
+   "choices": [
+    "Chevron addressed only criminal law, so it cannot apply to agencies",
+    "Chevron has not been decided by a court with power to resolve the question",
+    "The Supreme Court overruled Chevron in Loper Bright (2024)",
+    "Chevron is a state court case and so cannot bind a federal court"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l04.q5",
+   "lessonId": "law-legalwriting.l04",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Lena relies on a 2008 federal appeals decision. Her check shows that in 2009 the same court granted rehearing en banc and vacated the panel opinion, then in 2010 issued a different en banc decision contradicting it. A coworker says the 2008 opinion is still usable because it was well reasoned. Who is right?",
+   "choices": [
+    "The 2008 opinion revives automatically after a period of years",
+    "Lena should not cite the vacated opinion as authority",
+    "The coworker is right because reasoning, not procedural history, determines precedential weight",
+    "Both may be cited as equal authority because they are from the same court"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l05.q1",
+   "lessonId": "law-legalwriting.l05",
+   "kind": "mcq",
+   "prompt": "What is dicta in a judicial opinion?",
+   "choices": [
+    "A statement in the opinion that was not necessary to the result",
+    "The portion of the opinion setting out the facts of the case in detail",
+    "The final order that states whether the judgment is affirmed or reversed",
+    "The central rule that the court applies to decide the dispute before it"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l05.q2",
+   "lessonId": "law-legalwriting.l05",
+   "kind": "mcq",
+   "prompt": "Why does procedural posture matter when reading a case?",
+   "choices": [
+    "It records the order in which the judges voted before the opinion was written",
+    "It determines the standard of review and whether the court treated facts as assumed or as found",
+    "It determines which side wins since the party who appeals always prevails on review",
+    "It identifies which parties paid the filing fees at each stage of the litigation"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l05.q3",
+   "lessonId": "law-legalwriting.l05",
+   "kind": "mcq",
+   "prompt": "A court of appeals reverses a judgment and sends the case back to the trial court for further proceedings. Which term describes the disposition?",
+   "choices": [
+    "Vacated and dismissed with prejudice",
+    "Overruled and enjoined",
+    "Reversed and remanded",
+    "Affirmed and certified"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l05.q4",
+   "lessonId": "law-legalwriting.l05",
+   "kind": "mcq",
+   "prompt": "Fact pattern: In Hale v. Orchard Mutual, a state supreme court holds that a homeowner's policy excluded flood damage from a burst pipe because the policy language excluded water damage from outside sources, and the water came from a municipal main. The opinion adds that an inside pipe burst would probably be covered. Later, Nia sues on a policy with identical language after her own pipe burst. How should a lawyer treat the court's statement about inside pipes?",
+   "choices": [
+    "As a binding holding because any statement from a supreme court controls lower courts",
+    "As irrelevant because courts never discuss outcomes in hypothetical situations",
+    "As the disposition because it shows what the court wanted to happen in later cases",
+    "As dicta, which is persuasive from a high court but not binding"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l05.q5",
+   "lessonId": "law-legalwriting.l05",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A court denies a company's claim that a former employee breached a non-compete because the company never gave the employee a copy before he started work, and the court notes the employee's office was in a blue building. Two years later a lawyer cites the case for the idea that blue buildings are relevant to non-competes. Which criticism is strongest?",
+   "choices": [
+    "The color of the building was not material to the court's reasoning",
+    "The case is invalid because a court may not mention immaterial facts in an opinion",
+    "The rule applies only to blue buildings because the court mentioned that fact",
+    "The citation is proper because every fact stated in an opinion is part of the holding"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l06.q1",
+   "lessonId": "law-legalwriting.l06",
+   "kind": "mcq",
+   "prompt": "In the CREAC structure, what does the E stand for?",
+   "choices": [
+    "Evidence, which lists the exhibits attached to the filing",
+    "Equity, which shows why the result would be fair to the client",
+    "Exception, which states every possible defense to the claim",
+    "Explanation, which shows how the rule has been applied in authority"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l06.q2",
+   "lessonId": "law-legalwriting.l06",
+   "kind": "mcq",
+   "prompt": "A writer states that an element is met and simply repeats the rule. What is missing?",
+   "choices": [
+    "A quotation from a law review article that agrees with the conclusion",
+    "A list of every case in the jurisdiction that mentions the rule",
+    "Application connecting specific facts to the element",
+    "A longer introduction describing the history of the legal doctrine at issue"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l06.q3",
+   "lessonId": "law-legalwriting.l06",
+   "kind": "mcq",
+   "prompt": "A rule has three elements. What is the best way to write the analysis?",
+   "choices": [
+    "Skip the rule statement and move directly to the strongest facts",
+    "Address each element separately, applying the facts to each one in turn",
+    "Combine the elements into a single paragraph so the argument reads as one idea",
+    "Analyze only the weakest element since the others are likely satisfied"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l06.q4",
+   "lessonId": "law-legalwriting.l06",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A memo reads: \"Under the leading state supreme court decision on scope of employment, an employer is vicariously liable when an employee acts within the scope of employment. Driver was a delivery employee, so the company is liable.\" Which revision most improves the analysis?",
+   "choices": [
+    "Explain what facts made the employee in that decision act within scope",
+    "Delete the case citation to avoid confusing the reader with unnecessary authority",
+    "Move the conclusion to the end and omit the rule statement to keep the paragraph short",
+    "Add a quotation about employer liability from a legal encyclopedia for added weight"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l06.q5",
+   "lessonId": "law-legalwriting.l06",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A supervising attorney tells an associate that her draft section \"has the right answer but I had to read three pages to find it.\" The section analyzes whether a warrant was supported by probable cause, beginning with a history of the Fourth Amendment. Which change best fits the CREAC approach?",
+   "choices": [
+    "Keep the history first and add a short conclusion at the end of the section",
+    "Replace the rule discussion with a block quotation from the leading case",
+    "Divide the section into two parts and put the facts before any statement of the issue",
+    "Open with the conclusion on probable cause, then state the rule"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l07.q1",
+   "lessonId": "law-legalwriting.l07",
+   "kind": "mcq",
+   "prompt": "What does ejusdem generis suggest about a general term at the end of a list of specific items?",
+   "choices": [
+    "The general term is void for vagueness unless a court defines it",
+    "The general term is read to override the specific items that came first",
+    "The general term is read to cover only things of the same kind as the listed items",
+    "The general term is read to cover everything not named in any statute"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l07.q2",
+   "lessonId": "law-legalwriting.l07",
+   "kind": "mcq",
+   "prompt": "A statute lists \"hammers, saws, and drills.\" What does expressio unius (the express mention of one excludes others) suggest about a lawn mower?",
+   "choices": [
+    "It is covered because a mower is a powered tool and a court may add to a statutory list",
+    "It is covered because statutes must always be read broadly to reach all equipment",
+    "It cannot be analyzed because canons are binding rules that decide every case",
+    "Because it is not listed, a court might infer it was not meant to be covered"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l07.q3",
+   "lessonId": "law-legalwriting.l07",
+   "kind": "mcq",
+   "prompt": "Which approach to statutes begins with the ordinary meaning of the enacted words in context?",
+   "choices": [
+    "Textualism",
+    "Purposivism",
+    "Common law reasoning by pure analogy",
+    "Equitable discretion"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l07.q4",
+   "lessonId": "law-legalwriting.l07",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A town ordinance prohibits \"vehicles, bicycles, skateboards, or other conveyances\" in a plaza. The town cites Ravi, who was using a motorized wheelchair. The ordinance includes no definitions. Ravi's lawyer wants the strongest textual argument. Which is best?",
+   "choices": [
+    "Because the ordinance mentions bicycles, any assisted-mobility device is exempt",
+    "Wheelchairs are used to assist mobility and are not like the listed recreational or transport items",
+    "Because the list is open-ended the ordinance must apply to every device with wheels",
+    "Legislative history is the only valid source, so the text should be set aside"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l07.q5",
+   "lessonId": "law-legalwriting.l07",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A statute makes it unlawful to \"use a firearm during a drug trafficking crime.\" A defendant bartered a gun as payment in a drug deal rather than carrying it for protection. Prosecutors argue the ordinary meaning of \"use\" covers it, while the defense argues the statute's purpose is to punish weapons that make drug crimes more dangerous. Which statement best describes the interpretive dispute?",
+   "choices": [
+    "It is resolved by ignoring both text and purpose in favor of the defendant",
+    "It can only be resolved by a committee report, because text cannot be used by a court",
+    "It pits the ordinary meaning of the words against an argument from the statute's purpose",
+    "It is not a real dispute since text and purpose always produce identical results"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l08.q1",
+   "lessonId": "law-legalwriting.l08",
+   "kind": "mcq",
+   "prompt": "What is rule synthesis?",
+   "choices": [
+    "Replacing case law with the Restatement because it is more comprehensive",
+    "Combining several cases into one statement of the rule that is consistent",
+    "Copying the exact words of the first case in the jurisdiction on the topic",
+    "Choosing the case with the outcome most favorable to your client and ignoring the rest"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l08.q2",
+   "lessonId": "law-legalwriting.l08",
+   "kind": "mcq",
+   "prompt": "Which distinction of a precedent is strongest?",
+   "choices": [
+    "A difference in facts that removes the reason the earlier court reached its result",
+    "A difference in the names of the parties and the date of the decision",
+    "A difference in how long the earlier opinion was compared with the later case",
+    "A difference in the judge's writing style between the two opinions"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l08.q3",
+   "lessonId": "law-legalwriting.l08",
+   "kind": "mcq",
+   "prompt": "An opposing party cites a mandatory case that hurts your client. What should an advocate do?",
+   "choices": [
+    "Leave it out because the court is unlikely to find it on its own",
+    "Argue that the case is not binding because it is old, whatever its jurisdiction",
+    "Cite only nonbinding cases from other jurisdictions to counter it",
+    "Address it, usually by distinguishing it on its facts or reasoning"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l08.q4",
+   "lessonId": "law-legalwriting.l08",
+   "kind": "mcq",
+   "prompt": "Fact pattern: In Case A a store was liable when it ignored a customer's repeated warnings about a wet floor for hours. In Case B a store was not liable when a spill occurred minutes before a fall. Joel slips on a spill that employees saw ten minutes before but had not yet cleaned because they were serving other customers. What is the best predicted analysis?",
+   "choices": [
+    "Joel loses automatically because ten minutes is less than the period in A",
+    "The cases cannot be used because none has the exact facts as Joel's",
+    "Notice is established, as in A, but the short time is like B",
+    "Joel wins automatically because the employees saw the spill"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l08.q5",
+   "lessonId": "law-legalwriting.l08",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A trial court in State X, in a state-law case, finds that a prior decision of the State X court of appeals is adverse. A coworker proposes arguing the prior decision should be ignored because a persuasive case from State Y reaches the opposite result and has better reasoning. Which response is most accurate?",
+   "choices": [
+    "Both cases are equally binding because both are appellate decisions",
+    "The prior State X decision binds the trial court and must be followed or distinguished",
+    "The State Y case controls because better reasoning always outranks precedent from the same jurisdiction",
+    "The State X decision can be disregarded because it conflicts with a decision from another state"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l09.q1",
+   "lessonId": "law-legalwriting.l09",
+   "kind": "mcq",
+   "prompt": "What is the purpose of the brief answer in an objective memo?",
+   "choices": [
+    "To give a direct short response to the question presented",
+    "To argue the strongest side of the case for the client in persuasive terms",
+    "To list all of the cases and statutes that the writer found in research",
+    "To describe the facts in chronological order for readers unfamiliar with them"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l09.q2",
+   "lessonId": "law-legalwriting.l09",
+   "kind": "mcq",
+   "prompt": "A key fact is unknown when the memo is written, and it could change the outcome. What is the best way to handle this?",
+   "choices": [
+    "Pick the most likely version silently so the memo reads smoothly",
+    "State that the fact is unknown, say how each possibility would change the analysis, and recommend finding out",
+    "Assume the fact favors the client and write the analysis on that assumption",
+    "Leave the fact out of the memo since an unknown fact cannot be analyzed"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l09.q3",
+   "lessonId": "law-legalwriting.l09",
+   "kind": "mcq",
+   "prompt": "Why should an objective memo include arguments that hurt the client?",
+   "choices": [
+    "Judges require every internal memo to be filed with the clerk",
+    "Opposing counsel will be given the memo and may use it to sharpen their own arguments",
+    "The reader needs an accurate prediction to advise the client and plan strategy",
+    "The court will read the memo and expect it to present both sides evenly"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l09.q4",
+   "lessonId": "law-legalwriting.l09",
+   "kind": "mcq",
+   "prompt": "Fact pattern: An associate's memo on whether her client's employer can enforce a non-compete says \"the covenant is likely unenforceable\" but omits a recent appellate decision upholding a similar covenant in the same state, because it hurts the conclusion. The partner relies on the memo and advises the client to take a competing job. What is the most accurate description of the associate's error?",
+   "choices": [
+    "She did nothing wrong, since memos should be written to help the client's position",
+    "She violated a duty to the court, since memos are filed in every case",
+    "She committed no error because the decision was only an intermediate appellate case",
+    "She breached her duty of thorough, competent work by omitting adverse authority"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l09.q5",
+   "lessonId": "law-legalwriting.l09",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A law student posts an unredacted copy of a firm memo about a client's pending lawsuit on a public study forum to ask for feedback. Which concern is the most serious?",
+   "choices": [
+    "The memo is likely work product and may reveal confidential client information",
+    "The memo is protected by copyright and may be used freely by anyone",
+    "The memo was written by a student, so it has no legal effect on the client's matter",
+    "The forum is public, so nothing posted there can be treated as confidential"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10.q1",
+   "lessonId": "law-legalwriting.l10",
+   "kind": "mcq",
+   "prompt": "On a Rule 12(b)(6) motion to dismiss, how does the court treat the complaint's well-pleaded facts?",
+   "choices": [
+    "It requires the plaintiff to prove each fact with documents",
+    "It disregards all facts and decides only on the legal theory named",
+    "It assumes they are true and asks whether they state a plausible claim",
+    "It weighs witness credibility and decides which side is more believable"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10.q2",
+   "lessonId": "law-legalwriting.l10",
+   "kind": "mcq",
+   "prompt": "Which statement best captures the summary judgment standard under Rule 56?",
+   "choices": [
+    "Judgment is proper if the judge believes the movant's witnesses more than the other side's",
+    "Judgment is proper if the complaint fails to plead a plausible claim on its face",
+    "Judgment is proper if the non-movant fails to file an answer within the deadline",
+    "Judgment is proper if there is no genuine dispute of material fact"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10.q3",
+   "lessonId": "law-legalwriting.l10",
+   "kind": "mcq",
+   "prompt": "What is the effect of Twombly and Iqbal on conclusory allegations in a federal complaint?",
+   "choices": [
+    "They are not entitled to the assumption of truth",
+    "They are accepted as true if they are stated confidently",
+    "They are required in order for the claim to proceed to trial",
+    "They are converted into evidence once the complaint is filed"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10.q4",
+   "lessonId": "law-legalwriting.l10",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Ellis sues a bank in federal court, alleging only that the bank \"discriminated against him in lending because of his race.\" The complaint does not describe the loan application, the bank's decision, or any comparison with other applicants. The bank moves to dismiss. What is the most likely outcome?",
+   "choices": [
+    "The court is likely to deny the motion because a judge may not examine the complaint's detail",
+    "The court is likely to dismiss because the allegation is a conclusion",
+    "The court is likely to deny the motion because a plaintiff need only name the wrong",
+    "The court is likely to grant summary judgment because Ellis offered no witnesses"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l10.q5",
+   "lessonId": "law-legalwriting.l10",
+   "kind": "mcq",
+   "prompt": "Fact pattern: In a contract case, the defendant moves for summary judgment. The plaintiff submits a sworn declaration that the parties orally agreed to a delivery date, and the defendant's officer swears the opposite. The defendant argues that the officer is more credible because she kept notes. How should the court rule?",
+   "choices": [
+    "Grant the motion, because the plaintiff has the burden and must prevail at the pleading stage",
+    "Deny the motion, because summary judgment is never available in contract cases",
+    "Deny the motion, because there is a genuine dispute of material fact",
+    "Grant the motion, because notes are always stronger evidence than a declaration"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l11.q1",
+   "lessonId": "law-legalwriting.l11",
+   "kind": "mcq",
+   "prompt": "What is a point heading in a brief?",
+   "choices": [
+    "A one-word label that identifies the general subject of a section",
+    "A list of the cases that the writer plans to cite in the next section",
+    "A summary of the opposing party's weakest argument",
+    "A full-sentence statement of the conclusion the writer wants the court to reach"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l11.q2",
+   "lessonId": "law-legalwriting.l11",
+   "kind": "mcq",
+   "prompt": "Which approach to the statement of facts is consistent with both persuasion and honesty?",
+   "choices": [
+    "State each fact in neutral language and make no choices about order or emphasis",
+    "Add favorable inferences as facts and cite no record to keep it readable",
+    "Emphasize favorable facts and place unfavorable ones in context",
+    "Omit unfavorable facts entirely so the court is not distracted from the argument"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l11.q3",
+   "lessonId": "law-legalwriting.l11",
+   "kind": "mcq",
+   "prompt": "What does Rule 11 of the Federal Rules of Civil Procedure require of an attorney who signs a filing?",
+   "choices": [
+    "An agreement to withdraw any argument opposing counsel objects to",
+    "A reasonable inquiry confirming that the legal contentions are warranted",
+    "A guarantee that the court will rule in the client's favor on every claim",
+    "A promise to disclose all privileged client communications to the court"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l11.q4",
+   "lessonId": "law-legalwriting.l11",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A brief for a landlord says the tenant \"lied\" and calls the trial judge's ruling \"absurd and shameful,\" while citing a case for a rule the case did not hold. Opposing counsel points out the miscitation. What is the likely effect?",
+   "choices": [
+    "The court may discount the entire brief and the lawyer may face sanctions",
+    "The court will credit the brief because strong language shows the lawyer's confidence",
+    "The court will ignore the tone but treat the miscited case as a correct statement of law",
+    "The miscitation is harmless because the other side has the burden of research"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l11.q5",
+   "lessonId": "law-legalwriting.l11",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A tenant's attorney writes two possible headings. Heading one: \"The Warranty of Habitability.\" Heading two: \"Because the landlord ignored three written repair requests over a month, he breached the warranty of habitability.\" Which is stronger and why?",
+   "choices": [
+    "Heading one, because it is shorter and does not commit the writer to a position",
+    "Heading one, because courts prefer neutral labels in persuasive briefs",
+    "Heading two, because it avoids any mention of the governing legal rule",
+    "Heading two, because it joins the rule to the key facts"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l12.q1",
+   "lessonId": "law-legalwriting.l12",
+   "kind": "mcq",
+   "prompt": "Which standard of review applies to a pure question of law, such as statutory interpretation?",
+   "choices": [
+    "De novo",
+    "Clear error",
+    "Abuse of discretion",
+    "Substantial evidence"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l12.q2",
+   "lessonId": "law-legalwriting.l12",
+   "kind": "mcq",
+   "prompt": "A trial judge, after a bench trial, finds that a witness was credible and that a contract was signed under pressure. On appeal, what is the standard for the finding of fact?",
+   "choices": [
+    "Plain error, because the finding was made without a jury",
+    "Clear error, because the trial judge saw and heard the witnesses",
+    "De novo, because appellate judges read the transcript more carefully",
+    "Abuse of discretion, because credibility is a legal question"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l12.q3",
+   "lessonId": "law-legalwriting.l12",
+   "kind": "mcq",
+   "prompt": "Why might an appellant try to frame an issue as a question of law?",
+   "choices": [
+    "Because a factual finding can be reversed whenever the appellate judges disagree",
+    "Because the standard of review does not matter if the argument is strong",
+    "Because the appellate court will review it without deference to the lower court",
+    "Because questions of law are never reviewed by an appellate court"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l12.q4",
+   "lessonId": "law-legalwriting.l12",
+   "kind": "mcq",
+   "prompt": "Fact pattern: After a bench trial, Judge Reyes finds that a bakery owner told a supplier that a delivery was cancelled, and rules for the supplier on that basis. The owner appeals, saying the testimony of the supplier's witness was weak and he would have decided differently. Which is the strongest response for the supplier?",
+   "choices": [
+    "The finding is reviewed de novo, so the court should accept the trial judge's view automatically",
+    "The finding cannot be appealed because findings of fact are never reviewable",
+    "The finding must be reversed because the appeals court would decide differently",
+    "The finding is reviewed for clear error, and mere disagreement with the weight of testimony is not enough"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l12.q5",
+   "lessonId": "law-legalwriting.l12",
+   "kind": "mcq",
+   "prompt": "Fact pattern: In a criminal appeal, the trial judge found that officers saw the defendant hand something to another person in a parking lot known for drug sales, and then ruled that the officers had probable cause to search. On appeal, the defendant challenges the conclusion of probable cause. Under Ornelas v. United States, what is the right approach?",
+   "choices": [
+    "Review the ultimate probable cause conclusion de novo",
+    "Review the entire ruling for abuse of discretion because the judge heard the evidence",
+    "Review all findings and conclusions de novo, including what the officers saw",
+    "Defer to the trial judge's probable cause conclusion for clear error only"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l13.q1",
+   "lessonId": "law-legalwriting.l13",
+   "kind": "mcq",
+   "prompt": "What does a pinpoint citation do?",
+   "choices": [
+    "Replaces the need to give the case name in the first citation",
+    "Directs the reader to the exact page or paragraph supporting the statement",
+    "Identifies the judge who wrote the opinion and the year of her appointment",
+    "Shows that the case has been overruled by a later decision"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l13.q2",
+   "lessonId": "law-legalwriting.l13",
+   "kind": "mcq",
+   "prompt": "A case does not directly state your proposition but clearly supports it by implication. Which signal is most appropriate?",
+   "choices": [
+    "See",
+    "Contra",
+    "No signal",
+    "But see"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l13.q3",
+   "lessonId": "law-legalwriting.l13",
+   "kind": "mcq",
+   "prompt": "Why is it risky to use id. when a new citation has been inserted between the original source and the line using id.?",
+   "choices": [
+    "Id. is prohibited in every citation system and should never be used",
+    "Id. automatically means that the new source overrules the earlier one",
+    "Id. can only be used for statutes and never for cases",
+    "Id. refers only to the immediately preceding authority, so it would point to the inserted source"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l13.q4",
+   "lessonId": "law-legalwriting.l13",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A brief says a court \"may not weigh credibility on a summary judgment motion\" and cites a circuit case that actually held that credibility may not be weighed on a motion for judgment as a matter of law, a related but different procedure. The writer wants to be accurate about the source's strength. Which choice is best?",
+   "choices": [
+    "Use contra because the case addressed a different motion",
+    "Omit the citation because a different motion makes the case useless",
+    "Use cf. or a parenthetical explaining that the case addressed judgment as a matter of law and reasoned by analogy",
+    "Use no signal because the cases both involve motions and credibility"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l13.q5",
+   "lessonId": "law-legalwriting.l13",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A state's trial court rules require citation in a particular format, but a junior lawyer uses the format she learned in school for a brief to be filed there. The supervising attorney asks her to change it. What principle best explains the supervisor's request?",
+   "choices": [
+    "Only the Bluebook is permitted in any court in the United States",
+    "A court's own rules on citation form control over a school's or manual's format",
+    "The school format is always wrong, so citations must be rewritten whenever filed",
+    "Citation form is irrelevant to courts, so the change is only a matter of preference"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l14.q1",
+   "lessonId": "law-legalwriting.l14",
+   "kind": "mcq",
+   "prompt": "What is the difference between a covenant and a condition in a contract?",
+   "choices": [
+    "A covenant is an unenforceable statement, while a condition is binding on both sides",
+    "A covenant is a clause about payment, while a condition is a clause about delivery",
+    "A covenant is a promise to do something, while a condition is an event that must occur first",
+    "A covenant is an event outside anyone's control, while a condition is a promise by one party"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l14.q2",
+   "lessonId": "law-legalwriting.l14",
+   "kind": "mcq",
+   "prompt": "Which revision best fixes the sentence \"The Seller shall deliver promptly after payment\"?",
+   "choices": [
+    "The Seller shall deliver the Goods as soon as possible after the Buyer has paid",
+    "The Seller will use best efforts to deliver after being paid something",
+    "The Seller shall deliver promptly and in a timely manner after payment is made",
+    "The Seller shall deliver the Goods to the Buyer's warehouse within ten days"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l14.q3",
+   "lessonId": "law-legalwriting.l14",
+   "kind": "mcq",
+   "prompt": "What is the general effect of a fully integrated written contract under the parol evidence rule?",
+   "choices": [
+    "Evidence of prior or contemporaneous agreements is barred if offered to contradict or add to the written terms",
+    "Evidence of any earlier conversation is always admissible to change the written terms",
+    "The written terms can never be interpreted by a court if they are ambiguous",
+    "The writing becomes void if either party mentions an earlier negotiation"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l14.q4",
+   "lessonId": "law-legalwriting.l14",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A bakery signs a written agreement to buy flour from a mill. The agreement contains an integration clause. The bakery's owner later claims the mill's sales representative orally promised, before signing, that the mill would never raise prices during the first year. The written agreement says nothing on price changes. What is the most likely result on the claim that the oral promise is part of the contract?",
+   "choices": [
+    "The oral promise is likely barred only if the mill's representative signed the agreement",
+    "The oral promise is likely barred if the writing is fully integrated",
+    "The oral promise is likely enforceable because oral promises always survive an integration clause",
+    "The oral promise is likely enforceable because the writing is silent and silence invites extra terms"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l14.q5",
+   "lessonId": "law-legalwriting.l14",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A vendor's form says the vendor \"shall use best efforts to deliver on time\" and does not define best efforts. The vendor delivers late because it chose to fill a larger customer's order first. The buyer sues. What drafting weakness most contributes to the dispute?",
+   "choices": [
+    "The inclusion of a delivery obligation, which is unusual in a sales contract",
+    "The absence of a signature block, which makes every clause unenforceable",
+    "The undefined phrase best efforts, which courts interpret inconsistently",
+    "The use of the word shall, which can only be used in statutes"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l15.q1",
+   "lessonId": "law-legalwriting.l15",
+   "kind": "mcq",
+   "prompt": "What does a severability clause do?",
+   "choices": [
+    "States that the entire law is void if any single provision is invalid",
+    "States that the law applies only to conduct in a single district",
+    "States that agencies may ignore the law until funds are provided",
+    "States that if one provision is held invalid, the remaining provisions stay in effect"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l15.q2",
+   "lessonId": "law-legalwriting.l15",
+   "kind": "mcq",
+   "prompt": "Which sentence is best drafted for a statute?",
+   "choices": [
+    "It is expected that permits will normally be issued promptly by the Department",
+    "Permits may be issued whenever convenient to the Department after review",
+    "The Department shall issue a permit within thirty days",
+    "A permit should be issued in a reasonable time after the application has been received"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l15.q3",
+   "lessonId": "law-legalwriting.l15",
+   "kind": "mcq",
+   "prompt": "Why should a statute's drafter define a key term only once and use it consistently?",
+   "choices": [
+    "Legislators vote only on definitions and not on the operative provisions",
+    "Different words in a statute may be read by a court to mean different things",
+    "Courts disregard any definition appearing outside the first section of a statute",
+    "Consistency is only a matter of style and has no effect on interpretation"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l15.q4",
+   "lessonId": "law-legalwriting.l15",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A city council passes an ordinance: \"No person shall operate a motor vehicle, motorcycle, or other conveyance in Riverside Park.\" A resident in a motorized wheelchair is cited. The council intended to ban recreational vehicles, not mobility devices. Which drafting change would have best prevented the problem?",
+   "choices": [
+    "Define the covered devices and expressly exclude devices used for mobility",
+    "Delete the phrase other conveyance and rely on police discretion",
+    "Add the words including but not limited to so the list is open to any device",
+    "Replace shall with may so the ordinance becomes optional"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l15.q5",
+   "lessonId": "law-legalwriting.l15",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A state agency adopts a regulation requiring licensing of tutors. The authorizing statute allows the agency to regulate only schools and does not mention tutors. A tutor challenges the rule. What is the strongest argument?",
+   "choices": [
+    "The regulation is valid because agencies may regulate any activity they find beneficial",
+    "The regulation is valid because regulations outrank statutes in the hierarchy",
+    "The regulation is invalid only because it was adopted by an agency rather than a court",
+    "The regulation exceeds the authority granted by the statute, so it is invalid"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l16.q1",
+   "lessonId": "law-legalwriting.l16",
+   "kind": "mcq",
+   "prompt": "What is a nominalization?",
+   "choices": [
+    "A verb turned into a noun, such as make a decision for decide",
+    "A noun turned into a verb, such as to impact",
+    "A phrase that names a party in a contract",
+    "A sentence written in the passive voice"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l16.q2",
+   "lessonId": "law-legalwriting.l16",
+   "kind": "mcq",
+   "prompt": "Why might a lawyer keep a term of art such as consideration, even in plain-language writing?",
+   "choices": [
+    "A term of art makes a sentence sound more formal and thus stronger",
+    "It has a precise legal meaning that a substitute everyday word might change",
+    "Courts require terms of art in every document filed in any case",
+    "Everyday words can never be understood by a judge"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l16.q3",
+   "lessonId": "law-legalwriting.l16",
+   "kind": "mcq",
+   "prompt": "Which is the best plain-language revision of \"It is the position of the Defendant that Plaintiff's failure to timely give notice results in a bar to recovery\"?",
+   "choices": [
+    "The defendant argues that there is a bar to recovery resulting from a lack of notice being timely",
+    "It is contended by the defendant that timely notice not having been given recovery is barred",
+    "The defendant argues that the plaintiff cannot recover because she did not give timely notice",
+    "The defendant hereinafter contends that recovery is barred by the aforesaid untimeliness of notice"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l16.q4",
+   "lessonId": "law-legalwriting.l16",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A landlord's eviction notice is a dense paragraph of legalese that tells tenants they must \"cure the default or surrender possession forthwith pursuant to the aforementioned provisions.\" Many tenants do not understand it and fail to respond within the deadline, then lose their homes. Which argument best supports a plain-language reform?",
+   "choices": [
+    "Complicated notices make courts more likely to rule for tenants in every case",
+    "Plain language would remove the landlord's legal obligations",
+    "Plain language is required by every state's eviction statute",
+    "Clear notices help recipients understand their rights and deadlines"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l16.q5",
+   "lessonId": "law-legalwriting.l16",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A junior lawyer edits a brief only by proofreading for typos right after finishing the draft, and the partner finds a missing element and a disorganized argument. Which editing practice would best address the problem?",
+   "choices": [
+    "Edit in passes, checking substance and structure first, then sentences",
+    "Edit only the sentences because structure cannot be changed after drafting",
+    "Skip editing and rely on the reader to understand the intent",
+    "Proofread more times with the same focus on spelling and grammar"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l17.q1",
+   "lessonId": "law-legalwriting.l17",
+   "kind": "mcq",
+   "prompt": "How should an advocate usually begin an answer to a judge's yes-or-no question at oral argument?",
+   "choices": [
+    "With a request that the judge read the brief more carefully",
+    "With yes or no, followed by the explanation",
+    "With a promise to answer later in the argument",
+    "With a restatement of the entire argument section of the brief"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l17.q2",
+   "lessonId": "law-legalwriting.l17",
+   "kind": "mcq",
+   "prompt": "A judge points to a real weakness in your client's position. What is the most effective response?",
+   "choices": [
+    "Concede what must be conceded and explain why it does not decide the case",
+    "Deny that the weakness exists and repeat your best argument",
+    "Ask the judge to postpone the question until rebuttal",
+    "Point out that opposing counsel has similar weaknesses"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l17.q3",
+   "lessonId": "law-legalwriting.l17",
+   "kind": "mcq",
+   "prompt": "What should rebuttal focus on?",
+   "choices": [
+    "A full repetition of the opening argument in a different order",
+    "A new theory of the case not found in the briefs",
+    "A list of every error opposing counsel made in the argument",
+    "One or two of the opponent's most important points"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l17.q4",
+   "lessonId": "law-legalwriting.l17",
+   "kind": "mcq",
+   "prompt": "Fact pattern: At argument, Judge Alvarez asks appellant's counsel, \"If I adopt your rule, would a landlord who made repairs within two days still be liable?\" Counsel answers, \"That is not our case, Your Honor,\" and returns to prepared remarks. Which assessment is most accurate?",
+   "choices": [
+    "The answer is strong because hypotheticals are improper in appellate argument",
+    "The answer is weak only because counsel did not cite a case in the answer",
+    "The answer is weak because the judge is testing the rule's limits",
+    "The answer is strong because advocates should address only the facts of their own case"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l17.q5",
+   "lessonId": "law-legalwriting.l17",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A judge asks counsel where in the record a witness admitted knowing about a defect. Counsel is unsure and says, \"I believe it is at page 112,\" though she has not checked. The page does not contain the admission. What is the best approach she should have taken?",
+   "choices": [
+    "Ask the judge to find the cite since the court has the record",
+    "Say she is not certain, offer to provide the exact cite promptly if the court permits, and avoid guessing",
+    "State a page number with confidence because judges rarely check the record",
+    "Explain that the admission is obvious and does not need record support"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18.q1",
+   "lessonId": "law-legalwriting.l18",
+   "kind": "mcq",
+   "prompt": "Under Model Rule 3.3, which duty applies to adverse authority?",
+   "choices": [
+    "Disclose only authority that the opposing party has already cited",
+    "Disclose authority only if the judge asks about it",
+    "Disclose directly adverse authority in the controlling jurisdiction that opposing counsel has not cited",
+    "Disclose every case in the country that is unfavorable to the client"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18.q2",
+   "lessonId": "law-legalwriting.l18",
+   "kind": "mcq",
+   "prompt": "A lawyer offers a witness's testimony and later learns, with knowledge, that a material part was false. What does Rule 3.3 require?",
+   "choices": [
+    "Do nothing because the testimony is already in the record",
+    "Withdraw from the case without telling anyone why",
+    "Wait until the opposing party discovers it and then respond",
+    "Take reasonable remedial measures, including disclosure to the tribunal if necessary"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18.q3",
+   "lessonId": "law-legalwriting.l18",
+   "kind": "mcq",
+   "prompt": "What did the Supreme Court hold in Nix v. Whiteside (1986)?",
+   "choices": [
+    "A defendant has no constitutional right to present perjured testimony",
+    "A defendant has an absolute right to testify however the lawyer disagrees with the content",
+    "A lawyer must always disclose a client's plan to testify falsely to the prosecutor",
+    "A lawyer who threatens to withdraw has always violated the Sixth Amendment"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18.q4",
+   "lessonId": "law-legalwriting.l18",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Lena represents a landlord in a state trial court. Her research uncovers a decision of the state's highest court holding that the exact lease clause her client relies on is unenforceable. Opposing counsel did not cite it. Lena's supervisor says to leave it out and hope the judge does not find it. Which analysis is correct under the model rule?",
+   "choices": [
+    "Lena must disclose it but may not argue against its application",
+    "Lena must disclose the decision to the court even though opposing counsel did not cite it",
+    "Lena may omit it because opposing counsel has the duty to find adverse authority",
+    "Lena may omit it because only federal decisions count as controlling authority"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l18.q5",
+   "lessonId": "law-legalwriting.l18",
+   "kind": "mcq",
+   "prompt": "Fact pattern: In a deposition summary filed with a court, an attorney, Omar, states that a witness never denied receiving a warning letter. He later realizes the transcript shows the witness did deny it. No one has noticed. What does the duty of candor require?",
+   "choices": [
+    "Wait for the other side to object before taking any action",
+    "Delete the transcript from his own files to avoid confusion",
+    "Take reasonable measures to correct the false statement to the court",
+    "Nothing, because the statement was made without intent to deceive"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l19.q1",
+   "lessonId": "law-legalwriting.l19",
+   "kind": "mcq",
+   "prompt": "Who is responsible for the accuracy of citations in a filing signed by a lawyer?",
+   "choices": [
+    "The software vendor that supplied the research tool",
+    "The court clerk who accepts the filing",
+    "The opposing party who is expected to catch errors",
+    "The signing lawyer, regardless of who or what produced the draft"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l19.q2",
+   "lessonId": "law-legalwriting.l19",
+   "kind": "mcq",
+   "prompt": "What happened in Mata v. Avianca, Inc. (S.D.N.Y. 2023)?",
+   "choices": [
+    "A court held that AI-generated briefs are never admissible",
+    "A court rewarded a lawyer who disclosed the use of a research tool",
+    "Lawyers were sanctioned for filing citations to nonexistent cases generated by an AI tool",
+    "A court banned all lawyers from using electronic research tools"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l19.q3",
+   "lessonId": "law-legalwriting.l19",
+   "kind": "mcq",
+   "prompt": "Why is entering confidential client details into an online AI tool potentially a problem?",
+   "choices": [
+    "It is only a problem if the output is wrong",
+    "It may disclose confidential information to a third party depending on the tool's terms and settings",
+    "It automatically waives the attorney-client privilege in every jurisdiction",
+    "It is prohibited in every state by statute"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l19.q4",
+   "lessonId": "law-legalwriting.l19",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A solo practitioner uses a chatbot to draft a motion and receives six case citations with quotations. He checks that each case name looks plausible and files the motion. Three cases do not exist, and two are misdescribed. Which statement best describes his conduct?",
+   "choices": [
+    "He failed his duty of competence by not verifying the citations",
+    "He acted properly because the tool is a reliable source for authority",
+    "He acted properly because he checked the case names",
+    "He acted improperly only because he used a computer to prepare the filing"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l19.q5",
+   "lessonId": "law-legalwriting.l19",
+   "kind": "mcq",
+   "prompt": "Fact pattern: A firm adopts a new AI drafting tool. A partner wants staff to paste whole client files into it to save time. The tool's terms allow the vendor to use inputs to train its models. What is the most defensible course of action?",
+   "choices": [
+    "Allow unrestricted use because speed benefits the client",
+    "Ban the tool permanently because all AI use is unethical",
+    "Use it freely because vendor terms cannot affect lawyers' ethical duties",
+    "Review the terms, assess confidentiality risks, and limit the client information entered unless adequate protections exist"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20.q1",
+   "lessonId": "law-legalwriting.l20",
+   "kind": "mcq",
+   "prompt": "What does Model Rule 3.1 require?",
+   "choices": [
+    "That the lawyer personally believe the client is entirely right",
+    "That every argument has a controlling case supporting it",
+    "That the lawyer never present a novel theory",
+    "A basis in law and fact that is not frivolous"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20.q2",
+   "lessonId": "law-legalwriting.l20",
+   "kind": "mcq",
+   "prompt": "Why do lawyers generally avoid saying \"I believe\" or \"in my opinion\" about the justness of the client's case in court?",
+   "choices": [
+    "Personal belief is always irrelevant to the client",
+    "Statements of belief automatically waive the privilege",
+    "Rule 3.4 bars asserting personal opinion on the justness of a cause",
+    "Courts require all statements to be in the third person for grammatical reasons"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20.q3",
+   "lessonId": "law-legalwriting.l20",
+   "kind": "mcq",
+   "prompt": "Which statement made during negotiation is most clearly a violation of Rule 4.1?",
+   "choices": [
+    "Stating an optimistic opinion about the strength of your client's case",
+    "Telling the other side your client has a signed competing offer when no such offer exists",
+    "Saying your client will not accept less than a certain number as a bargaining position",
+    "Declining to reveal your client's bottom line"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20.q4",
+   "lessonId": "law-legalwriting.l20",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Dev represents a defendant in a product case. His client, a manufacturer, asks him to quietly delete internal safety emails from the company's server before the plaintiff's discovery requests arrive. A lawsuit is already pending. What is the correct analysis?",
+   "choices": [
+    "The lawyer may not assist; destroying evidence is prohibited",
+    "The lawyer may assist because the emails are the client's property",
+    "The lawyer may assist because zealous advocacy requires protecting the client from discovery",
+    "The lawyer may assist as long as he does not personally delete them"
+   ]
+  },
+  {
+   "id": "law-legalwriting.l20.q5",
+   "lessonId": "law-legalwriting.l20",
+   "kind": "mcq",
+   "prompt": "Fact pattern: Priya, an associate, is asked to defend a landlord in an eviction she personally thinks is unfair, though the landlord has a legitimate legal basis under the lease and statute. A colleague says she must refuse because lawyers must believe in their cases. How should the situation be analyzed?",
+   "choices": [
+    "She must refuse because any personal disagreement creates a conflict of interest",
+    "She must represent the landlord but may not argue the lease or statute",
+    "She may represent the landlord only if she lies about her personal view to the court",
+    "She may represent the landlord if the position has a non-frivolous basis"
+   ]
+  }
+ ]
+}

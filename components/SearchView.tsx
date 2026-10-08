@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserProfile, Video, Album } from '../types';
 import PageHeader from './PageHeader';
-import { searchUsers, searchLiveChannels, followUser, unfollowUser, isFollowing, fetchUserContent, fetchUserVideos, fetchAllVideos, fetchAllPublicAlbums } from '../services/backendService';
+import { searchLiveChannels, followUser, unfollowUser, isFollowing, fetchUserContent, fetchUserVideos, fetchAllVideos, fetchAllPublicAlbums } from '../services/backendService';
+import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import { Search, UserPlus, UserMinus, ArrowLeft, User, Tv, Play, Music, Film, LayoutGrid } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import WorldBadge from './WorldBadge';

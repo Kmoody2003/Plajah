@@ -17,6 +17,9 @@ import {
 } from '../services/backendService';
 import VideoChat, { CallContact } from '../components/VideoChat';
 import VoiceRecorder from '../components/VoiceRecorder';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { watchClassroomMeeting } from '../services/classroomMeetings';
 
 interface CallPeer { uid?: string; name?: string; photo?: string }
 
@@ -40,6 +43,8 @@ interface MissedCall {
 interface CallContextType {
   /** Ring every other participant of a room and open the call. */
   placeCall: (room: ChatRoom, type?: CallSession['type']) => Promise<void>;
+  /** Join a shared scheduled meeting without ringing the entire roster. */
+  joinMeeting: (room: ChatRoom) => void;
   inCall: boolean;
 }
 
@@ -169,6 +174,33 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hungUpRef = useRef(false);
 
   const uid = auth.currentUser?.uid;
+  const classroomRosterRef = useRef<{ roomId: string; participants: string[] } | null>(null);
+  useEffect(() => {
+    const roomId = active?.room.id;
+    if (!roomId || !uid) return;
+    // Keep meeting role changes authoritative while the call remains mounted.
+    return onSnapshot(doc(db, 'chat_rooms', roomId), snapshot => {
+      if (!snapshot.exists() || !snapshot.data().participants?.includes(uid)) { setActive(null); return; }
+      const roster = classroomRosterRef.current?.roomId === roomId ? classroomRosterRef.current.participants : undefined;
+      setActive(previous => previous?.room.id === roomId ? { ...previous, room: { id: snapshot.id, ...snapshot.data(), ...(roster ? { participants: roster } : {}) } as ChatRoom } : previous);
+    }, () => { setActive(null); });
+  }, [active?.room.id, uid]);
+  useEffect(() => {
+    const room = active?.room;
+    if (room?.workspaceType !== 'CLASSROOM_MEETING' || !room.classroomId || !room.liveClassSessionId || !uid) return;
+    return watchClassroomMeeting(room, participants => {
+      classroomRosterRef.current = { roomId: room.id, participants };
+      if (!participants.includes(uid)) { setActive(null); return; }
+      setActive(previous => previous?.room.id === room.id ? { ...previous, room: { ...previous.room, participants } } : previous);
+    }, () => setActive(null));
+  }, [active?.room.id, active?.room.classroomId, active?.room.liveClassSessionId, uid]);
+  const joinMeeting = useCallback((room: ChatRoom) => {
+    if (!auth.currentUser || !room.participants.includes(auth.currentUser.uid)) throw new Error('You are not a member of this meeting.');
+    if (active) throw new Error('Leave your current call before joining another meeting.');
+    hungUpRef.current = false;
+    setMissed(null);
+    setActive({ room, isCaller: false, callIds: [], type: 'VIDEO' });
+  }, [active]);
 
   // Global incoming-call listener — rings anywhere in the app.
   useEffect(() => {
@@ -307,7 +339,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [missed]);
 
   return (
-    <CallContext.Provider value={{ placeCall, inCall: !!active }}>
+    <CallContext.Provider value={{ placeCall, joinMeeting, inCall: !!active }}>
       {children}
       <AnimatePresence>
         {incoming && !active && (

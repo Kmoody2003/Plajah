@@ -1,0 +1,1142 @@
+{
+ "courseId": "atlas-brakes-college",
+ "label": "Brake Systems for Technicians",
+ "lessons": [
+  {
+   "id": "atlas-brakes-college.l01",
+   "title": "The Force Chain: Pedal, Booster, Master Cylinder and Caliper",
+   "body": [
+    "Treat the brake as a chain of multipliers, each defined by a ratio. The pedal is a lever with ratio r_p, the booster has an assist ratio r_b over its working range, the master cylinder converts piston force to pressure through its bore area, and the caliper converts pressure back to force through its piston area. Only the area ratio changes the trade between force and travel, because the fluid volume is conserved.",
+    "Worked example with illustrative values, not specifications. Foot force F_f = 150 N and pedal ratio 4.5:1, so pushrod force = 150 x 4.5 = 675 N. Booster assist ratio 4 gives F_mc = 675 x 4 = 2,700 N on the master cylinder piston. Master cylinder bore d_m = 24 mm, so A_m = (pi/4) x 24 squared = 0.7854 x 576 = 452.4 mm squared. Line pressure P = 2,700 N / 452.4 mm squared = 5.97 MPa (about 59.7 bar, or about 866 psi). A caliper piston of diameter 54 mm has A_c = 0.7854 x 2,916 = 2,290 mm squared. Piston force F_c = 5.97 x 2,290 = about 13,670 N. A shortcut confirms it: the area ratio is (54/24) squared = 5.0625, and 2,700 x 5.0625 = 13,669 N.",
+    "Travel runs the other way. Neglecting compliance and the other pistons that share the fluid, the caliper piston moves 1/5.0625 as far as the master cylinder piston. Because a caliper needs only a small pad travel to clamp, a larger caliper bore demands more fluid volume per unit of clamp force, which must be matched by the master cylinder bore and stroke. Pedal feel is a result of this matching and of system compliance.",
+    "A vacuum booster does not multiply without limit. At run-out, the diaphragm sees the full available pressure difference and cannot add more; additional pedal force then passes through at about the pedal ratio only. This is why stopping force at a very hard stop rises less quickly with extra leg force. A booster that has lost its vacuum is a different case: it adds no assist at all, so the pedal feels hard from the start. Real systems have losses from seal friction, hose expansion, caliper deflection and air, so the ideal results here are upper bounds. For specific bore sizes and ratios, consult the factory service manual."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l02",
+   "title": "Clamp Force, Braking Torque and Brake Factor",
+   "body": [
+    "A disc brake with a pad on each face of the rotor produces braking torque T = 2 x mu x F_clamp x r_eff. Here mu is the pad-to-rotor friction coefficient, F_clamp is the force with which each pad is pressed on the rotor (the same on both sides by Newton's third law), and r_eff is the effective radius, the distance from the rotor axis to the point where the friction force is taken to act, roughly the centroid of the pad contact patch. The factor 2 appears because there are two rubbing faces.",
+    "Continue the previous example. F_clamp = 13,670 N, mu = 0.40 and r_eff = 0.12 m. T = 2 x 0.40 x 13,670 x 0.12 = 1,312 N m. With a tire radius R = 0.32 m, the braking force at the road, if the tire holds, is T / R = 1,312 / 0.32 = 4,100 N for that wheel. This must be compared with the limit the tire can supply, mu_tire x F_z, a topic of the next lesson.",
+    "The brake factor BF (or C-star) is the ratio of total friction force at the rubbing surface to the actuating force. For a disc, BF = 2 x mu, so mu = 0.40 gives 0.80. It is a linear function of mu: if mu falls 20 percent, from 0.40 to 0.32, torque falls by the same 20 percent, from 1,312 to about 1,050 N m. This predictable behavior is a major reason discs became dominant.",
+    "Drum brakes use geometry to add help. In a leading-trailing design, the leading shoe is dragged into the drum, so friction itself adds to the apply force (self-energizing), and the brake factor is greater than that of a disc at the same actuating force. A duo-servo drum uses the primary shoe to push the secondary shoe and gets higher brake factor still. The cost is sensitivity: BF rises faster than linearly with mu, so a drum can grab if friction rises and fade more sharply if friction falls, and wet or contaminated linings change effort noticeably.",
+    "Pad changes of mu with temperature, wear and moisture are why friction ratings are published as temperature-dependent ranges. Treat a catalog friction rating as a guide, not a guarantee, and follow the manufacturer's pad requirements."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l03",
+   "title": "Weight Transfer and Brake Force Distribution",
+   "body": [
+    "Braking shifts load from the rear axle to the front axle. For a vehicle of weight W, wheelbase L, center of gravity height h and distance b from the center of gravity to the rear axle, the dynamic front axle load at deceleration a_g (expressed in g) is F_zf = W x (b/L + a_g x h/L) and the rear is F_zr = W x ((L - b)/L - a_g x h/L). Each tire can transmit a longitudinal force up to about mu_tire x F_z, so the ideal split of braking force follows the load.",
+    "Worked example, illustrative numbers: mass 1,500 kg so W = 1,500 x 9.81 = 14,715 N; L = 2.70 m; b = 1.50 m; h = 0.55 m. Static front share = b/L = 0.5556, so static front load 8,175 N. At a_g = 0.8, the transfer term is 0.8 x 0.55 / 2.70 = 0.1630, so F_zf = 14,715 x (0.5556 + 0.1630) = 14,715 x 0.7185 = about 10,573 N (71.9 percent), and F_zr = 4,142 N (28.1 percent). At a_g = 0.4, the transfer term is 0.0815, so the front share is 63.7 percent and the rear 36.3 percent.",
+    "The ideal split therefore moves toward the front as deceleration rises. A fixed hydraulic split cannot match this at every level, so designers choose a front-biased compromise and then limit rear pressure at high line pressure with a proportioning valve, or use electronic brake force distribution (EBD) which trims rear pressure using wheel speed signals. Loading also matters: a heavy load behind the rear axle changes b and h, so the ideal split changes. Some vehicles use load-sensing valves for that reason.",
+    "If the rear brakes exceed the ideal share, the rear wheels lock first. A locked rear axle loses lateral force, and the vehicle can spin. If the front brakes exceed the ideal share, the front locks first, steering is lost but the vehicle remains straighter. This is why designers err toward front lock-up first, and why a failed proportioning valve or contaminated rear brakes is a safety issue. ABS reduces the danger but does not repeal the physics. Specific bias and valve settings belong to the manufacturer, so use the factory service manual."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l04",
+   "title": "Kinetic Energy and Stopping Distance",
+   "body": [
+    "The brakes must remove the vehicle's kinetic energy, KE = 1/2 m v squared. Braking distance for constant deceleration a follows from v squared = 2 a d, so d = v squared / (2 a). Both results show that speed matters squared: double the speed and the energy and the braking distance each become four times as large.",
+    "Worked example (illustrative). A 1,500 kg vehicle travels at 100 km/h = 27.78 m/s. v squared = 771.7. KE = 0.5 x 1,500 x 771.7 = 578,800 J, about 579 kJ. If the road and tires allow a deceleration of 0.8 g, then a = 0.8 x 9.81 = 7.848 m/s squared, and d = 771.7 / (2 x 7.848) = 771.7 / 15.696 = 49.2 m. At twice the speed, 55.56 m/s, v squared = 3,086.9, so d = 196.7 m, about four times as far.",
+    "Total stopping distance adds the distance covered during driver reaction. With an assumed reaction time of 1.5 s, the vehicle travels 1.5 x 27.78 = 41.7 m before braking begins, so the total at 100 km/h is about 41.7 + 49.2 = 90.9 m. Reaction distance grows linearly with speed, braking distance with its square.",
+    "The time to stop at constant deceleration is t = v / a = 27.78 / 7.848 = 3.54 s. The average power absorbed by the brakes during that stop is KE / t = 578,800 / 3.54 = about 163,500 W, or about 164 kW. This is much greater than the engine power of many ordinary vehicles and explains why brakes are sized as heat-management devices.",
+    "Real stops have varying deceleration, drag from the road, air and engine, and wheel and driveline rotational inertia, so the simplified results here describe a clean case. The deceleration a road surface allows depends on tire grip: a commonly cited range for dry asphalt is around 0.7 to 1.0 g, much lower on wet, snowy or icy surfaces. Verify with the tire and road data you use."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l05",
+   "title": "Heat, Brake Fade and Fluid Boil",
+   "body": [
+    "Nearly all the kinetic energy becomes heat at the pad and rotor interface. Heat first goes into the rotor, then spreads by conduction into pads, caliper and hub, and leaves by convection and radiation. In a first estimate, ignore cooling and assume the rotor absorbs all the heat: the temperature rise is delta T = Q / (m x c), where m is the rotor mass and c its specific heat.",
+    "Worked example (illustrative; c for cast iron is commonly cited at around 460 J per kg K, to be verified). From the previous lesson, one stop from 100 km/h releases 579 kJ. At the 0.8 g ideal split the front axle does about 72 percent, so 416.8 kJ, and each front rotor takes about 208.4 kJ. A rotor of mass 8.0 kg gives delta T = 208,400 / (8.0 x 460) = 208,400 / 3,680 = about 57 K. One stop is therefore modest. Ten identical stops with no time to cool would add roughly 566 K, which shows how repeated stops raise temperatures sharply.",
+    "A long descent is a bigger problem. Descending 300 m of height with no engine braking gives potential energy m g h = 1,500 x 9.81 x 300 = 4.41 MJ. If the front axle absorbs 72 percent, that is 3.18 MJ, or 1.59 MJ per front rotor, and the no-cooling rise would be 1,589,000 / 3,680 = about 432 K. Actual rise is lower because of cooling, but the example shows why a lower gear matters: engine braking takes a share of the energy.",
+    "Three fade mechanisms are taught. Pad (friction) fade occurs when the pad material gets so hot that its binders and organic compounds break down and release gas or degrade, lowering mu. Fluid fade follows when the fluid temperature at the caliper reaches its boiling point, so vapor forms and the pedal gets spongy and long. Water absorbed in service lowers the boiling point, which is the reason for the dry and wet boiling point ratings. Mechanical fade involves thermal expansion, for example of a drum, which moves away from the shoes and increases pedal travel. Signs include a long soft pedal, a burning smell and reduced response.",
+    "Recovery usually needs cooling time, and overheated components may be damaged, so inspect after a severe event. Pads, rotor ventilation, fluid grade and cooling air flow should be selected to the duty. Use manufacturer specifications."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l06",
+   "title": "Slip Ratio and the Mu-Slip Curve",
+   "body": [
+    "During braking a tire turns slower than the road passes beneath it. Longitudinal slip ratio is lambda = (v - w R) / v, where v is vehicle speed, w the wheel angular speed and R the effective rolling radius, so w R is the wheel's peripheral speed. Free rolling gives lambda = 0, and a locked wheel (w = 0) gives lambda = 1.",
+    "Worked examples. At v = 20 m/s and a wheel peripheral speed of 17 m/s, lambda = (20 - 17) / 20 = 0.15, or 15 percent. At the same vehicle speed, a wheel peripheral speed of 14 m/s gives lambda = 0.30. If lambda is known to be 0.20 at v = 25 m/s, the wheel peripheral speed is (1 - 0.20) x 25 = 20 m/s.",
+    "The braking friction coefficient mu_b = F_x / F_z (longitudinal tire force over vertical load) varies with slip in a characteristic way. It rises roughly linearly at small slip, peaks at a modest slip value, then falls to a lower sliding value at lambda = 1. The slip at the peak and the shapes depend on surface and tire. Commonly cited peak slip values lie around 10 to 30 percent, and the dry-asphalt peak coefficient is commonly given as roughly 0.8 to 1.0, wet asphalt lower, snow and ice far lower; treat these as rough values to verify against tire data. The descending side of the curve is unstable: if slip increases, braking torque exceeds what the tire can supply, the wheel decelerates more, slip grows further, and the wheel locks within a fraction of a second.",
+    "Lateral force follows a different curve. The tire's cornering ability is greatest at low slip and falls toward near zero at full lock, because a sliding tire cannot resist sideways motion. That is why a locked front wheel loses steering and a locked rear wheel can let the tail slide.",
+    "An ABS controller therefore aims to keep slip in the region near the peak: close to the maximum longitudinal force while leaving lateral force for steering. It is not trying to hold exactly 100 percent of the peak, and on loose surfaces such as gravel or deep snow a locked wheel can build a wedge that stops sooner than a rolling one, so ABS stopping distance can be longer there. The benefit is steering control more than distance in every case."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l07",
+   "title": "The ABS Cycle: Apply, Hold, Release",
+   "body": [
+    "The hydraulic control unit places, for each controlled wheel, an inlet solenoid valve between the master cylinder circuit and the wheel brake, and an outlet solenoid valve between the wheel brake and a low-pressure accumulator. A return pump moves fluid from the accumulator back toward the master cylinder circuit. The ECU switches the valves in three states.",
+    "Apply (pressure build): inlet open, outlet closed. The wheel pressure follows the driver's. Hold: inlet closed, outlet closed. The wheel pressure is trapped and stays constant even if the driver pushes harder. Release (pressure decrease): inlet closed, outlet open. Fluid flows from the wheel brake into the accumulator, and the pump returns it, so wheel pressure falls. Typical cycles repeat several times a second, and the driver feels the returned fluid as pedal pulsation and hears the pump.",
+    "The ECU needs a measure of vehicle speed it cannot see directly. It estimates a reference speed from the wheel speeds, often by taking a value just below the fastest wheel and limiting how quickly it may fall, and may add inputs such as a longitudinal acceleration sensor. A wheel is flagged when its deceleration exceeds a threshold or its estimated slip exceeds a value. The strategy then runs: release to let the wheel spin back up, hold while it recovers, then apply again in small steps until the next threshold is crossed. This is an example of threshold-based control; more advanced systems use model-based or adaptive logic.",
+    "Wheel control can be individual or grouped. Front wheels are usually controlled individually to maximize braking on split-friction surfaces, while the rear wheels may be controlled together by select-low, using the slower wheel to decide, so that both rear tires keep lateral grip and the vehicle stays stable. On a split surface the front wheel on the slippery side may be limited, and some systems ramp up yaw-moment pressure slowly to protect steering.",
+    "Faults the ECU monitors include sensor signal plausibility, valve and pump relay circuits, voltage and the pump motor. If a fault is found, the ECU switches ABS off and lights the lamp but leaves the normal hydraulic path to the wheels available."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l08",
+   "title": "Wheel Speed Sensors and Scan-Tool Diagnosis",
+   "body": [
+    "A passive (variable reluctance) wheel speed sensor is a coil around a magnet that produces an alternating voltage as ferrous teeth of the tone ring pass. Its amplitude grows with speed, so the signal is weak at very low speed. An active sensor contains a magnetoresistive or Hall element with electronics and is powered by the ECU; it sends a square-wave current or digital pulse train whose amplitude does not depend on speed, so it can read down to near standstill, and some also report direction.",
+    "Signal frequency is f = (teeth x wheel revolutions per second). Worked example: tone ring with 48 teeth, rolling circumference 2.0 m, vehicle speed 20 m/s. Wheel revolutions per second = 20 / 2.0 = 10, so f = 48 x 10 = 480 Hz. At 5 km/h = 1.389 m/s, revolutions are 0.694 per second and f = 33.3 Hz, which is why passive sensors need a minimum speed to be read reliably.",
+    "Common faults: contamination or iron debris on the sensor tip; damaged, corroded, cracked or missing teeth on the tone ring; excessive air gap from a loose sensor, worn hub bearing or rust; broken wiring or connector corrosion; and body damage to the harness. Wrong tire sizes change the ratio of wheel speed to vehicle speed, and the ECU compares wheels with one another and with other modules.",
+    "Scan-tool procedure: read the codes and freeze-frame data; note whether the fault is current. View live wheel speed for all four wheels. In a straight drive they should agree within a small percentage. In a turn the outer wheels spin faster. Example: radius 50 m, track width 1.5 m, speed 10 m/s at the center gives outer 10.15 m/s and inner 9.85 m/s, a difference of 0.30 m/s or about 3 percent. A wheel reading zero, erratic or dropping out at higher speed points to that circuit. Inspect, clean and check the air gap and resistance or voltage as the service information specifies, and use a scope to look at waveform shape, amplitude and dropouts. Bi-directional tests may cycle valves and the pump to prove they work.",
+    "Clear codes and verify. Do not replace the ECU or hydraulic unit until wiring, power and grounds, sensors and the tone ring are cleared. Use the factory service manual for specifications."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l09",
+   "title": "Bleeding Methods: Concepts and Trade-offs",
+   "body": [
+    "The goal of bleeding is to replace the trapped gas with fluid so that the pedal stroke displaces fluid and not compressible bubbles. A bubble of volume V_air at line pressure P is compressed in proportion to pressure, so even a small amount of air consumes pedal travel and lowers the pressure produced at a given stroke; a simplified isothermal model gives V = V0 x P0 / P, so a bubble at 1 bar shrinks to a tenth of its volume at 10 bar, which absorbs a noticeable share of the small fluid volumes a caliper needs.",
+    "Manual two-person bleeding uses the pedal stroke to push fluid and air out of the bleeder screw. It needs good coordination: the screw is closed before the pedal is released to prevent air being sucked back past the threads. Single-person check-valve bleeders and clear hoses help but can still draw air around the screw threads. Pressure bleeding adds a pressurized tank to the reservoir adapter so fluid is pushed through the circuit at low pressure (often in the range of roughly 10 to 20 psi, but follow the vehicle and equipment instructions). It is fast and keeps the reservoir full, but the adapter must fit and the setting must not exceed the specification. Vacuum bleeding pulls fluid from the bleeder screw; it is quick but can pull air past thread seals, giving false bubbles, which is reduced by sealing the threads where the manufacturer allows. Gravity bleeding lets the fluid run on its own, which is slow but gentle.",
+    "ABS and stability hydraulic units contain valves, accumulators and a pump with internal passages that may trap air. Many manufacturers require a scan-tool procedure that cycles the valves and pump while fluid is bled. A purely manual method may leave a spongy pedal that returns later. Order of bleeding follows the service information, since circuit layouts differ. Reverse bleeding pushes fluid up from the caliper toward the reservoir to float air out of difficult spots.",
+    "Always keep the reservoir level above the minimum, use sealed new fluid of the type specified, avoid cross-contamination of fluid types, inspect for leaks, verify a firm pedal and brake lamp function, and record the work. Dispose of the fluid correctly. Fluid exchanges should also respect any rule that low-pressure systems or hybrid boosters need a particular procedure. Follow the factory service manual."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l10",
+   "title": "Regenerative and Blended Braking in Hybrids and EVs",
+   "body": [
+    "High-voltage safety first. Hybrid and electric vehicles contain high-voltage components, usually identified by orange cabling, that can cause severe injury or death. This lesson is conceptual. Do not work on or near these systems without the training, protective equipment, and the manufacturer's procedure for de-energizing and verifying them.",
+    "In regenerative braking the drive motor acts as a generator when the driver lifts off the accelerator or presses the brake pedal. The motor torque opposes motion, slowing the vehicle, and the electrical energy flows through the inverter to the battery. The friction brakes remain because regeneration alone is limited. Regeneration capacity depends on speed (it fades near a stop), battery state of charge (a full battery cannot accept more), battery temperature, and motor and inverter limits.",
+    "Rough energy illustration (not a specification). Stopping a 1,500 kg vehicle from 27.78 m/s releases about 579 kJ. If, say, 60 percent of that were recovered into the battery, that is 347 kJ, or 347,280 / 3,600,000 = about 0.097 kWh. Recovery is a fraction of the total because of losses in the tires, motor, inverter and battery and because friction brakes share the work. The actual fraction varies with the vehicle and conditions.",
+    "Blended braking means that the control system splits the driver's requested deceleration between regenerative torque and hydraulic friction braking so the driver feels one consistent pedal. In many designs the pedal is decoupled from the wheel hydraulics by a pedal simulator and an electrically driven pressure source (a brake-by-wire layout); in others a conventional master cylinder is used with a hydraulic modulator. In either case the software ramps hydraulic pressure up as regeneration drops off, for example at low speed, to keep deceleration smooth.",
+    "Service consequences. Friction pads may last longer because regeneration does part of the work, but rotors can corrode and glaze from light use, so inspection still matters. Brake fluid still absorbs moisture and has a service interval. Brake-by-wire and electric boosters may need special procedures for bleeding, pad replacement and system initialization. Some models need scan-tool service modes to retract pistons or exercise the system. Use the manufacturer's information, and tell customers that a regen-capable vehicle may feel different, for example a pedal that does not behave like a vacuum-boosted one."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l11",
+   "title": "Electronic Parking Brakes, By-Wire Systems and Driver-Assistance Braking",
+   "body": [
+    "An electronic parking brake (EPB) replaces the lever or pedal with a switch and one or two electric actuators. In one common layout a motor on the rear caliper drives a spindle through a gearbox to push the piston, replacing the cable, so the clamp force comes from motor current and spindle mechanics. In another, a motor pulls the parking brake cable. A control module estimates force from motor current and position, and may release the brake automatically when the driver accelerates.",
+    "Service consequences. Before the piston is retracted for a pad change, the actuator must usually be driven back with a scan tool in a service or maintenance mode. Forcing a motor-driven piston with a tool as one would on a normal caliper can damage the gear train. After new pads or a new actuator, a calibration or learning routine may be required so the system knows the contact position and the force it can apply. The system also needs a stable supply voltage during these procedures. Dash messages, a stuck brake or an inability to release in an emergency each need diagnosis with the manufacturer's information; there are manual release procedures that vary by model.",
+    "Brake-by-wire. In such systems the pedal movement and force are measured by sensors, and an electronic controller applies brake pressure, which may use an electrohydraulic unit or motorized pressure generator. A pedal simulator gives feel. Redundancy is built in: if the electrical path fails, a hydraulic backup push-through is provided on many designs. The safety case rests on redundant power, sensors and software, so servicing means following precise procedures.",
+    "Driver assistance. Automatic emergency braking, adaptive cruise control and stability control all use the same hydraulic unit to apply pressure without the driver pressing the pedal. The wheel speed sensors, yaw and steering sensors, radar and cameras feed the decision. This has service implications: repairs that change sensor position or vehicle geometry, such as alignment, windshield replacement or bumper work, may require calibration of the driver assistance sensors. A repair that disables or degrades them must be disclosed to the customer and documented. When in doubt consult the manufacturer's position statements and service information, which override general rules."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l12",
+   "title": "Root-Cause Failure Analysis and Comebacks",
+   "body": [
+    "A comeback is a vehicle that returns with the same complaint after repair. Many comebacks come from replacing the part that showed the symptom without finding why it failed. Root-cause analysis asks what condition produced the failure and whether that condition is still present. A useful habit is to ask why repeatedly, check each answer against evidence, change one thing at a time and confirm the fix with a measurement.",
+    "Pedal pulsation returns after new rotors. The first-order pulsation frequency equals wheel rotation frequency, which for a rolling circumference of 2.0 m at 27.78 m/s (100 km/h) is 27.78 / 2.0 = 13.9 Hz, and 27.8 Hz for a two-lobed pattern. If the pulsation scales with wheel speed, the cause is at the wheel and not in the engine or driveline. Then look at the root: rust or debris on the hub face causing lateral runout, uneven lug nut torque distorting the rotor, a worn hub bearing, or a pad material deposit pattern. A new rotor on a corroded hub face with 0.1 mm of runout will tend to wear unevenly and bring the complaint back.",
+    "One inner pad wears out well before the outer pad. Replacing pads alone ignores the cause: seized slide pins, a torn boot, a bracket that has worn or a piston that sticks. Cleaning and lubricating pins with the specified grease, renewing hardware and checking free movement addresses the cause.",
+    "A hose or seal fails early. If rubber parts have swollen and softened across the system, suspect contamination with mineral oil or another incompatible fluid. Petroleum products swell the rubber used in brake seals, and the usual remedy is to flush the system and replace all rubber parts, not only the one that leaked. A single wheel cylinder leak in a drum brake may mean moisture-driven corrosion in the bore; check the others and the fluid condition.",
+    "Pads glaze or squeal again after replacement. Look at whether the bed-in was done, whether the pad compound suits the vehicle duty, whether hardware or shims were omitted, and whether a dragging caliper is heating the pad. Document what was found, what was changed and what was measured before and after, because this record is your evidence if the complaint returns. Tools: dial indicator, micrometer, scan tool, scope, thermal camera or temperature gun after a drive to compare wheel temperatures."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l13",
+   "title": "Documentation, Warranty and Liability",
+   "body": [
+    "A repair order is the shop's record and a contract document. A good brake record follows the three C's: the concern as the customer described it, the cause as found by tests and measurements, and the correction performed. For brakes include the measured pad thickness and rotor thickness against the limits, whether runout or thickness variation was checked, the fluid condition, hose and line findings, torque values used, the test drive result, and the parts installed with brand or part number. Photos of worn parts support the record. If the customer declines a safety recommendation, write it down with the date and, where the shop's policy allows, the customer's signature or acknowledgement. This is not legal advice; check the rules in your state.",
+    "Before work, check for open recalls using the vehicle identification number with the manufacturer's or the national recall lookup, and check manufacturer service bulletins and the factory service information, because a bulletin may change a procedure or a part. A bulletin is guidance, a recall is a safety-related campaign handled under the manufacturer's remedy.",
+    "Warranties come in layers. A parts warranty is usually the manufacturer's promise on the part, a labor warranty is the shop's promise on its work, and the terms (length, mileage, what is excluded, whether it covers consequential damage) should be written clearly. Consumer warranty law in the United States includes the Magnuson-Moss Warranty Act, which regulates how written warranties on consumer products are presented and enforced. A commonly stated summary is that a manufacturer generally cannot condition a warranty on the use of its own branded parts or service unless it provides them free; verify the current text with a lawyer or the regulator before relying on that statement.",
+    "Liability turns on the standard of care. In negligence law, a professional is expected to act as a reasonably careful technician would, so skipping a required step, ignoring a visible defect, using the wrong part, or failing to torque or road test can be breaches, and if a breach causes harm the shop may be liable. A disclaimer sign does not remove responsibility for safety-critical work. Practices that reduce risk are following the service information, using calibrated tools, test driving, a second-person check on critical fasteners, and accurate records. Record retention periods, licensing and estimate rules differ by state, so ask your insurer, trade association or attorney. New vehicles must meet federal brake performance standards such as FMVSS 135, which is a minimum standard for the vehicle as built; it does not limit a shop's duty when repairing."
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l14",
+   "title": "Diagnostic Case Studies",
+   "body": [
+    "Case A. A vehicle pulls right under braking. After a drive the right front wheel is much hotter than the left. Inspection finds the right inner pad worn thinner than the outer, and the slide pin there does not move by hand. Reasoning: a sticking floating caliper keeps a pad dragging, which makes heat and uneven wear, and the dragging side can brake harder or earlier, causing the pull. Check the hose as an alternative that traps pressure, but a hose fault would not usually produce uneven pad wear on a single caliper. Correction: clean and lubricate pins with the specified grease, renew boots and hardware, check the piston moves freely, replace pads as a set per axle and recheck temperatures. Confirm with a drive and comparison of both sides.",
+    "Case B. After a long mountain descent a driver reports a soft, long pedal that recovered after resting. Pads show normal wear. A moisture test of the fluid shows high water content. Reasoning: water has lowered the fluid boiling point, so heat from sustained braking made vapor at a caliper. Vapor compresses, so the pedal travel lengthens; on cooling the vapor condenses. If the dry boiling point of the fluid is high but wet is much lower, a rule of thumb is that old fluid has a boiling point close to the wet rating, which may be well below the temperatures reached on a descent. Correction: replace the fluid with the specified type, bleed properly, and advise the driver on gear selection. Warn that if the pedal ever goes to the floor, they should stop safely.",
+    "Case C. An ABS lamp comes on intermittently in wet weather. The scan tool shows a code for a rear wheel speed signal and, in live data, that wheel drops to zero above about 30 km/h while the others are steady. Reasoning: a sensor that works when still but drops out in motion points to wiring that flexes, a connector with corrosion, an excessive air gap or a damaged tone ring. Wet weather suggests water entry. Correction: scope the signal on a drive, inspect the harness at flex points and the connector, clean and seal, check the air gap and tone ring, then clear codes and verify that the live data is steady. Do not replace the hydraulic unit.",
+    "For each case, decide what is unsafe to drive now, what can wait and what should be recommended, and say what evidence supports each claim. Writing the reasoning for the customer in plain words is part of professional practice."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "atlas-brakes-college.l01.q1",
+   "lessonId": "atlas-brakes-college.l01",
+   "kind": "mcq",
+   "prompt": "Using the lesson's example, a 150 N foot force goes through a 4.5:1 pedal and a booster with assist ratio 4. What force acts on the master cylinder piston?",
+   "choices": [
+    "2,700 N",
+    "675 N",
+    "600 N",
+    "13,670 N"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l01.q2",
+   "lessonId": "atlas-brakes-college.l01",
+   "kind": "mcq",
+   "prompt": "A master cylinder piston with 452.4 mm squared of area receives 2,700 N. What is the line pressure?",
+   "choices": [
+    "About 5.97 MPa",
+    "About 0.17 MPa",
+    "About 1.22 MPa",
+    "About 59.7 MPa"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l01.q3",
+   "lessonId": "atlas-brakes-college.l01",
+   "kind": "mcq",
+   "prompt": "A caliper piston has a 54 mm diameter and the master cylinder bore is 24 mm. At equal pressure, how much larger is the caliper piston force than the master cylinder force?",
+   "choices": [
+    "About 5.06 times",
+    "About 2.25 times",
+    "About 1.5 times",
+    "About 12.8 times"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l01.q4",
+   "lessonId": "atlas-brakes-college.l01",
+   "kind": "mcq",
+   "prompt": "The caliper piston moves about how far compared with the master cylinder piston, ignoring compliance and other pistons, in the same example?",
+   "choices": [
+    "About 1/5 as far",
+    "About 5 times as far",
+    "The same distance",
+    "About 2.25 times as far"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l01.q5",
+   "lessonId": "atlas-brakes-college.l01",
+   "kind": "mcq",
+   "prompt": "What happens at the run-out point of a vacuum booster?",
+   "choices": [
+    "The assist is used up, so extra pedal force adds only at about the pedal ratio",
+    "The booster doubles its assist ratio to give the driver more help at hard stops",
+    "The booster stops working until the engine is restarted and vacuum rebuilds",
+    "The master cylinder bypasses the booster and sends fluid straight to the calipers"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l01.q6",
+   "lessonId": "atlas-brakes-college.l01",
+   "kind": "mcq",
+   "prompt": "Why do real systems deliver somewhat less clamp force than the ideal chain calculation?",
+   "choices": [
+    "Seal friction, hose expansion and caliper deflection absorb some of the input",
+    "Brake fluid loses mass each time it is pressurized",
+    "Pascal's principle fails whenever pressure exceeds one bar",
+    "The piston area changes with the color of the fluid"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l02.q1",
+   "lessonId": "atlas-brakes-college.l02",
+   "kind": "mcq",
+   "prompt": "Why does the disc brake torque equation contain a factor of 2?",
+   "choices": [
+    "There are two rubbing faces, one on each side of the rotor",
+    "The rotor turns twice for every turn of the wheel it is bolted to",
+    "Two caliper pistons always act on each pad, doubling the force",
+    "The fluid pressure doubles when it passes through the caliper bridge"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l02.q2",
+   "lessonId": "atlas-brakes-college.l02",
+   "kind": "mcq",
+   "prompt": "With F_clamp 13,670 N, mu 0.40 and r_eff 0.12 m, what is the braking torque of one disc brake?",
+   "choices": [
+    "About 1,312 N m",
+    "About 656 N m",
+    "About 3,281 N m",
+    "About 11,000 N m"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l02.q3",
+   "lessonId": "atlas-brakes-college.l02",
+   "kind": "mcq",
+   "prompt": "If that wheel develops 1,312 N m and the tire radius is 0.32 m, what braking force acts at the road, assuming the tire holds?",
+   "choices": [
+    "About 4,100 N",
+    "About 420 N",
+    "About 1,312 N",
+    "About 8,200 N"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l02.q4",
+   "lessonId": "atlas-brakes-college.l02",
+   "kind": "mcq",
+   "prompt": "Friction coefficient falls from 0.40 to 0.32 because of pad fade. By what percentage does disc brake torque fall, other factors unchanged?",
+   "choices": [
+    "20 percent, because torque is proportional to mu",
+    "36 percent, because torque goes with mu squared",
+    "8 percent, because only 0.08 is lost",
+    "It does not change, because pressure compensates"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l02.q5",
+   "lessonId": "atlas-brakes-college.l02",
+   "kind": "mcq",
+   "prompt": "Why is a drum brake generally more sensitive to changes in friction than a disc brake?",
+   "choices": [
+    "Self-energizing makes its brake factor rise faster than linearly with mu",
+    "Its drum is always heavier than a rotor, so it stores more heat per stop",
+    "It operates at lower fluid pressure, which amplifies small friction changes",
+    "Its linings are always organic, which makes them swing with humidity"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l02.q6",
+   "lessonId": "atlas-brakes-college.l02",
+   "kind": "tf",
+   "prompt": "A published pad friction rating guarantees the same mu under all temperatures and moisture conditions.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l03.q1",
+   "lessonId": "atlas-brakes-college.l03",
+   "kind": "mcq",
+   "prompt": "During braking, axle load generally",
+   "choices": [
+    "shifts toward the front axle",
+    "shifts toward the rear axle",
+    "stays equal at both axles",
+    "moves toward the outer wheels"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l03.q2",
+   "lessonId": "atlas-brakes-college.l03",
+   "kind": "mcq",
+   "prompt": "In the example with W = 14,715 N, L = 2.70 m, b = 1.50 m and h = 0.55 m, what is the static front axle share of weight?",
+   "choices": [
+    "About 55.6 percent",
+    "About 44.4 percent",
+    "About 71.9 percent",
+    "About 50.0 percent"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l03.q3",
+   "lessonId": "atlas-brakes-college.l03",
+   "kind": "mcq",
+   "prompt": "For the same vehicle at a deceleration of 0.8 g, what is the ideal share of braking force on the front axle?",
+   "choices": [
+    "About 72 percent",
+    "About 56 percent",
+    "About 64 percent",
+    "About 28 percent"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l03.q4",
+   "lessonId": "atlas-brakes-college.l03",
+   "kind": "mcq",
+   "prompt": "At 0.4 g the same vehicle has an ideal front share near 63.7 percent. What does this show about a fixed hydraulic front/rear split?",
+   "choices": [
+    "It cannot be ideal at every deceleration, so valves or EBD refine it",
+    "It is ideal at every deceleration, since weight transfer is zero when braking",
+    "It should always be 50/50 regardless of load or deceleration level",
+    "It only matters when the vehicle is stopped on a steep slope"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l03.q5",
+   "lessonId": "atlas-brakes-college.l03",
+   "kind": "mcq",
+   "prompt": "If the rear brakes receive more than the ideal share and lock first, what is the most likely vehicle response?",
+   "choices": [
+    "Loss of rear lateral grip and a risk of spinning",
+    "Better steering response because the front tires unload",
+    "Lower rotor temperatures because the rear brakes stop working",
+    "No change, since the front tires carry all the lateral force"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l03.q6",
+   "lessonId": "atlas-brakes-college.l03",
+   "kind": "tf",
+   "prompt": "Electronic brake force distribution can take over the work of a mechanical proportioning valve using wheel speed signals and the ABS modulator.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l04.q1",
+   "lessonId": "atlas-brakes-college.l04",
+   "kind": "mcq",
+   "prompt": "If a vehicle doubles its speed, its kinetic energy becomes",
+   "choices": [
+    "four times as large",
+    "twice as large",
+    "eight times as large",
+    "unchanged"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l04.q2",
+   "lessonId": "atlas-brakes-college.l04",
+   "kind": "mcq",
+   "prompt": "A 1,500 kg vehicle travels at 27.78 m/s. What is its kinetic energy?",
+   "choices": [
+    "About 579 kJ",
+    "About 21 kJ",
+    "About 1,158 kJ",
+    "About 41.7 kJ"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l04.q3",
+   "lessonId": "atlas-brakes-college.l04",
+   "kind": "mcq",
+   "prompt": "Deceleration of 7.848 m/s squared from 27.78 m/s gives a braking distance of",
+   "choices": [
+    "about 49 m",
+    "about 98 m",
+    "about 3.5 m",
+    "about 24 m"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l04.q4",
+   "lessonId": "atlas-brakes-college.l04",
+   "kind": "mcq",
+   "prompt": "With a 1.5 s reaction time, what is the total stopping distance from 27.78 m/s in the example?",
+   "choices": [
+    "About 91 m",
+    "About 49 m",
+    "About 42 m",
+    "About 141 m"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l04.q5",
+   "lessonId": "atlas-brakes-college.l04",
+   "kind": "mcq",
+   "prompt": "Which statement about average braking power in the example is correct?",
+   "choices": [
+    "About 164 kW, which is KE divided by stopping time",
+    "About 579 kW, which is the energy stated as a rate",
+    "About 7.8 kW, which is the deceleration converted to power",
+    "About 49 kW, which is the braking distance divided by time"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l04.q6",
+   "lessonId": "atlas-brakes-college.l04",
+   "kind": "tf",
+   "prompt": "Reaction distance grows in proportion to speed, while braking distance grows with the square of speed.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l05.q1",
+   "lessonId": "atlas-brakes-college.l05",
+   "kind": "mcq",
+   "prompt": "Where does most of the vehicle's kinetic energy go during braking?",
+   "choices": [
+    "Into heat at the pad and rotor interface",
+    "Into the brake fluid, which stores it as chemical energy",
+    "Into light from the brake lamps and the stop sensors",
+    "Into the tires, which store it as elastic energy"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l05.q2",
+   "lessonId": "atlas-brakes-college.l05",
+   "kind": "mcq",
+   "prompt": "A rotor of 8.0 kg with c about 460 J per kg K absorbs 208.4 kJ. What is the temperature rise with no cooling?",
+   "choices": [
+    "About 57 K",
+    "About 25 K",
+    "About 114 K",
+    "About 566 K"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l05.q3",
+   "lessonId": "atlas-brakes-college.l05",
+   "kind": "mcq",
+   "prompt": "Descending 300 m with no engine braking and 72 percent to the front, each front rotor takes about 1.59 MJ in the example. Why does shifting to a lower gear help?",
+   "choices": [
+    "Engine braking removes part of the energy, so the brakes absorb less",
+    "It makes the rotors heavier, so they heat up more slowly",
+    "It raises the fluid boiling point, so fluid fade can no longer occur",
+    "It increases pad friction, so less pedal force is needed"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l05.q4",
+   "lessonId": "atlas-brakes-college.l05",
+   "kind": "mcq",
+   "prompt": "Which description fits pad (friction) fade?",
+   "choices": [
+    "Pad binders overheat and degrade, lowering the friction coefficient",
+    "Vapor bubbles form in the brake fluid and compress under pedal force",
+    "A drum expands away from the shoes, increasing the pedal travel",
+    "A hose swells inside and traps pressure at one wheel"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l05.q5",
+   "lessonId": "atlas-brakes-college.l05",
+   "kind": "mcq",
+   "prompt": "After a long steep descent the pedal goes soft and long but the pads are fine. Which is the best explanation?",
+   "choices": [
+    "Fluid temperature reached its boiling point and vapor formed",
+    "The tone ring shrank with heat and the ABS cycled continuously",
+    "The brake light switch failed from the extended pedal use",
+    "The proportioning valve cooled and shifted its split point"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l05.q6",
+   "lessonId": "atlas-brakes-college.l05",
+   "kind": "tf",
+   "prompt": "The no-cooling temperature estimates in this lesson overstate the actual rise because real brakes also lose heat to the air.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l06.q1",
+   "lessonId": "atlas-brakes-college.l06",
+   "kind": "mcq",
+   "prompt": "A wheel that is rolling freely without any slip has a slip ratio of",
+   "choices": [
+    "0",
+    "0.5",
+    "1",
+    "Undefined"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l06.q2",
+   "lessonId": "atlas-brakes-college.l06",
+   "kind": "mcq",
+   "prompt": "A vehicle travels at 20 m/s and a braked wheel has a peripheral speed of 14 m/s. What is the slip ratio?",
+   "choices": [
+    "0.30",
+    "0.70",
+    "0.43",
+    "6.0"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l06.q3",
+   "lessonId": "atlas-brakes-college.l06",
+   "kind": "mcq",
+   "prompt": "Slip is 0.20 at 25 m/s vehicle speed. What is the wheel peripheral speed?",
+   "choices": [
+    "20 m/s",
+    "5 m/s",
+    "30 m/s",
+    "24.8 m/s"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l06.q4",
+   "lessonId": "atlas-brakes-college.l06",
+   "kind": "mcq",
+   "prompt": "Why does ABS try to hold slip near the peak of the mu-slip curve rather than allowing the wheel to lock?",
+   "choices": [
+    "Near the peak braking force is high and the tire keeps some lateral force for steering",
+    "At full lock lateral force is at its maximum, because a sliding tire resists sideways motion best of all",
+    "The curve is flat, so slip level makes no difference to the stop",
+    "Locked wheels cool the brakes, which protects the fluid"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l06.q5",
+   "lessonId": "atlas-brakes-college.l06",
+   "kind": "mcq",
+   "prompt": "Which statement about the descending side of the mu-slip curve is correct?",
+   "choices": [
+    "It is unstable: more slip lowers tire force, so the wheel decelerates faster and can lock",
+    "It is stable: friction rises with slip, so the wheel recovers by itself",
+    "It only appears on dry roads, where the tire force stays high",
+    "It has no effect on wheel speed because slip is measured at the road"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l06.q6",
+   "lessonId": "atlas-brakes-college.l06",
+   "kind": "mcq",
+   "prompt": "On loose gravel or deep snow, how can ABS stopping distance compare with a locked-wheel stop?",
+   "choices": [
+    "It can be longer, though the driver keeps steering control",
+    "It is always shorter, since ABS holds slip at the peak on every surface",
+    "It is identical, since loose surfaces ignore wheel speed",
+    "It cannot be compared, since ABS turns off below 30 km/h on gravel"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l07.q1",
+   "lessonId": "atlas-brakes-college.l07",
+   "kind": "mcq",
+   "prompt": "In the release state of an ABS cycle, which valve condition applies?",
+   "choices": [
+    "Inlet closed and outlet open",
+    "Inlet open and outlet closed",
+    "Both valves open",
+    "Both valves closed"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l07.q2",
+   "lessonId": "atlas-brakes-college.l07",
+   "kind": "mcq",
+   "prompt": "What is the purpose of the hold state?",
+   "choices": [
+    "To keep wheel pressure constant while the wheel spins back up",
+    "To raise pressure above the driver's pedal pressure for a firmer stop",
+    "To empty the accumulator before the next apply phase",
+    "To lock the wheel briefly and measure the road surface"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l07.q3",
+   "lessonId": "atlas-brakes-college.l07",
+   "kind": "mcq",
+   "prompt": "Why does the ABS ECU estimate a vehicle reference speed from wheel speeds?",
+   "choices": [
+    "It has no direct vehicle speed measurement, so slip is judged against an estimate",
+    "Wheel speeds are always identical in a stop, so any one wheel is a perfect speed reference at every moment",
+    "The estimate is used to set the tire pressure monitoring thresholds",
+    "The estimate lets the module avoid reading the wheel speed sensors"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l07.q4",
+   "lessonId": "atlas-brakes-college.l07",
+   "kind": "mcq",
+   "prompt": "Rear wheels are often controlled together by select-low. What is the reason?",
+   "choices": [
+    "The slower wheel sets the pressure, so neither rear tire exceeds its grip and lateral stability holds",
+    "It makes the rear brakes stronger by adding pressure from both wheels",
+    "It saves valve cost on the front axle, where more control would be needed",
+    "It lets the rear lock first, which steadies the vehicle in a turn"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l07.q5",
+   "lessonId": "atlas-brakes-college.l07",
+   "kind": "mcq",
+   "prompt": "The ECU detects an implausible sensor signal and turns on the ABS lamp. What is the usual result for the base brakes?",
+   "choices": [
+    "ABS is disabled but the normal hydraulic path to the wheels remains",
+    "All braking is lost until the module is reset by a technician",
+    "Only the rear brakes work, since the front valves close on a fault",
+    "The pump runs continuously to supply brake pressure in place of the pedal"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l07.q6",
+   "lessonId": "atlas-brakes-college.l07",
+   "kind": "tf",
+   "prompt": "A pulsing pedal and a buzzing pump during an ABS stop indicate that the system is working normally.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l08.q1",
+   "lessonId": "atlas-brakes-college.l08",
+   "kind": "mcq",
+   "prompt": "Which sensor type can read down to nearly zero speed because its signal amplitude does not depend on speed?",
+   "choices": [
+    "Active (Hall or magnetoresistive) type",
+    "Passive (variable reluctance) type",
+    "A mercury switch in the hub",
+    "A float-type sensor in the caliper"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l08.q2",
+   "lessonId": "atlas-brakes-college.l08",
+   "kind": "mcq",
+   "prompt": "A tone ring has 48 teeth, rolling circumference is 2.0 m and speed is 20 m/s. What signal frequency results?",
+   "choices": [
+    "480 Hz",
+    "960 Hz",
+    "10 Hz",
+    "240 Hz"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l08.q3",
+   "lessonId": "atlas-brakes-college.l08",
+   "kind": "mcq",
+   "prompt": "At 1.389 m/s the same wheel produces about what frequency?",
+   "choices": [
+    "33.3 Hz",
+    "66.7 Hz",
+    "0.694 Hz",
+    "480 Hz"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l08.q4",
+   "lessonId": "atlas-brakes-college.l08",
+   "kind": "mcq",
+   "prompt": "In a 50 m radius turn with a 1.5 m track, the outer wheels run about 3 percent faster than the inner ones at 10 m/s. What does this mean for the scan-tool check?",
+   "choices": [
+    "Small differences in a turn are normal and must be separated from a true fault",
+    "Any difference proves a faulty sensor and justifies replacing all four",
+    "Only the rear wheels may differ, so check the front readings first",
+    "Wheel speeds must match exactly in every drive, or the tone ring is damaged"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l08.q5",
+   "lessonId": "atlas-brakes-college.l08",
+   "kind": "mcq",
+   "prompt": "A wheel speed reading drops to zero only at higher road speed and the sensor tests well statically. Which check is most useful next?",
+   "choices": [
+    "Scope the signal while driving; inspect the tone ring, air gap and harness flexing",
+    "Replace the hydraulic control unit, since sensor tests were fine at rest",
+    "Flush the brake fluid, since old fluid can drop a wheel speed signal",
+    "Replace the brake pads on that axle to remove the pad-to-sensor interference"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l08.q6",
+   "lessonId": "atlas-brakes-college.l08",
+   "kind": "tf",
+   "prompt": "Tires of very different size on the same vehicle can cause wheel speed disagreement that the ABS ECU may treat as a fault.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l09.q1",
+   "lessonId": "atlas-brakes-college.l09",
+   "kind": "mcq",
+   "prompt": "What is the main goal of bleeding the brake system?",
+   "choices": [
+    "To replace trapped air with fluid so the pedal stroke moves liquid",
+    "To make the fluid colder so it holds more pressure",
+    "To increase engine vacuum for the booster diaphragm",
+    "To balance the tires against the wheel hubs"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l09.q2",
+   "lessonId": "atlas-brakes-college.l09",
+   "kind": "mcq",
+   "prompt": "In a simple isothermal model, an air bubble of 1.0 mL at 1 bar is taken to 10 bar. What is its volume?",
+   "choices": [
+    "About 0.1 mL",
+    "About 10 mL",
+    "About 1.0 mL",
+    "About 0.01 mL"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l09.q3",
+   "lessonId": "atlas-brakes-college.l09",
+   "kind": "mcq",
+   "prompt": "Why does vacuum bleeding at the bleeder screw sometimes show a constant stream of bubbles that do not stop?",
+   "choices": [
+    "Air can be pulled past the screw threads rather than from the system",
+    "The system has been emptied of fluid down to the master cylinder, so only air is left to be drawn through",
+    "The ABS pump is running and pushing air through the lines",
+    "The fluid has reached its boiling point from the suction"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l09.q4",
+   "lessonId": "atlas-brakes-college.l09",
+   "kind": "mcq",
+   "prompt": "After a manual bleed on an ABS vehicle the pedal is firm, but a few days later it becomes spongy again. What is the likely reason?",
+   "choices": [
+    "Air remained trapped in the hydraulic unit and worked out later",
+    "The pads have grown thicker with heat and are slowly pushing the caliper pistons back into their bores",
+    "The booster has recharged and now needs less pedal travel",
+    "The rotor has lost mass and lets the pads sit deeper"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l09.q5",
+   "lessonId": "atlas-brakes-college.l09",
+   "kind": "mcq",
+   "prompt": "Which practice is most consistent with sound bleeding technique?",
+   "choices": [
+    "Keep the reservoir above minimum, use sealed new fluid of the specified type, and follow the manual's order",
+    "Let the reservoir run low between strokes so that fluid does not overflow the cap",
+    "Mix any compatible-looking fluids on the shelf, since all brake fluids are interchangeable",
+    "Skip the final pedal check to save time, because bleeding always works the first time and the pedal always feels firm"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l09.q6",
+   "lessonId": "atlas-brakes-college.l09",
+   "kind": "tf",
+   "prompt": "Pressure bleeding equipment should be set to the vehicle and adapter specification, not simply to the highest available pressure.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l10.q1",
+   "lessonId": "atlas-brakes-college.l10",
+   "kind": "mcq",
+   "prompt": "In regenerative braking the drive motor acts as",
+   "choices": [
+    "a generator that sends energy to the battery",
+    "a pump that fills the brake lines with extra fluid",
+    "a heater that warms the rotors for cold weather",
+    "a diaphragm that boosts the pedal force directly"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l10.q2",
+   "lessonId": "atlas-brakes-college.l10",
+   "kind": "mcq",
+   "prompt": "Which condition most reduces available regenerative braking?",
+   "choices": [
+    "A fully charged battery",
+    "A half-charged battery",
+    "Mild weather",
+    "A lightly loaded vehicle"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l10.q3",
+   "lessonId": "atlas-brakes-college.l10",
+   "kind": "mcq",
+   "prompt": "If 60 percent of 579 kJ is recovered, about how much energy in kilowatt-hours goes to the battery?",
+   "choices": [
+    "About 0.097 kWh",
+    "About 0.58 kWh",
+    "About 9.7 kWh",
+    "About 0.0097 kWh"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l10.q4",
+   "lessonId": "atlas-brakes-college.l10",
+   "kind": "mcq",
+   "prompt": "What does blended braking software do as vehicle speed falls toward zero and regeneration fades?",
+   "choices": [
+    "Raises hydraulic friction braking to keep the deceleration the driver asked for",
+    "Locks the rear wheels to make up the lost torque",
+    "Turns off the brake lamps to save electrical energy",
+    "Stops all braking to avoid overloading the traction battery"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l10.q5",
+   "lessonId": "atlas-brakes-college.l10",
+   "kind": "mcq",
+   "prompt": "A high-mileage hybrid has thick pads but rusty, pitted rotor faces. What is the most plausible explanation?",
+   "choices": [
+    "Regeneration reduced friction use, so the rotors saw little wiping and corroded",
+    "The pads are far too hard for the rotor, which pits and scores the surface every time the brakes are used",
+    "The fluid has been replaced too often, which attacked the rotor face",
+    "The ABS sensor has failed, which allows the rotor to rust"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l10.q6",
+   "lessonId": "atlas-brakes-college.l10",
+   "kind": "tf",
+   "prompt": "Technicians may work on orange high-voltage cables if the vehicle is simply switched off, with no special procedure.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l11.q1",
+   "lessonId": "atlas-brakes-college.l11",
+   "kind": "mcq",
+   "prompt": "Before retracting the piston on a motor-driven EPB caliper for a pad change, what is usually required?",
+   "choices": [
+    "Putting the actuator into a service mode with a scan tool",
+    "Hammering the piston back with a punch and a light hammer",
+    "Draining the brake fluid so the piston can retract easily",
+    "Disconnecting the wheel speed sensor to avoid a fault code"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l11.q2",
+   "lessonId": "atlas-brakes-college.l11",
+   "kind": "mcq",
+   "prompt": "Why might an EPB need a calibration routine after new pads are fitted?",
+   "choices": [
+    "The system must learn the new contact position and the force to apply",
+    "To change the color of the fluid to match the new pads",
+    "To reset the odometer so the service interval can restart for the next scheduled brake inspection",
+    "To stretch the parking brake cable to its working length"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l11.q3",
+   "lessonId": "atlas-brakes-college.l11",
+   "kind": "mcq",
+   "prompt": "Which statement best describes a brake-by-wire pedal simulator?",
+   "choices": [
+    "It gives the driver pedal feel while sensors read the request and a controller applies pressure",
+    "It pushes the pistons mechanically with a cable from the pedal",
+    "It replaces the front tires with an electrically driven wheel",
+    "It stores brake fluid in a pressurized tank behind the dash"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l11.q4",
+   "lessonId": "atlas-brakes-college.l11",
+   "kind": "mcq",
+   "prompt": "A windshield is replaced on a car with automatic emergency braking. What follow-up is most appropriate?",
+   "choices": [
+    "Check the manufacturer's information for camera calibration and document it",
+    "Nothing is needed, since cameras never move once installed and a new windshield cannot change their aim",
+    "Bleed all four brakes to remove air from the windshield area",
+    "Replace the rotors, since glass replacement affects the hubs"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l11.q5",
+   "lessonId": "atlas-brakes-college.l11",
+   "kind": "mcq",
+   "prompt": "Why is it important to disclose to a customer if a repair leaves a driver-assistance function disabled?",
+   "choices": [
+    "The customer may rely on a function that is not working",
+    "It makes the invoice longer and raises the shop's labor total",
+    "It lowers the parts cost, since disabled systems need no parts",
+    "It has no safety significance, so it can be left off the record"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l11.q6",
+   "lessonId": "atlas-brakes-college.l11",
+   "kind": "tf",
+   "prompt": "Stability control and automatic emergency braking can apply brake pressure without the driver pressing the pedal.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l12.q1",
+   "lessonId": "atlas-brakes-college.l12",
+   "kind": "mcq",
+   "prompt": "A pedal pulsation scales with road speed. For a 2.0 m rolling circumference at 27.78 m/s, the once-per-revolution frequency is about",
+   "choices": [
+    "13.9 Hz",
+    "55.6 Hz",
+    "3.5 Hz",
+    "27.8 Hz"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l12.q2",
+   "lessonId": "atlas-brakes-college.l12",
+   "kind": "mcq",
+   "prompt": "Why does a pulsation that scales with wheel speed point to the wheel end and not the engine?",
+   "choices": [
+    "It follows wheel rotation frequency rather than engine speed",
+    "Engines never cause vibrations that can be felt at the pedal",
+    "Wheels always pulse at 10 Hz regardless of vehicle speed",
+    "It proves the booster is bad, since the booster ties to road speed"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l12.q3",
+   "lessonId": "atlas-brakes-college.l12",
+   "kind": "mcq",
+   "prompt": "New rotors were fitted and pulsation returned within weeks. Which root cause is most consistent?",
+   "choices": [
+    "Rust on the hub mounting face holding the rotor with lateral runout",
+    "The pads were the right thickness, which causes uneven wear in itself",
+    "The reservoir was full, which lets pulsation build in the lines",
+    "The tire pressure was correct, which concentrates wear on the rotor"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l12.q4",
+   "lessonId": "atlas-brakes-college.l12",
+   "kind": "mcq",
+   "prompt": "Rubber seals and hoses throughout a vehicle are swollen and soft. What contamination is a likely cause?",
+   "choices": [
+    "Petroleum oil or another incompatible fluid in the brake system",
+    "Water that was spilled into the washer tank near the cowl and then leaked toward the master cylinder",
+    "Fresh DOT 4 fluid added to a reservoir that was a little low",
+    "A thin film of pad grease on the caliper bracket abutments"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l12.q5",
+   "lessonId": "atlas-brakes-college.l12",
+   "kind": "mcq",
+   "prompt": "Which approach best avoids a comeback for uneven inner and outer pad wear?",
+   "choices": [
+    "Free and lubricate the slide pins, renew hardware and verify free movement",
+    "Fit thicker pads only, so that the wear time is longer before the next visit and the pin can stay as it is",
+    "Change the brake fluid only, to restore pressure to the caliper",
+    "Rotate the tires only, to even out the wear across the axle"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l12.q6",
+   "lessonId": "atlas-brakes-college.l12",
+   "kind": "tf",
+   "prompt": "Replacing the part that shows the symptom is always enough to fix the underlying cause.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l13.q1",
+   "lessonId": "atlas-brakes-college.l13",
+   "kind": "mcq",
+   "prompt": "What do the three C's of a repair order stand for?",
+   "choices": [
+    "Concern, cause, correction",
+    "Cost, cash, customer",
+    "Check, clean, close",
+    "Caliper, cylinder, cable"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l13.q2",
+   "lessonId": "atlas-brakes-college.l13",
+   "kind": "mcq",
+   "prompt": "A customer declines a recommended replacement of worn pads. What is the best practice?",
+   "choices": [
+    "Document the recommendation and the decline, and explain the risk plainly",
+    "Say nothing and release the vehicle, to keep the customer happy and avoid an uncomfortable conversation",
+    "Replace them anyway without telling anyone, to protect the shop",
+    "Discard the measurements, so that no record of the refusal exists"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l13.q3",
+   "lessonId": "atlas-brakes-college.l13",
+   "kind": "mcq",
+   "prompt": "What is the role of a manufacturer technical service bulletin?",
+   "choices": [
+    "Guidance that may change a diagnostic or repair procedure",
+    "A legal ruling about who pays for the repair",
+    "A guarantee that replacement parts will be free",
+    "A replacement for the owner's manual in all cases"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l13.q4",
+   "lessonId": "atlas-brakes-college.l13",
+   "kind": "mcq",
+   "prompt": "In negligence terms, what does the standard of care expect of a technician?",
+   "choices": [
+    "To act as a reasonably careful technician would in the same situation",
+    "To be perfect in all cases, with no room for honest error",
+    "To avoid keeping any records that might be used in a dispute",
+    "To follow only the customer's preferences, whatever the safety risk or the manufacturer's own procedure"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l13.q5",
+   "lessonId": "atlas-brakes-college.l13",
+   "kind": "mcq",
+   "prompt": "Does a posted sign saying the shop is not responsible for repairs remove the shop's responsibility for safety-critical brake work?",
+   "choices": [
+    "No, a disclaimer does not generally excuse careless safety-critical work",
+    "Yes, a posted sign removes all responsibility in every case",
+    "Yes, but only for repairs made on a weekend",
+    "Yes, as long as the customer is a repeat customer"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l13.q6",
+   "lessonId": "atlas-brakes-college.l13",
+   "kind": "mcq",
+   "prompt": "Which statement about the Magnuson-Moss summary in this lesson is the most responsible?",
+   "choices": [
+    "It is a commonly stated summary that should be verified with a lawyer or the regulator before relying on it",
+    "It is a complete and final statement of the law in every state",
+    "It is binding on any shop that has read the lesson",
+    "It replaces the need to read the vehicle's actual warranty booklet"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l14.q1",
+   "lessonId": "atlas-brakes-college.l14",
+   "kind": "mcq",
+   "prompt": "In Case A the right front wheel is much hotter and the inner pad is thinner. Which finding best confirms the cause?",
+   "choices": [
+    "A slide pin that does not move freely",
+    "A cracked reservoir lid on the master cylinder",
+    "A weak vacuum signal at the booster check valve",
+    "A low level in the windshield washer tank"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l14.q2",
+   "lessonId": "atlas-brakes-college.l14",
+   "kind": "mcq",
+   "prompt": "In Case B, why does an old fluid that boils on a descent often recover when it cools?",
+   "choices": [
+    "Vapor bubbles condense back to liquid as the temperature falls",
+    "The pads regrow friction material as they cool down, which restores the stopping force",
+    "The fluid changes into a solid and then melts again",
+    "The rotor shrinks and pulls the caliper pistons back"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l14.q3",
+   "lessonId": "atlas-brakes-college.l14",
+   "kind": "mcq",
+   "prompt": "In Case B, which is the best correction?",
+   "choices": [
+    "Replace the fluid with the specified type, bleed properly and advise the driver on gear selection",
+    "Add a thicker oil to the reservoir to raise the pressure",
+    "Remove the brake pads so that the rotors can cool faster",
+    "Disable the warning lamp so the driver is not alarmed"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l14.q4",
+   "lessonId": "atlas-brakes-college.l14",
+   "kind": "mcq",
+   "prompt": "In Case C, a rear wheel speed reading drops to zero above about 30 km/h. Which inspection comes first?",
+   "choices": [
+    "Scope the signal and inspect wiring flex points, connector and air gap",
+    "Replace the hydraulic control unit first, since it is the most likely cause of any ABS fault",
+    "Replace the master cylinder, since it feeds the rear circuit",
+    "Replace the front rotors, since they share the hub assembly"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l14.q5",
+   "lessonId": "atlas-brakes-college.l14",
+   "kind": "mcq",
+   "prompt": "A technician finds two distinct faults on one vehicle: worn-through pads on one axle and a weeping flex hose. How should the findings be presented?",
+   "choices": [
+    "Rank by safety, explain the evidence for each, and recommend repairs accordingly",
+    "Hide the hose finding and mention only the pads, to keep the quote low and the customer comfortable",
+    "Recommend only the cheaper repair, whichever is safer",
+    "Tell the customer to ignore both until the next scheduled service"
+   ]
+  },
+  {
+   "id": "atlas-brakes-college.l14.q6",
+   "lessonId": "atlas-brakes-college.l14",
+   "kind": "tf",
+   "prompt": "Writing the diagnostic reasoning in plain words for the customer is part of professional practice.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  }
+ ]
+}

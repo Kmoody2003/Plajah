@@ -1,0 +1,1407 @@
+{
+ "courseId": "med-neuro",
+ "label": "Clinical Neuroscience",
+ "lessons": [
+  {
+   "id": "med-neuro.l01",
+   "title": "Cerebral Cortex and White Matter",
+   "body": [
+    "Each cerebral hemisphere has frontal, parietal, temporal and occipital lobes plus the insula and limbic cortex. The frontal lobe holds the primary motor cortex in the precentral gyrus, the premotor and supplementary motor areas that plan movement, the frontal eye field that drives contralateral gaze, and the prefrontal cortex, which supports judgement, planning, personality and sustained attention. Damage to the orbitofrontal region produces disinhibition, and damage to the dorsolateral region produces apathy and poor executive function. The parietal lobe holds the primary somatosensory cortex in the postcentral gyrus and association areas for spatial attention and body schema. The temporal lobe holds the primary auditory cortex, the hippocampus and amygdala for memory and emotion, and areas for language comprehension and for recognising faces and objects. The occipital lobe holds the primary visual cortex around the calcarine sulcus.",
+    "A body map, the homunculus, lies along the pre- and postcentral gyri: the leg is medial near the midline, supplied by the anterior cerebral artery, while the face and hand are lateral on the convexity, supplied by the middle cerebral artery. This matters for localising strokes. Language is lateralised to the left hemisphere in nearly all right-handed people and most left-handed people. Broca area, in the inferior frontal gyrus of the dominant hemisphere, is needed for speech production: lesions give non-fluent speech with relatively preserved comprehension and impaired repetition. Wernicke area, in the posterior superior temporal gyrus, is needed for comprehension: lesions give fluent but meaningless speech with poor comprehension and poor repetition. The arcuate fasciculus links them, and a lesion there gives conduction aphasia, with fluent speech and good comprehension but poor repetition. Global aphasia affects both. In transcortical aphasias repetition is preserved.",
+    "The non-dominant parietal lobe, usually the right, is needed for spatial attention. A lesion causes hemispatial neglect, in which the patient ignores the left side of the body and space and may deny being ill (anosognosia). The dominant parietal lobe lesion causes Gerstmann syndrome: agraphia, acalculia, finger agnosia and left-right confusion. Bilateral damage to the medial temporo-occipital cortex causes prosopagnosia, and bilateral temporal lobe lesions including the amygdala cause Kluver-Bucy syndrome, with placidity, hyperorality and hypersexuality.",
+    "White matter has three classes of fibre. Association fibres connect cortical areas in the same hemisphere (arcuate, uncinate and cingulum). Commissural fibres connect the hemispheres, the largest being the corpus callosum; a callosal lesion can cause alien hand phenomena or disconnection syndromes such as left-hand agraphia. Projection fibres connect the cortex with subcortical structures and run through the internal capsule, whose anterior limb, genu and posterior limb carry different pathways: corticospinal fibres in the posterior limb, corticobulbar fibres in the genu, and thalamocortical sensory fibres in the posterior limb. Worked example: a right-handed man with a left middle cerebral artery branch stroke has non-fluent effortful speech, good comprehension and right face and arm weakness, which localises to Broca area and the adjacent motor cortex."
+   ]
+  },
+  {
+   "id": "med-neuro.l02",
+   "title": "The Brainstem",
+   "body": [
+    "The brainstem has three levels, midbrain, pons and medulla, and each carries long tracts, cranial nerve nuclei and parts of the reticular formation. A cross-section has a consistent plan: the tectum or posterior part contains sensory nuclei and the colliculi, the tegmentum is the central core containing the cranial nerve nuclei, the reticular formation and the ascending sensory tracts, and the base or anterior part contains the descending corticospinal and corticobulbar fibres, with the cerebral peduncles in the midbrain and the basis pontis (with pontine nuclei) in the pons. The cranial nerves are arranged by level: nerves III and IV are in the midbrain, V, VI, VII and VIII in the pons, and IX, X, XI (cranial root) and XII in the medulla, with nerves I and II attached to the forebrain.",
+    "The reticular formation includes the ascending reticular activating system, which keeps the cortex awake. A small lesion in the paramedian midbrain or upper pons, or bilateral thalamic damage, can cause coma. The locus coeruleus (norepinephrine) in the pons, the raphe nuclei (serotonin) and the substantia nigra and ventral tegmental area (dopamine) are important nuclei with widely projecting systems.",
+    "The rule of 4 helps with the nuclei. There are four structures in the midline beginning with M (motor pathway, medial lemniscus, medial longitudinal fasciculus, motor nuclei for III, IV, VI, XII), four in the side that begin with S (spinocerebellar tracts, spinothalamic tract, sensory nucleus of V, sympathetic fibres), and the nuclei of cranial nerves III to XII follow the same pattern: four nerves in the medulla, four in the pons and two above the pons. The motor nuclei of III, IV, VI and XII lie medially, near the midline, and the sensory nuclei lie laterally. The medial longitudinal fasciculus links the abducens nucleus with the contralateral oculomotor nucleus, so that the eyes move together in horizontal gaze. A lesion, commonly from multiple sclerosis in the young or from infarction in the old, produces an internuclear ophthalmoplegia: on attempted gaze toward the opposite side, the ipsilateral eye fails to adduct, while the abducting eye has nystagmus, and convergence is preserved.",
+    "Brainstem syndromes combine ipsilateral cranial nerve signs with contralateral long tract signs, because the cranial nerve nucleus is on the same side while the corticospinal tract crosses lower in the medulla and the spinothalamic tract has crossed already in the cord. Medial medullary syndrome (anterior spinal artery) gives contralateral hemiparesis and loss of proprioception with ipsilateral tongue weakness. Lateral medullary (Wallenberg) syndrome, from vertebral or posterior inferior cerebellar artery occlusion, gives ipsilateral facial pain and temperature loss, ipsilateral Horner syndrome, ataxia, dysphagia and hoarseness, with contralateral body pain and temperature loss, and the vestibular nuclei cause vertigo. In Weber syndrome, a midbrain base lesion involves the oculomotor nerve fascicle and cerebral peduncle, with ipsilateral eye findings (a dilated pupil, ptosis, down and out eye) and contralateral hemiparesis. Worked example: a patient with sudden vertigo, hoarseness and loss of pain sensation on the left face and right body has a left lateral medullary infarct."
+   ]
+  },
+  {
+   "id": "med-neuro.l03",
+   "title": "The Cranial Nerves",
+   "body": [
+    "There are twelve pairs of cranial nerves. I (olfactory) carries smell, and fractures of the cribriform plate can cause anosmia. II (optic) carries vision, and its damage causes monocular blindness and a relative afferent pupillary defect. III (oculomotor) moves the eye up, down and in through all the extraocular muscles except the superior oblique and lateral rectus, lifts the lid, and carries parasympathetic fibres to the pupil constrictor and ciliary muscle. A complete palsy gives a down-and-out eye, ptosis and a dilated pupil. Compression, for example by a posterior communicating artery aneurysm, tends to affect the pupil early because the parasympathetic fibres run on the outside of the nerve, whereas microvascular ischaemia from diabetes typically spares the pupil. IV (trochlear) supplies the superior oblique; palsy gives vertical diplopia worse on looking down and inward, with a head tilt away from the lesion; it has the longest intracranial course and is the only cranial nerve to exit dorsally and decussate. VI (abducens) supplies the lateral rectus; palsy causes horizontal diplopia and inability to abduct, and it is often involved in raised intracranial pressure as a false localising sign.",
+    "V (trigeminal) has sensory divisions V1 (ophthalmic), V2 (maxillary) and V3 (mandibular), and the motor root of V3 supplies the muscles of mastication, so the jaw deviates toward the weak side. The corneal reflex has an afferent limb in V1 and an efferent limb in VII. Trigeminal neuralgia causes brief, severe, electric facial pains, often from vascular compression of the root and treated first with carbamazepine. VII (facial) moves the face, supplies the stapedius, carries taste from the anterior two thirds of the tongue and parasympathetic fibres to the lacrimal and submandibular and sublingual glands. An upper motor neurone lesion spares the forehead because the upper face receives bilateral corticobulbar input, while a lower motor neurone lesion such as Bell palsy paralyses the whole half of the face. VIII (vestibulocochlear) carries hearing and balance. IX (glossopharyngeal) supplies the stylopharyngeus, carries taste and general sensation from the posterior third of the tongue, and is the afferent limb of the gag reflex, with parasympathetic fibres to the parotid. X (vagus) is the efferent limb of the gag reflex, supplies the palate, pharynx and larynx, and carries parasympathetic fibres to the thoracic and abdominal viscera; a unilateral lesion makes the uvula deviate away from the lesion because the healthy side contracts. XI (accessory) supplies the sternocleidomastoid",
+    "and the trapezius. XII (hypoglossal) supplies the tongue muscles, and the tongue deviates toward the side of a lower motor neurone lesion.",
+    "For the nuclei, the brainstem is built so that midbrain nuclei have the oculomotor and trochlear, the pons has V, VI, VII and VIII, and the medulla has IX, X, XI and XII. A simple way to test cranial nerves is by function: smell, visual acuity, fields and pupils, eye movements, facial sensation and chewing, facial movement, hearing, palate and gag, shoulder shrug and head turning, and tongue protrusion. Worked example: a patient with sudden right facial droop involving the forehead, a dry eye, loss of taste in the anterior tongue and hyperacusis has a right peripheral facial palsy (Bell palsy), with the lesion proximal to the stapedius branch."
+   ]
+  },
+  {
+   "id": "med-neuro.l04",
+   "title": "The Spinal Cord and Its Tracts",
+   "body": [
+    "The spinal cord has a central butterfly of grey matter surrounded by white matter. The dorsal horn receives sensory input, the ventral horn contains the lower motor neurones, and the lateral horn at T1 to L2 contains the sympathetic preganglionic neurones. Spinal nerves leave through the intervertebral foramina; dorsal roots carry sensory fibres with cell bodies in the dorsal root ganglia, and ventral roots carry motor fibres. A dermatome is the skin supplied by one root: for example C6 supplies the thumb, C7 the middle finger, C8 the little finger, T4 the nipple line, T10 the umbilicus and L1 the inguinal region; S1 supplies the lateral foot.",
+    "Three long tract systems explain most patterns. The dorsal column-medial lemniscus pathway carries fine touch, vibration, conscious proprioception and two-point discrimination. First-order neurones ascend ipsilaterally in the fasciculus gracilis (legs) and cuneatus (arms), synapse in the nucleus gracilis and cuneatus of the medulla, then second-order fibres cross as the internal arcuate fibres and ascend in the medial lemniscus to the ventral posterolateral thalamus, and third-order fibres go to the postcentral gyrus. The spinothalamic tract carries pain and temperature and crude touch. First-order neurones synapse in the dorsal horn, and second-order fibres cross in the anterior white commissure within one or two segments and ascend contralaterally to the thalamus; a central cord lesion such as syringomyelia therefore affects crossing fibres in the commissure and gives a cape-like loss of pain and temperature in the arms with preserved touch. The lateral corticospinal tract carries voluntary motor commands from the motor cortex through the internal capsule and the brainstem; about 90 percent of fibres cross at the pyramidal decussation in the caudal medulla and descend contralaterally, to synapse on the lower motor neurones in the ventral horn. Upper motor neurone lesions give spasticity, hyperreflexia, a Babinski sign and weakness without wasting, while lower motor neurone lesions give flaccid weakness, wasting, fasciculations and hyporeflexia.",
+    "Typical cord syndromes follow. Brown-Sequard syndrome (hemisection) gives ipsilateral weakness and loss of dorsal column sensation below the lesion and contralateral loss of pain and temperature beginning a couple of levels below. Anterior cord syndrome, with anterior spinal artery infarction, gives bilateral loss of motor function and of pain and temperature with preserved dorsal column sensation. Subacute combined degeneration from vitamin B12 deficiency affects the dorsal columns and the lateral corticospinal tracts, giving loss of vibration and proprioception, spasticity and a positive Romberg sign. Tabes dorsalis, from tertiary syphilis, affects the dorsal columns. Conus medullaris syndrome affects the sacral segments with early bladder and bowel dysfunction, saddle anaesthesia and variable weakness, while cauda equina syndrome affects lumbosacral roots with a lower motor neurone picture, asymmetric radicular pain, saddle anaesthesia and urinary retention, and is a surgical emergency. Worked example: after a knife injury, a man has loss of vibration and weakness of the right leg and loss of pain and temperature in the left leg, which is a right-sided hemisection."
+   ]
+  },
+  {
+   "id": "med-neuro.l05",
+   "title": "Blood Supply of the Brain and Stroke Syndromes",
+   "body": [
+    "The brain receives about 15 percent of cardiac output through two systems. The anterior circulation comes from the internal carotid arteries, and the posterior circulation from the vertebral arteries, which join to form the basilar artery. The circle of Willis links them at the base of the brain: anterior communicating artery between the two anterior cerebral arteries, the internal carotids, posterior communicating arteries, and the posterior cerebral arteries from the basilar tip. It provides some collateral flow, though it is complete in only a minority of people, and aneurysms form commonly at junctions, most often at the anterior communicating artery.",
+    "The internal carotid gives off the ophthalmic artery, whose occlusion causes transient monocular blindness (amaurosis fugax), then terminates as the anterior and middle cerebral arteries. The anterior cerebral artery supplies the medial frontal and parietal lobes, and its stroke causes contralateral leg weakness and sensory loss, with abulia and urinary incontinence. The middle cerebral artery supplies the lateral convexity and, through lenticulostriate branches, the basal ganglia and internal capsule. Its cortical branches give contralateral face and arm weakness and sensory loss, a contralateral homonymous hemianopia, gaze preference toward the lesion, aphasia if the dominant hemisphere is involved and neglect if the non-dominant one is. Occlusion of lenticulostriate branches gives lacunar infarcts and a pure motor hemiparesis from damage to the internal capsule.",
+    "The vertebral arteries give the posterior inferior cerebellar artery (PICA), which supplies the lateral medulla and the inferior cerebellum. The basilar artery gives the anterior inferior cerebellar artery (AICA), which supplies the lateral pons including the facial and vestibulocochlear nuclei, and the superior cerebellar artery, then ends as the posterior cerebral arteries. The posterior cerebral artery supplies the occipital lobe and the inferior temporal lobe, and its occlusion causes a contralateral homonymous hemianopia with macular sparing, because the macula has dual supply from the middle cerebral artery. Bilateral occipital infarction causes cortical blindness, sometimes with denial of blindness (Anton syndrome). Basilar artery occlusion causes quadriplegia with preserved vertical eye movements and consciousness in the locked-in syndrome, when the ventral pons is destroyed; the reticular formation and the vertical gaze pathways are spared.",
+    "A branch of the anterior circulation, the anterior choroidal artery, supplies the posterior limb of the internal capsule, and the anterior spinal artery supplies the medial medulla, so each small territory has a distinctive syndrome. Watershed zones between the anterior, middle and posterior cerebral territories are vulnerable to hypotension, with bilateral proximal arm and leg weakness (man-in-a-barrel). Venous drainage runs through the dural venous sinuses into the internal jugular veins, and thrombosis of a sinus can present with headache, seizures and venous infarcts. Worked example: a patient with sudden right face and arm weakness, a global aphasia and a right homonymous hemianopia has a left middle cerebral artery occlusion."
+   ]
+  },
+  {
+   "id": "med-neuro.l06",
+   "title": "Meninges, Ventricles and Cerebrospinal Fluid",
+   "body": [
+    "The brain is covered by three membranes: the dura mater, a tough outer layer; the arachnoid mater, a thin avascular membrane; and the pia mater, adherent to the brain surface. The subarachnoid space between arachnoid and pia contains cerebrospinal fluid (CSF) and the large vessels. Bleeding at different layers has distinct patterns. An epidural haematoma, usually from a torn middle meningeal artery after a temporal bone fracture, forms a lens-shaped (biconvex) collection that does not cross suture lines, with a classic lucid interval. A subdural haematoma, from torn bridging veins, forms a crescent-shaped collection that crosses sutures but not the dural reflections like the falx, and is common in the elderly and in those with alcohol use or anticoagulation. A subarachnoid haemorrhage, most commonly from a ruptured saccular aneurysm, causes a sudden thunderclap headache. The patient may have neck stiffness, and a non-contrast head scan in the first hours is highly sensitive.",
+    "The ventricular system includes the paired lateral ventricles, the third ventricle, the cerebral aqueduct and the fourth ventricle. CSF is made mainly by the choroid plexus, with a rate of about 500 mL a day, giving a total volume of 150 mL in adults that turns over several times daily. Flow goes from the lateral ventricles through the interventricular foramina (of Monro) to the third ventricle, through the cerebral aqueduct to the fourth ventricle, and out through the median foramen of Magendie and lateral foramina of Luschka into the subarachnoid space. It is absorbed into the venous sinuses through arachnoid granulations. Narrow points, such as the aqueduct, are the usual sites of obstruction.",
+    "Hydrocephalus is excess CSF with ventricular enlargement. Non-communicating (obstructive) hydrocephalus is from a block inside the ventricular system, for example aqueductal stenosis or a posterior fossa tumour compressing the fourth ventricle. Communicating hydrocephalus is from poor absorption or flow in the subarachnoid space, as after meningitis or subarachnoid haemorrhage. Normal pressure hydrocephalus, in older adults, gives the triad of gait disturbance (magnetic, with small steps), urinary incontinence and cognitive decline, with enlarged ventricles and a normal opening pressure on lumbar puncture, and it can improve after shunting. Hydrocephalus ex vacuo describes ventricular enlargement from brain atrophy and needs no shunt.",
+    "The skull is a rigid box, so the Monro-Kellie doctrine states that a mass lesion or swelling raises intracranial pressure unless CSF or venous blood is displaced. Raised pressure produces headache, vomiting, papilloedema and, if progressive, the Cushing triad of hypertension, bradycardia and irregular breathing. Herniation syndromes are subfalcine (cingulate gyrus under the falx, compressing the anterior cerebral artery), uncal (the medial temporal lobe under the tentorium, compressing the oculomotor nerve and posterior cerebral artery, with a dilated ipsilateral pupil and, by pressing the contralateral peduncle against the tentorium, ipsilateral hemiparesis as a false localising sign called the Kernohan notch), and tonsillar (cerebellar tonsils through the foramen magnum, compressing the medulla and causing respiratory arrest). Worked example: a young man who has a head injury, a brief loss of consciousness, a lucid interval and then a decline, with a lens-shaped bleed on CT, has an epidural haematoma from a middle meningeal artery tear."
+   ]
+  },
+  {
+   "id": "med-neuro.l07",
+   "title": "Sensory Systems: Somatosensation, Vision and Hearing",
+   "body": [
+    "Somatic sensation reaches awareness through three-neurone chains with a thalamic relay. For the body, the ventral posterolateral (VPL) nucleus of the thalamus relays both the dorsal column and spinothalamic pathways to the postcentral gyrus; for the face, the ventral posteromedial (VPM) nucleus does the same. Receptors determine what is felt: free nerve endings detect pain and temperature through thin A-delta and C fibres, Meissner corpuscles detect light touch, Pacinian corpuscles detect vibration, Merkel discs detect sustained pressure, and muscle spindles and Golgi tendon organs signal limb position and tension. The thalamus is the relay for all senses except smell: the lateral geniculate nucleus handles vision, the medial geniculate nucleus hearing, and the ventral posterior nuclei somatosensation. A thalamic stroke may leave the patient with central post-stroke pain (Dejerine-Roussy syndrome), a burning pain on the contralateral side.",
+    "The visual pathway runs from the retina through the optic nerve to the optic chiasm, where nasal retinal fibres, carrying the temporal visual field, cross; then through the optic tract to the lateral geniculate nucleus, and by the optic radiations to the primary visual cortex. The lower visual field representation travels through the parietal lobe (the upper retinal fibres) and the upper field through the temporal lobe via Meyer loop. This allows lesions to be localised by the field defect. A lesion of one optic nerve causes monocular blindness. A chiasmal lesion, for example a pituitary adenoma pressing from below, gives bitemporal hemianopia, often beginning in the upper temporal fields. A lesion of the optic tract, or any lesion behind the chiasm on one side, gives a contralateral homonymous hemianopia. A temporal lobe lesion gives a contralateral superior quadrantanopia (pie in the sky), and a parietal lobe lesion a contralateral inferior quadrantanopia (pie on the floor). An occipital lesion gives a homonymous hemianopia with macular sparing. The pupillary light reflex runs through the pretectal nucleus and the Edinger-Westphal nucleus, so a lesion in the optic nerve gives a relative afferent pupillary defect, in which the affected pupil dilates when the light swings across to it.",
+    "Hearing is transduced in the cochlea by hair cells in the organ of Corti, then travels via the cochlear nerve to the cochlear nuclei, with bilateral ascent through the superior olivary complex, lateral lemniscus, inferior colliculus and medial geniculate nucleus to the auditory cortex in the superior temporal gyrus. Because of the early bilateral crossing, a unilateral central lesion rarely causes unilateral deafness; deafness is usually peripheral. Conductive hearing loss is from external or middle ear problems, and sensorineural hearing loss from the cochlea or the nerve. The Rinne test compares air with bone conduction (normally air is louder) and the Weber test checks lateralisation: in unilateral conductive loss the sound is heard louder in the affected ear, and in sensorineural loss it is heard louder in the healthy ear.",
+    "The vestibular system detects head position and motion through the semicircular canals and the otolith organs, and its nuclei in the pons and medulla project to the cerebellum, oculomotor nuclei and spinal cord. Peripheral vertigo (benign paroxysmal positional vertigo, vestibular neuritis) is typically brief, positional or accompanied by hearing symptoms, with nystagmus that fatigues and is suppressed by fixation, while central vertigo has vertical or direction-changing nystagmus and other brainstem signs. Worked example: a man with a pituitary macroadenoma who bumps into people on both sides has bitemporal hemianopia from compression of the crossing nasal retinal fibres."
+   ]
+  },
+  {
+   "id": "med-neuro.l08",
+   "title": "Motor Systems: Upper and Lower Motor Neurones",
+   "body": [
+    "Voluntary movement begins in the cortex. Upper motor neurones (UMNs) have cell bodies in the motor cortex and descend through the corona radiata, internal capsule, cerebral peduncle, basis pontis and medullary pyramid as the corticospinal tract, to synapse on lower motor neurones (LMNs) in the anterior horn of the cord. Corticobulbar fibres do the same for the cranial motor nuclei. The LMN is the final common pathway, comprising the cell body, its axon, and the muscle fibres it supplies, called a motor unit. Anterior horn cells use acetylcholine at the neuromuscular junction, binding to nicotinic receptors.",
+    "The distinction between upper and lower neurone lesions is the most useful skill in clinical neurology. A UMN lesion gives weakness with spasticity (a velocity-dependent increase in tone, often with a clasp-knife quality), hyperreflexia, clonus, an extensor plantar response (Babinski sign), and little wasting. In the limbs it favours extensors in the arm and flexors in the leg, with weakness in the pyramidal pattern. An acute severe UMN lesion, for example a stroke, can first produce flaccid weakness and areflexia, called spinal or cerebral shock, before spasticity develops over days to weeks. An LMN lesion gives flaccid weakness, hypotonia, hyporeflexia or areflexia, early wasting and fasciculations from denervated motor units, and a flexor or absent plantar response. Muscle disease itself (myopathy) gives proximal weakness with normal reflexes until late and no sensory loss, while a neuromuscular junction disorder gives fatigable weakness.",
+    "The distribution of weakness localises the lesion. Hemiparesis with face involvement implies a lesion above the pons or in the cortex or capsule. Hemiparesis sparing the face with contralateral cranial nerve signs implies a brainstem lesion. Paraparesis with a sensory level suggests the cord. Weakness limited to one root distribution, such as foot drop from L5, suggests a root or peripheral nerve lesion. Combined UMN and LMN findings in the same patient with no sensory loss are characteristic of amyotrophic lateral sclerosis, a neurodegenerative disease of both neurone populations; the diagnosis is clinical and riluzole slightly prolongs survival.",
+    "Spinal muscular atrophy is a childhood LMN disease due to survival motor neuron gene deficiency, and poliomyelitis infects anterior horn cells. Reflexes help the localisation: the biceps reflex tests C5-C6, the brachioradialis C6, the triceps C7, the knee jerk L3-L4 and the ankle jerk S1. A reflex is a segmental loop with an afferent limb from muscle spindle fibres through the dorsal root, a synapse in the cord and an efferent LMN; upper motor neurone input modulates it, so UMN lesions release the reflex and increase it. Worked example: a 58-year-old man with tongue fasciculations, wasting of the hand muscles and brisk knee jerks with a Babinski sign, without sensory loss, has a combination of lower and upper motor neurone signs that points to motor neurone disease."
+   ]
+  },
+  {
+   "id": "med-neuro.l09",
+   "title": "The Cerebellum",
+   "body": [
+    "The cerebellum coordinates movement. It does not start movement; it compares intended with actual movement and corrects errors, and it also contributes to timing, balance, motor learning and some cognitive functions. It has a midline vermis and two hemispheres, with the flocculonodular lobe at the base. Its cortex has three layers: the molecular layer, the Purkinje cell layer and the granular layer. Purkinje cells are the only output neurones of the cortex and are inhibitory (GABA) onto the deep cerebellar nuclei, which are the real outputs of the cerebellum: the fastigial, globose, emboliform and dentate nuclei, from medial to lateral. Inputs arrive as mossy fibres from the spinal cord, pons and vestibular nuclei and as climbing fibres from the inferior olive.",
+    "Three peduncles link the cerebellum with the brainstem. The superior cerebellar peduncle carries the main output, from the dentate nucleus to the contralateral red nucleus and thalamus, and a little input from the spinocerebellar tract. The middle cerebellar peduncle carries input from the pontine nuclei, which relay cerebral cortex signals. The inferior cerebellar peduncle carries input from the spinal cord and the inferior olive and vestibular nuclei. A functional division helps localisation. The flocculonodular lobe (vestibulocerebellum) controls balance and eye movements. The vermis and paravermis (spinocerebellum) control the trunk and proximal limbs and the gait. The lateral hemispheres (cerebrocerebellum) plan and time skilled limb movements of the arms and legs.",
+    "A critical rule is that each cerebellar hemisphere controls the ipsilateral side of the body, because the pathways cross twice. A lesion therefore gives ipsilateral signs. Midline lesions cause truncal ataxia, a wide-based staggering gait, and an inability to sit unsupported, often from a midline tumour such as medulloblastoma in a child or from chronic alcohol-related vermis degeneration, which especially affects gait. Hemisphere lesions cause ipsilateral appendicular signs. The signs are summarised by DANISH: dysdiadochokinesia (poor rapid alternating movements), ataxia, nystagmus, intention tremor (worse as the target is approached), slurred or scanning speech and hypotonia, with dysmetria on the finger-nose and heel-shin tests. The Romberg test tests dorsal column function rather than the cerebellum, since a cerebellar ataxia is present with eyes open and closed, whereas a sensory ataxia worsens when the eyes close.",
+    "Causes include stroke (PICA, AICA and SCA territories), alcohol, anticonvulsants such as phenytoin, hereditary ataxias, paraneoplastic degeneration (anti-Yo antibodies in ovarian and breast cancer), multiple sclerosis and posterior fossa tumours. In children, medulloblastoma arises in the vermis and obstructs the fourth ventricle, and pilocytic astrocytoma usually arises in the hemisphere and is often cystic. In adults, haemangioblastoma, which may be part of von Hippel-Lindau disease, can occur. A cerebellar haemorrhage or large infarct can compress the fourth ventricle and the brainstem, so it needs urgent attention. Worked example: a 6-year-old with morning headaches, vomiting and a wide-based gait, and a midline mass in the fourth ventricle, has a medulloblastoma with obstructive hydrocephalus."
+   ]
+  },
+  {
+   "id": "med-neuro.l10",
+   "title": "The Basal Ganglia and Movement Disorders",
+   "body": [
+    "The basal ganglia are a set of deep nuclei that modulate movement through loops with the cortex and thalamus. They include the striatum (caudate and putamen), the globus pallidus (external and internal segments), the subthalamic nucleus and the substantia nigra (pars compacta and pars reticulata). They help select wanted movements and suppress unwanted ones, and they take part in habit and reward. They do not directly send fibres to the spinal cord; their output goes through the thalamus back to the cortex.",
+    "The circuit is explained by two pathways. In the direct pathway, cortical glutamate excites striatal neurones, which inhibit the internal globus pallidus and substantia nigra reticulata; these are normally inhibitory to the thalamus, so the thalamus is released and the cortex is activated, facilitating movement. In the indirect pathway, striatal neurones inhibit the external globus pallidus, which disinhibits the subthalamic nucleus, which excites the internal pallidum, which inhibits the thalamus more; this suppresses movement. Dopamine from the substantia nigra pars compacta acts on D1 receptors in the direct pathway to excite it and on D2 receptors in the indirect pathway to inhibit it, so dopamine promotes movement through both. Loss of dopamine gives too little direct activity and too much indirect activity, and so hypokinesia.",
+    "Parkinson disease is a loss of dopaminergic neurones in the substantia nigra pars compacta, with Lewy bodies, which are intracellular inclusions containing alpha-synuclein. The cardinal features are bradykinesia (slowness with decrement), rigidity (lead-pipe, with cogwheeling when tremor is superimposed), a resting tremor (pill-rolling, 4 to 6 Hz) and postural instability. Other features are a shuffling gait with small steps, a masked face, micrographia, hypophonia, and non-motor symptoms such as REM sleep behaviour disorder, constipation, anosmia and depression, which can precede motor symptoms. Diagnosis is clinical. Levodopa with a peripheral decarboxylase inhibitor remains the most effective symptomatic treatment, and the other classes are described in the pharmacology lesson. Atypical parkinsonism should be suspected if there is early falls and loss of vertical gaze (progressive supranuclear palsy), early autonomic failure (multiple system atrophy) or early dementia with visual hallucinations (dementia with Lewy bodies), and if there is little response to levodopa.",
+    "Huntington disease is autosomal dominant, from a CAG trinucleotide repeat expansion in the huntingtin gene on chromosome 4, with anticipation, especially through paternal transmission. It destroys medium spiny neurones of the caudate, particularly the indirect pathway, causing chorea (irregular, dance-like movements), psychiatric changes and dementia, with atrophy of the caudate and so enlarged frontal horns on imaging. Other movement disorders include hemiballismus, from a lesion of the contralateral subthalamic nucleus, essential tremor (an action tremor that improves with alcohol and responds to propranolol), dystonia, and tardive dyskinesia, a late complication of dopamine-blocking drugs. Wilson disease, a copper metabolism disorder, can produce basal ganglia dysfunction in young patients. Worked example: a 65-year-old man with a pill-rolling tremor at rest, slowed movements and rigidity of the arm that eases with action has Parkinson disease."
+   ]
+  },
+  {
+   "id": "med-neuro.l11",
+   "title": "Thalamus, Hypothalamus and the Limbic System",
+   "body": [
+    "The thalamus is the gateway to the cortex. Its nuclei relay sensory information (ventral posterior nuclei for body and face sensation, lateral geniculate for vision, medial geniculate for hearing), motor loops (ventral lateral and ventral anterior nuclei from cerebellum and basal ganglia), and limbic and cognitive information (anterior and mediodorsal nuclei). Only olfaction reaches the cortex without a thalamic relay. The reticular nucleus of the thalamus modulates activity and takes part in sleep spindles. Bilateral paramedian thalamic infarcts, from occlusion of the artery of Percheron, can cause coma or a hypersomnolent state with memory and vertical gaze impairment.",
+    "The hypothalamus is the integrator of the autonomic nervous system, endocrine system and basic drives. Its nuclei include the suprachiasmatic (circadian rhythm), supraoptic and paraventricular (antidiuretic hormone and oxytocin), arcuate (feeding, dopamine and hypothalamic releasing hormones), the lateral area (hunger) and ventromedial nucleus (satiety), the preoptic area and anterior hypothalamus (cooling and heat dissipation) and the posterior hypothalamus (heat conservation), and the mammillary bodies. Lesions of the lateral area reduce feeding and lesions of the ventromedial nucleus cause hyperphagia and obesity. Posterior hypothalamic damage impairs conserving heat, and anterior damage impairs heat loss and may cause hyperthermia. Lesions affecting the supraoptic and paraventricular nuclei cause central diabetes insipidus, with dilute polyuria that responds to desmopressin. Orexin neurones in the lateral hypothalamus maintain wakefulness, and loss of them is the basis of narcolepsy with cataplexy.",
+    "The limbic system supports memory, emotion and motivation. The hippocampus, in the medial temporal lobe, converts short-term to long-term declarative memory; bilateral damage causes anterograde amnesia, as in the patient H.M. after surgical removal of both medial temporal lobes. The amygdala links stimuli to emotion, especially fear, and its bilateral damage reduces fear responses (Kluver-Bucy syndrome). The Papez circuit runs from the hippocampus via the fornix to the mammillary bodies, the mammillothalamic tract to the anterior thalamic nucleus, the cingulate gyrus, and back to the hippocampus via the entorhinal cortex. Lesions of the mammillary bodies and the dorsomedial thalamus occur in Wernicke-Korsakoff syndrome from thiamine deficiency: the acute Wernicke encephalopathy has the triad of confusion, ophthalmoplegia (with nystagmus) and ataxia, and the chronic Korsakoff syndrome has profound anterograde and retrograde amnesia with confabulation. Thiamine should be given before glucose in at-risk patients, because glucose can precipitate Wernicke encephalopathy.",
+    "Temporal lobe epilepsy often arises from hippocampal sclerosis and may present with an epigastric rising sensation, a feeling of deja vu, an olfactory aura, lip-smacking automatisms and impaired awareness. Memory is classified as declarative (explicit; episodic and semantic, hippocampus-dependent) and non-declarative (procedural, priming, conditioning; basal ganglia, cerebellum and amygdala). Worked example: a 58-year-old with chronic alcohol use presents with confusion, a gait disturbance and abnormal eye movements, and the correct approach is parenteral thiamine, since delay risks permanent amnesia."
+   ]
+  },
+  {
+   "id": "med-neuro.l12",
+   "title": "Localising the Lesion",
+   "body": [
+    "Neurology is solved by asking where the lesion is before asking what it is. A method is as follows. First, decide whether the problem is in the central nervous system or the peripheral nervous system, using tone, reflexes and the pattern of weakness: upper motor neurone signs mean central, and lower motor neurone signs with sensory loss in a root or nerve distribution mean peripheral. Second, within the central nervous system, find the level using the cranial nerves, the sensory level and the combination of signs. Third, consider the time course, since sudden onset suggests a vascular event, subacute progression suggests inflammation, infection or tumour, and relapsing and remitting suggests demyelination, epilepsy or migraine, and chronic progression suggests degeneration.",
+    "Patterns repeat. A cortical lesion gives focal deficits such as aphasia, neglect, apraxia, cortical sensory loss, visual field defects and seizures. A lesion in the internal capsule gives dense contralateral hemiparesis involving face, arm and leg equally, with little cortical sign. A thalamic lesion gives contralateral sensory loss, sometimes with pain. A brainstem lesion gives crossed findings: ipsilateral cranial nerve palsy with contralateral hemiparesis or sensory loss, plus diplopia, vertigo, dysphagia, and dysarthria. A cerebellar lesion gives ipsilateral ataxia. A cord lesion gives a motor and sensory level with bladder dysfunction and no cranial nerve or cortical signs. A cauda equina or root lesion gives lower motor neurone signs in a dermatomal pattern. A peripheral nerve lesion gives weakness and sensory loss within one nerve distribution, and a polyneuropathy gives a symmetric distal stocking-and-glove pattern. A neuromuscular junction or muscle disease gives weakness without sensory loss.",
+    "Useful rules include the following. Crossed signs (face on one side and body on the other) place the lesion in the brainstem. Face, arm and leg weakness on the same side with a cortical sign puts the lesion in the contralateral hemisphere. Pure motor hemiparesis suggests a lacunar infarct in the internal capsule or pons. Pure sensory stroke suggests the thalamus. Dissociated sensory loss (pain and temperature lost with vibration spared, or the reverse) suggests the cord or brainstem. Vertical gaze palsy suggests the dorsal midbrain (Parinaud syndrome, from a pineal tumour). Horizontal gaze palsy toward the side of the lesion suggests the pontine paramedian reticular formation, while a cortical frontal lesion makes the eyes look toward the lesion, and a seizure focus drives the eyes away from it. Isolated sixth nerve palsy may be a false localising sign of raised intracranial pressure.",
+    "Avoid common traps. Do not assume the first lesion explains everything; if the picture needs two lesions at different levels, consider multiple sclerosis or a multifocal process. Do not forget the pupil when you see a third nerve palsy. Remember that a cord compression may present only with leg weakness and a sensory level, so check the spine, and that a lesion above the decussation of the pyramids gives contralateral weakness whereas one in the cord gives ipsilateral weakness. Worked example: a patient with left facial droop including the forehead, left lateral rectus weakness and right hemiparesis has a left pontine lesion affecting the facial and abducens fascicles and the corticospinal tract (Millard-Gubler syndrome)."
+   ]
+  },
+  {
+   "id": "med-neuro.l13",
+   "title": "Stroke: Mechanisms, Recognition and Prevention",
+   "body": [
+    "Stroke is a sudden focal neurological deficit from vascular disease. About 85 percent are ischaemic and the rest haemorrhagic (intracerebral or subarachnoid). Ischaemic stroke results from embolism, large-artery atherosclerosis with thrombosis or artery-to-artery embolism, small-vessel (lacunar) disease, or less common causes such as dissection and hypercoagulable states. Cardioembolic stroke arises mostly from atrial fibrillation, but also from a recent myocardial infarction, valve disease or a patent foramen ovale. A transient ischaemic attack (TIA) is a brief episode of focal neurological dysfunction due to ischaemia without infarction on imaging; it matters because the risk of stroke is highest in the first days after it. Within the ischaemic territory, a core of irreversibly injured tissue is surrounded by a penumbra of hypoperfused but salvageable tissue, and reperfusion treatments aim to save the penumbra.",
+    "Recognition depends on the onset and the pattern. Sudden onset of face droop, arm weakness or speech disturbance should prompt emergency evaluation. Non-contrast head CT is the first investigation to exclude haemorrhage, since the treatments are opposite; CT angiography shows large vessel occlusion, and MRI diffusion-weighted imaging detects early infarction. Blood glucose should always be checked because hypoglycaemia mimics stroke. Time is brain: roughly two million neurones are lost each minute in a large vessel occlusion. In eligible patients, intravenous thrombolysis (alteplase or tenecteplase) is given within a limited window from onset, around 4.5 hours in many guidelines, after exclusion of haemorrhage and other contraindications such as recent major surgery, active bleeding, or a markedly raised blood pressure. Endovascular thrombectomy for large vessel occlusion extends the window to many hours in selected patients with imaging evidence of salvageable tissue. Thrombolytics convert plasminogen to plasmin, which digests fibrin; their principal harm is haemorrhage.",
+    "After the acute phase, secondary prevention addresses the mechanism. Antiplatelet therapy (aspirin or clopidogrel) is standard for non-cardioembolic stroke, anticoagulation is used for atrial fibrillation, statins lower cholesterol and stabilise plaque, and blood pressure and glucose are controlled. Symptomatic high-grade carotid stenosis, found on carotid imaging, is treated with endarterectomy in selected patients soon after the event. Smoking cessation, exercise and diet are advised. Lacunar infarcts relate to hypertension and diabetes and give syndromes such as pure motor hemiparesis, pure sensory stroke and ataxic hemiparesis.",
+    "Haemorrhage has its own causes. Intracerebral haemorrhage is most often hypertensive and affects the basal ganglia, thalamus, pons and cerebellum, from rupture of small penetrating arteries with Charcot-Bouchard microaneurysms; in older patients, lobar bleeding suggests cerebral amyloid angiopathy. Subarachnoid haemorrhage most often comes from a saccular (berry) aneurysm, with associations to polycystic kidney disease, Ehlers-Danlos syndrome, smoking and hypertension. It presents with a sudden severe headache, and complications include rebleeding, vasospasm days later (nimodipine, a calcium channel blocker, is used to improve outcome), hydrocephalus and hyponatraemia. Arteriovenous malformations can cause haemorrhage or seizures. Worked example: a 68-year-old man with atrial fibrillation not on anticoagulation has a sudden left face and arm weakness and neglect; CT shows no bleed, so the cause is embolic occlusion of the right middle cerebral artery, and he is evaluated for reperfusion."
+   ]
+  },
+  {
+   "id": "med-neuro.l14",
+   "title": "Epilepsy and Seizures",
+   "body": [
+    "A seizure is a transient occurrence of signs or symptoms due to abnormal excessive synchronous neuronal activity. Epilepsy is a tendency to recurrent unprovoked seizures. Provoked seizures, from causes such as hypoglycaemia, hyponatraemia, alcohol withdrawal or head injury, do not necessarily mean epilepsy. The International League Against Epilepsy classification divides seizures by onset. Focal seizures arise in one hemisphere and may or may not impair awareness; they may spread to a bilateral tonic-clonic seizure. Generalised seizures engage both hemispheres from the start and include tonic-clonic, absence, myoclonic, atonic and tonic seizures. A focal seizure with preserved awareness from the motor cortex gives clonic jerking of the contralateral limb that may march (Jacksonian march). Temporal lobe seizures give an epigastric aura, deja vu and automatisms. A postictal period of confusion, and weakness (Todd paralysis), follows many seizures.",
+    "Syndromes illustrate the classification. Childhood absence epilepsy gives brief staring spells many times a day, with an abrupt onset and offset, no postictal state, and a 3-Hz spike-and-wave pattern on EEG that can be provoked by hyperventilation; the first-line drug is ethosuximide, which blocks T-type calcium channels in thalamic neurones. Juvenile myoclonic epilepsy presents in adolescence with morning myoclonic jerks, generalised tonic-clonic seizures, and sleep deprivation as a trigger, and valproate is highly effective but is avoided in people who can become pregnant because of its teratogenicity. West syndrome (infantile spasms) shows hypsarrhythmia on EEG and is treated with ACTH or vigabatrin. Febrile seizures in children aged 6 months to 5 years are common and usually benign. Mesial temporal sclerosis is a common cause of drug-resistant focal epilepsy and may be treated by surgery.",
+    "Antiseizure drugs act by three principal mechanisms: blocking voltage-gated sodium channels (phenytoin, carbamazepine, lamotrigine), enhancing GABA inhibition (benzodiazepines, phenobarbital, vigabatrin, tiagabine, and valproate partly), and reducing calcium channel or glutamate activity (ethosuximide, gabapentin and pregabalin, levetiracetam binding SV2A, topiramate and others). Carbamazepine and phenytoin are enzyme inducers that lower the levels of drugs such as oral contraceptives and warfarin, while valproate is an inhibitor. Carbamazepine can cause hyponatraemia, agranulocytosis, and Stevens-Johnson syndrome with the HLA-B*1502 allele in some Asian populations. Phenytoin causes gingival hyperplasia, hirsutism, and cerebellar toxicity with nystagmus and ataxia. Valproate causes hepatotoxicity, pancreatitis, tremor, weight gain and neural tube defects. Lamotrigine can cause serious rash, which is more likely if the dose is increased too quickly or combined with valproate. Sodium channel blockers can worsen absence and myoclonic seizures, so the syndrome decides the drug.",
+    "Status epilepticus is a seizure lasting more than five minutes or repeated seizures without recovery; it is a medical emergency because of neuronal injury, rhabdomyolysis, acidosis and hyperthermia. Initial treatment is a benzodiazepine, with a second-line agent such as levetiracetam, valproate or fosphenytoin if seizures persist. Psychogenic nonepileptic events and syncope are important mimics: convulsive syncope shows brief jerking after loss of consciousness with a quick recovery, whereas tongue-biting at the side, a prolonged postictal state and raised serum prolactin or lactate support an epileptic seizure. Worked example: a 14-year-old girl with morning jerks of the arms and a generalised seizure after a late night likely has juvenile myoclonic epilepsy, and the drug choice must consider future pregnancy."
+   ]
+  },
+  {
+   "id": "med-neuro.l15",
+   "title": "Neurodegenerative Disease and Dementia",
+   "body": [
+    "Dementia is an acquired decline in memory and other cognitive domains severe enough to impair daily function. Reversible contributors should always be sought: depression, hypothyroidism, vitamin B12 deficiency, medication effects, normal pressure hydrocephalus, subdural haematoma and neurosyphilis. Delirium, which is acute, fluctuating and marked by inattention, must be separated from dementia, which is chronic and progressive.",
+    "Alzheimer disease is the most common cause. Its pathology includes extracellular amyloid-beta plaques, from cleavage of amyloid precursor protein, and intracellular neurofibrillary tangles of hyperphosphorylated tau, with early loss of cholinergic neurones in the nucleus basalis of Meynert and atrophy of the hippocampus and medial temporal lobe. Presenting features are insidious episodic memory loss, then language, visuospatial and executive deficits; behaviour and function decline over years. Risk factors include age, apolipoprotein E epsilon 4, and trisomy 21 (the amyloid precursor protein gene is on chromosome 21, so most people with Down syndrome develop pathology by middle age); rare early-onset familial forms involve APP, presenilin 1 and presenilin 2. Diagnosis is clinical, supported by imaging, biomarkers of amyloid and tau in cerebrospinal fluid or plasma, and amyloid PET. Treatments are limited: cholinesterase inhibitors (donepezil, rivastigmine, galantamine) give modest symptomatic benefit, memantine, an NMDA receptor antagonist, is used in moderate to severe disease, and antibodies that clear amyloid (such as lecanemab and donanemab) have been approved in some regions for early disease with modest effects and a risk of amyloid-related imaging abnormalities including oedema and microbleeds, with details changing, so check current labels.",
+    "Vascular dementia follows strokes or small vessel disease and has a stepwise or fluctuating course with focal signs. Dementia with Lewy bodies has fluctuating cognition, well-formed visual hallucinations, parkinsonism and REM sleep behaviour disorder, with severe sensitivity to antipsychotics; by convention, if dementia begins a year or more after parkinsonism, it is Parkinson disease dementia. Frontotemporal dementia presents earlier, often in the fifties or sixties, with disinhibition, apathy, compulsions or hyperorality (behavioural variant) or progressive language impairment, with relative preservation of memory early on; pathology includes tau (Pick bodies) or TDP-43 inclusions, and it shows frontal and anterior temporal atrophy. Creutzfeldt-Jakob disease is a prion disease with rapidly progressive dementia, myoclonus and periodic sharp wave complexes on EEG, and it is untreatable.",
+    "Amyotrophic lateral sclerosis, a degeneration of upper and lower motor neurones, can overlap with frontotemporal dementia, and TDP-43 pathology and C9orf72 expansion link them. Superoxide dismutase 1 mutations cause some familial cases. Worked example: a 74-year-old woman has gradual loss of recent memory over 3 years, getting lost on familiar roads, with preserved social behaviour and no focal signs; MRI shows hippocampal atrophy; the picture fits Alzheimer disease, and a trial of a cholinesterase inhibitor may be considered, after reversible causes are excluded."
+   ]
+  },
+  {
+   "id": "med-neuro.l16",
+   "title": "Demyelinating and Inflammatory Disease",
+   "body": [
+    "Multiple sclerosis (MS) is a chronic immune-mediated disease of the central nervous system with inflammatory demyelination and axonal loss, causing lesions disseminated in space and time. It most often begins between 20 and 40 years, more commonly in women, with higher frequency at higher latitudes, and risk factors include Epstein-Barr virus infection, low vitamin D, smoking and genetic susceptibility (HLA-DRB1*15:01). Plaques are found in periventricular white matter, the optic nerves, the brainstem, the cerebellum and the cord, and they are perpendicular to the ventricles on MRI (Dawson fingers). Oligodendrocytes are lost, so central myelin is lost, while peripheral nerves are spared.",
+    "The typical course is relapsing-remitting, with episodes lasting days to weeks that recover partly, then secondary progression after some years in many; a minority have primary progressive disease. Common presentations include optic neuritis (painful monocular vision loss with a relative afferent pupillary defect and dyschromatopsia), internuclear ophthalmoplegia, sensory symptoms, partial myelitis, ataxia, Lhermitte sign (an electric sensation down the spine on neck flexion) and bladder dysfunction, and Uhthoff phenomenon, with symptoms worsening in heat. Diagnosis uses the McDonald criteria, combining clinical findings, MRI evidence of dissemination in space and time, and CSF oligoclonal IgG bands, with the exclusion of mimics such as neuromyelitis optica, sarcoidosis, vasculitis, B12 deficiency and infection. Acute relapses are treated with high-dose corticosteroids, which shorten recovery without changing long-term outcome, and plasma exchange is used for severe steroid-refractory attacks.",
+    "Disease-modifying therapies reduce relapses and new lesions. They include interferon-beta and glatiramer acetate, oral drugs (fingolimod, a sphingosine-1-phosphate receptor modulator that traps lymphocytes in lymph nodes; dimethyl fumarate; teriflunomide; cladribine) and monoclonal antibodies (natalizumab, which blocks alpha-4 integrin and carries a risk of progressive multifocal leukoencephalopathy from JC virus reactivation; ocrelizumab and ofatumumab, which deplete B cells through CD20). The choice depends on activity and risk, and details change with new approvals.",
+    "Other conditions are important to distinguish. Neuromyelitis optica spectrum disorder is an autoimmune astrocytopathy with antibodies to aquaporin-4, causing severe optic neuritis and longitudinally extensive transverse myelitis spanning three or more vertebral segments, and some treatments for MS can worsen it. MOG antibody-associated disease is a related distinct entity. Acute disseminated encephalomyelitis is a monophasic demyelination, often in children after infection or vaccination, with encephalopathy. Central pontine myelinolysis (osmotic demyelination) follows too rapid correction of severe hyponatraemia and gives quadriparesis and locked-in features. Progressive multifocal leukoencephalopathy occurs in immunosuppressed patients. Worked example: a 27-year-old woman has painful loss of vision in the left eye over four days with a relative afferent pupillary defect; MRI shows periventricular ovoid lesions, so she is at high risk of multiple sclerosis, and she has a clinically isolated syndrome."
+   ]
+  },
+  {
+   "id": "med-neuro.l17",
+   "title": "Neuropathies and the Neuromuscular Junction",
+   "body": [
+    "Peripheral neuropathy is classified by pattern and by pathology. Polyneuropathy affects many nerves symmetrically, with a length-dependent stocking-and-glove pattern of sensory loss, hyporeflexia and distal weakness, since the longest axons fail first. Mononeuropathy affects one nerve, and mononeuritis multiplex affects several individual nerves in a stepwise pattern, typical of vasculitis and diabetes. Axonal neuropathies reduce the amplitude of nerve conduction responses and are common in metabolic and toxic disease; demyelinating neuropathies slow conduction velocity and are typical of Guillain-Barre syndrome, chronic inflammatory demyelinating polyneuropathy, and Charcot-Marie-Tooth disease type 1.",
+    "Common causes of polyneuropathy include diabetes (the leading cause in developed countries), alcohol, vitamin B12 deficiency, uraemia, hypothyroidism, drugs (such as isoniazid with pyridoxine deficiency, vincristine, platinum agents and amiodarone), toxins (lead, arsenic), paraproteinaemia and hereditary disease. Isoniazid neuropathy is prevented by pyridoxine. Small fibre neuropathy affects pain and temperature and autonomic function and gives burning pain, while large fibre neuropathy affects vibration, proprioception and reflexes. Entrapment syndromes include carpal tunnel syndrome (the median nerve at the wrist, with night-time paraesthesia in the thumb, index and middle fingers and thenar wasting, associated with pregnancy, diabetes, hypothyroidism and rheumatoid arthritis), ulnar neuropathy at the elbow, radial neuropathy from compression in the spiral groove (wrist drop, Saturday night palsy), and common peroneal neuropathy at the fibular head (foot drop with sensory loss on the dorsum of the foot, from crossed legs or a cast).",
+    "Guillain-Barre syndrome is an acute immune-mediated polyradiculoneuropathy, often two to four weeks after an infection, classically Campylobacter jejuni enteritis, where molecular mimicry with gangliosides on nerve is thought to drive the attack. It presents with ascending symmetric weakness, areflexia, mild sensory symptoms, and sometimes autonomic instability and respiratory failure, so the forced vital capacity is monitored. Cerebrospinal fluid shows raised protein with a normal cell count (albuminocytologic dissociation), and nerve conduction studies show demyelination. Treatment is intravenous immunoglobulin or plasma exchange; corticosteroids are not helpful. The Miller Fisher variant has ophthalmoplegia, ataxia and areflexia, with anti-GQ1b antibodies.",
+    "At the neuromuscular junction, acetylcholine released from the nerve terminal binds nicotinic receptors on the muscle endplate, and the enzyme acetylcholinesterase breaks it down. Myasthenia gravis is an autoimmune disease in which antibodies against the acetylcholine receptor (or MuSK) reduce the number of functional receptors, giving fatigable weakness that worsens through the day, with ptosis and diplopia, bulbar symptoms and proximal weakness, and normal reflexes and sensation. It is associated with thymic hyperplasia or thymoma, so chest imaging is done. Treatment uses acetylcholinesterase inhibitors (pyridostigmine), immunosuppression, thymectomy in selected patients and rescue therapies; a myasthenic crisis is a respiratory emergency. Lambert-Eaton myasthenic syndrome has antibodies to presynaptic voltage-gated calcium channels, usually with small cell lung cancer, giving proximal weakness that improves briefly with repeated effort and with areflexia and autonomic features. Botulinum toxin blocks acetylcholine release by cleaving SNARE proteins, and causes descending paralysis with dilated pupils. Worked example: a 28-year-old woman has ptosis and double vision that worsen by evening and improve after rest; an ice-pack test or an acetylcholine receptor antibody test supports myasthenia gravis, and a CT of the chest looks for a thymoma."
+   ]
+  },
+  {
+   "id": "med-neuro.l18",
+   "title": "Headache",
+   "body": [
+    "Most headaches are primary, meaning they are not caused by another disease, and the main types are migraine, tension-type headache and the trigeminal autonomic cephalalgias such as cluster headache. Secondary headaches arise from another cause, some of them dangerous, so the first step is to look for red flags: a sudden thunderclap onset, a new headache after age 50, progressive worsening, fever and neck stiffness, a history of cancer or immunosuppression, headache after head trauma, papilloedema or focal neurological signs, and a headache that wakes the patient or is worse lying down.",
+    "Migraine is a recurrent headache lasting 4 to 72 hours, usually unilateral and pulsating, of moderate to severe intensity, aggravated by activity, with nausea or vomiting and photophobia and phonophobia. About a third of patients have aura, a reversible focal neurological symptom, most often visual (scintillating scotoma), spreading over minutes before the headache; it is attributed to cortical spreading depression. The trigeminovascular system is central: activation of trigeminal afferents releases calcitonin gene-related peptide (CGRP) and other mediators, which cause neurogenic inflammation and vasodilation of meningeal vessels. This is the target of newer drugs. Acute treatment includes simple analgesics and non-steroidal anti-inflammatory drugs, antiemetics, triptans (serotonin 5-HT1B/1D agonists, which constrict cranial vessels and inhibit release of neuropeptides), and gepants (CGRP receptor antagonists). Triptans are contraindicated in coronary artery disease, uncontrolled hypertension and hemiplegic or brainstem aura. Preventive options for frequent attacks include beta-blockers such as propranolol, topiramate, amitriptyline, valproate (avoided in pregnancy), antibodies against CGRP or its receptor, and onabotulinumtoxinA for chronic migraine. Medication overuse headache can follow frequent analgesic or triptan use.",
+    "Tension-type headache is bilateral, pressing or tightening, mild to moderate and not worsened by activity, without nausea. Cluster headache gives excruciating unilateral periorbital pain lasting 15 to 180 minutes, with ipsilateral lacrimation, nasal congestion, ptosis and miosis (autonomic features) and restlessness, in men more than in women, in bouts that recur at the same time of year or night; acute treatment is high-flow oxygen and subcutaneous sumatriptan, and verapamil is used for prevention. Trigeminal neuralgia is a different entity, treated with carbamazepine.",
+    "Important secondary headaches include subarachnoid haemorrhage (thunderclap), meningitis (fever and neck stiffness), giant cell arteritis in patients over 50 (jaw claudication, scalp tenderness, raised inflammatory markers, a risk of blindness, so high-dose corticosteroids are started before the biopsy), idiopathic intracranial hypertension in obese young women (headache, transient visual obscurations and papilloedema, with normal imaging and a high opening pressure; acetazolamide and weight loss), and cerebral venous thrombosis. Worked example: a 25-year-old woman has throbbing left-sided headaches with nausea and photophobia lasting a day, preceded by zigzag lights; she has migraine with aura, and combined oestrogen contraceptives carry an increased stroke risk in those with aura."
+   ]
+  },
+  {
+   "id": "med-neuro.l19",
+   "title": "Neuropharmacology Links",
+   "body": [
+    "Most neurological drugs act on a handful of neurotransmitter systems, and learning the pairings makes the clinical picture easier to follow. Dopamine is central to Parkinson disease. Levodopa crosses the blood-brain barrier and is converted to dopamine by DOPA decarboxylase; it is given with carbidopa, a peripheral decarboxylase inhibitor that cannot cross the barrier, which cuts peripheral side effects such as nausea and postural hypotension. Long-term use brings motor fluctuations (wearing-off) and dyskinesias. Dopamine agonists (pramipexole, ropinirole) act directly on D2 receptors, and can cause impulse control disorders, sleepiness and hallucinations. Selegiline and rasagiline inhibit monoamine oxidase B, slowing dopamine breakdown, and entacapone inhibits catechol-O-methyltransferase, prolonging levodopa action. Amantadine has an antidyskinetic effect. Anticholinergics such as benztropine help tremor but cause confusion and urinary retention in the elderly. Dopamine antagonists, including antipsychotics and metoclopramide, can cause parkinsonism, and in the long term tardive dyskinesia. Neuroleptic malignant syndrome, with fever, rigidity, autonomic instability and raised creatine kinase, is a rare emergency in which dopamine blockade is implicated, and dantrolene or bromocriptine may be used.",
+    "Acetylcholine is central to Alzheimer disease and myasthenia gravis. Cholinesterase inhibitors (donepezil, rivastigmine, galantamine) raise acetylcholine in the brain and cause nausea, bradycardia and vivid dreams, and pyridostigmine does so at the neuromuscular junction. Excess cholinergic effect, as in organophosphate poisoning, gives the SLUDGE picture of salivation, lacrimation, urination, defecation, and also bradycardia and muscle fasciculation, and it is treated with atropine and pralidoxime. Glutamate acting on NMDA receptors is linked to excitotoxicity; memantine blocks the NMDA channel, and ketamine is a non-competitive antagonist. GABA is the main inhibitory neurotransmitter: benzodiazepines increase the frequency of chloride channel opening of GABA-A receptors, and barbiturates increase the duration, which explains why barbiturates are more dangerous in overdose. Flumazenil is a benzodiazepine antagonist and can precipitate seizures in dependent patients.",
+    "Serotonin and norepinephrine are involved in migraine, depression and pain. Triptans act on 5-HT1B/1D receptors; serotonin syndrome, which gives agitation, clonus, hyperthermia and diarrhoea, can arise when serotonergic agents are combined, such as an SSRI with a triptan or tramadol or a monoamine oxidase inhibitor. Opioids act at mu receptors, with respiratory depression, miosis and constipation, and naloxone reverses them. Local anaesthetics block sodium channels. Anticonvulsants were covered in the epilepsy lesson. Botulinum toxin blocks acetylcholine release. Baclofen, a GABA-B agonist, is used for spasticity, and tizanidine, an alpha-2 agonist, is also used for spasticity.",
+    "Pharmacokinetic points apply. Drugs must cross the blood-brain barrier, formed by tight junctions of the cerebral capillary endothelium, astrocyte end-feet and a basement membrane; lipid-soluble drugs cross easily, and efflux pumps such as P-glycoprotein limit entry. Enzyme induction and inhibition alter levels of many neurological drugs. Doses are individualised and are outside the scope of this course. Worked example: a patient with Parkinson disease is given a dopamine antagonist for nausea, and her rigidity worsens; the explanation is blockade of striatal D2 receptors in an already dopamine-depleted system, and a peripherally acting antiemetic such as domperidone is preferred in some regions because it does not cross the barrier well."
+   ]
+  },
+  {
+   "id": "med-neuro.l20",
+   "title": "CNS Infection, Tumour, Trauma and Disorders of Consciousness",
+   "body": [
+    "Meningitis is inflammation of the meninges, with fever, headache, neck stiffness and photophobia. Bacterial meningitis is an emergency: the usual organisms vary by age, being group B Streptococcus, Escherichia coli and Listeria in neonates, Streptococcus pneumoniae and Neisseria meningitidis in children and adults, and Listeria in the elderly and immunocompromised. Meningococcal disease may show a non-blanching purpuric rash. Lumbar puncture is the key test, but a CT head should come first if there are signs of raised pressure or a mass, such as papilloedema, focal deficit, new seizures or reduced consciousness, and antibiotics must not be delayed for it. Cerebrospinal fluid in bacterial meningitis shows many neutrophils, a high protein and a low glucose; in viral meningitis it shows lymphocytes, a mildly raised protein and a normal glucose; fungal and tuberculous meningitis give lymphocytes with a low glucose and a subacute course. Herpes simplex encephalitis, commonly of the temporal lobes, causes fever, confusion, seizures and behavioural change with temporal lobe hyperintensities on MRI and red cells in the CSF, and aciclovir is started promptly. Brain abscess presents with fever, headache and focal signs, and shows ring enhancement on imaging. In immunosuppressed patients, toxoplasmosis, cryptococcosis and progressive multifocal leukoencephalopathy should be considered.",
+    "Brain tumours may be primary or metastatic, and metastases are more common in adults, most often from lung, breast, melanoma, kidney and colon primaries, and they are typically multiple at the grey-white junction. Glioblastoma is the most common malignant primary adult tumour, with a butterfly pattern crossing the corpus callosum, necrosis and pseudopalisading on histology, and a poor prognosis. Meningioma is the commonest benign primary, arising from arachnoid cap cells, slow-growing, extra-axial and with psammoma bodies and a female predominance. Schwannoma of the vestibular nerve presents with unilateral sensorineural hearing loss and tinnitus, and bilateral tumours characterise neurofibromatosis type 2. In children, medulloblastoma, pilocytic astrocytoma and ependymoma are common, and most childhood tumours are infratentorial. Presenting features are raised intracranial pressure, seizures and focal deficits depending on the location. Vasogenic oedema around tumours responds to dexamethasone.",
+    "Head injury is assessed by the Glasgow Coma Scale, which scores eye opening (1 to 4), verbal response (1 to 5) and motor response (1 to 6), for a total of 3 to 15; 8 or less is severe and generally needs airway protection. Epidural and subdural haematomas were discussed earlier, and diffuse axonal injury follows rotational acceleration, with a poor neurological state out of proportion to a normal-looking CT. Concussion is a transient disturbance without structural damage on routine imaging. Secondary injury from hypoxia, hypotension and raised pressure is preventable, so management centres on oxygenation, perfusion and monitoring.",
+    "Disorders of consciousness form a spectrum: coma (no arousal and no awareness), vegetative state or unresponsive wakefulness (arousal with sleep-wake cycles but no awareness), and minimally conscious state (fluctuating, reproducible but inconsistent awareness). Locked-in syndrome is not a disorder of consciousness: the patient is aware but nearly paralysed. Brain death is the irreversible loss of all brain function including the brainstem, determined by clinical tests (absence of pupil, corneal, oculocephalic, vestibulo-ocular and gag reflexes, no response to pain in the cranial nerve distribution and no breathing on an apnoea test) after exclusion of reversible confounders such as sedatives and hypothermia, with local legal criteria governing the details. Worked example: a 24-year-old student with fever, headache, photophobia and a stiff neck has cloudy CSF with a high neutrophil count and a low glucose; the likely cause is bacterial meningitis, and empirical antibiotics are started at once."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-neuro.l01.q1",
+   "lessonId": "med-neuro.l01",
+   "kind": "mcq",
+   "prompt": "Which area of the dominant hemisphere is needed for speech production?",
+   "choices": [
+    "The arcuate fasciculus linking the two language areas",
+    "Wernicke area in the posterior superior temporal gyrus",
+    "Broca area in the inferior frontal gyrus",
+    "The angular gyrus in the inferior parietal lobule"
+   ]
+  },
+  {
+   "id": "med-neuro.l01.q2",
+   "lessonId": "med-neuro.l01",
+   "kind": "mcq",
+   "prompt": "Which aphasia has fluent speech, good comprehension and poor repetition?",
+   "choices": [
+    "Broca aphasia, from a lesion of the inferior frontal gyrus",
+    "Wernicke aphasia, from a lesion of the superior temporal gyrus",
+    "Global aphasia, from a large lesion of the left perisylvian cortex",
+    "Conduction aphasia, from a lesion of the arcuate fasciculus"
+   ]
+  },
+  {
+   "id": "med-neuro.l01.q3",
+   "lessonId": "med-neuro.l01",
+   "kind": "mcq",
+   "prompt": "A lesion of the right (non-dominant) parietal lobe most typically produces which finding?",
+   "choices": [
+    "Hemispatial neglect of the left side of space, sometimes with anosognosia",
+    "Kluver-Bucy syndrome with placidity, hyperorality and hypersexual behaviour",
+    "Conduction aphasia with fluent speech and impaired repetition of spoken phrases",
+    "Gerstmann syndrome with agraphia, acalculia and finger agnosia of the dominant hand"
+   ]
+  },
+  {
+   "id": "med-neuro.l01.q4",
+   "lessonId": "med-neuro.l01",
+   "kind": "mcq",
+   "prompt": "A 70-year-old right-handed woman has sudden weakness of the left leg more than the left arm, with sparing of the face and a flat affect and abulia. Which vascular territory is most likely infarcted?",
+   "choices": [
+    "Right vertebral artery, supplying the lateral medulla and the inferior cerebellum surface",
+    "Right anterior cerebral artery, supplying the medial frontal lobe where the leg is represented",
+    "Right middle cerebral artery, supplying the lateral convexity where the arm and face lie",
+    "Right posterior cerebral artery, supplying the occipital cortex and medial temporal lobe"
+   ]
+  },
+  {
+   "id": "med-neuro.l01.q5",
+   "lessonId": "med-neuro.l01",
+   "kind": "mcq",
+   "prompt": "A 62-year-old right-handed man has fluent speech full of wrong words, cannot follow commands and cannot repeat a phrase, but has no weakness. He has a superior quadrantanopia. Which site is most likely affected?",
+   "choices": [
+    "The arcuate fasciculus alone, because its damage causes isolated impairment of repetition",
+    "The left inferior frontal gyrus, because its damage causes effortful non-fluent speech",
+    "The left posterior superior temporal gyrus, because its damage causes fluent comprehension failure",
+    "The right parietal association cortex, because its damage causes neglect of the left space"
+   ]
+  },
+  {
+   "id": "med-neuro.l02.q1",
+   "lessonId": "med-neuro.l02",
+   "kind": "mcq",
+   "prompt": "Which cranial nerve nuclei are found in the medulla?",
+   "choices": [
+    "V, VI, VII and VIII",
+    "IX, X, XI and XII",
+    "I and II",
+    "III and IV"
+   ]
+  },
+  {
+   "id": "med-neuro.l02.q2",
+   "lessonId": "med-neuro.l02",
+   "kind": "mcq",
+   "prompt": "Which structure links the abducens nucleus to the contralateral oculomotor nucleus for conjugate horizontal gaze?",
+   "choices": [
+    "Medial longitudinal fasciculus",
+    "Medial lemniscus",
+    "Central tegmental tract",
+    "Spinothalamic tract"
+   ]
+  },
+  {
+   "id": "med-neuro.l02.q3",
+   "lessonId": "med-neuro.l02",
+   "kind": "mcq",
+   "prompt": "Which finding is characteristic of lateral medullary (Wallenberg) syndrome?",
+   "choices": [
+    "Ipsilateral hemiparesis with contralateral tongue weakness and loss of proprioception",
+    "Contralateral hemiparesis with ipsilateral third nerve palsy and a dilated pupil",
+    "Contralateral face and ipsilateral body loss of pain and temperature, with hoarseness",
+    "Ipsilateral face and contralateral body loss of pain and temperature, with hoarseness"
+   ]
+  },
+  {
+   "id": "med-neuro.l02.q4",
+   "lessonId": "med-neuro.l02",
+   "kind": "mcq",
+   "prompt": "A 24-year-old woman reports double vision. On looking to the right, the left eye fails to adduct while the right eye abducts with nystagmus, and convergence is intact. Which lesion is most likely, and which disease is likely given her age?",
+   "choices": [
+    "A right abducens nucleus lesion, due to elevated intracranial pressure from a mass",
+    "A right medial longitudinal fasciculus lesion, due to a small vessel infarct",
+    "A left medial longitudinal fasciculus lesion, due to demyelination from multiple sclerosis",
+    "A left oculomotor nerve lesion, due to compression by a posterior communicating aneurysm"
+   ]
+  },
+  {
+   "id": "med-neuro.l02.q5",
+   "lessonId": "med-neuro.l02",
+   "kind": "mcq",
+   "prompt": "A 55-year-old with hypertension has a right-sided ptosis, a dilated right pupil and the right eye looking down and out, with left arm and leg weakness. Where is the lesion?",
+   "choices": [
+    "The right lateral medulla, involving the nucleus ambiguus and the spinal trigeminal tract",
+    "The right ventral midbrain, involving the oculomotor fascicle and cerebral peduncle",
+    "The left basis pontis, involving the abducens fascicle and the corticospinal fibres",
+    "The left medial medulla, involving the hypoglossal nucleus and the pyramid fibres"
+   ]
+  },
+  {
+   "id": "med-neuro.l03.q1",
+   "lessonId": "med-neuro.l03",
+   "kind": "mcq",
+   "prompt": "Which cranial nerve supplies the superior oblique muscle?",
+   "choices": [
+    "Trochlear nerve",
+    "Abducens nerve",
+    "Trigeminal nerve",
+    "Oculomotor nerve"
+   ]
+  },
+  {
+   "id": "med-neuro.l03.q2",
+   "lessonId": "med-neuro.l03",
+   "kind": "mcq",
+   "prompt": "A patient with a right facial droop that spares the forehead most likely has which type of lesion?",
+   "choices": [
+    "A right upper motor neurone lesion, because the forehead has crossed input only",
+    "A left upper motor neurone lesion, because the lower face has mostly contralateral input",
+    "A right lower motor neurone lesion, because the facial nerve nucleus supplies the whole half",
+    "A left lower motor neurone lesion, because the facial nerve crosses within the pons"
+   ]
+  },
+  {
+   "id": "med-neuro.l03.q3",
+   "lessonId": "med-neuro.l03",
+   "kind": "mcq",
+   "prompt": "Which nerve forms the efferent limb of the gag reflex?",
+   "choices": [
+    "Glossopharyngeal nerve",
+    "Trigeminal nerve",
+    "Vagus nerve",
+    "Hypoglossal nerve"
+   ]
+  },
+  {
+   "id": "med-neuro.l03.q4",
+   "lessonId": "med-neuro.l03",
+   "kind": "mcq",
+   "prompt": "A 60-year-old with diabetes has acute double vision, right ptosis and the right eye deviated down and out. The right pupil reacts normally to light. Which cause is most likely?",
+   "choices": [
+    "A demyelinating plaque in the medial longitudinal fasciculus that interrupts conjugate gaze",
+    "An uncal herniation that stretches the nerve against the free edge of the tentorium",
+    "Compression by a posterior communicating artery aneurysm that damages the outer parasympathetic fibres",
+    "Microvascular ischaemia of the central nerve fibres that spares the peripheral parasympathetic fibres"
+   ]
+  },
+  {
+   "id": "med-neuro.l03.q5",
+   "lessonId": "med-neuro.l03",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman wakes with a droop of the entire right face, a dry right eye, loss of taste in the anterior right tongue and sounds that seem too loud on the right. Where is the lesion?",
+   "choices": [
+    "The facial nerve proximal to the origin of the nerve to stapedius in the facial canal",
+    "The facial nerve distal to its exit at the stylomastoid foramen in the parotid",
+    "The contralateral motor cortex in the precentral gyrus that supplies the lower face",
+    "The right abducens nucleus at the facial colliculus of the pons in the brainstem"
+   ]
+  },
+  {
+   "id": "med-neuro.l04.q1",
+   "lessonId": "med-neuro.l04",
+   "kind": "mcq",
+   "prompt": "Which tract carries pain and temperature sensation?",
+   "choices": [
+    "Posterior spinocerebellar tract",
+    "Fasciculus gracilis",
+    "Lateral corticospinal tract",
+    "Spinothalamic tract"
+   ]
+  },
+  {
+   "id": "med-neuro.l04.q2",
+   "lessonId": "med-neuro.l04",
+   "kind": "mcq",
+   "prompt": "Where do the majority of lateral corticospinal tract fibres cross?",
+   "choices": [
+    "In the corpus callosum above the lateral ventricle",
+    "In the anterior white commissure at the spinal level of entry",
+    "In the pyramidal decussation of the caudal medulla",
+    "In the internal arcuate fibres of the rostral medulla"
+   ]
+  },
+  {
+   "id": "med-neuro.l04.q3",
+   "lessonId": "med-neuro.l04",
+   "kind": "mcq",
+   "prompt": "Which cord syndrome gives loss of pain and temperature in a cape distribution with preserved light touch?",
+   "choices": [
+    "Subacute combined degeneration, from deficiency of vitamin B12 in the diet",
+    "Syringomyelia, from a central cavity damaging the crossing fibres",
+    "Brown-Sequard syndrome, from a lateral hemisection of the spinal cord",
+    "Anterior spinal artery syndrome, from infarction of the ventral cord"
+   ]
+  },
+  {
+   "id": "med-neuro.l04.q4",
+   "lessonId": "med-neuro.l04",
+   "kind": "mcq",
+   "prompt": "A 38-year-old has a stab wound to the thoracic cord. He has weakness and loss of vibration in the right leg and loss of pain and temperature in the left leg. What is the lesion?",
+   "choices": [
+    "A right hemisection of the cord, which interrupts ipsilateral motor and dorsal column fibres",
+    "A left hemisection of the cord, which interrupts ipsilateral motor and dorsal column fibres",
+    "A central cord lesion, which interrupts crossing spinothalamic fibres at multiple levels",
+    "An anterior cord infarct, which interrupts bilateral spinothalamic and motor fibres"
+   ]
+  },
+  {
+   "id": "med-neuro.l04.q5",
+   "lessonId": "med-neuro.l04",
+   "kind": "mcq",
+   "prompt": "A 66-year-old vegetarian has paraesthesias, loss of vibration and position sense in the feet, spastic weakness and a positive Romberg test. Which pair of tracts is involved?",
+   "choices": [
+    "Spinothalamic tracts and anterior horn cells, in amyotrophic lateral sclerosis",
+    "Anterior corticospinal tracts and spinocerebellar tracts, in Friedreich ataxia",
+    "Lateral spinothalamic tracts and dorsal roots, in syringomyelia of the cervical cord",
+    "Dorsal columns and lateral corticospinal tracts, in subacute combined degeneration"
+   ]
+  },
+  {
+   "id": "med-neuro.l05.q1",
+   "lessonId": "med-neuro.l05",
+   "kind": "mcq",
+   "prompt": "Which artery supplies the lateral convexity of the cerebral hemisphere, including the face and arm motor areas?",
+   "choices": [
+    "Posterior cerebral artery",
+    "Basilar artery",
+    "Middle cerebral artery",
+    "Anterior cerebral artery"
+   ]
+  },
+  {
+   "id": "med-neuro.l05.q2",
+   "lessonId": "med-neuro.l05",
+   "kind": "mcq",
+   "prompt": "A posterior cerebral artery occlusion causes a homonymous hemianopia with macular sparing. Why is the macula spared?",
+   "choices": [
+    "The macula projects to the lateral geniculate nucleus, which has anterior choroidal supply",
+    "The macula is represented in the frontal eye field, which is unaffected by the occlusion",
+    "The macular fibres cross at the chiasm, which lies upstream of the vascular territory affected",
+    "The occipital pole has dual blood supply, partly from the middle cerebral artery"
+   ]
+  },
+  {
+   "id": "med-neuro.l05.q3",
+   "lessonId": "med-neuro.l05",
+   "kind": "mcq",
+   "prompt": "Which stroke causes locked-in syndrome?",
+   "choices": [
+    "Basilar artery occlusion destroying the ventral pons",
+    "Bilateral anterior cerebral artery occlusion causing frontal damage",
+    "Left middle cerebral artery occlusion causing global aphasia",
+    "Posterior inferior cerebellar artery occlusion causing lateral medullary damage"
+   ]
+  },
+  {
+   "id": "med-neuro.l05.q4",
+   "lessonId": "med-neuro.l05",
+   "kind": "mcq",
+   "prompt": "A 72-year-old man with atrial fibrillation has sudden right face and arm weakness, expressive speech difficulty with good comprehension, and gaze deviation to the left. Which vessel is occluded?",
+   "choices": [
+    "Left anterior cerebral artery, which supplies the medial frontal cortex and the leg area",
+    "Left middle cerebral artery superior division, which supplies the lateral frontal convexity",
+    "Left posterior cerebral artery, which supplies the occipital cortex and inferior temporal lobe",
+    "Left lenticulostriate branch, which supplies a small portion of the internal capsule only"
+   ]
+  },
+  {
+   "id": "med-neuro.l05.q5",
+   "lessonId": "med-neuro.l05",
+   "kind": "mcq",
+   "prompt": "A 64-year-old woman has sudden vertigo, vomiting, left facial pain and temperature loss, right body pain and temperature loss, hoarseness and left Horner syndrome. Which artery is the most likely culprit?",
+   "choices": [
+    "Left anterior spinal artery, which supplies the medial medulla and the pyramid",
+    "Left superior cerebellar artery, which supplies the upper cerebellum and the dorsolateral pons",
+    "Left posterior inferior cerebellar artery or vertebral artery, which supplies the lateral medulla",
+    "Left anterior inferior cerebellar artery, which supplies the lateral pons and the inner ear"
+   ]
+  },
+  {
+   "id": "med-neuro.l06.q1",
+   "lessonId": "med-neuro.l06",
+   "kind": "mcq",
+   "prompt": "Where is most CSF produced?",
+   "choices": [
+    "Arachnoid granulations",
+    "Choroid plexus",
+    "Subarachnoid space",
+    "Pia mater"
+   ]
+  },
+  {
+   "id": "med-neuro.l06.q2",
+   "lessonId": "med-neuro.l06",
+   "kind": "mcq",
+   "prompt": "Which haematoma is lens-shaped, does not cross suture lines and is classically associated with a lucid interval?",
+   "choices": [
+    "Epidural haematoma",
+    "Subdural haematoma",
+    "Subarachnoid haemorrhage",
+    "Intraparenchymal haemorrhage"
+   ]
+  },
+  {
+   "id": "med-neuro.l06.q3",
+   "lessonId": "med-neuro.l06",
+   "kind": "mcq",
+   "prompt": "Which CSF circulation sequence is correct?",
+   "choices": [
+    "Lateral ventricle, aqueduct, third ventricle, foramen of Monro, fourth ventricle, foramina of Luschka and Magendie",
+    "Third ventricle, lateral ventricle, foramen of Monro, aqueduct, fourth ventricle, central canal of the cord",
+    "Fourth ventricle, aqueduct, third ventricle, foramen of Monro, lateral ventricle, arachnoid granulations",
+    "Lateral ventricle, foramen of Monro, third ventricle, aqueduct, fourth ventricle, foramina of Luschka and Magendie"
+   ]
+  },
+  {
+   "id": "med-neuro.l06.q4",
+   "lessonId": "med-neuro.l06",
+   "kind": "mcq",
+   "prompt": "A 74-year-old has a shuffling, wide-based gait, new urinary urgency and memory decline over six months. CT shows enlarged ventricles without prominent sulcal atrophy. What is the most likely diagnosis?",
+   "choices": [
+    "Obstructive hydrocephalus from a posterior fossa tumour that causes severe raised pressure",
+    "Parkinson disease, a synucleinopathy that typically presents with tremor and unilateral rigidity",
+    "Normal pressure hydrocephalus, a communicating hydrocephalus that may improve after CSF diversion",
+    "Alzheimer disease, a degenerative dementia that is expected to show marked sulcal widening"
+   ]
+  },
+  {
+   "id": "med-neuro.l06.q5",
+   "lessonId": "med-neuro.l06",
+   "kind": "mcq",
+   "prompt": "A 35-year-old with a large right hemispheric mass becomes drowsy and develops a dilated right pupil with right-sided limb weakness on the same side as the mass. Which mechanism best explains the ipsilateral weakness?",
+   "choices": [
+    "Tonsillar herniation compressing the medullary pyramids as they cross at the foramen magnum",
+    "Compression of the left cerebral peduncle against the tentorium, known as the Kernohan notch",
+    "Compression of the right cerebral peduncle directly by the temporal uncus on the right side",
+    "Subfalcine herniation compressing the right anterior cerebral artery against the falx cerebri"
+   ]
+  },
+  {
+   "id": "med-neuro.l07.q1",
+   "lessonId": "med-neuro.l07",
+   "kind": "mcq",
+   "prompt": "Which thalamic nucleus relays visual information to the occipital cortex?",
+   "choices": [
+    "Lateral geniculate nucleus",
+    "Ventral posteromedial nucleus",
+    "Medial geniculate nucleus",
+    "Ventral posterolateral nucleus"
+   ]
+  },
+  {
+   "id": "med-neuro.l07.q2",
+   "lessonId": "med-neuro.l07",
+   "kind": "mcq",
+   "prompt": "A lesion of the left optic tract produces which visual field defect?",
+   "choices": [
+    "Left monocular blindness",
+    "Right homonymous hemianopia",
+    "Left homonymous hemianopia",
+    "Bitemporal hemianopia"
+   ]
+  },
+  {
+   "id": "med-neuro.l07.q3",
+   "lessonId": "med-neuro.l07",
+   "kind": "mcq",
+   "prompt": "In a patient with unilateral conductive hearing loss, the Weber test is expected to be which?",
+   "choices": [
+    "Absent in both ears, because the central auditory pathways are bilateral and intact",
+    "Louder in the healthy ear, because the cochlea of the affected ear is damaged",
+    "Louder in the affected ear, because the bone conduction is not masked by ambient noise",
+    "Equal in both ears, because the cochlear function is equal on the two sides"
+   ]
+  },
+  {
+   "id": "med-neuro.l07.q4",
+   "lessonId": "med-neuro.l07",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman has headaches, galactorrhoea and amenorrhoea and has been bumping into objects on both sides. Which visual field finding would be expected, and why?",
+   "choices": [
+    "Binasal hemianopia, because both the lateral chiasm edges are compressed by the carotids on each side",
+    "Left homonymous hemianopia, because the right optic tract is compressed by the adenoma on that side",
+    "Right superior quadrantanopia, because the temporal radiations are compressed by a mass in the lobe",
+    "Bitemporal hemianopia, because the chiasm compresses the crossing nasal retinal fibres from below"
+   ]
+  },
+  {
+   "id": "med-neuro.l07.q5",
+   "lessonId": "med-neuro.l07",
+   "kind": "mcq",
+   "prompt": "A 68-year-old has a left temporal lobe stroke. Which visual finding would be expected?",
+   "choices": [
+    "Right superior quadrantanopia, because the Meyer loop fibres sweep through the temporal lobe",
+    "Left inferior quadrantanopia, because the temporal fibres carry the left lower visual field",
+    "Right homonymous hemianopia with macular sparing, because the occipital pole is spared",
+    "Right inferior quadrantanopia, because the upper radiations pass through the parietal lobe"
+   ]
+  },
+  {
+   "id": "med-neuro.l08.q1",
+   "lessonId": "med-neuro.l08",
+   "kind": "mcq",
+   "prompt": "Which finding is characteristic of a lower motor neurone lesion?",
+   "choices": [
+    "Extensor plantar response",
+    "Spasticity",
+    "Hyperreflexia",
+    "Fasciculations"
+   ]
+  },
+  {
+   "id": "med-neuro.l08.q2",
+   "lessonId": "med-neuro.l08",
+   "kind": "mcq",
+   "prompt": "Which combination fits an upper motor neurone lesion?",
+   "choices": [
+    "Proximal weakness, normal reflexes and raised creatine kinase with no wasting",
+    "Flaccid weakness, absent reflexes and early muscle wasting in the limbs",
+    "Spastic weakness, brisk reflexes and an extensor plantar response in the limbs",
+    "Fatigable weakness, normal reflexes and normal tone with no sensory change"
+   ]
+  },
+  {
+   "id": "med-neuro.l08.q3",
+   "lessonId": "med-neuro.l08",
+   "kind": "mcq",
+   "prompt": "Which reflex tests the S1 root?",
+   "choices": [
+    "Knee jerk",
+    "Ankle jerk",
+    "Biceps reflex",
+    "Triceps reflex"
+   ]
+  },
+  {
+   "id": "med-neuro.l08.q4",
+   "lessonId": "med-neuro.l08",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has tongue fasciculations, wasting of the hand muscles, brisk knee jerks, extensor plantar responses and no sensory loss. Which is the most likely diagnosis?",
+   "choices": [
+    "Amyotrophic lateral sclerosis, which affects both upper and lower motor neurones",
+    "Myasthenia gravis, which causes fatigable weakness without reflex changes or wasting",
+    "Guillain-Barre syndrome, which causes ascending flaccid weakness with areflexia in the limbs",
+    "Cervical spondylotic myelopathy, which causes sensory loss with spasticity in the limbs"
+   ]
+  },
+  {
+   "id": "med-neuro.l08.q5",
+   "lessonId": "med-neuro.l08",
+   "kind": "mcq",
+   "prompt": "A 70-year-old has an acute stroke with flaccid left arm weakness and absent reflexes on day one. Reflexes become brisk with spasticity by two weeks. Which explanation is best?",
+   "choices": [
+    "A second infarct in the anterior horn that causes a delayed lower motor neurone lesion",
+    "Evolving peripheral neuropathy that causes loss of reflexes initially and then hyperreflexia",
+    "Recovery of the neuromuscular junction after the transient blockade by antibodies to receptors",
+    "Cerebral shock followed by release of spinal reflexes from the loss of descending inhibition"
+   ]
+  },
+  {
+   "id": "med-neuro.l09.q1",
+   "lessonId": "med-neuro.l09",
+   "kind": "mcq",
+   "prompt": "Which cells are the sole output neurones of the cerebellar cortex?",
+   "choices": [
+    "Stellate cells",
+    "Granule cells",
+    "Purkinje cells",
+    "Golgi cells"
+   ]
+  },
+  {
+   "id": "med-neuro.l09.q2",
+   "lessonId": "med-neuro.l09",
+   "kind": "mcq",
+   "prompt": "A lesion of the right cerebellar hemisphere would cause ataxia on which side?",
+   "choices": [
+    "The left side, contralateral to the lesion",
+    "Both sides, with equal severity on both",
+    "Neither side, since the signs are truncal only",
+    "The right side, ipsilateral to the lesion"
+   ]
+  },
+  {
+   "id": "med-neuro.l09.q3",
+   "lessonId": "med-neuro.l09",
+   "kind": "mcq",
+   "prompt": "Which feature separates cerebellar ataxia from sensory ataxia?",
+   "choices": [
+    "Cerebellar ataxia is present with the eyes open and does not worsen much when they are closed",
+    "Cerebellar ataxia is accompanied by loss of vibration and position sense in the legs",
+    "Cerebellar ataxia is relieved by visual fixation on a stationary point in the room",
+    "Cerebellar ataxia is worsened markedly by eye closure, as in the Romberg test"
+   ]
+  },
+  {
+   "id": "med-neuro.l09.q4",
+   "lessonId": "med-neuro.l09",
+   "kind": "mcq",
+   "prompt": "A 5-year-old has two weeks of morning headaches, vomiting and unsteady walking with a wide-based gait. MRI shows a midline mass in the fourth ventricle with dilated lateral ventricles. Which diagnosis is most likely?",
+   "choices": [
+    "Pilocytic astrocytoma, a cystic hemispheric tumour with a mural nodule that is usually lateral",
+    "Medulloblastoma, a vermian tumour that obstructs the fourth ventricle",
+    "Haemangioblastoma, a vascular tumour that is usually seen in adults with a related syndrome",
+    "Meningioma, a dural-based tumour of adults which is usually located over the convexity"
+   ]
+  },
+  {
+   "id": "med-neuro.l09.q5",
+   "lessonId": "med-neuro.l09",
+   "kind": "mcq",
+   "prompt": "A 55-year-old woman develops subacute pancerebellar ataxia and her serum contains anti-Yo antibodies. Which further step is most appropriate?",
+   "choices": [
+    "Perform a lumbar puncture to measure the opening pressure for suspected normal pressure hydrocephalus",
+    "Give thiamine and stop alcohol since a deficiency state is the only credible explanation here",
+    "Search for an underlying gynaecological or breast malignancy that drives the paraneoplastic syndrome",
+    "Start lifelong levodopa treatment for a presumed parkinsonian syndrome with an ataxic variant"
+   ]
+  },
+  {
+   "id": "med-neuro.l10.q1",
+   "lessonId": "med-neuro.l10",
+   "kind": "mcq",
+   "prompt": "Parkinson disease involves loss of neurones in which structure?",
+   "choices": [
+    "Substantia nigra pars compacta",
+    "Caudate nucleus",
+    "Subthalamic nucleus",
+    "Red nucleus"
+   ]
+  },
+  {
+   "id": "med-neuro.l10.q2",
+   "lessonId": "med-neuro.l10",
+   "kind": "mcq",
+   "prompt": "Which statement best describes the direct pathway of the basal ganglia?",
+   "choices": [
+    "It inhibits the thalamus by exciting the internal globus pallidus and so suppresses movement",
+    "It disinhibits the thalamus by inhibiting the internal globus pallidus and so facilitates movement",
+    "It excites the subthalamic nucleus by inhibiting the external globus pallidus and so suppresses movement",
+    "It excites the cerebellar nuclei by inhibiting the substantia nigra and so facilitates movement"
+   ]
+  },
+  {
+   "id": "med-neuro.l10.q3",
+   "lessonId": "med-neuro.l10",
+   "kind": "mcq",
+   "prompt": "Huntington disease is caused by which genetic mechanism?",
+   "choices": [
+    "A GAA trinucleotide repeat expansion in the frataxin gene, inherited in an autosomal recessive manner",
+    "A point mutation in the alpha-synuclein gene, inherited in a mitochondrial manner from the mother",
+    "A CAG trinucleotide repeat expansion in the huntingtin gene, inherited in an autosomal dominant manner",
+    "A CGG trinucleotide repeat expansion in a gene on the X chromosome, inherited in an X-linked manner"
+   ]
+  },
+  {
+   "id": "med-neuro.l10.q4",
+   "lessonId": "med-neuro.l10",
+   "kind": "mcq",
+   "prompt": "A 38-year-old has irritability, clumsiness and irregular, dance-like movements of the limbs. His father died in an institution at 50. Which imaging finding is most expected?",
+   "choices": [
+    "Midbrain atrophy with a hummingbird sign and widening of the interpeduncular fossa",
+    "Hyperintensity of the putamen and pons in the cruciate pattern known as the hot cross bun sign",
+    "Symmetric atrophy of the hippocampi with enlarged temporal horns and preserved caudate size",
+    "Atrophy of the caudate nucleus with enlargement of the frontal horns of the lateral ventricles"
+   ]
+  },
+  {
+   "id": "med-neuro.l10.q5",
+   "lessonId": "med-neuro.l10",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man has bradykinesia and rigidity but had falls and a vertical gaze limitation within the first year, and levodopa gave little benefit. Which diagnosis is most likely?",
+   "choices": [
+    "Progressive supranuclear palsy, an atypical parkinsonism with early falls and gaze palsy",
+    "Essential tremor, an action tremor of the hands that improves after alcohol intake",
+    "Drug-induced parkinsonism, a symmetric syndrome that appears after starting dopamine antagonists",
+    "Idiopathic Parkinson disease with a typical pattern of asymmetric onset and levodopa response"
+   ]
+  },
+  {
+   "id": "med-neuro.l11.q1",
+   "lessonId": "med-neuro.l11",
+   "kind": "mcq",
+   "prompt": "Which hypothalamic nucleus controls circadian rhythm?",
+   "choices": [
+    "Ventromedial nucleus",
+    "Suprachiasmatic nucleus",
+    "Arcuate nucleus",
+    "Paraventricular nucleus"
+   ]
+  },
+  {
+   "id": "med-neuro.l11.q2",
+   "lessonId": "med-neuro.l11",
+   "kind": "mcq",
+   "prompt": "Which structure is in the Papez circuit between the fornix and the thalamus?",
+   "choices": [
+    "Mammillary bodies",
+    "Caudate nucleus",
+    "Red nucleus",
+    "Amygdala"
+   ]
+  },
+  {
+   "id": "med-neuro.l11.q3",
+   "lessonId": "med-neuro.l11",
+   "kind": "mcq",
+   "prompt": "Bilateral removal of the medial temporal lobes primarily causes which deficit?",
+   "choices": [
+    "Receptive aphasia with fluent but meaningless speech",
+    "Hemispatial neglect with denial of illness in the left space",
+    "Loss of procedural motor skills with preserved declarative memory",
+    "Anterograde amnesia with impaired formation of new declarative memories"
+   ]
+  },
+  {
+   "id": "med-neuro.l11.q4",
+   "lessonId": "med-neuro.l11",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man with chronic alcohol use is brought in confused, with horizontal nystagmus and a broad-based gait. What is the most important immediate step?",
+   "choices": [
+    "Arrange an outpatient neuropsychological assessment for suspected early Korsakoff syndrome",
+    "Give intravenous glucose first to correct the likely hypoglycaemia that explains his confusion",
+    "Give parenteral thiamine, since glucose alone may precipitate or worsen Wernicke encephalopathy",
+    "Start an antipsychotic to settle his agitation before assessing his eye and gait findings"
+   ]
+  },
+  {
+   "id": "med-neuro.l11.q5",
+   "lessonId": "med-neuro.l11",
+   "kind": "mcq",
+   "prompt": "A 40-year-old develops excessive thirst and passes large volumes of dilute urine after a pituitary stalk injury. Urine osmolality rises after desmopressin. Which explanation is most accurate?",
+   "choices": [
+    "Failure of the suprachiasmatic nucleus to signal the circadian pattern of thirst and urine production",
+    "Failure of antidiuretic hormone release from supraoptic and paraventricular neurones, so the kidney cannot concentrate urine",
+    "Failure of the renal collecting duct to respond to antidiuretic hormone, which is released in normal amounts",
+    "Excess release of antidiuretic hormone from the posterior pituitary, so water is retained and sodium diluted"
+   ]
+  },
+  {
+   "id": "med-neuro.l12.q1",
+   "lessonId": "med-neuro.l12",
+   "kind": "mcq",
+   "prompt": "Crossed signs, with ipsilateral cranial nerve palsy and contralateral hemiparesis, localise a lesion to where?",
+   "choices": [
+    "The cerebral cortex",
+    "The internal capsule",
+    "The brainstem",
+    "The cervical cord"
+   ]
+  },
+  {
+   "id": "med-neuro.l12.q2",
+   "lessonId": "med-neuro.l12",
+   "kind": "mcq",
+   "prompt": "A patient has dense weakness of the face, arm and leg on one side with no cortical signs. Where is the lesion most likely located?",
+   "choices": [
+    "The ipsilateral cerebellar hemisphere",
+    "The contralateral occipital lobe",
+    "The ipsilateral dorsal column",
+    "The contralateral internal capsule"
+   ]
+  },
+  {
+   "id": "med-neuro.l12.q3",
+   "lessonId": "med-neuro.l12",
+   "kind": "mcq",
+   "prompt": "Vertical gaze palsy with pupillary light-near dissociation localises to which structure?",
+   "choices": [
+    "The dorsal midbrain",
+    "The paramedian pons",
+    "The lateral medulla",
+    "The frontal eye field"
+   ]
+  },
+  {
+   "id": "med-neuro.l12.q4",
+   "lessonId": "med-neuro.l12",
+   "kind": "mcq",
+   "prompt": "A 60-year-old has left facial weakness including the forehead, inability to abduct the left eye and right hemiparesis. Where is the lesion?",
+   "choices": [
+    "The right internal capsule, affecting the corticobulbar and corticospinal fibres together",
+    "The left ventral pons, affecting the facial and abducens fascicles and the corticospinal tract",
+    "The right ventral pons, affecting the facial and abducens fascicles and the corticospinal tract",
+    "The left medial medulla, affecting the hypoglossal nucleus and the medullary pyramid"
+   ]
+  },
+  {
+   "id": "med-neuro.l12.q5",
+   "lessonId": "med-neuro.l12",
+   "kind": "mcq",
+   "prompt": "A 45-year-old has sudden loss of pain and temperature on the left face and right body, with a left Horner syndrome, hoarseness and ataxia of the left limbs. Which structure explains the crossed sensory pattern?",
+   "choices": [
+    "The left dorsal columns and the right medial lemniscus in the medial medulla",
+    "The left thalamic VPL nucleus and the left posterior limb of the internal capsule",
+    "The left spinal trigeminal tract and the left spinothalamic tract in the lateral medulla",
+    "The right spinal trigeminal tract and the right spinothalamic tract in the lateral pons"
+   ]
+  },
+  {
+   "id": "med-neuro.l13.q1",
+   "lessonId": "med-neuro.l13",
+   "kind": "mcq",
+   "prompt": "Which imaging test is performed first in a patient with a suspected acute stroke to exclude haemorrhage?",
+   "choices": [
+    "Cerebral catheter angiography",
+    "Carotid duplex ultrasound",
+    "MRI with diffusion-weighted imaging",
+    "Non-contrast CT of the head"
+   ]
+  },
+  {
+   "id": "med-neuro.l13.q2",
+   "lessonId": "med-neuro.l13",
+   "kind": "mcq",
+   "prompt": "Which drug is given to reduce the risk of ischaemia from vasospasm after aneurysmal subarachnoid haemorrhage?",
+   "choices": [
+    "Aspirin, an antiplatelet agent",
+    "Warfarin, a vitamin K antagonist",
+    "Nimodipine, a calcium channel blocker",
+    "Alteplase, a plasminogen activator"
+   ]
+  },
+  {
+   "id": "med-neuro.l13.q3",
+   "lessonId": "med-neuro.l13",
+   "kind": "mcq",
+   "prompt": "Which cause of intracerebral haemorrhage most commonly affects the basal ganglia and thalamus?",
+   "choices": [
+    "Haemorrhage into a tumour that has metastasised to the brain",
+    "Rupture of small penetrating arteries in chronic hypertension",
+    "Rupture of a saccular aneurysm at the circle of Willis",
+    "Amyloid deposition in cortical vessel walls of older adults"
+   ]
+  },
+  {
+   "id": "med-neuro.l13.q4",
+   "lessonId": "med-neuro.l13",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man with atrial fibrillation develops sudden right-sided weakness and aphasia 90 minutes ago. CT shows no haemorrhage. Which statement correctly explains the aim of urgent treatment?",
+   "choices": [
+    "To dissolve the fibrin clot with a plasminogen activator, to rescue the penumbra around the infarct core",
+    "To lower blood pressure to normal quickly, to reduce the risk of haemorrhagic transformation of the infarct",
+    "To start warfarin immediately, to prevent extension of the clot throughout the intracranial arteries",
+    "To drain cerebrospinal fluid by lumbar puncture, to reduce intracranial pressure from cerebral oedema"
+   ]
+  },
+  {
+   "id": "med-neuro.l13.q5",
+   "lessonId": "med-neuro.l13",
+   "kind": "mcq",
+   "prompt": "A 38-year-old woman with polycystic kidney disease has a sudden, severe headache that she calls the worst of her life, with neck stiffness. CT shows blood in the basal cisterns. Which vascular lesion is the most likely source?",
+   "choices": [
+    "A hypertensive microaneurysm of the lenticulostriate arteries, linked with chronic hypertension",
+    "A dural arteriovenous fistula of the transverse sinus, linked with prior venous thrombosis",
+    "A cavernous malformation of the pons, linked with familial mutations in a single gene",
+    "A saccular aneurysm of the circle of Willis, linked with polycystic kidney disease"
+   ]
+  },
+  {
+   "id": "med-neuro.l14.q1",
+   "lessonId": "med-neuro.l14",
+   "kind": "mcq",
+   "prompt": "Which drug is first-line for childhood absence epilepsy and blocks T-type calcium channels?",
+   "choices": [
+    "Ethosuximide",
+    "Gabapentin",
+    "Phenytoin",
+    "Carbamazepine"
+   ]
+  },
+  {
+   "id": "med-neuro.l14.q2",
+   "lessonId": "med-neuro.l14",
+   "kind": "mcq",
+   "prompt": "Which adverse effect is characteristic of phenytoin?",
+   "choices": [
+    "Weight loss",
+    "Gingival hyperplasia",
+    "Pancreatitis",
+    "Hyponatraemia"
+   ]
+  },
+  {
+   "id": "med-neuro.l14.q3",
+   "lessonId": "med-neuro.l14",
+   "kind": "mcq",
+   "prompt": "Which antiseizure drug acts mainly by binding the synaptic vesicle protein SV2A?",
+   "choices": [
+    "Phenobarbital",
+    "Topiramate",
+    "Levetiracetam",
+    "Lamotrigine"
+   ]
+  },
+  {
+   "id": "med-neuro.l14.q4",
+   "lessonId": "med-neuro.l14",
+   "kind": "mcq",
+   "prompt": "A 15-year-old has brief staring spells many times daily, with sudden onset and offset and no postictal confusion. A routine EEG with hyperventilation shows generalised 3-Hz spike and wave. Which treatment is inappropriate because it may worsen the disorder?",
+   "choices": [
+    "Ethosuximide, because T-type calcium channel blockade may aggravate absence seizures",
+    "Valproate, because enhanced GABA transmission may aggravate absence seizures",
+    "Lamotrigine, because mild sodium channel modulation always aggravates absence seizures",
+    "Carbamazepine, because sodium channel blockade may aggravate absence seizures"
+   ]
+  },
+  {
+   "id": "med-neuro.l14.q5",
+   "lessonId": "med-neuro.l14",
+   "kind": "mcq",
+   "prompt": "A 20-year-old woman with epilepsy takes an antiseizure drug and an oral contraceptive. She becomes pregnant. Which drug is the most likely explanation, based on enzyme induction?",
+   "choices": [
+    "Carbamazepine, which induces hepatic enzymes and lowers the levels of oestrogen and progestin",
+    "Levetiracetam, which inhibits hepatic enzymes and raises the levels of oestrogen and progestin",
+    "Valproate, which induces hepatic enzymes and lowers the levels of oestrogen and progestin",
+    "Gabapentin, which inhibits hepatic enzymes and raises the levels of oestrogen and progestin"
+   ]
+  },
+  {
+   "id": "med-neuro.l15.q1",
+   "lessonId": "med-neuro.l15",
+   "kind": "mcq",
+   "prompt": "Which pair of pathological findings is characteristic of Alzheimer disease?",
+   "choices": [
+    "Lewy bodies and loss of dopaminergic neurones",
+    "Amyloid plaques and tau neurofibrillary tangles",
+    "Pick bodies and frontal lobe atrophy",
+    "Spongiform change and prion protein deposits"
+   ]
+  },
+  {
+   "id": "med-neuro.l15.q2",
+   "lessonId": "med-neuro.l15",
+   "kind": "mcq",
+   "prompt": "Why do many people with Down syndrome develop Alzheimer pathology early?",
+   "choices": [
+    "The amyloid precursor protein gene lies on chromosome 21, so they carry an extra copy",
+    "The tau gene lies on chromosome 21, so they carry an extra copy of that gene",
+    "The presenilin 1 gene lies on chromosome 14, which is duplicated in trisomy 21",
+    "The apolipoprotein E gene lies on chromosome 19, which is deleted in trisomy 21"
+   ]
+  },
+  {
+   "id": "med-neuro.l15.q3",
+   "lessonId": "med-neuro.l15",
+   "kind": "mcq",
+   "prompt": "Which feature best distinguishes dementia with Lewy bodies from Alzheimer disease?",
+   "choices": [
+    "Early disinhibition and compulsive behaviour with preserved memory in the first years",
+    "Rapid decline over months with myoclonus and periodic sharp waves on the EEG",
+    "Early episodic memory loss with preserved attention throughout the clinical course",
+    "Fluctuating cognition with well-formed visual hallucinations and parkinsonism"
+   ]
+  },
+  {
+   "id": "med-neuro.l15.q4",
+   "lessonId": "med-neuro.l15",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has 18 months of increasingly inappropriate jokes, compulsive eating, apathy and loss of empathy. Memory testing is relatively normal. MRI shows frontal and anterior temporal atrophy. Which diagnosis is most likely?",
+   "choices": [
+    "Normal pressure hydrocephalus, which presents with a magnetic gait and urinary incontinence",
+    "Alzheimer disease, which presents with early episodic memory loss and hippocampal atrophy",
+    "Behavioural variant frontotemporal dementia, a disorder with tau or TDP-43 pathology",
+    "Dementia with Lewy bodies, which presents with visual hallucinations and parkinsonism"
+   ]
+  },
+  {
+   "id": "med-neuro.l15.q5",
+   "lessonId": "med-neuro.l15",
+   "kind": "mcq",
+   "prompt": "A 60-year-old develops rapidly progressive dementia over 4 months with startle myoclonus and ataxia. EEG shows periodic sharp-wave complexes. What is the most likely cause?",
+   "choices": [
+    "Neurosyphilis, a treatable infection that gives tabes dorsalis and Argyll Robertson pupils",
+    "Prion disease, a transmissible misfolded protein disorder that has no effective cure",
+    "Alzheimer disease, a disorder of amyloid and tau that evolves over years rather than months",
+    "Vascular dementia, a stepwise process following multiple small strokes in the white matter"
+   ]
+  },
+  {
+   "id": "med-neuro.l16.q1",
+   "lessonId": "med-neuro.l16",
+   "kind": "mcq",
+   "prompt": "Which cell is the target of damage in multiple sclerosis?",
+   "choices": [
+    "Microglial cell",
+    "Schwann cell",
+    "Oligodendrocyte",
+    "Astrocyte"
+   ]
+  },
+  {
+   "id": "med-neuro.l16.q2",
+   "lessonId": "med-neuro.l16",
+   "kind": "mcq",
+   "prompt": "Which cerebrospinal fluid finding supports a diagnosis of multiple sclerosis?",
+   "choices": [
+    "A markedly low glucose with a high neutrophil count and bacteria",
+    "A raised opening pressure with a normal protein and cell count",
+    "A markedly high protein with normal cells, as in albuminocytologic dissociation",
+    "Oligoclonal IgG bands that are absent in the paired serum sample"
+   ]
+  },
+  {
+   "id": "med-neuro.l16.q3",
+   "lessonId": "med-neuro.l16",
+   "kind": "mcq",
+   "prompt": "Natalizumab carries a risk of progressive multifocal leukoencephalopathy because it does which?",
+   "choices": [
+    "It blocks alpha-4 integrin, which reduces lymphocyte entry to the brain and allows JC virus to reactivate",
+    "It depletes CD20 B cells, which causes loss of antibody production against pathogens in the brain",
+    "It traps lymphocytes in lymph nodes, which reduces the number of circulating T cells reaching the brain",
+    "It inhibits dihydroorotate dehydrogenase, which lowers the proliferation of lymphocytes after an infection"
+   ]
+  },
+  {
+   "id": "med-neuro.l16.q4",
+   "lessonId": "med-neuro.l16",
+   "kind": "mcq",
+   "prompt": "A 27-year-old woman has painful loss of vision in the left eye over 4 days, with a left relative afferent pupillary defect and a normal fundus. MRI of the brain shows two ovoid periventricular lesions. Which statement is most accurate?",
+   "choices": [
+    "She has central retinal artery occlusion, since the vision loss is sudden and entirely painless",
+    "She has optic neuritis, and the MRI lesions put her at high risk of developing multiple sclerosis",
+    "She has anterior ischaemic optic neuropathy, because the fundus would show a swollen pale disc",
+    "She has a pituitary adenoma compressing the chiasm, since the loss is monocular and painless"
+   ]
+  },
+  {
+   "id": "med-neuro.l16.q5",
+   "lessonId": "med-neuro.l16",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman has severe bilateral visual loss and then a transverse myelitis extending over five vertebral segments on MRI. Which finding is expected?",
+   "choices": [
+    "Antibodies against GM1 ganglioside on peripheral nerves, in a motor neuropathy",
+    "Antibodies against voltage-gated calcium channels in nerve terminals, in Lambert-Eaton syndrome",
+    "Antibodies against aquaporin-4 on astrocyte foot processes, in neuromyelitis optica spectrum disorder",
+    "Antibodies against the acetylcholine receptor at the neuromuscular junction, in myasthenia gravis"
+   ]
+  },
+  {
+   "id": "med-neuro.l17.q1",
+   "lessonId": "med-neuro.l17",
+   "kind": "mcq",
+   "prompt": "Which finding is characteristic of cerebrospinal fluid in Guillain-Barre syndrome?",
+   "choices": [
+    "Low glucose with many neutrophils",
+    "Oligoclonal bands with a normal protein level",
+    "Raised red cells with xanthochromia",
+    "Raised protein with a normal white cell count"
+   ]
+  },
+  {
+   "id": "med-neuro.l17.q2",
+   "lessonId": "med-neuro.l17",
+   "kind": "mcq",
+   "prompt": "Which autoantibody target is found in most cases of myasthenia gravis?",
+   "choices": [
+    "GQ1b ganglioside at the nodes",
+    "Presynaptic voltage-gated calcium channels",
+    "Postsynaptic acetylcholine receptors",
+    "Aquaporin-4 on astrocytes"
+   ]
+  },
+  {
+   "id": "med-neuro.l17.q3",
+   "lessonId": "med-neuro.l17",
+   "kind": "mcq",
+   "prompt": "Which nerve is compressed at the fibular head, giving foot drop and sensory loss over the dorsum of the foot?",
+   "choices": [
+    "Tibial nerve",
+    "Common peroneal nerve",
+    "Sciatic nerve at the hip",
+    "Femoral nerve at the groin"
+   ]
+  },
+  {
+   "id": "med-neuro.l17.q4",
+   "lessonId": "med-neuro.l17",
+   "kind": "mcq",
+   "prompt": "A 35-year-old has had 3 days of ascending leg weakness, absent knee and ankle jerks and mild tingling, two weeks after a diarrhoeal illness. His forced vital capacity has fallen. Which treatment is most appropriate?",
+   "choices": [
+    "Intravenous immunoglobulin or plasma exchange, with close monitoring of breathing",
+    "Pyridostigmine, because this is the standard treatment for a neuromuscular junction disorder",
+    "Observation alone, because the condition is self-limiting and has no risk of respiratory failure",
+    "High-dose oral corticosteroids, because these are the standard treatment for this disorder"
+   ]
+  },
+  {
+   "id": "med-neuro.l17.q5",
+   "lessonId": "med-neuro.l17",
+   "kind": "mcq",
+   "prompt": "A 62-year-old smoker has proximal leg weakness, dry mouth and absent reflexes. Strength improves briefly after repeated contraction. Which underlying mechanism and association are most likely?",
+   "choices": [
+    "Antibodies against aquaporin-4 channels, associated with optic neuritis and myelitis",
+    "Cleavage of SNARE proteins by a bacterial toxin, associated with contaminated food",
+    "Antibodies against postsynaptic acetylcholine receptors, associated with thymoma",
+    "Antibodies against presynaptic calcium channels, associated with small cell lung cancer"
+   ]
+  },
+  {
+   "id": "med-neuro.l18.q1",
+   "lessonId": "med-neuro.l18",
+   "kind": "mcq",
+   "prompt": "Which drug class acts as serotonin 5-HT1B/1D agonists for acute migraine?",
+   "choices": [
+    "Triptans",
+    "Gepants",
+    "Beta-blockers",
+    "Ergot-free anticonvulsants"
+   ]
+  },
+  {
+   "id": "med-neuro.l18.q2",
+   "lessonId": "med-neuro.l18",
+   "kind": "mcq",
+   "prompt": "Which feature best distinguishes cluster headache from migraine?",
+   "choices": [
+    "Pulsating pain with nausea and a preference for a dark and quiet room",
+    "Unilateral periorbital pain with ipsilateral lacrimation and restlessness",
+    "Bilateral band-like pressure with no nausea and no aggravation by activity",
+    "Thunderclap onset with neck stiffness and photophobia after exertion"
+   ]
+  },
+  {
+   "id": "med-neuro.l18.q3",
+   "lessonId": "med-neuro.l18",
+   "kind": "mcq",
+   "prompt": "Which drug is used for prevention of cluster headache?",
+   "choices": [
+    "Acetaminophen",
+    "Sumatriptan",
+    "Verapamil",
+    "Oxygen"
+   ]
+  },
+  {
+   "id": "med-neuro.l18.q4",
+   "lessonId": "med-neuro.l18",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman has a new headache for 2 weeks, jaw pain on chewing, scalp tenderness and an ESR of 90. She reports brief loss of vision in one eye. What is the most appropriate step?",
+   "choices": [
+    "Delay treatment until the temporal artery biopsy has confirmed the diagnosis",
+    "Prescribe a triptan for a presumed migraine and arrange routine follow-up",
+    "Start verapamil for presumed cluster headache and arrange an outpatient review",
+    "Start high-dose corticosteroids at once, before temporal artery biopsy confirms the diagnosis"
+   ]
+  },
+  {
+   "id": "med-neuro.l18.q5",
+   "lessonId": "med-neuro.l18",
+   "kind": "mcq",
+   "prompt": "An obese 26-year-old woman has daily headaches, transient visual obscurations and bilateral papilloedema. MRI is normal and lumbar puncture shows a high opening pressure with normal CSF. Which diagnosis and treatment are most appropriate?",
+   "choices": [
+    "Idiopathic intracranial hypertension, treated with weight loss and acetazolamide",
+    "Cluster headache, treated with high-flow oxygen and subcutaneous sumatriptan",
+    "Normal pressure hydrocephalus, treated by ventriculoperitoneal shunt placement",
+    "Medication overuse headache, treated by starting a daily triptan as prevention"
+   ]
+  },
+  {
+   "id": "med-neuro.l19.q1",
+   "lessonId": "med-neuro.l19",
+   "kind": "mcq",
+   "prompt": "Why is levodopa combined with carbidopa?",
+   "choices": [
+    "Carbidopa blocks catechol-O-methyltransferase so the half-life of levodopa is prolonged",
+    "Carbidopa blocks peripheral dopa decarboxylase so more levodopa reaches the brain",
+    "Carbidopa blocks central dopamine receptors so the side effects of dopamine are reduced",
+    "Carbidopa blocks monoamine oxidase B so the breakdown of dopamine in the brain is slowed"
+   ]
+  },
+  {
+   "id": "med-neuro.l19.q2",
+   "lessonId": "med-neuro.l19",
+   "kind": "mcq",
+   "prompt": "Which drug mechanism is correctly paired?",
+   "choices": [
+    "Memantine, an NMDA receptor channel blocker",
+    "Donepezil, a dopamine D2 receptor agonist",
+    "Baclofen, a GABA-A receptor agonist",
+    "Pyridostigmine, a nicotinic receptor antagonist"
+   ]
+  },
+  {
+   "id": "med-neuro.l19.q3",
+   "lessonId": "med-neuro.l19",
+   "kind": "mcq",
+   "prompt": "Why are barbiturates more dangerous than benzodiazepines in overdose?",
+   "choices": [
+    "Barbiturates increase the frequency of GABA-A channel opening only when GABA is present at the receptor",
+    "Barbiturates antagonise glycine receptors in the brainstem and so depress the respiratory centre",
+    "Barbiturates inhibit acetylcholinesterase at the neuromuscular junction and so paralyse the diaphragm",
+    "Barbiturates increase the duration of GABA-A chloride channel opening and can act without GABA at high doses"
+   ]
+  },
+  {
+   "id": "med-neuro.l19.q4",
+   "lessonId": "med-neuro.l19",
+   "kind": "mcq",
+   "prompt": "A farmer exposed to an insecticide has salivation, lacrimation, diarrhoea, bradycardia, miosis and muscle fasciculations. Which treatment pair is appropriate?",
+   "choices": [
+    "Flumazenil to reverse GABA-A activity and naloxone to reverse the opioid effects",
+    "Dantrolene to reduce calcium release and bromocriptine to stimulate dopamine receptors",
+    "Atropine to block muscarinic effects and pralidoxime to reactivate acetylcholinesterase",
+    "Neostigmine to prolong the action of acetylcholine and atropine to block nicotinic effects"
+   ]
+  },
+  {
+   "id": "med-neuro.l19.q5",
+   "lessonId": "med-neuro.l19",
+   "kind": "mcq",
+   "prompt": "A 72-year-old with Parkinson disease is given haloperidol for hospital delirium and develops severe rigidity and immobility within a day. Which mechanism best explains this?",
+   "choices": [
+    "Blockade of GABA-B receptors in the spinal cord that causes loss of inhibition of motor neurones",
+    "Blockade of striatal D2 receptors in an already dopamine-depleted nigrostriatal system",
+    "Excess serotonergic stimulation that causes clonus and hyperthermia within a short time",
+    "Direct inhibition of acetylcholinesterase that causes excess muscarinic stimulation of the gut"
+   ]
+  },
+  {
+   "id": "med-neuro.l20.q1",
+   "lessonId": "med-neuro.l20",
+   "kind": "mcq",
+   "prompt": "Which maximum Glasgow Coma Scale total score indicates a fully alert, normal patient?",
+   "choices": [
+    "12",
+    "15",
+    "3",
+    "8"
+   ]
+  },
+  {
+   "id": "med-neuro.l20.q2",
+   "lessonId": "med-neuro.l20",
+   "kind": "mcq",
+   "prompt": "Which cerebrospinal fluid pattern fits viral meningitis?",
+   "choices": [
+    "Lymphocytes, mildly raised protein and normal glucose",
+    "Lymphocytes, high protein and very low glucose",
+    "Few cells, very high protein and normal glucose",
+    "Neutrophils, high protein and low glucose"
+   ]
+  },
+  {
+   "id": "med-neuro.l20.q3",
+   "lessonId": "med-neuro.l20",
+   "kind": "mcq",
+   "prompt": "Which tumour arises from arachnoid cap cells and contains psammoma bodies?",
+   "choices": [
+    "Medulloblastoma",
+    "Schwannoma",
+    "Glioblastoma",
+    "Meningioma"
+   ]
+  },
+  {
+   "id": "med-neuro.l20.q4",
+   "lessonId": "med-neuro.l20",
+   "kind": "mcq",
+   "prompt": "A 40-year-old has 3 days of fever, confusion and a seizure. MRI shows temporal lobe hyperintensity and CSF shows lymphocytes with red cells. What is the most appropriate immediate treatment?",
+   "choices": [
+    "High-dose dexamethasone alone for presumed vasogenic oedema around a metastasis",
+    "Delay treatment until the polymerase chain reaction result of the CSF is available",
+    "Empirical aciclovir for presumed herpes simplex encephalitis without waiting for confirmation",
+    "Oral antibiotics for presumed bacterial meningitis and discharge once the fever has settled"
+   ]
+  },
+  {
+   "id": "med-neuro.l20.q5",
+   "lessonId": "med-neuro.l20",
+   "kind": "mcq",
+   "prompt": "A 62-year-old smoker has headaches and a seizure. MRI shows several ring-enhancing lesions at the grey-white junction with surrounding oedema. Which is the most likely diagnosis?",
+   "choices": [
+    "Glioblastoma, a single butterfly lesion that is crossing the corpus callosum in older adults",
+    "Metastases from a primary tumour such as lung cancer, which are often multiple at that junction",
+    "Meningioma, a solitary extra-axial dural-based mass that is usually homogeneously enhancing",
+    "Vestibular schwannoma, a lesion of the cerebellopontine angle with hearing loss as its typical feature"
+   ]
+  }
+ ]
+}

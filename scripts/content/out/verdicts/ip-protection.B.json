@@ -1,0 +1,1129 @@
+{
+ "courseId": "ip-protection",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "ip-protection.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l03.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Several approaches defensible; group registration of photographs is the standard practical answer."
+  },
+  {
+   "id": "ip-protection.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "ip-protection.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "ip-protection.l01",
+   "claim": "Constitution gives Congress power to grant exclusive rights for limited times to promote the progress of science and useful arts",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l01",
+   "claim": "Trade secrets are protected only as long as the information stays secret",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l01",
+   "claim": "Patents protect new, useful, non-obvious inventions",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l02",
+   "claim": "Copyright attaches automatically to original works fixed in a tangible medium",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l02",
+   "claim": "Copyright does not protect ideas, systems, methods or short phrases/titles/names",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l02",
+   "claim": "Copyright notice not required for works published after 1989",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Strictly, works published on/after March 1, 1989."
+  },
+  {
+   "lessonId": "ip-protection.l03",
+   "claim": "Registration (or refusal) required before suing on a U.S. work",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l03",
+   "claim": "Statutory damages/fees if registered before infringement or within three months of first publication; up to $150,000 for willful",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l03",
+   "claim": "Registration within five years of publication is prima facie evidence of validity",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l04",
+   "claim": "Work made for hire: employee within scope, or commissioned work in nine categories with signed written agreement",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l04",
+   "claim": "Joint authors co-own; each may license non-exclusively but must account for profits",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Accounting duty comes from case law, not statute text."
+  },
+  {
+   "lessonId": "ip-protection.l04",
+   "claim": "Independent contractor owns copyright absent written transfer or qualifying WMFH",
+   "verdict": "supported",
+   "sources": [],
+   "note": "CCNV v. Reid."
+  },
+  {
+   "lessonId": "ip-protection.l05",
+   "claim": "Transfer of copyright ownership (incl. exclusive license) requires signed writing",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l05",
+   "claim": "Termination right 35 years after grant for non-WMFH transfers",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l05",
+   "claim": "Term: life+70; anonymous/pseudonymous/WMFH 95 years from publication or 120 from creation",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l06",
+   "claim": "Fair use codified at 17 U.S.C. 107 with four factors",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l06",
+   "claim": "Supreme Court: transformative purpose must be meaningfully different, esp. when commercial",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Warhol v. Goldsmith (2023)."
+  },
+  {
+   "lessonId": "ip-protection.l06",
+   "claim": "Heart of the work: small taking can be too much",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Harper & Row."
+  },
+  {
+   "lessonId": "ip-protection.l07",
+   "claim": "DMCA notice needs good-faith belief and perjury statement of authority; restoration after 10-14 business days if no suit",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l07",
+   "claim": "CCB claims capped at $30,000; respondent may opt out within 60 days",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l07",
+   "claim": "Designated agent directory maintained by Copyright Office",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l08",
+   "claim": "As of 2026 works published in 1930 or earlier are public domain; 1931 works enter Jan 1, 2027",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l08",
+   "claim": "U.S. federal government employee works are not copyrighted",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l08",
+   "claim": "CC elements BY, SA, NC, ND and CC0 dedication; hard to revoke for existing users",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l09",
+   "claim": "Compositions and sound recordings are separate copyrights; compulsory mechanical license for previously released compositions",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l09",
+   "claim": "The MLC administers blanket mechanical licenses; SoundExchange collects digital performance royalties for recordings",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l09",
+   "claim": "Copyright Office Jan 2025 report: human authorship required, prompts alone insufficient",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l10",
+   "claim": "Distinctiveness spectrum generic/descriptive/suggestive/arbitrary/fanciful; descriptive needs secondary meaning",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Two Pesos."
+  },
+  {
+   "lessonId": "ip-protection.l10",
+   "claim": "Trademark rights last while mark is used to identify source",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l10",
+   "claim": "Likelihood of confusion in related goods governs infringement",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l11",
+   "claim": "45 international classes; goods 1-34, services 35-45; clothing 25, education 41",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l11",
+   "claim": "USPTO fees are per class",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l11",
+   "claim": "UDRP is ICANN process for abusive domain registrations; domain registration alone gives no trademark rights",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l12",
+   "claim": "ITU application permitted with bona fide intent; statement of use after notice of allowance",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l12",
+   "claim": "Base application fee $350 per class (since Jan 2025)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Fee changes over time; not re-fetched live."
+  },
+  {
+   "lessonId": "ip-protection.l12",
+   "claim": "30-day opposition period after publication",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l13",
+   "claim": "TM usable by anyone; circled R only after registration",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l13",
+   "claim": "Declaration of use between years 5 and 6; renewal between years 9 and 10 and every 10 years",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l13",
+   "claim": "Madrid dependency on basic mark for five years",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l14",
+   "claim": "Utility 20 years from filing; design 15 years from grant; plant 20 years from filing",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l14",
+   "claim": "Laws of nature, natural phenomena, abstract ideas not eligible",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Alice v. CLS Bank."
+  },
+  {
+   "lessonId": "ip-protection.l14",
+   "claim": "Design patent protects ornamental design of an article of manufacture",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l15",
+   "claim": "U.S. AIA one-year grace period for inventor's own disclosures",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l15",
+   "claim": "Most other countries require absolute novelty (e.g., EPC Art. 54)",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l15",
+   "claim": "Patent Public Search, Google Patents, WIPO PATENTSCOPE are valid search tools",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l16",
+   "claim": "Provisional is not examined; non-provisional due within 12 months",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l16",
+   "claim": "PCT national phase generally at 30 months from priority date",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l16",
+   "claim": "Patent agents pass USPTO exam; Patent Pro Bono Program exists",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l17",
+   "claim": "Trade secret needs independent economic value and reasonable measures; DTSA federal remedy",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l17",
+   "claim": "Reverse engineering and independent invention are not improper means",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l17",
+   "claim": "DTSA whistleblower immunity notice required in employee confidentiality agreements",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Requirement is notice; penalty is loss of exemplary damages/fees."
+  },
+  {
+   "lessonId": "ip-protection.l18",
+   "claim": "California Labor Code 2870 limits assignment of own-time inventions",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l18",
+   "claim": "Assignments/licenses may be recorded with Copyright Office or USPTO",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l18",
+   "claim": "Exclusive licenses are transfers requiring writing",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l19",
+   "claim": "CCB cap $30,000; UDRP for abusive domains; TTAB handles oppositions/cancellations",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l19",
+   "claim": "Aggressive cease-and-desist can prompt declaratory-judgment suit",
+   "verdict": "supported",
+   "sources": [],
+   "note": "General principle; cited statute is the DJ Act."
+  },
+  {
+   "lessonId": "ip-protection.l19",
+   "claim": "Knowing misrepresentation in DMCA takedown creates liability",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l20",
+   "claim": "Statutory damages require registration within 3 months of publication",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l20",
+   "claim": "One-year U.S. grace period vs stricter foreign novelty",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "ip-protection.l20",
+   "claim": "12-month provisional deadline and trademark maintenance dates",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

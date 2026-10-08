@@ -1,0 +1,37 @@
+{
+  "id": "ford-explainer",
+  "title": "Henry Ford: A Life in Brief",
+  "displayTitle": "Henry Ford",
+  "subtitle": "He put America on wheels and made Detroit the capital of the machine age.",
+  "level": "middle",
+  "voice": "Microsoft David Desktop",
+  "creditsLines": [
+    "Images",
+    "Public-domain photographs from the Library of Congress and the Edison and Ford archives,",
+    "via Wikimedia Commons; paintings marked Reconstruction are generated, not photographs.",
+    "Text checked against: Ford with Crowther, My Life and Work (1922); The Henry Ford archives;",
+    "scholarship by Watts, Baldwin and Hounshell. Narration: synthetic voice (ElevenLabs via Magnific)."
+  ],
+  "beats": [
+    { "recon": "recon-ford-watch-table", "claims": ["c-born", "c-farm"], "caption": "Reconstruction: a farmhouse kitchen, 1870s",
+      "text": "Henry Ford was born on a farm near Dearborn, Michigan, in eighteen sixty-three. As a boy, he cared far more about machines than about farm work." },
+    { "recon": "recon-ford-quadricycle", "claims": ["c-quadricycle", "c-fmc"], "caption": "Reconstruction: Detroit, June 1896",
+      "text": "In eighteen ninety-six, he built his first gasoline-powered vehicle, the Quadricycle. In nineteen oh-three, he started the Ford Motor Company." },
+    { "asset": "ref-1919-hartsook", "claims": ["c-modelt", "c-15m"], "caption": "Henry Ford, portrait by Hartsook, about 1919",
+      "text": "The Model T arrived in nineteen oh-eight. It was built for ordinary families, and about fifteen million of them were made." },
+    { "asset": "doc-1913-assembly-line", "claims": ["c-line-stages", "c-93min"], "caption": "Assembly line at Highland Park, 1913",
+      "text": "In nineteen thirteen, his factory began building cars on a moving assembly line. A chassis that once took about twelve and a half hours could be finished in about ninety-three minutes." },
+    { "recon": "recon-fiveday-gate", "claims": ["c-5day", "c-socio"], "caption": "Reconstruction: the crowd at the Highland Park gate, January 1914",
+      "text": "In nineteen fourteen, Ford announced a five-dollar day, far above the usual pay. But to earn the full bonus, workers had to follow his rules about how they lived at home." },
+    { "recon": "recon-independent-press", "claims": ["c-series", "c-protocols"], "caption": "Reconstruction: a Dearborn press room, 1920",
+      "text": "Ford also owned a newspaper, The Dearborn Independent. In nineteen twenty, it began a long series of articles blaming Jewish people for the world's problems. The series used a forged document, and it spread hatred." },
+    { "asset": "ref-1927-whitehouse", "claims": ["c-retraction", "c-ford-role", "c-retraction-know"], "caption": "Henry Ford at the White House, 1927",
+      "text": "In nineteen twenty-seven, after a lawsuit, Ford publicly apologized. Historians still disagree about how much he knew of the articles, and what he meant by the apology." },
+    { "asset": "doc-1927-rouge-aerial", "claims": ["c-overpass", "c-1941"], "caption": "Aerial view of the Ford River Rouge plant",
+      "text": "At the Rouge plant in nineteen thirty-seven, Ford's security men beat union organizers. Ford did not sign a contract with the union until nineteen forty-one." },
+    { "recon": "recon-willow-run", "claims": ["c-eagle", "c-willow"], "caption": "Reconstruction: Willow Run bomber plant, 1943",
+      "text": "In nineteen thirty-eight, Ford accepted a high Nazi honor, the Grand Cross of the German Eagle. Yet in the Second World War, his Willow Run factory built B-24 bombers for the United States." },
+    { "asset": "ref-1938-car", "claims": ["c-death", "c-hist"], "caption": "Henry Ford, 1938",
+      "text": "Henry Ford died in nineteen forty-seven, at his home, Fair Lane. Historians still disagree about how to weigh his achievements against his hatred, and his treatment of workers." }
+  ]
+}

@@ -13,6 +13,11 @@ import {
   type LibraryItem, type LibrarySourceId, type LibraryFilter, type LibraryKind,
 } from '../../../services/universalLibrary/libraryModel';
 import { listHqAssets, type OrgAsset, type OwnerScope } from '../../../services/orgAssets';
+import {
+  applyMotionFacets, motionCategories, savedTemplateToItem, DEFAULT_MOTION_FACETS,
+  type MotionFacets, type MotionKindFacet, type ThemeSetFacet,
+} from '../../../services/universalLibrary/amboItems';
+import { themesInSet } from '../../../services/tela/telaMotionTemplate';
 import { auth } from '../../../services/firebase';
 import { useUniversalMarquee, useUniversalMultiSelect } from '../../../hooks/useUniversalMultiSelect';
 
@@ -60,6 +65,17 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
   const [filter, setFilter] = useState<LibraryFilter>('all');
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<Record<string, LibraryItem[] | 'loading' | undefined>>({});
+  const [facets, setFacets] = useState<MotionFacets>(DEFAULT_MOTION_FACETS);
+  // Guard async shelf loads on unmount only — a per-run flag was cleared by the effect's own
+  // re-run (setting 'loading' changes `assets`), which silently dropped every result.
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  // A template saved/shared from Ambo while the panel is open refreshes the template shelves.
+  useEffect(() => {
+    let off: (() => void) | undefined; let gone = false;
+    import('../../../services/ambo/templateLibrary').then((lib) => { if (!gone) off = lib.subscribeTemplateLibrary(() => setAssets((m) => ({ ...m, mine: undefined, community: undefined }))); }).catch(() => { /* */ });
+    return () => { gone = true; off?.(); };
+  }, []);
   const rootRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -68,26 +84,47 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
 
   // Load DAM assets for the personal/org/business shelves on demand.
   useEffect(() => {
-    if (source === 'presets' || source === 'community' || source === 'stock') return;
+    if (source === 'presets' || source === 'stock') return;
     if (assets[source] !== undefined) return;
+    if (source === 'mine' || source === 'community') {
+      // Saved / shared / public Ambo templates (services/ambo/templateLibrary), loaded lazily.
+      setAssets((m) => ({ ...m, [source]: 'loading' }));
+      import('../../../services/ambo/templateLibrary').then(async (lib) => {
+        const me = auth.currentUser?.uid;
+        const rows = source === 'community'
+          ? await lib.listCommunityTemplates().catch(() => [])
+          : [...await lib.listMyTemplates().catch(() => []), ...(me ? await lib.listSharedWithMe().catch(() => []) : [])];
+        const seen = new Set<string>();
+        const items = rows.filter((t) => !seen.has(t.id) && !!seen.add(t.id)).map((t) => savedTemplateToItem(t, source, me)).filter((x): x is LibraryItem => !!x);
+        if (mountedRef.current) setAssets((m) => ({ ...m, [source]: items }));
+      }).catch(() => { if (mountedRef.current) setAssets((m) => ({ ...m, [source]: [] })); });
+      return;
+    }
     let scope = scopes?.[source as 'personal' | 'org' | 'business'];
     // Personal falls back to the signed-in user's own DAM so it works in every host with no wiring.
     if (!scope && source === 'personal' && auth.currentUser) scope = { kind: 'user', id: auth.currentUser.uid };
     if (!scope) { setAssets((m) => ({ ...m, [source]: [] })); return; }
     setAssets((m) => ({ ...m, [source]: 'loading' }));
-    let alive = true;
-    listHqAssets(scope).then((rows) => { if (alive) setAssets((m) => ({ ...m, [source]: rows.map((r) => orgAssetToItem(r, source)) })); })
-      .catch(() => { if (alive) setAssets((m) => ({ ...m, [source]: [] })); });
-    return () => { alive = false; };
+    listHqAssets(scope).then((rows) => { if (mountedRef.current) setAssets((m) => ({ ...m, [source]: rows.map((r) => orgAssetToItem(r, source)) })); })
+      .catch(() => { if (mountedRef.current) setAssets((m) => ({ ...m, [source]: [] })); });
   }, [source, scopes, assets]);
 
   const raw: LibraryItem[] | 'loading' | 'later' = useMemo(() => {
     if (source === 'presets') { const all = presetShelf(); return accepts && accepts.length ? all.filter((it) => accepts.includes(it.kind)) : all; }
-    if (source === 'community' || source === 'stock') return 'later';
-    return assets[source] === 'loading' ? 'loading' : (assets[source] || []);
+    if (source === 'stock') return 'later';
+    if (assets[source] === 'loading') return 'loading';
+    const list = assets[source] || [];
+    // Saved/community templates obey the host's accepts like presets do.
+    return (source === 'mine' || source === 'community') && accepts && accepts.length ? list.filter((it) => accepts.includes(it.kind)) : list;
   }, [source, assets, accepts]);
 
-  const items = useMemo(() => (Array.isArray(raw) ? filterItems(raw, filter, query) : []), [raw, filter, query]);
+  const filtered = useMemo(() => (Array.isArray(raw) ? filterItems(raw, filter, query) : []), [raw, filter, query]);
+  const hasMotion = useMemo(() => filtered.some((it) => it.kind === 'motion'), [filtered]);
+  const items = useMemo(() => (hasMotion ? applyMotionFacets(filtered, facets) : filtered), [filtered, facets, hasMotion]);
+  const motionCats = useMemo(() => (hasMotion ? motionCategories(filtered, facets.kind) : []), [filtered, facets.kind, hasMotion]);
+  const facetThemes = useMemo(() => themesInSet(facets.set), [facets.set]);
+  const facetsActive = facets.kind !== 'all' || facets.set !== 'all' || facets.category !== 'all' || !!facets.theme;
+  useEffect(() => { setFacets(DEFAULT_MOTION_FACETS); }, [source]);
   const assetSelection = useUniversalMultiSelect(items.map(item => item.id));
   const marqueeSelection = useUniversalMarquee(gridRef, assetSelection);
   const sel = items.find(item => item.id === assetSelection.primaryId) || null;
@@ -182,6 +219,30 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
               <button key={f} onClick={() => setFilter(f)} style={chip(filter === f, accent)}>{f}</button>
             ))}
           </div>
+          {/* Ambo facets: kind · theme set · preview theme · category */}
+          {hasMotion && (
+            <div data-ul-facets style={{ display: 'flex', gap: 4, padding: '5px 9px 0', flexWrap: 'wrap', alignItems: 'center' }}>
+              {([['all', 'All'], ['slide', 'Slides'], ['scripture', 'Scripture']] as [MotionKindFacet, string][]).map(([k, l]) => (
+                <button key={k} data-facet-kind={k} onClick={() => setFacets((f) => ({ ...f, kind: k, category: 'all' }))} style={facetChip(facets.kind === k, accent)}>{l}</button>
+              ))}
+              <span style={{ width: 1, height: 14, background: 'rgba(255,255,255,.12)', margin: '0 2px' }} />
+              {([['all', 'Any set'], ['classic', 'Classic'], ['modern', 'Modern'], ['urban', 'Urban']] as [ThemeSetFacet, string][]).map(([k, l]) => (
+                <button key={k} data-facet-set={k} onClick={() => setFacets((f) => ({ ...f, set: k, theme: '' }))} style={facetChip(facets.set === k, accent)}>{l}</button>
+              ))}
+              {facets.kind !== 'scripture' && (
+                <select aria-label="Preview theme" data-facet-theme value={facets.theme} onChange={(e) => setFacets((f) => ({ ...f, theme: e.target.value }))} style={facetSelect}>
+                  <option value="">Theme · default</option>
+                  {facetThemes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+              {motionCats.length > 1 && (
+                <select aria-label="Category" data-facet-category value={facets.category} onChange={(e) => setFacets((f) => ({ ...f, category: e.target.value }))} style={facetSelect}>
+                  <option value="all">All categories</option>
+                  {motionCats.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+            </div>
+          )}
           {/* search */}
           <div style={{ padding: '6px 9px', flex: 'none', display: 'flex', gap: 6 }}>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 9px', borderRadius: 8, background: 'var(--ground-2,#0B0910)', border: '1px solid var(--pj-border,rgba(255,255,255,.09))' }}>
@@ -198,8 +259,13 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
                 body={source === 'community' ? 'Shaders, looks, grooves and templates shared by the Plajah community — arriving in a future update.' : 'Licensed footage, audio beds and stems from the Plajah stock shelf — arriving in a future update.'} />
             ) : raw === 'loading' ? (
               <EmptyState title="Loading…" body="Fetching your assets." />
+            ) : items.length === 0 && hasMotion && facetsActive ? (
+              <div style={{ padding: '30px 16px', textAlign: 'center' }}>
+                <EmptyState title="No template matches these filters" body="Try another kind, theme set or category." />
+                <button data-facet-clear onClick={() => setFacets(DEFAULT_MOTION_FACETS)} style={facetChip(true, accent)}>Clear filters</button>
+              </div>
             ) : items.length === 0 ? (
-              <EmptyState title="Nothing here yet" body={source === 'presets' ? 'No preset matches your search.' : 'Upload assets to this shelf, or connect an account, and they appear here.'} />
+              <EmptyState title="Nothing here yet" body={source === 'presets' ? 'No preset matches your search.' : source === 'mine' ? (auth.currentUser ? 'Save or receive a customised Ambo template and it appears here.' : 'Templates you save in Ambo on this browser appear here. Sign in to see ones shared with you.') : source === 'community' ? 'No public templates match yet. Share one from Ambo to start the shelf.' : 'Upload assets to this shelf, or connect an account, and they appear here.'} />
             ) : (
               <div ref={gridRef} {...marqueeSelection.bind} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 9, position: 'relative' }}>
                 {items.map((it) => (
@@ -254,6 +320,8 @@ const srcH: React.CSSProperties = { fontFamily: 'var(--mono,monospace)', fontSiz
 const srcRow = (on: boolean, later: boolean | undefined, accent: string): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 8, cursor: later ? 'default' : 'pointer', color: later ? '#5F5872' : on ? '#fff' : 'var(--ink-2,#B7AEC7)', fontSize: 11.5, border: '1px solid transparent', background: on ? 'color-mix(in srgb,' + accent + ' 16%, transparent)' : 'transparent', borderColor: on ? 'rgba(255,255,255,.08)' : 'transparent', opacity: later ? .6 : 1 });
 const chip = (on: boolean, accent: string): React.CSSProperties => ({ fontFamily: 'var(--mono,monospace)', fontSize: 9, letterSpacing: '.04em', textTransform: 'uppercase', color: on ? '#fff' : 'var(--ink-2,#B7AEC7)', background: on ? accent : 'var(--pj-glass-2,rgba(255,255,255,.05))', border: `1px solid ${on ? 'transparent' : 'var(--pj-border,rgba(255,255,255,.09))'}`, borderRadius: 999, padding: '4px 9px', cursor: 'pointer' });
 const card = (on: boolean, accent: string): React.CSSProperties => ({ border: `1px solid ${on ? accent : 'var(--pj-border,rgba(255,255,255,.09))'}`, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: 'var(--pj-glass-2,rgba(255,255,255,.05))', boxShadow: on ? `0 0 0 1px ${accent}` : 'none', padding: 0, color: 'inherit' });
+const facetChip = (on: boolean, accent: string): React.CSSProperties => ({ fontSize: 9.5, fontWeight: 600, color: on ? '#fff' : 'var(--ink-2,#B7AEC7)', background: on ? 'color-mix(in srgb,' + accent + ' 30%, transparent)' : 'transparent', border: `1px solid ${on ? accent : 'var(--pj-border,rgba(255,255,255,.09))'}`, borderRadius: 6, padding: '2px 7px', cursor: 'pointer' });
+const facetSelect: React.CSSProperties = { height: 22, maxWidth: 130, fontSize: 9.5, color: 'var(--ink,#F5F2F9)', background: 'var(--ground-2,#0B0910)', border: '1px solid var(--pj-border,rgba(255,255,255,.09))', borderRadius: 6, padding: '0 4px', outline: 'none' };
 const badge: React.CSSProperties = { position: 'absolute', top: 5, left: 5, fontFamily: 'var(--mono,monospace)', fontSize: 7.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 5px', borderRadius: 5, background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(3px)', zIndex: 2 };
 const typePill: React.CSSProperties = { position: 'absolute', bottom: 5, right: 5, fontFamily: 'var(--mono,monospace)', fontSize: 7.5, textTransform: 'uppercase', padding: '2px 5px', borderRadius: 5, background: 'rgba(0,0,0,.5)', color: '#fff', zIndex: 2 };
 

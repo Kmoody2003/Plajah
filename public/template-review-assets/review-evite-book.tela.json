@@ -1,0 +1,537 @@
+{
+  "id": "review-evite-book-copy-65b685f0-b5ff-4277-ad66-e2a297e23092",
+  "ownerId": "local-review",
+  "title": "Between the Lines · review copy",
+  "createdAt": 1790719091327,
+  "updatedAt": 1790719091327,
+  "frames": [
+    {
+      "id": "review-evite-book-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-book-vector"
+      ],
+      "label": "Between the Lines"
+    }
+  ],
+  "devices": {
+    "review-evite-book-vector": {
+      "id": "review-evite-book-vector",
+      "type": "VECTOR",
+      "name": "Between the Lines",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-book-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#eee7d6",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-book-left-page",
+          "kind": "PATH",
+          "x": 92,
+          "y": 111,
+          "w": 600,
+          "h": 800,
+          "fill": "#7d8d83",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            92,
+            111,
+            294,
+            151,
+            294,
+            348,
+            92,
+            307
+          ],
+          "pathClosed": true,
+          "templateRole": "ORNAMENT"
+        },
+        {
+          "id": "review-evite-book-right-page",
+          "kind": "PATH",
+          "x": 306,
+          "y": 111,
+          "w": 600,
+          "h": 800,
+          "fill": "#916343",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            306,
+            151,
+            508,
+            111,
+            508,
+            307,
+            306,
+            348
+          ],
+          "pathClosed": true,
+          "templateRole": "ORNAMENT"
+        },
+        {
+          "id": "review-evite-book-page-a-0",
+          "kind": "LINE",
+          "x": 115,
+          "y": 148,
+          "w": 157,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            115,
+            148,
+            272,
+            179
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-b-0",
+          "kind": "LINE",
+          "x": 329,
+          "y": 147,
+          "w": 156,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            329,
+            178,
+            485,
+            147
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-a-1",
+          "kind": "LINE",
+          "x": 115,
+          "y": 171,
+          "w": 157,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            115,
+            171,
+            272,
+            202
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-b-1",
+          "kind": "LINE",
+          "x": 329,
+          "y": 170,
+          "w": 156,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            329,
+            201,
+            485,
+            170
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-a-2",
+          "kind": "LINE",
+          "x": 115,
+          "y": 194,
+          "w": 157,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            115,
+            194,
+            272,
+            225
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-b-2",
+          "kind": "LINE",
+          "x": 329,
+          "y": 193,
+          "w": 156,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            329,
+            224,
+            485,
+            193
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-a-3",
+          "kind": "LINE",
+          "x": 115,
+          "y": 217,
+          "w": 157,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            115,
+            217,
+            272,
+            248
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-b-3",
+          "kind": "LINE",
+          "x": 329,
+          "y": 216,
+          "w": 156,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            329,
+            247,
+            485,
+            216
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-a-4",
+          "kind": "LINE",
+          "x": 115,
+          "y": 240,
+          "w": 157,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            115,
+            240,
+            272,
+            271
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-b-4",
+          "kind": "LINE",
+          "x": 329,
+          "y": 239,
+          "w": 156,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            329,
+            270,
+            485,
+            239
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-a-5",
+          "kind": "LINE",
+          "x": 115,
+          "y": 263,
+          "w": 157,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            115,
+            263,
+            272,
+            294
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-page-b-5",
+          "kind": "LINE",
+          "x": 329,
+          "y": 262,
+          "w": 156,
+          "h": 31,
+          "fill": "none",
+          "stroke": "#eee7d6",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            329,
+            293,
+            485,
+            262
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#332f2c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-book-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#7d8d83",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-book-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#332f2c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Between the lines",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-book-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#332f2c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "An evening with books & friends",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-book-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#332f2c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-book-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#332f2c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-book-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#332f2c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-book-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#332f2c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-book-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#332f2c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-book",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-book-left-page",
+          "property": "y",
+          "from": 111,
+          "to": 106,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-book-right-page",
+          "property": "y",
+          "from": 111,
+          "to": 116,
+          "delay": 140,
+          "duration": 3060
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        59,
+        66,
+        71,
+        73
+      ],
+      "tempo": 76
+    }
+  }
+}

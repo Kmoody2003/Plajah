@@ -1,0 +1,1808 @@
+{
+ "courseId": "history-asia",
+ "verifier": "B",
+ "note": "WebFetch used for 3 claims only; rest from own knowledge. Each claim line groups several checkable items.",
+ "fetched": 3,
+ "questions": [
+  {
+   "id": "history-asia.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l18.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l21.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l21.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l21.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l21.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l22.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l22.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l22.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l23.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l23.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l23.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l24.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l24.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l25.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l25.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l25.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l25.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l26.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l26.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l26.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l26.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l27.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l27.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l27.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l27.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l27.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l28.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l28.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l28.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l28.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l29.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l29.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l29.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l29.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l29.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l30.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l30.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l30.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l30.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l30.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l31.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l31.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l31.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l31.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l31.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l32.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l32.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l32.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l32.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "history-asia.l32.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "history-asia.l01",
+   "claim": "Himalaya/Tibetan Plateau separate South Asia; rivers Indus, Ganges, Yellow, Yangtze",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l01",
+   "claim": "North China millet vs south rice",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l01",
+   "claim": "About half of world's people live in Asia",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l02",
+   "claim": "Indus civilization c. 2600-1900 BCE; Harappa and Mohenjo-daro",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l02",
+   "claim": "Excavations began in the 1920s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l02",
+   "claim": "Script undeciphered; Indus seals found in Mesopotamia",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l03",
+   "claim": "Shang c. 1600-1046 BCE; oracle bones earliest large body of Chinese writing",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l03",
+   "claim": "Zhou defeat Shang c. 1046 BCE; Mandate of Heaven; Eastern Zhou after 771 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l03",
+   "claim": "Confucius c. 551-479 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l04",
+   "claim": "Qin unification 221 BCE; Qin collapse 206 BCE; Qin Shi Huang died 210 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l04",
+   "claim": "Han founded 202 BCE by Liu Bang; Xin interruption 9-23 CE; ends 220 CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l04",
+   "claim": "Zhang Qian envoy c. 138 BCE; Silk Road term coined by Richthofen; Cai Lun 105 CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l05",
+   "claim": "Chandragupta Maurya c. 321 BCE, capital Pataliputra",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l05",
+   "claim": "Ashoka reigned c. 268-232 BCE; Kalinga war in his inscriptions",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ashoka"
+   ],
+   "note": "Page opened; confirms 268-232 and Kalinga. Same page dates Chandragupta c. 322 BCE vs lesson 321 (minor)."
+  },
+  {
+   "lessonId": "history-asia.l05",
+   "claim": "Last Maurya ruler overthrown c. 185 BCE; Sarnath lion capital is India emblem",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l06",
+   "claim": "Gupta period roughly 320-550 CE; Chandragupta I",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l06",
+   "claim": "Aryabhata wrote 499 CE, Earth rotation",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l06",
+   "claim": "Faxian traveled India c. 400 CE; Nalanda in Bihar",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l07",
+   "claim": "Buddha life c. fifth century BCE, dates debated",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l07",
+   "claim": "Angkor Wat 12th century Hindu temple to Vishnu; Borobudur c. ninth century Buddhist",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l07",
+   "claim": "Xuanzang seventh-century pilgrim; Mahayana in China by first century CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l08",
+   "claim": "Tang 618-907; Wu Zetian ruled 690-705, only woman emperor",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l08",
+   "claim": "An Lushan Rebellion began 755; Song established 960; Jurchen took Kaifeng 1127",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l08",
+   "claim": "Bi Sheng clay movable type c. 1040s; paper money in Sichuan",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l09",
+   "claim": "Temujin proclaimed Chinggis Khan 1206; died 1227",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l09",
+   "claim": "Kublai khan 1260, Yuan 1271, Southern Song conquered 1279",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l09",
+   "claim": "Invasions of Japan 1274, 1281 failed; Yuan ended 1368",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l10",
+   "claim": "Hongwu/Zhu Yuanzhang founded Ming 1368",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l10",
+   "claim": "Zheng He seven voyages 1405-1433; Forbidden City completed c. 1420",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l10",
+   "claim": "1644 Li Zicheng captured Beijing; last Ming emperor suicide",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l11",
+   "claim": "Qing took Beijing 1644; Kangxi 1661-1722; Qianlong 1735-1796",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l11",
+   "claim": "Canton System from late 1750s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l11",
+   "claim": "Macartney mission 1793 turned down",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l12",
+   "claim": "Babur defeated Ibrahim Lodi at Panipat 1526; Akbar 1556-1605; jizya abolished 1564",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l12",
+   "claim": "Taj Mahal c. 1632-1653 for Mumtaz Mahal; Shah Jahan 1628-1658",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l12",
+   "claim": "Aurangzeb 1658-1707, jizya reimposed 1679; Nader Shah sacked Delhi 1739",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l13",
+   "claim": "Capital moved to Heian-kyo 794 by Kanmu; period to c. 1185",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l13",
+   "claim": "Fujiwara regents",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l13",
+   "claim": "Tale of Genji by Murasaki Shikibu early 11th century; Pillow Book by Sei Shonagon",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l14",
+   "claim": "1185 Minamoto victory; Yoritomo shogun 1192",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l14",
+   "claim": "Mongol invasions 1274, 1281; Kamakura fell 1333; Ashikaga 1336",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l14",
+   "claim": "Hideyoshi sword hunt 1588",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l15",
+   "claim": "Sekigahara 1600; Ieyasu shogun 1603; shogunate to 1868",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l15",
+   "claim": "Sankin-kotai alternate-year residence in Edo",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l15",
+   "claim": "Perry 1853; Dutch at Nagasaki trade",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l16",
+   "claim": "Silla with Tang defeated Goguryeo 668",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l16",
+   "claim": "Goryeo 918-1392; Jikji printed 1377 oldest surviving metal movable type book; Joseon 1392-1910",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Jikji"
+   ],
+   "note": "Page opened; confirms 1377, oldest extant metal movable type book."
+  },
+  {
+   "lessonId": "history-asia.l16",
+   "claim": "Hangul announced 1446 under Sejong (1418-1450); Imjin War 1592-1598",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l17",
+   "claim": "Jayavarman II c. 802; Angkor Wat early 12th century under Suryavarman II to Vishnu",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l17",
+   "claim": "Jayavarman VII built Bayon, late 12th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l17",
+   "claim": "Srivijaya c. 7th-13th century at Palembang; Yijing stayed late 7th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l18",
+   "claim": "Chinese rule from 111 BCE; Trung sisters 40 CE; Ngo Quyen Bach Dang 938",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l18",
+   "claim": "Ayutthaya founded 1351; destroyed by Burma 1767; Chakri dynasty from 1782",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l18",
+   "claim": "Majapahit founded c. 1293; Nagarakretagama 1365",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l19",
+   "claim": "Da Gama reached Calicut 1498; Goa 1510, Malacca 1511; Manila 1565",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l19",
+   "claim": "English East India Co 1600; VOC 1602; Batavia 1619",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l19",
+   "claim": "Plassey 1757",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l20",
+   "claim": "Lin Zexu destroyed opium at Guangzhou 1839; First Opium War 1839-1842",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l20",
+   "claim": "Treaty of Nanjing 1842: Hong Kong Island ceded, five ports opened",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Treaty_of_Nanking"
+   ],
+   "note": "Page opened; confirms 1842, HK Island, five ports."
+  },
+  {
+   "lessonId": "history-asia.l20",
+   "claim": "Second Opium War 1856-1860; Summer Palace burned 1860",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l21",
+   "claim": "Taiping Heavenly Kingdom proclaimed 1851; Nanjing captured 1853; fell 1864",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l21",
+   "claim": "Hong Xiuquan believed younger brother of Jesus; Zeng Guofan",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l21",
+   "claim": "Sino-Japanese War 1894-1895; Boxers 1899-1901; Puyi abdicated Feb 1912",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l22",
+   "claim": "Treaty of Kanagawa 1854; Meiji Restoration 1868",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l22",
+   "claim": "Domains abolished 1871; conscription 1873; Iwakura Mission 1871-1873; Satsuma Rebellion 1877",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l22",
+   "claim": "Meiji Constitution 1889; Taiwan gained 1895; Korea annexed 1910",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l23",
+   "claim": "1857 revolt began at Meerut; Crown rule 1858",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l23",
+   "claim": "Victoria Empress of India 1876",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l23",
+   "claim": "Indian National Congress 1885; Muslim League 1906; partition of Bengal 1905",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l24",
+   "claim": "Salt March 1930; Quit India 1942",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l24",
+   "claim": "India 15 Aug and Pakistan 14 Aug 1947; Radcliffe boundary; Mountbatten",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l24",
+   "claim": "Gandhi assassinated 1948; migration 10-15 million; deaths several hundred thousand to two million",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l25",
+   "claim": "Mukden incident Sept 1931; Manchukuo 1932; Nanjing Dec 1937",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l25",
+   "claim": "Pearl Harbor 7 Dec 1941; Burma railway; comfort women",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l25",
+   "claim": "Hiroshima 6 Aug, Nagasaki 9 Aug; surrender announced 15 Aug, signed 2 Sept 1945",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l26",
+   "claim": "Chinese Communist Party founded 1921; May Fourth 1919",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l26",
+   "claim": "Long March 1934-1935; PRC proclaimed 1 Oct 1949",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l26",
+   "claim": "Great Leap Forward 1958-1962 famine 15-40+ million; Cultural Revolution 1966-1976; Deng reforms 1978",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l27",
+   "claim": "Division near 38th parallel; two governments 1948",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l27",
+   "claim": "North Korea invaded 25 June 1950; China entered Oct 1950; Incheon landing",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l27",
+   "claim": "Armistice 27 July 1953, no peace treaty",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l28",
+   "claim": "Ho Chi Minh declared independence 2 Sept 1945; Dien Bien Phu May 1954",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l28",
+   "claim": "Geneva 1954, 17th parallel",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l28",
+   "claim": "Gulf of Tonkin Aug 1964; US combat troops 1965; Tet 1968; Paris Accords Jan 1973; Saigon fell 30 April 1975; reunified 1976",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l29",
+   "claim": "Philippines independent 4 July 1946; Burma and Ceylon 1948; Malaya 1957",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l29",
+   "claim": "Malayan Emergency 1948-1960; Indonesia declared 17 Aug 1945, recognized 1949",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l29",
+   "claim": "Cambodia independent 1953; Bandung 1955 with 29 countries",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l30",
+   "claim": "Japan occupied until 1952; constitution 1947",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l30",
+   "claim": "Four Tigers; Shenzhen SEZ 1980; China passed Japan 2010",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l30",
+   "claim": "India 1991 liberalization; 1997 Asian financial crisis in Thailand, Indonesia, South Korea",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l31",
+   "claim": "China and India most populous; ASEAN founded 1967 by five countries",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l31",
+   "claim": "Hong Kong returned 1997 under one country two systems; Beijing 4 June 1989",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l31",
+   "claim": "Suharto era ended 1998",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l32",
+   "claim": "Silk Road name is 19th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l32",
+   "claim": "Said Orientalism 1978",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  },
+  {
+   "lessonId": "history-asia.l32",
+   "claim": "Treaty texts and 1857 naming",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge, not fetched."
+  }
+ ]
+}

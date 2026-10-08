@@ -1,0 +1,1210 @@
+{
+ "courseId": "atlas-brakes-hs",
+ "label": "Auto Tech: Brakes",
+ "lessons": [
+  {
+   "id": "atlas-brakes-hs.l01",
+   "title": "Hydraulic Principles: Force, Pressure and Area",
+   "body": [
+    "Hydraulic brakes rely on one relationship: pressure equals force divided by area (P = F / A). Brake fluid is nearly incompressible and the system is sealed, so pressure created at the master cylinder is the same pressure that reaches every caliper piston and wheel cylinder. Force at any piston is then pressure times that piston's area (F = P x A).",
+    "Here is a worked example with illustrative numbers, not specifications. The driver pushes with 40 lbf. The pedal is a lever with a 4:1 ratio, so the pushrod sees 40 x 4 = 160 lbf. Suppose the booster multiplies that by 3, so the master cylinder piston receives 480 lbf. The master cylinder bore is 1.0 in, so its area is pi x 0.5 squared = 0.7854 in squared. Line pressure is 480 / 0.7854 = about 611 psi.",
+    "A caliper piston with a 2.0 in diameter has an area of pi x 1.0 squared = 3.1416 in squared. The force it makes is 611 x 3.1416 = about 1,920 lbf. That equals 480 x 4, because the piston areas differ by a ratio of 4 (2.0 squared over 1.0 squared).",
+    "There is a trade. Volume is conserved, so the larger piston moves only one quarter as far as the master cylinder piston, in this single-piston case. A larger bore gives more force but needs more fluid movement, which is why master cylinder and caliper sizes must be matched to each other by the manufacturer."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l02",
+   "title": "The Master Cylinder and Reservoir",
+   "body": [
+    "Modern master cylinders are tandem (dual) designs: two pistons in one bore, called the primary and the secondary, each feeding a separate hydraulic circuit. Circuits are commonly split front/rear or diagonally, depending on the vehicle. If one circuit loses fluid, the other can still brake the vehicle, though the pedal travels farther and stopping distance grows.",
+    "The fluid reservoir sits on top and feeds both circuits. Many reservoirs are divided so a leak in one circuit cannot drain the other. Small passages (ports) let fluid refill the bore when the pedal is released, and let fluid return to the reservoir as it expands with heat. As pads wear, the level in the reservoir drops slowly, because caliper pistons sit farther out. A level that falls quickly points to a leak, and the correct answer is to find the leak, not to keep topping off.",
+    "Internal seals can wear. When the primary seal leaks past the piston, the pedal may slowly sink under steady foot pressure even though there is no external leak. Fluid may also appear on the booster side of the master cylinder, which points to the rear seal.",
+    "Brake fluid level and pressure-differential switches can light the red brake warning lamp. The brake light switch is a separate part: it is operated by the pedal and turns on the rear stop lamps. Always bench-bleed or follow the factory procedure for a replacement master cylinder before installing it."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l03",
+   "title": "Power Brake Boosters: Vacuum, Hydraulic and Electric",
+   "body": [
+    "The booster sits between the pedal pushrod and the master cylinder and reduces the effort the driver needs. There are three common types.",
+    "A vacuum booster has a large diaphragm. When the pedal is pressed, a valve admits outside air to one side while the other side stays connected to vacuum, and the pressure difference across the diaphragm pushes on the master cylinder. Gasoline engines make vacuum in the intake manifold; engines that do not make enough, such as many diesels, use a separate vacuum pump. A one-way check valve in the vacuum hose keeps stored vacuum in the booster after the engine stops.",
+    "A hydraulic booster, often called hydro-boost, uses pressurized fluid from the power steering pump or a dedicated pump and an accumulator. An electric booster uses a motor to push on the master cylinder and is common on hybrid and electric vehicles, where there is no engine vacuum.",
+    "Typical vacuum booster test: with the engine off, pump the pedal several times to use up stored vacuum. Hold moderate pressure on the pedal and start the engine. The pedal should drop slightly as assist returns. A pedal that stays rock hard suggests loss of assist, which may come from a leaking hose, a failed check valve or a ruptured diaphragm. Listen for a hiss near the pedal. Loss of assist does not mean loss of brakes, but it does mean longer stopping distance for the same effort."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l04",
+   "title": "Lines, Hoses and Brake Balance",
+   "body": [
+    "Rigid brake lines are made of steel tubing, often with a protective coating, joined by flared fittings that must be formed and seated correctly. Never replace a brake line with ordinary plumbing tube or a fitting that is not rated for brake pressure. Flexible hoses connect the chassis lines to the moving suspension and steering at each wheel. Hoses can crack on the outside, swell internally so that fluid goes out but returns slowly (which makes a brake drag), or bulge under pedal pressure. Inspect them for cracks, chafing, leaks and kinks.",
+    "When a vehicle brakes, weight shifts toward the front axle, so the front tires can carry more braking force and the rear tires carry less. If front and rear brakes got equal pressure, the rear wheels would lock first and the vehicle could become unstable. Designers handle this with brake balance: larger front brakes, and in many older vehicles a proportioning valve that limits pressure rise to the rear above a certain line pressure. Many newer vehicles with ABS use electronic brake force distribution instead, which uses the ABS modulator to trim rear pressure.",
+    "A combination valve may bundle a proportioning section, a metering section that briefly holds back the front discs until rear drum shoes have started to move, and a differential-pressure switch for the warning lamp. Replacement parts must match the original vehicle, because the valve is part of the brake balance design."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l05",
+   "title": "Disc Brake Calipers: Floating and Fixed",
+   "body": [
+    "A caliper converts hydraulic pressure into clamping force. Inside it, a caliper piston runs in a machined bore sealed by a piston seal, a square-section ring seated in a groove. A dust boot keeps dirt and water off the piston.",
+    "A floating (sliding) caliper has a piston on only one side, usually the inboard side. When pressure acts, the piston pushes the inner pad onto the rotor, and the same pressure on the closed end of the bore pushes the caliper body the opposite way, so the outer pad is pulled onto the rotor. The caliper body slides on slide pins, which ride in bushings in the caliper bracket, and that bracket is bolted to the steering knuckle or axle housing. A fixed caliper is bolted rigidly to the bracket and has pistons on both sides of the rotor, so it does not need to slide. Fixed calipers are costly but strong and are common on higher-performance applications.",
+    "The seal does more than keep fluid in. As pressure is released, the seal flexes slightly back to its resting shape and pulls the piston back a very small distance, giving the pad running clearance. This is called seal rollback. As pads wear, the piston slips farther through the seal, which keeps the clearance near constant.",
+    "Slide pins must move freely and be lubricated with the high-temperature grease the manufacturer specifies. A seized pin can leave one pad dragging, causing uneven pad wear, heat, a pull to one side and, if the pad drags enough, a burning smell. Worn bushings or missing hardware can cause clunks and noise."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l06",
+   "title": "Brake Pads, Friction Materials and Glazing",
+   "body": [
+    "A brake pad is friction material bonded or riveted to a steel backing plate. The material is a blend of fibers, fillers, lubricants and abrasives held in a resin, and no one formula is best for every use. Three broad families are common. Organic (non-asbestos organic) pads are generally softer and quiet. Semi-metallic pads contain metal fibers, tolerate heat well and may be noisier and more abrasive to the rotor. Ceramic pads are generally quiet, produce lighter-colored dust and are stable across temperatures, and often cost more. Choose a pad that meets the vehicle manufacturer's requirements; consult the factory service manual.",
+    "Wear is checked by measuring remaining friction material thickness, usually in millimeters, and comparing it with the manufacturer's service limit. Many pads have a wear indicator: a small metal tab that contacts the rotor when the pad is thin, producing a squeal. Some vehicles use an electrical wear sensor that triggers a dash message.",
+    "Glazing happens when pads are overheated or used lightly in a way that bakes the surface into a hard, shiny layer. A glazed pad has less grip, may squeal, and can lengthen stopping distance. The surface may appear polished and the rotor may show blue-ish heat discoloration. The cure is to correct the cause (a dragging caliper, wrong pad, hard use) and normally replace the pads and recondition or replace the rotor.",
+    "After new pads are fitted, many manufacturers call for a bedding-in (burnishing) procedure: a series of moderate stops that transfers an even layer of friction material to the rotor. Follow the pad maker's instructions, and always pump the pedal until firm before moving the vehicle."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l07",
+   "title": "Rotors: Thickness, Runout and Pulsation",
+   "body": [
+    "A rotor is a heat sink as well as a friction surface. Many are vented: two friction faces joined by vanes that pump air. Every rotor has a minimum (discard) thickness, often cast or stamped on the hat or edge, such as MIN TH. Once worn below it, the rotor has less metal to absorb heat and is no longer safe to reuse.",
+    "Three measurements matter. Thickness is measured with a micrometer. Thickness variation (parallelism) is the difference between the thickest and thinnest readings taken at several evenly spaced points around the rotor, and it is a common cause of pedal pulsation because the pads are pushed in and out as the rotor turns. Lateral runout is how much a face wobbles side to side as it spins, measured with a dial indicator mounted on a stable point with the rotor installed on its hub, and compared with the manufacturer's limit. Excess runout, often from rust on the hub face or a poorly seated rotor, can cause uneven wear and later cause thickness variation.",
+    "Worked example (illustrative numbers). The stamped minimum is 22.0 mm and the rotor measures 22.4 mm. A technician considers resurfacing, which removes material from both faces, say 0.15 mm each. Final thickness = 22.4 - 0.15 - 0.15 = 22.1 mm. That is above 22.0 mm, so it is allowed once, but a second machining would not be. If a measurement had been 22.2 mm, machining 0.30 mm total would leave 21.9 mm, below the limit, so the rotor must be replaced.",
+    "The word warped is used often, but heat-related pulsation is frequently traced to uneven pad material deposits or thickness variation rather than a literally bent rotor. The rotor face and hub mating surface must be clean before installation."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l08",
+   "title": "Drum Brakes, Self-Adjusters and the Parking Brake",
+   "body": [
+    "In a drum brake, hydraulic pressure acts on pistons in the wheel cylinder, which push the brake shoes outward against the inside of the rotating drum. Return springs pull the shoes back when pressure is released. The leading shoe is dragged into the drum by the rotation, which helps apply it. This self-energizing effect gives drums strong braking for their size, but it also makes them more sensitive to friction changes, such as when grease or fluid contaminates a lining.",
+    "Because linings wear, the gap between shoe and drum would slowly grow. A self-adjuster, commonly a star-wheel screw moved by a lever or cable, takes up slack during use. On some designs it works when the vehicle is braked while reversing, or when the parking brake is applied. If an adjuster seizes, the pedal gets low and the rear brakes do less work. Adjuster repair is part of a normal drum service.",
+    "A leaking wheel cylinder lets fluid onto the shoes. Contaminated shoes must be replaced, and the leak repaired. Never blow brake dust off with compressed air; use an approved vacuum or wet cleaning method.",
+    "The parking brake is a separate mechanical system. A cable from the lever or pedal pulls an equalizer, then cables to each rear wheel, where a lever expands the shoes inside a drum, or a small drum inside a disc rotor, or acts on a rear caliper. Cables can stretch or seize. Some vehicles use an electronic parking brake with a motor on the caliper; those calipers often need a scan tool service mode before the piston is retracted. Follow the factory service manual."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l09",
+   "title": "Brake Fluid: DOT 3, DOT 4, DOT 5.1 and DOT 5",
+   "body": [
+    "Brake fluid must stay liquid at high temperature, resist compression, protect metal and rubber, and flow in cold weather. U.S. grades are labeled DOT 3, DOT 4, DOT 5.1 and DOT 5, set by a federal standard (FMVSS 116). DOT 3, DOT 4 and DOT 5.1 are glycol-based and can generally be mixed with each other, though a service manual may say otherwise. DOT 5 is silicone-based and does not mix with glycol fluids; its use is generally not recommended for ABS-equipped vehicles, so check the manual.",
+    "Glycol fluids are hygroscopic: they pull moisture from the air, through hose walls and the reservoir vent, so water content slowly rises even in a sealed-looking system. Water lowers the boiling point and encourages corrosion. Two numbers are published. The dry boiling point applies to fresh fluid. The wet boiling point is measured after the fluid has absorbed a stated amount of water, and it is meant to mimic aged fluid in service.",
+    "Commonly cited minimums in the standard, approximately and to be verified against the current standard, are: DOT 3 about 205 C dry and 140 C wet; DOT 4 about 230 C dry and 155 C wet; DOT 5.1 about 260 C dry and 180 C wet. Many products exceed the minimums. Practically, a higher grade gives more heat margin, but only when the system is designed for it and the fluid is fresh.",
+    "If fluid boils in a caliper, vapor bubbles form. Vapor compresses, so the pedal feels soft or sinks, usually after repeated hard use, and recovers as the brakes cool. Fluid condition can be checked with a moisture tester or test strips, and replacement intervals are set by the manufacturer. Use only the type the vehicle specifies, store containers tightly closed, and keep fluid off paint, because it damages finishes. Dispose of used fluid according to local rules."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l10",
+   "title": "Bleeding and Flushing Basics",
+   "body": [
+    "Bleeding removes air that has entered the hydraulic system after the system was opened, or when the fluid ran low. Flushing replaces old fluid with fresh fluid. Both use the bleeder screw, a small hollow screw on each caliper and wheel cylinder, placed high on the part so air can rise to it.",
+    "Common methods are: manual two-person bleeding, where one person presses the pedal and the other opens and closes the screw; one-person bleeders with a check valve; vacuum bleeding at the screw; and pressure bleeding, where the reservoir is pressurized with fluid through an adapter. The factory service manual gives the order of wheels, which is often farthest from the master cylinder first, but some systems use a different order.",
+    "Key habits: keep the reservoir topped up so air is not drawn in; use only fresh fluid from a sealed container; do not push the pedal to the floor on an old master cylinder if the manual warns against it, because the seals can be damaged by corrosion at the end of the bore; close the screw before releasing the pedal during manual bleeding; and use the correct wrench to avoid rounding a corroded screw. Bleeder screws can seize or snap, so gentle penetrating treatment and careful work help.",
+    "Many ABS vehicles need a scan tool to cycle the modulator valves during bleeding, so air trapped in the hydraulic control unit can be cleared. After bleeding, check that the pedal is firm, there are no leaks, the fluid is at the correct level, and test drive at low speed before returning the vehicle."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l11",
+   "title": "ABS, Traction Control and Stability Control",
+   "body": [
+    "An anti-lock brake system has four main parts. A wheel speed sensor at each wheel reads a toothed or magnetic tone ring that turns with the wheel or axle, and sends a signal whose frequency rises with speed. Passive sensors generate their own small alternating voltage; active sensors use a powered chip and send a digital pulse signal, and can read down to very low speed. The ABS control module (ECU) compares the wheels. The hydraulic control unit (HCU, or modulator) holds solenoid valves and a pump motor.",
+    "When one wheel decelerates much faster than the others, the module commands its valves to hold, then release, then reapply pressure to that wheel, several times each second. The driver feels a pulsing pedal, and the pump motor may buzz. Normal brakes work if ABS is not active.",
+    "Traction control uses the same sensors to detect a driven wheel that is spinning faster than the others, then brakes that wheel, reduces engine torque, or both. Electronic stability control (ESC) adds a yaw-rate sensor, lateral acceleration sensor and steering angle sensor. If the vehicle turns differently from what the driver steers, ESC brakes individual wheels to help bring it back. ESC is required on new passenger vehicles in the United States from about the 2012 model year; verify the exact rule.",
+    "Common faults: a dirty or damaged sensor, a damaged tone ring or wiring, a wrong tire size that changes wheel speed, or low battery voltage. The module stores a trouble code and turns on the ABS lamp. When the lamp is on, ABS and often traction and stability control are disabled, but the base brakes normally still work. A scan tool is used to read codes and live wheel speed data."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l12",
+   "title": "Brake Inspection and Shop Safety",
+   "body": [
+    "A brake inspection is a systematic look at every part that can affect stopping. Start with the customer's complaint and a road test if it is safe. Then raise the vehicle on a lift or on jack stands rated for the weight; never rely on a jack alone. Remove the wheels and check the following.",
+    "Pads: measure remaining thickness in millimeters on both the inner and outer pads, and compare with the manufacturer's limit. Look for uneven wear between inner and outer or side to side, which points to a caliper or slide pin problem. Rotors: look for scoring, cracks, a lip at the edge, heat spots and rust, and measure thickness against the stamped minimum. Calipers: look for fluid at the piston, torn dust boots and sticking. Hoses and lines: check for cracks, bulges, leaks and corrosion. Fluid: check the level and color, and test for moisture if equipment is available. Also inspect the parking brake operation and wheel bearings for play.",
+    "Shop safety is part of the job. Treat brake dust as hazardous; use an enclosed vacuum with proper filtration or a wet method, and do not blow it with compressed air. Wear eye protection and gloves; brake cleaner is a solvent, so use it with ventilation and keep it from heat sources. Keep brake fluid, grease and oil off friction surfaces. Torque lug nuts to specification in a star pattern with a torque wrench rather than an impact gun alone.",
+    "Finish with a safety check. Pump the pedal until firm before moving the vehicle, confirm the fluid level, and road test at low speed first. Record measurements on the repair order so they can be shown to the customer."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l13",
+   "title": "Diagnosing Common Symptoms",
+   "body": [
+    "Diagnosis is a method: gather the complaint, verify it, inspect, test, and only then decide on parts. Each symptom has a short list of likely causes; rank them by how easy they are to check.",
+    "Squeal. A high squeal during light braking may be a pad wear indicator, glazed pads, missing anti-noise hardware or a lack of lubricant on the contact points. A squeal that stops when the pedal is pressed can be the indicator tab.",
+    "Grinding. A harsh metallic grind usually means friction material is gone, or a stone or debris is trapped. Stop driving it and inspect: the rotor may need replacement.",
+    "Pulsation. A pulsing pedal, often with a vibrating steering wheel, usually comes from rotor thickness variation or runout. Measure before replacing. If the pulsing happens only in hard stops on loose surfaces, it may be normal ABS activity.",
+    "Pull. The vehicle pulls to one side when braking. Look for a sticking caliper or slide pin, a collapsed hose, contaminated pads, or mismatched pads and tires. Check tire pressure and alignment, because they also cause pull.",
+    "Spongy pedal. Air in the lines, a swollen hose, a leaking master cylinder seal or boiled fluid. Hard pedal. Loss of booster assist, a vacuum leak, a stuck piston or glazed friction material.",
+    "ABS light. Read the codes with a scan tool, check wheel speed sensor data and wiring, inspect the tone ring and sensor air gap, and check battery voltage. Document each step, because a good diagnosis can be explained to the customer in plain words and supported by readings."
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l14",
+   "title": "Estimating, Parts Ranges and Talking With Customers",
+   "body": [
+    "An estimate is the shop's written best prediction of what a repair will cost. It has two parts: parts and labor, plus fees and taxes where they apply. This lesson explains what moves each part; it does not give prices, because prices vary by region, vehicle and shop.",
+    "Labor is usually calculated from labor time: a guide gives a book time for each job, which is multiplied by the shop's hourly labor rate. Rate depends on location, overhead, technician skill and equipment. Jobs that go beyond the book, such as rusted fasteners, can raise the time, which is why the estimate should say what is included and that further findings need approval before extra work.",
+    "Parts cost is a range because it depends on the vehicle, the number of axles serviced, and the quality tier chosen (economy, original-equipment-equivalent or premium). A pad set costs differently from pads plus rotors. Hardware kits, caliper rebuilds or replacements, and a fluid service are separate line items. Parts from different tiers can differ in noise, dust and wear life, which a technician can explain.",
+    "Good communication is part of the trade. Describe findings with measurements: this pad measures a certain thickness and the manufacturer's limit is another. Separate what is unsafe now from what can wait and what is only maintenance. Show worn parts when possible and provide options with their trade-offs. Get the customer's authorization before work begins; rules for written estimates differ by state, so know your local requirements. Never pressure or frighten a customer into repairs they do not need, and never claim work you did not perform."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "atlas-brakes-hs.l01.q1",
+   "lessonId": "atlas-brakes-hs.l01",
+   "kind": "mcq",
+   "prompt": "Which expression gives the pressure in a hydraulic brake line?",
+   "choices": [
+    "Force multiplied by area",
+    "Force divided by area",
+    "Area divided by force",
+    "Force plus area"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l01.q2",
+   "lessonId": "atlas-brakes-hs.l01",
+   "kind": "mcq",
+   "prompt": "A master cylinder piston receives 480 lbf and has an area of 0.7854 in squared. About what line pressure does it make?",
+   "choices": [
+    "380 psi",
+    "611 psi",
+    "755 psi",
+    "1,920 psi"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l01.q3",
+   "lessonId": "atlas-brakes-hs.l01",
+   "kind": "mcq",
+   "prompt": "The same 611 psi acts on a caliper piston with 3.1416 in squared of area. About how much force does that piston produce?",
+   "choices": [
+    "1,920 lbf, since force equals pressure times area",
+    "195 lbf, since the larger piston divides the force",
+    "611 lbf, since pressure and force are always equal",
+    "480 lbf, the same as the master cylinder piston"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l01.q4",
+   "lessonId": "atlas-brakes-hs.l01",
+   "kind": "mcq",
+   "prompt": "In the worked example, the caliper piston has four times the area of the master cylinder piston. What is the trade for the extra force?",
+   "choices": [
+    "The caliper piston moves only about one quarter as far",
+    "The fluid pressure falls to a quarter of its original value",
+    "The pedal ratio automatically changes to 1:4 to compensate",
+    "The brake fluid must boil at a lower temperature to keep the volume constant"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l01.q5",
+   "lessonId": "atlas-brakes-hs.l01",
+   "kind": "mcq",
+   "prompt": "A pedal has a 4:1 lever ratio and the driver pushes with 50 lbf. How much force reaches the pushrod, ignoring the booster?",
+   "choices": [
+    "12.5 lbf",
+    "54 lbf",
+    "200 lbf",
+    "250 lbf"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l01.q6",
+   "lessonId": "atlas-brakes-hs.l01",
+   "kind": "tf",
+   "prompt": "In a sealed hydraulic brake system, line pressure is ideally the same at the master cylinder and at the caliper pistons.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l02.q1",
+   "lessonId": "atlas-brakes-hs.l02",
+   "kind": "mcq",
+   "prompt": "Why do modern master cylinders have two pistons and two circuits?",
+   "choices": [
+    "To double the fluid pressure available at each wheel brake",
+    "To keep some braking available if one hydraulic circuit fails",
+    "To make the pedal feel softer at low speeds",
+    "To remove the need for a power brake booster"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l02.q2",
+   "lessonId": "atlas-brakes-hs.l02",
+   "kind": "mcq",
+   "prompt": "A brake fluid reservoir level drops a little at a time over many months as the pads wear. What is the most likely explanation?",
+   "choices": [
+    "The master cylinder gradually turns the fluid into vapor that leaves through the vent",
+    "The caliper pistons sit farther out, so more fluid fills the calipers",
+    "The booster slowly absorbs fluid through its diaphragm as it ages",
+    "The brake light switch leaks a little fluid every time the pedal is pressed"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l02.q3",
+   "lessonId": "atlas-brakes-hs.l02",
+   "kind": "mcq",
+   "prompt": "A technician sees the level in the reservoir falling fast and no visible leak at the wheels. What should be checked next?",
+   "choices": [
+    "Where the master cylinder mounts to the booster, and the carpet under the dash",
+    "Only at the rear drums, because front calipers cannot leak internally",
+    "The power steering pump, since it shares fluid with the brake system",
+    "The fuel tank, since brake fluid is returned there when the booster fails"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l02.q4",
+   "lessonId": "atlas-brakes-hs.l02",
+   "kind": "mcq",
+   "prompt": "A pedal slowly sinks to the floor under steady pressure, with the fluid level normal and no leaks outside. Which cause is most consistent?",
+   "choices": [
+    "A worn internal master cylinder seal letting fluid bypass",
+    "A seized rear slide pin that keeps a pad pressed against the rotor",
+    "A glazed pad surface that has hardened from earlier overheating",
+    "A damaged tone ring that sends the ABS module the wrong speed"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l02.q5",
+   "lessonId": "atlas-brakes-hs.l02",
+   "kind": "mcq",
+   "prompt": "What is the correct reaction to a reservoir that needs fluid again and again?",
+   "choices": [
+    "Keep topping it off to the maximum line each week",
+    "Find and repair the source of fluid loss",
+    "Switch to a thicker fluid",
+    "Disconnect the warning lamp"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l02.q6",
+   "lessonId": "atlas-brakes-hs.l02",
+   "kind": "mcq",
+   "prompt": "Which part is operated by the brake pedal to turn on the rear stop lamps?",
+   "choices": [
+    "The brake light switch",
+    "The proportioning valve",
+    "The fluid reservoir level sensor",
+    "The ABS control module"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l03.q1",
+   "lessonId": "atlas-brakes-hs.l03",
+   "kind": "mcq",
+   "prompt": "Which source of assist does a typical gasoline-engine vacuum booster use?",
+   "choices": [
+    "Pressure from the power steering pump acting on an accumulator",
+    "A pressure difference between engine vacuum and outside air",
+    "An electric motor mounted directly on the brake pedal",
+    "Heat from the exhaust expanding a sealed chamber"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l03.q2",
+   "lessonId": "atlas-brakes-hs.l03",
+   "kind": "mcq",
+   "prompt": "Which vehicles most commonly use an electric booster?",
+   "choices": [
+    "Older carbureted trucks that always had manual brakes",
+    "Hybrid and electric vehicles with no engine vacuum",
+    "Only race cars that are driven on a closed track",
+    "Vehicles with drum brakes at all four wheels"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l03.q3",
+   "lessonId": "atlas-brakes-hs.l03",
+   "kind": "mcq",
+   "prompt": "With the engine off, you pump the pedal several times, hold light pressure and start the engine. What should a healthy vacuum booster do?",
+   "choices": [
+    "The pedal drops slightly as assist returns",
+    "The pedal becomes harder",
+    "The pedal pulses with each engine revolution",
+    "Nothing at all should change"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l03.q4",
+   "lessonId": "atlas-brakes-hs.l03",
+   "kind": "mcq",
+   "prompt": "A driver reports a very hard pedal and a hiss near the pedal when braking. Which fault fits best?",
+   "choices": [
+    "A leak in the booster diaphragm or vacuum supply",
+    "A stuck slide pin that keeps one pad dragging",
+    "A glazed rotor surface left from earlier overheating",
+    "A dirty tone ring that confuses one wheel sensor"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l03.q5",
+   "lessonId": "atlas-brakes-hs.l03",
+   "kind": "mcq",
+   "prompt": "What is the job of the one-way check valve in a vacuum booster hose?",
+   "choices": [
+    "It filters moisture out of the brake fluid",
+    "It holds stored vacuum when engine vacuum drops",
+    "It regulates line pressure to the rear brakes",
+    "It switches on the brake lights when the pedal moves"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l03.q6",
+   "lessonId": "atlas-brakes-hs.l03",
+   "kind": "tf",
+   "prompt": "Losing booster assist means the hydraulic brakes no longer work at all.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l04.q1",
+   "lessonId": "atlas-brakes-hs.l04",
+   "kind": "mcq",
+   "prompt": "Why do brake systems use flexible hoses at each wheel?",
+   "choices": [
+    "Steel is too weak to carry brake fluid at pressure",
+    "The wheels move with the suspension and steering",
+    "Hoses are lighter than steel and reduce unsprung weight",
+    "The hose helps to cool the fluid before it reaches the caliper"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l04.q2",
+   "lessonId": "atlas-brakes-hs.l04",
+   "kind": "mcq",
+   "prompt": "A flex hose swells inside and acts like a one-way valve. What symptom might result?",
+   "choices": [
+    "The pedal pulses at idle as the engine speed changes",
+    "A wheel drags after release because pressure cannot return",
+    "The brake light stays dark until the pedal is fully pressed",
+    "The booster hisses each time the pedal is released"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l04.q3",
+   "lessonId": "atlas-brakes-hs.l04",
+   "kind": "mcq",
+   "prompt": "Why does weight transfer matter for brake balance?",
+   "choices": [
+    "Load shifts forward, so front tires can use more braking force",
+    "Load shifts rearward, so the rear tires can use more braking force",
+    "Load stays evenly spread, so equal pressure suits all four tires",
+    "Load shifts to the outside tires only, so left and right pressure differ"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l04.q4",
+   "lessonId": "atlas-brakes-hs.l04",
+   "kind": "mcq",
+   "prompt": "A customer asks the shop to fit a larger-bore replacement proportioning valve from a different vehicle because it was cheap. What is the best response?",
+   "choices": [
+    "Install it, since all proportioning valves behave the same way",
+    "Decline: it is matched to the original brake balance design",
+    "Install it on the front circuit instead, where balance does not matter",
+    "Install it and disable the warning lamp to avoid false alarms"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l04.q5",
+   "lessonId": "atlas-brakes-hs.l04",
+   "kind": "mcq",
+   "prompt": "What does electronic brake force distribution do on many ABS vehicles?",
+   "choices": [
+    "Uses the ABS modulator to trim rear pressure like a valve",
+    "Makes the front brakes lock first by adding pressure at the pedal",
+    "Replaces the master cylinder with an electric pump on all cars",
+    "Charges the battery by converting braking energy on every vehicle"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l04.q6",
+   "lessonId": "atlas-brakes-hs.l04",
+   "kind": "tf",
+   "prompt": "Ordinary copper plumbing tube is an acceptable substitute for steel brake line if the diameter matches.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l01.q7",
+   "lessonId": "atlas-brakes-hs.l01",
+   "kind": "mcq",
+   "prompt": "A driver applies 30 lbf to a pedal with a 5:1 ratio, and the booster multiplies pushrod force by 3. What force reaches the master cylinder piston?",
+   "choices": [
+    "450 lbf",
+    "150 lbf",
+    "90 lbf",
+    "600 lbf"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l03.q7",
+   "lessonId": "atlas-brakes-hs.l03",
+   "kind": "mcq",
+   "prompt": "A diesel engine makes little useful intake vacuum. Which assist arrangement is commonly used instead of manifold vacuum?",
+   "choices": [
+    "A mechanical or electric vacuum pump, or a hydraulic booster",
+    "No assist is ever fitted to a diesel",
+    "A longer pedal arm only",
+    "A second master cylinder with no booster"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l05.q1",
+   "lessonId": "atlas-brakes-hs.l05",
+   "kind": "mcq",
+   "prompt": "In a floating caliper, which statement is correct?",
+   "choices": [
+    "Pistons sit on opposite sides and the body never moves relative to the bracket",
+    "A piston on one side pushes one pad; the body slides to bring in the other",
+    "The caliper body is fixed and the rotor slides sideways to meet the pads",
+    "Pressure moves both pads outward with no sliding parts involved"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l05.q2",
+   "lessonId": "atlas-brakes-hs.l05",
+   "kind": "mcq",
+   "prompt": "What does the caliper piston seal do besides keeping fluid in?",
+   "choices": [
+    "It pulls the piston back slightly when pressure is released",
+    "It cools the brake fluid as it passes the piston and boot",
+    "It stops the pad from sliding sideways along the rotor",
+    "It sets the pedal height by limiting master cylinder travel"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l05.q3",
+   "lessonId": "atlas-brakes-hs.l05",
+   "kind": "mcq",
+   "prompt": "A technician finds one inner pad worn much faster than the outer pad on the same caliper. Which cause is most likely?",
+   "choices": [
+    "A weak 12 volt battery that leaves the module underpowered",
+    "A sticking slide pin or hardware problem",
+    "Contaminated brake fluid in the reservoir",
+    "An over-torqued wheel on the same axle"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l05.q4",
+   "lessonId": "atlas-brakes-hs.l05",
+   "kind": "mcq",
+   "prompt": "A car pulls to the right under light braking and the right front wheel is much hotter than the left after a drive. Which finding best fits?",
+   "choices": [
+    "A seized right front slide pin or piston dragging the pad",
+    "A worn left front tone ring that misreads wheel speed",
+    "A weak vacuum booster check valve that lets assist leak away",
+    "A failed brake light switch at the top of the pedal"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l05.q5",
+   "lessonId": "atlas-brakes-hs.l05",
+   "kind": "mcq",
+   "prompt": "Which lubricant is appropriate on slide pins?",
+   "choices": [
+    "Any multipurpose chassis grease, since all greases tolerate heat equally",
+    "The high-temperature brake grease the manufacturer specifies",
+    "Engine oil, applied sparingly to the pin and boot",
+    "Penetrating spray, left on to keep the pin loose"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l05.q6",
+   "lessonId": "atlas-brakes-hs.l05",
+   "kind": "mcq",
+   "prompt": "Which description matches a fixed caliper?",
+   "choices": [
+    "Pistons on both sides of the rotor, bolted rigidly so it does not slide",
+    "A single piston on the inboard side with the body riding on slide pins",
+    "A caliper that clamps the rotor with no pistons at all",
+    "A caliper mounted on the wheel and spun with the tire"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l06.q1",
+   "lessonId": "atlas-brakes-hs.l06",
+   "kind": "mcq",
+   "prompt": "What does a squealing brake pad wear indicator tab tell you?",
+   "choices": [
+    "The pad is thin and needs inspection",
+    "The brake fluid is due for replacement soon",
+    "The tire pressure is low on that corner",
+    "The booster is losing vacuum at idle"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l06.q2",
+   "lessonId": "atlas-brakes-hs.l06",
+   "kind": "mcq",
+   "prompt": "Which statement best describes ceramic pads in general?",
+   "choices": [
+    "Quiet with light-colored dust, but often higher in price",
+    "Very abrasive on rotors, noisy, and the dustiest choice",
+    "Always the lowest cost and wear the fastest of all pads",
+    "Designed only for racing, and unsafe in everyday driving"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l06.q3",
+   "lessonId": "atlas-brakes-hs.l06",
+   "kind": "mcq",
+   "prompt": "A pad surface looks shiny and hard, and the car squeals and stops weakly after repeated hard use. What is the likely diagnosis?",
+   "choices": [
+    "Glazed pads from overheating",
+    "Pads contaminated with brake fluid on the surface",
+    "A cracked caliper bracket allowing pad movement",
+    "A seized wheel bearing on that axle"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l06.q4",
+   "lessonId": "atlas-brakes-hs.l06",
+   "kind": "mcq",
+   "prompt": "After replacing glazed pads, the glazing returns in a few weeks. What should the technician consider?",
+   "choices": [
+    "Fit even harder pads and tell the customer glazing is normal wear",
+    "Look for a root cause such as a dragging caliper or unsuitable compound",
+    "Replace the pads again and move on without any further checks",
+    "Lubricate the pad faces with grease so they stop squealing"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l06.q5",
+   "lessonId": "atlas-brakes-hs.l06",
+   "kind": "mcq",
+   "prompt": "Why is bedding in (burnishing) done after fitting new pads?",
+   "choices": [
+    "To transfer an even layer of pad material to the rotor",
+    "To burn off the oil film that coats a new hub bearing",
+    "To compress the caliper piston seal to its final shape",
+    "To test the booster under load before the road test"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l06.q6",
+   "lessonId": "atlas-brakes-hs.l06",
+   "kind": "mcq",
+   "prompt": "Which rule should guide the choice of replacement pads?",
+   "choices": [
+    "Pick any pad as long as it fits the caliper bracket",
+    "Choose whichever pad is quietest, whatever the maker specifies",
+    "Use pads that meet the vehicle maker's requirements",
+    "Always choose the pad with the thickest backing plate"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l07.q1",
+   "lessonId": "atlas-brakes-hs.l07",
+   "kind": "mcq",
+   "prompt": "What does the minimum thickness stamped on a rotor mean?",
+   "choices": [
+    "The thickness at which the rotor must be discarded",
+    "The thickness of a brand-new rotor as measured at the factory",
+    "The thickness the pad must have when it first touches the rotor",
+    "The thickness of the hub face where the rotor seats"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l07.q2",
+   "lessonId": "atlas-brakes-hs.l07",
+   "kind": "mcq",
+   "prompt": "Which tool measures lateral runout of a rotor face?",
+   "choices": [
+    "A micrometer",
+    "A dial indicator",
+    "A feeler gauge on the pad",
+    "A tire gauge"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l07.q3",
+   "lessonId": "atlas-brakes-hs.l07",
+   "kind": "mcq",
+   "prompt": "A rotor is stamped MIN TH 22.0 mm and measures 22.4 mm. A machine cut removes 0.15 mm from each face. What is the result?",
+   "choices": [
+    "22.1 mm, above the limit, so this one cut is allowed",
+    "21.8 mm, below the limit, so the rotor must be replaced",
+    "22.25 mm, so a second cut of the same size is also possible",
+    "22.55 mm, because machining a face can add a little metal"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l07.q4",
+   "lessonId": "atlas-brakes-hs.l07",
+   "kind": "mcq",
+   "prompt": "Which measurement is the most direct cause of pedal pulsation during braking?",
+   "choices": [
+    "Variation in rotor thickness around its circumference",
+    "Pad friction material that is too soft for the rotor",
+    "A booster pushrod that is a little too long",
+    "Caliper pistons that retract slightly too far each time"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l07.q5",
+   "lessonId": "atlas-brakes-hs.l07",
+   "kind": "mcq",
+   "prompt": "Why must the hub face be cleaned of rust before installing a rotor?",
+   "choices": [
+    "Rust adds weight",
+    "Debris can tilt the rotor and create runout",
+    "Rust makes the fluid boil",
+    "Clean hubs make the pads last longer by cooling the fluid"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l07.q6",
+   "lessonId": "atlas-brakes-hs.l07",
+   "kind": "tf",
+   "prompt": "Pulsation can often be traced to thickness variation or pad deposits rather than a literally bent rotor.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l08.q1",
+   "lessonId": "atlas-brakes-hs.l08",
+   "kind": "mcq",
+   "prompt": "Which part pulls drum brake shoes away from the drum when pressure is released?",
+   "choices": [
+    "Return springs",
+    "The wheel cylinder",
+    "The tone ring",
+    "The reservoir cap"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l08.q2",
+   "lessonId": "atlas-brakes-hs.l08",
+   "kind": "mcq",
+   "prompt": "What does a drum brake self-adjuster do?",
+   "choices": [
+    "Takes up the gap that grows as the linings wear",
+    "Raises line pressure when the shoes become thin",
+    "Cleans glaze and rust from the inside of the drum",
+    "Measures wheel speed from the drum teeth"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l08.q3",
+   "lessonId": "atlas-brakes-hs.l08",
+   "kind": "mcq",
+   "prompt": "A car has a low pedal that improves when pumped. Fluid level and the front brakes are fine, and a rear drum shows worn linings and a seized star wheel. Which explains the low pedal?",
+   "choices": [
+    "A seized adjuster leaves the shoes too far from the drum",
+    "The booster has too much vacuum assist stored in reserve",
+    "The front pads are too thick and hold fluid in the calipers",
+    "A stuck proportioning valve is blocking the rear circuit"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l08.q4",
+   "lessonId": "atlas-brakes-hs.l08",
+   "kind": "mcq",
+   "prompt": "Brake fluid is found on the inside of a drum with contaminated linings. What is the correct repair?",
+   "choices": [
+    "Wash the shoes in brake cleaner, let them dry and reinstall them",
+    "Replace the shoes and repair the leaking wheel cylinder",
+    "Roughen the lining surface with sandpaper and reinstall",
+    "Add a dab of grease to the shoe pads to seal in the fluid"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l08.q5",
+   "lessonId": "atlas-brakes-hs.l08",
+   "kind": "mcq",
+   "prompt": "Why should compressed air not be used to blow brake dust off parts?",
+   "choices": [
+    "It chills the parts and makes the linings crack",
+    "It spreads dust that can be hazardous to breathe",
+    "It strips the grease from the backing plate ledges",
+    "It lowers the friction of the linings for good"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l08.q6",
+   "lessonId": "atlas-brakes-hs.l08",
+   "kind": "tf",
+   "prompt": "Electronic parking brake calipers often need a scan-tool service mode before the piston is retracted.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l07.q7",
+   "lessonId": "atlas-brakes-hs.l07",
+   "kind": "mcq",
+   "prompt": "A rotor stamped MIN TH 22.0 mm measures 21.9 mm at its thinnest point. What is the correct action?",
+   "choices": [
+    "Replace the rotor, since it is below the discard thickness",
+    "Resurface it lightly to flatten the surface",
+    "Reuse it, because 0.1 mm makes no practical difference",
+    "Fit thicker pads to make up for the missing metal"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l09.q1",
+   "lessonId": "atlas-brakes-hs.l09",
+   "kind": "mcq",
+   "prompt": "What does hygroscopic mean when applied to glycol brake fluid?",
+   "choices": [
+    "It absorbs moisture from the air over time",
+    "It thickens quickly when the temperature drops",
+    "It cannot be compressed even by very high pressure",
+    "It dissolves rubber seals and softens them in days"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l09.q2",
+   "lessonId": "atlas-brakes-hs.l09",
+   "kind": "mcq",
+   "prompt": "Which grade is silicone-based and should not be mixed with glycol fluids?",
+   "choices": [
+    "DOT 3",
+    "DOT 4",
+    "DOT 5",
+    "DOT 5.1"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l09.q3",
+   "lessonId": "atlas-brakes-hs.l09",
+   "kind": "mcq",
+   "prompt": "Compared with its dry boiling point, a fluid's wet boiling point is",
+   "choices": [
+    "higher, because water adds heat capacity to the fluid",
+    "lower, since absorbed water cuts the boiling point",
+    "identical, because water leaves through the reservoir vent",
+    "undefined, because the wet value cannot be measured"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l09.q4",
+   "lessonId": "atlas-brakes-hs.l09",
+   "kind": "mcq",
+   "prompt": "After a long mountain descent, a driver finds the pedal soft but firm again after the brakes cool. Which explanation fits best?",
+   "choices": [
+    "Hot fluid boiled and formed vapor bubbles, which compress",
+    "The pads permanently shrank and then expanded again",
+    "The rotor grew thicker with heat, then returned to size",
+    "The wheel bearings loosened and then tightened again"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l09.q5",
+   "lessonId": "atlas-brakes-hs.l09",
+   "kind": "mcq",
+   "prompt": "Which statement about boiling-point figures in this lesson is the safest to repeat to a customer?",
+   "choices": [
+    "The figures are exact guarantees for every product on the shelf, so quote them as fact",
+    "They are approximate minimums to verify against the current standard and label",
+    "They apply only to silicone fluid and are irrelevant to glycol grades",
+    "They never change as fluid ages, so a bottle is good for decades"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l09.q6",
+   "lessonId": "atlas-brakes-hs.l09",
+   "kind": "tf",
+   "prompt": "Brake fluid can damage paint, so spills should be cleaned up quickly.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l10.q1",
+   "lessonId": "atlas-brakes-hs.l10",
+   "kind": "mcq",
+   "prompt": "Why is a bleeder screw located high on the caliper?",
+   "choices": [
+    "So air can rise to it and leave the system",
+    "So fluid drains out of the caliper by gravity alone",
+    "So the screw stays cooler than the pads and the piston",
+    "So the piston boot does not touch the screw seat"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l10.q2",
+   "lessonId": "atlas-brakes-hs.l10",
+   "kind": "mcq",
+   "prompt": "During manual bleeding, which mistake lets air be drawn into the system?",
+   "choices": [
+    "Closing the screw before releasing the pedal",
+    "Letting the reservoir run low or empty",
+    "Using fresh sealed fluid",
+    "Following the manual's wheel order"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l10.q3",
+   "lessonId": "atlas-brakes-hs.l10",
+   "kind": "mcq",
+   "prompt": "Why do some ABS vehicles need a scan tool for bleeding?",
+   "choices": [
+    "To warm the fluid so that it flows through the lines",
+    "To cycle the valves so trapped air can be cleared",
+    "To reset the pad wear indicator after a pad change",
+    "To calibrate the pedal height on the booster pushrod"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l10.q4",
+   "lessonId": "atlas-brakes-hs.l10",
+   "kind": "mcq",
+   "prompt": "After bleeding, the pedal is still spongy. Which next step is most sensible?",
+   "choices": [
+    "Drive at highway speed for several miles so that the heat and vibration force the air out",
+    "Recheck for leaks, bleed again in the specified order, and look for a cause",
+    "Add a thicker fluid to the reservoir, which hides the sponginess",
+    "Replace the brake pads again to firm up the pedal"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l10.q5",
+   "lessonId": "atlas-brakes-hs.l10",
+   "kind": "mcq",
+   "prompt": "Why does the shop warn against pushing the pedal to the full end of its travel during bleeding on an old master cylinder?",
+   "choices": [
+    "The booster diaphragm could tear from the extra stroke",
+    "Corrosion in the bore can damage seals travelling into rough areas",
+    "The stop lamps would stay lit until the engine is switched off and restarted",
+    "The ABS module would store a fault and need to be reset"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l10.q6",
+   "lessonId": "atlas-brakes-hs.l10",
+   "kind": "mcq",
+   "prompt": "What should decide the wheel order and method used to bleed a particular vehicle?",
+   "choices": [
+    "The factory service manual for that vehicle",
+    "Whatever order the previous technician used",
+    "Always start at the wheel nearest the master cylinder",
+    "Customer preference, since the order has no effect"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l11.q1",
+   "lessonId": "atlas-brakes-hs.l11",
+   "kind": "mcq",
+   "prompt": "What does a wheel speed sensor read?",
+   "choices": [
+    "The tone ring turning with the wheel",
+    "The thickness of the friction material on the pad",
+    "The temperature of the brake fluid in the caliper",
+    "The pressure inside the hose near the wheel"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l11.q2",
+   "lessonId": "atlas-brakes-hs.l11",
+   "kind": "mcq",
+   "prompt": "Which part contains the solenoid valves and pump motor that change brake pressure?",
+   "choices": [
+    "The hydraulic control unit",
+    "The wheel cylinder behind the drum",
+    "The pushrod between pedal and booster",
+    "The proportioning valve on the rear line"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l11.q3",
+   "lessonId": "atlas-brakes-hs.l11",
+   "kind": "mcq",
+   "prompt": "How does traction control typically act on a spinning drive wheel?",
+   "choices": [
+    "By brakes on that wheel, reduced engine torque or both",
+    "By raising brake fluid pressure at the other three wheels only",
+    "By locking the parking brake",
+    "By adding fluid to the reservoir"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l11.q4",
+   "lessonId": "atlas-brakes-hs.l11",
+   "kind": "mcq",
+   "prompt": "A car shows the ABS lamp after new tires of a very different diameter were fitted on one axle only. Which explanation is most plausible?",
+   "choices": [
+    "The brake pads on that axle have become glazed",
+    "Different wheel speeds look like a fault to the module",
+    "The fluid has absorbed water from the new wheels",
+    "The parking brake cable stretched during tire fitting"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l11.q5",
+   "lessonId": "atlas-brakes-hs.l11",
+   "kind": "mcq",
+   "prompt": "The ABS lamp is on and a sensor code is stored. What is usually true about the base brakes?",
+   "choices": [
+    "They still work, though anti-lock help is likely off",
+    "They have all failed at once, so the vehicle must be towed away",
+    "They work better because ABS no longer interferes",
+    "Only the rear axle brakes work and the front is disabled"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l11.q6",
+   "lessonId": "atlas-brakes-hs.l11",
+   "kind": "tf",
+   "prompt": "Electronic stability control uses a yaw-rate sensor and a steering angle sensor in addition to wheel speed signals.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l09.q7",
+   "lessonId": "atlas-brakes-hs.l09",
+   "kind": "mcq",
+   "prompt": "Which list puts the glycol grades in order of their minimum dry boiling points, from lowest to highest?",
+   "choices": [
+    "DOT 3, DOT 4, DOT 5.1",
+    "DOT 5.1, DOT 4, DOT 3",
+    "DOT 4, DOT 3, DOT 5.1",
+    "DOT 3, DOT 5.1, DOT 4"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l11.q7",
+   "lessonId": "atlas-brakes-hs.l11",
+   "kind": "mcq",
+   "prompt": "A wheel speed signal drops out only at higher road speed. What is the most sensible next check?",
+   "choices": [
+    "Wiring and connector condition, sensor air gap, and the tone ring for damage or debris",
+    "Replace the hydraulic control unit",
+    "Bleed all four brakes",
+    "Replace the master cylinder"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l12.q1",
+   "lessonId": "atlas-brakes-hs.l12",
+   "kind": "mcq",
+   "prompt": "Which support should be used when working under a raised vehicle?",
+   "choices": [
+    "A single hydraulic jack placed under the control arm",
+    "Jack stands rated for the weight, or a lift",
+    "A stack of wood blocks under the frame rail",
+    "The spare tire placed under the frame rail"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l12.q2",
+   "lessonId": "atlas-brakes-hs.l12",
+   "kind": "mcq",
+   "prompt": "What is a safe way to clean brake dust from a brake assembly?",
+   "choices": [
+    "Blow it off with compressed air, wearing a basic dust mask",
+    "Brush it away with a dry rag and wash up later",
+    "Use an enclosed filtered vacuum or a wet cleaning method",
+    "Sweep it into a pile and let it settle before lifting it"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l12.q3",
+   "lessonId": "atlas-brakes-hs.l12",
+   "kind": "mcq",
+   "prompt": "An inner pad is worn much more than the outer pad. What does that most likely suggest?",
+   "choices": [
+    "A caliper or slide pin problem",
+    "A weak booster or vacuum leak",
+    "Contaminated or old brake fluid",
+    "A bad hub bearing on that wheel"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l12.q4",
+   "lessonId": "atlas-brakes-hs.l12",
+   "kind": "mcq",
+   "prompt": "A technician finishes a pad swap and the pedal sinks nearly to the floor on the first press. What should happen before moving the vehicle?",
+   "choices": [
+    "Pump until firm, confirm the fluid level, and check for leaks first",
+    "Road test at highway speed so the pads seat and the pedal firms up",
+    "Return the keys and tell the customer the pedal will firm up on its own",
+    "Top off the reservoir and release the vehicle if no leaks show"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l12.q5",
+   "lessonId": "atlas-brakes-hs.l12",
+   "kind": "mcq",
+   "prompt": "Why are lug nuts torqued with a torque wrench in a star pattern?",
+   "choices": [
+    "To make the wheel studs stretch a little so they stay tight",
+    "To seat the wheel evenly without distorting the rotor",
+    "To align the wheel balance weights on the rim",
+    "To reset the tire pressure monitoring sensor"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l12.q6",
+   "lessonId": "atlas-brakes-hs.l12",
+   "kind": "tf",
+   "prompt": "Measurements should be written on the repair order so they can be shown to the customer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l13.q1",
+   "lessonId": "atlas-brakes-hs.l13",
+   "kind": "mcq",
+   "prompt": "A harsh metallic grinding during braking most often means",
+   "choices": [
+    "The rotor surface is glazed from the earlier overheating",
+    "Friction material may be gone, so metal contacts metal",
+    "A dry slide pin is making noise but no wear is involved",
+    "The wheel bearing is slightly loose and only needs grease"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l13.q2",
+   "lessonId": "atlas-brakes-hs.l13",
+   "kind": "mcq",
+   "prompt": "A vehicle pulls left only when braking. Which item is a likely cause?",
+   "choices": [
+    "A sticking caliper or a collapsed hose on one side",
+    "A leaking master cylinder seal in the secondary circuit",
+    "A seized parking brake cable on both rear wheels",
+    "Air in both front brake circuits after a fluid change"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l13.q3",
+   "lessonId": "atlas-brakes-hs.l13",
+   "kind": "mcq",
+   "prompt": "A customer complains of a pulsing pedal. Which first step best follows good diagnostic practice?",
+   "choices": [
+    "Replace the master cylinder, because it controls pedal feel",
+    "Measure rotor thickness variation and runout first",
+    "Flush the brake fluid, because old fluid causes pulsing",
+    "Replace the ABS module, since it pulses the pressure"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l13.q4",
+   "lessonId": "atlas-brakes-hs.l13",
+   "kind": "mcq",
+   "prompt": "Which cause fits a spongy pedal that improves when pumped twice?",
+   "choices": [
+    "Air in the lines or a swollen hose",
+    "A seized tone ring",
+    "A stuck proportioning valve in the open position",
+    "A flat spare"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l13.q5",
+   "lessonId": "atlas-brakes-hs.l13",
+   "kind": "mcq",
+   "prompt": "Which sequence best describes diagnosing an ABS lamp?",
+   "choices": [
+    "Replace the HCU first, since the module cannot be tested any other way",
+    "Read codes and live data, inspect sensor, tone ring and wiring, check voltage",
+    "Clear the code and, if the lamp stays off during a short drive, return the vehicle",
+    "Replace all four wheel speed sensors, since they wear out as a set"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l13.q6",
+   "lessonId": "atlas-brakes-hs.l13",
+   "kind": "tf",
+   "prompt": "A pulsing pedal during a hard stop on gravel can be normal ABS activity.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l14.q1",
+   "lessonId": "atlas-brakes-hs.l14",
+   "kind": "mcq",
+   "prompt": "How is shop labor on an estimate commonly calculated?",
+   "choices": [
+    "Guide labor time multiplied by the shop's hourly rate",
+    "The vehicle weight multiplied by a fixed rate per pound",
+    "The number of fasteners removed multiplied by one fee",
+    "A flat percentage of the parts total, whatever the job"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l14.q2",
+   "lessonId": "atlas-brakes-hs.l14",
+   "kind": "mcq",
+   "prompt": "Which factor most directly makes the parts line of two brake estimates differ?",
+   "choices": [
+    "Parts quality tier and what is being replaced",
+    "How many miles the customer drove last year",
+    "The air temperature at the time of the estimate",
+    "Whether the customer pays by card or cash"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l14.q3",
+   "lessonId": "atlas-brakes-hs.l14",
+   "kind": "mcq",
+   "prompt": "While working, a technician finds a seized caliper that was not on the estimate. What is the right next step?",
+   "choices": [
+    "Replace it now and add it to the final bill without telling anyone",
+    "Pause, show the evidence, and get the customer's approval first",
+    "Skip it and say nothing, since it was not on the estimate",
+    "Replace it at cost and mention it only if the customer asks"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l14.q4",
+   "lessonId": "atlas-brakes-hs.l14",
+   "kind": "mcq",
+   "prompt": "Which statement best uses measurements to communicate with a customer?",
+   "choices": [
+    "Your brakes are probably dangerous, so you should replace everything today",
+    "The front pad measures below the maker's limit, so it is due",
+    "The computer in the shop says that these parts always fail now",
+    "It is better to be safe, so we recommend the premium package"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l14.q5",
+   "lessonId": "atlas-brakes-hs.l14",
+   "kind": "mcq",
+   "prompt": "Why does this lesson avoid giving specific prices?",
+   "choices": [
+    "Prices differ by region, vehicle, shop and parts tier",
+    "Real prices change daily, so printed figures are always wrong",
+    "Customers are not allowed to ask what a repair costs",
+    "Shops are legally forbidden from publishing any price"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l14.q6",
+   "lessonId": "atlas-brakes-hs.l14",
+   "kind": "tf",
+   "prompt": "A technician should separate what is unsafe now from what can wait and what is only maintenance.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "atlas-brakes-hs.l13.q7",
+   "lessonId": "atlas-brakes-hs.l13",
+   "kind": "mcq",
+   "prompt": "A customer reports a squeal that goes away when the brake pedal is pressed firmly. Which cause fits best?",
+   "choices": [
+    "A pad wear indicator tab touching the rotor",
+    "Air in the master cylinder",
+    "A leaking wheel cylinder",
+    "A failed booster check valve"
+   ]
+  }
+ ]
+}

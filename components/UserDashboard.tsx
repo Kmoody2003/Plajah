@@ -12,6 +12,7 @@ import { accountFlagUpdate, hasCapability, capabilitiesFor, ACCOUNT_TYPE_META, t
 import FastChannelManager from './FastChannelManager';
 import LinkedStationsManager from './radio/LinkedStationsManager';
 import BroadcastMultiview from './radio/BroadcastMultiview';
+import ChannelLogoManager from './broadcast/ChannelLogoManager';
 import BroadcastDestinations from './radio/BroadcastDestinations';
 
 // Human labels for the capabilities shown in the "your account unlocks" panel.
@@ -26,6 +27,7 @@ const CAP_LABELS: Record<Capability, string> = {
 import StoreProductManager from './StoreProductManager';
 import RelationshipSettings from './RelationshipSettings';
 import ProfileLinksSettings from './ProfileLinksSettings';
+import MyOrgRoles from './elevate/MyOrgRoles';
 import { invalidProfileLinks } from '../services/socialLinks';
 import CreatorPaymentDashboard from './CreatorPaymentDashboard';
 import WorldManagerView from './WorldManagerView';
@@ -69,6 +71,7 @@ import BookClubCreator from './BookClubCreator';
 // Classrooms
 import ClassroomAnalyticsView from './ClassroomAnalyticsView';
 import CertificateGenerator from './CertificateGenerator';
+import OrganizationAccountModal from './elevate/OrganizationAccountModal';
 // Content & Safety
 const LazyContentSafetySettings = React.lazy(() => import('./safety/ContentSafetySettings'));
 // Opt-in rights layer: the switch, plus every work that already has a record.
@@ -82,6 +85,8 @@ interface UserDashboardProps {
   onOpenTVStudio?: () => void;
   onOpenScriptStudio?: (format?: string) => void;
   initialTab?: string;
+  /** Open an organization in OrgHub (App wires this to setOrgHubInitial + ORG_HUB view). */
+  onOpenOrg?: (orgId: string) => void;
 }
 
 const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[] = [
@@ -94,8 +99,9 @@ const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[
   { id: 'PASTEL',   label: 'Pastel',  bg: '#fdf6e3',             text: '#2aa198' },
 ];
 
-const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio, onOpenScriptStudio, initialTab }) => {
+const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio, onOpenScriptStudio, initialTab, onOpenOrg }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showOrgAccountModal, setShowOrgAccountModal] = useState(false);
   const [activeTab, setActiveTab] = useState<
     'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' |
     'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' |
@@ -975,6 +981,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   onChange={(socialLinks) => setProfile({ ...profile, socialLinks })}
                 />
 
+                <MyOrgRoles uid={user.uid} />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 ml-2">X (Twitter) Handle</label>
@@ -1311,6 +1319,14 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 </div>
 
                 {/* Account Identity Section */}
+                {showOrgAccountModal && (
+                  <OrganizationAccountModal
+                    linkedOrgId={(profile as any)?.linkedOrgId}
+                    onClose={() => setShowOrgAccountModal(false)}
+                    onOpenOrg={onOpenOrg}
+                    onDone={(org) => setProfile(prev => prev ? { ...prev, accountType: 'ORGANIZATION' as any, ...accountFlagUpdate('ORGANIZATION' as any), linkedOrgId: org?.id } as any : null)}
+                  />
+                )}
                 <section className="p-8 lg:p-12 bg-white/[0.02] border border-white/5 rounded-[3rem] mb-8">
                   <div className="flex items-center gap-4 mb-8">
                     <div className="p-4 bg-small-orange/20 rounded-2xl">
@@ -1323,11 +1339,12 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {(['FAN', 'ARTIST', 'BRAND', 'WRITER', 'STUDENT', 'TEACHER', 'PARTNER', 'ATHLETE', 'PARENT', 'CHILD'] as const).map((type) => (
+                    {(['FAN', 'ARTIST', 'BRAND', 'ORGANIZATION', 'WRITER', 'STUDENT', 'TEACHER', 'PARTNER', 'ATHLETE', 'PARENT', 'CHILD'] as const).map((type) => (
                       <button
                         key={type}
                         type="button"
                         onClick={async () => {
+                          if (type === 'ORGANIZATION') { setShowOrgAccountModal(true); return; }
                           await updateAccountType(type as any);
                           // Mirror the SAME derived flags the backend just persisted,
                           // so local state matches Firestore (no more drift).
@@ -1347,6 +1364,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                           {type === 'FAN' && <Heart size={20} />}
                           {type === 'ARTIST' && <Sparkles size={20} />}
                           {type === 'BRAND' && <Box size={20} />}
+                          {type === 'ORGANIZATION' && <Users size={20} />}
                           {type === 'WRITER' && <Pen size={20} />}
                           {type === 'STUDENT' && <Notebook size={20} />}
                           {type === 'TEACHER' && <LayoutGrid size={20} />}
@@ -1753,6 +1771,9 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   Open Scheduler
                 </button>
               </div>
+
+              {/* Channel logos — one per channel in the TV+ guide (default: profile photo, then the Plajah chevron). */}
+              <ChannelLogoManager profile={profile} />
 
               {/* Linked internet-radio stations — bring-your-station-by-link management. */}
               <LinkedStationsManager uid={profile.uid} ownerName={profile.displayName} ownerAvatar={profile.photoURL || undefined} />

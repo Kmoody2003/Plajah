@@ -1,0 +1,46 @@
+{
+  "schema": "getbible-dictionary-metadata-v1",
+  "id": "strongshebrew",
+  "module": "StrongsHebrew",
+  "name": "Strong's Hebrew Bible Dictionary",
+  "language": "en",
+  "version": "1.2",
+  "license": "Public Domain",
+  "driver": "RawLD",
+  "source_type": "",
+  "entry_count": 8675,
+  "unique_key_count": 8675,
+  "strong_prefix": "H",
+  "bytes": 3364327,
+  "index_url": "index.json",
+  "entry_url_template": "{entry}.json",
+  "source": "CrossWire SWORD",
+  "source_module_url": "https://www.crosswire.org/sword/modules/ModInfo.jsp?modName=StrongsHebrew",
+  "text_source": "http://www.bf.org/",
+  "copyright": "",
+  "copyright_holder": "",
+  "copyright_contact": {
+    "name": "",
+    "email": "",
+    "address": ""
+  },
+  "distribution_notes": "",
+  "about": "Strong's Bible Dictionary\\par\\par Dictionaries of Hebrew and Greek Words taken from Strong's Exhaustive Concordance by James Strong, S.T.D., LL.D. 1890\\par Public Domain -- Copy Freely\\par see STRONGS.DOC for more information",
+  "conversion_note": "Converted to GetBible static JSON; wording is supplied by the source module.",
+  "references": {
+    "api": "getbible-v2",
+    "versification": "KJV",
+    "translations": [
+      "kjv",
+      "kjva"
+    ],
+    "names": "kjv",
+    "language": "en",
+    "librarian": [
+      "kjv"
+    ],
+    "aliases": [
+      "en.json"
+    ]
+  }
+}

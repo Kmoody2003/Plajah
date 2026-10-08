@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/lectioConcordance.ts", "services/lectioHistory.ts", "services/lectioLexicon.ts", "services/lectioAlignment.ts", "services/lectioOriginals.ts", "services/lectioMorphology.ts",
+    "services/sacredReaderCore.ts", "services/sacredReaderService.ts", "services/sacredResearch.ts",
+    "components/scripture/LectioConcordance.tsx", "components/scripture/LectioHistory.tsx", "components/scripture/LectioLexicon.tsx",
+    "components/scripture/LectioComparativeSearch.tsx", "components/scripture/LectioAlignment.tsx", "components/scripture/LectioOriginals.tsx",
+    "components/faith/SacredTextReader.tsx", "components/faith/ResearchNotebook.tsx",
+    "data/sacredLibrary/readerCatalog.ts", "data/sacredLibrary/historicalEvidence.ts",
+    "tests/lectioConcordance.test.ts", "tests/sacredResearch.test.ts", "tests/sacredReader.test.ts", "tests/lectioHistory.test.ts", "tests/lectioAlignment.test.ts", "tests/lectioOriginals.test.ts"
+  ]
+}

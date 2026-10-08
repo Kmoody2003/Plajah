@@ -116,6 +116,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [genre, setGenre] = useState(initialAlbum?.genre || '');
   const [price, setPrice] = useState<number>(initialAlbum?.price || 0);
   const [isPaywalled, setIsPaywalled] = useState<boolean>(initialAlbum?.isPaywalled || false);
+  // Opt-in: priced music streams in full by default; only when the artist chooses this does a non-buyer get a 30s preview.
+  const [previewOnly, setPreviewOnly] = useState<boolean>(initialAlbum?.previewOnly || false);
   // Content licensing (built but OFF — gated behind CONTENT_LICENSING flag).
   const [license, setLicense] = useState<string>(initialAlbum?.license || DEFAULT_LICENSE);
   const licensingEnabled = isFeatureEnabled('CONTENT_LICENSING', auth.currentUser?.uid || '', auth.currentUser?.email === 'kmoody2003@gmail.com');
@@ -986,7 +988,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         artistCharacterId: artistCharacterId || undefined,
         artistWorldId: artistWorldId || undefined,
         type: type as Album['type'],
-        subType: subType as Album['subType'], genre, price, isPaywalled,
+        subType: subType as Album['subType'], genre, price, isPaywalled, previewOnly: previewOnly && price > 0,
         mixMeta: subType === 'MIX' ? {
           visualMode: mixVisualMode,
           pixelsProjectId: mixVisualMode === 'AUTHORED' ? (mixPixelsProjectId || undefined) : undefined,
@@ -1141,7 +1143,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   useEffect(() => {
     if (dirtyInitRef.current) { dirtyInitRef.current = false; return; }
     setIsDirty(true);
-  }, [title, artist, type, subType, genre, price, isPaywalled, description, artistBio, linerNotes, artistImage, coverImage,
+  }, [title, artist, type, subType, genre, price, isPaywalled, previewOnly, description, artistBio, linerNotes, artistImage, coverImage,
       JSON.stringify(tracks), JSON.stringify(bookChapters), JSON.stringify(slideshow), JSON.stringify(musicVideos),
       JSON.stringify(videoPlaylists), JSON.stringify(socialLinks), JSON.stringify(tags)]);
 
@@ -1160,7 +1162,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
     if (!title.trim() || isDeploying) return;
     const t = setTimeout(() => autosave(), 3500);
     return () => clearTimeout(t);
-  }, [title, artist, type, subType, genre, price, isPaywalled, description, artistBio, linerNotes, artistImage, coverImage,
+  }, [title, artist, type, subType, genre, price, isPaywalled, previewOnly, description, artistBio, linerNotes, artistImage, coverImage,
       JSON.stringify(tracks), JSON.stringify(bookChapters), JSON.stringify(slideshow), JSON.stringify(musicVideos),
       JSON.stringify(videoPlaylists), JSON.stringify(socialLinks), JSON.stringify(tags)]);
 
@@ -2842,6 +2844,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <button type="button" onClick={() => setIsPaywalled(!isPaywalled)} className={`px-6 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest border transition-all ${isPaywalled ? 'bg-small-orange text-white border-small-orange shadow-xl' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>{isPaywalled ? 'Paywalled' : 'Free'}</button>
           </div>
         </div>
+        {type !== 'BOOK' && price > 0 && (
+          <label className="md:col-span-2 flex items-start gap-3 p-4 rounded-2xl bg-white/[0.04] border border-white/10 cursor-pointer">
+            <input type="checkbox" checked={previewOnly} onChange={(e) => setPreviewOnly(e.target.checked)} className="mt-1 accent-orange-500" />
+            <span className="text-sm text-white/70">
+              <span className="block font-black text-white">Preview only until bought</span>
+              Off by default: listeners can stream everything, and buying lets them own and download it. Turn this on to limit non-buyers to a 30-second preview.
+            </span>
+          </label>
+        )}
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Gifts & Tips Goal ($)</label>
           <input type="number" value={donationGoal} onChange={(e) => setDonationGoal(parseFloat(e.target.value))} placeholder="e.g. 500.00" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
@@ -3556,8 +3567,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               type="button"
               onClick={async (e) => {
                 e.stopPropagation();
-                const shareLink = initialAlbum?.id ? buildShareUrl('album', initialAlbum.id) : window.location.origin;
-                const shareData = { title: title || 'Check out this album on Plajah', text: shareText(title, artist), url: shareLink };
+                const isMix = subType === 'MIX' || initialAlbum?.subType === 'MIX';
+                const shareLink = initialAlbum?.id ? buildShareUrl(isMix ? 'mix' : 'album', initialAlbum.id) : window.location.origin;
+                const shareData = { title: title || (isMix ? 'Check out this mix on Plajah' : 'Check out this album on Plajah'), text: shareText(title, artist), url: shareLink };
                 if (navigator.share) { try { await navigator.share(shareData); } catch {} }
                 else { await navigator.clipboard.writeText(shareLink); }
               }}
@@ -3672,9 +3684,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <button
               type="button"
               onClick={async () => {
-                const shareLink = initialAlbum?.id ? buildShareUrl('album', initialAlbum.id) : window.location.origin;
+                const isMix = subType === 'MIX' || initialAlbum?.subType === 'MIX';
+                const shareLink = initialAlbum?.id ? buildShareUrl(isMix ? 'mix' : 'album', initialAlbum.id) : window.location.origin;
                 const shareData = {
-                  title: title || 'Check out this album on Plajah',
+                  title: title || (isMix ? 'Check out this mix on Plajah' : 'Check out this album on Plajah'),
                   text: shareText(title, artist),
                   url: shareLink,
                 };

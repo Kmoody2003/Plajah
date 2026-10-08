@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, Album } from '../../types';
 import { fetchUserContent } from '../../services/backendService';
+import { ChoraPromoModal } from './ChoraPromoModal';
 
 const askAria = (prompt: string) => window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt } }));
 const navigate = (target: string, extra: object = {}) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target, ...extra } }));
@@ -135,6 +136,7 @@ const ReleaseCampaign: React.FC<{ album: Album }> = ({ album }) => {
   const kit = useMemo(() => buildKit(album), [album.id]);
   const [copied, setCopied] = useState<string>('');
   const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [showPromoModal, setShowPromoModal] = useState(false);
   const copy = (key: string, text: string) => { try { navigator.clipboard?.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 1500); } catch { /* noop */ } };
   const toggle = (i: number) => setChecked(s => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n; });
   const st = releaseStatus(album);
@@ -142,6 +144,37 @@ const ReleaseCampaign: React.FC<{ album: Album }> = ({ album }) => {
 
   return (
     <div className="space-y-4">
+      {/* Auto-Promo Studio Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-[#d40055]/20 via-[#6b0099]/20 to-[#ff8c00]/20 border border-[#d40055]/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#d40055] to-[#ff8c00] flex items-center justify-center text-white shadow-lg shrink-0">
+            <Sparkles size={22} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[#ff8c00] font-black">CHORA AUTO-PROMO STUDIO</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-white/80">3 ART COUNCIL SUITES</span>
+            </div>
+            <h4 className="text-sm font-black text-white font-['Outfit']">Instant Omnichannel Promo Packages</h4>
+            <p className="text-[11px] text-white/50">Auto-generated 15s motion bumpers, print-ready posters, scannable QR codes, and native Tela presets.</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowPromoModal(true)}
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#d40055] to-[#ff8c00] hover:opacity-95 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 shrink-0 transition-all"
+        >
+          <Sparkles size={14} />
+          Launch Promo Studio
+        </button>
+      </div>
+
+      {showPromoModal && (
+        <ChoraPromoModal
+          album={album}
+          onClose={() => setShowPromoModal(false)}
+        />
+      )}
+
       {/* Campaign hero — artwork-driven */}
       <div className={`${card} overflow-hidden`}>
         <div className="p-5 flex gap-4 items-center" style={{ background: `linear-gradient(135deg, ${album.themeColor || '#FF8C00'}22, transparent)` }}>

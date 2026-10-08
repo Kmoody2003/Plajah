@@ -15,7 +15,7 @@
  */
 
 import React, {
-  useState, useEffect, useRef, useCallback, useId,
+  useState, useEffect, useRef, useCallback, useId, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -24,6 +24,7 @@ import {
   Film, GraduationCap, Search, Image as ImageIcon, FileText,
   Zap, Star, Check, AlertTriangle, Trash2, MessageSquare,
   Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2, Cpu, Pin, PinOff,
+  Volume2, Square,
 } from 'lucide-react';
 import { usePersistentFloating } from '../hooks/usePersistentFloating';
 import {
@@ -38,6 +39,7 @@ import {
   getActiveAriaContext, serializeAriaContextForWire, runAriaAction,
 } from '../services/aria/ariaContext';
 import { ariaLocalModel, AriaLocalModel } from '../services/aria/ariaLocalModel';
+import { ariaVoice, useAriaVoice } from '../services/aria/ariaVoice';
 import { buildLocalChatMessages } from '../services/aria/ariaLocalPrompt';
 import CouncilRoom from './council/CouncilRoom';
 
@@ -151,6 +153,7 @@ const BuildCard: React.FC<{ build: AgentBuildOutput; onApply?: () => void }> = (
 // ── Message bubble ─────────────────────────────────────────────────────────────
 const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuildOutput) => void }> = ({ msg, onApplyBuild }) => {
   const isUser = msg.role === 'user';
+  const voice = useAriaVoice();
 
   return (
     <motion.div
@@ -220,9 +223,25 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
           );
         })()}
 
-        <span className="text-[7px] text-white/20 px-1">
-          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
+        <div className="flex items-center gap-1.5 px-1">
+          <span className="text-[7px] text-white/20">
+            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          {/* Hear Aria say it — only when the server has a voice configured */}
+          {!isUser && !msg.error && msg.content && (voice.available === true && voice.eligible === true) && (
+            <button
+              onClick={() => ariaVoice.speak(msg.id, msg.content)}
+              title={voice.playingId === msg.id || voice.loadingId === msg.id ? 'Stop' : 'Hear Aria say this'}
+              aria-label={voice.playingId === msg.id || voice.loadingId === msg.id ? 'Stop speaking' : 'Read this reply aloud'}
+              className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                voice.playingId === msg.id ? 'bg-violet-500/30 text-violet-200'
+                  : voice.loadingId === msg.id ? 'bg-white/10 text-white/50 animate-pulse'
+                  : 'text-white/25 hover:text-white/60 hover:bg-white/10'}`}
+            >
+              {voice.playingId === msg.id || voice.loadingId === msg.id ? <Square size={8} /> : <Volume2 size={10} />}
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -292,6 +311,13 @@ const PlajahAgent: React.FC<Props> = ({
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  // Exchanges the server could not store (or a request that failed outright) are shown from here, so the
+  // user's message and Aria's reply — or the error — never silently vanish. Cleared on session change.
+  const [ephemeral, setEphemeral] = useState<AgentMessage[]>([]);
+  const shownMessages = useMemo(
+    () => (ephemeral.length ? [...messages, ...ephemeral].sort((a, b) => a.timestamp - b.timestamp) : messages),
+    [messages, ephemeral],
+  );
   const [usage, setUsage] = useState<AgentUsage>({ dailyMessages: 0, dailySearches: 0, monthlyModules: 0, monthlyGalleries: 0, monthlyVoiceChars: 0, monthlyImages: 0, monthlyTranscriptionMinutes: 0, resetDate: '' });
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -315,6 +341,16 @@ const PlajahAgent: React.FC<Props> = ({
   });
   const [localStatus, setLocalStatus] = useState<string>('');
   const localSupported = AriaLocalModel.isSupported();
+  // Which on-device engine: light Qwen (default) or Gemma 4 E2B (opt-in, ~3 GB first download, WebGPU only).
+  const [localEngine, setLocalEngine] = useState<'qwen' | 'gemma4'>(() => AriaLocalModel.preferredEngine());
+  const gemmaSupported = AriaLocalModel.gemmaSupported();
+  // Spoken replies — opt-in, remembered per browser; only offered when the server has a voice.
+  const voice = useAriaVoice();
+  const [autoRead, setAutoRead] = useState<boolean>(() => {
+    try { return localStorage.getItem('aria_voice_auto') === '1'; } catch { return false; }
+  });
+  const autoReadRef = useRef(autoRead);
+  autoReadRef.current = autoRead && voice.available === true && voice.eligible === true;
 
   // Warm the on-device model when the user turns the lane on.
   useEffect(() => {
@@ -322,7 +358,7 @@ const PlajahAgent: React.FC<Props> = ({
     let alive = true;
     ariaLocalModel.warm(s => { if (alive) setLocalStatus(s); });
     return () => { alive = false; };
-  }, [onDevice]);
+  }, [onDevice, localEngine]);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -336,7 +372,9 @@ const PlajahAgent: React.FC<Props> = ({
       if (list.length > 0 && !sessionId) {
         setSessionId(list[0].id);
       } else if (list.length === 0) {
-        createSession(uid).then(id => { setSessionId(id); setSessions([{ id, title: 'New Conversation', createdAt: Date.now(), updatedAt: Date.now(), messageCount: 0, lastSnippet: '' }]); });
+        createSession(uid)
+          .then(id => { setSessionId(id); setSessions([{ id, title: 'New Conversation', createdAt: Date.now(), updatedAt: Date.now(), messageCount: 0, lastSnippet: '' }]); })
+          .catch(e => { console.error('[Aria] could not create a conversation:', e?.code || e?.message || e); setLimitBanner("Aria couldn't start a conversation yet. Check your connection, then close and reopen this panel."); });
       }
     });
     if (uid) getAgentUsage(uid).then(setUsage);
@@ -345,16 +383,34 @@ const PlajahAgent: React.FC<Props> = ({
   // Subscribe to messages for current session
   useEffect(() => {
     if (!uid || !sessionId) return;
+    setEphemeral([]);
+    // Auto-read: the first snapshot is history and is never spoken; only replies that
+    // arrive afterwards are, and only if the user turned the voice on.
+    let first = true;
+    const seen = new Set<string>();
     const unsub = listenToMessages(uid, sessionId, msgs => {
       setMessages(msgs);
+      for (const m of msgs) {
+        if (seen.has(m.id)) continue;
+        seen.add(m.id);
+        if (!first && autoReadRef.current && m.role === 'muse' && m.content && !m.error) {
+          ariaVoice.speak(m.id, m.content);
+        }
+      }
+      first = false;
     });
-    return unsub;
+    return () => { unsub(); ariaVoice.stop(); };
   }, [uid, sessionId]);
+
+  // Probe whether a voice is configured; silence Aria when the panel closes.
+  useEffect(() => {
+    if (isOpen) ariaVoice.probe(); else ariaVoice.stop();
+  }, [isOpen]);
 
   // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isThinking]);
+  }, [shownMessages, isThinking]);
 
   // Focus input when opened
   useEffect(() => {
@@ -415,7 +471,12 @@ const PlajahAgent: React.FC<Props> = ({
   };
 
   const handleSend = useCallback(async () => {
-    if (!canSend || !uid || !sessionId) return;
+    if (!canSend || !uid) return;
+    if (!sessionId) {
+      // Never fail silently: this used to just do nothing when the conversation could not be created.
+      setLimitBanner("Aria couldn't start a conversation yet. Check your connection, then close and reopen this panel.");
+      return;
+    }
     const text = input.trim();
     setInput('');
     setIsThinking(true);
@@ -430,26 +491,54 @@ const PlajahAgent: React.FC<Props> = ({
     const liveSurface = serializeAriaContextForWire(getActiveAriaContext());
 
     // On-device lane: generate the reply locally (free, private), then hand it to
-    // the server to persist + parse actions. Any failure falls through to cloud.
+    // the server only to persist + parse actions. When on-device mode is ON it is
+    // authoritative: the message NEVER silently goes to the cloud model instead.
+    // (Reference photos still need the vision-capable cloud model — the local text
+    // model must not answer from a filename while pretending it saw pixels.)
     let localReply: string | undefined;
-    // Reference photos require a vision-capable cloud model; the local text
-    // model must not answer from the filename while pretending it saw pixels.
-    if (onDevice && ariaLocalModel.ready && attachments.length === 0) {
+    if (onDevice && attachments.length === 0) {
+      let localFailure = '';
       try {
-        setThinkingLabel('Thinking on-device…');
-        const out = await ariaLocalModel.chat(
-          buildLocalChatMessages({
-            snapshot: getActiveAriaContext(),
-            history: messages.map(m => ({ role: m.role, content: m.content })),
-            userMessage: text,
-          }),
-          { maxNewTokens: 512 },
-        );
-        if (out && out.trim()) localReply = out.trim();
-      } catch (e) {
-        console.warn('[Aria] on-device generation failed — using cloud:', e);
+        if (!ariaLocalModel.ready) {
+          // Still downloading / compiling: wait for it, and show the progress in the thinking bubble.
+          setThinkingLabel(localStatus || 'Getting Aria ready on this device…');
+          await ariaLocalModel.warm(s => { setLocalStatus(s); setThinkingLabel(s); });
+        }
+        if (ariaLocalModel.ready) {
+          setThinkingLabel(ariaLocalModel.engine === 'gemma4' ? 'Thinking on-device (Gemma 4)…' : 'Thinking on-device…');
+          const out = await ariaLocalModel.chat(
+            buildLocalChatMessages({
+              snapshot: getActiveAriaContext(),
+              // Error replies ("I'm having trouble…") are not part of the conversation the model should see.
+              history: shownMessages.filter(m => !m.error).map(m => ({ role: m.role, content: m.content })),
+              userMessage: text,
+            }),
+            { maxNewTokens: 512 },
+          );
+          if (out && out.trim()) localReply = out.trim();
+          else localFailure = 'the on-device model returned an empty answer';
+        } else {
+          localFailure = ariaLocalModel.lastError || 'the on-device model could not load';
+        }
+      } catch (e: any) {
+        localFailure = String(e?.message || e).slice(0, 200);
+        console.warn('[Aria] on-device generation failed:', e);
       } finally {
         setThinkingLabel(undefined);
+      }
+
+      if (!localReply) {
+        const t = Date.now();
+        setEphemeral(prev => [
+          ...prev,
+          { id: `local-u-${t}`, role: 'user', content: text, timestamp: t },
+          { id: `local-a-${t}`, role: 'muse', timestamp: t + 1, error: true,
+            content: `I couldn't answer on this device: ${localFailure}. Turn off "Local" in my header to use the cloud instead.` } as AgentMessage,
+        ]);
+        setAttachments([]);
+        setIsThinking(false);
+        setUsage(u => ({ ...u, dailyMessages: Math.max(0, u.dailyMessages - 1) })); // on-device turns are free
+        return;
       }
     }
 
@@ -469,6 +558,26 @@ const PlajahAgent: React.FC<Props> = ({
     setAttachments([]);
     setIsThinking(false);
 
+    // If the server could not store this exchange, or the request failed, show it here rather than letting
+    // the user's message disappear. (When it was stored, the Firestore listener delivers it as usual.)
+    if (result.persisted === false || result.error) {
+      const t = Date.now();
+      // An on-device answer is real even if the server could not be reached to save it.
+      const replyText = result.reply || localReply || '';
+      const failed = !replyText || (!localReply && !!(result.error || result.replyError));
+      setEphemeral(prev => [
+        ...prev,
+        { id: `local-u-${t}`, role: 'user', content: text, timestamp: t },
+        {
+          id: `local-a-${t}`, role: 'muse', timestamp: t + 1, error: failed,
+          content: replyText || result.error || 'Aria could not answer just now. Please try again.',
+          toolCalls: result.toolCalls, buildOutput: result.buildOutput,
+        } as AgentMessage,
+      ]);
+      // The Firestore listener won't deliver this reply, so honour the Voice toggle here too.
+      if (!failed && replyText && autoReadRef.current) ariaVoice.speak(`local-a-${t}`, replyText);
+    }
+
     // Execute any actions Aria decided to perform on the active surface. Handlers
     // were registered by the surface via useAriaSurface(); failures are non-fatal.
     if (result.actionCalls?.length) {
@@ -482,7 +591,7 @@ const PlajahAgent: React.FC<Props> = ({
       setLimitBanner(result.error || 'Limit reached.');
     }
     if (result.usage) setUsage(result.usage);
-  }, [canSend, uid, sessionId, input, attachments, tier, context, onDevice, messages]);
+  }, [canSend, uid, sessionId, input, attachments, tier, context, onDevice, shownMessages, localStatus]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -602,6 +711,8 @@ const PlajahAgent: React.FC<Props> = ({
                     setOnDevice(v => {
                       const next = !v;
                       try { localStorage.setItem('aria_on_device', next ? '1' : '0'); } catch {}
+                      // A failed load used to be sticky until reload — turning Local back on retries it.
+                      if (next && ariaLocalModel.status === 'unavailable') { ariaLocalModel.reset(); setLocalStatus(''); }
                       return next;
                     });
                   }}
@@ -619,6 +730,45 @@ const PlajahAgent: React.FC<Props> = ({
                   }`}
                 >
                   <Cpu size={9} />{onDevice ? (ariaLocalModel.ready ? 'On-device' : 'Loading') : 'Local'}
+                </button>
+              )}
+
+              {/* Engine switch: Gemma 4 E2B instead of the light Qwen. Only offered where WebGPU can run it. */}
+              {localSupported && onDevice && gemmaSupported && (
+                <button
+                  onClick={() => {
+                    const next = localEngine === 'gemma4' ? 'qwen' : 'gemma4';
+                    AriaLocalModel.setPreferredEngine(next);
+                    ariaLocalModel.reset();        // unload so the next warm() loads the chosen engine
+                    setLocalStatus('');
+                    setLocalEngine(next);
+                  }}
+                  title={localEngine === 'gemma4'
+                    ? (ariaLocalModel.engine === 'gemma4' && ariaLocalModel.ready ? 'Running Gemma 4 E2B on-device — click to switch back to the lighter model' : 'Gemma 4 selected — click to switch back to the lighter model')
+                    : 'Try Gemma 4 E2B on-device: stronger, follows Aria’s persona and actions better. First use downloads about 3 GB (then cached).'}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border transition-all ${
+                    localEngine === 'gemma4' ? 'bg-sky-600/20 border-sky-500/40 text-sky-200' : 'bg-white/5 border-white/10 text-white/30'}`}
+                >
+                  {localEngine === 'gemma4' ? (ariaLocalModel.engine === 'gemma4' && ariaLocalModel.ready ? 'Gemma 4 ✓' : 'Gemma 4') : 'Gemma 4?'}
+                </button>
+              )}
+
+              {/* Spoken replies — auto-read toggle (only when a voice is configured) */}
+              {(voice.available === true && voice.eligible === true) && (
+                <button
+                  onClick={() => {
+                    setAutoRead(v => {
+                      const next = !v;
+                      try { localStorage.setItem('aria_voice_auto', next ? '1' : '0'); } catch {}
+                      if (!next) ariaVoice.stop();
+                      return next;
+                    });
+                  }}
+                  title={autoRead ? 'Aria reads her replies aloud — click to mute' : 'Have Aria read her replies aloud'}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border transition-all ${
+                    autoRead ? 'bg-violet-600/20 border-violet-500/40 text-violet-200' : 'bg-white/5 border-white/10 text-white/30'}`}
+                >
+                  <Volume2 size={9} />{autoRead ? 'Voice on' : 'Voice'}
                 </button>
               )}
 
@@ -692,7 +842,7 @@ const PlajahAgent: React.FC<Props> = ({
             <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-3 space-y-4 min-h-0">
 
               {/* Empty state / capabilities */}
-              {messages.length === 0 && !isThinking && (
+              {shownMessages.length === 0 && !isThinking && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 pt-4">
                   <div className="text-center">
                     <AriaMark size={56} className="mx-auto mb-3" />
@@ -729,12 +879,33 @@ const PlajahAgent: React.FC<Props> = ({
               )}
 
               {/* Messages */}
-              {messages.map(msg => (
+              {shownMessages.map(msg => (
                 <MessageBubble key={msg.id} msg={msg} onApplyBuild={onApplyBuild} />
               ))}
 
               {/* Thinking */}
               {isThinking && <ThinkingBubble toolLabel={thinkingLabel} />}
+
+              {/* On-device model progress (a first Gemma 4 download is ~3 GB, so say what is happening) */}
+              {onDevice && localStatus && (!ariaLocalModel.ready || ariaLocalModel.upgrading || ariaLocalModel.status === 'unavailable') && (
+                ariaLocalModel.status === 'unavailable' ? (
+                  <div className="flex items-start gap-2 px-3 py-2 bg-red-900/25 border border-red-500/30 rounded-xl">
+                    <AlertTriangle size={13} className="text-red-300 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-red-200/90 leading-snug">{localStatus}</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-sky-900/20 border border-sky-500/20 rounded-xl">
+                    <div className="w-3 h-3 border border-sky-400/40 border-t-sky-300 rounded-full animate-spin shrink-0" />
+                    <p className="text-[10px] text-sky-200/80 leading-snug">{localStatus}</p>
+                  </div>
+                )
+              )}
+              {onDevice && ariaLocalModel.cacheWarning && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-amber-900/25 border border-amber-500/30 rounded-xl">
+                  <AlertTriangle size={13} className="text-amber-300 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-amber-200/90 leading-snug">{ariaLocalModel.cacheWarning}</p>
+                </div>
+              )}
 
               {/* Limit banner */}
               {limitBanner && (

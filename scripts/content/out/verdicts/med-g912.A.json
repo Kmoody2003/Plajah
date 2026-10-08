@@ -1,0 +1,1002 @@
+{
+ "courseId": "med-g912",
+ "verifier": "A",
+ "note": "WebFetch failed (403/404) for AHA, ADA, CDC and AAMC pages; some claims rest on WebSearch summaries and are not cited. Most claims unverifiable under source discipline.",
+ "fetched": 4,
+ "questions": [
+  {
+   "id": "med-g912.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "70 x 70 mL = 4.9 L/min."
+  },
+  {
+   "id": "med-g912.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l06.q2",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "B cells make antibodies, but plasma cells are the antibody-secreting form; choice 0 covers both."
+  },
+  {
+   "id": "med-g912.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "1-1/4 = 75 percent."
+  },
+  {
+   "id": "med-g912.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l18.q2",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Matches AHA 100-120/min and 5-6 cm; pages opened showed no 2025 change to rate or depth."
+  },
+  {
+   "id": "med-g912.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l18.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Choice 3 is consistent with AHA hands-only CPR plus AED for untrained rescuers."
+  },
+  {
+   "id": "med-g912.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-g912.l01",
+   "claim": "Fever: immune signals raise hypothalamic set point, causing shivering",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l01",
+   "claim": "Glucagon from alpha cells and insulin from beta cells regulate glucose",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l01",
+   "claim": "Positive feedback in labor via oxytocin",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l02",
+   "claim": "Resting cardiac output about 5 L/min",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l02",
+   "claim": "SA node is natural pacemaker; ECG records activity",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l02",
+   "claim": "Tricuspid and mitral valves lie between atria and ventricles",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l03",
+   "claim": "Blood pH held near 7.4",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l03",
+   "claim": "ADH increases water reabsorption; aldosterone sodium retention; kidneys make erythropoietin",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l03",
+   "claim": "Lungs adjust CO2 in minutes, kidneys over hours to days",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l04",
+   "claim": "Underactive thyroid from gland failure: high TSH, low thyroid hormone",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l04",
+   "claim": "Adrenaline from adrenal medulla, cortisol from cortex",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l04",
+   "claim": "Sympathetic branch speeds heart rate, widens airways",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l05",
+   "claim": "Neutrophils arrive first, macrophages later",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l05",
+   "claim": "Ibuprofen blocks prostaglandin-producing enzymes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l05",
+   "claim": "Heart muscle heals mainly by collagen scar",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l06",
+   "claim": "Antibiotics do not act on viruses",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l06",
+   "claim": "Vaccines create memory cells and faster secondary response",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "CDC vaccine page returned 404; not opened."
+  },
+  {
+   "lessonId": "med-g912.l06",
+   "claim": "Resistance spreads by natural selection and gene transfer",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l07",
+   "claim": "TP53 is a tumor suppressor; BRCA1/2 raise breast and ovarian cancer risk",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l07",
+   "claim": "HPV causes cervical cancer; HBV/HCV raise liver cancer risk",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l07",
+   "claim": "Carcinoma is epithelial, sarcoma connective tissue",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l08",
+   "claim": "Carrier parents: 1 in 4 risk; dominant parent: 1 in 2",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l08",
+   "claim": "Sickle cell: one amino acid change in beta chain; carriers protected against severe malaria",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l08",
+   "claim": "Hemophilia A and Duchenne are X-linked recessive; CFTR is a chloride channel",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l09",
+   "claim": "Diagnostic thresholds: fasting plasma glucose 126 mg/dL or higher, A1c 6.5 percent or higher",
+   "verdict": "supported",
+   "sources": [],
+   "note": "ADA Standards of Care 2026 (Diabetes Care 49 Suppl 1) lists A1C >=6.5% and FPG >=126 mg/dL per a search summary; the journal page returned 403, so no URL is cited."
+  },
+  {
+   "lessonId": "med-g912.l09",
+   "claim": "A1c reflects average glucose over roughly 2-3 months (red cells live about 120 days)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l09",
+   "claim": "Metformin reduces liver glucose output and improves insulin sensitivity",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l10",
+   "claim": "2017 ACC/AHA guideline defines hypertension as 130/80 mm Hg or higher",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/articles/2025/10/01/01/new-in-clinical-guidance-hbp"
+   ],
+   "note": "Still current: the 2025 AHA/ACC guideline keeps the 130/80 threshold; categories are normal <120/<80, elevated 120-129/<80, stage 1 130-139 or 80-89, stage 2 >=140 or >=90 (categories from search summary). Lesson cites only 2017, which is dated; it could mention 2025."
+  },
+  {
+   "lessonId": "med-g912.l10",
+   "claim": "Statins inhibit HMG-CoA reductase",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l10",
+   "claim": "Other guidelines use 140/90 as cutoff",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page opened did not address this."
+  },
+  {
+   "lessonId": "med-g912.l11",
+   "claim": "Albuterol is a short-acting beta-2 agonist reliever; inhaled corticosteroids are controllers",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l11",
+   "claim": "Guidance says reliever alone is not enough for persistent asthma",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l11",
+   "claim": "Asthma is reversible airflow limitation, COPD mainly from smoking and only partly reversible",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l12",
+   "claim": "Warfarin has a narrow therapeutic index",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l12",
+   "claim": "Statins inhibit HMG-CoA reductase; NSAIDs inhibit cyclooxygenase",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l12",
+   "claim": "Oral drugs undergo first-pass metabolism via portal vein and liver; CYP450 family",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l13",
+   "claim": "Typical adult resting HR 60-100, RR 12-20, SpO2 95 percent or higher",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Vital-sign reference pages in search results agree; none fetched so no URL cited. Temperature range not checked."
+  },
+  {
+   "lessonId": "med-g912.l13",
+   "claim": "Worked example: 95/95 test at 1 in 1000 gives about 2 percent true positives",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Arithmetic is correct (95 true vs 4995 false positives, PPV 1.9 percent); no page."
+  },
+  {
+   "lessonId": "med-g912.l13",
+   "claim": "Troponin rises when heart cells die; creatinine reflects kidney filtration",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l14",
+   "claim": "CT uses ionizing radiation; MRI uses magnets and radio waves, none ionizing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l14",
+   "claim": "Ultrasound is the standard first imaging in pregnancy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l14",
+   "claim": "PET uses radioactive tracer",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l15",
+   "claim": "Herd immunity threshold is 1 - 1/R0; measles R0 about 12 gives about 92 percent",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Search summaries state HIT = 1 - 1/R0 and measles R0 12-18 gives 92-95 percent; CDC measles page gave no figures; no URL cited."
+  },
+  {
+   "lessonId": "med-g912.l15",
+   "claim": "Incidence is new cases; prevalence is existing cases",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l15",
+   "claim": "Case-control studies suit rare diseases; odds ratio used",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l16",
+   "claim": "Number needed to treat = 1 / absolute risk reduction",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Arithmetic correct; no page opened."
+  },
+  {
+   "lessonId": "med-g912.l16",
+   "claim": "p<0.05 conventional threshold for statistical significance",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l16",
+   "claim": "RCT randomization balances known and unknown differences; meta-analysis atop evidence hierarchy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l17",
+   "claim": "Beauchamp and Childress four principles",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l17",
+   "claim": "HIPAA privacy rules limit sharing of health information in the US",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l17",
+   "claim": "Capacity is decision-specific; competent adult may refuse treatment",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l18",
+   "claim": "Adult choking: back blows and abdominal thrusts",
+   "verdict": "supported",
+   "sources": [
+    "https://newsroom.heart.org/news/updated-cpr-guidelines-tackle-choking-response-opioid-related-emergencies-and-a-revised-chain-of-survival",
+    "https://www.ems1.com/cpr/2025-aha-cpr-guidelines-changes-to-mechanical-cpr-choking-single-chain-of-survival"
+   ],
+   "note": "AHA 2025 guidelines (Oct 2025) added adult choking guidance: alternate 5 back blows and 5 abdominal thrusts."
+  },
+  {
+   "lessonId": "med-g912.l18",
+   "claim": "Adult CPR 100-120/min, depth 5-6 cm (2-2.4 in), 30:2 for trained rescuers",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "AHA Part 7 page returned 403; pages opened reported no 2025 change to rate, depth or 30:2 but did not state the figures."
+  },
+  {
+   "lessonId": "med-g912.l18",
+   "claim": "AED shocks only shockable rhythms such as ventricular fibrillation; untrained rescuers may do compression-only",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page confirmed."
+  },
+  {
+   "lessonId": "med-g912.l19",
+   "claim": "MD and DO both fully licensed in all states; DO adds manipulative training",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icom.edu/do-vs-md/"
+   ],
+   "note": "ICOM page: same ACGME residencies, 200-500 extra OMM hours for DOs."
+  },
+  {
+   "lessonId": "med-g912.l19",
+   "claim": "Medical school four years; MCAT required; residency about 3 years for family medicine",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "AAMC page returned 404; search summary said 4 years and 3-7 year residencies, not fetched."
+  },
+  {
+   "lessonId": "med-g912.l19",
+   "claim": "Pharmacists hold a PharmD; PAs complete a master-level program; APRNs hold graduate degrees",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l20",
+   "claim": "US supplements are not required to prove effectiveness before sale",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l20",
+   "claim": "Anecdotes weak evidence due to regression to the mean",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-g912.l20",
+   "claim": "Relative vs absolute risk framing misleads",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  }
+ ]
+}

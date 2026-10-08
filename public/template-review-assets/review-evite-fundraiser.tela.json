@@ -1,0 +1,632 @@
+{
+  "id": "review-evite-fundraiser-copy-ae15b7d7-931b-44ca-b4c4-b998ef55818f",
+  "ownerId": "local-review",
+  "title": "A Golden Cause · review copy",
+  "createdAt": 1790719091400,
+  "updatedAt": 1790719091400,
+  "frames": [
+    {
+      "id": "review-evite-fundraiser-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-fundraiser-vector"
+      ],
+      "label": "A Golden Cause"
+    }
+  ],
+  "devices": {
+    "review-evite-fundraiser-vector": {
+      "id": "review-evite-fundraiser-vector",
+      "type": "VECTOR",
+      "name": "A Golden Cause",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-fundraiser-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#173631",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-0",
+          "kind": "LINE",
+          "x": 63,
+          "y": 354,
+          "w": 237,
+          "h": 5.684341886080802e-14,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 5,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            63,
+            354.00000000000006
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-1",
+          "kind": "LINE",
+          "x": 66.60056253610668,
+          "y": 312.84538189293755,
+          "w": 233.39943746389332,
+          "h": 41.15461810706245,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            66.60056253610668,
+            312.84538189293755
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-2",
+          "kind": "LINE",
+          "x": 77.2928488737397,
+          "y": 272.94122603181654,
+          "w": 222.7071511262603,
+          "h": 81.05877396818346,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            77.2928488737397,
+            272.94122603181654
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-3",
+          "kind": "LINE",
+          "x": 94.751979303088,
+          "y": 235.50000000000006,
+          "w": 205.248020696912,
+          "h": 118.49999999999994,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 5,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            94.751979303088,
+            235.50000000000006
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-4",
+          "kind": "LINE",
+          "x": 118.44746698080218,
+          "y": 201.6593365042902,
+          "w": 181.55253301919782,
+          "h": 152.3406634957098,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            118.44746698080218,
+            201.6593365042902
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-5",
+          "kind": "LINE",
+          "x": 147.65933650429014,
+          "y": 172.44746698080223,
+          "w": 152.34066349570986,
+          "h": 181.55253301919777,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            147.65933650429014,
+            172.44746698080223
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-6",
+          "kind": "LINE",
+          "x": 181.4999999999999,
+          "y": 148.7519793030881,
+          "w": 118.50000000000011,
+          "h": 205.2480206969119,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 5,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            181.4999999999999,
+            148.7519793030881
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-7",
+          "kind": "LINE",
+          "x": 218.94122603181654,
+          "y": 131.2928488737397,
+          "w": 81.05877396818346,
+          "h": 222.7071511262603,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            218.94122603181654,
+            131.2928488737397
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-8",
+          "kind": "LINE",
+          "x": 258.8453818929375,
+          "y": 120.60056253610671,
+          "w": 41.154618107062504,
+          "h": 233.3994374638933,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            258.8453818929375,
+            120.60056253610671
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-9",
+          "kind": "LINE",
+          "x": 299.99999999999994,
+          "y": 117,
+          "w": 5.684341886080802e-14,
+          "h": 237,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 5,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            299.99999999999994,
+            117
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-10",
+          "kind": "LINE",
+          "x": 300,
+          "y": 120.60056253610668,
+          "w": 41.15461810706239,
+          "h": 233.39943746389332,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            341.1546181070624,
+            120.60056253610668
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-11",
+          "kind": "LINE",
+          "x": 300,
+          "y": 131.29284887373967,
+          "w": 81.05877396818335,
+          "h": 222.70715112626033,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            381.05877396818335,
+            131.29284887373967
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-12",
+          "kind": "LINE",
+          "x": 300,
+          "y": 148.75197930308795,
+          "w": 118.49999999999983,
+          "h": 205.24802069691205,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 5,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            418.49999999999983,
+            148.75197930308795
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-13",
+          "kind": "LINE",
+          "x": 300,
+          "y": 172.44746698080218,
+          "w": 152.3406634957098,
+          "h": 181.55253301919782,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            452.3406634957098,
+            172.44746698080218
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-14",
+          "kind": "LINE",
+          "x": 300,
+          "y": 201.6593365042901,
+          "w": 181.55253301919777,
+          "h": 152.3406634957099,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            481.55253301919777,
+            201.6593365042901
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-15",
+          "kind": "LINE",
+          "x": 300,
+          "y": 235.4999999999999,
+          "w": 205.2480206969119,
+          "h": 118.50000000000011,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 5,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            505.2480206969119,
+            235.4999999999999
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-16",
+          "kind": "LINE",
+          "x": 300,
+          "y": 272.94122603181654,
+          "w": 222.70715112626033,
+          "h": 81.05877396818346,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            522.7071511262603,
+            272.94122603181654
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-17",
+          "kind": "LINE",
+          "x": 300,
+          "y": 312.8453818929375,
+          "w": 233.39943746389326,
+          "h": 41.154618107062504,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            533.3994374638933,
+            312.8453818929375
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-ray-18",
+          "kind": "LINE",
+          "x": 300,
+          "y": 353.99999999999994,
+          "w": 237,
+          "h": 5.684341886080802e-14,
+          "fill": "none",
+          "stroke": "#cbb36c",
+          "strokeWidth": 5,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            300,
+            354,
+            537,
+            353.99999999999994
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-hub",
+          "kind": "ELLIPSE",
+          "x": 283,
+          "y": 337,
+          "w": 34,
+          "h": 34,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-fundraiser-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-fundraiser-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#789786",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-fundraiser-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "A golden cause",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-fundraiser-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Gathering to make a difference",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-fundraiser-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-fundraiser-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-fundraiser-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-fundraiser-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-fundraiser-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#f5e9c9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-fundraiser",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-fundraiser-hub",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 0,
+          "duration": 2800
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        49,
+        56,
+        61,
+        63
+      ],
+      "tempo": 92
+    }
+  }
+}

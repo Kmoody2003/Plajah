@@ -17,6 +17,7 @@ import AnalogFX from "./AnalogFX";
 // Melos Studio's effect rack + catalog, shared verbatim so Fabula's audio FX
 // mirror Melos exactly (see services/fabula/audioFx.ts).
 import { FxRack } from "../melos/beats/project/FxRack";
+import { WindowsVstBrowser } from "../melos/beats/instrument/WindowsVstBrowser";
 
 // dB helpers for a musical fader taper (0..1.5 linear gain shown as dB).
 const toDb = (g) => (g <= 0.0001 ? -Infinity : 20 * Math.log10(g));
@@ -255,6 +256,7 @@ export default function MixConsole({ audioTracks, trackSettings, setTrackSetting
         <button className="minibtn" onClick={() => listOutputDevices().then(setDevices)}>↻ DEVICES</button>
         <span className="dim small">Faders/pan/EQ/comp/sends are live and bake into the export. Solo mutes the rest. MIDI-learn (◎) maps a controller to any fader.</span>
       </div>
+      <WindowsVstBrowser />
       {/* Master mastering "Pressing" (Era × Engineer) + surgical Spectra EQ — the same
           mastering chain Melos uses, on the whole mix. Bakes into the export. */}
       <div className="btnrow" style={{ gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>

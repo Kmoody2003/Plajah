@@ -113,7 +113,7 @@ export function makeSourceTexture(gl: GL): WebGLTexture {
 export function uploadElement(
   gl: GL,
   tex: WebGLTexture,
-  el: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement | OffscreenCanvas,
+  el: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement | OffscreenCanvas | ImageBitmap,
 ): boolean {
   const w = (el as any).videoWidth ?? (el as any).naturalWidth ?? (el as any).width ?? 0;
   const h = (el as any).videoHeight ?? (el as any).naturalHeight ?? (el as any).height ?? 0;

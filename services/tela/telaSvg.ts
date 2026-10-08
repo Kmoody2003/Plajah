@@ -41,6 +41,21 @@ export function objectToSvg(o: TelaVectorObject, writerTexts?: Record<string, st
   else if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) {
     const c = o.sourceCrop;
     body = `<g opacity="${o.opacity}"${rot}${filter}${blend}><svg x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" viewBox="${c.x} ${c.y} ${c.width} ${c.height}" preserveAspectRatio="none"><image href="${esc(o.sourceImageSrc)}" x="0" y="0" width="${c.sourceWidth}" height="${c.sourceHeight}" preserveAspectRatio="none"/></svg></g>`;
+  } else if (o.kind === 'LOTTIE') {
+    // Static fallback = the cached poster frame (or a labelled placeholder, never a broken image).
+    const L = o.lottie;
+    const par = !L || L.fit === 'contain' ? 'xMidYMid meet' : L.fit === 'cover' ? 'xMidYMid slice' : 'none';
+    const inner = L?.posterSrc
+      ? `<svg x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}"><image href="${esc(L.posterSrc)}" x="0" y="0" width="${num(bw)}" height="${num(bh)}" preserveAspectRatio="${par}"/></svg>`
+      : `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" rx="6" fill="rgba(0,218,243,.08)" stroke="rgba(0,163,184,.6)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="${num(cx)}" y="${num(cy)}" text-anchor="middle" dominant-baseline="middle" font-size="${num(Math.max(10, Math.min(28, Math.min(bw, bh) / 6)))}" font-weight="800" font-family="system-ui, sans-serif" fill="rgba(0,120,140,.85)">Lottie${o.objectLabel ? ` · ${esc(o.objectLabel)}` : ''}</text>`;
+    body = `<g opacity="${o.opacity}" data-tela-kind="LOTTIE"${rot}${filter}${blend}>${inner}</g>`;
+  } else if (o.kind === 'MOTION_TEMPLATE') {
+    // Static fallback = the cached settled-frame poster (or a labelled placeholder).
+    const M = o.motionTemplate;
+    const inner = M?.posterSrc
+      ? `<svg x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}"><image href="${esc(M.posterSrc)}" x="0" y="0" width="${num(bw)}" height="${num(bh)}" preserveAspectRatio="none"/></svg>`
+      : `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" rx="6" fill="rgba(255,140,0,.08)" stroke="rgba(200,110,0,.6)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="${num(cx)}" y="${num(cy)}" text-anchor="middle" dominant-baseline="middle" font-size="${num(Math.max(10, Math.min(28, Math.min(bw, bh) / 6)))}" font-weight="800" font-family="system-ui, sans-serif" fill="rgba(160,90,0,.85)">Motion${o.objectLabel ? ` · ${esc(o.objectLabel)}` : ''}</text>`;
+    body = `<g opacity="${o.opacity}" data-tela-kind="MOTION_TEMPLATE"${rot}${filter}${blend}>${inner}</g>`;
   } else if (o.kind === 'PATH' && o.svgPathData) {
     const ox = o.pathOriginX ?? bx, oy = o.pathOriginY ?? by;
     const sx = bw / Math.max(1, o.pathOriginW ?? bw), sy = bh / Math.max(1, o.pathOriginH ?? bh);

@@ -1,0 +1,753 @@
+{
+ "cells": [
+  {
+   "id": "beta",
+   "name": "Pancreatic beta cell",
+   "system": "endocrine",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "insulin granules"
+   ],
+   "function": "Makes insulin, which helps body cells take up glucose",
+   "process": "Glucose-stimulated insulin secretion",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Makes insulin, which helps body cells take up glucose",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-9-the-endocrine-pancreas",
+     "quote": "The beta cell produces the hormone insulin and makes up approximately 75 percent of each islet."
+    }
+   ]
+  },
+  {
+   "id": "alpha",
+   "name": "Pancreatic alpha cell",
+   "system": "endocrine",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "glucagon granules"
+   ],
+   "function": "Makes glucagon, released when blood glucose is low",
+   "process": "Low-glucose glucagon release",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Makes glucagon, released when blood glucose is low",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-9-the-endocrine-pancreas",
+     "quote": "The alpha cell produces the hormone glucagon and makes up approximately 20 percent of each islet."
+    }
+   ]
+  },
+  {
+   "id": "hepatocyte",
+   "name": "Hepatocyte",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [],
+   "function": "Main working cell of the liver",
+   "process": "Bile and metabolite processing near sinusoids",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Main working cell of the liver",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/23-6-accessory-organs-in-digestion-the-liver-pancreas-and-gallbladder",
+     "quote": "A hepatocyte is the liver's main cell type, accounting for around 80 percent of the liver's volume."
+    }
+   ]
+  },
+  {
+   "id": "kupffer",
+   "name": "Kupffer cell",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "star shape"
+   ],
+   "function": "Liver phagocyte clearing old blood cells and microbes",
+   "process": "Phagocytosis of debris in sinusoid",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Liver phagocyte clearing old blood cells and microbes",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/23-6-accessory-organs-in-digestion-the-liver-pancreas-and-gallbladder",
+     "quote": "star-shaped reticuloendothelial cells (Kupffer cells), phagocytes that remove dead red and white blood cells, bacteria, and other foreign material."
+    }
+   ]
+  },
+  {
+   "id": "podocyte",
+   "name": "Podocyte",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "pedicels",
+    "filtration slits"
+   ],
+   "function": "Forms the glomerular filtration sieve",
+   "process": "Glomerular filtration through slits",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Forms the glomerular filtration sieve",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-4-microscopic-anatomy-of-the-kidney",
+     "quote": "Podocytes extending finger-like arms (pedicels) to cover the glomerular capillaries...interdigitate to form filtration slits."
+    }
+   ]
+  },
+  {
+   "id": "pct",
+   "name": "Proximal tubule cell",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "microvilli brush border"
+   ],
+   "function": "Absorbs and secretes solutes such as sodium, chloride, glucose",
+   "process": "Reabsorption across brush border",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Absorbs and secretes solutes such as sodium, chloride, glucose",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-4-microscopic-anatomy-of-the-kidney",
+     "quote": "Simple cuboidal cells form this tubule with prominent microvilli on the luminal surface, forming a brush border."
+    }
+   ]
+  },
+  {
+   "id": "pneu1",
+   "name": "Type I pneumocyte (alveolar cell)",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "thin squamous shape"
+   ],
+   "function": "Thin gas-exchange surface of the alveolus",
+   "process": "Gas diffusion across alveolar wall",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Thin gas-exchange surface of the alveolus",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+     "quote": "A type I alveolar cell is a squamous epithelial cell of the alveoli, which constitute up to 97 percent of the alveolar surface area."
+    }
+   ]
+  },
+  {
+   "id": "pneu2",
+   "name": "Type II pneumocyte (alveolar cell)",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "surfactant secretion"
+   ],
+   "function": "Secretes surfactant reducing alveolar surface tension",
+   "process": "Surfactant lowering surface tension",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Secretes surfactant reducing alveolar surface tension",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+     "quote": "A type II alveolar cell is interspersed among the type I cells and secretes pulmonary surfactant"
+    }
+   ]
+  },
+  {
+   "id": "enterocyte",
+   "name": "Enterocyte (absorptive cell)",
+   "system": "epithelial",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "microvilli brush border",
+    "villus"
+   ],
+   "function": "Absorbs nutrients in the small intestine",
+   "process": "Nutrient absorption across brush border",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Absorbs nutrients in the small intestine",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/23-5-the-small-and-large-intestines",
+     "quote": "The mucosal epithelium, primarily composed of absorptive cells, covers the villi."
+    }
+   ]
+  },
+  {
+   "id": "goblet",
+   "name": "Goblet cell",
+   "system": "epithelial",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "mucus secretion"
+   ],
+   "function": "Secretes protective mucus",
+   "process": "Mucus secretion",
+   "difficulty": 1,
+   "facts": [
+    {
+     "claim": "Secretes protective mucus",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/4-2-epithelial-tissue",
+     "quote": "A goblet cell is a mucous-secreting unicellular 'gland' interspersed between the columnar epithelial cells."
+    }
+   ]
+  },
+  {
+   "id": "parietal",
+   "name": "Parietal cell",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "acid and intrinsic factor secretion"
+   ],
+   "function": "Makes stomach acid and intrinsic factor",
+   "process": "Acid secretion",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Makes stomach acid and intrinsic factor",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/23-4-the-stomach",
+     "quote": "produce both hydrochloric acid (HCl) and intrinsic factor"
+    }
+   ]
+  },
+  {
+   "id": "chief",
+   "name": "Chief cell",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "pepsinogen granules"
+   ],
+   "function": "Secretes pepsinogen, activated by HCl",
+   "process": "Pepsinogen activation by acid",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Secretes pepsinogen, activated by HCl",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/23-4-the-stomach",
+     "quote": "secrete pepsinogen, the inactive proenzyme form of pepsin"
+    }
+   ]
+  },
+  {
+   "id": "keratinocyte",
+   "name": "Keratinocyte",
+   "system": "epithelial",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "keratin"
+   ],
+   "function": "Makes keratin for the skin barrier",
+   "process": "Keratinization moving up skin layers",
+   "difficulty": 1,
+   "facts": [
+    {
+     "claim": "Makes keratin for the skin barrier",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/5-1-layers-of-the-skin",
+     "quote": "A keratinocyte is a cell that manufactures and stores the protein keratin."
+    }
+   ]
+  },
+  {
+   "id": "melanocyte",
+   "name": "Melanocyte",
+   "system": "epithelial",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "melanin pigment"
+   ],
+   "function": "Produces melanin pigment",
+   "process": "Melanin production and transfer",
+   "difficulty": 1,
+   "facts": [
+    {
+     "claim": "Produces melanin pigment",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/5-1-layers-of-the-skin",
+     "quote": "A melanocyte, a cell that produces the pigment melanin."
+    }
+   ]
+  },
+  {
+   "id": "langerhans",
+   "name": "Langerhans cell",
+   "system": "epithelial",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "dendritic shape"
+   ],
+   "function": "Skin immune sentinel",
+   "process": "Engulfing foreign particles",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Skin immune sentinel",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/5-1-layers-of-the-skin",
+     "quote": "A type of dendritic cell called the Langerhans cell, which functions as a macrophage by engulfing bacteria, foreign particles, and damaged cells."
+    }
+   ]
+  },
+  {
+   "id": "thyroid",
+   "name": "Thyroid follicular cell",
+   "system": "endocrine",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "follicle",
+    "colloid",
+    "thyroglobulin"
+   ],
+   "function": "Makes T3 and T4, which set metabolic rate",
+   "process": "Thyroid hormone synthesis in colloid",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Makes T3 and T4, which set metabolic rate",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-4-the-thyroid-gland",
+     "quote": "Surrounded by a wall of epithelial follicle cells, the colloid is the center of thyroid hormone production"
+    }
+   ]
+  },
+  {
+   "id": "adrenal",
+   "name": "Adrenal cortical cell",
+   "system": "endocrine",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "lipid stores",
+    "three zones"
+   ],
+   "function": "Makes cortisol, aldosterone and other hormones",
+   "process": "Stress-driven cortisol release",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Makes cortisol, aldosterone and other hormones",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-6-the-adrenal-glands",
+     "quote": "multiple layers of lipid-storing cells that occur in three structurally distinct regions"
+    }
+   ]
+  },
+  {
+   "id": "sperm",
+   "name": "Sperm cell",
+   "system": "reproductive",
+   "sizeUm": null,
+   "nucleus": "haploid (sourced)",
+   "structures": [
+    "head",
+    "acrosome",
+    "midpiece mitochondria",
+    "flagellum"
+   ],
+   "function": "Delivers haploid nucleus to the egg",
+   "process": "Swimming and acrosome reaction",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Delivers haploid nucleus to the egg",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/27-1-anatomy-and-physiology-of-the-testicular-reproductive-system",
+     "quote": "The head of the sperm contains the extremely compact haploid nucleus with very little cytoplasm."
+    }
+   ]
+  },
+  {
+   "id": "oocyte",
+   "name": "Oocyte",
+   "system": "reproductive",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "follicle with supporting cells"
+   ],
+   "function": "Female gamete released at ovulation",
+   "process": "Meiotic arrest and resumption at puberty",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Female gamete released at ovulation",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/27-2-anatomy-and-physiology-of-the-ovarian-reproductive-system",
+     "quote": "The gamete they produce is called an oocyte"
+    }
+   ]
+  },
+  {
+   "id": "sertoli",
+   "name": "Sertoli cell",
+   "system": "reproductive",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "branching shape",
+    "tight junctions"
+   ],
+   "function": "Supports developing sperm; forms blood-testis barrier",
+   "process": "Nurturing germ cells",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Supports developing sperm; forms blood-testis barrier",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/27-1-anatomy-and-physiology-of-the-testicular-reproductive-system",
+     "quote": "tight junctions between these sustentacular cells create the blood\u2013testis barrier"
+    }
+   ]
+  },
+  {
+   "id": "rod",
+   "name": "Rod photoreceptor",
+   "system": "sensory",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "outer segment discs",
+    "rhodopsin"
+   ],
+   "function": "Dim-light vision",
+   "process": "Phototransduction",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Dim-light vision",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/14-1-sensory-perception",
+     "quote": "The rod-shaped outer segments of the rod photoreceptor contain a stack of membrane-bound discs that contain the photosensitive pigment rhodopsin."
+    }
+   ]
+  },
+  {
+   "id": "cone",
+   "name": "Cone photoreceptor",
+   "system": "sensory",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "cone outer segment",
+    "membrane infoldings"
+   ],
+   "function": "Colour, bright-light vision",
+   "process": "Phototransduction",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Colour, bright-light vision",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/14-1-sensory-perception",
+     "quote": "The cone-shaped outer segments of the cone photoreceptor contain their photosensitive pigments in infoldings of the cell membrane."
+    }
+   ]
+  },
+  {
+   "id": "haircell",
+   "name": "Cochlear hair cell",
+   "system": "sensory",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "stereocilia"
+   ],
+   "function": "Converts sound vibration to nerve signals",
+   "process": "Mechanotransduction",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Converts sound vibration to nerve signals",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/14-1-sensory-perception",
+     "quote": "The organs of Corti contain hair cells, which are named for the hair-like stereocilia extending from the cell's apical surfaces."
+    }
+   ]
+  },
+  {
+   "id": "taste",
+   "name": "Taste receptor cell",
+   "system": "sensory",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "taste bud"
+   ],
+   "function": "Detects taste chemicals",
+   "process": "Chemical transduction of taste",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Detects taste chemicals",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/14-1-sensory-perception",
+     "quote": "Within the structure of the papillae are taste buds that contain specialized gustatory receptor cells for the transduction of taste stimuli."
+    }
+   ]
+  },
+  {
+   "id": "olfactory",
+   "name": "Olfactory receptor neuron",
+   "system": "sensory",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "bipolar neuron"
+   ],
+   "function": "Detects odor molecules",
+   "process": "Odorant binding to signal",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Detects odor molecules",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/14-1-sensory-perception",
+     "quote": "The olfactory receptor neurons are located in a small region within the superior nasal cavity...and contains bipolar sensory neurons."
+    }
+   ]
+  },
+  {
+   "id": "endothelial",
+   "name": "Endothelial cell",
+   "system": "epithelial",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "thin lining layer",
+    "basement membrane"
+   ],
+   "function": "Lines vessels; regulates exchange and blood flow",
+   "process": "Capillary exchange",
+   "difficulty": 2,
+   "facts": [
+    {
+     "claim": "Lines vessels; regulates exchange and blood flow",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/20-1-structure-and-function-of-blood-vessels",
+     "quote": "The endothelium...is physiologically critical to such activities as helping to regulate capillary exchange and altering blood flow."
+    }
+   ]
+  },
+  {
+   "id": "pericyte",
+   "name": "Pericyte",
+   "system": "organ-specific",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [],
+   "function": "Stabilizes capillaries and controls permeability",
+   "process": "Capillary wall regulation",
+   "difficulty": 3,
+   "facts": [
+    {
+     "claim": "Stabilizes capillaries and controls permeability",
+     "verdict": "SUPPORTED",
+     "url": "https://europepmc.org/article/PMC/PMC13513111",
+     "quote": "Pericytes are mural cells embedded within the microvascular wall that regulate endothelial stabilization, angiogenesis, and vascular permeability."
+    }
+   ]
+  },
+  {
+   "id": "mesothelial",
+   "name": "Mesothelial cell",
+   "system": "epithelial",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "flat squamous layer"
+   ],
+   "function": "Lines serous membranes",
+   "process": "Frictionless serous surface",
+   "difficulty": 1,
+   "facts": [
+    {
+     "claim": "Lines serous membranes",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/4-2-epithelial-tissue",
+     "quote": "The mesothelium is a simple squamous epithelium that forms the surface layer of the serous membrane."
+    }
+   ]
+  },
+  {
+   "id": "ciliated",
+   "name": "Ciliated epithelial cell",
+   "system": "epithelial",
+   "sizeUm": null,
+   "nucleus": "NOT_FOUND",
+   "structures": [
+    "cilia"
+   ],
+   "function": "Cilia sweep mucus and debris",
+   "process": "Mucociliary clearance",
+   "difficulty": 1,
+   "facts": [
+    {
+     "claim": "Cilia sweep mucus and debris",
+     "verdict": "SUPPORTED",
+     "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/4-2-epithelial-tissue",
+     "quote": "Ciliated columnar epithelium is composed of simple columnar epithelial cells with cilia on their apical surfaces."
+    }
+   ]
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/4-2-epithelial-tissue",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-9-the-endocrine-pancreas",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/5-1-layers-of-the-skin",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/14-1-sensory-perception",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/23-4-the-stomach",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/23-5-the-small-and-large-intestines",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/23-6-accessory-organs-in-digestion-the-liver-pancreas-and-gallbladder",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-4-microscopic-anatomy-of-the-kidney",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-4-the-thyroid-gland",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-6-the-adrenal-glands",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/27-1-anatomy-and-physiology-of-the-testicular-reproductive-system",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/27-2-anatomy-and-physiology-of-the-ovarian-reproductive-system",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/20-1-structure-and-function-of-blood-vessels",
+   "title": "OpenStax Anatomy and Physiology 2e page",
+   "authors": "OpenStax",
+   "year": 2022,
+   "publisher": "OpenStax",
+   "license": "CC BY 4.0 (not verified on fetch)"
+  },
+  {
+   "url": "https://europepmc.org/article/PMC/PMC13513111",
+   "title": "Cerebral Intramural Cells: A Missing Cellular Link Between Vascular Aging and Alzheimer's Disease",
+   "authors": "Arbanasi EM, et al.",
+   "year": 2026,
+   "publisher": "Int J Mol Sci (PMC13513111)",
+   "license": "CC BY"
+  }
+ ],
+ "gaps": [
+  "sizeUm NOT_FOUND for all cells: no size quoted on fetched pages (only microvilli ~1 um)",
+  "nucleus NOT_FOUND except sperm (haploid)",
+  "structures limited to those in fetched text; others need further fetching",
+  "process/difficulty are design suggestions, not sourced",
+  "OpenStax year/license assumed, not verified on fetch",
+  "pericyte quote came from Europe PMC search abstract, not full-text fetch; europepmc URL is constructed",
+  "Some quotes were paraphrase-trimmed by the fetch tool; re-verify before publishing",
+  "Several guessed slugs 404'd; only fetched-OK slugs listed"
+ ]
+}

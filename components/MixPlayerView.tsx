@@ -57,16 +57,20 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
   useEffect(() => {
     if (!track?.url || peaks) return;
     let cancelled = false;
-    getOrComputeAnalysis(track).then(a => { if (!cancelled && a?.peaks) setPeaks(a.peaks); }).catch(() => {});
+    // For long DJ mixes, only load cached/Firestore peaks. Avoid client-side whole-file
+    // decodeAudioData which freezes the main thread. ScrollingWaveform renders procedural peaks if null.
+    getOrComputeAnalysis(track, { computeIfMissing: false }).then(a => { if (!cancelled && a?.peaks) setPeaks(a.peaks); }).catch(() => {});
     return () => { cancelled = true; };
   }, [track?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // On mobile the shared analyser is fed silence (Web Audio is bypassed there to protect
-  // background playback), so the Pixels stage would sit frozen. Open the passive captureStream
-  // tap once the mix is actually playing (a user gesture has happened, the element has an audio
-  // track) so the visuals react. No-op on desktop; best-effort where captureStream is unsupported.
+  // Establish analyser tap and wake audio context once playing so visualizers react immediately
   useEffect(() => {
-    if (playing) gp.ensureAnalyserTap();
+    if (playing) {
+      try {
+        gp.ensureAnalyserTap();
+        gp.getAudioContext();
+      } catch { /* ignore */ }
+    }
   }, [playing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── generator badge ──
@@ -241,7 +245,7 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
                   title={album.title}
                   artist={album.artist}
                   text={`Check out the mix "${album.title}" by ${album.artist} on Plajah`}
-                  url={buildShareUrl('album', album.id)}
+                  url={buildShareUrl('mix', album.id)}
                   imageUrl={cover || album.coverImage}
                   label="Share"
                   iconSize={15}

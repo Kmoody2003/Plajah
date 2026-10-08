@@ -11,10 +11,11 @@
  * reorder layer), ids stable.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2 } from 'lucide-react';
+import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2, Wand2, Sparkles } from 'lucide-react';
 import type { TelaImageDevice, TelaImageLayer, TelaImageAdjust, TelaBlendMode, TelaLayerMask } from '../../types';
 import { uploadTelaImage } from '../../services/telaAssets';
 import { classifyTelaAsset } from '../../services/telaCreativeEngine';
+import { samSegmentationService } from '../../services/samSegmentationService';
 
 export const NEUTRAL_ADJUST: TelaImageAdjust = { brightness: 1, contrast: 1, saturate: 1, exposure: 0, blur: 0 };
 
@@ -58,6 +59,42 @@ export const TelaImageLayerControls: React.FC<{
   layer: TelaImageLayer;
   onUpdate: (patch: Partial<TelaImageLayer>) => void;
 }> = ({ layer, onUpdate }) => {
+  const [isSegmenting, setIsSegmenting] = useState(false);
+  const [segmentFeedback, setSegmentFeedback] = useState<string | null>(null);
+
+  const handleSamCutout = async (invert = false) => {
+    if (!layer.src) return;
+    setIsSegmenting(true);
+    setSegmentFeedback('Meta SAM extracting subject…');
+    try {
+      const res = await samSegmentationService.segment(layer.src, {
+        points: [{ x: 0.5, y: 0.5, label: 1 }],
+        feather: 0.005,
+        invert,
+      });
+      if (res?.maskDataUrl) {
+        onUpdate({
+          mask: {
+            kind: 'ALPHA_IMAGE',
+            enabled: true,
+            src: res.maskDataUrl,
+            invert: false,
+          },
+        });
+        setSegmentFeedback('Subject matted successfully');
+        setTimeout(() => setSegmentFeedback(null), 2500);
+      } else {
+        setSegmentFeedback('Cutout failed: could not isolate subject');
+        setTimeout(() => setSegmentFeedback(null), 3000);
+      }
+    } catch (err: any) {
+      setSegmentFeedback(err?.message || 'Error segmenting image');
+      setTimeout(() => setSegmentFeedback(null), 3000);
+    } finally {
+      setIsSegmenting(false);
+    }
+  };
+
   const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 3 };
   const a = layer.adjust;
   const slider = (key: keyof TelaImageAdjust, label: string, min: number, max: number, step: number, fmt: (v: number) => string) => (
@@ -89,6 +126,38 @@ export const TelaImageLayerControls: React.FC<{
         {layer.mask?.kind === 'LUMA_GRADIENT' && <div className="mt-2"><div style={lbl}>Angle {Math.round(layer.mask.angle || 0)}°</div><input type="range" min={-180} max={180} value={layer.mask.angle || 0} onChange={e => onUpdate({ mask: { ...layer.mask!, angle: +e.target.value } })} style={{ width:'100%', accentColor:'var(--pj-cyan,#00DAF3)' }}/><div className="grid grid-cols-3 gap-2 mt-1">{(['blackPoint','midpoint','whitePoint'] as const).map((key, index) => <label key={key} className="text-[8px] uppercase text-white/35">{['Black','Mid','White'][index]}<input type="range" min={0} max={1} step={.01} value={layer.mask?.[key] ?? index * .5} onChange={e => onUpdate({ mask: { ...layer.mask!, [key]: +e.target.value } })} className="w-full"/></label>)}</div></div>}
         {layer.mask?.kind === 'SHAPE' && <select value={layer.mask.shape || 'ELLIPSE'} onChange={e => onUpdate({ mask: { ...layer.mask!, shape: e.target.value as 'RECT'|'ELLIPSE'|'ROUNDED' } })} className="mt-2 w-full h-8 rounded-[8px] px-2 text-[10px] text-white" style={{ background:'#17131d', border:'1px solid rgba(255,255,255,.12)' }}><option value="RECT">Rectangle matte</option><option value="ELLIPSE">Ellipse matte</option><option value="ROUNDED">Rounded matte</option></select>}
         {layer.mask?.kind === 'ALPHA_IMAGE' && <input value={layer.mask.src || ''} onChange={e => onUpdate({ mask: { ...layer.mask!, src: e.target.value } })} placeholder="Mask image URL / alpha channel" className="mt-2 w-full h-8 rounded-[8px] px-2 text-[10px] text-white outline-none" style={{ background:'#17131d', border:'1px solid rgba(255,255,255,.12)' }}/>}
+
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+          <button
+            type="button"
+            disabled={isSegmenting}
+            onClick={() => handleSamCutout(false)}
+            className="w-full h-[32px] rounded-[8px] flex items-center justify-center gap-2 text-[10px] font-bold tracking-wide uppercase transition-all"
+            style={{
+              background: 'linear-gradient(135deg, rgba(212,0,85,0.25), rgba(181,108,255,0.25))',
+              border: '1px solid rgba(181,108,255,0.4)',
+              color: '#f4f2ff',
+              cursor: isSegmenting ? 'wait' : 'pointer',
+            }}
+          >
+            {isSegmenting ? (
+              <>
+                <Loader2 size={12} className="animate-spin text-purple-300" />
+                <span>Segmenting with SAM…</span>
+              </>
+            ) : (
+              <>
+                <Wand2 size={12} className="text-purple-300" />
+                <span>Meta SAM Magic Cutout</span>
+              </>
+            )}
+          </button>
+          {segmentFeedback && (
+            <div className="mt-1 text-[9px] text-purple-200/80 text-center font-medium">
+              {segmentFeedback}
+            </div>
+          )}
+        </div>
       </div>
       <div style={{ marginBottom: 11 }}>
         <div style={lbl}>Blend</div>

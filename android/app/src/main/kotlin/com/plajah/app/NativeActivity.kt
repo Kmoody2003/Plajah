@@ -38,7 +38,7 @@ class NativeActivity : ComponentActivity() {
                     color=androidx.compose.ui.graphics.Color(0xFF04030A),
                     contentColor=androidx.compose.ui.graphics.Color.White,
                 ) {
-                    com.plajah.app.ui.screens.ChoraNightScreen(
+                    com.plajah.app.ui.screens.ChoraScreen(
                         initialAlbumId = intent.getStringExtra("platformContentUrl")?.let { url ->
                             val uri=android.net.Uri.parse(url)
                             if(uri.scheme=="https"&&uri.host=="plajah.com"&&uri.getQueryParameter("type")=="album")uri.getQueryParameter("id")else null

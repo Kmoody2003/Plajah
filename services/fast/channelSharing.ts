@@ -14,7 +14,14 @@ export function canManageChannel(channel: ChannelIdentity, user?: { uid: string 
 export function findSharedChannel(channels: readonly ChannelIdentity[], focus: {
   sourceId?: string; ownerId?: string; plajahId?: string; number?: string;
 }): number {
-  if (focus.sourceId) return channels.findIndex(c => c.id === focus.sourceId);
+  // The exact sub-channel wins. But a live source id is ephemeral (the feed can have ended since the
+  // link was shared), so a miss falls through to the owner/number rather than giving up — the
+  // owner branch below still never picks a different account's channel.
+  if (focus.sourceId) {
+    const exact = channels.findIndex(c => c.id === focus.sourceId);
+    if (exact >= 0) return exact;
+    if (!focus.ownerId && !focus.plajahId && !focus.number) return -1;
+  }
   if (focus.plajahId) return channels.findIndex(c => c.plajahId === focus.plajahId);
   if (focus.ownerId) {
     const owned = (c: ChannelIdentity) => (c.scheduleOwner || c.ownerId) === focus.ownerId;

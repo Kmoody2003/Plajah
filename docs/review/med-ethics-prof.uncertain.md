@@ -1,0 +1,24 @@
+# med-ethics-prof: claims for expert review
+
+Style note: the validator warns that the correct option is the longest in about 87% of MCQs. Distractors across the whole course should be lengthened or correct answers trimmed.
+
+- l04: Hippocratic Oath dating (fifth to fourth century BCE) and its reading as refusing abortifacient pessary; "primum non nocere" attribution as later Latin tag; AMA first Code 1847 drawing on Percival 1803.
+- l04: Declaration of Helsinki described as recognising independent committee review and surrogate consent in the 1964 original; committee review was strengthened in later revisions (1975). Check which provisions were in the 1964 text.
+- l05: Salgo (1957, Cal. Ct. App.) as first use of "informed consent"; Canterbury (1972, D.C. Cir.) as reasonable-patient standard; statement that jurisdictions are split without a clear majority.
+- l06: Mental Capacity Act 2005 described as starting from a presumption of capacity (confident, but check wording); "sliding scale" characterisation.
+- l07: HIPAA exceptions summary (serious and imminent threat, public health, abuse reporting); 42 CFR Part 2 description; Tarasoff state split (mandatory, permissive, none); minors and contraception example is state-dependent.
+- l08: 1961 survey (Oken) described only as "most physicians avoided telling"; SPIKES step names and year 2000.
+- l09: default surrogate hierarchy order described as "commonly" spouse, adult children, parents, siblings; POLST naming and scope vary by state; In re Quinlan reasoning (privacy right) and Cruzan holding (assumed liberty interest; clear and convincing evidence permitted).
+- l10: Medicare hospice six-month certification; claim that appropriately titrated opioids do not generally shorten life; Uniform Determination of Death Act (1981) adoption by "most states"; VSED legal treatment varies and is described as refusal of treatment "in most jurisdictions".
+- l11: List of US jurisdictions authorising aid in dying (Oregon, Washington, Vermont, California, Colorado, Hawaii, New Jersey, Maine, New Mexico, DC, Montana by Baxter v. Montana 2009) may be incomplete or out of date as of 2026-10 (other states may have enacted laws); Oregon Act dates (ballot 1994, effective 1997); Canada 2016 law "later broadened"; Switzerland "selfish motives" rule; Spain, New Zealand, Australia; status of UK legislation; AMA position wording.
+- l11: Vacco v. Quill rationale summarised as causation and intent distinction.
+- l12: Current abortion law is volatile and state-specific; statement is general only. Church Amendments as federal conscience protection; Buck v. Bell 1927 description; Thomson argument summary; claim that US courts "with few exceptions" uphold refusal by competent pregnant patients.
+- l13: Tuskegee numbers (about 600 men, about 400 with syphilis, about 200 controls) and 1997 apology; Willowbrook consent and admission-linkage claim; Jewish Chronic Disease Hospital 1963; Beecher 22 examples; Guatemala experiments 1946 to 1948 and 2011 commission; Henrietta Lacks 1951; Gelsinger 1999 (age 18).
+- l14: Freedman clinical equipoise 1987; reference to 1990s perinatal HIV trials as a controversy; claims about early stopping overestimating effects; US subparts (pregnant women, prisoners, children).
+- l15: NICE threshold "of the order of twenty to thirty thousand pounds per QALY"; description of OPTN, NOTA 1984; SOFA use in crisis standards; Americans with Disabilities Act applicability to triage.
+- l16: Cochrane review on industry sponsorship and favourable conclusions (paraphrased, no citation); claim that disclosure can increase bias (debated experimental literature); Sunshine Act section number (ACA section 6002) and Open Payments; Stark and Anti-Kickback summaries; Moore v. Regents holding (disclosure of research or economic interest; no conversion).
+- l17: IOM 1999 estimate language; CANDOR; apology statutes (scope varies by state); Patient Safety and Quality Improvement Act 2005; HCQIA 1986 and National Practitioner Data Bank; Joint Commission definition of sentinel event.
+- l18: Daubert 1993 scope (federal and many states); Darling v. Charleston Community Memorial Hospital 1965 as corporate negligence; locality rule largely replaced; loss-of-chance as minority rule; res ipsa caution; EMTALA 1986.
+- l19: Boorse theory description and example objections; Fulford and Engelhardt attribution to normativism; DSM removal of homosexuality in 1973; Cartwright 1851 drapetomania; WHO 1948 definition; Nordenfelt summary.
+- l20: Koch postulates attribution (Koch and Loeffler); Hill 1965 and "temporality only essential"; Rothman model; relative-risk-above-two heuristic.
+- l21: Sackett 1996 definition; GRADE domains; CAST trial description (suppression of ventricular arrhythmias increased mortality); positive predictive value example (under 2 percent).

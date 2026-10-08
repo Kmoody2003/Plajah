@@ -14,9 +14,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  BarChart3, BookHeart, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Feather, FileDown, FilePlus2, FileText, FileUp, Folder, FormInput,
+  BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Feather, FileDown, FilePlus2, FileText, FileUp, Folder, FormInput,
   Grid3X3, Image as ImageIcon, ImagePlus, LayoutPanelTop, Link as LinkIcon, Link2, Loader2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, PenLine, PenTool, Plus, Scan, Shapes, Sparkles, Square, TextQuote, Trash2, Type, X,
+  Minus, Monitor, MousePointer2, MousePointerClick, Music2, PenLine, PenTool, Plus, Scan, Shapes, Sparkles, Square, TextQuote, Trash2, Type, Wand2, X,
 } from 'lucide-react';
 import type {
   TelaAssignmentAudienceRole, TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
@@ -46,6 +46,12 @@ import TelaGrid, { cellKey, type TelaBaseLite, type TelaFormulaContext } from '.
 import TelaBase from './TelaBase';
 import TelaForm from './TelaForm';
 import TelaVector, { TelaVectorObjectProps, objBounds, type VectorTool } from './TelaVector';
+import { TelaLottieImportRow } from './TelaLottie';
+import { importLottieFile } from '../../services/tela/telaLottieImport';
+import { makeMotionTemplateObject, renderMotionTemplatePoster, motionTemplateName } from '../../services/tela/telaMotionTemplate';
+import { motionSpecFromItem } from '../../services/universalLibrary/amboItems';
+import type { LibraryItem } from '../../services/universalLibrary/libraryModel';
+import { isLottieFileName } from '../../services/tela/telaLottie';
 import TelaImage, { TelaImageLayerControls, ImageLayerRow, makeImageLayer } from './TelaImage';
 import { PRESETS, applyTelaOp, type TelaOp } from './telaOps';
 import { renderDevice as renderTelaDevice, type RenderDeviceCtx } from './renderDevice';
@@ -67,6 +73,8 @@ import { useContextMenu } from '../ui/ContextMenu';
 import { makeTelaChart } from '../../services/telaChartData';
 
 const ComicDrawCanvas = React.lazy(() => import('../ComicDrawCanvas'));
+const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => ({ default: m.TelaComicStudio })));
+const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 // PRESETS + the op reducer (applyTelaOp/TelaOp) now live in ./telaOps so the
@@ -96,6 +104,7 @@ const STUDIO_VEC_TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }
   { id: 'line', icon: <Minus size={17} />, label: 'Line' },
   { id: 'pen', icon: <PenTool size={17} />, label: 'Pen / polyline' },
   { id: 'text', icon: <Type size={17} />, label: 'Text' },
+  { id: 'ink', icon: <Brush size={17} />, label: 'Ink — freehand (B)' },
 ];
 
 type StudioUnit = 'PX' | 'IN' | 'MM' | 'CM';
@@ -259,13 +268,15 @@ type Posture = 'PAGE' | 'BOARD' | 'STUDIO';
 type SaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'synced';
 
 interface TelaViewProps {
+  onDocumentChange?: (doc: TelaDoc) => void;
   onBack?: () => void;
   /** Opens a domain-generated Tela file directly (Melos, Notes, journals). */
   initialDocId?: string | null;
 }
 
-const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
+const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentChange }) => {
   const [doc, setDoc] = useState<TelaDoc | null>(null);
+  useEffect(() => { if (doc) onDocumentChange?.(doc); }, [doc, onDocumentChange]);
   const [showHome, setShowHome] = useState(!initialDocId);
   const [posture, setPosture] = useState<Posture>('PAGE');
   const [cam, setCam] = useState({ x: 0, y: 0, z: 1 });
@@ -330,6 +341,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
   const [assignmentLayoutMatch, setAssignmentLayoutMatch] = useState<{ name: string; confidence: number } | null>(null);
   const [autoFormatUndo, setAutoFormatUndo] = useState<TelaDoc | null>(null);
   const [autoFormatReport, setAutoFormatReport] = useState<TelaAutoFormatReport | null>(null);
+  const [comicStudioOpen, setComicStudioOpen] = useState(false);
+  const [localStudioOpen, setLocalStudioOpen] = useState(false);
   // Author-in-place flying menu (raised from a ✎ badge — the same menu the
   // reference-embed uses). Ref-based so edits resolve live against the doc.
   const [flying, setFlying] = useState<{ ref: FlyingRef; anchor: { x: number; y: number } } | null>(null);
@@ -1111,6 +1124,15 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
     } catch (error) { console.error('[Tela Studio] vector asset import failed', error); }
     finally { setStudioImgBusy(false); }
   };
+  // Lottie (.lottie / Lottie .json) → a native LOTTIE object on the artboard.
+  const studioAddLottieFile = async (device: TelaVectorDevice, file: File, at?: { x: number; y: number }) => {
+    setStudioImgBusy(true); setImportError(null);
+    try {
+      const object = await importLottieFile(file, { artboard: { width: device.width, height: device.height }, at });
+      dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: device.id, object }); setStudioSel(object.id);
+    } catch (error) { setImportError(error instanceof Error ? error.message : 'Lottie import failed.'); }
+    finally { setStudioImgBusy(false); }
+  };
   const saveStudioPaint = async (device: TelaImageDevice, blob: Blob) => {
     const file = new File([blob], `Tela paint ${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`, { type: 'image/png' });
     await studioAddImageFile(device.id, file); setStudioPaintOpen(false);
@@ -1304,7 +1326,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
       }
       if (!mod && !event.altKey && focus.type === 'VECTOR') {
         const tools: Partial<Record<string, VectorTool>> = {
-          v: 'select', a: 'direct', m: 'marquee', r: 'rect', e: 'ellipse', l: 'line', p: 'pen', t: 'text',
+          v: 'select', a: 'direct', m: 'marquee', r: 'rect', e: 'ellipse', l: 'line', p: 'pen', t: 'text', b: 'ink',
         };
         if (tools[key]) { event.preventDefault(); setStudioTool(tools[key]!); return; }
       }
@@ -1451,6 +1473,25 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
     setPosture('STUDIO');
   };
 
+  // Universal Library → Ambo slide template / scripture look as a live MOTION_TEMPLATE
+  // object: into the focused vector artboard in Studio (filling it — the designers
+  // re-flow to any aspect), else a new 1920×1080 artboard. Poster is baked after.
+  const addMotionTemplateFromLibrary = (item: LibraryItem) => {
+    const spec = motionSpecFromItem(item); if (!spec) return;
+    const focus = studioFocus?.device;
+    let deviceId: string, object: TelaVectorObject;
+    if (posture === 'STUDIO' && focus?.type === 'VECTOR') {
+      object = makeMotionTemplateObject(spec, { x: 0, y: 0, w: focus.width, h: focus.height });
+      dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: focus.id, object }); deviceId = focus.id; setStudioSel(object.id);
+    } else {
+      object = makeMotionTemplateObject(spec, { x: 0, y: 0, w: 1920, h: 1080 });
+      const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: motionTemplateName(spec), width: 1920, height: 1080, objects: [object] };
+      addFrame('BOARD', 'FREE', dev, dev.name!, { size: { w: 1920, h: 1080 } }); deviceId = dev.id;
+      setShowHome(false); setPosture('STUDIO');
+    }
+    void renderMotionTemplatePoster(spec, object.w, object.h).then(posterSrc => { if (posterSrc) dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId, objectId: object.id, patch: { motionTemplate: { ...spec, posterSrc } } }); });
+  };
+
   const removeCanvas = async (id: string) => {
     await deleteTelaDoc(id);
     setConfirmDeleteId(null);
@@ -1527,12 +1568,28 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
     try {
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
+        const pos = dropPos ? { x: dropPos.x + index * 44, y: dropPos.y + index * 44 } : undefined;
+        if (isLottieFileName(file.name)) {
+          // A Lottie lands as a vector artboard holding one native LOTTIE object (editable in Studio).
+          try {
+            const probe = await importLottieFile(file, { artboard: { width: 1e6, height: 1e6 } });
+            const L = probe.lottie!;
+            const k = Math.min(1, 1080 / Math.max(L.intrinsicWidth, L.intrinsicHeight));
+            const w = Math.max(64, Math.round(L.intrinsicWidth * k)), h = Math.max(64, Math.round(L.intrinsicHeight * k));
+            const object: TelaVectorObject = { ...probe, x: 0, y: 0, w, h };
+            const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: object.objectLabel || 'Animation', width: w, height: h, objects: [object] };
+            addFrame('BOARD', 'FREE', dev, dev.name!, { size: { w, h }, pos });
+            continue;
+          } catch (error) {
+            // A .json that isn't Lottie is still a valid generic asset; a broken .lottie is an error.
+            if (/\.lottie$/i.test(file.name)) throw error;
+          }
+        }
         const kind = mediaKindFor(file);
         const uploaded = await uploadTelaAsset(file);
         const wide = kind === 'VIDEO' || kind === 'AUDIO' || kind === 'MODEL_3D';
         const size = kind === 'PDF' ? { w: 816, h: 1056 } : wide ? { w: 720, h: 405 } : { w: 560, h: 420 };
         const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind, name: file.name, src: uploaded.src, mimeType: file.type || 'application/octet-stream', size: file.size, width: size.w, height: size.h, storagePath: uploaded.storagePath, sessionOnly: uploaded.sessionOnly };
-        const pos = dropPos ? { x: dropPos.x + index * 44, y: dropPos.y + index * 44 } : undefined;
         addFrame(kind === 'PDF' ? 'PAPER' : 'BOARD', 'FREE', device, file.name, { size, pos });
       }
       setShowHome(false);
@@ -1912,6 +1969,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
               <button className={menuBarItem} onClick={() => { addGridSheet(); setAppMenuOpen(null); }}><Grid3X3 size={14}/>Grid sheet</button>
               <button className={menuBarItem} onClick={() => { addVectorArtboard(); setAppMenuOpen(null); }}><Shapes size={14}/>Vector artboard</button>
               <button className={menuBarItem} onClick={() => { addImageCanvas(); setAppMenuOpen(null); }}><ImageIcon size={14}/>Image canvas</button>
+              <div className="h-px my-1 bg-white/[.07]"/>
+              <div className="px-3 py-1 text-[9px] font-extrabold uppercase tracking-[.12em] text-[#a78bfa]">Local AI Creative Suite</div>
+              <button className={menuBarItem} onClick={() => { setComicStudioOpen(true); setAppMenuOpen(null); }}><BookOpen size={14} color="#a78bfa"/>Comic & Storybook Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>
+              <button className={menuBarItem} onClick={() => { setLocalStudioOpen(true); setAppMenuOpen(null); }}><Wand2 size={14} color="#f59e0b"/>Local Creative Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>
               <div className="px-3 py-2 text-[9px] leading-relaxed text-white/35">Images · audio · video · PDF · 3D · fonts · archives · other files</div>
             </>}
             {menu === 'DOCUMENT' && <>
@@ -2025,12 +2086,15 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
               {isVec
                 ? <>{STUDIO_VEC_TOOLS.map(t => (
                     <button key={t.id} title={t.label} style={railBtn(studioTool === t.id)} onClick={() => setStudioTool(t.id)}>{t.icon}</button>
-                  ))}<div className="w-7 my-1" style={{ borderTop:'1px solid rgba(255,255,255,.1)' }}/><button title="Turn selected text into an interactive question" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button><button title="Shapes and design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button><button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button></>
+                  ))}<div className="w-7 my-1" style={{ borderTop:'1px solid rgba(255,255,255,.1)' }}/><button title="Comic & Storybook Studio (Local GPU)" style={railBtn(comicStudioOpen)} onClick={() => setComicStudioOpen(true)}><BookOpen size={17} color="#a78bfa"/></button><button title="Local Creative Studio (Local GPU)" style={railBtn(localStudioOpen)} onClick={() => setLocalStudioOpen(true)}><Wand2 size={17} color="#f59e0b"/></button><button title="Turn selected text into an interactive question" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button><button title="Shapes and design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button><button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button></>
                 : (
                   <>
                     <button title="Select / move" style={railBtn(true)} onClick={() => {}}><MousePointer2 size={17} /></button>
                     <button title="Upload image layer" style={railBtn(false)} disabled={studioImgBusy} onClick={() => studioFileRef.current?.click()}>{studioImgBusy ? <Loader2 size={17} className="animate-spin" /> : <ImagePlus size={17} />}</button>
                     <button title="Open Lorea pressure paint engine" style={railBtn(studioPaintOpen)} onClick={() => setStudioPaintOpen(true)}><Brush size={17}/></button>
+                    <div className="w-7 my-1" style={{ borderTop:'1px solid rgba(255,255,255,.1)' }}/>
+                    <button title="Comic & Storybook Studio (Local GPU)" style={railBtn(comicStudioOpen)} onClick={() => setComicStudioOpen(true)}><BookOpen size={17} color="#a78bfa"/></button>
+                    <button title="Local Creative Studio (Local GPU)" style={railBtn(localStudioOpen)} onClick={() => setLocalStudioOpen(true)}><Wand2 size={17} color="#f59e0b"/></button>
                     <button title="Build assignment properties" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17}/></button>
                     <button title="Design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17}/></button><button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button>
                   </>
@@ -2038,7 +2102,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
             </div>
 
             {/* Center stage — rulers + artboard */}
-            <div className="flex-1 relative overflow-auto" style={{ background: '#141318' }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} onDrop={event => { const files = [...event.dataTransfer.files]; if (!files.length) return; event.preventDefault(); const visual = files.filter(file => file.type.startsWith('image/') || isVectorFile(file)); const other = files.filter(file => !visual.includes(file)); visual.forEach(file => { if (isVec) void studioAddVectorFile(vec!, file); else void studioAddImageFile(img!.id, file); }); if (other.length) void insertAssetFiles(other); }} onWheel={event => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setStudioZoom(value => Math.max(.1, Math.min(4, value * (event.deltaY > 0 ? .9 : 1.1)))); }}>
+            <div className="flex-1 relative overflow-auto" style={{ background: '#141318' }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} onDrop={event => { const files = [...event.dataTransfer.files]; if (!files.length) return; event.preventDefault(); const lotties = isVec ? files.filter(file => isLottieFileName(file.name)) : []; if (lotties.length) { const box = event.currentTarget.querySelector('.tela-vector > svg') as SVGSVGElement | null; const ctm = box?.getScreenCTM(); const at = box && ctm ? (() => { const pt = box.createSVGPoint(); pt.x = event.clientX; pt.y = event.clientY; const q = pt.matrixTransform(ctm.inverse()); return { x: q.x, y: q.y }; })() : undefined; lotties.forEach((file, index) => void studioAddLottieFile(vec!, file, at ? { x: at.x + index * 24, y: at.y + index * 24 } : undefined)); } const visual = files.filter(file => !lotties.includes(file) && (file.type.startsWith('image/') || isVectorFile(file))); const other = files.filter(file => !lotties.includes(file) && !visual.includes(file)); visual.forEach(file => { if (isVec) void studioAddVectorFile(vec!, file); else void studioAddImageFile(img!.id, file); }); if (other.length) void insertAssetFiles(other); }} onWheel={event => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setStudioZoom(value => Math.max(.1, Math.min(4, value * (event.deltaY > 0 ? .9 : 1.1)))); }}>
               {/* Studio top-strip */}
               <div className="sticky top-0 z-20 flex items-center gap-2 px-3 h-9 overflow-x-auto custom-scrollbar" style={{ background: 'rgba(11,10,16,0.96)', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }}>
                 <span className="text-[.72rem] font-bold text-white/80">{focus.name || (isVec ? 'Artboard' : 'Image')}</span>
@@ -2126,6 +2190,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
                       {studioTraceBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Trace
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Vector: native Lottie animations (file, drag-drop onto the artboard, or URL) */}
+              {vec && (
+                <div className="px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <TelaLottieImportRow artboard={{ width: vec.width, height: vec.height }} onAdd={object => { dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: vec.id, object }); setStudioSel(object.id); }} />
                 </div>
               )}
 
@@ -2420,6 +2491,102 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
         </div>
       )}
 
+      {comicStudioOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)' }}>
+          <div style={{ width: '1150px', height: '840px', maxWidth: '96vw', maxHeight: '94vh', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 25px 80px rgba(0,0,0,0.9)' }}>
+            <React.Suspense fallback={<div className="p-8 text-white">Loading Comic Studio…</div>}>
+              <TelaComicStudio
+                onClose={() => setComicStudioOpen(false)}
+                onInsertPageIntoTela={(pageSpec) => {
+                  const width = 1200;
+                  const height = 1600;
+                  const validPanels = pageSpec.panels.filter(p => p.renderedImageUrl);
+                  const total = Math.max(1, validPanels.length);
+                  const cols = 2;
+                  const rows = Math.ceil(total / cols);
+                  const pw = Math.round((width - 60) / cols);
+                  const ph = Math.round((height - 80) / rows);
+                  const layers = validPanels.map((panel, idx) => {
+                    const row = Math.floor(idx / cols);
+                    const col = idx % cols;
+                    const px = 20 + col * (pw + 20);
+                    const py = 20 + row * (ph + 20);
+                    return {
+                      id: uid('lyr'),
+                      name: `Panel ${idx + 1}`,
+                      url: panel.renderedImageUrl!,
+                      x: px,
+                      y: py,
+                      w: pw,
+                      h: ph,
+                      rot: 0,
+                      opacity: 1,
+                      blend: 'normal' as const,
+                      adjust: { brightness: 0, contrast: 0, saturation: 0, hue: 0, blur: 0 },
+                      visible: true,
+                      locked: false,
+                    };
+                  });
+                  const imgDev: TelaImageDevice = {
+                    id: uid('dev'),
+                    type: 'IMAGE',
+                    name: `${pageSpec.title} (Artwork)`,
+                    width,
+                    height,
+                    layers,
+                  };
+                  addFrame('BOARD', 'FREE', imgDev, pageSpec.title, { size: { w: width, h: height } });
+                  setComicStudioOpen(false);
+                  setPosture('BOARD');
+                }}
+              />
+            </React.Suspense>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {localStudioOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)' }}>
+          <div style={{ width: '1150px', height: '840px', maxWidth: '96vw', maxHeight: '94vh', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 25px 80px rgba(0,0,0,0.9)' }}>
+            <React.Suspense fallback={<div className="p-8 text-white">Loading Creative Studio…</div>}>
+              <LocalCreativeStudio
+                onClose={() => setLocalStudioOpen(false)}
+                onSendToTela={(url) => {
+                  const width = 1024;
+                  const height = 1024;
+                  const imgDev: TelaImageDevice = {
+                    id: uid('dev'),
+                    type: 'IMAGE',
+                    name: 'Local AI Render',
+                    width,
+                    height,
+                    layers: [{
+                      id: uid('lyr'),
+                      name: 'Layer 1',
+                      url,
+                      x: 0,
+                      y: 0,
+                      w: width,
+                      h: height,
+                      rot: 0,
+                      opacity: 1,
+                      blend: 'normal' as const,
+                      adjust: { brightness: 0, contrast: 0, saturation: 0, hue: 0, blur: 0 },
+                      visible: true,
+                      locked: false,
+                    }],
+                  };
+                  addFrame('SCREEN', 'FREE', imgDev, 'Local AI Generation', { size: { w: width, h: height } });
+                  setLocalStudioOpen(false);
+                }}
+              />
+            </React.Suspense>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {assignmentBuilderOpen && createPortal(
         <TelaAssignmentBuilder
           prompt={assignmentEditingField?.interaction?.prompt || assignmentSource.prompt}
@@ -2449,7 +2616,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
         </div>
       )}
 
-      {ulOpen && <UniversalLibraryPanel accent="#8B5CFF" defaultDock="floating" storageKey="tela.ullib.geo.v1" accepts={['template']} onClose={() => setUlOpen(false)} onUse={(it) => { const t = TELA_TEMPLATE_GALLERY.find((x) => 'tela:' + x.id === it.id); if (t) { addTemplateFrames(t); setUlOpen(false); } }} />}
+      {ulOpen && <UniversalLibraryPanel accent="#8B5CFF" defaultDock="floating" storageKey="tela.ullib.geo.v1" accepts={['template', 'motion']} onClose={() => setUlOpen(false)} onUse={(it) => { if (it.kind === 'motion') { addMotionTemplateFromLibrary(it); return; } const t = TELA_TEMPLATE_GALLERY.find((x) => 'tela:' + x.id === it.id); if (t) { addTemplateFrames(t); setUlOpen(false); } }} />}
       {studioCreativeLibraryOpen && createPortal(
         <div className="fixed inset-0 z-[270] flex items-center justify-center p-3 sm:p-6" style={{ background:'rgba(5,3,9,.86)', backdropFilter:'blur(10px)' }} onPointerDown={event => { if (event.target === event.currentTarget) setStudioCreativeLibraryOpen(false); }}>
           <div className="w-full max-w-[1120px] max-h-[88vh] overflow-hidden rounded-[22px] flex flex-col" style={{ background:'linear-gradient(160deg,#181220,#0e0b14)', border:'1px solid rgba(255,255,255,.14)', boxShadow:'0 28px 90px rgba(0,0,0,.7)' }}>

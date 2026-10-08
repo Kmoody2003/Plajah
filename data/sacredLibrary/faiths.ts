@@ -47,7 +47,7 @@ export interface FaithWingData {
   /** Uppercase line above the poster title. */
   posterEyebrow: string;
   /** Which deep reader this wing opens from its Sacred Texts gallery. */
-  reader: 'bible' | 'sutra';
+  reader: 'bible' | 'sutra' | 'sacred';
   facts: { label: string; value: string }[];
   deviations: FaithDeviation[];
   galleries: FaithGallery[];
@@ -202,9 +202,24 @@ export const BUDDHISM: FaithWingData = {
 
 /** Data-driven wings, keyed by id. Each wing's Sacred Texts gallery opens its reader
  *  (Christianity → Lectio/BibleExperience, Buddhism → the Sutra Reader). */
+function researchWing(id: string, name: string, symbol: string, accent: string, texts: string[], structure: string): FaithWingData {
+  return { id, name, symbol, accent, accent2: accent, reader: 'sacred',
+    tagline: 'Read the sources. Follow the references. Build your own understanding.', posterEyebrow: 'Sacred texts & research',
+    facts: [{ label: 'Reader', value: texts.join(' · ') }, { label: 'References', value: structure }],
+    deviations: [{ from: 'Bible chapter and verse', to: structure }],
+    galleries: [
+      { no: '01', title: 'Read the sacred texts', kicker: 'Sacred Texts', icon: '📖', blurb: 'Read attributed editions, select passages, and keep your own notes. Text availability is stated inside the reader.', items: texts, opensReader: true, cta: 'Open reader' },
+      { no: '02', title: 'Research across sources', kicker: 'Research Notebook', icon: '🔎', blurb: 'Save passages with citations and compare similarities, differences, and context with sources from other faith sections.', items: ['Saved evidence', 'Comparisons', 'Cited export'], opensReader: true, cta: 'Open research tools' },
+      { no: '03', title: 'Read with context', kicker: 'Edition & Tradition', icon: '🧭', blurb: 'A selected text or translation does not represent every community or school. The reader preserves source attribution and distinguishes original text from translation.', items: ['Edition credits', 'Original languages where supplied', 'Source links'], opensReader: true, cta: 'Explore the sources' },
+    ], };
+}
 export const FAITH_WINGS: Record<string, FaithWingData> = {
   christianity: CHRISTIANITY,
   buddhism: BUDDHISM,
+  islam: researchWing('islam', 'Islam', '☪', '#2FA36B', ['Qur’an'], 'Surah and ayah'),
+  judaism: researchWing('judaism', 'Judaism', '✡', '#5B8DEF', ['Tanakh', 'Jewish texts via Sefaria'], 'Jewish text references and source-specific divisions'),
+  hinduism: researchWing('hinduism', 'Hinduism', '🕉', '#E0613C', ['Bhagavad Gita'], 'Chapters and edition-specific paragraph locators'),
+  sikhism: researchWing('sikhism', 'Sikhism', '☬', '#E8A13B', ['Sri Guru Granth Sahib Ji'], 'Ang pages and source line identifiers'),
 };
 
 /** The faith selector, in display order. */
@@ -212,12 +227,12 @@ export const FAITHS: FaithMeta[] = [
   CHRISTIANITY_META,
   { id: 'buddhism', name: 'Buddhism', symbol: '☸', accent: '#E8912D', status: 'live', wing: 'data',
     blurb: 'Modeled on Christianity, free to deviate — a path of awakening with no creator God.' },
-  { id: 'islam', name: 'Islam', symbol: '☪', accent: '#2FA36B', status: 'research', wing: null,
-    blurb: 'In research — Qur’an, Sunnah, the Five Pillars, and the schools.' },
-  { id: 'judaism', name: 'Judaism', symbol: '✡', accent: '#5B8DEF', status: 'research', wing: null,
-    blurb: 'In research — Tanakh & Talmud, covenant, and the festival year.' },
-  { id: 'hinduism', name: 'Hinduism', symbol: '🕉', accent: '#E0613C', status: 'research', wing: null,
-    blurb: 'In research — Vedas & epics, dharma, and many paths.' },
-  { id: 'sikhism', name: 'Sikhism', symbol: '☬', accent: '#E8A13B', status: 'research', wing: null,
-    blurb: 'In research — Guru Granth Sahib, the ten Gurus, and seva.' },
+  { id: 'islam', name: 'Islam', symbol: '☪', accent: '#2FA36B', status: 'live', wing: 'data',
+    blurb: 'Read all 114 surahs in Pickthall’s English translation, with Arabic available alongside.' },
+  { id: 'judaism', name: 'Judaism', symbol: '✡', accent: '#5B8DEF', status: 'live', wing: 'data',
+    blurb: 'Read the Tanakh and explore Jewish text references through attributed Sefaria editions.' },
+  { id: 'hinduism', name: 'Hinduism', symbol: '🕉', accent: '#E0613C', status: 'live', wing: 'data',
+    blurb: 'Read all 18 chapters of the Bhagavad Gita in Edwin Arnold’s poetic English rendering.' },
+  { id: 'sikhism', name: 'Sikhism', symbol: '☬', accent: '#E8A13B', status: 'live', wing: 'data',
+    blurb: 'Read Sri Guru Granth Sahib Ji by ang with Gurmukhi, transliteration, and supplied English translation.' },
 ];

@@ -1,0 +1,16 @@
+{
+  "film": "persia",
+  "timing": "estimated",
+  "note": "timing: estimated, silent",
+  "duration": 223.06866666666653,
+  "silences": [
+    {
+      "from": 36.506,
+      "to": 56.96800000000001
+    },
+    {
+      "from": 185.24866666666657,
+      "to": 196.66466666666653
+    }
+  ]
+}

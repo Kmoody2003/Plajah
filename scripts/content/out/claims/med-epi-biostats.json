@@ -1,0 +1,1428 @@
+{
+ "courseId": "med-epi-biostats",
+ "label": "Epidemiology and Biostatistics",
+ "lessons": [
+  {
+   "id": "med-epi-biostats.l01",
+   "title": "Measures of Disease Frequency",
+   "body": [
+    "Epidemiology is the study of how often disease occurs, in whom, and why. Every question starts with counting, and counting needs a numerator (the cases) and a denominator (the people who could have been cases). The two basic measures answer different questions. Prevalence is the proportion of a defined population that has the disease at a point in time (point prevalence) or over a period (period prevalence). It counts everyone who has the condition, whether they were diagnosed yesterday or twenty years ago. Incidence counts only new cases arising in people who were free of the disease at the start.",
+    "There are two forms of incidence. Cumulative incidence, also called incidence proportion or risk, is new cases divided by the number of disease-free people at the start of a follow-up period; it is a probability and has no units, though a time period must be stated. The incidence rate (incidence density) is new cases divided by the total person-time at risk, and it has units such as cases per 1,000 person-years. Person-time is used when people are followed for different lengths because of late entry, loss to follow-up, death from other causes, or becoming a case, since a person stops contributing time at risk once they have the outcome.",
+    "Prevalence, incidence and disease duration are linked. In a stable population with a low prevalence, prevalence is approximately incidence multiplied by average duration. This explains a common trap: a treatment that keeps patients alive without curing them increases prevalence even though incidence is unchanged, and a fast-fatal disease can have high incidence but low prevalence. Prevalence is therefore useful for planning health services, and incidence is useful for studying causes and prevention.",
+    "Crude rates can mislead when populations differ in structure, most often in age. Age-specific rates compare like with like. To summarize them in one number, direct standardization applies each population's age-specific rates to a single standard population, giving an age-adjusted rate. Indirect standardization applies standard age-specific rates to the study population to compute expected events, and the standardized mortality ratio is observed divided by expected deaths. Direct standardization needs reliable age-specific rates; indirect is preferred when the study group is small and its specific rates are unstable.",
+    "A worked example: 2,000 adults free of atrial fibrillation are followed for a mean of 3 years and 30 develop it. Total person-time is 2,000 x 3 = 6,000 person-years, so the incidence rate is 30 / 6,000 = 0.005 per person-year, or 5 per 1,000 person-years. If the same cohort had been tracked for exactly one year and 12 cases occurred, the one-year cumulative incidence would be 12 / 2,000 = 0.6%."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l02",
+   "title": "Descriptive, Ecological and Cross-Sectional Studies",
+   "body": [
+    "Descriptive epidemiology describes the distribution of disease by person, place and time. It generates hypotheses rather than testing them. The lowest rung is the case report or case series: a clinician describes one or several patients with an unusual feature, with no comparison group. Case series have flagged real signals, such as clusters of rare pneumonia in young men before AIDS was named, but they cannot give a rate, because there is no denominator, and they cannot show that an exposure is more common in cases than in others.",
+    "In a cross-sectional study, exposure and outcome are measured in the same people at the same time, like a photograph. It yields prevalence, and when two groups are compared the natural statistic is the prevalence ratio or prevalence odds ratio. Cross-sectional surveys are quick and cheap and are ideal for planning services and monitoring population health. Their main weakness is temporality: because exposure and disease are measured together, you often cannot tell which came first. A survey linking low income and depression cannot say whether poverty contributed to depression or depression reduced earning capacity, a problem called reverse causation.",
+    "A second weakness is prevalence-incidence bias, also called Neyman bias. A prevalence sample over-represents long-duration cases because short-duration cases have either recovered or died. If an exposure predicts mild disease that resolves quickly or fatal disease that kills quickly, a cross-sectional study may miss the association or even reverse it. Cross-sectional studies are also poor for rare diseases, since a sample of a general population will contain few cases.",
+    "Ecological studies use groups, not individuals, as the unit of analysis, for example comparing national average salt intake with national stroke mortality. They use routinely collected data and are cheap. Their central trap is the ecological fallacy: an association seen across groups need not hold within the individuals who make up the groups. Countries with higher average fat intake may have more breast cancer, yet the women who actually eat the most fat within each country may not be the ones who get it. Group-level confounding, such as national wealth, can also create the pattern.",
+    "A worked example: in a survey of 300 workers exposed to a solvent, 90 report chronic cough (30%); among 900 unexposed workers, 135 report it (15%). The prevalence ratio is 0.30 / 0.15 = 2.0. This says cough is twice as prevalent in exposed workers at the time of the survey, but it cannot show that the solvent preceded the cough or that workers with cough did not self-select out of the exposed job."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l03",
+   "title": "Cohort Studies",
+   "body": [
+    "In a cohort study, people are classified by exposure and followed over time to see who develops the outcome. Because the participants are free of the disease at the start and exposure is recorded before the outcome appears, the design establishes temporal sequence and directly measures incidence in each group. A prospective cohort enrolls participants now and follows them into the future, as the Framingham Heart Study did. A retrospective (historical) cohort uses existing records to reconstruct exposure and follow-up that has already happened, such as a factory's employment and cancer registry records; it is faster and cheaper, but depends on the quality of old records.",
+    "Cohorts are the best observational design for rare exposures (you can deliberately enroll heavily exposed workers) and for studying several outcomes of a single exposure, such as everything linked to smoking. They are inefficient for rare diseases, because a huge number of people must be followed to accrue enough cases, and for diseases with long latency, because follow-up may take decades. Cost and attrition rise with duration.",
+    "The key statistics come from comparing incidence. The relative risk (risk ratio) is the incidence in the exposed divided by the incidence in the unexposed. A value of 1 means no association, above 1 means exposure is associated with higher risk, and below 1 with lower risk. The attributable risk (risk difference) is the exposed incidence minus the unexposed incidence, the excess risk attributable to exposure if the association is causal. When people are followed for unequal times, the incidence rate ratio based on person-time is used instead.",
+    "The main threats are loss to follow-up, confounding and misclassification. Loss to follow-up biases results when the people who drop out differ in outcome risk from those who stay, particularly when dropout is related to both exposure and outcome. The healthy worker effect is a selection bias in occupational cohorts: employed people are healthier than the general population, so comparing workers with the general public can hide a real hazard. The better comparison is with other workers in a less exposed job. Because exposure is not randomized, confounding must be handled by design (restriction, matching) or analysis (stratification, regression).",
+    "A worked example: among 1,000 exposed participants, 30 develop the disease over five years, and among 1,000 unexposed participants, 10 do. Risk in the exposed is 3.0%, risk in the unexposed is 1.0%, so the relative risk is 3.0 and the attributable risk is 2.0%, or 20 extra cases per 1,000 exposed over five years."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l04",
+   "title": "Case-Control Studies",
+   "body": [
+    "A case-control study starts from the outcome. Investigators identify people who have the disease (cases) and a comparison group without it (controls), then look backward to compare how often each group was exposed. Because sampling is by outcome, the design is efficient for rare diseases and for diseases with long latency, and it can examine many exposures for one disease. It is the usual design for outbreak investigations and for studying rare cancers. It cannot yield incidence or risk directly, because the investigators decide how many cases and controls to enroll, so the ratio of cases to controls is arbitrary.",
+    "The measure of association is the odds ratio (OR): the odds of exposure among cases divided by the odds of exposure among controls. Using the standard two-by-two table with a, b for exposed and unexposed cases and c, d for exposed and unexposed controls, OR = (a x d) / (b x c), the cross-product ratio. The OR has a convenient property: it is mathematically identical whether you compare exposure odds in cases and controls or disease odds in exposed and unexposed. When the disease is rare in the population (the rare disease assumption, loosely under about 10%), the OR approximates the relative risk. When the disease is common, the OR overstates the RR, and the gap widens as the OR moves further from 1.",
+    "Control selection is the hardest design decision. Controls should represent the population that gave rise to the cases: people who would have been counted as cases had they developed the disease. Hospital controls are convenient but may have illnesses related to the exposure, and population controls are more representative but harder to recruit. Matching on factors such as age and sex improves efficiency, and matched data need a matched analysis. Incidence density sampling and nested case-control designs draw controls from within a defined cohort, which improves validity.",
+    "The typical biases are selection bias in choosing cases and controls and recall bias, since cases, who are searching for explanations, may remember or report past exposures differently from healthy controls. Interviewer bias can arise when interviewers probe cases more intently. Objective exposure records, blinding the interviewer to case status, and using controls with a different disease can reduce these. Temporality can also be unclear when the disease itself changes how exposure is measured, such as a biomarker altered by the illness.",
+    "A worked example: 100 cases and 100 controls are asked about a medication. Among cases, 40 were exposed and 60 were not; among controls, 20 were exposed and 80 were not. OR = (40 x 80) / (60 x 20) = 3,200 / 1,200 = 2.67. Cases had about 2.7 times the odds of exposure. Because the design fixed 100 cases and 100 controls, the risk of disease cannot be computed from these numbers."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l05",
+   "title": "Randomized Controlled Trials",
+   "body": [
+    "A randomized controlled trial (RCT) assigns participants to interventions by chance. Its power comes from this single step: randomization balances both known and unknown prognostic factors between groups on average, so a difference in outcome can be attributed to the intervention rather than to confounding. Balance is a matter of probability, so small trials can still be unbalanced by chance, and stratified or block randomization is used to keep key factors and group sizes even.",
+    "Two protections are often confused. Allocation concealment means that the people enrolling participants cannot know or predict the next assignment, for example by using central telephone or web randomization or sealed opaque envelopes; it prevents selection bias at enrollment and is possible in every trial. Blinding (masking) means that participants, clinicians or outcome assessors do not know which arm a participant is in after assignment; it prevents performance and detection bias, but is sometimes impossible, as in surgery versus drugs. Open-label trials are most vulnerable when outcomes are subjective, and an objective outcome such as death is less affected.",
+    "Analysis follows the principle of intention-to-treat (ITT): participants are analyzed in the group to which they were randomized, regardless of what they actually received. ITT preserves the balance that randomization created and reflects real-world effectiveness, including non-adherence. Per-protocol analysis includes only those who completed the assigned treatment; it can estimate efficacy under ideal conditions but reintroduces selection bias, because adherers differ from non-adherers. In a superiority trial, ITT is conservative and tends to dilute the effect toward no difference. In a non-inferiority trial, where the aim is to show that a new treatment is not worse than the standard by more than a pre-set margin, dilution toward no difference favors the claim, so both ITT and per-protocol results should be reported.",
+    "Trials are classified in phases. Phase I tests safety and dose in a few people, phase II explores efficacy and side effects, phase III compares the intervention with standard care in large groups, and phase IV monitors a marketed drug. Crossover designs let each participant act as their own control, suiting stable chronic conditions but needing a washout period. Cluster trials randomize groups such as clinics and need analysis that accounts for within-cluster similarity. Equipoise, genuine uncertainty about which arm is better, is the ethical basis for randomizing.",
+    "Trials that stop early for apparent benefit tend to overestimate the effect, because stopping tends to occur at a random high. Surrogate endpoints, such as cholesterol, may not predict clinical outcomes. Composite endpoints can mislead if the most frequent component is the least important. A worked example: if 1,000 patients are randomized, but 150 in the treatment arm never take the drug and an analyst drops them, the analysis is per-protocol and may be biased, because patients who stop a drug often differ in prognosis from those who continue."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l06",
+   "title": "Measures of Risk: RR, OR, ARR and NNT",
+   "body": [
+    "Every treatment or exposure effect can be described in relative or absolute terms, and the choice changes how impressive it sounds. Let the control event rate (CER) be the risk in the control group and the experimental event rate (EER) be the risk in the treated group. The relative risk (RR) is EER / CER. The relative risk reduction (RRR) is 1 - RR, which equals (CER - EER) / CER. The absolute risk reduction (ARR), also called the risk difference, is CER - EER. The number needed to treat (NNT) is 1 / ARR, the number of patients who must receive the treatment for one additional patient to benefit over the trial period. When the treatment harms, the same arithmetic gives the absolute risk increase and the number needed to harm (NNH). NNT should always be reported with a time frame, and it is rounded up.",
+    "The central lesson is that a constant relative effect produces very different absolute benefits depending on baseline risk. Consider a drug that cuts risk by 25% (RR 0.75). If the CER is 20%, the EER is 15%, the ARR is 5 percentage points and the NNT is 1 / 0.05 = 20. If the CER is only 2%, the EER is 1.5%, the ARR is 0.5 percentage points and the NNT is 1 / 0.005 = 200. The relative reduction is identical, but the practical benefit is tenfold smaller. This is why high-risk patients gain more from preventive drugs and why headline relative figures can overstate the importance of a result.",
+    "The odds ratio (OR) is the odds of the event in one group divided by the odds in another, where odds are p / (1 - p). The OR is the measure from case-control studies and from logistic regression. It is close to the RR when the event is rare but exaggerates it when the event is common. For example, with risks of 40% and 20%, the RR is 2.0, but the odds are 0.4 / 0.6 = 0.667 and 0.2 / 0.8 = 0.25, so the OR is 0.667 / 0.25 = 2.67. Reading an OR of 2.67 as \"2.67 times as likely\" would be an overstatement.",
+    "Two further measures complete the set. The attributable risk percent in the exposed, (RR - 1) / RR, estimates the proportion of disease among the exposed that is due to the exposure if the relation is causal. The population attributable risk takes in how common the exposure is, so a modest relative risk for a very common exposure can account for more cases than a large relative risk for a rare one. When a confidence interval for RR or OR includes 1, the data are compatible with no effect; for a risk difference the null value is 0.",
+    "A worked example: in a trial, 10% of controls and 6% of treated patients have a stroke over 3 years. RR = 0.06 / 0.10 = 0.60, RRR = 40%, ARR = 4 percentage points, and NNT = 1 / 0.04 = 25 over 3 years."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l07",
+   "title": "Bias: Selection and Information",
+   "body": [
+    "Bias is systematic error that pushes an estimate away from the truth in a consistent direction. It differs from random error, which shrinks as sample size grows; a larger sample makes a biased estimate more precisely wrong. Bias is a property of design and measurement, not of statistical significance, and cannot be fixed afterward by analysis alone unless its mechanism is known.",
+    "Selection bias arises when the people who enter the study, or stay in it, differ systematically from the target population in a way that is related to both exposure and outcome. Examples include Berksonian bias, in which hospitalized patients are not representative because admission depends on both conditions, creating a spurious association; non-response bias, when responders differ from non-responders; volunteer or healthy-user bias, when those who choose a behavior are healthier in other ways; and differential loss to follow-up. The healthy worker effect is selection at the level of employment. Survivorship bias occurs when only those who survived long enough are studied.",
+    "Information (measurement) bias arises from errors in classifying exposure or outcome. Recall bias occurs when cases and controls remember differently. Interviewer or observer bias arises when assessors who know exposure status measure outcomes differently; blinding is the remedy. Detection or surveillance bias arises when one group is examined more carefully, so more disease is found there; people on a drug with monitoring requirements may have more diagnoses simply because they are tested more. Social desirability bias distorts self-report. The Hawthorne effect, changed behavior from being observed, can influence trials.",
+    "Misclassification is differential when error rates differ between groups, which can bias in either direction, and non-differential when they are the same in all groups. The classic rule is that non-differential misclassification of a dichotomous exposure biases the association toward the null, so a true effect looks weaker than it is. The rule does not hold for every circumstance, such as small samples, multiple categories, or errors in confounders, and it describes the expected direction, not a guarantee.",
+    "Timing-related biases matter for screening. Lead-time bias makes survival look longer because disease is detected earlier even if death occurs at the same time, and length-time bias occurs because slow-growing cancers are more likely to be found by periodic screening. Publication bias occurs when positive studies are more likely to be published, and it distorts meta-analyses. Confirmation bias and hindsight bias affect interpretation.",
+    "A worked example: an investigator compares hospital patients with disease A and disease B for exposure to a drug, and finds the drug protective against A. If the drug is used to treat B, then admission for A is less likely among users, and hospital-based sampling manufactures a protective association. Control of bias needs the correct choice of comparison group, not a bigger sample."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l08",
+   "title": "Confounding and Effect Modification",
+   "body": [
+    "Confounding is a mixing of effects: the apparent relationship between an exposure and an outcome is distorted by a third variable. A confounder must satisfy three conditions. It is associated with the exposure, it is an independent risk factor for the outcome among the unexposed, and it is not a step on the causal pathway between exposure and outcome. The classic example is that carrying matches is associated with lung cancer, because match-carriers smoke. Smoking is the confounder. Controlling for a mediator on the causal pathway, such as controlling for blood pressure when estimating the effect of salt on stroke through blood pressure, removes real effect and is a mistake called overadjustment.",
+    "Confounding can be handled in design or in analysis. Randomization addresses both measured and unmeasured confounders on average. Restriction limits the study to one stratum, such as only non-smokers. Matching makes the groups similar on the confounder. In analysis, stratification compares exposure and outcome within levels of the confounder and combines them, as with the Mantel-Haenszel estimator, and multivariable regression adjusts for many confounders simultaneously. Observational methods only adjust for what was measured, and residual confounding persists when a confounder is measured imprecisely or not at all. Confounding by indication occurs when the reason a drug is prescribed is itself linked to the outcome, so sicker patients receive treatment and the drug appears harmful.",
+    "To detect confounding, compare the crude estimate with the adjusted estimate. If they differ meaningfully (a common informal rule is about 10 to 20 percent), the variable confounds. Worked example: the crude relative risk of disease for an exposure is 3.0. Among smokers, the exposed have RR 2.0; among non-smokers, RR 2.0. The stratum-specific estimates agree with each other but differ from the crude 3.0, so smoking confounds the crude association, and the adjusted RR is about 2.0.",
+    "Effect modification (interaction) is a different matter. It exists when the size of the effect truly differs across levels of a third variable. If the RR is 4.0 in smokers and 1.1 in non-smokers, the stratum-specific estimates are genuinely different, and the right response is to report them separately, not to average them away. Effect modification is a finding to describe; confounding is a nuisance to be removed. The same variable may be both. Whether modification is present depends on the scale: effects may be uniform on a multiplicative scale yet differ on an additive scale, which is why absolute differences are often more relevant for decisions.",
+    "Simpson paradox is the reversal of an association when data are aggregated or stratified, resulting from confounding by group. Collider bias is the opposite hazard: conditioning on a variable caused by both exposure and outcome, for example restricting a study to hospitalized patients, creates a spurious association between them. Not every third variable should be adjusted; the causal structure decides."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l09",
+   "title": "Causation and the Bradford Hill Considerations",
+   "body": [
+    "An association between exposure and disease can arise from chance, bias, confounding, reverse causation, or a true causal effect. Causal inference is the process of excluding the first four before accepting the last. Philosophically, a cause is often defined counterfactually: an exposure caused an outcome if, had the exposure been absent and everything else the same, the outcome would have been different. We can never observe both worlds for one person, so we compare groups, and randomization is the best way to make the comparison group stand in for the missing counterfactual.",
+    "Causes are described by their logical roles. A necessary cause must be present for disease to occur, as the tubercle bacillus is for tuberculosis. A sufficient cause always produces the disease. Most chronic diseases have neither: they have component causes that act together, as in the sufficient-component cause (causal pie) model, where a complete pie is a sufficient cause and each slice is a component. Smoking is a component cause of lung cancer, which can occur without it, and smoking does not always produce cancer. Koch postulates, built for infectious agents, require that the organism be present in every case, grown in pure culture, produce disease on inoculation, and be recovered again; they fail for carriers, viruses that cannot be cultured, and multifactorial disease.",
+    "In 1965 Austin Bradford Hill proposed nine viewpoints for judging whether an association is likely to be causal, and he was explicit that they are not a checklist or rigid criteria. Strength: larger associations are less easily explained by confounding. Consistency: the finding is repeated across populations, designs and investigators. Specificity: a single exposure leading to a single outcome supports cause when present, but its absence counts for little because many exposures cause multiple diseases. Temporality: the cause must precede the effect, the only viewpoint that is strictly required. Biological gradient: a dose-response relationship. Plausibility: a believable mechanism, bounded by what is known at the time. Coherence: no conflict with the natural history and biology of the disease. Experiment: evidence from interventions, such as reduced disease after removing the exposure. Analogy: similar exposures have similar effects.",
+    "The smoking and lung cancer story illustrates the process. Case-control studies in 1950 and prospective cohorts of British doctors showed a strong, consistent, dose-related association with the right temporal order, and the 1964 US Surgeon General's report concluded smoking was a cause. Critics such as Fisher raised the possibility of a genetic confounder, and the evidence that answered this was convergent: strength, gradient, and falling risk after cessation, rather than one decisive study. A strong association can still be non-causal, and a weak one can be causal, as with many modest but real environmental risks.",
+    "A worked example: dose-response is present when relative risk rises across categories of 1, 10 and 20 cigarettes a day. This supports causation but does not prove it, because a confounder correlated with smoking intensity, such as heavy drinking, could produce the same gradient. The Hill viewpoints are weighed together, with design quality, and are never added up by counting how many are met."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l10",
+   "title": "Sensitivity and Specificity",
+   "body": [
+    "A diagnostic test is judged against a reference (gold) standard, the best available method of establishing the true disease state. Results are arranged in a two-by-two table: true positives (disease present, test positive), false positives (disease absent, test positive), false negatives (disease present, test negative) and true negatives (disease absent, test negative). All the accuracy measures come from this table, and the choice of which rows or columns to divide by determines what is being asked.",
+    "Sensitivity is the proportion of people with the disease who test positive: TP / (TP + FN). It is the true positive rate and answers \"if the person is diseased, how likely is the test to detect it?\" Specificity is the proportion of people without the disease who test negative: TN / (TN + FP), the true negative rate. The false negative rate is 1 - sensitivity, and the false positive rate is 1 - specificity. Because each is calculated within a column of the disease-defined table, sensitivity and specificity are not changed by disease prevalence when the spectrum of disease is similar. They are properties of the test, in a defined population, and not of the patient in front of you.",
+    "Mnemonics help with use. A highly sensitive test has few false negatives, so a negative result is useful for ruling out disease (SnNout). A highly specific test has few false positives, so a positive result is useful for ruling in disease (SpPin). Screening tests favor sensitivity because missing disease is costly, and confirmatory tests favor specificity because a false positive can lead to harmful treatment. A typical pairing is a sensitive screening immunoassay followed by a specific confirmatory test.",
+    "Sensitivity and specificity trade off when a test result is continuous and a cutoff must be chosen. Lowering the threshold for a positive result catches more disease (sensitivity up) but flags more healthy people (specificity down), and raising the threshold does the opposite. The ideal cutoff depends on the cost of each kind of error. Spectrum bias occurs when a test is evaluated only in obviously sick patients and healthy volunteers, which overstates accuracy compared with the mixed, ambiguous patients seen in practice. Verification bias occurs when only test-positive patients receive the reference standard.",
+    "A worked example: a test is applied to 200 people with a confirmed disease and 800 without. Among the diseased, 180 test positive, so sensitivity is 180 / 200 = 90%, and there are 20 false negatives. Among the non-diseased, 720 test negative, so specificity is 720 / 800 = 90%, and there are 80 false positives. These figures do not yet tell us how likely a positive result is to be correct; that depends on prevalence, the topic of the next lesson."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l11",
+   "title": "Predictive Values, Likelihood Ratios and Bayes",
+   "body": [
+    "Clinicians and patients ask a different question from \"how good is the test?\": given this result, what is the chance of disease? The positive predictive value (PPV) is the proportion of positive results that are true positives, TP / (TP + FP). The negative predictive value (NPV) is the proportion of negative results that are true negatives, TN / (TN + FN). Unlike sensitivity and specificity, predictive values depend strongly on prevalence, because prevalence determines how many diseased and healthy people are in the denominator. As prevalence falls, PPV falls and NPV rises; as prevalence rises, PPV rises and NPV falls. A test that performs well in a specialty clinic can have a poor PPV when used for mass screening of low-prevalence populations.",
+    "A worked example shows the effect. Take a disease with 1% prevalence and a test with 90% sensitivity and 95% specificity, applied to 10,000 people. There are 100 diseased and 9,900 healthy. True positives are 90, false negatives are 10, false positives are 5% of 9,900 = 495, and true negatives are 9,405. Total positives are 90 + 495 = 585, so PPV = 90 / 585 = 15.4%. Total negatives are 9,405 + 10 = 9,415, so NPV = 9,405 / 9,415 = 99.9%. Most positives are false even with an apparently good test, a lesson often called the base-rate problem.",
+    "Likelihood ratios (LR) package test accuracy into a form that is independent of prevalence and applies Bayes theorem directly. LR+ = sensitivity / (1 - specificity), how much more likely a positive result is in diseased than healthy people. LR- = (1 - sensitivity) / specificity, how much less likely a negative result is in diseased people. A rough guide is that LR+ above 10 or LR- below 0.1 produces large, often conclusive shifts, and values near 1 change little. For the test above, LR+ = 0.90 / 0.05 = 18 and LR- = 0.10 / 0.95 = 0.105.",
+    "To use them, convert probability to odds, multiply, and convert back. Pre-test odds = p / (1 - p). Post-test odds = pre-test odds x LR. Post-test probability = odds / (1 + odds). With a pre-test probability of 1%, odds are 0.0101, times 18 is 0.182, and the probability is 0.182 / 1.182 = 15.4%, matching the PPV from the table. If instead a clinician judges a patient's pre-test probability to be 20% (odds 0.25) and the LR+ is 8, post-test odds are 2.0 and probability is 2.0 / 3.0 = 67%. The same positive result thus means different things in different patients.",
+    "Two common traps: confusing sensitivity with PPV (the probability of a positive test given disease versus the probability of disease given a positive test), and applying a published PPV to a population with a different prevalence. Testing in sequence (a screen, then a confirmatory test) raises the effective pre-test probability for the second test."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l12",
+   "title": "ROC Curves and the Principles of Screening",
+   "body": [
+    "When a test yields a continuous value, each possible cutoff gives a different sensitivity and specificity. A receiver operating characteristic (ROC) curve plots sensitivity (true positive rate) on the vertical axis against 1 - specificity (false positive rate) on the horizontal axis across all cutoffs. A useless test follows the diagonal line from the bottom left to the top right. A better test bows toward the top left corner. The area under the curve (AUC, sometimes called the C-statistic) summarizes discrimination: 0.5 is no better than chance, 1.0 is perfect, and values around 0.7 to 0.8 are generally called acceptable. AUC is the probability that a randomly chosen diseased person has a higher test value than a randomly chosen healthy person. The point nearest the upper left is often a reasonable cutoff, but the best cutoff depends on how serious each type of error is, not on geometry alone. An ROC curve does not depend on prevalence, and does not show calibration.",
+    "Screening applies a test to people without symptoms to find disease early. The Wilson and Jungner principles (World Health Organization, 1968) are the classic criteria: the condition should be an important health problem with a recognizable latent stage and known natural history, the test should be acceptable, accurate and safe, an effective treatment should exist and be more beneficial when given early, and facilities and costs should be balanced. Primary prevention averts disease (vaccination), secondary prevention detects it early (screening), and tertiary prevention reduces complications of established disease.",
+    "Several biases make screening look better than it is. Lead-time bias is the extra survival time created by diagnosing earlier, even if death is not delayed. Length-time bias occurs because periodic screening preferentially detects slow-growing, less aggressive disease that stays in the detectable phase longer. Selection (volunteer) bias arises because people who attend screening are healthier. Overdiagnosis is the detection of disease that would never have caused symptoms or death, which adds cases and harms from treatment without benefit and inflates survival statistics. Because of these biases, the right outcome of a screening trial is disease-specific or all-cause mortality in a randomized comparison, not five-year survival after diagnosis.",
+    "A worked example of lead time: without screening, a cancer is diagnosed at age 63 and the patient dies at 65, a survival of 2 years from diagnosis. With screening, it is found at age 60 and the patient still dies at 65, a survival of 5 years. Five-year survival improved from 0% to 100% for this patient though the date of death did not change.",
+    "Screening harms include false positives with anxiety and invasive follow-up, false reassurance from false negatives, overdiagnosis and overtreatment, and radiation or procedure complications. Population benefit is weighed against these harms and expressed as an NNS (number needed to screen) over a stated time horizon."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l13",
+   "title": "Descriptive Statistics and Distributions",
+   "body": [
+    "Statistics begins with the type of data, because the type determines which summaries and tests are valid. Nominal data are categories with no order (blood group). Ordinal data have a rank order but unequal gaps (cancer stage, pain score from 0 to 10 when treated as ranks). Interval data have equal gaps but no true zero (temperature in Celsius). Ratio data have equal gaps and a true zero (blood pressure, serum creatinine, age), so ratios are meaningful. Continuous variables can take any value in a range, and discrete variables take counts.",
+    "Measures of central tendency describe the typical value. The mean is the arithmetic average and uses every observation, which makes it sensitive to outliers. The median is the middle value when data are ordered and is resistant to outliers. The mode is the most frequent value. In a right-skewed distribution (a long tail of high values, as with hospital length of stay or income), the mean is pulled toward the tail and is greater than the median; in a left-skewed distribution the mean is less than the median. In a symmetric distribution all three coincide. For skewed data the median with the interquartile range is the preferred summary.",
+    "Measures of spread describe variability. The range is the largest minus the smallest value and depends on extremes. The interquartile range spans the 25th to 75th percentiles. The variance is the average squared deviation from the mean, and the standard deviation (SD) is its square root, expressed in the original units. The SD describes the variability of individual observations in the data. The standard error of the mean (SEM) is SD divided by the square root of n, and describes the precision of the sample mean as an estimate of the population mean. It shrinks as sample size increases, whereas the SD does not. Confusing the two is a classic error: error bars showing SEM look smaller than SD bars.",
+    "The normal (Gaussian) distribution is symmetric and bell-shaped and is described by its mean and SD. About 68% of values lie within 1 SD of the mean, about 95% within 2 SD (more precisely 1.96), and about 99.7% within 3 SD. A z-score states how many SDs a value lies from the mean: z = (x - mean) / SD. Many biological measures are approximately normal, but others (triglycerides, viral load) are skewed and may be log transformed. The central limit theorem says that the distribution of sample means approaches normal as n grows, regardless of the original distribution, which is why many tests work for non-normal data with large samples.",
+    "Worked examples: if systolic pressure in a group has mean 120 and SD 10 mm Hg, about 95% of individuals lie between roughly 100 and 140 (120 plus or minus 1.96 x 10, or 100.4 to 139.6). A reading of 145 has z = (145 - 120) / 10 = 2.5, which is higher than about 99% of the group. If 36 such patients are sampled and the SD is 12, SEM = 12 / 6 = 2."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l14",
+   "title": "Hypothesis Testing, p-Values, Errors and Power",
+   "body": [
+    "Hypothesis testing starts with a null hypothesis (H0), usually that there is no difference or no association, and an alternative hypothesis (H1). We compute a test statistic from the data and ask how surprising it would be if H0 were true. The p-value is the probability of obtaining a result at least as extreme as the one observed, assuming the null hypothesis and the model assumptions are true. It is not the probability that the null hypothesis is true, not the probability that the result arose by chance alone, and not the size or importance of an effect. By convention, a result is called statistically significant when p is below a pre-set threshold alpha, commonly 0.05; the American Statistical Association has warned against treating that threshold as a bright line between truth and falsehood.",
+    "Two errors are possible. A type I error (false positive) is rejecting a true null hypothesis; its probability is alpha. A type II error (false negative) is failing to reject a false null; its probability is beta. Power is 1 - beta, the probability of detecting a true effect of a specified size, and 80% to 90% is the usual target. If beta is 0.20, power is 80%. A non-significant result in an underpowered study means little: absence of evidence is not evidence of absence.",
+    "Power and the needed sample size depend on four things. A larger sample raises power. A larger true effect size is easier to detect. Lower variability (a smaller SD) raises power. A larger alpha raises power, at the cost of more false positives. Using a two-sided test (the usual standard) requires a slightly larger sample than a one-sided test. Sample size and power are calculated before the study, and post hoc power calculations from observed results add nothing.",
+    "Statistical significance is not clinical significance. In a very large trial, a difference of 1 mm Hg in blood pressure can have p below 0.001 and be clinically trivial, while a large and important difference in a small trial can have p of 0.08. Effect sizes and confidence intervals convey importance; the p-value measures only compatibility with the null.",
+    "Multiple comparisons inflate the false positive rate. With 20 independent tests at alpha 0.05 and all nulls true, the chance of at least one false positive is 1 - 0.95^20, about 64%. The Bonferroni correction divides alpha by the number of tests: for 10 tests, 0.05 / 10 = 0.005 per test. It is simple but conservative. Subgroup analyses and outcomes not prespecified should be treated as hypothesis-generating, and p-hacking (trying analyses until one is significant) produces false findings. Registering the primary outcome in advance reduces this problem.",
+    "A worked example: a trial reports that a drug lowers cholesterol, p = 0.03. The correct reading is that if the drug truly had no effect, results at least this extreme would occur about 3% of the time under the model. It does not say there is a 97% chance that the drug works."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l15",
+   "title": "Confidence Intervals",
+   "body": [
+    "A point estimate, such as a sample mean or a relative risk, has uncertainty because it comes from a sample. A confidence interval (CI) shows a range of values compatible with the data. A 95% CI is constructed so that, if the study were repeated many times and an interval calculated each time, about 95% of those intervals would contain the true value. The strict interpretation concerns the procedure; for a single interval, the true value either is or is not inside it. In practice, readers use the interval as the range of effect sizes that the data do not rule out.",
+    "For a mean or a proportion with a large sample, the interval is the estimate plus or minus 1.96 standard errors. The standard error (SE) falls with the square root of the sample size, so quadrupling the sample halves the width of the interval. A wider interval signals less precision. A 99% CI is wider than a 95% CI and a 90% CI is narrower, because greater confidence requires a wider net.",
+    "CI and p-value are linked. If a 95% CI for a difference does not include 0 (or for a ratio such as RR, OR or hazard ratio does not include 1), the result is statistically significant at the two-sided 0.05 level. The CI, though, tells more than the p-value: it shows the direction, the likely size, and the precision. A CI for a difference that runs from -1 to 20 is compatible with a trivial effect or a large one, and the result is imprecise even if it is not significant. A narrow CI close to 1 for a ratio, like 1.02 to 1.06, is a precise but clinically tiny effect.",
+    "Ratio measures are analyzed on the log scale, so their intervals are asymmetric around the point estimate on the original scale. For a relative risk of 2.0, a 95% CI might run from 1.4 to 2.9. Clinical decisions should consider both limits: the benefit of a treatment is judged against the worst plausible value in the interval, and a harm against the worst plausible value in the other direction. In non-inferiority trials, the decision rests on whether the CI limit stays inside the predefined margin.",
+    "Worked examples. For a difference in mean blood pressure of 5 mm Hg with SE of 2, the 95% CI is 5 plus or minus 1.96 x 2, which is 5 plus or minus 3.92, or about 1.1 to 8.9; it excludes 0, so p is below 0.05. For a proportion, if 80 of 400 patients respond, p-hat = 0.20, SE = the square root of (0.20 x 0.80 / 400) = the square root of 0.0004 = 0.02, and the 95% CI is 0.20 plus or minus 1.96 x 0.02, or about 16.1% to 23.9%. If the sample were four times bigger (1,600 patients with 320 responders), the SE would be 0.01 and the interval about 18.0% to 22.0%, half as wide."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l16",
+   "title": "Choosing and Interpreting Common Tests",
+   "body": [
+    "Test selection depends on the type of outcome, the number of groups, whether groups are independent or paired, and whether assumptions such as approximate normality hold. For a continuous outcome in two independent groups, the unpaired (independent samples) t-test compares means. When measurements are paired, as in before-and-after values in the same patients or matched pairs, the paired t-test analyzes the within-pair differences and removes between-person variability, which makes it more powerful. For three or more groups, one-way analysis of variance (ANOVA) tests whether any means differ; a significant F-test does not say which groups differ, so post hoc tests with correction for multiple comparisons follow. Running many t-tests instead of one ANOVA inflates the type I error.",
+    "Nonparametric tests make fewer assumptions about the distribution and work on ranks, so they suit small samples, skewed data and ordinal outcomes. The Mann-Whitney U (Wilcoxon rank-sum) test replaces the unpaired t-test, the Wilcoxon signed-rank test replaces the paired t-test, and the Kruskal-Wallis test replaces one-way ANOVA. They are somewhat less powerful when the data truly are normal.",
+    "For categorical outcomes, the chi-square test compares observed counts with those expected under independence. The expected count in a cell is (row total x column total) / grand total. For a table with r rows and c columns, degrees of freedom are (r - 1)(c - 1), so a 2 x 2 table has 1. The chi-square approximation is unreliable when expected counts are small (a common rule is below 5 in any cell), and Fisher exact test is used instead. For paired categorical data, such as the same patients classified before and after, McNemar test is appropriate. For example, in 200 patients, if 80 received the drug and 50 improved overall, the expected number of improved patients among those on the drug under independence is 80 x 50 / 200 = 20.",
+    "Correlation and regression address two continuous variables. Pearson correlation r measures the strength of a linear relationship from -1 to +1, and r-squared gives the proportion of variance in one variable explained by the other: r of 0.6 gives r-squared of 0.36, or 36%. Spearman rank correlation is used for non-normal or ordinal data. Correlation does not imply causation, and r near 0 does not exclude a non-linear relationship. Linear regression models a continuous outcome and gives the change in outcome per unit of the predictor, with adjustment for covariates. Logistic regression models a binary outcome and yields adjusted odds ratios. Cox regression models time to event and yields hazard ratios.",
+    "Assumptions matter more than the choice of software: independence of observations, adequate sample size, appropriate handling of clustering and repeated measures, and approximate normality for parametric tests (or large n). Choosing the test after seeing which gives p below 0.05 is a form of p-hacking."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l17",
+   "title": "Survival Analysis Basics",
+   "body": [
+    "Many clinical outcomes are time to an event: death, relapse, stroke, graft failure. Survival analysis handles these data. Its central problem is censoring: for some participants the event has not occurred by the end of follow-up, or they are lost or withdraw before it, so we know only that they were event-free up to a certain time. Simply discarding them or counting them as event-free for ever would bias the result. Right censoring, the usual kind, assumes that censoring is non-informative, meaning that people who are censored have the same future risk as those who stay under observation. If sicker patients drop out, that assumption fails.",
+    "The Kaplan-Meier method estimates the survival function, the probability of remaining event-free past each time. At every time an event occurs, the survival probability is multiplied by the fraction of those still at risk who survive that time; censored participants contribute to the at-risk count until their censoring time and then leave. The curve is a step function, and the median survival is the time at which it crosses 50%. A worked example: 10 patients are at risk and one dies at month 2, so S(2) = 9/10 = 0.90. One patient is censored at month 3, leaving 8 at risk. At month 5 two die: S(5) = 0.90 x (6/8) = 0.90 x 0.75 = 0.675. Note that the censored patient reduced the denominator without being counted as a death.",
+    "Curves for two groups are compared with the log-rank test, a nonparametric test of whether the survival experience differs across the whole follow-up. It does not estimate a size of effect. The effect measure is usually the hazard ratio (HR) from Cox proportional hazards regression. The hazard is the instantaneous rate of the event among those still at risk. An HR of 0.60 means that at any given moment the treated group has a hazard 40% lower than the control group, which is not the same as 40% fewer events overall or 40% longer survival. The Cox model assumes the hazards are proportional over time, meaning the HR is constant; curves that cross suggest that the assumption fails, as when surgery has early excess risk and later benefit.",
+    "Several pitfalls recur. Immortal time bias arises when follow-up includes a period during which the event could not have occurred because of how exposure was defined, for example classifying people as treated based on prescriptions filled months after the start of follow-up. This makes treatment look protective. Competing risks arise when another event, such as non-cancer death, prevents the event of interest; naive Kaplan-Meier analysis overestimates the cumulative incidence in that setting. Lead-time bias affects survival from diagnosis. Reporting median survival requires enough follow-up for the curve to reach 50%. Five-year survival is a proportion alive at 5 years, while a hazard is a rate.",
+    "The number at risk shown beneath a Kaplan-Meier plot warns about the reliability of the tail: late in follow-up, few patients remain and the curve is imprecise, and steep late drops may reflect one or two events."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l18",
+   "title": "Systematic Reviews and Meta-Analysis",
+   "body": [
+    "A systematic review answers a focused question by identifying, appraising and synthesizing all relevant studies using explicit, reproducible methods, in contrast to a narrative review, which is selective. The question is framed with PICO (patient or population, intervention, comparison, outcome). A protocol is registered in advance; several databases are searched with a documented strategy; two reviewers independently screen studies and extract data; each study is assessed for risk of bias; and reporting follows the PRISMA statement, which includes a flow diagram showing how many records were identified, screened and included. A meta-analysis is the statistical pooling of results from the included studies, which is possible only when the studies are sufficiently similar. A systematic review need not contain a meta-analysis, and a meta-analysis without a systematic search is unreliable.",
+    "Pooling is a weighted average. In the inverse-variance method each study is weighted by the reciprocal of its variance, so larger and more precise studies count for more. A worked example: study A has effect 0.4 with standard error 0.1 (weight 1 / 0.01 = 100); study B has effect 0.8 with standard error 0.2 (weight 1 / 0.04 = 25). The pooled effect is (100 x 0.4 + 25 x 0.8) / (100 + 25) = (40 + 20) / 125 = 0.48. The pooled estimate is closer to the more precise study. Ratio measures are pooled on the log scale. A fixed-effect model assumes one true effect that all studies estimate, and a random-effects model assumes that true effects vary across studies and estimates their average, giving wider intervals and more weight to small studies.",
+    "Heterogeneity is variation in results beyond chance. Cochran Q tests for it, but has low power with few studies. The I-squared statistic, I-squared = (Q - df) / Q, gives the percentage of variability due to heterogeneity rather than chance; with Q = 20 and 8 degrees of freedom, I-squared = 12 / 20 = 60%, which suggests substantial heterogeneity. Sources include differences in populations, doses, designs and risk of bias. Subgroup analysis and meta-regression explore causes, though they are observational comparisons across trials. A forest plot shows each study's estimate and interval as a square and line with a diamond for the pooled result.",
+    "Publication bias occurs because studies with significant or positive findings are more likely to be published. A funnel plot of effect against precision should be symmetric; asymmetry suggests small-study effects, though it has other causes, such as heterogeneity. Selective outcome reporting is a related problem. Trial registries and reviewing unpublished data help. Meta-analyses of observational studies pool confounded estimates and so produce a precise but possibly biased result: garbage in, garbage out. The certainty of evidence is graded with the GRADE approach, which starts randomized trials as high and observational studies as low and rates down for risk of bias, inconsistency, indirectness, imprecision and publication bias, and rates up for large effects or dose-response. A meta-analysis of small trials can also disagree with a later large trial, which is why the quality of included studies matters more than their number."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l19",
+   "title": "Evidence-Based Medicine and Critical Appraisal",
+   "body": [
+    "Evidence-based medicine integrates the best available research evidence with clinical expertise and the values and circumstances of the patient. It is not cookbook medicine and not research alone: evidence informs a decision, and a patient's preferences, comorbidities and goals shape it. The usual steps are to ask a focused question in PICO form, acquire the best evidence, appraise it, apply it to the patient, and assess performance. Different questions call for different designs. Treatment and prevention questions are best answered by randomized trials and systematic reviews of them; diagnosis by cross-sectional studies against a reference standard; prognosis by cohort studies; harm and rare adverse effects by cohort and case-control studies and surveillance. The evidence hierarchy is a heuristic: a well-conducted cohort study can be better than a flawed trial, and a trial can be too narrow to apply.",
+    "Critical appraisal asks three questions of any paper. Are the results valid? For a trial, was assignment randomized and concealed, were groups similar at baseline, was follow-up complete, were participants analyzed as randomized, and were participants and assessors blinded? What are the results, and how precise? Look at absolute and relative effects, the confidence interval, and the outcome measured. Will they help my patient? Consider whether the study population resembles the patient (external validity or generalizability), whether the outcomes matter to patients, and whether benefits outweigh harms and costs. Trial populations are often younger and healthier than real patients because of eligibility criteria.",
+    "Common traps are worth naming. Surrogate endpoints (a laboratory value or image finding) may not predict outcomes patients care about. Composite endpoints add components such as death, stroke and a soft outcome like hospitalization; if the effect comes from the least important component, the headline is misleading. Subgroup findings are hypothesis generating unless prespecified with a test of interaction. Relative risk reductions can overstate small absolute benefits. Spin presents a null primary result as positive by emphasizing secondary outcomes. Sponsorship and conflicts of interest are associated with more favorable conclusions, so methods should be read before conclusions. Studies that change the primary outcome after seeing the data, called outcome switching, should be viewed warily; the registry record is the check. Statistical significance in many outcomes can be a chance finding.",
+    "A worked example: a trial of a drug reports a 40% relative reduction in a composite of death, stroke and hospital admission for dizziness, with all of the benefit from dizziness admissions and no change in death or stroke. The reader should regard the claim of protection from serious events as unsupported, check the absolute effect and the NNT, and ask whether admissions for dizziness matter to the patient.",
+    "Guidelines translate evidence into recommendations, using a grading of the certainty of evidence and of the strength of recommendation. A strong recommendation can rest on low-certainty evidence when harms plainly outweigh benefits, but guidelines can still be affected by panel conflicts of interest and they date as new trials appear."
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l20",
+   "title": "When Research Fails: Retraction, Reversal and Replication",
+   "body": [
+    "Published findings are provisional. The literature corrects itself through several routes, in rising order of severity: a correction (erratum) fixes a limited error; an expression of concern flags unresolved questions while an inquiry proceeds; and a retraction withdraws a paper whose findings cannot be relied on, whether because of honest error, flawed data, plagiarism, fabricated or falsified data, or a serious ethical breach. Retraction is not always a finding of misconduct; analyses of retraction notices find that misconduct (fabrication, falsification, plagiarism) accounts for a majority of retractions, but a notable share result from honest error. Retracted papers are often still cited after retraction, frequently without mention of it, so readers should check the journal page and databases such as the Retraction Watch Database. The Committee on Publication Ethics provides guidance for editors.",
+    "A second mechanism is medical reversal: a well-established practice is overturned when a better trial shows it was ineffective or harmful. Several examples are textbook. Observational studies, including the Nurses' Health Study, suggested that menopausal hormone therapy prevented coronary disease. The randomized Women's Health Initiative (reported 2002) found that combined estrogen plus progestin did not protect the heart and was associated with more coronary events, stroke, venous thromboembolism and breast cancer; confounding by healthy-user effect explains much of the discrepancy. In the Cardiac Arrhythmia Suppression Trial (CAST, published around 1989 and 1991), the antiarrhythmic drugs encainide and flecainide suppressed ventricular ectopy after myocardial infarction, a good surrogate result, but patients died more often. A 2002 sham-controlled trial of arthroscopic surgery for knee osteoarthritis found no advantage over a placebo procedure. The rofecoxib (Vioxx) withdrawal in 2004 followed trial evidence of excess cardiovascular events.",
+    "The Wakefield case shows retraction and its aftermath. A 1998 case series in the Lancet suggested a link between the MMR vaccine and autism and bowel disease. A partial retraction by most co-authors came in 2004, a UK General Medical Council inquiry found serious professional misconduct, and the Lancet fully retracted the paper in 2010. Large studies since have found no association between MMR vaccination and autism. The episode shows how a small uncontrolled series can cause large harm, and that a retraction does not fully undo public belief.",
+    "Why does reversal occur? Observational evidence suffers from confounding. Small trials give unstable and exaggerated estimates. Surrogate endpoints may not track outcomes. Flexible analysis and selective reporting raise false positives; in a widely cited 2005 essay, John Ioannidis argued that for many designs most claimed findings are likely false, depending on prior probability, power and bias. Reproducibility efforts have found that many published findings in several fields do not replicate, and the extent varies by field. Safeguards include preregistration of trials and analyses, registered reports, data sharing, independent replication, post-marketing surveillance and willingness to test established practice. A worked mindset: before adopting a new practice, ask whether the evidence is a randomized trial with a clinical outcome, whether it was replicated, and whether the claim was predicted before the data were seen."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-epi-biostats.l01.q1",
+   "lessonId": "med-epi-biostats.l01",
+   "kind": "mcq",
+   "prompt": "Which description best fits prevalence, as opposed to incidence?",
+   "choices": [
+    "The ratio of observed to expected deaths after applying standard age-specific rates to a defined group",
+    "The share of a defined population that has the condition at a given time, including long-standing cases",
+    "The number of new cases arising per unit of person-time among people who began disease-free",
+    "The probability that a disease-free person develops the condition during a stated follow-up period, ignoring prior cases"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l01.q2",
+   "lessonId": "med-epi-biostats.l01",
+   "kind": "mcq",
+   "prompt": "A cohort of 5,000 disease-free adults is followed for exactly one year and 50 develop the condition. What is the one-year cumulative incidence?",
+   "choices": [
+    "One percent of the starting group developed it",
+    "Ten percent of the starting group developed it",
+    "Half a percent of the starting group developed it",
+    "Five percent of the starting group developed it"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l01.q3",
+   "lessonId": "med-epi-biostats.l01",
+   "kind": "mcq",
+   "prompt": "A new therapy for a chronic disease prolongs survival without curing patients and does not change how many people get the disease. What happens to its incidence and prevalence?",
+   "choices": [
+    "Incidence rises and prevalence is unchanged because survival adds new cases to the register",
+    "Incidence is unchanged and prevalence falls because treated patients leave the at-risk group",
+    "Incidence falls and prevalence falls because fewer patients are being newly diagnosed each year",
+    "Incidence is unchanged and prevalence rises because patients remain in the population longer"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l01.q4",
+   "lessonId": "med-epi-biostats.l01",
+   "kind": "mcq",
+   "prompt": "Town A has a crude mortality rate of 14 per 1,000 and Town B has 9 per 1,000. Town A has a much older population, and age-specific death rates in the two towns are nearly identical in every age band. What is the best way to compare the two towns?",
+   "choices": [
+    "Report the crude rates and conclude that Town A has worse care because its overall rate is higher",
+    "Compare only the youngest age band, since it has the largest sample of people in both towns",
+    "Apply age-specific rates to a common standard population and compare the age-adjusted rates",
+    "Subtract the smaller rate from the larger and test that difference with a chi-square test"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l01.q5",
+   "lessonId": "med-epi-biostats.l01",
+   "kind": "mcq",
+   "prompt": "In a cohort of 2,000 adults followed for a mean of 3 years, 30 develop atrial fibrillation. Followed individuals stopped contributing time when they became cases or were lost. Which statement is most appropriate?",
+   "choices": [
+    "The prevalence is about 5 per 1,000 because the cases were counted at the end of follow-up",
+    "The incidence rate is about 5 per 1,000 person-years, using about 6,000 person-years in the denominator",
+    "The incidence rate is about 15 per 1,000 person-years, using 2,000 persons as the denominator",
+    "The incidence rate is about 30 per 1,000 person-years, using one calendar year as the denominator"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l02.q1",
+   "lessonId": "med-epi-biostats.l02",
+   "kind": "mcq",
+   "prompt": "What is the central limitation of a cross-sectional study for causal inference?",
+   "choices": [
+    "It cannot estimate any measure of disease frequency in the sampled population",
+    "It can only be done in people who have already developed the disease of interest",
+    "Exposure and outcome are measured together, so temporal sequence is often unclear",
+    "It requires follow-up for years and is therefore prone to heavy loss of participants"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l02.q2",
+   "lessonId": "med-epi-biostats.l02",
+   "kind": "mcq",
+   "prompt": "A survey finds that countries with higher average sugar consumption have higher average diabetes rates. A commentator concludes that each individual who eats more sugar is more likely to have diabetes. Which error is most likely?",
+   "choices": [
+    "Healthy worker effect, because only fit people were included in national averages",
+    "Recall bias, because participants misreport how much sugar they ate in the past",
+    "Lead-time bias, because screening finds the diabetes earlier in high-sugar countries",
+    "Ecological fallacy, because group-level associations may not apply to individuals"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l02.q3",
+   "lessonId": "med-epi-biostats.l02",
+   "kind": "mcq",
+   "prompt": "In a survey, 90 of 300 solvent-exposed workers report chronic cough, and 135 of 900 unexposed workers do. What is the prevalence ratio?",
+   "choices": [
+    "A prevalence ratio of 2.0 comparing the exposed with the unexposed",
+    "A prevalence ratio of 2.4 comparing the exposed with the unexposed",
+    "A prevalence ratio of 1.5 comparing the exposed with the unexposed",
+    "A prevalence ratio of 0.5 comparing the exposed with the unexposed"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l02.q4",
+   "lessonId": "med-epi-biostats.l02",
+   "kind": "mcq",
+   "prompt": "A cross-sectional study in a chronic-disease clinic finds no association between an exposure and a rapidly fatal form of a disease, although a registry shows a strong association. Which explanation best accounts for this discrepancy?",
+   "choices": [
+    "Detection bias, because the fatal form of the disease was diagnosed earlier than the milder form",
+    "Prevalence-incidence bias, because patients with rapidly fatal disease die and are missing from the prevalent sample",
+    "Interviewer bias, because clinic staff probed unexposed patients more thoroughly about their history",
+    "Confounding by indication, because patients were randomly allocated to the exposed group"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l02.q5",
+   "lessonId": "med-epi-biostats.l02",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man is part of a survey in which 40% of participants with depression are obese compared with 25% without. The authors write that obesity causes depression. Which statement about the design is most accurate?",
+   "choices": [
+    "The finding is invalid because cross-sectional surveys cannot be used to assess more than one exposure at once",
+    "The finding is valid because the effect size is large enough to rule out confounding",
+    "The finding is limited because temporality is unknown and depression could have contributed to weight gain",
+    "The finding is valid because a large prevalence difference shows that obesity came before depression"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l03.q1",
+   "lessonId": "med-epi-biostats.l03",
+   "kind": "mcq",
+   "prompt": "Which feature makes a cohort study the preferred observational design for a rare exposure?",
+   "choices": [
+    "Investigators can recruit controls who match the cases on age and sex without introducing any bias",
+    "Investigators can estimate the odds of exposure without knowing who developed disease",
+    "Investigators can complete the study quickly because the participants are already ill",
+    "Investigators can deliberately enroll heavily exposed people and then follow them for outcomes"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l03.q2",
+   "lessonId": "med-epi-biostats.l03",
+   "kind": "mcq",
+   "prompt": "In a cohort, 30 of 1,000 exposed participants and 10 of 1,000 unexposed participants develop the disease over five years. What are the relative risk and the attributable risk?",
+   "choices": [
+    "Relative risk 3.0 and attributable risk 10 per 1,000",
+    "Relative risk 20 and attributable risk 3.0 per 1,000",
+    "Relative risk 3.0 and attributable risk 20 per 1,000",
+    "Relative risk 3.0 and attributable risk 30 per 1,000"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l03.q3",
+   "lessonId": "med-epi-biostats.l03",
+   "kind": "mcq",
+   "prompt": "A study of foundry workers compares their cancer mortality with that of the general population and finds a lower rate. Which bias most plausibly masks a true occupational hazard?",
+   "choices": [
+    "Recall bias, because workers remember toxic exposures less accurately than the general public",
+    "Healthy worker effect, because people able to work tend to be healthier than the general population",
+    "Lead-time bias, because workers are screened more often by occupational health and so survive longer after diagnosis",
+    "Berkson bias, because workers are sampled from hospital admissions and not from employment lists"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l03.q4",
+   "lessonId": "med-epi-biostats.l03",
+   "kind": "mcq",
+   "prompt": "A 10-year prospective cohort compares incident dementia between people with and without midlife hypertension. By year 10, 35% of participants have dropped out, and dropout was higher among hypertensive participants who were already showing cognitive decline. What is the likely effect on the estimated relative risk?",
+   "choices": [
+    "It is biased toward the null, because the participants most likely to have developed dementia are missing from the exposed group",
+    "It is biased away from the null, because the exposed participants who remain are those at highest dementia risk",
+    "It is unbiased, because loss to follow-up reduces precision but never changes the estimate",
+    "It is biased toward the null, because dropout in the unexposed group inflates the risk in that group"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l03.q5",
+   "lessonId": "med-epi-biostats.l03",
+   "kind": "mcq",
+   "prompt": "A retrospective cohort uses 1980s factory payroll and cancer registry records to compare exposed and unexposed workers. Compared with a prospective cohort, which statement is most accurate?",
+   "choices": [
+    "It is immune to confounding, because exposure groups are defined by historical employment",
+    "It cannot estimate incidence, because outcomes have already occurred when the study starts",
+    "It cannot establish temporality, because exposure is determined only after the outcome is already known",
+    "It can be completed faster and cheaper, but depends on the quality of past exposure records"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l04.q1",
+   "lessonId": "med-epi-biostats.l04",
+   "kind": "mcq",
+   "prompt": "Why is a case-control study well suited to a rare disease with a long latency period?",
+   "choices": [
+    "It starts with existing cases, so few participants and little follow-up time are needed",
+    "It randomizes exposure so that confounding is equalized between very small groups",
+    "It measures disease incidence in each exposure group at the end of a short follow-up",
+    "It follows a large exposed group forward until enough cases accumulate to analyze"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l04.q2",
+   "lessonId": "med-epi-biostats.l04",
+   "kind": "mcq",
+   "prompt": "Among 100 cases, 40 were exposed; among 100 controls, 20 were exposed. What is the odds ratio?",
+   "choices": [
+    "The odds ratio is 1.50, found by dividing the case odds by the control odds in each group",
+    "The odds ratio is 2.67, found by cross-multiplying 40 x 80 and dividing by 60 x 20",
+    "The odds ratio is 2.00, found by dividing the proportion of exposed cases by that of exposed controls",
+    "The odds ratio is 3.00, found by dividing the exposed cases by the unexposed cases"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l04.q3",
+   "lessonId": "med-epi-biostats.l04",
+   "kind": "mcq",
+   "prompt": "When does the odds ratio from a case-control study approximate the relative risk?",
+   "choices": [
+    "When cases and controls have been individually matched on age, sex and several other factors",
+    "When recall bias affects cases and controls to the same extent in both directions",
+    "When the disease is rare in the source population, so odds and risk are nearly equal",
+    "When the number of controls is much greater than the number of cases enrolled"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l04.q4",
+   "lessonId": "med-epi-biostats.l04",
+   "kind": "mcq",
+   "prompt": "A study of a rare brain tumor compares mothers of affected children with mothers of unaffected children about prenatal exposures. Mothers of affected children report more exposures, but medical records show equal exposure rates. Which bias is demonstrated?",
+   "choices": [
+    "Surveillance bias, because affected children were examined more often than unaffected ones",
+    "Survivor bias, because the sickest children died before records could be reviewed",
+    "Lead-time bias, because affected children were diagnosed earlier in the natural history",
+    "Recall bias, because mothers of affected children search memory harder for explanations"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l04.q5",
+   "lessonId": "med-epi-biostats.l04",
+   "kind": "mcq",
+   "prompt": "An investigator picks hospitalized patients with fractures as controls for a case-control study of alcohol use and liver cancer. Fracture patients drink more than the general population. What is the most likely consequence?",
+   "choices": [
+    "The odds ratio is biased toward the null, because the controls have higher exposure than the source population",
+    "The odds ratio is unbiased, because both groups are drawn from hospital settings",
+    "The odds ratio cannot be computed, because hospital controls have no exposure information",
+    "The odds ratio is biased away from the null, because the controls exaggerate the cases' alcohol use in interviews"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l05.q1",
+   "lessonId": "med-epi-biostats.l05",
+   "kind": "mcq",
+   "prompt": "What does allocation concealment protect against?",
+   "choices": [
+    "Participants who stop treatment being dropped from the analysis, which causes attrition bias",
+    "Enrolling clinicians predicting or steering the next assignment, which causes selection bias",
+    "Participants guessing their treatment after assignment, which causes performance bias",
+    "Outcome assessors treating the arms differently when measuring, which causes detection bias"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l05.q2",
+   "lessonId": "med-epi-biostats.l05",
+   "kind": "mcq",
+   "prompt": "In a surgical trial, 15% of patients randomized to surgery decline it and receive medical therapy, and are analyzed in the medical group. Which analysis principle is violated?",
+   "choices": [
+    "Intention-to-treat, because patients should be analyzed as randomized regardless of treatment received",
+    "Equipoise, because the clinicians preferred surgery before the trial had begun",
+    "Crossover, because patients should be returned to their original group at the end",
+    "Blinding, because surgeons were aware of the planned operation for each patient"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l05.q3",
+   "lessonId": "med-epi-biostats.l05",
+   "kind": "mcq",
+   "prompt": "Why is intention-to-treat analysis considered conservative in a superiority trial but potentially anti-conservative in a non-inferiority trial?",
+   "choices": [
+    "Non-adherence exaggerates differences, which makes true benefit look larger but hides harm in the control arm",
+    "Crossover removes patients from analysis, which raises power in superiority but lowers power in non-inferiority",
+    "Missing data are imputed from the best observed result, which favors the new drug in both kinds of trial",
+    "Non-adherence dilutes differences toward zero, which hides a true benefit but can make a worse drug look equivalent"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l05.q4",
+   "lessonId": "med-epi-biostats.l05",
+   "kind": "mcq",
+   "prompt": "A phase III trial of a new anticoagulant is stopped after an interim analysis shows a large reduction in the primary endpoint after only 30 events. Which concern is most appropriate?",
+   "choices": [
+    "The effect estimate may be understated, because early stopping reduces the number of treated patients",
+    "The result must be wrong, because interim analyses are never permitted during a randomized trial",
+    "The effect estimate may be exaggerated, because trials stopped early for benefit tend to capture random highs",
+    "The result is automatically unbiased, because the trial was randomized and therefore free of systematic error"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l05.q5",
+   "lessonId": "med-epi-biostats.l05",
+   "kind": "mcq",
+   "prompt": "A 58-year-old with type 2 diabetes is offered a trial in which participants are told whether they are in a new-device or a standard-care arm, and the primary outcome is self-reported symptom score. Which limitation is greatest?",
+   "choices": [
+    "Attrition bias from loss to follow-up, because open-label trials cannot track their participants reliably",
+    "Performance and detection bias, because unblinded participants may report symptoms differently by arm",
+    "Confounding from baseline differences, because randomization cannot balance subjective outcomes",
+    "Lack of equipoise, because patients with diabetes have no prior preference between arms"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l06.q1",
+   "lessonId": "med-epi-biostats.l06",
+   "kind": "mcq",
+   "prompt": "How is the number needed to treat calculated?",
+   "choices": [
+    "The odds ratio subtracted from one, multiplied by one hundred",
+    "The reciprocal of the relative risk, rounded to the nearest whole number",
+    "The reciprocal of the absolute risk reduction, rounded up to a whole patient",
+    "The difference between the control and treated event rates, expressed as a percent"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l06.q2",
+   "lessonId": "med-epi-biostats.l06",
+   "kind": "mcq",
+   "prompt": "In a 3-year trial, 10% of controls and 6% of treated patients have a stroke. What is the NNT?",
+   "choices": [
+    "An NNT of about 10 over the 3 years of the trial",
+    "An NNT of about 17 over the 3 years of the trial",
+    "An NNT of about 4 over the 3 years of the trial",
+    "An NNT of about 25 over the 3 years of the trial"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l06.q3",
+   "lessonId": "med-epi-biostats.l06",
+   "kind": "mcq",
+   "prompt": "Drug X reduces the relative risk of an event by 25% in two populations. Population 1 has a baseline risk of 20% and population 2 has a baseline risk of 2%. How do the NNTs compare?",
+   "choices": [
+    "They are 20 and 200, because the same relative effect gives a tenfold smaller absolute benefit at low baseline risk",
+    "They are 20 and 100, because the NNT is inversely proportional to the square root of baseline risk",
+    "They are equal at 20 in both, because the relative risk reduction is the same",
+    "They are 5 and 50, because a lower baseline risk makes the NNT proportionally lower"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l06.q4",
+   "lessonId": "med-epi-biostats.l06",
+   "kind": "mcq",
+   "prompt": "Event risk is 40% in exposed patients and 20% in unexposed patients in a cohort. A reviewer reports the odds ratio as 2.67 and states that exposed patients are 2.67 times as likely to have the event. What is the most accurate comment?",
+   "choices": [
+    "The statement is incorrect, because the odds ratio must always be smaller than the relative risk",
+    "The statement overstates the effect, because for a common outcome the RR is 2.0 and the OR exaggerates it",
+    "The statement understates the effect, because odds are calculated from the unexposed group only and ignore events",
+    "The statement is correct, because the odds ratio and relative risk are always equal"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l06.q5",
+   "lessonId": "med-epi-biostats.l06",
+   "kind": "mcq",
+   "prompt": "A trial reports that a statin lowers cardiovascular events by 30% relative to placebo in two risk strata. In the high-risk stratum, event rates are 10% on placebo; in the low-risk stratum, 1% on placebo. For a patient in the low-risk stratum, which statement is most defensible?",
+   "choices": [
+    "The NNT is about 100, because the absolute risk reduction is one percentage point",
+    "The NNT is about 33, the same as in the high-risk stratum because the relative reduction matches",
+    "The NNT is about 333, because the absolute risk reduction is 0.3 percentage points in that stratum",
+    "The NNT is about 3, because a 30% relative reduction means that roughly three patients need treatment"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l07.q1",
+   "lessonId": "med-epi-biostats.l07",
+   "kind": "mcq",
+   "prompt": "Which bias occurs when people who choose a health behavior are healthier in other ways than those who do not?",
+   "choices": [
+    "Hawthorne effect, in which participants alter behavior because they know they are observed",
+    "Recall bias, in which cases remember past exposures differently from healthy controls",
+    "Lead-time bias, which lengthens apparent survival when screening detects disease earlier than symptoms would",
+    "Healthy-user (volunteer) bias, a form of selection bias that is related to both exposure and outcome"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l07.q2",
+   "lessonId": "med-epi-biostats.l07",
+   "kind": "mcq",
+   "prompt": "A cohort study measures a dichotomous exposure with a test that misclassifies 20% of participants equally among those who do and do not develop disease. In which direction is the association expected to be biased?",
+   "choices": [
+    "Unpredictably in either direction, because misclassification of any type is always differential",
+    "Not at all, because random measurement error affects only the precision of estimates",
+    "Toward the null value, because non-differential misclassification of a dichotomous exposure weakens associations",
+    "Away from the null value, because misclassification inflates differences between the exposure groups"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l07.q3",
+   "lessonId": "med-epi-biostats.l07",
+   "kind": "mcq",
+   "prompt": "People taking a drug that requires regular blood tests are diagnosed with mild kidney disease more often than non-users. Which explanation involves a bias rather than a true effect?",
+   "choices": [
+    "Non-response bias, because users were less likely to return questionnaires after treatment",
+    "Detection (surveillance) bias, because more frequent testing finds more of the disease in users",
+    "Lead-time bias, because users have longer survival from the time they first get sick",
+    "Publication bias, because studies of the drug were more often reported in journals when positive"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l07.q4",
+   "lessonId": "med-epi-biostats.l07",
+   "kind": "mcq",
+   "prompt": "A hospital-based study compares patients admitted with disease A and disease B and finds that a drug used to treat B appears protective against A. The drug has no effect on A. Which mechanism best explains the finding?",
+   "choices": [
+    "Berksonian selection bias, because admission depends on both conditions and distorts the sampled association",
+    "Non-differential misclassification of the drug exposure, because pharmacy records contain random errors",
+    "Recall bias, because patients with disease A remember their prior medications less well than controls do",
+    "Lead-time bias, because disease A was diagnosed earlier in non-users than in users"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l07.q5",
+   "lessonId": "med-epi-biostats.l07",
+   "kind": "mcq",
+   "prompt": "A survey with a 25% response rate finds that 12% of respondents use a supplement and 3% of respondents have heart disease. Non-responders are older and more likely to have heart disease. What is the best conclusion about the estimate of heart-disease prevalence?",
+   "choices": [
+    "It is probably overestimated, because respondents who use supplements are more health conscious",
+    "It is probably accurate, because the sample size is large enough to rule out any bias",
+    "It is probably unbiased, because non-response affects only the width of confidence intervals",
+    "It is probably underestimated, because the missing participants have a higher prevalence than the respondents"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l08.q1",
+   "lessonId": "med-epi-biostats.l08",
+   "kind": "mcq",
+   "prompt": "Which of the following is NOT a requirement for a variable to be a confounder?",
+   "choices": [
+    "It lies on the causal pathway between the exposure and the outcome",
+    "It is not an intermediate step caused by the exposure itself",
+    "It is associated with the exposure in the study population being examined",
+    "It is an independent risk factor for the outcome among the unexposed"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l08.q2",
+   "lessonId": "med-epi-biostats.l08",
+   "kind": "mcq",
+   "prompt": "The crude RR for an exposure is 3.0. After stratifying by smoking, the RR is 2.0 in smokers and 2.0 in non-smokers. What do these results indicate?",
+   "choices": [
+    "Effect modification by smoking, because stratum-specific estimates differ from the crude estimate",
+    "Confounding by smoking, because the stratum-specific estimates agree with each other but differ from the crude",
+    "Selection bias, because stratification changed the number of participants in each exposure group",
+    "No confounding or modification, because both stratum-specific estimates are the same as one another"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l08.q3",
+   "lessonId": "med-epi-biostats.l08",
+   "kind": "mcq",
+   "prompt": "A drug appears to raise mortality in an observational study, but doctors prescribed it mainly to patients who were already very ill. Which term describes this problem?",
+   "choices": [
+    "Information bias, because the outcome was measured more accurately in the treated group",
+    "Collider bias, because both the drug and the outcome were caused by hospital admission",
+    "Confounding by indication, because the reason for prescribing is related to the outcome",
+    "Effect modification, because the drug works differently across age groups of patients"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l08.q4",
+   "lessonId": "med-epi-biostats.l08",
+   "kind": "mcq",
+   "prompt": "A study of a vaccine finds a relative risk of 0.2 for infection in adults under 50 and 0.9 in adults over 50. An analyst proposes a single pooled age-adjusted estimate of 0.5. What is the best response?",
+   "choices": [
+    "Accept the pooled estimate, because adjustment is always preferable to stratification",
+    "Reject the study, because heterogeneity of effect always indicates a failure of randomization",
+    "Accept the pooled estimate, because any difference between age groups must be due to chance",
+    "Report the age-specific estimates, because a true difference in effect by age is effect modification and averaging hides it"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l08.q5",
+   "lessonId": "med-epi-biostats.l08",
+   "kind": "mcq",
+   "prompt": "An investigator studying whether dietary salt causes stroke adjusts the model for blood pressure measured after salt intake, since salt raises blood pressure. The adjusted salt-stroke association shrinks to near null. What is the most appropriate interpretation?",
+   "choices": [
+    "Overadjustment for a mediator probably removed the pathway through which salt acts, so the model underestimates the total effect",
+    "Residual confounding explains the result, because blood pressure is unmeasured in this study",
+    "Collider bias created a spurious inverse association between salt and stroke in the sample",
+    "Salt has no effect on stroke, because adjustment has proven the null hypothesis"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l09.q1",
+   "lessonId": "med-epi-biostats.l09",
+   "kind": "mcq",
+   "prompt": "Which Bradford Hill viewpoint is strictly required for an association to be causal?",
+   "choices": [
+    "Biological gradient, because risk must rise steadily with the dose of exposure",
+    "Temporality, because the cause must come before the effect in time",
+    "Analogy, because there must be a similar proven cause with a similar effect",
+    "Specificity, because one exposure must produce only one outcome in every case"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l09.q2",
+   "lessonId": "med-epi-biostats.l09",
+   "kind": "mcq",
+   "prompt": "A risk factor can cause a disease that also occurs in people without the risk factor, and not everyone with it develops the disease. In the language of causal models, the factor is best described as which kind of cause?",
+   "choices": [
+    "A component cause within a sufficient cause, which acts together with other factors",
+    "A confounder, since it is related both to other exposures and to the outcome",
+    "A mediator, since it lies between a distant exposure and the final outcome",
+    "A necessary and sufficient cause, since it always precedes the disease in affected people"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l09.q3",
+   "lessonId": "med-epi-biostats.l09",
+   "kind": "mcq",
+   "prompt": "In a cohort study, relative risk of lung cancer rises from 1.0 to 8 to 20 across none, light and heavy smokers. Which Hill viewpoint does this pattern most directly support?",
+   "choices": [
+    "Experiment, because the investigators changed exposure and watched the outcome",
+    "Analogy, because smoking resembles other inhaled toxic exposures in the lung",
+    "Specificity, because only a single exposure is associated with the single disease outcome",
+    "Biological gradient, because disease risk increases with the dose of exposure"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l09.q4",
+   "lessonId": "med-epi-biostats.l09",
+   "kind": "mcq",
+   "prompt": "An investigator argues that, because a weak association (RR 1.2) between an air pollutant and asthma was found in a single study, the association cannot be causal. Which response is most consistent with Hill's original discussion?",
+   "choices": [
+    "The argument is incorrect, because strength is not relevant to causal inference at all",
+    "The argument is correct, because Hill treated every viewpoint as a necessary criterion",
+    "A weak association can be causal, and strength is one viewpoint to weigh with consistency, gradient and design quality",
+    "The argument is correct, because only associations with RR above 2 can ever be causal"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l09.q5",
+   "lessonId": "med-epi-biostats.l09",
+   "kind": "mcq",
+   "prompt": "A 1950s argument suggested that a hidden genotype might cause both smoking and lung cancer. Which line of evidence most directly weakened this alternative explanation?",
+   "choices": [
+    "Observation that lung cancer rates had risen since the early twentieth century in many countries",
+    "Persistently higher risk in heavier smokers and falling risk in those who quit, consistent across many studies",
+    "A single case-control study showing a large odds ratio in one hospital in one country",
+    "A laboratory study in which tar was applied to the skin of one animal species"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l10.q1",
+   "lessonId": "med-epi-biostats.l10",
+   "kind": "mcq",
+   "prompt": "Which statement correctly defines specificity?",
+   "choices": [
+    "The proportion of people with the disease who test positive",
+    "The proportion of positive tests that are truly in diseased people",
+    "The proportion of negative tests that are truly in healthy people",
+    "The proportion of people without the disease who test negative"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l10.q2",
+   "lessonId": "med-epi-biostats.l10",
+   "kind": "mcq",
+   "prompt": "A test is applied to 200 patients with a disease, of whom 180 test positive, and to 800 patients without the disease, of whom 720 test negative. What are the sensitivity and specificity?",
+   "choices": [
+    "Sensitivity 80% and specificity 90%, with 40 false negatives and 80 false positives",
+    "Sensitivity 72% and specificity 90%, with 20 false negatives and 80 false positives",
+    "Sensitivity 90% and specificity 90%, with 20 false negatives and 80 false positives",
+    "Sensitivity 90% and specificity 80%, with 20 false negatives and 160 false positives"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l10.q3",
+   "lessonId": "med-epi-biostats.l10",
+   "kind": "mcq",
+   "prompt": "A highly sensitive test is negative in a patient. Which statement follows most directly?",
+   "choices": [
+    "The result is uninformative, because sensitivity applies only to the patients who have the disease",
+    "The disease is likely ruled out, because few diseased people have a negative result",
+    "The result is a true negative, because sensitivity guarantees every negative is correct",
+    "The disease is effectively ruled in, because a negative result means the test found nothing wrong"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l10.q4",
+   "lessonId": "med-epi-biostats.l10",
+   "kind": "mcq",
+   "prompt": "A new troponin assay is evaluated by comparing 50 patients with confirmed myocardial infarction against 50 healthy young volunteers, giving a sensitivity of 98% and specificity of 99%. When used in emergency patients with chest pain, its performance is much lower. Which bias best explains this?",
+   "choices": [
+    "Spectrum bias, because the study used clear-cut cases and healthy controls instead of ambiguous patients",
+    "Recall bias, because participants described their symptoms differently after learning the diagnosis",
+    "Verification bias, because only participants with positive assay results received angiography",
+    "Lead-time bias, because the assay detects infarctions earlier than the reference standard"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l10.q5",
+   "lessonId": "med-epi-biostats.l10",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman has a result just above the cutoff on a continuous test. The laboratory lowers the cutoff for a positive result, hoping to catch more cases. What is the expected effect on the test characteristics?",
+   "choices": [
+    "Sensitivity falls and specificity rises, because fewer people are classified as positive",
+    "Both rise, because a lower cutoff provides more information about each patient",
+    "Neither changes, because the cutoff alters only the positive predictive value",
+    "Sensitivity rises and specificity falls, because more people are classified as positive"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l11.q1",
+   "lessonId": "med-epi-biostats.l11",
+   "kind": "mcq",
+   "prompt": "What happens to positive predictive value when a test is applied to a population with lower disease prevalence?",
+   "choices": [
+    "It rises, because there are fewer false positives to dilute the true positives",
+    "It stays the same, because it depends only on the sensitivity and the specificity",
+    "It falls, because false positives make up a larger share of all positive results",
+    "It rises, because the likelihood ratio positive increases as prevalence declines"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l11.q2",
+   "lessonId": "med-epi-biostats.l11",
+   "kind": "mcq",
+   "prompt": "A test has 90% sensitivity and 95% specificity, and disease prevalence is 1% in 10,000 people. What is the positive predictive value?",
+   "choices": [
+    "About 90%, because the sensitivity gives the chance that a positive is correct",
+    "About 50%, because half of the positive results will be in diseased people",
+    "About 95%, because the specificity gives the chance that a positive is correct",
+    "About 15%, because 90 true positives fall among 585 positive results"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l11.q3",
+   "lessonId": "med-epi-biostats.l11",
+   "kind": "mcq",
+   "prompt": "A test has sensitivity 90% and specificity 95%. What is the positive likelihood ratio?",
+   "choices": [
+    "An LR+ of 18, calculated as the sensitivity divided by 1 minus the specificity",
+    "An LR+ of 9, calculated as the sensitivity divided by 1 minus the sensitivity",
+    "An LR+ of 1.9, calculated as the sensitivity added to the specificity of the test",
+    "An LR+ of 0.95, calculated as the specificity divided by the sensitivity"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l11.q4",
+   "lessonId": "med-epi-biostats.l11",
+   "kind": "mcq",
+   "prompt": "A 67-year-old man with exertional dyspnea is judged to have a 20% pre-test probability of heart failure. A natriuretic peptide test with LR+ of 8 is positive. What is the approximate post-test probability?",
+   "choices": [
+    "About 29%, because the probability increases by eight percentage points",
+    "About 67%, because pre-test odds of 0.25 multiplied by 8 give odds of 2",
+    "About 80%, because the probability is multiplied by eight and capped at 100",
+    "About 160%, because 20% multiplied by 8 gives the post-test probability directly"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l11.q5",
+   "lessonId": "med-epi-biostats.l11",
+   "kind": "mcq",
+   "prompt": "A published study reports a PPV of 80% for a rapid assay in an infectious disease clinic, where 40% of those tested have the disease. A health department plans to use the same assay for community screening, where prevalence is 0.5%. What is the best prediction?",
+   "choices": [
+    "PPV will be unchanged, because likelihood ratios are independent of the clinical setting and prevalence",
+    "PPV will be unchanged at about 80%, since it is a fixed property of the assay",
+    "PPV will be much lower, because the same specificity produces many more false positives per true positive",
+    "PPV will be higher, because screening populations are generally healthier than clinic patients"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l12.q1",
+   "lessonId": "med-epi-biostats.l12",
+   "kind": "mcq",
+   "prompt": "What does an area under the ROC curve of 0.5 indicate?",
+   "choices": [
+    "Perfect separation of diseased and healthy individuals at the best cutoff",
+    "Discrimination no better than chance, as the curve follows the diagonal",
+    "Discrimination that is accurate only when disease prevalence is about 50%",
+    "Excellent discrimination, since half of the area lies above the diagonal line"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l12.q2",
+   "lessonId": "med-epi-biostats.l12",
+   "kind": "mcq",
+   "prompt": "A cancer is diagnosed at age 63 without screening, and the patient dies at 65. With screening, it is found at 60 and the patient still dies at 65. Which statement describes this situation?",
+   "choices": [
+    "Lead-time bias, because survival from diagnosis lengthens without any delay in the date of death",
+    "Length-time bias, because slow-growing tumors are overrepresented among screen-detected cases",
+    "Overdiagnosis, because the tumor would never have caused harm during the patient's remaining lifetime",
+    "Screening saved the patient, since survival from diagnosis rose from 2 to 5 years"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l12.q3",
+   "lessonId": "med-epi-biostats.l12",
+   "kind": "mcq",
+   "prompt": "Which outcome is the most appropriate for judging whether a cancer screening program works?",
+   "choices": [
+    "The proportion of eligible people who attend screening and complete follow-up testing",
+    "Five-year survival among patients diagnosed through the program, compared with unscreened patients",
+    "The number of cancers detected, which should rise sharply after the program starts",
+    "Disease-specific or all-cause mortality in randomized screened and unscreened groups"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l12.q4",
+   "lessonId": "med-epi-biostats.l12",
+   "kind": "mcq",
+   "prompt": "A program offers annual screening for a slow-growing malignancy. Screen-detected cancers show 95% five-year survival, compared with 60% for cancers found through symptoms, but population mortality has not changed. Which combination of biases best explains these findings?",
+   "choices": [
+    "Non-differential misclassification and publication bias, because outcomes were reported incorrectly",
+    "Recall bias and interviewer bias, because participants misreport symptoms to the investigators",
+    "Lead-time bias, length-time bias and overdiagnosis, which inflate survival without reducing deaths",
+    "Confounding by indication and Berkson bias, because screened patients were all hospitalized"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l12.q5",
+   "lessonId": "med-epi-biostats.l12",
+   "kind": "mcq",
+   "prompt": "Two biomarkers for early pancreatic disease are compared. Marker X has an AUC of 0.85 and marker Y has an AUC of 0.65 in the same patients. A clinician asks what the AUC of 0.85 means. Which interpretation is correct?",
+   "choices": [
+    "The marker identifies 85% of diseased patients and 85% of healthy patients at every cutoff",
+    "There is an 85% probability that a randomly chosen diseased patient has a higher marker value than a randomly chosen healthy patient",
+    "The marker misclassifies 15% of all patients, regardless of the cutoff and of prevalence",
+    "85% of patients with the marker above the cutoff will have the disease, at any prevalence"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l13.q1",
+   "lessonId": "med-epi-biostats.l13",
+   "kind": "mcq",
+   "prompt": "In a right-skewed distribution such as hospital length of stay, how are the mean and median related?",
+   "choices": [
+    "The mean is greater than the median because the long right tail pulls the mean upward",
+    "The mean is less than the median because outliers on the right reduce the average",
+    "The mean and median are equal because both are measures of central tendency",
+    "The mean equals the mode because the tail does not affect the most frequent observations"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l13.q2",
+   "lessonId": "med-epi-biostats.l13",
+   "kind": "mcq",
+   "prompt": "Systolic blood pressure in a population is approximately normal with mean 120 mm Hg and SD 10 mm Hg. Within roughly what range do 95% of individuals fall?",
+   "choices": [
+    "About 90 to 150 mm Hg, which is three SD either side of the mean",
+    "About 100 to 140 mm Hg, which is two SD either side of the mean",
+    "About 115 to 125 mm Hg, which is half an SD either side of the mean",
+    "About 110 to 130 mm Hg, which is one SD either side of the mean"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l13.q3",
+   "lessonId": "med-epi-biostats.l13",
+   "kind": "mcq",
+   "prompt": "A sample of 36 patients has a standard deviation of 12 mm Hg. What is the standard error of the mean?",
+   "choices": [
+    "A standard error of 0.33, found by dividing 12 by 36",
+    "A standard error of 6, found by dividing 12 by 2",
+    "A standard error of 2, found by dividing 12 by the square root of 36",
+    "A standard error of 12, since it equals the standard deviation of the sample"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l13.q4",
+   "lessonId": "med-epi-biostats.l13",
+   "kind": "mcq",
+   "prompt": "A trial reports baseline serum triglycerides as mean 210 and median 150 mg/dL, with SD 140. A resident states that the data are well described as normal. What is the best critique?",
+   "choices": [
+    "The data must be left skewed, because the median is smaller than the mean value reported",
+    "The data are normal, because every continuous biological measurement follows a bell curve",
+    "The SD is invalid, because it cannot be reported alongside a median in the same table",
+    "The mean exceeding the median and the large SD suggest right skew, so median with IQR is more suitable"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l13.q5",
+   "lessonId": "med-epi-biostats.l13",
+   "kind": "mcq",
+   "prompt": "A cardiologist notes that a patient's ejection fraction is 2.5 SD above the cohort mean, which is approximately normal. Approximately where does the patient rank?",
+   "choices": [
+    "Around the 99th percentile, since values 2.5 SD above the mean are higher than about 99% of the cohort",
+    "Around the 50th percentile, since z-scores describe spread and not rank",
+    "Around the 90th percentile, since 2.5 SD corresponds to the top tenth",
+    "Around the 84th percentile, as for a value one SD above the mean"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l14.q1",
+   "lessonId": "med-epi-biostats.l14",
+   "kind": "mcq",
+   "prompt": "What does a p-value of 0.03 represent?",
+   "choices": [
+    "The probability that the study result occurred through random chance alone, with no real effect",
+    "The probability that the treatment effect is clinically important to patients",
+    "The probability that the null hypothesis is true given the observed data",
+    "The probability of a result at least this extreme if the null hypothesis were true"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l14.q2",
+   "lessonId": "med-epi-biostats.l14",
+   "kind": "mcq",
+   "prompt": "A study has a type II error probability (beta) of 0.20. What is its power, and what does it mean?",
+   "choices": [
+    "Power is 20%, the chance of rejecting a true null hypothesis",
+    "Power is 95%, the chance of correctly retaining a true null hypothesis",
+    "Power is 80%, the chance of detecting a true effect of the specified size",
+    "Power is 80%, the chance that the observed effect is real and not due to chance"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l14.q3",
+   "lessonId": "med-epi-biostats.l14",
+   "kind": "mcq",
+   "prompt": "A study tests 10 independent outcomes. To keep the family-wise type I error at 0.05 using the Bonferroni method, what significance threshold applies to each test?",
+   "choices": [
+    "0.5 for each test, found by multiplying 0.05 by 10",
+    "0.005 for each test, found by dividing 0.05 by 10",
+    "0.05 for each test, since each test is performed on a separate outcome",
+    "0.0005 for each test, found by dividing 0.05 by 100"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l14.q4",
+   "lessonId": "med-epi-biostats.l14",
+   "kind": "mcq",
+   "prompt": "A trial of 12 patients per arm finds that a new analgesic lowers pain scores by 1.5 points, p = 0.12. The authors conclude that the drug is ineffective. What is the best evaluation?",
+   "choices": [
+    "The conclusion is unsupported, because a small study may lack power and the result is inconclusive, not proof of no effect",
+    "The conclusion is sound, because a 1.5-point difference is below any clinical threshold",
+    "The conclusion is unsupported, because only a one-sided test can establish that a drug is ineffective",
+    "The conclusion is sound, because p above 0.05 demonstrates that no difference exists"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l14.q5",
+   "lessonId": "med-epi-biostats.l14",
+   "kind": "mcq",
+   "prompt": "A very large trial finds that a drug lowers systolic pressure by 1 mm Hg more than placebo, p < 0.001, with 95% CI 0.6 to 1.4. Which interpretation is best?",
+   "choices": [
+    "The effect is not significant, because the confidence interval includes values near zero",
+    "The effect is clinically important, because the p-value is so extremely small",
+    "The effect is imprecise, because the interval is wide relative to the point estimate",
+    "The effect is statistically significant but probably too small to matter clinically"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l15.q1",
+   "lessonId": "med-epi-biostats.l15",
+   "kind": "mcq",
+   "prompt": "Which result is statistically significant at the two-sided 0.05 level?",
+   "choices": [
+    "A relative risk with a 95% CI of 0.85 to 1.40, which includes the null value of 1",
+    "A risk difference with a 95% CI of -2.0% to 6.0%, which includes the null value of 0",
+    "A hazard ratio with a 95% CI of 0.55 to 0.90, which excludes the null value of 1",
+    "An odds ratio with a 95% CI of 0.90 to 2.10, which includes the null value of 1"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l15.q2",
+   "lessonId": "med-epi-biostats.l15",
+   "kind": "mcq",
+   "prompt": "The mean difference in blood pressure between two groups is 5 mm Hg with a standard error of 2. What is the approximate 95% confidence interval?",
+   "choices": [
+    "About 3.0 to 7.0 mm Hg, using the estimate plus or minus 1 standard error",
+    "About 0.0 to 10.0 mm Hg, using the estimate plus or minus 2.5 standard errors",
+    "About 2.0 to 8.0 mm Hg, using the estimate plus or minus 1.5 standard errors",
+    "About 1.1 to 8.9 mm Hg, using the estimate plus or minus 1.96 standard errors"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l15.q3",
+   "lessonId": "med-epi-biostats.l15",
+   "kind": "mcq",
+   "prompt": "A study of 400 patients finds a response rate of 20%, with a 95% CI of about 16% to 24%. What would happen to the width of the interval if the sample were four times larger with the same response rate?",
+   "choices": [
+    "The interval would be about half as wide, because standard error falls with the square root of n",
+    "The interval would be unchanged, because the width depends only on the response rate",
+    "The interval would be about one quarter as wide, because width is inversely proportional to the sample size n",
+    "The interval would be about four times wider, because more patients add more variability"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l15.q4",
+   "lessonId": "med-epi-biostats.l15",
+   "kind": "mcq",
+   "prompt": "A trial of a new anticoagulant reports a hazard ratio for major bleeding of 1.10 (95% CI 0.60 to 2.00). The sponsor states that the drug is safe. What is the best interpretation?",
+   "choices": [
+    "The drug is proven harmful, because the point estimate exceeds 1",
+    "The trial is inconclusive on safety, because the interval is compatible with 40% fewer to a doubling of bleeding events",
+    "The trial is statistically significant, because the interval has an upper limit of 2.00",
+    "The drug is proven safe, because the point estimate is close to 1"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l15.q5",
+   "lessonId": "med-epi-biostats.l15",
+   "kind": "mcq",
+   "prompt": "A 95% CI for a relative risk is reported as 1.4 to 2.9. Which statement most accurately describes what the interval means?",
+   "choices": [
+    "There is a 95% probability that the true relative risk lies between 1.4 and 2.9 for this study",
+    "Ninety-five percent of patients in the study had a risk ratio between 1.4 and 2.9",
+    "The range reflects values compatible with the data, and the method captures the true value in about 95% of repeated samples",
+    "The relative risk will fall between 1.4 and 2.9 in 95% of future studies of the same question"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l16.q1",
+   "lessonId": "med-epi-biostats.l16",
+   "kind": "mcq",
+   "prompt": "Which test is appropriate for comparing the mean of a continuous outcome among three independent groups?",
+   "choices": [
+    "Pearson correlation, which measures a linear relationship between two variables",
+    "One-way analysis of variance, followed by corrected post hoc comparisons",
+    "Paired t-test, which compares the means measured in the same people twice",
+    "Chi-square test, which compares observed and expected counts in categories"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l16.q2",
+   "lessonId": "med-epi-biostats.l16",
+   "kind": "mcq",
+   "prompt": "In a 2 x 2 table of 200 patients, 80 received a drug and 50 improved overall. Under independence, what is the expected number of improved patients among the 80 on the drug?",
+   "choices": [
+    "20, calculated as 80 x 50 divided by 200",
+    "25, calculated as 50 divided by 2",
+    "50, since the improved total applies to each group",
+    "40, since half of the treated patients would be expected to improve"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l16.q3",
+   "lessonId": "med-epi-biostats.l16",
+   "kind": "mcq",
+   "prompt": "Which test is the best choice for comparing a skewed continuous outcome in two small independent groups?",
+   "choices": [
+    "Paired t-test, which compares the means measured in the same individuals",
+    "Pearson correlation, which quantifies a linear association between two variables",
+    "McNemar test, which compares paired proportions in matched categorical data",
+    "Mann-Whitney U test, which compares ranks and does not assume normality"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l16.q4",
+   "lessonId": "med-epi-biostats.l16",
+   "kind": "mcq",
+   "prompt": "In a study of 25 patients each measured before and after a 12-week program, the investigators apply an unpaired t-test to the two sets of values and find p = 0.09. A statistician re-analyzes with the appropriate test and finds p = 0.01. Why did the result change?",
+   "choices": [
+    "The unpaired test double counts patients, which overstates the standard error and gives a smaller p-value",
+    "The paired test increases the effective sample size from 25 to 50, which narrows the confidence interval",
+    "The paired test uses within-patient differences, which removes between-person variability and increases power",
+    "The paired test assumes non-normal data, so it replaces means with medians and detects larger effects"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l16.q5",
+   "lessonId": "med-epi-biostats.l16",
+   "kind": "mcq",
+   "prompt": "A study reports a Pearson correlation of 0.6 between daily steps and HbA1c reduction. A reader concludes that increased walking causes 60% of the improvement in glycemic control. What is the best response?",
+   "choices": [
+    "The reader is correct, because r = 0.6 means that 60% of the variance is explained by walking",
+    "The reader is incorrect, because r of 0.6 means steps explain about 36% of the variance, and correlation does not show cause",
+    "The reader is correct, because correlation coefficients above 0.5 are sufficient to establish causation",
+    "The reader is incorrect, because Pearson correlation cannot be used for two continuous variables"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l17.q1",
+   "lessonId": "med-epi-biostats.l17",
+   "kind": "mcq",
+   "prompt": "What does censoring mean in survival analysis?",
+   "choices": [
+    "A participant's event has not been observed by the end of their follow-up, so only event-free time is known",
+    "A participant's data are deleted from the analysis because they violated the study protocol",
+    "A participant experiences an event that prevents the primary outcome from occurring later",
+    "A participant's time zero is moved to the date on which treatment was first prescribed"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l17.q2",
+   "lessonId": "med-epi-biostats.l17",
+   "kind": "mcq",
+   "prompt": "Ten patients are at risk. One dies at month 2. One other is censored at month 3. Two of the remaining eight die at month 5. What is the Kaplan-Meier survival estimate just after month 5?",
+   "choices": [
+    "About 0.720, calculated as 0.90 multiplied by 0.80",
+    "About 0.675, calculated as 0.90 multiplied by 6/8",
+    "About 0.600, calculated as 6 survivors divided by 10 patients",
+    "About 0.700, calculated as 0.90 multiplied by 7/9"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l17.q3",
+   "lessonId": "med-epi-biostats.l17",
+   "kind": "mcq",
+   "prompt": "A Cox model reports a hazard ratio of 0.60 for a treatment versus control. Which interpretation is most accurate?",
+   "choices": [
+    "The probability of treatment benefit is 60% for each individual patient",
+    "Treated patients live 40% longer than control patients, on average",
+    "At any moment, the instantaneous event rate is 40% lower in the treated group, assuming proportional hazards",
+    "Forty percent fewer treated patients will have the event by the end of the study"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l17.q4",
+   "lessonId": "med-epi-biostats.l17",
+   "kind": "mcq",
+   "prompt": "A cohort study of statin use in older adults defines the treated group as anyone who filled a statin prescription at any point during follow-up, counting follow-up from the date of entry. Treated patients show remarkably low mortality. Which bias is most likely?",
+   "choices": [
+    "Competing risk bias, because non-cardiovascular death prevents ascertainment of cardiovascular death",
+    "Lead-time bias, because statins are given to detect cardiovascular disease earlier in older adults",
+    "Length-time bias, because statins preferentially affect slow-growing forms of disease",
+    "Immortal time bias, because treated patients had to survive until the prescription to be classified as treated"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l17.q5",
+   "lessonId": "med-epi-biostats.l17",
+   "kind": "mcq",
+   "prompt": "In a trial of surgery versus medical therapy, the Kaplan-Meier curves cross at 6 months: surgery has more early deaths and fewer later deaths. A single Cox hazard ratio of 0.85 is reported. What is the best critique?",
+   "choices": [
+    "The single hazard ratio is misleading, because crossing curves violate the proportional hazards assumption",
+    "The result is explained by censoring, because crossing curves occur only with informative censoring",
+    "The single hazard ratio is valid, because the Cox model is unaffected by crossing curves",
+    "The log-rank test is invalid, because it cannot be used to compare two treatment groups"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l18.q1",
+   "lessonId": "med-epi-biostats.l18",
+   "kind": "mcq",
+   "prompt": "What distinguishes a systematic review from a narrative review?",
+   "choices": [
+    "It includes only randomized trials published in high-impact journals",
+    "It summarizes the expert opinion of the authors on the current state of the topic",
+    "It always includes a statistical pooling of results from the studies it contains",
+    "It uses explicit, prespecified and reproducible methods to find and appraise all relevant studies"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l18.q2",
+   "lessonId": "med-epi-biostats.l18",
+   "kind": "mcq",
+   "prompt": "Study A has effect 0.4 with SE 0.1, and study B has effect 0.8 with SE 0.2. Using inverse-variance weights, what is the pooled effect?",
+   "choices": [
+    "0.60, the simple average of the two effects",
+    "0.72, because the study with the larger effect estimate receives the larger weight",
+    "0.48, because the precise study has four times the weight of the other",
+    "0.52, because the weights are proportional to the standard errors"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l18.q3",
+   "lessonId": "med-epi-biostats.l18",
+   "kind": "mcq",
+   "prompt": "A meta-analysis reports a Cochran Q of 20 with 8 degrees of freedom. What is I-squared, and how should it be read?",
+   "choices": [
+    "I-squared of 40%, indicating that heterogeneity is negligible",
+    "I-squared of 60%, indicating substantial heterogeneity between studies",
+    "I-squared of 12%, indicating that the studies are very consistent",
+    "I-squared of 20%, indicating low heterogeneity between the included studies, as Q is read as a percentage"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l18.q4",
+   "lessonId": "med-epi-biostats.l18",
+   "kind": "mcq",
+   "prompt": "A funnel plot from a meta-analysis of 25 trials of a supplement shows that small trials with negative results are missing, and the pooled effect shrinks when only the largest trials are analyzed. Which explanation is most consistent with this?",
+   "choices": [
+    "Publication bias or small-study effects, so the pooled estimate probably overstates the true effect",
+    "Fixed-effect modeling, which always produces larger effects than random-effects modeling",
+    "Ecological fallacy, because the studies are treated as units of analysis",
+    "Detection bias, because the supplement was evaluated by blinded outcome assessors"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l18.q5",
+   "lessonId": "med-epi-biostats.l18",
+   "kind": "mcq",
+   "prompt": "A 2020 meta-analysis pools 18 observational cohort studies on coffee and cancer and reports a precise relative risk of 0.90 (95% CI 0.88 to 0.92). A trainee says that pooling resolves confounding. What is the best response?",
+   "choices": [
+    "Pooling is invalid, because observational studies may never be combined in a meta-analysis",
+    "Pooling increases the risk of type II error, because it reduces the effective sample size",
+    "Pooling removes confounding, because the studies used different populations and measurements",
+    "Pooling cannot reduce confounding, because it combines biased estimates into a more precise but still possibly biased one"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l19.q1",
+   "lessonId": "med-epi-biostats.l19",
+   "kind": "mcq",
+   "prompt": "Which study design best answers a question about the prognosis of a disease?",
+   "choices": [
+    "A case-control study comparing exposures in patients with and without the disease",
+    "A randomized crossover trial testing two treatments in stable patients",
+    "A cohort study following patients with the disease over time to record outcomes",
+    "A cross-sectional diagnostic study comparing a test with a reference standard"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l19.q2",
+   "lessonId": "med-epi-biostats.l19",
+   "kind": "mcq",
+   "prompt": "A trial of an antihypertensive reports a significant 40% relative reduction in a composite of death, stroke and hospitalization for dizziness. All of the benefit comes from hospitalizations for dizziness. What is the best interpretation?",
+   "choices": [
+    "The result is clinically important, because a relative reduction of 40% is large",
+    "The drug is proven to prevent death and stroke, because the composite is significant",
+    "The result is invalid, because composite outcomes may never be used in a trial",
+    "The claim of protection from serious events is unsupported, because the least important component drives the composite"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l19.q3",
+   "lessonId": "med-epi-biostats.l19",
+   "kind": "mcq",
+   "prompt": "Which feature of a trial most directly limits its applicability to a 79-year-old patient with multiple comorbidities?",
+   "choices": [
+    "Eligibility criteria that excluded patients over 70 and those with significant comorbidity",
+    "Intention-to-treat analysis, because it includes participants who did not adhere",
+    "Randomization, because it distributes prognostic factors equally at baseline",
+    "Allocation concealment, because it limits knowledge of the next assignment"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l19.q4",
+   "lessonId": "med-epi-biostats.l19",
+   "kind": "mcq",
+   "prompt": "A registered trial lists \"change in HbA1c at 12 weeks\" as its primary outcome, found no difference, and was published with a new primary outcome of \"proportion with weight loss over 5%\", which was significant. What is the main concern?",
+   "choices": [
+    "Regression to the mean, because patients with extreme HbA1c values tend to move toward the average",
+    "Outcome switching, which raises the chance of a false positive and warrants comparison with the registry",
+    "Lead-time bias, because weight loss can be detected earlier than changes in HbA1c can",
+    "Healthy worker effect, because trial participants were healthier than the general population"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l19.q5",
+   "lessonId": "med-epi-biostats.l19",
+   "kind": "mcq",
+   "prompt": "A guideline panel gives a strong recommendation for an intervention that reduces mortality from a rapidly fatal condition, although the evidence comes from low-certainty observational data. Which statement is most appropriate?",
+   "choices": [
+    "This is reasonable, because the strength of a recommendation is defined as the certainty of the evidence",
+    "This is inconsistent, because strong recommendations require high-certainty evidence from randomized trials",
+    "This can be reasonable when benefits clearly outweigh harms, though it should be revisited as better evidence appears",
+    "This is invalid, because observational data may never be used in a clinical guideline"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l20.q1",
+   "lessonId": "med-epi-biostats.l20",
+   "kind": "mcq",
+   "prompt": "Which of the following is the most severe route of correcting the published record?",
+   "choices": [
+    "Expression of concern, which flags unresolved questions during an inquiry",
+    "Letter to the editor, which presents a reader's critique without any editorial action",
+    "Retraction, which withdraws a paper whose findings are considered unreliable",
+    "Correction (erratum), which fixes a specific error without altering conclusions"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l20.q2",
+   "lessonId": "med-epi-biostats.l20",
+   "kind": "mcq",
+   "prompt": "Observational studies suggested that menopausal hormone therapy prevented coronary disease, but the randomized Women's Health Initiative reported no cardiac protection and more coronary events. Which explanation accounts for much of the discrepancy?",
+   "choices": [
+    "Publication bias, because randomized trials are less likely to be published than cohort studies",
+    "Lead-time bias, because hormone users were diagnosed with heart disease earlier",
+    "Non-differential misclassification, because every woman was assigned a wrong dose",
+    "Healthy-user confounding, because women who chose hormone therapy were healthier in other ways"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l20.q3",
+   "lessonId": "med-epi-biostats.l20",
+   "kind": "mcq",
+   "prompt": "In the Cardiac Arrhythmia Suppression Trial, drugs that suppressed ventricular ectopy after myocardial infarction were associated with higher mortality. What general lesson does this teach?",
+   "choices": [
+    "A drug that improves a surrogate marker may still harm the outcomes patients care about",
+    "Antiarrhythmic drugs should be tested only in patients without a prior infarction",
+    "Observational studies are always more reliable than randomized trials in cardiology",
+    "Trials with mortality outcomes should never be stopped early once they have begun"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l20.q4",
+   "lessonId": "med-epi-biostats.l20",
+   "kind": "mcq",
+   "prompt": "A 1998 case series of 12 children reported a link between MMR vaccination and a new syndrome of autism and bowel disease. Later, most co-authors withdrew the interpretation, a regulator found serious professional misconduct, and the journal retracted the paper. Which statement best captures why a case series of this kind could not support the claim?",
+   "choices": [
+    "A case series cannot be retracted, because it does not report a statistical test",
+    "A case series has no comparison group or denominator, so it cannot show that exposure is more common in cases than in others",
+    "A case series is always biased toward the null, so a positive finding must be fabricated",
+    "A case series is limited by reverse causation, since the vaccine was given after the diagnosis"
+   ]
+  },
+  {
+   "id": "med-epi-biostats.l20.q5",
+   "lessonId": "med-epi-biostats.l20",
+   "kind": "mcq",
+   "prompt": "A 64-year-old patient asks whether an established procedure that has been standard for 20 years should be doubted after a new sham-controlled trial found no benefit. What is the best framing?",
+   "choices": [
+    "The practice must be abandoned immediately, because any single trial is conclusive",
+    "Long-standing practice is evidence in itself, so one sham-controlled trial can be set aside",
+    "Reversal is common when practice rests on weak evidence, so a well-designed sham trial deserves serious weight",
+    "The new trial is invalid, because sham procedures cannot be used in surgery research"
+   ]
+  }
+ ]
+}

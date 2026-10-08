@@ -1,0 +1,749 @@
+{
+ "courseId": "lab-environment",
+ "label": "Environment",
+ "lessons": [
+  {
+   "id": "lab-environment.l01",
+   "title": "Nature as One Connected System",
+   "body": [
+    "Environmental science begins with the idea that nature is connected. Alexander von Humboldt, travelling through the Americas around 1800, noticed that climate, altitude and vegetation line up in belts, and that cutting forests changes local climate. He treated nature as a single web rather than a list of separate species.",
+    "In 1935 the botanist Arthur Tansley coined the word ecosystem for a community of organisms together with the physical environment they interact with. Eugene Odum later made the ecosystem the central unit of ecology and studied how energy flows and nutrients cycle through it. Vladimir Vernadsky took a still wider view. He described the biosphere as the thin global zone of life, and argued that life is a geological force that shapes the atmosphere, oceans and rocks.",
+    "A simple example is a pond. Its water chemistry, sunlight, algae, insects, fish and bacteria all affect each other. If you change one part, such as adding fertiliser, the effects spread to the others. Seeing these links is the foundation for understanding climate, pollution and conservation."
+   ]
+  },
+  {
+   "id": "lab-environment.l02",
+   "title": "Energy Flow and Food Webs",
+   "body": [
+    "Almost all ecosystems run on sunlight. Producers such as plants and algae capture it by photosynthesis. Herbivores eat the producers, carnivores eat the herbivores, and decomposers break down dead material and return nutrients to the soil and water. Each feeding stage is a trophic level.",
+    "Energy is lost at every step, mostly as heat from the organisms' own metabolism. Only about 10 percent is passed on to the next level, so roughly 90 percent is lost. If grass fixes 10 000 kilojoules of energy, herbivores might hold about 1000 and carnivores about 100. This is why food chains are short, and why there are fewer top predators than prey. Raymond Lindeman's 1942 work quantified these energy transfers.",
+    "Nutrients behave differently from energy: atoms of carbon, nitrogen and phosphorus are recycled by decomposers rather than lost. Top predators can have a large influence on the whole system. When wolves were reintroduced to Yellowstone in 1995, elk behaviour and numbers changed, vegetation recovered along streams, and even rivers were affected. This chain of effects is called a trophic cascade."
+   ]
+  },
+  {
+   "id": "lab-environment.l03",
+   "title": "Population Growth and Limits",
+   "body": [
+    "A population with unlimited resources grows exponentially, but resources are never unlimited. The logistic model describes this: dN/dt = r N (1 - N / K). N is the population size, r is the intrinsic growth rate and K is the carrying capacity, the number the environment can sustain. When N is small, growth is almost exponential. As N approaches K the factor (1 - N / K) shrinks toward zero and growth stops. If N is above K the population declines.",
+    "Suppose r = 0.5 per year, K = 1000 and N = 500. Then dN/dt = 0.5 times 500 times (1 - 0.5) = 125 individuals per year. Growth is fastest at about half the carrying capacity.",
+    "A related idea applies to the spread of an infection or an invasive species. In the SIR model, individuals are susceptible, infected or recovered. The basic reproduction number is R0 = beta / gamma, where beta is the transmission rate and gamma is the recovery rate. If R0 is above 1 an outbreak grows, and if it is below 1 it dies out. With beta = 0.6 and gamma = 0.2, R0 = 3."
+   ]
+  },
+  {
+   "id": "lab-environment.l04",
+   "title": "Discovering the Greenhouse Effect",
+   "body": [
+    "Earth's average surface temperature is about plus 15 degrees Celsius. Without any greenhouse gases, the same sunlight would leave it near minus 18. The difference is the greenhouse effect. Sunlight passes through the atmosphere and warms the surface, which gives off infrared radiation. Gases such as water vapour, carbon dioxide and methane absorb that infrared and re-emit it in all directions, sending part of it back down.",
+    "The science was worked out step by step. In 1856 Eunice Newton Foote showed that a jar of carbon dioxide in sunlight heated more and cooled more slowly than ordinary air. In 1859 John Tyndall measured precisely how much infrared radiation water vapour and carbon dioxide absorb. In 1896 Svante Arrhenius calculated by hand how much the surface would warm if carbon dioxide levels changed, and linked fossil fuel burning to future warming.",
+    "Greenhouse gases are essential to life, as a planet without them would be frozen. The concern today is that people are adding to them. Later satellite measurements, such as those reported by Harries and colleagues in 2001, directly observed the greenhouse fingerprint in the radiation escaping to space growing stronger."
+   ]
+  },
+  {
+   "id": "lab-environment.l05",
+   "title": "Earth's Energy Balance",
+   "body": [
+    "Every warm object radiates energy. The Stefan-Boltzmann law says the power radiated per square metre is j = sigma T to the fourth power, where T is the absolute temperature in kelvin and sigma is a constant. Because of the fourth power, a small rise in temperature produces a large rise in radiated energy. If the absolute temperature doubles, the radiated power increases by 2 to the fourth, or 16 times.",
+    "A planet reaches balance when it radiates as much energy as it absorbs. Absorbed energy depends on the sunlight S and the albedo, the fraction reflected by clouds, ice and the surface. The equilibrium temperature, T = [S (1 - albedo) / (4 sigma)] to the power 1/4, is the temperature without greenhouse gases. Ice and clouds with high albedo reflect sunlight and cool the planet, while dark oceans and forests absorb more.",
+    "This explains an important feedback. When ice melts, darker water or land is exposed, albedo falls, more sunlight is absorbed, and warming increases. Greenhouse gases do not change the incoming sunlight but alter how easily infrared escapes. Adding carbon dioxide raises the height from which the planet effectively radiates to space, so the surface below must warm to restore balance."
+   ]
+  },
+  {
+   "id": "lab-environment.l06",
+   "title": "The Carbon Cycle",
+   "body": [
+    "Carbon moves among four great reservoirs: the atmosphere, the ocean, the land biosphere and rock. Photosynthesis takes carbon dioxide from the air and respiration returns it, which creates the seasonal sawtooth in the Keeling Curve, the continuous record of atmospheric carbon dioxide that Charles Keeling began at Mauna Loa in 1958. A much slower geological loop of volcanism, weathering and burial operates over millions of years.",
+    "The key issue is rate. Fossil fuels are the remains of plants buried over hundreds of millions of years. Burning them moves that carbon into the atmosphere within decades, much faster than weathering and ocean uptake can remove it. About half of emitted carbon dioxide stays in the air, and the ocean takes up much of the rest.",
+    "We know the extra carbon dioxide is from fossil fuels from several lines of evidence. The Keeling Curve shows the steady rise, and ice cores show present levels are far above the range of the last 800 000 years. The Suess effect, a fall in the carbon-13 to carbon-12 ratio in air, fits carbon from ancient plants, because plants favour the lighter isotope."
+   ]
+  },
+  {
+   "id": "lab-environment.l07",
+   "title": "Radiative Forcing and Climate Change",
+   "body": [
+    "Radiative forcing is the change in Earth's energy balance caused by some factor, measured in watts per square metre. For carbon dioxide it is given by delta F = 5.35 ln(C / C0), where C is the new concentration and C0 the reference. Because the relationship is logarithmic, each doubling of carbon dioxide adds about the same forcing, roughly 3.7 watts per square metre, no matter where you start.",
+    "The global surface has warmed by more than 1 degree Celsius since pre-industrial times. The evidence is consistent across independent datasets such as GISTEMP and HadCRUT, and the IPCC Sixth Assessment Report concludes that warming is unequivocal and caused by human activity. Fingerprints help identify the cause: nights are warming faster than days, and the lower atmosphere warms while the stratosphere cools. That pattern matches greenhouse gases rather than a brighter Sun, which would warm both.",
+    "Warming has other consequences. The Clausius-Clapeyron relation shows that the air can hold about 7 percent more water vapour for each degree Celsius of warming. This intensifies heavy rainfall, and in other regions faster evaporation worsens drought. Past episodes such as the Paleocene-Eocene Thermal Maximum show how carbon-driven warming has affected the planet before."
+   ]
+  },
+  {
+   "id": "lab-environment.l08",
+   "title": "Ocean Acidification",
+   "body": [
+    "The ocean has absorbed roughly a quarter to a third of the carbon dioxide people have emitted. Henry's law explains why: the concentration of a dissolved gas is proportional to its partial pressure, C = kH p. More carbon dioxide in the air means more dissolves in the sea. There it reacts with water to form carbonic acid, which releases hydrogen ions.",
+    "Acidity is measured on the pH scale, pH = minus log10 of the hydrogen ion concentration. The scale is logarithmic, so a drop of 1 pH unit means the hydrogen ion concentration is 10 times higher. The surface ocean has already dropped by about 0.1 pH units since pre-industrial times, which corresponds to roughly a 30 percent increase in acidity. Ocean time-series stations such as Station ALOHA show the decline tracking the rise in carbon dioxide.",
+    "The ocean is not becoming acidic in the sense of being below pH 7; it is becoming less alkaline. The key concern is biological. The extra hydrogen ions reduce the carbonate ions that corals, shellfish and some plankton need to build calcium carbonate skeletons and shells. Laboratory and field experiments show slower calcification in high-CO2 seawater, which threatens marine food webs."
+   ]
+  },
+  {
+   "id": "lab-environment.l09",
+   "title": "The Ozone Layer",
+   "body": [
+    "A layer of ozone in the stratosphere absorbs most of the Sun's harmful ultraviolet radiation, protecting living things from damage to cells and DNA. It is a different issue from the greenhouse effect: ozone depletion concerns the thinning of this shield, not the warming of the climate.",
+    "In the 1970s Mario Molina and Sherwood Rowland, working with ideas from Paul Crutzen's ozone chemistry, showed that chlorofluorocarbons, or CFCs, used in refrigerators and aerosol sprays, are stable enough to drift up to the stratosphere. There, ultraviolet light breaks them apart and the released chlorine destroys ozone in catalytic reactions, so one chlorine atom can destroy many ozone molecules. James Lovelock's electron capture detector had revealed that CFCs were spreading worldwide.",
+    "In 1985 scientists reported the Antarctic ozone hole. Two years later, in 1987, countries agreed the Montreal Protocol to phase out CFCs. It is widely regarded as one of the most successful environmental treaties, and the ozone layer is slowly recovering. It shows that when scientific evidence is clear and alternatives exist, global cooperation can work."
+   ]
+  },
+  {
+   "id": "lab-environment.l10",
+   "title": "Water and Nitrogen Cycles",
+   "body": [
+    "The water cycle moves water through evaporation, condensation, precipitation, runoff and groundwater. It is driven by the Sun and links the ocean, atmosphere and land, and it redistributes heat as water evaporates in one place and condenses in another.",
+    "Nitrogen makes up most of the air, but most organisms cannot use it directly. Certain microbes and lightning convert it into forms such as ammonia and nitrate in a process called fixation. Plants absorb these, animals eat plants, decomposers return nitrogen to the soil, and other bacteria eventually convert it back to nitrogen gas.",
+    "In the early 1900s people learned to make fertiliser industrially, and this approximately doubled the natural flow of fixed nitrogen on land. Much of the excess runs off fields into rivers and coasts. There, it feeds explosive algal growth, and when the algae die, bacteria use up the oxygen in the water as they decompose them. The result is low-oxygen dead zones where fish cannot live. The Hubbard Brook study showed in a whole watershed how disturbing a forest disrupts nutrient cycling. Nutrient flows are one of the planetary boundaries that scientists track."
+   ]
+  },
+  {
+   "id": "lab-environment.l11",
+   "title": "Biodiversity and Habitat Loss",
+   "body": [
+    "Biodiversity is the variety of life at three levels: genetic variation within a species, the number of species in a community, and the range of ecosystems across a landscape. It matters because diverse ecosystems are more productive and more stable. Long-term plots at Cedar Creek showed that more diverse plots produce more and recover better from drought, since if one species struggles, another can take over its role.",
+    "The species-area relationship says that the number of species rises with habitat area according to S = c A to the power z. Suppose z = 0.5. If a forest loses three quarters of its area, so A falls to one quarter, then the number of species falls to 0.25 to the power 0.5, which is one half. Ecologists use this relationship to estimate how many species will be lost when habitat shrinks. The island biogeography work of MacArthur and Wilson also underpins how reserves are designed.",
+    "The main drivers of current losses are habitat loss, climate change, overexploitation and invasive species. The IPBES assessment in 2019 estimated that around one million species face extinction, and the IUCN Red List tracks the status of species. Extinction rates are now far above the natural background rate."
+   ]
+  },
+  {
+   "id": "lab-environment.l12",
+   "title": "The Conservation Movement",
+   "body": [
+    "Scientific understanding became a movement through people who could persuade the public. John Muir campaigned to protect Yosemite and the Sierra, co-founded the Sierra Club, and helped build support for the national park system. Aldo Leopold, a wildlife ecologist, wrote A Sand County Almanac and set out the land ethic: humans should see themselves as members of the ecological community, not as its conquerors.",
+    "In 1962 Rachel Carson published Silent Spring. It documented how synthetic pesticides such as DDT spread through food webs and harm birds and other wildlife. She explained bioaccumulation, in which a persistent chemical becomes more concentrated at each step up the food chain, so that predators carry the highest loads. The book awakened the modern environmental movement and led to tighter regulation of pesticides. The first Earth Day followed in 1970.",
+    "Wangari Maathai of Kenya founded the Green Belt Movement, which has planted tens of millions of trees. She linked restoring the environment with women's rights and democracy, and in 2004 became the first African woman to win the Nobel Peace Prize. These figures show that environmental protection involves ethics, politics and communities as well as science."
+   ]
+  },
+  {
+   "id": "lab-environment.l13",
+   "title": "Planetary Boundaries and the Anthropocene",
+   "body": [
+    "In 2000 the atmospheric chemist Paul Crutzen proposed the name Anthropocene for a proposed geological epoch in which human activity has become the dominant force shaping Earth's climate and ecosystems. The idea reflects measurable changes: altered carbon and nitrogen cycles, a warming climate, and widespread extinctions.",
+    "In 2009 Johan Rockstrom and colleagues introduced the planetary boundaries framework. It identifies nine Earth-system processes that together keep the planet in the stable, Holocene-like state in which agriculture and civilisation developed. These include climate change, biosphere integrity, nutrient flows of nitrogen and phosphorus, land-system change, freshwater use, ocean acidification and novel entities such as synthetic chemicals. For each, the framework proposes a boundary beyond which the risk of abrupt, large-scale change rises sharply. Staying inside all of them defines a safe operating space for humanity.",
+    "The framework has been updated twice, in 2015 and 2023. The 2023 assessment by Richardson and colleagues concluded that six of the nine boundaries had been transgressed. A boundary is not a cliff edge but a zone of growing risk. The framework helps connect separate problems such as climate, biodiversity and pollution into a single picture of planetary health, and it frames the goals of agreements such as the Paris Agreement of 2015."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-environment.l01.q1",
+   "lessonId": "lab-environment.l01",
+   "kind": "mcq",
+   "prompt": "Who coined the term \"ecosystem\" in 1935?",
+   "choices": [
+    "Arthur Tansley",
+    "Rachel Carson",
+    "Aldo Leopold",
+    "John Muir"
+   ]
+  },
+  {
+   "id": "lab-environment.l01.q2",
+   "lessonId": "lab-environment.l01",
+   "kind": "mcq",
+   "prompt": "What is the biosphere?",
+   "choices": [
+    "The layer of rock under the crust",
+    "The upper atmosphere only",
+    "A type of forest",
+    "The thin global zone in which life exists"
+   ]
+  },
+  {
+   "id": "lab-environment.l01.q3",
+   "lessonId": "lab-environment.l01",
+   "kind": "mcq",
+   "prompt": "Fertiliser runs off a farm into a pond. Which statement best reflects the ecosystem view?",
+   "choices": [
+    "Only the algae are affected",
+    "Nothing changes because the pond is separate from the farm",
+    "The effects can spread through the pond's food web and water chemistry",
+    "Only fish are affected"
+   ]
+  },
+  {
+   "id": "lab-environment.l01.q4",
+   "lessonId": "lab-environment.l01",
+   "kind": "mcq",
+   "prompt": "Why was Humboldt's approach to nature considered new?",
+   "choices": [
+    "He only collected specimens",
+    "He treated climate, altitude and life as parts of a single connected web",
+    "He rejected observation",
+    "He studied only plants in one forest"
+   ]
+  },
+  {
+   "id": "lab-environment.l02.q1",
+   "lessonId": "lab-environment.l02",
+   "kind": "mcq",
+   "prompt": "What is the role of decomposers in an ecosystem?",
+   "choices": [
+    "They capture sunlight",
+    "They break down dead material and return nutrients",
+    "They eat only herbivores",
+    "They create energy"
+   ]
+  },
+  {
+   "id": "lab-environment.l02.q2",
+   "lessonId": "lab-environment.l02",
+   "kind": "mcq",
+   "prompt": "Roughly what fraction of energy is lost at each trophic step?",
+   "choices": [
+    "About 90 percent",
+    "About 10 percent",
+    "About 50 percent",
+    "None"
+   ]
+  },
+  {
+   "id": "lab-environment.l02.q3",
+   "lessonId": "lab-environment.l02",
+   "kind": "mcq",
+   "prompt": "Producers in a meadow fix 20 000 kJ of energy. Using the 10 percent rule, about how much reaches the secondary consumers (carnivores that eat herbivores)?",
+   "choices": [
+    "2000 kJ",
+    "20 kJ",
+    "10 000 kJ",
+    "200 kJ"
+   ]
+  },
+  {
+   "id": "lab-environment.l02.q4",
+   "lessonId": "lab-environment.l02",
+   "kind": "mcq",
+   "prompt": "Why are there so few top predators compared with herbivores?",
+   "choices": [
+    "Predators eat only plants",
+    "Herbivores are larger",
+    "Energy is lost at each level, leaving little to support the top",
+    "Predators live forever"
+   ]
+  },
+  {
+   "id": "lab-environment.l03.q1",
+   "lessonId": "lab-environment.l03",
+   "kind": "mcq",
+   "prompt": "What does carrying capacity (K) represent?",
+   "choices": [
+    "The speed of growth",
+    "The number of births per year",
+    "The maximum population the environment can sustain",
+    "The smallest viable population"
+   ]
+  },
+  {
+   "id": "lab-environment.l03.q2",
+   "lessonId": "lab-environment.l03",
+   "kind": "mcq",
+   "prompt": "An outbreak will grow if the basic reproduction number R0 is...",
+   "choices": [
+    "Less than 1",
+    "Greater than 1",
+    "Equal to 0",
+    "Negative"
+   ]
+  },
+  {
+   "id": "lab-environment.l03.q3",
+   "lessonId": "lab-environment.l03",
+   "kind": "mcq",
+   "prompt": "Using dN/dt = r N (1 - N/K) with r = 0.2 per year, N = 400 and K = 800, what is the population growth per year?",
+   "choices": [
+    "40",
+    "20",
+    "80",
+    "160"
+   ]
+  },
+  {
+   "id": "lab-environment.l03.q4",
+   "lessonId": "lab-environment.l03",
+   "kind": "mcq",
+   "prompt": "Why does logistic growth slow down as N approaches K?",
+   "choices": [
+    "The growth rate r becomes negative",
+    "Births stop completely at small N",
+    "Predators always appear",
+    "Resources become limiting, shrinking the factor (1 - N/K) toward zero"
+   ]
+  },
+  {
+   "id": "lab-environment.l04.q1",
+   "lessonId": "lab-environment.l04",
+   "kind": "mcq",
+   "prompt": "Who first showed in 1856 that carbon dioxide traps heat from sunlight?",
+   "choices": [
+    "Charles Keeling",
+    "Mario Molina",
+    "Rachel Carson",
+    "Eunice Newton Foote"
+   ]
+  },
+  {
+   "id": "lab-environment.l04.q2",
+   "lessonId": "lab-environment.l04",
+   "kind": "mcq",
+   "prompt": "Which pair of numbers describes Earth's average surface temperature with and without the natural greenhouse effect?",
+   "choices": [
+    "About +30 C and 0 C",
+    "About +5 C and -50 C",
+    "About +15 C and -18 C",
+    "About +15 C and +10 C"
+   ]
+  },
+  {
+   "id": "lab-environment.l04.q3",
+   "lessonId": "lab-environment.l04",
+   "kind": "mcq",
+   "prompt": "Which gas is NOT a significant greenhouse gas?",
+   "choices": [
+    "Water vapour",
+    "Molecular nitrogen",
+    "Methane",
+    "Carbon dioxide"
+   ]
+  },
+  {
+   "id": "lab-environment.l04.q4",
+   "lessonId": "lab-environment.l04",
+   "kind": "mcq",
+   "prompt": "Why do greenhouse gases warm the surface even though they do not add heat from the Sun?",
+   "choices": [
+    "They absorb outgoing infrared and re-emit part of it downward",
+    "They reflect all sunlight",
+    "They make the Sun brighter",
+    "They produce heat chemically"
+   ]
+  },
+  {
+   "id": "lab-environment.l05.q1",
+   "lessonId": "lab-environment.l05",
+   "kind": "mcq",
+   "prompt": "According to the Stefan-Boltzmann law, radiated power per area is proportional to what?",
+   "choices": [
+    "The fourth power of absolute temperature",
+    "The temperature",
+    "The square of temperature",
+    "The inverse of temperature"
+   ]
+  },
+  {
+   "id": "lab-environment.l05.q2",
+   "lessonId": "lab-environment.l05",
+   "kind": "mcq",
+   "prompt": "What is albedo?",
+   "choices": [
+    "The fraction of heat radiated",
+    "The amount of CO2",
+    "The tilt of Earth's axis",
+    "The fraction of incoming sunlight reflected by a surface"
+   ]
+  },
+  {
+   "id": "lab-environment.l05.q3",
+   "lessonId": "lab-environment.l05",
+   "kind": "mcq",
+   "prompt": "A surface's absolute temperature rises from 200 K to 400 K. By what factor does its radiated power per area increase?",
+   "choices": [
+    "2",
+    "4",
+    "16",
+    "8"
+   ]
+  },
+  {
+   "id": "lab-environment.l05.q4",
+   "lessonId": "lab-environment.l05",
+   "kind": "mcq",
+   "prompt": "Why does melting sea ice amplify warming?",
+   "choices": [
+    "Water is cooler than ice",
+    "Dark open water absorbs more sunlight than reflective ice, so albedo falls",
+    "Ice creates greenhouse gases",
+    "Melting absorbs all infrared"
+   ]
+  },
+  {
+   "id": "lab-environment.l06.q1",
+   "lessonId": "lab-environment.l06",
+   "kind": "mcq",
+   "prompt": "Where did Charles Keeling begin measuring atmospheric CO2 in 1958?",
+   "choices": [
+    "Antarctica",
+    "Mauna Loa, Hawaii",
+    "London",
+    "The Amazon"
+   ]
+  },
+  {
+   "id": "lab-environment.l06.q2",
+   "lessonId": "lab-environment.l06",
+   "kind": "mcq",
+   "prompt": "Which process removes CO2 from the air on a seasonal cycle?",
+   "choices": [
+    "Photosynthesis",
+    "Volcanic eruptions",
+    "Fossil fuel burning",
+    "Rock formation"
+   ]
+  },
+  {
+   "id": "lab-environment.l06.q3",
+   "lessonId": "lab-environment.l06",
+   "kind": "mcq",
+   "prompt": "Humans emit 40 units of CO2 in a year and about half stays in the atmosphere. How many units remain airborne?",
+   "choices": [
+    "4",
+    "10",
+    "40",
+    "20"
+   ]
+  },
+  {
+   "id": "lab-environment.l06.q4",
+   "lessonId": "lab-environment.l06",
+   "kind": "mcq",
+   "prompt": "Why is the rate of emissions, not just the amount, the central problem?",
+   "choices": [
+    "Carbon is destroyed when burned",
+    "The ocean cannot absorb any CO2",
+    "Natural removal processes are far slower than the release of carbon buried for millions of years",
+    "CO2 stays in the air for only a day"
+   ]
+  },
+  {
+   "id": "lab-environment.l07.q1",
+   "lessonId": "lab-environment.l07",
+   "kind": "mcq",
+   "prompt": "How does CO2 radiative forcing change with concentration?",
+   "choices": [
+    "It is proportional to concentration",
+    "It does not change",
+    "It grows with the logarithm of concentration",
+    "It falls as concentration rises"
+   ]
+  },
+  {
+   "id": "lab-environment.l07.q2",
+   "lessonId": "lab-environment.l07",
+   "kind": "mcq",
+   "prompt": "About how much more water vapour can air hold per degree Celsius of warming?",
+   "choices": [
+    "About 0.7 percent",
+    "About 7 percent",
+    "About 70 percent",
+    "None"
+   ]
+  },
+  {
+   "id": "lab-environment.l07.q3",
+   "lessonId": "lab-environment.l07",
+   "kind": "mcq",
+   "prompt": "CO2 rises from 280 ppm to 560 ppm, giving a forcing of about 3.7 W/m2. What further rise gives roughly the same extra forcing?",
+   "choices": [
+    "560 to 1120 ppm",
+    "560 to 840 ppm",
+    "560 to 700 ppm",
+    "560 to 620 ppm"
+   ]
+  },
+  {
+   "id": "lab-environment.l07.q4",
+   "lessonId": "lab-environment.l07",
+   "kind": "mcq",
+   "prompt": "Observations show the lower atmosphere warming while the stratosphere cools. Why does this point to greenhouse gases rather than a brighter Sun?",
+   "choices": [
+    "The stratosphere is unaffected by gases",
+    "A brighter Sun would cool the surface",
+    "Cooling is always caused by gases",
+    "A brighter Sun would warm both layers, whereas greenhouse gases trap heat below"
+   ]
+  },
+  {
+   "id": "lab-environment.l08.q1",
+   "lessonId": "lab-environment.l08",
+   "kind": "mcq",
+   "prompt": "What does Henry's law say about dissolved gas?",
+   "choices": [
+    "It does not depend on pressure",
+    "Gases never dissolve in water",
+    "Solubility falls with pressure",
+    "Its concentration in water is proportional to its partial pressure"
+   ]
+  },
+  {
+   "id": "lab-environment.l08.q2",
+   "lessonId": "lab-environment.l08",
+   "kind": "mcq",
+   "prompt": "Which marine organisms are most directly threatened by ocean acidification?",
+   "choices": [
+    "Whales only",
+    "Seaweed only",
+    "Corals and shellfish that build calcium carbonate shells",
+    "Deep-sea fish with no shells"
+   ]
+  },
+  {
+   "id": "lab-environment.l08.q3",
+   "lessonId": "lab-environment.l08",
+   "kind": "mcq",
+   "prompt": "Seawater pH falls from 8.1 to 7.1. How does the hydrogen ion concentration change?",
+   "choices": [
+    "It doubles",
+    "It rises tenfold",
+    "It rises 100-fold",
+    "It falls by one tenth"
+   ]
+  },
+  {
+   "id": "lab-environment.l08.q4",
+   "lessonId": "lab-environment.l08",
+   "kind": "mcq",
+   "prompt": "A drop of only 0.1 pH units sounds small. Why does it correspond to a notable increase of about 30 percent in acidity?",
+   "choices": [
+    "pH is a logarithmic scale, so small changes mean large percentage changes",
+    "pH units are all very large",
+    "The ocean is a strong acid",
+    "The 0.1 is multiplied by 100"
+   ]
+  },
+  {
+   "id": "lab-environment.l09.q1",
+   "lessonId": "lab-environment.l09",
+   "kind": "mcq",
+   "prompt": "What does the stratospheric ozone layer do?",
+   "choices": [
+    "Absorbs harmful ultraviolet radiation",
+    "Traps infrared to warm the surface",
+    "Produces oxygen",
+    "Reflects radio waves"
+   ]
+  },
+  {
+   "id": "lab-environment.l09.q2",
+   "lessonId": "lab-environment.l09",
+   "kind": "mcq",
+   "prompt": "Which agreement phased out CFCs?",
+   "choices": [
+    "The Kyoto Protocol",
+    "The Paris Agreement",
+    "The Rio Declaration",
+    "The Montreal Protocol"
+   ]
+  },
+  {
+   "id": "lab-environment.l09.q3",
+   "lessonId": "lab-environment.l09",
+   "kind": "mcq",
+   "prompt": "Which chemicals did Molina and colleagues identify as destroying stratospheric ozone?",
+   "choices": [
+    "Carbon dioxide",
+    "Methane",
+    "Chlorofluorocarbons",
+    "Nitrogen"
+   ]
+  },
+  {
+   "id": "lab-environment.l09.q4",
+   "lessonId": "lab-environment.l09",
+   "kind": "mcq",
+   "prompt": "Why can a small amount of CFC cause large ozone loss?",
+   "choices": [
+    "Each CFC molecule is huge",
+    "Chlorine acts as a catalyst, destroying many ozone molecules before being removed",
+    "CFCs are used up in a single reaction with ozone",
+    "Ozone is very rare"
+   ]
+  },
+  {
+   "id": "lab-environment.l10.q1",
+   "lessonId": "lab-environment.l10",
+   "kind": "mcq",
+   "prompt": "What is nitrogen fixation?",
+   "choices": [
+    "Burying nitrogen in rock",
+    "Converting nitrogen gas into forms such as ammonia that organisms can use",
+    "Releasing nitrogen from the ocean",
+    "Melting nitrogen"
+   ]
+  },
+  {
+   "id": "lab-environment.l10.q2",
+   "lessonId": "lab-environment.l10",
+   "kind": "mcq",
+   "prompt": "What drives the water cycle?",
+   "choices": [
+    "Energy from the Sun",
+    "The Moon alone",
+    "Volcanoes",
+    "Earth's magnetic field"
+   ]
+  },
+  {
+   "id": "lab-environment.l10.q3",
+   "lessonId": "lab-environment.l10",
+   "kind": "mcq",
+   "prompt": "Which outcome is a typical result of fertiliser runoff into coastal waters?",
+   "choices": [
+    "Clearer water",
+    "Higher oxygen levels at depth",
+    "More coral growth",
+    "Algal blooms followed by low-oxygen dead zones"
+   ]
+  },
+  {
+   "id": "lab-environment.l10.q4",
+   "lessonId": "lab-environment.l10",
+   "kind": "mcq",
+   "prompt": "Industrial fertiliser has roughly doubled natural nitrogen fixation on land. Why is that an environmental concern?",
+   "choices": [
+    "Nitrogen is poisonous in the air",
+    "It reduces the amount of sunlight",
+    "The excess flows into waterways and disrupts ecosystems far from the fields",
+    "It makes the ocean more salty"
+   ]
+  },
+  {
+   "id": "lab-environment.l11.q1",
+   "lessonId": "lab-environment.l11",
+   "kind": "mcq",
+   "prompt": "Which of these is one of the three levels of biodiversity?",
+   "choices": [
+    "Diversity of rocks",
+    "Diversity of stars",
+    "Genetic diversity within a species",
+    "Diversity of cities"
+   ]
+  },
+  {
+   "id": "lab-environment.l11.q2",
+   "lessonId": "lab-environment.l11",
+   "kind": "mcq",
+   "prompt": "About how many species did the 2019 IPBES assessment estimate face extinction?",
+   "choices": [
+    "About one thousand",
+    "About one million",
+    "About one hundred thousand",
+    "About one billion"
+   ]
+  },
+  {
+   "id": "lab-environment.l11.q3",
+   "lessonId": "lab-environment.l11",
+   "kind": "mcq",
+   "prompt": "Using S = c A^z with z = 0.5, what happens to the number of species if habitat area falls to one quarter?",
+   "choices": [
+    "It falls to one half",
+    "It falls to one quarter",
+    "It stays the same",
+    "It falls to one eighth"
+   ]
+  },
+  {
+   "id": "lab-environment.l11.q4",
+   "lessonId": "lab-environment.l11",
+   "kind": "mcq",
+   "prompt": "Why do diverse ecosystems tend to be more stable?",
+   "choices": [
+    "Diverse systems never change",
+    "Every species does the same job",
+    "They have fewer interactions",
+    "If one species fails, others can fill its functional role"
+   ]
+  },
+  {
+   "id": "lab-environment.l12.q1",
+   "lessonId": "lab-environment.l12",
+   "kind": "mcq",
+   "prompt": "Which book by Rachel Carson exposed the effects of synthetic pesticides?",
+   "choices": [
+    "A Sand County Almanac",
+    "Kosmos",
+    "The Biosphere",
+    "Silent Spring"
+   ]
+  },
+  {
+   "id": "lab-environment.l12.q2",
+   "lessonId": "lab-environment.l12",
+   "kind": "mcq",
+   "prompt": "Who founded the Green Belt Movement?",
+   "choices": [
+    "Rachel Carson",
+    "John Muir",
+    "Wangari Maathai",
+    "Aldo Leopold"
+   ]
+  },
+  {
+   "id": "lab-environment.l12.q3",
+   "lessonId": "lab-environment.l12",
+   "kind": "mcq",
+   "prompt": "A pesticide becomes more concentrated at each step up a food chain. What is this process called?",
+   "choices": [
+    "Photosynthesis",
+    "Bioaccumulation",
+    "Nitrogen fixation",
+    "Succession"
+   ]
+  },
+  {
+   "id": "lab-environment.l12.q4",
+   "lessonId": "lab-environment.l12",
+   "kind": "mcq",
+   "prompt": "What was the central idea of Aldo Leopold's land ethic?",
+   "choices": [
+    "People are members of an ecological community, with responsibilities to it",
+    "Land should be used only for farming",
+    "Wilderness has no value",
+    "Nature should be controlled by humans"
+   ]
+  },
+  {
+   "id": "lab-environment.l13.q1",
+   "lessonId": "lab-environment.l13",
+   "kind": "mcq",
+   "prompt": "How many Earth-system processes are in the planetary boundaries framework?",
+   "choices": [
+    "Nine",
+    "Three",
+    "Five",
+    "Twenty"
+   ]
+  },
+  {
+   "id": "lab-environment.l13.q2",
+   "lessonId": "lab-environment.l13",
+   "kind": "mcq",
+   "prompt": "Who popularised the term \"Anthropocene\"?",
+   "choices": [
+    "Charles Keeling",
+    "Aldo Leopold",
+    "Svante Arrhenius",
+    "Paul Crutzen"
+   ]
+  },
+  {
+   "id": "lab-environment.l13.q3",
+   "lessonId": "lab-environment.l13",
+   "kind": "mcq",
+   "prompt": "According to the 2023 assessment by Richardson and colleagues, how many of the nine boundaries had been transgressed?",
+   "choices": [
+    "One",
+    "Three",
+    "Six",
+    "Nine"
+   ]
+  },
+  {
+   "id": "lab-environment.l13.q4",
+   "lessonId": "lab-environment.l13",
+   "kind": "mcq",
+   "prompt": "What does it mean for a boundary to define a \"safe operating space\"?",
+   "choices": [
+    "It is an exact cliff where disaster happens immediately",
+    "Beyond it the risk of abrupt, large-scale change rises sharply",
+    "It is a legal limit",
+    "It is a limit only for one country"
+   ]
+  }
+ ]
+}

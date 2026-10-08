@@ -1,0 +1,2129 @@
+{
+ "courseId": "med-path",
+ "label": "Pathology",
+ "lessons": [
+  {
+   "id": "med-path.l01",
+   "title": "Cellular Adaptation and Reversible Injury",
+   "body": [
+    "Cells constantly adjust to their environment. When a stress is within the cell's capacity it adapts; when the stress is too severe or too prolonged the cell is injured, and if injury passes a threshold it dies. Pathology begins with this spectrum. The four classic adaptations are hypertrophy, hyperplasia, atrophy and metaplasia.",
+    "Hypertrophy is an increase in cell size, and therefore organ size, from more structural proteins and organelles. It occurs in cells that cannot divide enough to respond, such as cardiac and skeletal muscle. Pressure overload from hypertension drives concentric left ventricular hypertrophy through mechanical stretch and trophic signals. Hyperplasia is an increase in cell number and needs a population able to divide; the pregnant uterus shows both, and endometrial hyperplasia from unopposed oestrogen shows the pathological version, which can progress to carcinoma. Atrophy is shrinkage from reduced synthesis and increased protein degradation by the ubiquitin-proteasome pathway and autophagy, seen with disuse, denervation, ischaemia and ageing. Metaplasia is the replacement of one mature cell type by another, usually in response to chronic irritation. Cigarette smoke turns respiratory columnar epithelium into squamous epithelium, and chronic reflux turns oesophageal squamous epithelium into intestinal-type columnar epithelium (Barrett oesophagus). The change is reversible if the stimulus is removed, but persistent metaplasia is a field in which dysplasia and cancer can arise. Metaplasia arises by reprogramming of stem cells, not by transformation of mature cells.",
+    "Injury begins when the cell cannot maintain energy or membrane integrity. The main mechanisms are ATP depletion, mitochondrial damage, loss of calcium homeostasis, reactive oxygen species, and membrane damage. When oxygen is lost, oxidative phosphorylation fails and the Na+/K+ pump slows, so sodium and water enter and the cell swells. Anaerobic glycolysis lowers pH and clumps nuclear chromatin. Cellular swelling and fatty change are the typical reversible findings.",
+    "The point of no return is marked by irreversible mitochondrial dysfunction and profound membrane damage. Leakage of intracellular enzymes into the blood, such as troponin from myocytes and transaminases from hepatocytes, signals that cells have died. A worked example: a smoker's bronchial biopsy shows stratified squamous epithelium where ciliated columnar cells should be. That is metaplasia, an adaptive change that trades the mucociliary escalator for a tougher surface and removes the lung's defence. Atrophy, by contrast, would show smaller cells of the same type, and hyperplasia more cells of the same type, so naming the change always starts with asking what cell type is present and how many there are."
+   ]
+  },
+  {
+   "id": "med-path.l02",
+   "title": "Necrosis, Apoptosis and Other Forms of Cell Death",
+   "body": [
+    "Necrosis is uncontrolled cell death after injury, with membrane rupture, enzymatic digestion and a local inflammatory reaction. Apoptosis is regulated, energy-requiring cell suicide without leakage of contents, so it does not trigger inflammation. Apoptotic cells shrink and show intense eosinophilia and nuclear condensation (pyknosis) and fragmentation; they are cleared by phagocytes.",
+    "Necrosis has recognisable patterns. Coagulative necrosis preserves the tissue outline for days because injury denatures structural proteins as well as enzymes; it is typical of ischaemic infarcts in solid organs such as heart, kidney and spleen. The brain is the notable exception: liquefactive necrosis occurs because neurons and glia are rich in lytic enzymes and low in structural protein, and abscesses of any organ also liquefy because neutrophil enzymes digest the tissue. Caseous necrosis is a cheesy, granular amorphous debris surrounded by a granulomatous rim, typical of tuberculosis. Fat necrosis follows pancreatitis or breast trauma, when lipases split triglycerides, and the fatty acids bind calcium to form chalky soaps. Fibrinoid necrosis shows deposits of immune complexes and fibrin in vessel walls, as in vasculitis and malignant hypertension. Gangrenous necrosis is a clinical term, dry when coagulative and wet when bacterial superinfection adds liquefaction.",
+    "Apoptosis is used in embryogenesis, in deleting self-reactive lymphocytes and in removing cells with irreparable DNA damage. The intrinsic (mitochondrial) pathway is controlled by the BCL2 family: when growth factors are absent or DNA damage is sensed, pro-apoptotic BAX and BAK permeabilise the mitochondrial membrane, cytochrome c escapes and activates caspase 9 through the apoptosome. BCL2 and BCL-XL prevent this, so BCL2 overexpression from the t(14;18) translocation in follicular lymphoma blocks cell death. The extrinsic pathway begins when ligands such as FasL or TNF engage death receptors, recruiting adaptor proteins that activate caspase 8. Both pathways converge on executioner caspases (3 and 6), which cleave cellular proteins and activate DNases.",
+    "Free radicals, such as superoxide, hydrogen peroxide and the hydroxyl radical, injure cells by lipid peroxidation, protein damage and DNA damage. They are removed by superoxide dismutase, catalase and glutathione peroxidase, and by antioxidants such as vitamins E and C. Reperfusion injury occurs when blood returns to ischaemic tissue and delivers oxygen that fuels a burst of radicals, calcium overload and inflammation, so the tissue can look worse after reperfusion. A worked example: a liver sample from an acetaminophen overdose shows centrilobular necrosis because zone 3 hepatocytes make the toxic metabolite NAPQI; glutathione depletion allows it to damage proteins."
+   ]
+  },
+  {
+   "id": "med-path.l03",
+   "title": "Acute and Chronic Inflammation",
+   "body": [
+    "Inflammation is the host response that delivers plasma proteins and leukocytes to a site of infection or injury. Acute inflammation is rapid, lasts minutes to days and is dominated by neutrophils. The cardinal signs are rubor, calor, tumor, dolor and loss of function, which come from vasodilation, increased vascular permeability and leukocyte recruitment.",
+    "The vascular phase begins with arteriolar dilation from histamine and prostaglandins, which increases blood flow, then increased permeability from endothelial contraction that lets protein-rich fluid leak and forms an exudate, in contrast to a low-protein transudate caused by hydrostatic or oncotic imbalance. In the cellular phase, leukocytes marginate, roll along the endothelium on selectins (P-selectin and E-selectin), adhere firmly through integrins binding ICAM-1, and then migrate between cells (diapedesis) along chemokine gradients. Cytokines such as TNF and IL-1 upregulate the adhesion molecules. In leukocyte adhesion deficiency type 1, a CD18 integrin defect prevents firm adhesion, so neutrophils accumulate in the blood, wounds do not form pus and the umbilical cord stump separates late.",
+    "Once at the site, neutrophils recognise microbes, phagocytose them in a phagosome and kill by reactive oxygen species made by NADPH oxidase and myeloperoxidase. Chronic granulomatous disease is a defect of NADPH oxidase, so catalase-positive organisms such as Staphylococcus aureus survive, and the nitroblue tetrazolium or dihydrorhodamine test is abnormal. Mediators include histamine, prostaglandins and leukotrienes from arachidonic acid, the complement cascade (C3a and C5a cause permeability and chemotaxis, C3b opsonises, the C5b-9 complex lyses), and the kinin system. Systemic effects, led by IL-1, IL-6 and TNF, produce fever through prostaglandin E2 in the hypothalamus and induce hepatic acute-phase proteins such as C-reactive protein and fibrinogen. Outcomes of acute inflammation are resolution, scarring, abscess formation or progression to chronicity.",
+    "Chronic inflammation lasts weeks or longer and is dominated by macrophages, lymphocytes and plasma cells, with tissue destruction and attempts at repair by fibrosis and angiogenesis. A granuloma is an aggregate of activated macrophages (epithelioid histiocytes) with giant cells, formed when T-helper 1 cells release interferon gamma that activates macrophages. Causes include tuberculosis, fungal infection, sarcoidosis and Crohn disease. A worked example: a ten-day-old abscess has a necrotic centre of neutrophils, but its capsule of fibroblasts shows the transition to repair. Acute-phase proteins and a raised white cell count would accompany it, and the shift from neutrophils to macrophages and lymphocytes in the wall is how a pathologist dates the lesion."
+   ]
+  },
+  {
+   "id": "med-path.l04",
+   "title": "Tissue Repair, Healing and Fibrosis",
+   "body": [
+    "Repair restores tissue after injury by regeneration, which replaces lost cells with the same type, or by scarring, which replaces them with connective tissue. Regeneration depends on the tissue's proliferative capacity. Labile tissues such as the epidermis, gut mucosa and bone marrow divide continuously from stem cells. Stable tissues, such as liver, kidney and endothelium, are quiescent but can enter the cell cycle after injury. Permanent tissues, such as neurons and cardiac myocytes, cannot meaningfully regenerate, so infarcts heal by scar. Regeneration also needs an intact connective tissue scaffold; if the basement membrane is destroyed, scarring is more likely.",
+    "The healing of a skin wound proceeds in overlapping phases. Haemostasis and inflammation come first: platelets form a plug and release growth factors, and neutrophils arrive within hours and macrophages by about two days to clear debris. Proliferation follows over days: granulation tissue, a pink, soft, granular tissue of new capillaries (angiogenesis driven by VEGF), fibroblasts and loose matrix, fills the defect, and epithelium migrates across it. Remodelling follows for weeks to months: type III collagen is replaced by stronger type I collagen cross-linked by lysyl oxidase, and wound strength rises toward about 70 to 80 percent of normal skin at best. Myofibroblasts, which express smooth muscle actin, cause contraction. Healing by first intention occurs with clean, approximated edges and little granulation; healing by second intention occurs in a large defect with much granulation and contraction.",
+    "Several things go wrong. Infection, diabetes, ischaemia, malnutrition, glucocorticoids and foreign bodies delay healing. Vitamin C is required for hydroxylation of proline and lysine in collagen, so scurvy causes poor healing and perifollicular haemorrhage; copper is needed for lysyl oxidase and zinc for many enzymes. Excess matrix produces a hypertrophic scar, confined to the wound edges, or a keloid, which grows beyond the original wound, is more common in people with darker skin and is rich in thick type I and III collagen. Excess granulation tissue (proud flesh) can block re-epithelialisation. Dehiscence of a surgical wound occurs when strength is lacking.",
+    "A worked example: a person with poorly controlled diabetes has a foot ulcer that has not closed in six weeks. Contributing factors include microvascular disease limiting oxygen, neuropathy that hides repeated trauma, and impaired leukocyte function. In the liver, persistent injury from hepatitis or alcohol activates stellate cells into collagen-producing myofibroblasts, which is how a repair response becomes cirrhosis."
+   ]
+  },
+  {
+   "id": "med-path.l05",
+   "title": "Edema, Hyperemia and Hemostasis",
+   "body": [
+    "Edema is excess fluid in the interstitial space. Fluid movement across capillaries follows Starling forces: hydrostatic pressure pushes fluid out, plasma oncotic pressure (mostly from albumin) holds it in, and lymphatics return what remains. Edema develops when hydrostatic pressure rises, oncotic pressure falls, lymphatics are blocked, sodium and water are retained, or the endothelium becomes leaky. Right heart failure raises venous pressure and causes dependent peripheral edema. Nephrotic syndrome and cirrhosis lower albumin and cause edema through low oncotic pressure. Lymphatic obstruction after axillary dissection, or filariasis, causes lymphedema. Inflammation causes edema by raising permeability. In heart failure and renal failure, reduced effective circulating volume activates the renin-angiotensin-aldosterone system, and sodium retention then worsens the edema.",
+    "Hyperemia is active, arteriolar dilation with increased flow, which makes tissue red and warm, as in exercise or inflammation. Congestion is passive, caused by impaired venous outflow, and makes tissue blue and cool from deoxygenated blood. Chronic left heart failure produces pulmonary congestion with hemosiderin-laden macrophages, called heart failure cells. Chronic right heart failure produces hepatic congestion with a nutmeg liver, where dark centrilobular regions alternate with paler tissue, and prolonged congestion can cause centrilobular necrosis and fibrosis.",
+    "Hemorrhage is bleeding from a vessel. Terms that describe size include petechiae (pinpoint, under 3 mm), purpura (larger) and ecchymosis (bruise). Petechiae and mucosal bleeding point to a platelet or small-vessel problem, while deep hematomas and hemarthrosis point to a coagulation factor problem such as hemophilia.",
+    "Hemostasis has stages. Vascular injury causes vasoconstriction and exposes subendothelial collagen and von Willebrand factor. Platelets adhere through glycoprotein Ib binding von Willebrand factor, are activated, change shape, and aggregate through glycoprotein IIb/IIIa cross-linked by fibrinogen to form the primary plug. The coagulation cascade then generates thrombin, which converts fibrinogen to fibrin and stabilises the plug. Tissue factor from damaged tissue starts the extrinsic pathway, measured by the prothrombin time, whereas the intrinsic pathway is measured by the activated partial thromboplastin time. Counterbalancing mechanisms include antithrombin, protein C and S, tissue factor pathway inhibitor and fibrinolysis by plasmin, which is generated by tissue plasminogen activator and measured by D-dimer when it degrades cross-linked fibrin.",
+    "A worked example: a patient with severe sepsis develops bleeding from venipuncture sites, a prolonged prothrombin time, low platelets and high D-dimer. This is disseminated intravascular coagulation, where widespread activation of coagulation forms microthrombi that consume platelets and factors, producing bleeding and ischemic injury at once."
+   ]
+  },
+  {
+   "id": "med-path.l06",
+   "title": "Thrombosis, Embolism, Infarction and Shock",
+   "body": [
+    "Thrombosis is the formation of a blood clot within an intact vessel in life. Virchow triad names three drivers: endothelial injury, abnormal blood flow (stasis or turbulence) and hypercoagulability. Endothelial injury is the main driver in arterial thrombi, as over a ruptured atherosclerotic plaque; stasis is the main driver in venous thrombi and in the left atrium during atrial fibrillation. Inherited hypercoagulable states include factor V Leiden, a mutation that makes factor V resistant to inactivation by activated protein C, and the prothrombin G20210A variant. Acquired causes include cancer, pregnancy, prolonged immobilisation, nephrotic syndrome through antithrombin loss, and antiphospholipid syndrome. Heparin-induced thrombocytopenia is a paradoxical prothrombotic state caused by antibodies against platelet factor 4 complexes.",
+    "Arterial thrombi are often pale, grey and attached to the wall, and show lines of Zahn, alternating pale platelet and fibrin layers and darker red cell layers, which indicate that the clot formed in flowing blood. Venous thrombi, called red thrombi or phlebothrombosis, form in slow flow and contain more red cells. Thrombi can propagate, embolise, dissolve, organise or recanalise. Postmortem clots lack the lines of Zahn and are gelatinous.",
+    "An embolus is a mass that travels in the blood to a distant site. Most are thromboemboli. A deep leg vein clot can embolise through the right heart to cause a pulmonary embolism; a saddle embolus lodges at the pulmonary trunk bifurcation. Because the lung has a dual blood supply from pulmonary and bronchial arteries, small pulmonary emboli seldom cause infarction unless the patient has left heart failure. Paradoxical embolism crosses a patent foramen ovale into the systemic circulation. Other emboli include fat (after long-bone fracture, with the triad of respiratory distress, neurologic signs and petechiae), air (decompression or central line), amniotic fluid (during labour, causing sudden respiratory failure and DIC) and tumor.",
+    "Infarction is ischemic necrosis from loss of blood supply. White (pale) infarcts occur in solid organs with end arteries, such as the heart, spleen and kidney. Red (hemorrhagic) infarcts occur in organs with dual supply or loose tissue, such as the lung, intestine and brain after reperfusion, or after venous occlusion such as ovarian torsion.",
+    "Shock is circulatory failure with inadequate tissue perfusion. Hypovolemic shock follows blood or fluid loss, cardiogenic shock follows pump failure, and obstructive shock follows tamponade or tension pneumothorax or massive pulmonary embolism. Distributive shock includes septic and neurogenic shock and anaphylaxis, where vasodilation lowers resistance; septic shock is driven by endotoxin and cytokines such as TNF and IL-1. Early compensated shock raises heart rate and vasoconstricts, but the progressive stage brings lactic acidosis and organ injury, and irreversible shock brings multi-organ failure."
+   ]
+  },
+  {
+   "id": "med-path.l07",
+   "title": "Single-Gene Disorders and Patterns of Inheritance",
+   "body": [
+    "Mendelian disorders are caused by a mutation in a single gene and follow predictable inheritance. Autosomal dominant disorders show vertical transmission and typically affect structural proteins, receptors or regulatory proteins, because half normal function is still not enough to prevent disease. Examples are familial hypercholesterolemia from LDL receptor mutations, Marfan syndrome from fibrillin 1 mutations, neurofibromatosis, and Huntington disease. Autosomal recessive disorders typically involve enzymes, where a heterozygote retains enough activity to be well, so disease appears in siblings but not parents; consanguinity raises risk. Examples include cystic fibrosis, phenylketonuria and the lysosomal storage diseases. X-linked recessive disorders affect mainly males, who have one X chromosome, and are never passed from father to son. Duchenne muscular dystrophy and hemophilia A are examples.",
+    "Important modifiers explain why pedigrees are not always clean. Penetrance is the fraction of people with a genotype who show any phenotype; expressivity is the degree to which they show it. Variable expressivity is typical of neurofibromatosis type 1. Pleiotropy means one gene causes multiple effects, as fibrillin defects do in the eye, skeleton and aorta. Genetic heterogeneity means that different mutations, or different genes, produce a similar phenotype. Anticipation and imprinting are covered in the next lesson.",
+    "The molecular consequences fall into patterns. Enzyme defects cause a block, with accumulation of substrate and deficiency of the product. Phenylketonuria is phenylalanine hydroxylase deficiency, causing high phenylalanine, intellectual disability if untreated and a musty odour, which is why newborn screening and a restricted diet exist. Defective receptor or transport proteins explain familial hypercholesterolemia and cystic fibrosis, where CFTR chloride channel dysfunction, most often from the F508 deletion that misfolds the protein, produces thick secretions, chronic sinopulmonary infection with Pseudomonas, pancreatic insufficiency, meconium ileus and infertility from absent vas deferens. Structural protein defects underlie Marfan syndrome, with tall stature, arachnoid fingers, ectopia lentis and aortic root dilation with dissection; the mechanism includes excess TGF-beta signalling from abnormal fibrillin. Ehlers-Danlos syndromes are collagen disorders with hypermobility and fragile tissue.",
+    "A worked example: two healthy parents have an affected son and an affected daughter with the same recessive disease. Each child had a one in four chance; because both sexes are affected, an autosomal recessive pattern is more likely than an X-linked one. An unaffected sibling has a two in three chance of being a carrier, since an unaffected child is excluded from the one affected outcome."
+   ]
+  },
+  {
+   "id": "med-path.l08",
+   "title": "Chromosomal, Imprinting and Complex Genetic Disorders",
+   "body": [
+    "Cytogenetic disorders involve changes in chromosome number or structure. Most aneuploidies are lethal in utero, and the survivable ones involve a few chromosomes. Trisomy 21 (Down syndrome) is most often from meiotic nondisjunction, and the risk rises with maternal age; about 4 percent are Robertsonian translocations, and a few are mosaics. It causes intellectual disability, a flat facial profile, a single palmar crease, duodenal atresia, atrioventricular septal defects, an increased risk of acute leukemia and early Alzheimer disease. Trisomy 18 (Edwards) and trisomy 13 (Patau) cause severe malformations and short survival. Sex chromosome disorders include Klinefelter syndrome (47,XXY), with tall stature, small testes, infertility and gynecomastia, and Turner syndrome (45,X), with short stature, streak ovaries, webbed neck, and coarctation of the aorta or bicuspid aortic valve. The 22q11.2 deletion causes DiGeorge syndrome, with cardiac outflow defects, hypocalcemia from parathyroid hypoplasia and T cell deficiency from thymic hypoplasia.",
+    "Trinucleotide repeat expansions cause disease when the repeat number passes a threshold, and they can grow across generations, so each generation shows earlier and more severe disease, which is called anticipation. Fragile X syndrome is a CGG expansion in FMR1 that silences the gene by methylation, and it is the leading inherited cause of intellectual disability, with a long face, large ears and macroorchidism. Huntington disease is a CAG expansion with paternal anticipation, and myotonic dystrophy is a CTG expansion.",
+    "Genomic imprinting means that a gene is expressed from only one parental allele. Prader-Willi syndrome results from loss of the paternal chromosome 15q11-q13 region, giving hypotonia, hyperphagia and obesity. Angelman syndrome results from loss of the maternal copy of the same region, giving severe developmental delay, ataxia and inappropriate laughter. Both can also arise through uniparental disomy. Mitochondrial disorders show maternal inheritance because mitochondria come from the oocyte, with heteroplasmy explaining variable severity; examples include Leber hereditary optic neuropathy and MELAS.",
+    "Lysosomal storage diseases are enzyme deficiencies that cause accumulation of substrate in lysosomes. Gaucher disease (glucocerebrosidase) causes hepatosplenomegaly, bone pain and macrophages with wrinkled paper cytoplasm. Tay-Sachs disease (hexosaminidase A) causes a cherry-red macula and progressive neurodegeneration with no hepatosplenomegaly, while Niemann-Pick disease (sphingomyelinase) causes hepatosplenomegaly and a cherry-red macula. Fabry disease is X-linked and causes pain, angiokeratomas and renal failure; Hurler syndrome causes corneal clouding and coarse features. Glycogen storage disease type II (Pompe) is also lysosomal and causes cardiomegaly and hypotonia.",
+    "A worked example: an obese infant with severe hypotonia and feeding difficulty, who later develops hyperphagia, has Prader-Willi syndrome, and the diagnostic test is DNA methylation analysis of the 15q11-q13 region, not a simple karyotype."
+   ]
+  },
+  {
+   "id": "med-path.l09",
+   "title": "Nomenclature, Tumor Biology, Grading and Staging",
+   "body": [
+    "A neoplasm is an abnormal mass of tissue whose growth exceeds and is uncoordinated with that of normal tissue, and persists after the stimulus is removed. Tumors have a proliferating neoplastic parenchyma and a supporting stroma of connective tissue and blood vessels. Benign tumors are named with the suffix -oma, and malignant tumors take the name of the tissue of origin: carcinomas arise from epithelium (adenocarcinoma from glands, squamous cell carcinoma from squamous epithelium), and sarcomas arise from mesenchymal tissue. There are exceptions with misleading names, such as lymphoma, melanoma and seminoma, which are malignant, and a hamartoma, which is a disorganised growth of native tissue and not a true neoplasm.",
+    "Benign tumors are usually well differentiated, grow slowly, are often encapsulated and do not invade or metastasise. Malignant tumors may be well, moderately or poorly differentiated, and anaplasia, which is the lack of differentiation, shows as pleomorphism, hyperchromatic nuclei, an increased nuclear to cytoplasmic ratio and abnormal mitoses. Dysplasia is disordered growth with cytologic atypia that has not invaded through the basement membrane; carcinoma in situ is full-thickness dysplasia that still respects the basement membrane. Invasion through the basement membrane is the line between in situ and invasive carcinoma, and it is the most reliable histologic sign of malignancy.",
+    "Metastasis is spread to non-contiguous sites by lymphatics, blood vessels or seeding of body cavities. Carcinomas favour lymphatic spread first, and sarcomas favour hematogenous spread, but there are many exceptions, for example renal cell carcinoma invading the renal vein and hepatocellular carcinoma invading the portal and hepatic veins. Common sites of metastasis from hematogenous spread are the liver and lung, and the bones are common sites for breast, prostate, lung, kidney and thyroid cancers. The sequence includes loss of cell adhesion (loss of E-cadherin), degradation of the basement membrane and extracellular matrix by proteases such as matrix metalloproteinases, attachment, and extravasation at the new site. Primary brain tumors rarely metastasise outside the CNS. Basal cell carcinoma rarely metastasises.",
+    "Grading describes how differentiated the tumor looks histologically, and it estimates aggressiveness. Staging describes how far the cancer has spread and is usually of greater prognostic importance. The TNM system records primary tumor size or extent (T), regional lymph node involvement (N) and distant metastasis (M). A worked example: two patients have the same moderately differentiated colon adenocarcinoma. One has a tumor confined to the bowel wall with negative nodes, and the other has positive nodes and liver metastases. They share a grade but have very different stages, and stage predicts survival and guides therapy."
+   ]
+  },
+  {
+   "id": "med-path.l10",
+   "title": "Oncogenes and Growth Signalling",
+   "body": [
+    "Proto-oncogenes are normal genes that promote cell growth, and an oncogene is a mutated or overexpressed version that acts in a dominant fashion, so one altered allele is sufficient. Oncogenes generally encode growth factors, growth factor receptors, signal transducers, transcription factors or cell cycle regulators. Mutation of one allele of a proto-oncogene produces a gain of function.",
+    "Activation takes several forms. Point mutations can lock a protein in an active state; RAS is the classic example, a small GTP-binding protein that cycles between an active GTP-bound state and an inactive GDP-bound state, and its mutations destroy GTPase activity so it stays on. RAS mutations are among the most common in human cancer, for example KRAS in pancreatic and colorectal cancer. Gene amplification increases copy number: HER2 (ERBB2) amplification occurs in a subset of breast cancers and is treated with trastuzumab, and N-MYC amplification in neuroblastoma indicates a poor prognosis. Chromosomal translocation can create fusion genes or place a gene under a strong promoter. The Philadelphia chromosome t(9;22) fuses BCR with ABL to give a constitutively active tyrosine kinase in chronic myeloid leukemia, and imatinib inhibits it. Burkitt lymphoma has t(8;14), which puts MYC next to the immunoglobulin heavy chain gene and drives its overexpression. Follicular lymphoma has t(14;18), which overexpresses the anti-apoptotic gene BCL2. Mantle cell lymphoma has t(11;14) with cyclin D1 overexpression.",
+    "Other important examples include RET, activated in medullary thyroid carcinoma and multiple endocrine neoplasia types 2A and 2B; BRAF V600E, found in most melanomas and in hairy cell leukemia, and targeted by BRAF inhibitors; the EGFR mutations in lung adenocarcinoma, treated by tyrosine kinase inhibitors; and KIT mutations in gastrointestinal stromal tumors. The ALK rearrangement in a subset of lung adenocarcinomas can be targeted as well.",
+    "Oncogene dependence is the reason targeted therapy works: a tumor driven by one activated kinase can respond dramatically to its inhibitor, though resistance mutations eventually emerge. Testing the tumor for the specific alteration, rather than treating by organ alone, is therefore central to modern oncology. The oncogene concept also explains why viruses cause cancer: some carry or activate such genes.",
+    "A worked example: a 45-year-old with an elevated white cell count, basophilia and splenomegaly has a BCR-ABL fusion. The fusion protein is a kinase without its normal regulation, so the cell receives continuous growth signals, and a tyrosine kinase inhibitor is the logical therapy."
+   ]
+  },
+  {
+   "id": "med-path.l11",
+   "title": "Tumor Suppressors, Genome Stability and Carcinogenesis",
+   "body": [
+    "Tumor suppressor genes restrain cell growth, and their loss of function contributes to cancer. Unlike oncogenes, they usually act recessively at the cellular level: both alleles must be inactivated. Knudson two-hit hypothesis explains familial cancers. In inherited cases the child is born with one defective allele in every cell (the first hit), and a single somatic mutation in a given cell (the second hit) is enough to cause tumors, so disease appears earlier, is often multifocal and bilateral, and shows dominant inheritance in families. In sporadic cases both hits must occur in one cell, so disease is later and unilateral.",
+    "RB, the retinoblastoma gene, controls the G1 to S transition. Hypophosphorylated RB binds the transcription factor E2F and holds the cell in G1; phosphorylation by cyclin D with CDK4 and CDK6 releases E2F. Loss of RB leads to unrestrained entry to S phase. Hereditary retinoblastoma carries a high risk of osteosarcoma later. TP53 encodes p53, the guardian of the genome. DNA damage activates p53, which arrests the cell in G1 through p21 to allow repair, and triggers apoptosis through BAX if damage is irreparable. TP53 is the most commonly mutated gene in human cancers. Li-Fraumeni syndrome is an inherited TP53 mutation that causes sarcomas, breast cancer, leukemia, brain tumors and adrenocortical carcinoma. Normally p53 is kept at low levels by MDM2, which targets it for degradation.",
+    "Other suppressors include APC, which degrades beta-catenin in the Wnt pathway. Loss of APC allows beta-catenin to accumulate, activate MYC and cyclin D1, and drive colonic adenomas; familial adenomatous polyposis results from inherited APC mutation. NF1 encodes neurofibromin, which inactivates RAS, and NF2 encodes merlin. BRCA1 and BRCA2 are involved in homologous recombination repair of double-strand breaks, and inherited mutations increase risk of breast, ovarian, prostate and pancreatic cancer. Lynch syndrome is caused by mismatch repair gene defects (MLH1, MSH2, MSH6, PMS2), causing microsatellite instability and early colorectal and endometrial cancers. Xeroderma pigmentosum, with defective nucleotide excision repair, causes skin cancers after sunlight.",
+    "Carcinogenesis is multistep, with accumulation of mutations over years, as in the adenoma to carcinoma sequence in colon, in which APC loss is early, KRAS activation follows, and TP53 loss is late. Chemical carcinogens include aflatoxin B1, linked to hepatocellular carcinoma and p53 mutation, polycyclic hydrocarbons in smoke, asbestos linked to mesothelioma and lung cancer, and vinyl chloride linked to angiosarcoma of the liver. Ultraviolet light causes pyrimidine dimers. Oncogenic viruses include HPV (E6 degrades p53 and E7 inactivates RB), EBV, HBV and HCV, HHV-8 and HTLV-1. Chronic inflammation, such as Helicobacter pylori gastritis and its risk of gastric cancer, also promotes cancer."
+   ]
+  },
+  {
+   "id": "med-path.l12",
+   "title": "Hallmarks, Tumor Markers and Paraneoplastic Effects",
+   "body": [
+    "Cancer cells share traits that Hanahan and Weinberg organised as hallmarks: self-sufficiency in growth signals, insensitivity to growth-inhibitory signals, evasion of apoptosis, unlimited replicative potential, sustained angiogenesis, and invasion and metastasis, with later additions such as altered metabolism and evasion of immune destruction. Unlimited replication depends on telomerase, which rebuilds telomeres and is reactivated in most cancers. Altered metabolism shows as the Warburg effect, increased glucose uptake and aerobic glycolysis, which is the basis of FDG-PET imaging. Tumors beyond a millimetre or two need new vessels, driven by VEGF, and bevacizumab targets this signal.",
+    "The immune system can recognise tumor antigens, and tumors escape by losing antigens, down-regulating MHC class I, and using checkpoint molecules such as PD-L1 and CTLA-4 to turn off T cells. Immune checkpoint inhibitors release this brake, and their major adverse effects are autoimmune-like inflammatory reactions in many organs, such as colitis, hepatitis, pneumonitis and endocrinopathies. Immunosuppressed patients, such as organ transplant recipients, have increased rates of virus-associated cancers and skin cancers.",
+    "Tumor markers are substances in blood that help follow disease and should not be used alone to diagnose it. Alpha-fetoprotein is raised in hepatocellular carcinoma and yolk sac tumors; beta-hCG in choriocarcinoma and hydatidiform mole; PSA in prostate disease, including benign enlargement and prostatitis; CA-125 in ovarian cancer, with many false positives; CEA in colorectal cancer, mainly for monitoring recurrence; CA 19-9 in pancreatic cancer; and calcitonin in medullary thyroid carcinoma. Because markers are not specific, they are useful chiefly for monitoring response and recurrence.",
+    "Cancer causes local effects such as obstruction and bleeding, and systemic effects. Cachexia is progressive loss of fat and lean mass with anorexia, driven by cytokines such as TNF and not simply by calorie deficiency. Paraneoplastic syndromes are effects not caused by the tumor mass or metastases. Small cell lung carcinoma may secrete ACTH, causing Cushing syndrome, or ADH, causing the syndrome of inappropriate antidiuresis with hyponatremia, and may cause the Lambert-Eaton myasthenic syndrome through antibodies to presynaptic calcium channels. Squamous cell carcinoma of the lung secretes PTH-related peptide, causing hypercalcemia. Renal cell carcinoma can produce erythropoietin, causing polycythemia. Thymoma is associated with myasthenia gravis and pure red cell aplasia. Migratory thrombophlebitis (Trousseau syndrome) is typical of pancreatic cancer, and acanthosis nigricans can signal gastric cancer.",
+    "A worked example: a heavy smoker presents with hyponatremia, low serum osmolality, concentrated urine and a central lung mass; the likely tumor is small cell carcinoma secreting ADH."
+   ]
+  },
+  {
+   "id": "med-path.l13",
+   "title": "Atherosclerosis and Ischemic Heart Disease",
+   "body": [
+    "Atherosclerosis is a chronic inflammatory disease of the intima of large and medium arteries. Risk factors include dyslipidemia, hypertension, smoking, diabetes, age, male sex and family history. The response-to-injury model begins with endothelial dysfunction at sites of turbulent flow. LDL enters the intima and is oxidised, monocytes adhere and enter, and they take up oxidised LDL and become foam cells, which form the fatty streak. Smooth muscle cells migrate into the intima from the media and lay down matrix, producing a fibrous cap over a lipid-rich necrotic core. Plaques favour the proximal coronaries, the abdominal aorta, the popliteal arteries, the internal carotids and the circle of Willis. Complications are rupture or erosion with thrombosis, hemorrhage into the plaque, calcification, and aneurysm from medial atrophy. Abdominal aortic aneurysm is mainly from atherosclerosis and is treated electively when large or enlarging because of rupture risk.",
+    "Ischemic heart disease results from an imbalance between oxygen supply and demand, nearly always due to coronary atherosclerosis. A fixed stenosis of roughly 70 percent or more causes stable angina, which is chest pain on exertion relieved by rest, from demand ischemia without necrosis. Unstable angina and myocardial infarction are acute coronary syndromes, usually from plaque disruption with thrombus formation. Unstable angina has no troponin rise. ST elevation infarction is from complete occlusion and causes transmural necrosis. Non-ST elevation infarction is from partial or transient occlusion and causes subendocardial necrosis, since the subendocardium is farthest from epicardial arteries and is most vulnerable. Prinzmetal angina is vasospasm. Sudden cardiac death is usually an arrhythmia in severe coronary disease.",
+    "The infarct evolves in recognisable stages. In the first 24 hours the tissue shows early coagulative necrosis with waviness of fibres and contraction bands, and little else; troponin rises within hours. From 1 to 3 days neutrophils infiltrate, and from 3 to 7 days macrophages remove dead tissue, when the wall is softest and risk of rupture is highest. In 1 to 2 weeks granulation tissue forms, and by about 2 months a collagenous scar is present. Complications reflect timing: arrhythmias within the first hours; heart failure or cardiogenic shock; rupture of the free wall with tamponade, of the interventricular septum with a new murmur, or of a papillary muscle with acute mitral regurgitation, all in the first days to week; fibrinous pericarditis at 2 to 3 days; and Dressler syndrome, an autoimmune pericarditis weeks later. A ventricular aneurysm arises from a healed transmural scar and can contain thrombus.",
+    "A worked example: a man dies 5 days after an anterior infarct with sudden hypotension and distended neck veins. Autopsy shows haemopericardium from rupture of the free wall, which happens when macrophages have digested dead muscle but scar has not yet formed. Occlusion of the left anterior descending artery causes anterior and septal infarcts, the right coronary an inferior infarct, and the circumflex a lateral infarct."
+   ]
+  },
+  {
+   "id": "med-path.l14",
+   "title": "Hypertension, Valves, Myocardium and Vasculitis",
+   "body": [
+    "Hypertension damages vessels through hyaline arteriolosclerosis, which is thickened, glassy arteriolar walls typical of chronic hypertension and diabetes, and hyperplastic arteriolosclerosis with onion-skin concentric thickening and fibrinoid necrosis in malignant hypertension. Consequences include left ventricular hypertrophy, heart failure, stroke and renal disease. Medial calcific sclerosis (Monckeberg) is calcification of the media in muscular arteries that does not narrow the lumen.",
+    "Valve disease is mostly stenosis or regurgitation. Rheumatic fever follows group A streptococcal pharyngitis through molecular mimicry between bacterial antigens and cardiac tissue. It causes pancarditis, with Aschoff bodies (granulomas with Anitschkow cells) in the myocardium, plus migratory arthritis, erythema marginatum, subcutaneous nodules and Sydenham chorea. Chronic rheumatic disease produces fibrous thickening and commissural fusion, most often of the mitral valve, giving stenosis with a fish-mouth orifice and left atrial enlargement, which predisposes to atrial fibrillation. Calcific aortic stenosis is from age-related wear or a congenital bicuspid valve and presents with angina, syncope and heart failure, in that classic triad, with a crescendo-decrescendo systolic murmur. Mitral valve prolapse is myxomatous degeneration giving a midsystolic click. Infective endocarditis produces vegetations; Staphylococcus aureus attacks normal valves of injection drug users, usually the tricuspid, and viridans streptococci attack previously damaged valves. Nonbacterial thrombotic endocarditis occurs with cancer, and Libman-Sacks vegetations occur in lupus.",
+    "Cardiomyopathies are diseases of the myocardium. Dilated cardiomyopathy gives a large, thin-walled, poorly contracting heart, from alcohol, doxorubicin, viral myocarditis, pregnancy or titin gene mutations. Hypertrophic cardiomyopathy is mostly autosomal dominant, from sarcomere gene mutations, with asymmetric septal hypertrophy, myofiber disarray, outflow obstruction and a risk of sudden death in young athletes. Restrictive cardiomyopathy limits filling, as in amyloidosis, sarcoidosis and hemochromatosis. Myocarditis is most often viral, notably coxsackievirus B. Chagas disease, from Trypanosoma cruzi, causes dilated cardiomyopathy.",
+    "Vasculitis is inflammation of vessel walls, classified by vessel size. Large-vessel disease includes giant cell arteritis, which affects the temporal artery in people older than 50, with headache, jaw claudication, polymyalgia rheumatica and a risk of blindness, so treatment is started promptly with corticosteroids, and Takayasu arteritis in younger women. Medium-vessel disease includes polyarteritis nodosa, associated with hepatitis B and sparing the lungs, and Kawasaki disease in children with coronary aneurysm risk. Small-vessel disease includes granulomatosis with polyangiitis (c-ANCA, upper and lower respiratory tract and glomerulonephritis), microscopic polyangiitis (p-ANCA), eosinophilic granulomatosis with polyangiitis, and IgA vasculitis with palpable purpura.",
+    "A worked example: a 22-year-old athlete dies suddenly during a match. Autopsy shows a thickened septum and myocyte disarray, which is hypertrophic cardiomyopathy."
+   ]
+  },
+  {
+   "id": "med-path.l15",
+   "title": "Obstructive and Restrictive Lung Disease",
+   "body": [
+    "Lung disease divides into obstructive disorders, in which airflow out is limited so the FEV1/FVC ratio falls and lung volumes such as residual capacity rise, and restrictive disorders, in which lung expansion is limited so the ratio is normal or high and total volumes fall. Chronic obstructive pulmonary disease combines emphysema and chronic bronchitis, most often from smoking.",
+    "Emphysema is permanent enlargement of airspaces distal to the terminal bronchiole with destruction of walls and without obvious fibrosis. It results from an imbalance between proteases such as elastase, released by neutrophils and macrophages, and antiproteases. Smoking recruits inflammatory cells and adds oxidative inactivation of antiproteases. Centriacinar emphysema is typical of smoking and affects the upper lobes; panacinar emphysema affects the whole acinus and is characteristic of alpha-1 antitrypsin deficiency, with lower lobe predominance and early onset in non-smokers, with liver disease too from accumulated misfolded protein. Patients are thin, breathe through pursed lips and show barrel chests. Chronic bronchitis is a clinical diagnosis of productive cough for at least three months in two consecutive years, with mucous gland hypertrophy (Reid index increased). Both can lead to pulmonary hypertension and cor pulmonale.",
+    "Asthma is reversible airway obstruction from chronic inflammation and hyperresponsiveness. Atopic asthma is a type I hypersensitivity with IgE, mast cells and Th2 cytokines (IL-4, IL-5, IL-13). Histology shows mucus plugs, Curschmann spirals, Charcot-Leyden crystals, eosinophils, and thickened basement membrane with smooth muscle hypertrophy. Bronchiectasis is permanent dilation of bronchi from chronic infection and obstruction, as in cystic fibrosis, primary ciliary dyskinesia and Kartagener syndrome.",
+    "Restrictive disease includes chest wall disorders and interstitial lung diseases. Idiopathic pulmonary fibrosis causes usual interstitial pneumonia, with patchy subpleural fibrosis, fibroblast foci and honeycombing in older adults, a dry cough and inspiratory crackles with finger clubbing. Pneumoconioses are caused by dusts: coal workers pneumoconiosis with anthracotic nodules, silicosis from quartz with an increased risk of tuberculosis, and asbestosis with ferruginous bodies and pleural plaques, which also raises the risk of lung cancer and mesothelioma. Berylliosis forms non-caseating granulomas. Hypersensitivity pneumonitis is a type III and IV reaction to inhaled organic antigens, as in farmer lung. Sarcoidosis is a granulomatous disease of young adults, especially in Black women, with hilar lymphadenopathy, hypercalcemia from vitamin D production by macrophages and elevated ACE.",
+    "A worked example: a 35-year-old non-smoker with early basal emphysema and elevated liver enzymes has alpha-1 antitrypsin deficiency, where PAS-positive globules fill the hepatocytes."
+   ]
+  },
+  {
+   "id": "med-path.l16",
+   "title": "Pneumonia, Lung Tumors, Pleura and Vascular Lung Disease",
+   "body": [
+    "Pneumonia has two main anatomic patterns. Lobar pneumonia fills a whole lobe with exudate and is usually Streptococcus pneumoniae, passing through congestion, red hepatisation, grey hepatisation and resolution. Bronchopneumonia is patchy and centred on airways, typical of the very young, the old and the debilitated. Atypical pneumonia from Mycoplasma, viruses and Legionella causes interstitial inflammation. Aspiration pneumonia affects the right lower lobe and posterior upper segments and may form abscesses. Lung abscess is usually from aspiration of anaerobes.",
+    "Tuberculosis arises from Mycobacterium tuberculosis. Primary infection forms a Ghon focus in the subpleural mid-zone with hilar nodes (the Ghon complex); cell-mediated immunity forms caseating granulomas that usually heal and calcify. Secondary (reactivation) tuberculosis is in the apices, where oxygen tension is high, and causes cavitation, hemoptysis and weight loss, and it may disseminate as miliary disease. The tuberculin skin test and interferon gamma release assays measure delayed-type hypersensitivity and do not distinguish latent from active disease.",
+    "Lung cancer is the leading cause of cancer death. Adenocarcinoma is the most common type overall and is peripheral, occurring more frequently in non-smokers and women, and it can carry EGFR, ALK or KRAS alterations; the lepidic pattern was previously called bronchioloalveolar carcinoma. Squamous cell carcinoma is central, linked to smoking, cavitates, shows keratin pearls and intercellular bridges, and secretes PTHrP. Small cell carcinoma is central, strongly smoking-related, with small blue cells, neuroendocrine granules, MYC amplification and early metastasis; it is treated with chemotherapy rather than surgery. Large cell carcinoma is undifferentiated. A Pancoast tumor at the apex invades the sympathetic chain to give Horner syndrome and may compress the brachial plexus. Superior vena cava syndrome is plethora and facial swelling from mediastinal compression. Carcinoid tumors are low-grade neuroendocrine tumors that rarely cause carcinoid syndrome unless there are liver metastases. Mesothelioma is linked with asbestos and presents with pleural effusion and rind-like thickening.",
+    "Acute respiratory distress syndrome follows sepsis, pneumonia, aspiration or trauma, with diffuse alveolar damage, hyaline membranes and non-cardiogenic pulmonary edema, requiring ventilation with low tidal volumes. Neonatal respiratory distress syndrome is a surfactant deficiency in premature infants; the lecithin to sphingomyelin ratio in amniotic fluid below about 2 suggests immaturity, and maternal corticosteroids speed lung maturation. Pulmonary hypertension arises from lung disease, hypoxia, left heart disease, chronic thromboemboli or idiopathic and heritable causes with BMPR2 mutations, producing plexiform lesions and right ventricular hypertrophy.",
+    "A worked example: a 60-year-old smoker with hypercalcemia and a cavitating central lung mass most likely has squamous cell carcinoma."
+   ]
+  },
+  {
+   "id": "med-path.l17",
+   "title": "Esophagus, Stomach and Intestine",
+   "body": [
+    "In the esophagus, reflux of gastric acid causes erosive injury, and persistent reflux can give Barrett esophagus, intestinal metaplasia with goblet cells that predisposes to dysplasia and adenocarcinoma. Squamous cell carcinoma of the esophagus is linked to alcohol, tobacco and hot beverages, and typically affects the upper and middle thirds, whereas adenocarcinoma occurs in the distal third. Achalasia is failure of the lower sphincter to relax from loss of inhibitory ganglion cells, giving dysphagia for solids and liquids and a bird-beak on barium study.",
+    "In the stomach, acute gastritis follows NSAIDs, alcohol and stress. Chronic gastritis has two main forms. Type B, the most common, is from Helicobacter pylori, a spiral organism that produces urease and affects the antrum, and it increases risk of peptic ulcer, gastric adenocarcinoma and MALT lymphoma, which can regress with eradication. Type A is autoimmune, affecting the body and fundus, with antibodies to parietal cells and intrinsic factor, causing achlorhydria with high gastrin and pernicious anemia. Duodenal ulcers are almost always from H. pylori or NSAIDs, with hyperacidity, and rarely become malignant; gastric ulcers can be malignant and are biopsied. Zollinger-Ellison syndrome is a gastrin-secreting tumor with multiple refractory ulcers. Gastric adenocarcinoma has intestinal and diffuse types, and the diffuse type shows signet ring cells and a rigid stomach (linitis plastica) with loss of E-cadherin. Krukenberg tumors are ovarian metastases from such cancers.",
+    "In the intestine, celiac disease is an immune reaction to gluten in people with HLA-DQ2 or DQ8, with villous blunting, crypt hyperplasia and intraepithelial lymphocytes, with anti-tissue transglutaminase antibodies and an association with dermatitis herpetiformis. Crohn disease can involve any part of the gut, classically the terminal ileum, with transmural inflammation, skip lesions, non-caseating granulomas, fissures, strictures and fistulae, and it is associated with smoking, gallstones and kidney stones. Ulcerative colitis begins in the rectum and extends continuously, is limited to the mucosa and submucosa, has crypt abscesses and pseudopolyps, and carries an increased risk of colon cancer and primary sclerosing cholangitis (p-ANCA positive). Ischemic bowel typically affects the splenic flexure, a watershed area.",
+    "Colorectal polyps include hyperplastic polyps, which are benign, and adenomas, which are dysplastic precursors; villous architecture, large size and high-grade dysplasia raise risk of cancer. Cancer follows the APC, KRAS and TP53 sequence in most cases, while Lynch syndrome follows mismatch repair loss. Right-sided cancers present with occult bleeding and iron-deficiency anemia, and left-sided cancers cause obstruction and narrow stools. Appendicitis is from luminal obstruction by a fecalith or lymphoid hyperplasia, and Meckel diverticulum is a true diverticulum from persistent vitelline duct, which follows the rule of twos.",
+    "A worked example: a 25-year-old with weight loss, right lower quadrant pain, perianal fistulas and a cobblestone mucosa has Crohn disease, with transmural inflammation explaining the fistulas."
+   ]
+  },
+  {
+   "id": "med-path.l18",
+   "title": "Liver, Biliary Tree and Pancreas",
+   "body": [
+    "Viral hepatitis causes hepatocellular injury, with a pattern of raised ALT and AST higher than alkaline phosphatase. Hepatitis A and E are transmitted by the fecal-oral route and cause self-limited acute illness, with hepatitis E risky in pregnancy. Hepatitis B is an enveloped DNA virus transmitted by blood, sex and from mother to child; the serology is read as surface antigen (infection), surface antibody (immunity), core IgM (acute infection) and e antigen (high infectivity). Hepatitis C is an RNA virus that causes chronic infection in most patients, leading to cirrhosis and hepatocellular carcinoma, and is now curable with direct-acting antivirals. Histology of acute hepatitis shows ballooning, apoptotic Councilman bodies and lobular inflammation; chronic hepatitis B has ground-glass hepatocytes and chronic hepatitis C has lymphoid aggregates.",
+    "Alcohol causes fatty change, then alcoholic hepatitis with neutrophils, Mallory-Denk bodies and ballooned hepatocytes (AST higher than ALT, often by about two to one), and then micronodular cirrhosis. Non-alcoholic fatty liver disease from insulin resistance is now very common and can progress to steatohepatitis and cirrhosis. Cirrhosis is diffuse fibrosis and nodular regeneration; its complications include portal hypertension, with varices, ascites, splenomegaly, caput medusae and hemorrhoids through portosystemic anastomoses, hepatic encephalopathy, coagulopathy, hepatorenal syndrome and hepatocellular carcinoma, for which alpha-fetoprotein is a marker. Hemochromatosis is iron overload, most often from HFE mutations, giving cirrhosis, diabetes, bronze skin and cardiomyopathy, and increasing hepatocellular carcinoma risk. Wilson disease is autosomal recessive ATP7B copper transport failure, with low ceruloplasmin, Kayser-Fleischer rings and basal ganglia damage. Primary biliary cholangitis affects middle-aged women with antimitochondrial antibodies and destruction of small bile ducts, while primary sclerosing cholangitis causes beading of large ducts and is linked to ulcerative colitis.",
+    "Gallstones are cholesterol stones in most Western patients, related to female sex, obesity and age, and pigment stones in hemolysis. Cholecystitis arises from cystic duct obstruction, and Murphy sign is arrest of inspiration on palpation of the right upper quadrant. Obstruction of the common bile duct raises conjugated bilirubin and alkaline phosphatase, with pale stools and dark urine. Acute pancreatitis is most often from gallstones or alcohol and shows enzymatic fat necrosis; it causes epigastric pain radiating to the back with high lipase. Pancreatic adenocarcinoma commonly arises in the head with painless jaundice, a palpable gallbladder (Courvoisier sign), KRAS mutation and a very poor prognosis.",
+    "A worked example: a 50-year-old man with long-standing hepatitis C develops a liver mass and rising alpha-fetoprotein; cirrhosis is the field in which hepatocellular carcinoma most often arises."
+   ]
+  },
+  {
+   "id": "med-path.l19",
+   "title": "Glomerular Disease",
+   "body": [
+    "Glomerular disease presents as one of two syndromes. Nephritic syndrome is from inflammation and rupture of the glomerular capillaries, giving hematuria with red cell casts, hypertension, azotemia and mild to moderate proteinuria. Nephrotic syndrome is from podocyte or basement membrane damage and shows heavy proteinuria (above about 3.5 g per day in adults), hypoalbuminemia, edema, hyperlipidemia and lipiduria with fatty casts, with an increased risk of infection and thrombosis from urinary loss of immunoglobulins and antithrombin.",
+    "The nephritic diseases are identified by immunofluorescence and electron microscopy. Post-streptococcal glomerulonephritis occurs one to three weeks after a group A streptococcal pharyngitis or skin infection, in children, with low C3, lumpy-bumpy granular immunofluorescence and subepithelial humps, and usually resolves. IgA nephropathy (Berger disease) presents with hematuria a day or two after an upper respiratory infection, with mesangial IgA deposits, and is the most common glomerulonephritis worldwide. Alport syndrome is a collagen type IV defect with hematuria, sensorineural deafness and eye abnormalities, usually X-linked. Rapidly progressive glomerulonephritis shows crescents in Bowman space. Anti-GBM disease (Goodpasture syndrome) is linear immunofluorescence along the basement membrane with pulmonary hemorrhage and a type II hypersensitivity to type IV collagen. Pauci-immune disease has ANCA with granulomatosis with polyangiitis and microscopic polyangiitis, and immune complex disease occurs in lupus.",
+    "The nephrotic diseases include minimal change disease, the usual cause in children, with normal light microscopy, effacement of podocyte foot processes on electron microscopy and a dramatic response to corticosteroids; it may follow an infection or Hodgkin lymphoma. Focal segmental glomerulosclerosis is common in adults, particularly Black patients with APOL1 variants, and also with HIV and heroin use. Membranous nephropathy is the leading primary cause in older adults, with subepithelial deposits and a spike-and-dome pattern on silver stain, anti-phospholipase A2 receptor antibodies, and association with hepatitis B, malignancy and drugs. Diabetic nephropathy shows glomerular basement membrane thickening and nodular Kimmelstiel-Wilson lesions, with hyaline arteriolosclerosis of both afferent and efferent arterioles, and ACE inhibitors slow progression. Amyloidosis shows apple-green birefringence with Congo red. Membranoproliferative glomerulonephritis gives tram-track basement membranes and low complement.",
+    "A worked example: a 5-year-old has facial puffiness, 4+ proteinuria and normal complement. Light microscopy appears normal, and electron microscopy shows effaced foot processes; steroid therapy is expected to work. Complement is normal because the injury is to the podocyte and not from immune complex deposition, so a kidney biopsy is often deferred in children who respond to treatment."
+   ]
+  },
+  {
+   "id": "med-path.l20",
+   "title": "Tubulointerstitial Disease, Stones and Renal Tumors",
+   "body": [
+    "Acute kidney injury has prerenal, intrinsic and postrenal causes. Prerenal azotemia is from reduced perfusion, such as hypovolemia or heart failure, with intact tubules that retain sodium, so the fractional excretion of sodium is low and the urea to creatinine ratio is raised. Postrenal disease is obstruction of urine outflow. Acute tubular necrosis is the most common intrinsic cause, either ischemic or toxic. Ischemic injury follows prolonged hypotension, and toxic injury follows aminoglycosides, contrast agents, myoglobin from rhabdomyolysis, and heavy metals. Muddy brown granular casts are the hallmark, with a high urine sodium and fractional excretion, and the tubule can regenerate because the basement membrane is preserved, so recovery follows a diuretic phase. Acute interstitial nephritis is a drug hypersensitivity reaction to penicillins, NSAIDs and proton pump inhibitors, with fever, rash, eosinophiluria and white cell casts.",
+    "Acute pyelonephritis is a bacterial infection, usually ascending from the bladder, by Escherichia coli, causing fever, flank pain, and white cell casts in the urine. Risk factors are urinary obstruction, vesicoureteral reflux, instrumentation and pregnancy. Chronic pyelonephritis with reflux causes coarse scarring over blunted calyces. Papillary necrosis follows diabetes, sickle cell disease, analgesic abuse and obstruction.",
+    "Polycystic kidney disease in adults is autosomal dominant (PKD1 and PKD2), giving massively enlarged kidneys, hypertension, hematuria, hepatic cysts and berry aneurysms of the circle of Willis. The childhood form is autosomal recessive (PKHD1), associated with congenital hepatic fibrosis. Medullary sponge kidney and simple cysts are usually benign.",
+    "Kidney stones are most commonly calcium oxalate, linked to hypercalciuria, low urinary citrate, hyperoxaluria and dehydration. Struvite stones form in alkaline urine infected with urease-producing organisms such as Proteus and make staghorn calculi. Uric acid stones form in acidic urine, as in gout, and are radiolucent. Cystine stones appear in cystinuria, an inherited transport defect, with hexagonal crystals. Stones cause colicky flank pain radiating to the groin, hematuria and, with obstruction, hydronephrosis.",
+    "Renal cell carcinoma arises from the proximal tubule epithelium, most commonly the clear cell type, with loss of the VHL gene on chromosome 3, which is inherited in von Hippel-Lindau disease. It is linked to smoking and obesity, and presents with hematuria, flank pain and a mass, with possible polycythemia, hypercalcemia and a left-sided varicocele. It spreads through the renal vein. Papillary renal carcinoma is associated with MET. Wilms tumor is the most common pediatric renal tumor, with WT1 abnormalities, WAGR syndrome and Beckwith-Wiedemann syndrome. Urothelial carcinoma affects the bladder, linked to smoking, aromatic amines and Schistosoma haematobium for squamous cell carcinoma of the bladder.",
+    "A worked example: after a crush injury, a man has dark urine and rising creatinine; granular muddy brown casts and myoglobin in the urine point to acute tubular necrosis from rhabdomyolysis."
+   ]
+  },
+  {
+   "id": "med-path.l21",
+   "title": "Pituitary, Thyroid and Parathyroid",
+   "body": [
+    "Pituitary adenomas are the usual cause of anterior pituitary excess. Prolactinoma is the most common functional adenoma, causing amenorrhea and galactorrhea in women and sexual dysfunction in men, and it is treated with dopamine agonists. Growth hormone excess causes acromegaly in adults and gigantism in children. A large adenoma compresses the optic chiasm to cause bitemporal hemianopia. Sheehan syndrome is infarction of the enlarged pituitary after postpartum hemorrhage, with failure of lactation. Diabetes insipidus is lack of ADH or renal resistance to it, with dilute urine.",
+    "Thyroid disease divides into hyperthyroidism, hypothyroidism and mass lesions. Graves disease is an autoimmune hyperthyroidism from stimulating antibodies to the TSH receptor, a type II hypersensitivity, producing a diffuse goiter, ophthalmopathy with proptosis, and pretibial myxedema, with histology showing tall columnar follicular cells and scalloped colloid. Thyroid storm is a life-threatening exacerbation. Hashimoto thyroiditis is the most common cause of hypothyroidism in iodine-sufficient regions, with autoantibodies to thyroid peroxidase and thyroglobulin, lymphocytic infiltrate with germinal centres and Hurthle cells, and a risk of B cell lymphoma. Subacute granulomatous (de Quervain) thyroiditis follows a viral illness with a painful gland. Iodine deficiency causes endemic goiter. Congenital hypothyroidism causes cretinism if untreated.",
+    "Solitary thyroid nodules are mostly benign, but malignant risk is higher in children, men and those with prior neck irradiation. Papillary carcinoma is the most common thyroid cancer, with nuclear features of overlapping, optically clear (Orphan Annie) nuclei, grooves and pseudoinclusions, psammoma bodies, BRAF or RET rearrangements, lymphatic spread and an excellent prognosis. Follicular carcinoma is diagnosed by capsular or vascular invasion, with spread through the blood to bone and lung, and RAS mutation. Medullary carcinoma arises from parafollicular C cells, secretes calcitonin and shows amyloid stroma, with RET mutation in MEN 2. Anaplastic carcinoma is rare, occurs in older patients and is highly aggressive.",
+    "Parathyroid disease shows calcium abnormalities. Primary hyperparathyroidism is most often a single adenoma, giving high calcium and low phosphate with high PTH; the classic phrase is stones, bones, groans and psychiatric overtones, and bone disease is osteitis fibrosa cystica with brown tumors. Secondary hyperparathyroidism follows chronic kidney disease through phosphate retention and low vitamin D, producing a low or normal calcium and hyperplasia of all glands. Hypoparathyroidism occurs after thyroid surgery, or with DiGeorge syndrome, and causes hypocalcemia with tetany, perioral paresthesia, Chvostek and Trousseau signs. Malignancy is a leading cause of hypercalcemia, often through PTHrP.",
+    "A worked example: a woman with weight loss, heat intolerance, tremor, exophthalmos and diffuse goiter has Graves disease, in which TSH is suppressed and the free thyroid hormones are high."
+   ]
+  },
+  {
+   "id": "med-path.l22",
+   "title": "Adrenal, Pancreatic Islet and Multiple Endocrine Neoplasia",
+   "body": [
+    "The adrenal cortex has three layers, glomerulosa (aldosterone), fasciculata (cortisol) and reticularis (androgens), and the medulla makes catecholamines. Cushing syndrome is cortisol excess. The most common cause overall is exogenous glucocorticoid use; endogenous causes include a pituitary ACTH-secreting adenoma (Cushing disease), an adrenal adenoma or carcinoma, and ectopic ACTH from small cell lung cancer. Findings are central obesity, moon face, striae, buffalo hump, hypertension, hyperglycemia and osteoporosis. Bilateral adrenal atrophy occurs with exogenous steroids because ACTH is suppressed. Primary hyperaldosteronism (Conn syndrome) from an adenoma or bilateral hyperplasia causes hypertension with hypokalemia and low renin.",
+    "Adrenal insufficiency has several causes. Primary autoimmune adrenalitis (Addison disease) is now the most common cause in developed countries, with low cortisol, high ACTH, hyperpigmentation, hypotension and hyperkalemia, because aldosterone is lost too. Secondary insufficiency from low ACTH gives no hyperpigmentation or hyperkalemia. Waterhouse-Friderichsen syndrome is acute adrenal hemorrhage in meningococcal sepsis. Abrupt withdrawal of long-term steroids causes an adrenal crisis. Congenital adrenal hyperplasia, usually 21-hydroxylase deficiency, shunts precursors to androgens and causes virilisation, salt wasting and hypotension, with ambiguous genitalia in girls.",
+    "Pheochromocytoma is a tumor of chromaffin cells that secretes catecholamines, producing episodic hypertension, headaches, sweating and palpitations. It is associated with the rule of tens in older texts, though many are now known to be hereditary, and with MEN 2, VHL and NF1, and diagnosis rests on plasma or urinary metanephrines. Alpha blockade is given before beta blockade to avoid unopposed alpha stimulation. Neuroblastoma is a childhood tumor of the adrenal medulla or sympathetic chain with N-MYC amplification and elevated urinary vanillylmandelic acid.",
+    "Diabetes mellitus is hyperglycemia from insulin deficiency or resistance. Type 1 is autoimmune loss of beta cells through T cell insulitis, with HLA-DR3 and DR4, presenting in youth with ketoacidosis. Type 2 combines insulin resistance and relative beta cell failure, associated with obesity, with islet amyloid (amylin) deposits; ketoacidosis is rare, but the hyperosmolar state occurs. Chronic complications come from advanced glycation and osmotic damage: retinopathy, nephropathy, neuropathy, atherosclerosis and infections. Insulinomas cause fasting hypoglycemia with high C-peptide, relieved by glucose (Whipple triad), and exogenous insulin gives hypoglycemia with low C-peptide. Gastrinoma causes Zollinger-Ellison syndrome.",
+    "The MEN syndromes are autosomal dominant. MEN 1 (menin) is the three Ps: pituitary, parathyroid and pancreas tumors. MEN 2A (RET) is medullary thyroid carcinoma, pheochromocytoma and parathyroid hyperplasia, and MEN 2B has medullary thyroid cancer, pheochromocytoma and mucosal neuromas with a marfanoid habitus.",
+    "A worked example: a hypertensive patient with unprovoked hypokalemia and suppressed renin has primary aldosteronism, and saline suppression or adrenal vein sampling separates a single adenoma from hyperplasia."
+   ]
+  },
+  {
+   "id": "med-path.l23",
+   "title": "Anemias and Red Cell Disorders",
+   "body": [
+    "Anemia is a reduced red cell mass, and the mean corpuscular volume divides it into microcytic, normocytic and macrocytic types. Microcytic anemias reflect impaired hemoglobin synthesis. Iron deficiency is the most common, usually from chronic blood loss, with low ferritin, high total iron-binding capacity and high red cell distribution width; in an older adult it demands a search for gastrointestinal cancer. Anemia of chronic disease has hepcidin-driven iron sequestration, with high ferritin and low iron and TIBC. Thalassemias are inherited globin chain deficiencies with a normal or raised red cell count and a Mentzer index below 13: alpha thalassemia is from gene deletions (four genes lost gives hydrops fetalis, three gives HbH disease), and beta thalassemia is from point mutations, with beta thalassemia major showing marked anemia, extramedullary hematopoiesis, skull changes and iron overload from transfusion. Sideroblastic anemia has ringed sideroblasts from defective heme synthesis, as with lead poisoning, alcohol and isoniazid.",
+    "Macrocytic anemias include megaloblastic anemia from vitamin B12 or folate deficiency, with impaired DNA synthesis and hypersegmented neutrophils. B12 deficiency adds neurologic damage, with subacute combined degeneration of the dorsal columns and lateral corticospinal tracts, and raised methylmalonic acid, whereas folate deficiency does not. Causes of B12 deficiency are pernicious anemia, ileal disease, Diphyllobothrium latum and strict veganism. Non-megaloblastic macrocytosis occurs with alcohol and liver disease.",
+    "Hemolytic anemias show raised indirect bilirubin, high LDH, low haptoglobin, and reticulocytosis. Intravascular hemolysis releases hemoglobin into plasma and gives hemoglobinuria; extravascular hemolysis occurs in the spleen. Hereditary spherocytosis is from defects in ankyrin or spectrin, with spherocytes, raised MCHC, a positive osmotic fragility test and benefit from splenectomy. G6PD deficiency is X-linked, with oxidant stress from infection, fava beans or drugs causing Heinz bodies and bite cells. Sickle cell disease is from a glutamate to valine substitution in beta globin; deoxygenation polymerises HbS, and the sickled cells cause vaso-occlusive pain crises, acute chest syndrome, autosplenectomy with risk from encapsulated organisms, osteomyelitis from Salmonella, and aplastic crises with parvovirus B19; hydroxyurea raises fetal hemoglobin. Autoimmune hemolytic anemia is warm (IgG, in lupus and lymphoma) or cold (IgM, in Mycoplasma and mononucleosis), with positive direct Coombs test. Microangiopathic hemolysis fragments cells into schistocytes, as in TTP, HUS and DIC. Paroxysmal nocturnal hemoglobinuria is a PIGA mutation that deprives cells of the complement inhibitors DAF and CD59.",
+    "Aplastic anemia is pancytopenia from marrow failure with a hypocellular fatty marrow. A worked example: a 3-year-old with pallor, jaundice, splenomegaly, spherocytes on smear and a negative Coombs test has hereditary spherocytosis."
+   ]
+  },
+  {
+   "id": "med-path.l24",
+   "title": "Leukemias, Lymphomas and Bleeding Disorders",
+   "body": [
+    "Acute leukemias show blasts above 20 percent in the marrow and cause marrow failure with anemia, infection and bleeding. Acute lymphoblastic leukemia is the most common childhood cancer, with TdT positive cells and a good prognosis, particularly with hyperdiploidy and t(12;21), and it may involve the CNS and testes. Acute myeloid leukemia affects adults and shows Auer rods; acute promyelocytic leukemia is t(15;17) with the PML-RARA fusion, treated with all-trans retinoic acid, and has high risk of DIC. Chronic lymphocytic leukemia is a disease of older adults with small mature lymphocytes and smudge cells, and complications include autoimmune hemolytic anemia. Chronic myeloid leukemia has the BCR-ABL fusion with markedly raised granulocytes and a low leukocyte alkaline phosphatase score, and it may transform to blast crisis.",
+    "Myeloproliferative neoplasms are driven by JAK2 mutations in polycythemia vera, essential thrombocythemia and primary myelofibrosis, with the last showing teardrop cells and marrow fibrosis. Polycythemia vera causes a high hematocrit, pruritus after hot showers, and thrombosis, with low erythropoietin. Plasma cell myeloma has bone lesions, hypercalcemia, renal failure, anemia, rouleaux, M spike and Bence Jones proteins, and the lytic lesions are punched-out.",
+    "Lymphomas are divided into Hodgkin and non-Hodgkin types. Hodgkin lymphoma contains Reed-Sternberg cells, which are CD15 and CD30 positive, in an inflammatory background; it spreads contiguously from node to node, often affects young adults and is associated with EBV, B symptoms and pruritus, and the nodular sclerosis type is the most common. Among non-Hodgkin lymphomas, diffuse large B cell lymphoma is the most common, with an aggressive course and potential cure; follicular lymphoma is indolent with t(14;18) and BCL2; Burkitt lymphoma has MYC translocation and starry-sky histology, with the endemic form involving the jaw and linked to EBV; mantle cell lymphoma has cyclin D1; and mycosis fungoides is a cutaneous T cell lymphoma with Pautrier microabscesses.",
+    "Bleeding disorders of platelets have mucocutaneous bleeding and a normal coagulation profile. Immune thrombocytopenia is autoantibody-mediated platelet destruction in the spleen, in children after a viral illness and in women with chronic disease, with large platelets and increased megakaryocytes. TTP is a deficiency of the ADAMTS13 protease, so large von Willebrand multimers cause platelet microthrombi, with fever, neurologic signs, kidney injury, schistocytes and a normal coagulation profile. HUS follows Shiga toxin from Escherichia coli O157:H7, with renal failure in children. Von Willebrand disease is the most common inherited bleeding disorder, with a prolonged bleeding time and sometimes a prolonged aPTT because factor VIII is carried by the von Willebrand factor. Bernard-Soulier is a defect in GPIb and Glanzmann thrombasthenia in GPIIb/IIIa.",
+    "A worked example: a 4-year-old with bone pain, pallor, fever and a white count with TdT-positive lymphoblasts has B cell acute lymphoblastic leukemia."
+   ]
+  },
+  {
+   "id": "med-path.l25",
+   "title": "Central Nervous System: Vascular, Infectious and Degenerative",
+   "body": [
+    "Neurons are very sensitive to hypoxia. Global ischemia damages the most vulnerable cells first, namely pyramidal neurons of the hippocampus (CA1), Purkinje cells and cortical neurons in layers 3, 5 and 6, and watershed zones between vascular territories. Neuronal death appears as red neurons after 12 to 24 hours. Focal ischemic stroke is more often thromboembolic, with the middle cerebral artery the usual site. After infarction the tissue undergoes liquefactive necrosis, with macrophage clearance over weeks leaving a cystic space, and microglia and astrocytes respond with gliosis, since the brain does not form fibrous scars. Hemorrhagic stroke includes intracerebral hemorrhage, typically from hypertensive small vessel disease in the basal ganglia, and subarachnoid hemorrhage, most often from rupture of a berry aneurysm at the circle of Willis, with a thunderclap headache. Epidural hematoma comes from tearing of the middle meningeal artery after temporal bone fracture, with a lens-shaped collection and a lucid interval; subdural hematoma comes from tearing of bridging veins, in the elderly and infants, with a crescent-shaped collection.",
+    "Bacterial meningitis shows neutrophils in the CSF with low glucose and high protein; common organisms are Streptococcus pneumoniae and Neisseria meningitidis in adults and group B streptococcus, Escherichia coli and Listeria in neonates. Viral meningitis shows lymphocytes with normal glucose. Herpes simplex encephalitis involves the temporal lobes. Brain abscesses result from direct spread or hematogenous seeding, and toxoplasmosis and primary CNS lymphoma are the usual ring-enhancing lesions in AIDS. Prion diseases such as Creutzfeldt-Jakob disease cause spongiform change and rapidly progressive dementia.",
+    "Alzheimer disease is the most common cause of dementia, with cortical atrophy that spares the primary motor and sensory areas, extracellular beta-amyloid plaques derived from amyloid precursor protein, and intracellular neurofibrillary tangles of hyperphosphorylated tau. Down syndrome raises risk because the APP gene is on chromosome 21, and APOE e4 is a risk allele while the early-onset familial forms involve APP, presenilin 1 and 2. Loss of cholinergic neurons in the nucleus basalis of Meynert explains the cholinesterase inhibitor treatment. Frontotemporal dementia causes personality change with Pick bodies. Lewy body dementia shows visual hallucinations and fluctuating cognition, with alpha-synuclein inclusions. Vascular dementia follows multiple infarcts. Parkinson disease is loss of dopaminergic neurons in the substantia nigra pars compacta, with Lewy bodies and the clinical features of resting tremor, rigidity and bradykinesia. Huntington disease shows caudate atrophy. Amyotrophic lateral sclerosis causes loss of upper and lower motor neurons, with some cases from SOD1 mutation.",
+    "Multiple sclerosis is an immune-mediated demyelination of CNS white matter in young women, with plaques scattered in time and space, periventricular lesions, optic neuritis, internuclear ophthalmoplegia and oligoclonal bands in the CSF; axons are relatively preserved early. Guillain-Barre syndrome is a demyelinating polyneuropathy that follows an infection with Campylobacter jejuni, with ascending weakness and albuminocytologic dissociation in the CSF.",
+    "A worked example: an elderly man with a fall a week ago becomes confused and drowsy; CT shows a crescent-shaped collection crossing suture lines, a subdural hematoma from torn bridging veins."
+   ]
+  },
+  {
+   "id": "med-path.l26",
+   "title": "Brain Tumors, Bone and Soft Tissue Pathology",
+   "body": [
+    "In adults most brain tumors are metastases from lung, breast, melanoma, kidney and colon cancers, often multiple and at the gray-white junction. Glioblastoma is the most common primary malignant tumor of adults, with pseudopalisading necrosis and endothelial proliferation, and it crosses the corpus callosum to give a butterfly pattern. Its survival is poor, and IDH-mutant gliomas have a better prognosis. Meningioma is the most common benign primary tumor in adults, from arachnoid cells, with whorls and psammoma bodies, associated with NF2 and radiation. Schwannoma arises on the vestibular nerve and gives hearing loss, bilateral in NF2. In children, tumors are mostly infratentorial: pilocytic astrocytoma (cystic with a mural nodule, benign), medulloblastoma (a small blue cell tumor with Homer Wright rosettes in the cerebellum) and ependymoma, which blocks the fourth ventricle.",
+    "Bone is renewed by osteoblasts and osteoclasts, regulated by RANKL and osteoprotegerin. Osteoporosis is reduced bone mass with normal mineralisation, from postmenopausal estrogen loss or ageing, with fractures of the vertebrae, hip and wrist, and with normal calcium, phosphate and alkaline phosphatase. Osteomalacia and rickets are defective mineralisation from vitamin D deficiency, with low calcium. Paget disease of bone shows disordered remodelling, elevated alkaline phosphatase, mosaic bone and risk of osteosarcoma and high-output heart failure. Osteomyelitis in adults is usually Staphylococcus aureus, with Salmonella in sickle cell disease, and tuberculosis of the spine is Pott disease.",
+    "Bone tumors include benign osteochondroma, which is the most common benign tumor, and giant cell tumor of the epiphysis with a soap-bubble look. Osteosarcoma is the most common primary malignant bone tumor in adolescents, in the metaphysis around the knee, with a Codman triangle and sunburst pattern, and it is associated with RB and TP53 abnormalities. Ewing sarcoma is a small blue cell tumor with t(11;22) and an onion-skin periosteal reaction in the diaphysis. Chondrosarcoma affects older adults.",
+    "Osteoarthritis is degenerative cartilage loss with age and mechanical wear, causing pain that worsens with use, Heberden and Bouchard nodes, and osteophytes with narrowed joint space; rheumatoid arthritis is autoimmune synovitis with pannus, symmetric small joint disease, rheumatoid factor and anti-CCP antibodies. Gout is monosodium urate crystal arthritis with needle-shaped, negatively birefringent crystals, and pseudogout shows rhomboid, positively birefringent calcium pyrophosphate crystals. Septic arthritis is most often Staphylococcus aureus and is an emergency.",
+    "Soft tissue tumors: lipoma is the most common benign tumor, and liposarcoma, leiomyosarcoma, rhabdomyosarcoma (the most common soft tissue sarcoma of children, with desmin and embryonal botryoid forms) and synovial sarcoma with t(X;18) are important. Sarcomas spread mainly through the blood to the lung.",
+    "A worked example: a 15-year-old with knee pain and a sunburst periosteal reaction on radiograph has osteosarcoma, treated with chemotherapy and resection."
+   ]
+  },
+  {
+   "id": "med-path.l27",
+   "title": "Skin Pathology",
+   "body": [
+    "Skin lesions are described by terms such as macule, papule, plaque, vesicle, bulla, pustule and wheal, and by histologic words such as hyperkeratosis, parakeratosis (retained nuclei in the stratum corneum), acanthosis (epidermal thickening) and spongiosis (intercellular edema). Inflammatory dermatoses include psoriasis, an immune-mediated disease with well-demarcated silvery plaques on extensor surfaces, parakeratosis, regular acanthosis, loss of the granular layer and neutrophil collections called Munro microabscesses, with a Koebner phenomenon and the Auspitz sign, and an association with arthritis. Atopic dermatitis is eczema with spongiosis in people with atopy. Lichen planus presents with pruritic, purple, polygonal papules with Wickham striae and a band-like lymphocytic infiltrate at the dermal-epidermal junction, which is linked to hepatitis C. Acne arises from follicular obstruction and Cutibacterium acnes.",
+    "Blistering diseases are divided by the level of the split. Pemphigus vulgaris is an autoimmune disease with IgG against desmoglein 3 in the epidermal desmosomes, producing flaccid intraepidermal bullae that rupture easily, a positive Nikolsky sign, mucosal involvement, and a fishnet immunofluorescence pattern; the split is suprabasal, creating a tombstone appearance. Bullous pemphigoid is autoimmune against hemidesmosomes (BP180 and BP230), with tense subepidermal blisters in older adults, no mucosal involvement and linear immunofluorescence along the basement membrane. Dermatitis herpetiformis is subepidermal with IgA at the papillary tips, in celiac disease. Stevens-Johnson syndrome and toxic epidermal necrolysis are severe drug reactions to sulfonamides, allopurinol, and anticonvulsants, with epidermal necrosis and mucosal erosions.",
+    "Infections include impetigo (Staphylococcus aureus or group A streptococci), warts from HPV, molluscum contagiosum with umbilicated papules, and dermatophyte infections diagnosed by potassium hydroxide preparation. Seborrheic keratosis is a common benign pigmented stuck-on lesion; the sudden eruption of many is the sign of Leser-Trelat and can suggest cancer.",
+    "Basal cell carcinoma is the most common skin cancer, from basal cells of the epidermis in sun-exposed skin, with a pearly papule with telangiectasias, palisading nuclei and a cleft, and it almost never metastasises. Squamous cell carcinoma arises from sun damage and actinic keratosis, with keratin pearls, and may metastasise, especially at the lip, in immunosuppressed patients and from chronic wounds. Melanoma is a malignant tumor of melanocytes, with risk factors of sun exposure, fair skin and many nevi, with the ABCDE rule (asymmetry, border, color, diameter, evolution). The most important prognostic factor is the Breslow thickness, the depth of invasion in millimetres, and the radial growth phase precedes the vertical growth phase. BRAF V600E is often present. Markers are S-100 and HMB-45. Kaposi sarcoma is HHV-8-associated vascular tumor in AIDS.",
+    "A worked example: an older patient with tense bullae on the thighs, no mucosal lesions, and linear IgG and C3 at the basement membrane has bullous pemphigoid, so the blister roof stays intact."
+   ]
+  },
+  {
+   "id": "med-path.l28",
+   "title": "Breast Pathology",
+   "body": [
+    "A breast mass is evaluated by clinical examination, imaging and tissue sampling. Benign conditions are common. Fibrocystic changes are the most frequent cause of lumps in premenopausal women, with cysts, fibrosis, adenosis and apocrine metaplasia that fluctuate with the menstrual cycle; they carry no increased cancer risk unless proliferative disease with atypia is found. Fibroadenoma is the most common benign tumor in young women, a mobile, well-circumscribed, rubbery mass of stromal and glandular tissue that grows with estrogen. Phyllodes tumor has a leaf-like architecture with a cellular stroma and can be benign or malignant. Intraductal papilloma is the usual cause of bloody nipple discharge. Fat necrosis follows trauma and mimics cancer. Acute mastitis in lactation is usually from Staphylococcus aureus. Gynecomastia in men results from an estrogen to androgen imbalance, as in puberty, cirrhosis and Klinefelter syndrome.",
+    "Cancer risk factors reflect lifetime estrogen exposure and genetics: female sex, age, early menarche, late menopause, nulliparity, obesity after menopause and prior chest radiation. Hereditary breast cancer from BRCA1 and BRCA2, which repair double-strand DNA breaks, is autosomal dominant with high risk of breast and ovarian cancer, and BRCA1 tumors are often triple-negative. TP53 and PTEN mutations are rarer causes. Atypical hyperplasia raises risk several-fold.",
+    "Carcinoma in situ means malignant cells within the duct that have not crossed the basement membrane. Ductal carcinoma in situ may show comedo necrosis with calcifications detected on mammography. Lobular carcinoma in situ is usually an incidental, often multifocal and bilateral finding, and it is a marker of increased risk. Paget disease of the nipple is an eczematous nipple change from carcinoma cells in the epidermis, nearly always with underlying ductal carcinoma. Invasive ductal carcinoma, no special type, is the most frequent, giving a hard stellate mass with fixation and skin dimpling. Invasive lobular carcinoma is characterised by loss of E-cadherin, with single-file growth and a diffuse pattern that is hard to see on imaging, and it is often bilateral. Inflammatory carcinoma is dermal lymphatic invasion with an erythematous swollen breast with peau d'orange appearance, and it is not an infection. Medullary and mucinous types have a better prognosis.",
+    "Biomarkers guide therapy: estrogen and progesterone receptors predict response to endocrine treatments such as tamoxifen and aromatase inhibitors, and HER2 amplification predicts benefit from trastuzumab. Triple-negative tumors lack all three and have the worst prognosis, with chemotherapy as the backbone of therapy. Prognosis depends most on stage, specifically the status of the axillary lymph nodes, and also on tumor size, grade and receptor status. Sentinel lymph node biopsy identifies the first draining node. Spread favours axillary nodes, bone, lung, liver and brain.",
+    "A worked example: a 45-year-old with a new firm mass and screening mammography calcifications has an invasive ductal carcinoma, ER positive and HER2 negative; the receptor profile points to endocrine therapy as part of treatment."
+   ]
+  },
+  {
+   "id": "med-path.l29",
+   "title": "Female Reproductive Tract and Pregnancy",
+   "body": [
+    "Cervical cancer is caused by persistent infection with high-risk human papillomavirus, mainly types 16 and 18, with E6 and E7 inactivating p53 and RB. Squamous intraepithelial lesions arise at the transformation zone and progress through cervical intraepithelial neoplasia grades 1 to 3 to invasive carcinoma over years, which is why screening by cytology and HPV testing works, and vaccination prevents infection. Koilocytes with perinuclear halos are the cellular hallmark of HPV effect.",
+    "In the uterus, endometriosis is functioning endometrial tissue outside the uterus, giving cyclic pelvic pain, dysmenorrhea, infertility and ovarian chocolate cysts. Adenomyosis is endometrial tissue in the myometrium with a globally enlarged, tender uterus. Leiomyomas (fibroids) are the most common pelvic tumor, estrogen-sensitive, benign and monoclonal, with rare transformation to leiomyosarcoma. Endometrial hyperplasia follows unopposed estrogen from obesity, polycystic ovary syndrome, estrogen-secreting tumors and unopposed estrogen therapy, and may progress to endometrioid endometrial carcinoma, which presents with postmenopausal bleeding and has PTEN mutations. Type II serous carcinoma arises from atrophic endometrium with TP53 mutation and a worse prognosis.",
+    "Ovarian tumors are classified by cell of origin. Epithelial tumors are the most common malignant type: serous cystadenocarcinoma is the most common, associated with BRCA1 and BRCA2 and with psammoma bodies, and it presents late with ascites and a high CA-125; mucinous tumors can reach large sizes, and rupture can cause pseudomyxoma peritonei. Germ cell tumors affect young women: dysgerminoma resembles testicular seminoma, mature teratoma (dermoid cyst) is the most common benign ovarian tumor and may contain thyroid tissue (struma ovarii), yolk sac tumor secretes alpha-fetoprotein with Schiller-Duval bodies, and choriocarcinoma secretes hCG. Sex cord-stromal tumors include granulosa cell tumors with Call-Exner bodies, estrogen production and inhibin, and fibromas, with Meigs syndrome of ascites and pleural effusion. Polycystic ovary syndrome features anovulation, hyperandrogenism and insulin resistance.",
+    "In pregnancy, ectopic pregnancy is implantation outside the uterus, usually in the fallopian tube, with risk after pelvic inflammatory disease, and it presents with pain, bleeding and a positive pregnancy test and can rupture. Preeclampsia is hypertension with proteinuria or end-organ dysfunction after 20 weeks, from abnormal placentation with endothelial dysfunction, and eclampsia adds seizures; HELLP syndrome includes hemolysis, elevated liver enzymes and low platelets, and delivery is the definitive treatment. Hydatidiform mole shows swollen chorionic villi and trophoblastic proliferation with a very high hCG; a complete mole is 46,XX from paternal chromosomes only with no fetal tissue, whereas a partial mole is triploid with fetal parts. Choriocarcinoma may follow a mole and metastasises to the lung and responds well to chemotherapy.",
+    "A worked example: a 28-year-old with amenorrhea, a very high hCG, vaginal bleeding and a snowstorm pattern on ultrasound has a complete hydatidiform mole."
+   ]
+  },
+  {
+   "id": "med-path.l30",
+   "title": "Male Reproductive Tract and Prostate",
+   "body": [
+    "Testicular germ cell tumors are the most common cancers in young men. Seminoma is the most common single type, with sheets of uniform cells with clear cytoplasm and a fried-egg appearance, a lymphocytic infiltrate and a placental alkaline phosphatase marker, and it is highly radiosensitive and has an excellent prognosis. Embryonal carcinoma is more aggressive with glandular patterns. Yolk sac tumor is the most common testicular tumor in infants and secretes alpha-fetoprotein. Choriocarcinoma secretes hCG and may cause gynecomastia and early hematogenous spread. Teratoma contains tissue from multiple germ layers. Mixed tumors are frequent. Risk factors include cryptorchidism, which also impairs fertility, and orchiectomy is performed through an inguinal incision because a scrotal approach could alter lymphatic drainage. Testicular lymphatics drain to the para-aortic nodes, whereas scrotal skin drains to the inguinal nodes. Leydig cell tumors make androgens and Reinke crystals, and Sertoli cell tumors are rarer.",
+    "Other scrotal disorders include testicular torsion, which is a surgical emergency in adolescents with sudden pain, a high-riding testis and an absent cremasteric reflex, from twisting of the spermatic cord and venous infarction; epididymitis is infectious, with Chlamydia and gonorrhea in young men and coliform organisms in older men. Varicocele is dilation of the pampiniform plexus, more often on the left because the left testicular vein drains into the left renal vein, and renal cell carcinoma invading the renal vein can cause it. Hydrocele is fluid in the tunica vaginalis, which transilluminates. Phimosis, balanitis and Peyronie disease affect the penis, and squamous cell carcinoma of the penis is linked to HPV and lack of circumcision.",
+    "Benign prostatic hyperplasia is a nodular hyperplasia of the periurethral transition zone from dihydrotestosterone, causing hesitancy, weak stream, nocturia and urinary retention, with bladder hypertrophy and hydronephrosis in severe cases; it is treated with alpha blockers, which relax smooth muscle, and 5-alpha reductase inhibitors, which shrink the gland. Prostate cancer is mainly adenocarcinoma of the peripheral zone, which is why it may be felt on rectal examination, and is graded with the Gleason system, now converted to Grade Groups. It often grows slowly, and PSA is a screening tool with limits because it is organ specific and not cancer specific, and rises in BPH, prostatitis and after instrumentation; screening decisions are individualised and made with shared decision-making. Spread is to the bone as osteoblastic lesions in the axial skeleton through the vertebral venous plexus, and androgen deprivation is central to treatment of advanced disease. Acute prostatitis is usually E. coli.",
+    "A worked example: a 70-year-old with back pain and sclerotic vertebral lesions with a markedly raised PSA has metastatic prostate adenocarcinoma, and the sclerotic bone appearance marks osteoblastic activity."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-path.l01.q1",
+   "lessonId": "med-path.l01",
+   "kind": "mcq",
+   "prompt": "A person who has smoked for years has bronchial biopsy showing stratified squamous epithelium in place of ciliated columnar epithelium. What is this change?",
+   "choices": [
+    "Hyperplasia, a reversible increase in the number of ciliated cells",
+    "Atrophy, a reversible loss of cell size from reduced workload",
+    "Metaplasia, a reversible replacement of one mature cell type by another",
+    "Dysplasia, a disordered growth that is already a carcinoma in situ"
+   ]
+  },
+  {
+   "id": "med-path.l01.q2",
+   "lessonId": "med-path.l01",
+   "kind": "mcq",
+   "prompt": "Which change best explains why the myocardium thickens in long-standing systemic hypertension?",
+   "choices": [
+    "Hyperplasia, as cardiac myocytes divide to increase their total number",
+    "Metaplasia, as myocytes are replaced by a more resistant cell type",
+    "Atrophy, as myocytes shrink and reduce the demand placed on the ventricle",
+    "Hypertrophy, as cardiac myocytes enlarge in response to pressure overload"
+   ]
+  },
+  {
+   "id": "med-path.l01.q3",
+   "lessonId": "med-path.l01",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man with 15 years of heartburn has an endoscopic biopsy showing intestinal-type columnar cells with goblet cells in the distal oesophagus. Which statement best describes the underlying process?",
+   "choices": [
+    "Reprogramming of stem cells in response to chronic acid exposure, which leaves a field at risk of dysplasia and adenocarcinoma",
+    "Direct transformation of mature squamous cells into columnar cells, which carries no increased risk of later malignancy",
+    "Hyperplasia of the normal squamous lining caused by repeated cycles of healing, reversible only by surgery",
+    "Atrophy of the squamous lining followed by regeneration with identical squamous cells in a normal pattern"
+   ]
+  },
+  {
+   "id": "med-path.l01.q4",
+   "lessonId": "med-path.l01",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man presents 3 hours after chest pain begins. Cardiac myocytes are leaking intracellular proteins into the blood. Which finding best indicates that injury has become irreversible?",
+   "choices": [
+    "Clumping of nuclear chromatin from falling intracellular pH",
+    "Profound membrane damage with irreversible mitochondrial dysfunction",
+    "Cellular swelling from failure of the Na+/K+ ATPase pump",
+    "Detachment of ribosomes from the endoplasmic reticulum"
+   ]
+  },
+  {
+   "id": "med-path.l01.q5",
+   "lessonId": "med-path.l01",
+   "kind": "mcq",
+   "prompt": "Which sequence best explains why a hypoxic cell swells early?",
+   "choices": [
+    "Less ATP stops protein synthesis, so osmotically active proteins build up inside",
+    "More lactate leaves the cell, so the cytoplasm becomes hypertonic to the outside",
+    "Less ATP slows the sodium pump, so sodium and water accumulate in the cell",
+    "More ATP drives the sodium pump too hard, so water is drawn into the cell"
+   ]
+  },
+  {
+   "id": "med-path.l02.q1",
+   "lessonId": "med-path.l02",
+   "kind": "mcq",
+   "prompt": "Which pattern of necrosis is typical of an ischaemic infarct in the kidney?",
+   "choices": [
+    "Fat necrosis, with chalky deposits formed from calcium soaps",
+    "Coagulative necrosis, with the tissue outline preserved for days",
+    "Liquefactive necrosis, with the tissue digested to a viscous fluid",
+    "Caseous necrosis, with granular debris inside a granulomatous rim"
+   ]
+  },
+  {
+   "id": "med-path.l02.q2",
+   "lessonId": "med-path.l02",
+   "kind": "mcq",
+   "prompt": "A cell undergoing apoptosis releases cytochrome c from mitochondria. Which molecule is activated next in this pathway?",
+   "choices": [
+    "Caspase 9, through formation of the apoptosome",
+    "Caspase 8, through recruitment by a death receptor",
+    "BCL2, through binding of the pro-apoptotic protein BAX",
+    "FasL, through cleavage at the cell surface by caspase 3"
+   ]
+  },
+  {
+   "id": "med-path.l02.q3",
+   "lessonId": "med-path.l02",
+   "kind": "mcq",
+   "prompt": "A 40-year-old woman has a lymph node biopsy showing follicular lymphoma with t(14;18). Which mechanism most directly explains the survival of her tumor cells?",
+   "choices": [
+    "Loss of caspase 8 so that death receptor signalling cannot proceed",
+    "Excess FasL on the tumor cells that kills attacking T lymphocytes",
+    "Increased BAX that opens the mitochondrial membrane to promote survival",
+    "Overexpression of BCL2 that prevents mitochondrial release of cytochrome c"
+   ]
+  },
+  {
+   "id": "med-path.l02.q4",
+   "lessonId": "med-path.l02",
+   "kind": "mcq",
+   "prompt": "A 25-year-old woman is admitted after an intentional acetaminophen overdose. Transaminases are very high and biopsy shows necrosis around the central veins. Which is the best explanation for the distribution of injury?",
+   "choices": [
+    "Zone 3 hepatocytes have the highest glutathione stores and are overwhelmed first",
+    "Zone 1 hepatocytes are the first to receive toxin from the portal vein and are lysed",
+    "Zone 3 hepatocytes have the highest cytochrome P450 activity and make the toxic metabolite",
+    "Zone 1 hepatocytes receive the most oxygen and so produce the most free radicals"
+   ]
+  },
+  {
+   "id": "med-path.l02.q5",
+   "lessonId": "med-path.l02",
+   "kind": "mcq",
+   "prompt": "Why can an ischaemic tissue appear more damaged shortly after blood flow is restored?",
+   "choices": [
+    "Returning oxygen blocks anaerobic glycolysis, so lactate falls too quickly",
+    "Returning oxygen generates a burst of free radicals and calcium overload",
+    "Returning blood flow washes out all of the stored cellular ATP at once",
+    "Returning blood flow causes immediate fibrinoid necrosis in vessel walls"
+   ]
+  },
+  {
+   "id": "med-path.l03.q1",
+   "lessonId": "med-path.l03",
+   "kind": "mcq",
+   "prompt": "Which adhesion molecule family mediates the initial rolling of leukocytes along activated endothelium?",
+   "choices": [
+    "Selectins, such as P-selectin and E-selectin",
+    "Integrins, such as LFA-1 binding to ICAM-1",
+    "Cadherins, such as VE-cadherin at cell junctions",
+    "Immunoglobulin superfamily members, such as PECAM-1"
+   ]
+  },
+  {
+   "id": "med-path.l03.q2",
+   "lessonId": "med-path.l03",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes an exudate from a transudate?",
+   "choices": [
+    "Low protein content due to decreased lymphatic drainage",
+    "High protein content due to increased vascular permeability",
+    "Low protein content due to increased hydrostatic pressure",
+    "High protein content due to decreased plasma oncotic pressure"
+   ]
+  },
+  {
+   "id": "med-path.l03.q3",
+   "lessonId": "med-path.l03",
+   "kind": "mcq",
+   "prompt": "A 6-year-old boy has recurrent abscesses of lymph nodes and lung due to Staphylococcus aureus and Aspergillus. A dihydrorhodamine flow cytometry test shows no oxidative burst. Which defect is most likely?",
+   "choices": [
+    "Myeloperoxidase deficiency, so hypochlorous acid is not generated",
+    "Complement C5b-9 deficiency, so bacteria cannot be lysed on the surface",
+    "NADPH oxidase deficiency, so phagocytes cannot generate superoxide",
+    "CD18 integrin deficiency, so neutrophils cannot adhere to the endothelium"
+   ]
+  },
+  {
+   "id": "med-path.l03.q4",
+   "lessonId": "med-path.l03",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman has a chest radiograph with hilar lymphadenopathy. A lymph node biopsy shows non-caseating granulomas. Which cell product is most important for activating the macrophages that form them?",
+   "choices": [
+    "Interleukin 4 secreted by T-helper 2 lymphocytes",
+    "Histamine released by degranulating tissue mast cells",
+    "Complement C5a generated at the site of tissue injury",
+    "Interferon gamma secreted by T-helper 1 lymphocytes"
+   ]
+  },
+  {
+   "id": "med-path.l03.q5",
+   "lessonId": "med-path.l03",
+   "kind": "mcq",
+   "prompt": "A child born with delayed separation of the umbilical cord, recurrent infections without pus and very high blood neutrophil counts most likely has which defect?",
+   "choices": [
+    "Leukocyte adhesion deficiency from CD18 integrin mutations",
+    "Chronic granulomatous disease from NADPH oxidase mutations",
+    "Chediak-Higashi syndrome from a lysosomal trafficking protein defect",
+    "Selective IgA deficiency from impaired class switching of B cells"
+   ]
+  },
+  {
+   "id": "med-path.l04.q1",
+   "lessonId": "med-path.l04",
+   "kind": "mcq",
+   "prompt": "Which type of tissue can regenerate after injury but is normally quiescent?",
+   "choices": [
+    "Labile tissue, such as the intestinal mucosa",
+    "Permanent tissue, such as cardiac myocytes",
+    "Fibrous tissue, such as a mature scar",
+    "Stable tissue, such as hepatocytes"
+   ]
+  },
+  {
+   "id": "med-path.l04.q2",
+   "lessonId": "med-path.l04",
+   "kind": "mcq",
+   "prompt": "Which cell is responsible for contraction of a healing skin wound?",
+   "choices": [
+    "Endothelial cell forming the new capillary sprouts",
+    "Keratinocyte migrating across the granulation tissue",
+    "Myofibroblast containing smooth muscle actin",
+    "Neutrophil recruited by chemokines early in repair"
+   ]
+  },
+  {
+   "id": "med-path.l04.q3",
+   "lessonId": "med-path.l04",
+   "kind": "mcq",
+   "prompt": "A 70-year-old malnourished man develops perifollicular haemorrhages, swollen bleeding gums and a surgical wound that has reopened. Which biochemical defect best explains the poor healing?",
+   "choices": [
+    "Excess activity of matrix metalloproteinases, so collagen is degraded at the wound",
+    "Impaired hydroxylation of proline and lysine in collagen, so it cannot cross-link",
+    "Impaired transcription of collagen genes, so fibroblasts cannot make procollagen",
+    "Failure of vitamin K-dependent carboxylation, so coagulation factors are not made"
+   ]
+  },
+  {
+   "id": "med-path.l04.q4",
+   "lessonId": "med-path.l04",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman has a firm, raised scar that has grown well beyond the margins of her original ear-piercing site. Biopsy shows thick, glassy bundles of collagen. Which statement is most accurate?",
+   "choices": [
+    "This is a keloid, and it extends beyond the original wound edges",
+    "This is a hypertrophic scar, and it stays within the original wound edges",
+    "This is granulation tissue, and it will remodel into a normal dermis",
+    "This is a fibrous dysplasia, and it is a type of benign bone tumor"
+   ]
+  },
+  {
+   "id": "med-path.l04.q5",
+   "lessonId": "med-path.l04",
+   "kind": "mcq",
+   "prompt": "Which change drives the progression from chronic liver injury to cirrhosis?",
+   "choices": [
+    "Apoptosis of hepatic stellate cells that normally store vitamin A",
+    "Replacement of hepatocytes by regenerating squamous epithelium",
+    "Increased degradation of type I collagen by hepatocyte proteases",
+    "Activation of hepatic stellate cells into collagen-producing myofibroblasts"
+   ]
+  },
+  {
+   "id": "med-path.l05.q1",
+   "lessonId": "med-path.l05",
+   "kind": "mcq",
+   "prompt": "Which finding is typical of chronic right-sided heart failure?",
+   "choices": [
+    "Hyperemia of the skin with warm, red, dilated arterioles",
+    "Hypoalbuminemia with generalised edema from urinary protein loss",
+    "Congestive hepatomegaly with a nutmeg appearance of the liver",
+    "Pulmonary hemosiderin-laden macrophages in the alveolar spaces"
+   ]
+  },
+  {
+   "id": "med-path.l05.q2",
+   "lessonId": "med-path.l05",
+   "kind": "mcq",
+   "prompt": "A man with nephrotic syndrome develops periorbital and leg swelling. Which mechanism most directly explains the edema?",
+   "choices": [
+    "Increased capillary hydrostatic pressure from right-sided failure",
+    "Obstruction of lymphatic drainage by tumor cells in the nodes",
+    "Increased endothelial permeability from circulating inflammatory cytokines",
+    "Reduced plasma oncotic pressure from urinary albumin loss"
+   ]
+  },
+  {
+   "id": "med-path.l05.q3",
+   "lessonId": "med-path.l05",
+   "kind": "mcq",
+   "prompt": "A 52-year-old woman with pneumonia and septic shock develops oozing from IV sites and bleeding gums. Labs show low platelets, prolonged PT and PTT, low fibrinogen and a markedly raised D-dimer. Which mechanism best explains the bleeding?",
+   "choices": [
+    "Widespread microthrombi consume platelets and clotting factors while fibrinolysis is activated",
+    "Production of an antibody directed against platelet glycoprotein IIb/IIIa receptors",
+    "Failure to absorb vitamin K so that factors II, VII, IX and X are not carboxylated",
+    "Absence of von Willebrand factor so that platelets cannot adhere to damaged endothelium"
+   ]
+  },
+  {
+   "id": "med-path.l05.q4",
+   "lessonId": "med-path.l05",
+   "kind": "mcq",
+   "prompt": "A 7-year-old boy has recurrent bleeding into the knee joints and a prolonged aPTT with a normal PT, platelet count and bleeding time. Which explains the pattern of bleeding?",
+   "choices": [
+    "An antibody to platelet factor 4 causes platelet activation and thrombosis with thrombocytopenia",
+    "A deficiency of an intrinsic pathway factor impairs generation of thrombin on the platelet plug",
+    "A defect of platelet glycoprotein Ib impairs adhesion to subendothelial von Willebrand factor",
+    "A deficiency of protein C allows unchecked thrombin generation and consumption of factors"
+   ]
+  },
+  {
+   "id": "med-path.l05.q5",
+   "lessonId": "med-path.l05",
+   "kind": "mcq",
+   "prompt": "Which test result most directly reflects plasmin degradation of cross-linked fibrin?",
+   "choices": [
+    "A prolonged bleeding time",
+    "A reduced platelet count",
+    "An elevated D-dimer",
+    "A prolonged prothrombin time"
+   ]
+  },
+  {
+   "id": "med-path.l06.q1",
+   "lessonId": "med-path.l06",
+   "kind": "mcq",
+   "prompt": "Which element of Virchow triad is the main driver of thrombus formation in the left atrial appendage during atrial fibrillation?",
+   "choices": [
+    "Turbulence from a stenotic aortic valve",
+    "Abnormal blood flow, with stasis",
+    "Endothelial injury from rupture of a plaque",
+    "Hypercoagulability from a factor mutation"
+   ]
+  },
+  {
+   "id": "med-path.l06.q2",
+   "lessonId": "med-path.l06",
+   "kind": "mcq",
+   "prompt": "Which feature of a thrombus indicates that it formed in flowing blood before death?",
+   "choices": [
+    "Alternating pale and dark layers called lines of Zahn",
+    "A soft, gelatinous consistency with a yellow supernatant",
+    "A uniformly dark red colour with a smooth shiny surface",
+    "A loose attachment with no adherence to the vessel wall"
+   ]
+  },
+  {
+   "id": "med-path.l06.q3",
+   "lessonId": "med-path.l06",
+   "kind": "mcq",
+   "prompt": "A 34-year-old woman 3 weeks after a long-haul flight and on oral contraceptives has sudden dyspnea and pleuritic chest pain. CT shows a saddle embolus. Her father had a similar event at a young age. Which inherited abnormality is the most common cause of this family history?",
+   "choices": [
+    "Antithrombin deficiency causing loss of inhibition of factor Xa and thrombin",
+    "Deficiency of von Willebrand factor causing failure of platelet adhesion",
+    "Deficiency of factor VIII causing failure of the intrinsic coagulation pathway",
+    "Factor V Leiden mutation causing resistance to inactivation by activated protein C"
+   ]
+  },
+  {
+   "id": "med-path.l06.q4",
+   "lessonId": "med-path.l06",
+   "kind": "mcq",
+   "prompt": "A 22-year-old man has a femur fracture. Two days after surgery he develops hypoxia, confusion and a petechial rash over the chest. Which type of embolus is most likely?",
+   "choices": [
+    "Air embolus entering through a central venous line",
+    "Amniotic fluid embolus entering the maternal circulation",
+    "Fat embolus from marrow released at the fracture site",
+    "Thromboembolus from a deep vein of the calf"
+   ]
+  },
+  {
+   "id": "med-path.l06.q5",
+   "lessonId": "med-path.l06",
+   "kind": "mcq",
+   "prompt": "Why do small pulmonary emboli rarely cause pulmonary infarction in a healthy person?",
+   "choices": [
+    "The lung has venous drainage that reverses flow to bring blood to the area",
+    "The lung has a dual blood supply from the pulmonary and bronchial arteries",
+    "The lung has end arteries that tolerate occlusion without necrosis",
+    "The lung has a low oxygen demand and can survive without perfusion"
+   ]
+  },
+  {
+   "id": "med-path.l07.q1",
+   "lessonId": "med-path.l07",
+   "kind": "mcq",
+   "prompt": "Which category of protein is most often affected in autosomal recessive disorders?",
+   "choices": [
+    "Enzymes, because a heterozygote keeps enough activity to be healthy",
+    "Structural proteins, because half the amount is enough to be healthy",
+    "Receptor proteins, because half the number is enough to be healthy",
+    "Transcription factors, because half the dose is enough to be healthy"
+   ]
+  },
+  {
+   "id": "med-path.l07.q2",
+   "lessonId": "med-path.l07",
+   "kind": "mcq",
+   "prompt": "A man with an X-linked recessive disease has children with a woman who is not a carrier. What is the outcome for their children?",
+   "choices": [
+    "No daughters are carriers and all sons are affected",
+    "All daughters are carriers and no sons are affected",
+    "Half of the daughters are carriers and all sons are affected",
+    "All sons are carriers and no daughters are affected"
+   ]
+  },
+  {
+   "id": "med-path.l07.q3",
+   "lessonId": "med-path.l07",
+   "kind": "mcq",
+   "prompt": "A 17-year-old tall, thin boy has arachnodactyly, a high arched palate, and upward lens dislocation. He is at greatest risk of which life-threatening complication?",
+   "choices": [
+    "Coarctation of the aorta leading to hypertension",
+    "Aortic valve stenosis leading to syncope",
+    "Aortic root dilation leading to dissection",
+    "Mitral stenosis leading to atrial thrombosis"
+   ]
+  },
+  {
+   "id": "med-path.l07.q4",
+   "lessonId": "med-path.l07",
+   "kind": "mcq",
+   "prompt": "A 4-year-old boy has recurrent Pseudomonas pneumonia, greasy foul stools and poor weight gain. A sweat chloride test is high. Which mechanism most directly explains his lung disease?",
+   "choices": [
+    "Defective alpha-1 antitrypsin leads to unopposed elastase and alveolar destruction",
+    "Defective ciliary dynein leads to immotile cilia and impaired mucociliary movement",
+    "Defective NADPH oxidase leads to failure of neutrophil killing of catalase-positive organisms",
+    "Defective chloride secretion produces dehydrated, thick mucus that impairs clearance"
+   ]
+  },
+  {
+   "id": "med-path.l07.q5",
+   "lessonId": "med-path.l07",
+   "kind": "mcq",
+   "prompt": "Two unaffected parents have a child with autosomal recessive disease. What is the chance that their next child is affected?",
+   "choices": [
+    "25 percent",
+    "50 percent",
+    "75 percent",
+    "100 percent"
+   ]
+  },
+  {
+   "id": "med-path.l08.q1",
+   "lessonId": "med-path.l08",
+   "kind": "mcq",
+   "prompt": "Which trinucleotide repeat expansion causes fragile X syndrome?",
+   "choices": [
+    "CAG repeats in HTT",
+    "CTG repeats in DMPK",
+    "GAA repeats in frataxin",
+    "CGG repeats in FMR1"
+   ]
+  },
+  {
+   "id": "med-path.l08.q2",
+   "lessonId": "med-path.l08",
+   "kind": "mcq",
+   "prompt": "A child inherits both copies of chromosome 15 from the mother. What disorder results?",
+   "choices": [
+    "Fragile X syndrome through methylation of the maternal alleles",
+    "Turner syndrome through loss of the paternal sex chromosome",
+    "Prader-Willi syndrome through loss of the paternal contribution",
+    "Angelman syndrome through loss of the paternal contribution"
+   ]
+  },
+  {
+   "id": "med-path.l08.q3",
+   "lessonId": "med-path.l08",
+   "kind": "mcq",
+   "prompt": "A 15-year-old girl has short stature, a webbed neck, widely spaced nipples and primary amenorrhea. Which cardiovascular lesion is most likely?",
+   "choices": [
+    "Persistent truncus arteriosus with a single arterial vessel",
+    "Bicuspid aortic valve or coarctation of the aorta",
+    "Atrioventricular septal defect with a complete common valve",
+    "Tetralogy of Fallot with right ventricular outflow obstruction"
+   ]
+  },
+  {
+   "id": "med-path.l08.q4",
+   "lessonId": "med-path.l08",
+   "kind": "mcq",
+   "prompt": "A 9-month-old boy has developmental regression, an exaggerated startle response, a cherry-red macula and no hepatosplenomegaly. Which enzyme is most likely deficient?",
+   "choices": [
+    "Hexosaminidase A",
+    "Glucocerebrosidase",
+    "Sphingomyelinase",
+    "Alpha-galactosidase A"
+   ]
+  },
+  {
+   "id": "med-path.l08.q5",
+   "lessonId": "med-path.l08",
+   "kind": "mcq",
+   "prompt": "A man with a mitochondrial DNA mutation has a family in which all affected offspring are children of affected mothers only. Why do affected fathers not transmit the disease?",
+   "choices": [
+    "The mutation is lethal in sperm and so no father can transmit it",
+    "The gene is imprinted and silenced when it comes from the father",
+    "The mutation sits on the X chromosome and is silenced in males",
+    "Mitochondria in the zygote derive almost entirely from the oocyte"
+   ]
+  },
+  {
+   "id": "med-path.l09.q1",
+   "lessonId": "med-path.l09",
+   "kind": "mcq",
+   "prompt": "Which feature is the most reliable histologic indicator that an epithelial tumor is malignant?",
+   "choices": [
+    "Slow growth with a low number of observed mitoses",
+    "Well-differentiated cells that resemble the tissue of origin",
+    "Invasion through the basement membrane into underlying tissue",
+    "Presence of a fibrous capsule around the tumor mass"
+   ]
+  },
+  {
+   "id": "med-path.l09.q2",
+   "lessonId": "med-path.l09",
+   "kind": "mcq",
+   "prompt": "A pathologist reports a colon cancer as moderately differentiated, with tumor cells in 3 of 14 regional nodes and a single liver metastasis. Which statement correctly separates grade from stage?",
+   "choices": [
+    "Differentiation is the stage, while node and liver involvement define the grade",
+    "Both differentiation and node involvement are components of the grade",
+    "Both node involvement and liver metastasis are components of the grade",
+    "Differentiation is the grade, while node and liver involvement define the stage"
+   ]
+  },
+  {
+   "id": "med-path.l09.q3",
+   "lessonId": "med-path.l09",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man has a large renal mass. CT shows tumor extending into the renal vein and inferior vena cava, and several small lung nodules. Which feature of this tumor best explains the pulmonary nodules?",
+   "choices": [
+    "Hematogenous spread through venous invasion carries cells to the first capillary bed in the lung",
+    "Lymphatic spread through the retroperitoneal nodes carries cells directly into the lung parenchyma",
+    "Seeding of the peritoneal cavity carries cells across the diaphragm into the lung",
+    "Contiguous growth carries cells from the kidney through the diaphragm into the lung"
+   ]
+  },
+  {
+   "id": "med-path.l09.q4",
+   "lessonId": "med-path.l09",
+   "kind": "mcq",
+   "prompt": "A cervical biopsy from a 29-year-old woman shows atypical cells with large hyperchromatic nuclei in all layers of the epithelium. The basement membrane is intact. Which diagnosis is most accurate?",
+   "choices": [
+    "Hamartoma, a disorganised overgrowth of tissue native to the cervix",
+    "Carcinoma in situ, a full-thickness dysplasia without invasion",
+    "Invasive squamous carcinoma, because the cells are atypical in all layers",
+    "Metaplasia, a reversible replacement of one mature cell type by another"
+   ]
+  },
+  {
+   "id": "med-path.l09.q5",
+   "lessonId": "med-path.l09",
+   "kind": "mcq",
+   "prompt": "Which change allows tumor cells to detach from their neighbours early in metastasis?",
+   "choices": [
+    "Increased expression of selectins on the tumor cell surface",
+    "Loss of matrix metalloproteinase production by the tumor cell",
+    "Loss of E-cadherin-mediated adhesion between epithelial cells",
+    "Increased expression of tissue inhibitors of metalloproteinases"
+   ]
+  },
+  {
+   "id": "med-path.l10.q1",
+   "lessonId": "med-path.l10",
+   "kind": "mcq",
+   "prompt": "Which oncogene is activated in most cases of chronic myeloid leukemia?",
+   "choices": [
+    "BCR-ABL, from the t(9;22) translocation",
+    "MYC, from the t(8;14) translocation",
+    "BCL2, from the t(14;18) translocation",
+    "CCND1, from the t(11;14) translocation"
+   ]
+  },
+  {
+   "id": "med-path.l10.q2",
+   "lessonId": "med-path.l10",
+   "kind": "mcq",
+   "prompt": "Which mutation best explains a RAS-driven tumor?",
+   "choices": [
+    "Loss of the membrane anchor so that the protein moves into the nucleus",
+    "Loss of GTPase activity so the protein stays in the active GTP-bound state",
+    "Loss of the GTP-binding site so the protein stays in the inactive GDP-bound state",
+    "Loss of one allele so that the protein is produced at half the normal level"
+   ]
+  },
+  {
+   "id": "med-path.l10.q3",
+   "lessonId": "med-path.l10",
+   "kind": "mcq",
+   "prompt": "A 47-year-old woman has an invasive breast carcinoma that overexpresses HER2 due to gene amplification. Which is the best description of how this oncogene contributes to the tumor?",
+   "choices": [
+    "A point mutation in a GTPase impairs its hydrolysis so that it stays switched on",
+    "A deletion removes a gene whose product normally arrests the cell cycle in G1",
+    "Increased copies of a growth factor receptor gene cause excessive growth signalling",
+    "A translocation fuses two genes to create a constitutively active cytoplasmic kinase"
+   ]
+  },
+  {
+   "id": "med-path.l10.q4",
+   "lessonId": "med-path.l10",
+   "kind": "mcq",
+   "prompt": "A 20-year-old has a rapidly growing jaw mass. Biopsy shows a starry sky pattern of tumor cells with many mitoses interspersed with macrophages. Cytogenetics shows a translocation involving chromosome 8. Which mechanism most likely drives proliferation?",
+   "choices": [
+    "An anti-apoptotic gene placed beside an immunoglobulin gene promoter blocks cell death",
+    "A tyrosine kinase created by fusion of two genes sends continuous growth signals",
+    "A cyclin gene placed beside an immunoglobulin gene promoter shortens the G1 phase",
+    "A transcription factor gene placed beside an immunoglobulin gene promoter is overexpressed"
+   ]
+  },
+  {
+   "id": "med-path.l10.q5",
+   "lessonId": "med-path.l10",
+   "kind": "mcq",
+   "prompt": "Which cancer is characteristically associated with the BRAF V600E mutation?",
+   "choices": [
+    "Melanoma, which is treated with a BRAF inhibitor",
+    "Neuroblastoma, which is treated with a MYCN inhibitor",
+    "Retinoblastoma, which is treated with a CDK4 inhibitor",
+    "Familial polyposis, which is treated with a COX-2 inhibitor"
+   ]
+  },
+  {
+   "id": "med-path.l11.q1",
+   "lessonId": "med-path.l11",
+   "kind": "mcq",
+   "prompt": "In Knudson two-hit hypothesis, why do inherited retinoblastoma cases occur earlier and bilaterally?",
+   "choices": [
+    "Every retinal cell carries an activated oncogene, so one more hit causes loss of RB",
+    "Every retinal cell already carries the first hit, so one somatic mutation is enough",
+    "Every retinal cell carries both hits, so tumors form as soon as the eye develops",
+    "Every retinal cell requires three separate mutations, so tumors form more slowly"
+   ]
+  },
+  {
+   "id": "med-path.l11.q2",
+   "lessonId": "med-path.l11",
+   "kind": "mcq",
+   "prompt": "Which event normally follows DNA damage in a cell with functional p53?",
+   "choices": [
+    "G1 arrest through p21, with apoptosis if the damage cannot be repaired",
+    "Progression through G1 to S phase to replicate the damaged DNA first",
+    "Phosphorylation of RB to release E2F and promote progression into S phase",
+    "Degradation of BAX to stop apoptosis and allow the damaged cell to survive"
+   ]
+  },
+  {
+   "id": "med-path.l11.q3",
+   "lessonId": "med-path.l11",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman has a sarcoma. Her brother had adrenocortical carcinoma at age 5 and her mother had premenopausal breast cancer. Which gene is most likely mutated in this family?",
+   "choices": [
+    "APC, causing familial adenomatous polyposis",
+    "MLH1, causing Lynch syndrome",
+    "RB1, causing hereditary retinoblastoma",
+    "TP53, causing Li-Fraumeni syndrome"
+   ]
+  },
+  {
+   "id": "med-path.l11.q4",
+   "lessonId": "med-path.l11",
+   "kind": "mcq",
+   "prompt": "A 19-year-old has hundreds of colonic polyps, and his father had colon cancer at 40. Which molecular abnormality is the underlying defect?",
+   "choices": [
+    "Loss of NF1 function leads to continuous activation of RAS signalling",
+    "Loss of p53 function leads to survival of cells with unrepaired DNA damage",
+    "Loss of APC function leads to accumulation of beta-catenin and activation of MYC",
+    "Loss of mismatch repair leads to microsatellite instability across the genome"
+   ]
+  },
+  {
+   "id": "med-path.l11.q5",
+   "lessonId": "med-path.l11",
+   "kind": "mcq",
+   "prompt": "Which viral protein pair explains how high-risk HPV promotes cervical cancer?",
+   "choices": [
+    "E6 degrades RB and E7 inactivates p53",
+    "E6 degrades p53 and E7 inactivates RB",
+    "E6 activates RAS and E7 activates MYC",
+    "E6 inactivates APC and E7 inactivates BRCA1"
+   ]
+  },
+  {
+   "id": "med-path.l12.q1",
+   "lessonId": "med-path.l12",
+   "kind": "mcq",
+   "prompt": "Which tumor marker is most useful for monitoring recurrence of colorectal cancer after resection?",
+   "choices": [
+    "CA-125",
+    "Beta-hCG",
+    "CEA",
+    "AFP"
+   ]
+  },
+  {
+   "id": "med-path.l12.q2",
+   "lessonId": "med-path.l12",
+   "kind": "mcq",
+   "prompt": "Which paraneoplastic syndrome is caused by tumor secretion of PTH-related peptide?",
+   "choices": [
+    "Polycythemia in renal cell carcinoma of the kidney",
+    "Cushing syndrome in small cell carcinoma of the lung",
+    "Myasthenia in thymoma of the anterior mediastinum",
+    "Hypercalcemia in squamous cell carcinoma of the lung"
+   ]
+  },
+  {
+   "id": "med-path.l12.q3",
+   "lessonId": "med-path.l12",
+   "kind": "mcq",
+   "prompt": "A 66-year-old smoker has weakness that improves with repeated muscle use, dry mouth and absent reflexes, with a central lung mass. Which mechanism explains the weakness?",
+   "choices": [
+    "Antibodies against presynaptic voltage-gated calcium channels reduce acetylcholine release",
+    "Antibodies against postsynaptic acetylcholine receptors reduce the response to acetylcholine",
+    "Tumor secretion of PTH-related peptide raises serum calcium and weakens muscle contraction",
+    "Tumor secretion of ADH lowers serum sodium and causes cerebral edema with weakness"
+   ]
+  },
+  {
+   "id": "med-path.l12.q4",
+   "lessonId": "med-path.l12",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man receiving a PD-1 inhibitor for melanoma develops severe watery diarrhea and abdominal pain, and colonoscopy shows inflamed mucosa. Which mechanism most likely explains this?",
+   "choices": [
+    "Metastasis of the melanoma to the colonic mucosa with ulceration",
+    "Loss of T cell inhibition allows autoimmune inflammation of normal tissue",
+    "Direct toxic effect of the antibody on the colonic epithelial cells",
+    "Opportunistic infection arising from profound neutropenia caused by the drug"
+   ]
+  },
+  {
+   "id": "med-path.l12.q5",
+   "lessonId": "med-path.l12",
+   "kind": "mcq",
+   "prompt": "Which feature best explains the high glucose uptake of tumors on FDG-PET imaging?",
+   "choices": [
+    "Telomerase reactivation extending the cell lifespan",
+    "Loss of apoptosis allowing many cells to accumulate",
+    "Aerobic glycolysis, known as the Warburg effect",
+    "Reduced mitochondrial mass in all normal cells"
+   ]
+  },
+  {
+   "id": "med-path.l13.q1",
+   "lessonId": "med-path.l13",
+   "kind": "mcq",
+   "prompt": "Which cell type forms the fatty streak in early atherosclerosis?",
+   "choices": [
+    "Foam cells derived from neutrophils that have taken up oxidised LDL",
+    "Spindle cells derived from fibroblasts that have deposited type I collagen",
+    "Giant cells derived from lymphocytes that have fused around cholesterol",
+    "Foam cells derived from macrophages that have taken up oxidised LDL"
+   ]
+  },
+  {
+   "id": "med-path.l13.q2",
+   "lessonId": "med-path.l13",
+   "kind": "mcq",
+   "prompt": "Which feature of an infarct is typical at 5 days after onset?",
+   "choices": [
+    "Contraction bands and wavy fibres with few neutrophils, with the wall intact",
+    "Neutrophil infiltration with early coagulative necrosis, with the wall intact",
+    "Macrophage removal of dead myocytes, with the wall at its weakest",
+    "Dense collagenous scar with few cells, with the wall at its strongest"
+   ]
+  },
+  {
+   "id": "med-path.l13.q3",
+   "lessonId": "med-path.l13",
+   "kind": "mcq",
+   "prompt": "A 66-year-old man had an anterior infarct 5 days ago and now develops sudden hypotension, muffled heart sounds and jugular venous distention. Which complication is most likely?",
+   "choices": [
+    "Formation of a ventricular aneurysm containing a mural thrombus",
+    "Rupture of the ventricular free wall with hemopericardium",
+    "Rupture of the papillary muscle with acute mitral regurgitation",
+    "Autoimmune pericarditis from antibodies to the healed myocardium"
+   ]
+  },
+  {
+   "id": "med-path.l13.q4",
+   "lessonId": "med-path.l13",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has 20 minutes of chest pain at rest. ECG shows ST depression and troponin is elevated. Which pathologic process best explains the pattern of necrosis?",
+   "choices": [
+    "Partial or transient occlusion causing subendocardial necrosis in the zone farthest from the epicardial vessels",
+    "Complete occlusion causing transmural necrosis across the full thickness of the ventricular wall",
+    "Vasospasm of a normal coronary artery producing reversible ischemia without any myocyte death",
+    "Fixed stenosis causing demand ischemia on exertion that fully resolves with rest and no troponin rise"
+   ]
+  },
+  {
+   "id": "med-path.l13.q5",
+   "lessonId": "med-path.l13",
+   "kind": "mcq",
+   "prompt": "Which vessel supplies the inferior wall of the left ventricle in a right-dominant circulation?",
+   "choices": [
+    "Left anterior descending branch of the left coronary artery",
+    "Circumflex branch of the left coronary artery",
+    "Diagonal branch of the left anterior descending artery",
+    "Posterior descending branch of the right coronary artery"
+   ]
+  },
+  {
+   "id": "med-path.l14.q1",
+   "lessonId": "med-path.l14",
+   "kind": "mcq",
+   "prompt": "Which is the typical valve lesion in chronic rheumatic heart disease?",
+   "choices": [
+    "Mitral stenosis with a fish-mouth orifice",
+    "Aortic regurgitation with a dilated annulus",
+    "Tricuspid stenosis with fused leaflets",
+    "Pulmonary stenosis with a doming valve"
+   ]
+  },
+  {
+   "id": "med-path.l14.q2",
+   "lessonId": "med-path.l14",
+   "kind": "mcq",
+   "prompt": "Which cardiomyopathy is characterised by asymmetric septal hypertrophy and myocyte disarray?",
+   "choices": [
+    "Takotsubo cardiomyopathy from catecholamine surge",
+    "Hypertrophic cardiomyopathy from sarcomere gene mutations",
+    "Dilated cardiomyopathy from doxorubicin or alcohol toxicity",
+    "Restrictive cardiomyopathy from amyloid deposition in the wall"
+   ]
+  },
+  {
+   "id": "med-path.l14.q3",
+   "lessonId": "med-path.l14",
+   "kind": "mcq",
+   "prompt": "A 32-year-old man who injects drugs has fever, a new tricuspid regurgitant murmur and multiple septic pulmonary emboli. Which organism is the most likely cause?",
+   "choices": [
+    "Enterococcus faecalis after genitourinary instrumentation",
+    "Streptococcus bovis from an occult colonic neoplasm",
+    "Staphylococcus aureus infecting a previously normal valve",
+    "Streptococcus viridans infecting a previously damaged valve"
+   ]
+  },
+  {
+   "id": "med-path.l14.q4",
+   "lessonId": "med-path.l14",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman has new temporal headache, jaw pain on chewing and a raised ESR. Which histologic finding is most likely on biopsy of the temporal artery?",
+   "choices": [
+    "Segmental fibrinoid necrosis of medium arteries with mixed neutrophilic infiltrate",
+    "Neutrophilic leukocytoclastic inflammation of postcapillary venules with debris",
+    "Necrotising granulomas of the airways with capillaritis of the glomerular tufts",
+    "Granulomatous inflammation with giant cells disrupting the internal elastic lamina"
+   ]
+  },
+  {
+   "id": "med-path.l14.q5",
+   "lessonId": "med-path.l14",
+   "kind": "mcq",
+   "prompt": "A 9-year-old has fever for six days, conjunctivitis, a strawberry tongue and swollen hands. Which complication must be prevented?",
+   "choices": [
+    "Coronary artery aneurysm formation",
+    "Glomerulonephritis with nephritic syndrome",
+    "Mitral valve stenosis with left atrial dilation",
+    "Chorea with emotional lability and involuntary movements"
+   ]
+  },
+  {
+   "id": "med-path.l15.q1",
+   "lessonId": "med-path.l15",
+   "kind": "mcq",
+   "prompt": "Which pulmonary function pattern is expected in emphysema?",
+   "choices": [
+    "Reduced FEV1/FVC ratio with reduced residual volume",
+    "Reduced FEV1/FVC ratio with raised residual volume",
+    "Normal FEV1/FVC ratio with reduced total lung capacity",
+    "Raised FEV1/FVC ratio with reduced forced vital capacity"
+   ]
+  },
+  {
+   "id": "med-path.l15.q2",
+   "lessonId": "med-path.l15",
+   "kind": "mcq",
+   "prompt": "Which pathogenic mechanism best explains emphysema in smokers?",
+   "choices": [
+    "An imbalance between protease activity and antiprotease protection in the lung",
+    "A deficiency of surfactant produced by type II pneumocytes in the alveoli",
+    "A hypersensitivity reaction to inhaled organic dust antigens in the airways",
+    "A deposition of immune complexes in the alveolar capillary basement membrane"
+   ]
+  },
+  {
+   "id": "med-path.l15.q3",
+   "lessonId": "med-path.l15",
+   "kind": "mcq",
+   "prompt": "A 38-year-old man who has never smoked has progressive dyspnea. Chest imaging shows lower lobe emphysema, and liver enzymes are mildly raised. Which finding is expected on liver biopsy?",
+   "choices": [
+    "Mallory-Denk bodies with neutrophils in ballooned hepatocytes",
+    "Councilman bodies with ground-glass hepatocytes in the lobule",
+    "Granulomatous destruction of interlobular bile ducts with lymphocytes",
+    "PAS-positive, diastase-resistant globules in hepatocytes"
+   ]
+  },
+  {
+   "id": "med-path.l15.q4",
+   "lessonId": "med-path.l15",
+   "kind": "mcq",
+   "prompt": "A 62-year-old retired shipyard worker has progressive dyspnea. CT shows bilateral lower-lobe fibrosis and calcified pleural plaques. Biopsy would most likely show which finding?",
+   "choices": [
+    "Dark anthracotic nodules with macules around the respiratory bronchioles",
+    "Birefringent silica nodules with concentric whorled collagen near the hilum",
+    "Golden-brown beaded ferruginous bodies in the fibrotic parenchyma",
+    "Non-caseating granulomas with asteroid bodies in the interstitium"
+   ]
+  },
+  {
+   "id": "med-path.l15.q5",
+   "lessonId": "med-path.l15",
+   "kind": "mcq",
+   "prompt": "A 27-year-old Black woman has bilateral hilar lymphadenopathy, cough and a raised serum calcium. Which mechanism explains the hypercalcemia?",
+   "choices": [
+    "The parathyroid glands secrete excess hormone from an adenoma",
+    "Macrophages in granulomas convert vitamin D to its active form",
+    "The tumor secretes PTH-related peptide into the circulation",
+    "Osteoclasts are activated by IL-6 from malignant plasma cells"
+   ]
+  },
+  {
+   "id": "med-path.l16.q1",
+   "lessonId": "med-path.l16",
+   "kind": "mcq",
+   "prompt": "Which feature is typical of secondary (reactivation) pulmonary tuberculosis?",
+   "choices": [
+    "Lower lobe consolidation with red and grey hepatisation",
+    "Diffuse alveolar damage with hyaline membrane formation",
+    "Apical cavitation with caseation and hemoptysis",
+    "Subpleural Ghon focus with hilar lymph node enlargement"
+   ]
+  },
+  {
+   "id": "med-path.l16.q2",
+   "lessonId": "med-path.l16",
+   "kind": "mcq",
+   "prompt": "Which lung cancer type is most characteristically peripheral and found in non-smokers?",
+   "choices": [
+    "Squamous cell carcinoma, which often forms keratin pearls",
+    "Small cell carcinoma, which often has MYC amplification",
+    "Large cell carcinoma, which often lacks any differentiation",
+    "Adenocarcinoma, which often has an EGFR or ALK alteration"
+   ]
+  },
+  {
+   "id": "med-path.l16.q3",
+   "lessonId": "med-path.l16",
+   "kind": "mcq",
+   "prompt": "A 64-year-old smoker has right ptosis, miosis, anhidrosis and shoulder pain radiating down the arm. Imaging shows an apical lung mass. Which structure is directly invaded to cause the eye findings?",
+   "choices": [
+    "The cervical sympathetic chain",
+    "The recurrent laryngeal nerve",
+    "The phrenic nerve",
+    "The superior vena cava"
+   ]
+  },
+  {
+   "id": "med-path.l16.q4",
+   "lessonId": "med-path.l16",
+   "kind": "mcq",
+   "prompt": "A 56-year-old man has a central lung mass, rapid progression and widespread metastases within months. Biopsy shows sheets of small blue cells with scant cytoplasm, nuclear moulding and neuroendocrine markers. Which management principle follows from this histology?",
+   "choices": [
+    "Imatinib is the mainstay because the tumor is driven by a fusion kinase",
+    "Chemotherapy is the mainstay because disease is usually disseminated at diagnosis",
+    "Lobectomy is the mainstay because the tumor is usually confined to one lobe",
+    "Radioactive iodine is the mainstay because the tumor is derived from follicular cells"
+   ]
+  },
+  {
+   "id": "med-path.l16.q5",
+   "lessonId": "med-path.l16",
+   "kind": "mcq",
+   "prompt": "A premature infant born at 29 weeks has grunting and cyanosis soon after birth. Chest film shows a ground-glass pattern. Which finding is expected?",
+   "choices": [
+    "Congenital diaphragmatic hernia with bowel loops in the chest",
+    "Transient tachypnea with fluid in the fissures and low risk of chronic disease",
+    "Surfactant deficiency with hyaline membranes and a low L/S ratio",
+    "Meconium aspiration with patchy atelectasis and air trapping"
+   ]
+  },
+  {
+   "id": "med-path.l17.q1",
+   "lessonId": "med-path.l17",
+   "kind": "mcq",
+   "prompt": "Which organism is most associated with chronic antral gastritis and duodenal ulcers?",
+   "choices": [
+    "Campylobacter jejuni, which produces toxins",
+    "Clostridioides difficile, which produces toxins",
+    "Vibrio cholerae, which produces toxins",
+    "Helicobacter pylori, which produces urease"
+   ]
+  },
+  {
+   "id": "med-path.l17.q2",
+   "lessonId": "med-path.l17",
+   "kind": "mcq",
+   "prompt": "Which feature best distinguishes Crohn disease from ulcerative colitis?",
+   "choices": [
+    "Pseudopolyps with an increased risk of primary sclerosing cholangitis",
+    "Limited inflammation to the mucosa and submucosa with toxic megacolon",
+    "Transmural inflammation with skip lesions and non-caseating granulomas",
+    "Continuous mucosal inflammation beginning in the rectum with crypt abscesses"
+   ]
+  },
+  {
+   "id": "med-path.l17.q3",
+   "lessonId": "med-path.l17",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman has fatigue, a macrocytic anemia and glossitis. Biopsy of the gastric body shows atrophic gastritis, and the serum gastrin is high. Which mechanism explains her anemia?",
+   "choices": [
+    "Infiltration of the terminal ileum by granulomas blocks absorption of vitamin B12",
+    "Autoantibodies destroy parietal cells and block intrinsic factor, so vitamin B12 is not absorbed",
+    "Chronic blood loss from antral ulcers leads to depletion of iron stores in the marrow",
+    "Gluten-induced villous atrophy in the duodenum prevents absorption of folate and iron"
+   ]
+  },
+  {
+   "id": "med-path.l17.q4",
+   "lessonId": "med-path.l17",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man has weight loss and a gastric biopsy showing cells with intracellular mucin pushing the nucleus to the side, with a thickened, rigid stomach wall. Which protein is most likely lost?",
+   "choices": [
+    "E-cadherin",
+    "APC",
+    "Mismatch repair proteins",
+    "Beta-catenin"
+   ]
+  },
+  {
+   "id": "med-path.l17.q5",
+   "lessonId": "med-path.l17",
+   "kind": "mcq",
+   "prompt": "Which location is most vulnerable to ischemic colitis during hypotension?",
+   "choices": [
+    "The cecum, a segment supplied by a single end artery",
+    "The rectum, a segment supplied by the inferior mesenteric artery only",
+    "The transverse colon, a segment supplied by the celiac trunk",
+    "The splenic flexure, a watershed zone between arterial territories"
+   ]
+  },
+  {
+   "id": "med-path.l18.q1",
+   "lessonId": "med-path.l18",
+   "kind": "mcq",
+   "prompt": "Which serologic marker indicates acute hepatitis B infection?",
+   "choices": [
+    "IgM antibody to core antigen",
+    "Antibody to surface antigen alone",
+    "Antibody to hepatitis B e antigen alone",
+    "Antibody to hepatitis A virus IgG"
+   ]
+  },
+  {
+   "id": "med-path.l18.q2",
+   "lessonId": "med-path.l18",
+   "kind": "mcq",
+   "prompt": "Which laboratory pattern is typical of alcoholic hepatitis?",
+   "choices": [
+    "Both transaminases above ten thousand units with a normal bilirubin",
+    "AST higher than ALT, typically in a ratio of about two to one",
+    "ALT higher than AST, typically in a ratio of about two to one",
+    "Alkaline phosphatase markedly raised with normal transaminases"
+   ]
+  },
+  {
+   "id": "med-path.l18.q3",
+   "lessonId": "med-path.l18",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man has tremor, personality change and a greenish-brown ring at the corneal limbus. Ceruloplasmin is low. Which defect explains his liver disease?",
+   "choices": [
+    "Misfolded protein retention from a mutation in SERPINA1",
+    "Impaired bilirubin conjugation from a mutation in UGT1A1",
+    "Impaired biliary copper excretion from a mutation in ATP7B",
+    "Excess intestinal iron absorption from a mutation in HFE"
+   ]
+  },
+  {
+   "id": "med-path.l18.q4",
+   "lessonId": "med-path.l18",
+   "kind": "mcq",
+   "prompt": "A 52-year-old woman with pruritus and fatigue has a raised alkaline phosphatase and positive antimitochondrial antibodies. Biopsy would show which pattern?",
+   "choices": [
+    "Concentric periductal fibrosis with beading of large intra- and extrahepatic ducts",
+    "Ground-glass hepatocytes with periportal inflammation and sparing of the ducts",
+    "Macrovesicular fat with neutrophils and Mallory-Denk bodies in zone 3 cells",
+    "Lymphocytic destruction of small interlobular bile ducts with granulomas"
+   ]
+  },
+  {
+   "id": "med-path.l18.q5",
+   "lessonId": "med-path.l18",
+   "kind": "mcq",
+   "prompt": "A 62-year-old has painless jaundice, weight loss and a palpable nontender gallbladder. Which is the most likely diagnosis?",
+   "choices": [
+    "Adenocarcinoma of the head of the pancreas",
+    "Acute calculous cholecystitis with an obstructing cystic duct stone",
+    "Choledocholithiasis with ascending cholangitis and fever",
+    "Acute hepatitis A with a cholestatic course and elevated aminotransferases"
+   ]
+  },
+  {
+   "id": "med-path.l19.q1",
+   "lessonId": "med-path.l19",
+   "kind": "mcq",
+   "prompt": "Which finding is typical of nephrotic syndrome?",
+   "choices": [
+    "Pyuria with white cell casts and flank pain with fever",
+    "Heavy proteinuria with hypoalbuminemia and hyperlipidemia",
+    "Red blood cell casts with hypertension and azotemia",
+    "Hematuria with hearing loss and ocular lens abnormalities"
+   ]
+  },
+  {
+   "id": "med-path.l19.q2",
+   "lessonId": "med-path.l19",
+   "kind": "mcq",
+   "prompt": "A 7-year-old girl has periorbital edema, heavy proteinuria and normal light microscopy. Which finding on electron microscopy is expected?",
+   "choices": [
+    "Effacement of podocyte foot processes",
+    "Subepithelial humps along the basement membrane",
+    "Splitting of the basement membrane with a basket-weave appearance",
+    "Subendothelial deposits creating a tram-track appearance"
+   ]
+  },
+  {
+   "id": "med-path.l19.q3",
+   "lessonId": "med-path.l19",
+   "kind": "mcq",
+   "prompt": "A 9-year-old boy develops cola-colored urine, hypertension and periorbital edema 2 weeks after a sore throat. Complement C3 is low. Which immunofluorescence pattern is expected?",
+   "choices": [
+    "Linear deposits of IgG along the glomerular basement membrane",
+    "Mesangial deposits of IgA without a low complement level",
+    "No immune deposits, with a positive serum ANCA test",
+    "Granular deposits of IgG and C3 in a lumpy-bumpy pattern"
+   ]
+  },
+  {
+   "id": "med-path.l19.q4",
+   "lessonId": "med-path.l19",
+   "kind": "mcq",
+   "prompt": "A 21-year-old smoker has hemoptysis and hematuria. Biopsy of the kidney shows crescents and linear IgG deposits along the glomerular basement membrane. What is the target of the antibody?",
+   "choices": [
+    "Proteinase 3 in neutrophil granules",
+    "Nuclear antigens in the glomerular mesangium",
+    "The alpha-3 chain of type IV collagen",
+    "The phospholipase A2 receptor on podocytes"
+   ]
+  },
+  {
+   "id": "med-path.l19.q5",
+   "lessonId": "med-path.l19",
+   "kind": "mcq",
+   "prompt": "Which kidney finding is characteristic of long-standing diabetes?",
+   "choices": [
+    "Apple-green birefringence of mesangial deposits with Congo red",
+    "Nodular glomerulosclerosis with Kimmelstiel-Wilson lesions",
+    "Spike-and-dome change in the glomerular basement membrane",
+    "Crescent formation in more than half of the glomeruli"
+   ]
+  },
+  {
+   "id": "med-path.l20.q1",
+   "lessonId": "med-path.l20",
+   "kind": "mcq",
+   "prompt": "Which urinary finding is characteristic of acute tubular necrosis?",
+   "choices": [
+    "Fatty casts with oval fat bodies",
+    "Muddy brown granular casts",
+    "Red blood cell casts",
+    "White blood cell casts"
+   ]
+  },
+  {
+   "id": "med-path.l20.q2",
+   "lessonId": "med-path.l20",
+   "kind": "mcq",
+   "prompt": "Which urinary finding best distinguishes prerenal azotemia from acute tubular necrosis?",
+   "choices": [
+    "Low urine sodium, because intact tubules avidly retain sodium",
+    "High urine sodium, because intact tubules fail to retain sodium",
+    "Granular casts, because intact tubules shed their epithelial cells",
+    "Low urine osmolality, because intact tubules cannot concentrate the urine"
+   ]
+  },
+  {
+   "id": "med-path.l20.q3",
+   "lessonId": "med-path.l20",
+   "kind": "mcq",
+   "prompt": "A 35-year-old has fever, a new rash and rising creatinine 10 days after starting a beta-lactam antibiotic. Urinalysis shows white cell casts and eosinophils. Which mechanism is most likely?",
+   "choices": [
+    "Direct toxic injury of the proximal tubule to cause cell necrosis",
+    "Immune complex deposition in the glomerulus to cause crescents",
+    "Obstruction of the collecting system by crystals of the drug",
+    "A hypersensitivity reaction in the tubulointerstitium to the drug"
+   ]
+  },
+  {
+   "id": "med-path.l20.q4",
+   "lessonId": "med-path.l20",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man has flank pain, hematuria and a palpable mass. His hematocrit is high and a renal vein is occluded by tumor. Which gene is most likely inactivated?",
+   "choices": [
+    "PKD1 on chromosome 16",
+    "RB1 on chromosome 13",
+    "VHL on chromosome 3",
+    "WT1 on chromosome 11"
+   ]
+  },
+  {
+   "id": "med-path.l20.q5",
+   "lessonId": "med-path.l20",
+   "kind": "mcq",
+   "prompt": "A woman with recurrent urinary infection by Proteus has a large branching stone. Which composition is expected?",
+   "choices": [
+    "Cystine",
+    "Magnesium ammonium phosphate",
+    "Calcium oxalate",
+    "Uric acid"
+   ]
+  },
+  {
+   "id": "med-path.l21.q1",
+   "lessonId": "med-path.l21",
+   "kind": "mcq",
+   "prompt": "Which antibody mediates hyperthyroidism in Graves disease?",
+   "choices": [
+    "Thyroid-stimulating immunoglobulin directed against the TSH receptor",
+    "Antibody against thyroid peroxidase that destroys follicular cells",
+    "Antibody against thyroglobulin that blocks hormone release from the gland",
+    "Antibody against the calcium-sensing receptor on parathyroid cells"
+   ]
+  },
+  {
+   "id": "med-path.l21.q2",
+   "lessonId": "med-path.l21",
+   "kind": "mcq",
+   "prompt": "Which feature best identifies papillary thyroid carcinoma on histology?",
+   "choices": [
+    "Anaplastic giant cells with a high mitotic rate",
+    "Optically clear nuclei with grooves and psammoma bodies",
+    "Capsular and vascular invasion by well-formed follicles",
+    "Amyloid stroma with sheets of polygonal C cells"
+   ]
+  },
+  {
+   "id": "med-path.l21.q3",
+   "lessonId": "med-path.l21",
+   "kind": "mcq",
+   "prompt": "A 32-year-old woman has a thyroid mass with amyloid-containing stroma, elevated serum calcitonin and a family history of adrenal tumors. Which gene is most likely mutated?",
+   "choices": [
+    "MEN1 tumor suppressor gene",
+    "TP53 tumor suppressor gene",
+    "RET proto-oncogene",
+    "BRAF kinase gene"
+   ]
+  },
+  {
+   "id": "med-path.l21.q4",
+   "lessonId": "med-path.l21",
+   "kind": "mcq",
+   "prompt": "A 56-year-old woman has kidney stones, bone pain and constipation. Calcium is high, phosphate is low and PTH is elevated. Which finding is most likely?",
+   "choices": [
+    "Diffuse hyperplasia of all four glands from chronic kidney disease",
+    "A squamous carcinoma of the lung secreting PTH-related peptide",
+    "A granulomatous disease with excess calcitriol and low PTH",
+    "A single parathyroid adenoma with atrophy of the remaining glands"
+   ]
+  },
+  {
+   "id": "med-path.l21.q5",
+   "lessonId": "med-path.l21",
+   "kind": "mcq",
+   "prompt": "Which finding is typical of Hashimoto thyroiditis on biopsy?",
+   "choices": [
+    "Lymphocytic infiltrate with germinal centres and Hurthle cells",
+    "Granulomatous inflammation with multinucleated giant cells",
+    "Dense fibrosis that extends into surrounding neck structures",
+    "Tall columnar epithelium with scalloped colloid at the edge"
+   ]
+  },
+  {
+   "id": "med-path.l22.q1",
+   "lessonId": "med-path.l22",
+   "kind": "mcq",
+   "prompt": "Which is the most common cause of Cushing syndrome overall?",
+   "choices": [
+    "Pituitary ACTH-secreting adenoma",
+    "Adrenal cortical adenoma",
+    "Ectopic ACTH from small cell carcinoma",
+    "Exogenous glucocorticoid use"
+   ]
+  },
+  {
+   "id": "med-path.l22.q2",
+   "lessonId": "med-path.l22",
+   "kind": "mcq",
+   "prompt": "Which pattern distinguishes primary from secondary adrenal insufficiency?",
+   "choices": [
+    "Secondary has high ACTH, hyperpigmentation and hyperkalemia",
+    "Secondary has low ACTH, hyperpigmentation and hypokalemia",
+    "Primary has high ACTH, hyperpigmentation and hyperkalemia",
+    "Primary has low ACTH, hyperpigmentation and hypokalemia"
+   ]
+  },
+  {
+   "id": "med-path.l22.q3",
+   "lessonId": "med-path.l22",
+   "kind": "mcq",
+   "prompt": "A 35-year-old has episodic pounding headaches, sweating and blood pressure of 210/120 mm Hg during attacks. A 24-hour urine shows markedly raised metanephrines. Which management step is appropriate before a beta blocker is started?",
+   "choices": [
+    "Dopamine agonist to suppress the secretion of the hormone",
+    "Alpha-adrenergic blockade to prevent unopposed alpha stimulation",
+    "Intravenous glucocorticoids to replace deficient adrenal hormones",
+    "Radioactive iodine to destroy the catecholamine-secreting tissue"
+   ]
+  },
+  {
+   "id": "med-path.l22.q4",
+   "lessonId": "med-path.l22",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man has hypercalcemia, peptic ulcers and a pituitary prolactinoma. Which gene is most likely mutated?",
+   "choices": [
+    "MEN1, encoding menin",
+    "RET, encoding a receptor tyrosine kinase",
+    "VHL, encoding a ubiquitin ligase component",
+    "NF1, encoding neurofibromin"
+   ]
+  },
+  {
+   "id": "med-path.l22.q5",
+   "lessonId": "med-path.l22",
+   "kind": "mcq",
+   "prompt": "Which finding distinguishes insulinoma from surreptitious insulin injection?",
+   "choices": [
+    "Low C-peptide with an insulinoma and high C-peptide with injected insulin",
+    "High glucose with an insulinoma and low glucose with injected insulin",
+    "Low insulin with an insulinoma and high insulin with injected insulin",
+    "High C-peptide with an insulinoma and low C-peptide with injected insulin"
+   ]
+  },
+  {
+   "id": "med-path.l23.q1",
+   "lessonId": "med-path.l23",
+   "kind": "mcq",
+   "prompt": "Which laboratory pattern is typical of iron deficiency anemia?",
+   "choices": [
+    "Low ferritin with low total iron-binding capacity",
+    "High ferritin with high total iron-binding capacity",
+    "Low ferritin with high total iron-binding capacity",
+    "High ferritin with low total iron-binding capacity"
+   ]
+  },
+  {
+   "id": "med-path.l23.q2",
+   "lessonId": "med-path.l23",
+   "kind": "mcq",
+   "prompt": "Which mechanism causes the neurologic findings of vitamin B12 deficiency but not folate deficiency?",
+   "choices": [
+    "Raised homocysteine alone damages the cerebral vessels and causes stroke",
+    "Reduced thymidylate synthesis halts neuronal division in the cord",
+    "Reduced iron delivery to the nervous system impairs myelin formation",
+    "Raised methylmalonic acid disrupts myelin synthesis in the spinal cord"
+   ]
+  },
+  {
+   "id": "med-path.l23.q3",
+   "lessonId": "med-path.l23",
+   "kind": "mcq",
+   "prompt": "A 19-year-old Black man develops dark urine and back pain two days after taking an antimalarial drug. The smear shows bite cells and blue-purple inclusions with a supravital stain. Which enzyme is deficient?",
+   "choices": [
+    "Glucose-6-phosphate dehydrogenase",
+    "Pyruvate kinase",
+    "Glucocerebrosidase",
+    "Spectrin kinase"
+   ]
+  },
+  {
+   "id": "med-path.l23.q4",
+   "lessonId": "med-path.l23",
+   "kind": "mcq",
+   "prompt": "A 6-year-old with sickle cell disease has fever and bone pain, and bone culture grows an organism. Which organism is most characteristic in these patients?",
+   "choices": [
+    "Streptococcus pneumoniae",
+    "Salmonella species",
+    "Staphylococcus aureus alone",
+    "Pseudomonas aeruginosa"
+   ]
+  },
+  {
+   "id": "med-path.l23.q5",
+   "lessonId": "med-path.l23",
+   "kind": "mcq",
+   "prompt": "A 60-year-old has pancytopenia and a hypocellular, fatty bone marrow. Which diagnosis fits?",
+   "choices": [
+    "Megaloblastic anemia",
+    "Hemolytic anemia",
+    "Aplastic anemia",
+    "Myelofibrosis"
+   ]
+  },
+  {
+   "id": "med-path.l24.q1",
+   "lessonId": "med-path.l24",
+   "kind": "mcq",
+   "prompt": "Which cell is characteristic of classical Hodgkin lymphoma?",
+   "choices": [
+    "Hairy cell, which is TRAP positive",
+    "Reed-Sternberg cell, which is CD15 and CD30 positive",
+    "Smudge cell, which is CD5 and CD23 positive",
+    "Auer-rod blast, which is MPO positive"
+   ]
+  },
+  {
+   "id": "med-path.l24.q2",
+   "lessonId": "med-path.l24",
+   "kind": "mcq",
+   "prompt": "Which translocation defines acute promyelocytic leukemia?",
+   "choices": [
+    "t(15;17), producing the PML-RARA fusion",
+    "t(9;22), producing the BCR-ABL fusion",
+    "t(8;14), producing the MYC-IGH fusion",
+    "t(14;18), producing the IGH-BCL2 fusion"
+   ]
+  },
+  {
+   "id": "med-path.l24.q3",
+   "lessonId": "med-path.l24",
+   "kind": "mcq",
+   "prompt": "A 65-year-old has back pain, anemia, creatinine rise and hypercalcemia. Serum electrophoresis shows a monoclonal spike, and X-ray shows punched-out skull lesions. What explains the renal injury?",
+   "choices": [
+    "Immune complexes deposit in the glomeruli",
+    "Amyloid fibrils replace the glomerular mesangium only",
+    "Tumor cells invade the renal parenchyma directly",
+    "Light chains cast and injure the tubules"
+   ]
+  },
+  {
+   "id": "med-path.l24.q4",
+   "lessonId": "med-path.l24",
+   "kind": "mcq",
+   "prompt": "A 5-year-old has fever, confusion and petechiae with anemia, thrombocytopenia and renal insufficiency. Smear shows schistocytes, and PT and PTT are normal. Which defect explains these findings?",
+   "choices": [
+    "Autoantibodies against platelet glycoprotein IIb/IIIa in the spleen",
+    "Widespread activation of tissue factor, causing consumption of factors",
+    "Deficiency of ADAMTS13, causing unusually large von Willebrand multimers",
+    "Deficiency of factor VIII, causing failure of the intrinsic pathway"
+   ]
+  },
+  {
+   "id": "med-path.l24.q5",
+   "lessonId": "med-path.l24",
+   "kind": "mcq",
+   "prompt": "A 55-year-old has an elevated hematocrit, low erythropoietin and itching after hot showers. Which mutation is most likely?",
+   "choices": [
+    "MYC translocation",
+    "JAK2 V617F",
+    "BCR-ABL1",
+    "PML-RARA"
+   ]
+  },
+  {
+   "id": "med-path.l25.q1",
+   "lessonId": "med-path.l25",
+   "kind": "mcq",
+   "prompt": "Which finding is typical of an epidural hematoma?",
+   "choices": [
+    "A lens-shaped collection after tearing of the middle meningeal artery",
+    "A crescent-shaped collection after tearing of the bridging veins",
+    "Blood in the basal cisterns after rupture of a berry aneurysm",
+    "Blood in the basal ganglia after rupture of small penetrating vessels"
+   ]
+  },
+  {
+   "id": "med-path.l25.q2",
+   "lessonId": "med-path.l25",
+   "kind": "mcq",
+   "prompt": "Which change is expected in the brain several weeks after a cerebral infarct?",
+   "choices": [
+    "A granuloma with caseating necrosis and epithelioid macrophages",
+    "A cystic space from liquefactive necrosis with surrounding gliosis",
+    "A dense collagenous scar with fibroblasts replacing the dead tissue",
+    "A coagulative necrosis with preserved architecture and neutrophils"
+   ]
+  },
+  {
+   "id": "med-path.l25.q3",
+   "lessonId": "med-path.l25",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman has progressive memory loss and difficulty with daily tasks. Autopsy shows diffuse cortical atrophy, extracellular plaques and intracellular neurofibrillary tangles. Which molecule forms the tangles?",
+   "choices": [
+    "Alpha-synuclein",
+    "Prion protein",
+    "Hyperphosphorylated tau protein",
+    "Beta-amyloid peptide"
+   ]
+  },
+  {
+   "id": "med-path.l25.q4",
+   "lessonId": "med-path.l25",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman has transient visual loss in one eye, then months later leg weakness and a sensory level. MRI shows periventricular white matter lesions, and the CSF has oligoclonal bands. Which cell is primarily lost in the lesions?",
+   "choices": [
+    "Schwann cells, with loss of peripheral nerve myelin",
+    "Neurons of the substantia nigra, with Lewy body formation",
+    "Anterior horn cells, with upper and lower motor neuron loss",
+    "Oligodendrocytes, with relative sparing of axons"
+   ]
+  },
+  {
+   "id": "med-path.l25.q5",
+   "lessonId": "med-path.l25",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man has a sudden worst headache of his life with neck stiffness. CT shows blood in the basal cisterns. Which is the most likely source?",
+   "choices": [
+    "Rupture of a berry aneurysm at the circle of Willis",
+    "Rupture of a Charcot-Bouchard aneurysm in the basal ganglia",
+    "Tearing of the middle meningeal artery after a fracture",
+    "Tearing of the bridging veins after minor head trauma"
+   ]
+  },
+  {
+   "id": "med-path.l26.q1",
+   "lessonId": "med-path.l26",
+   "kind": "mcq",
+   "prompt": "Which feature is characteristic of glioblastoma?",
+   "choices": [
+    "Whorled cells with psammoma bodies in the dura",
+    "Homer Wright rosettes in a small blue cell tumor",
+    "Rosenthal fibers in a cystic tumor with a mural nodule",
+    "Pseudopalisading necrosis with endothelial proliferation"
+   ]
+  },
+  {
+   "id": "med-path.l26.q2",
+   "lessonId": "med-path.l26",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes osteoporosis from osteomalacia?",
+   "choices": [
+    "Defective mineralisation of the osteoid matrix in osteoporosis",
+    "Raised PTH with a low serum phosphate in osteoporosis",
+    "Normal mineralisation of the reduced bone mass in osteoporosis",
+    "Low serum calcium and raised alkaline phosphatase in osteoporosis"
+   ]
+  },
+  {
+   "id": "med-path.l26.q3",
+   "lessonId": "med-path.l26",
+   "kind": "mcq",
+   "prompt": "A 16-year-old has knee pain and swelling. Radiograph shows a metaphyseal mass of the distal femur with periosteal elevation and a sunburst pattern. Which finding is most expected on biopsy?",
+   "choices": [
+    "Multinucleated giant cells in a soap-bubble epiphyseal lesion",
+    "Malignant cells producing osteoid",
+    "Sheets of small blue cells with a t(11;22) translocation",
+    "A benign cartilage-capped bony outgrowth"
+   ]
+  },
+  {
+   "id": "med-path.l26.q4",
+   "lessonId": "med-path.l26",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man has sudden pain and swelling of the first metatarsophalangeal joint. Joint fluid shows needle-shaped crystals. What is the expected birefringence under polarised light?",
+   "choices": [
+    "Negative, with yellow crystals when parallel to the compensator axis",
+    "Positive, with blue crystals when parallel to the compensator axis",
+    "Absent, because the crystals are made of amorphous material",
+    "Positive, with rhomboid crystals of calcium pyrophosphate"
+   ]
+  },
+  {
+   "id": "med-path.l26.q5",
+   "lessonId": "med-path.l26",
+   "kind": "mcq",
+   "prompt": "Which tumor is the most common soft tissue sarcoma of children?",
+   "choices": [
+    "Liposarcoma",
+    "Leiomyosarcoma",
+    "Synovial sarcoma",
+    "Rhabdomyosarcoma"
+   ]
+  },
+  {
+   "id": "med-path.l27.q1",
+   "lessonId": "med-path.l27",
+   "kind": "mcq",
+   "prompt": "Which feature characterises psoriasis on histology?",
+   "choices": [
+    "Spongiosis with intercellular edema within the epidermis",
+    "Acantholysis with suprabasal splitting of epidermal cells",
+    "Parakeratosis with Munro microabscesses and a thinned granular layer",
+    "Hyperkeratosis with a band of lymphocytes at the dermal-epidermal junction"
+   ]
+  },
+  {
+   "id": "med-path.l27.q2",
+   "lessonId": "med-path.l27",
+   "kind": "mcq",
+   "prompt": "Which immunofluorescence pattern is typical of pemphigus vulgaris?",
+   "choices": [
+    "Linear IgG and C3 deposits along the basement membrane zone",
+    "Granular IgA deposits at the tips of the dermal papillae",
+    "Granular IgG and C3 deposits along the dermal-epidermal junction",
+    "Intercellular IgG deposits in a fishnet pattern in the epidermis"
+   ]
+  },
+  {
+   "id": "med-path.l27.q3",
+   "lessonId": "med-path.l27",
+   "kind": "mcq",
+   "prompt": "A 68-year-old has tense bullae on the flexor surfaces, with intact oral mucosa. Biopsy shows a subepidermal split and eosinophils. Which structure is the target of the autoantibodies?",
+   "choices": [
+    "Hemidesmosomes in the basal keratinocytes",
+    "Desmosomes between suprabasal keratinocytes",
+    "Transglutaminase at the papillary dermal tips",
+    "Collagen VII in the anchoring fibrils of the dermis"
+   ]
+  },
+  {
+   "id": "med-path.l27.q4",
+   "lessonId": "med-path.l27",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man has a 7 mm irregular, variegated, dark lesion on his back that has enlarged over several months. Excision shows atypical melanocytes invading the dermis. Which factor is the most important predictor of survival?",
+   "choices": [
+    "Presence of a preceding history of severe sunburns in childhood",
+    "Breslow thickness, the depth of tumor invasion in millimetres",
+    "Lesion diameter at the time of the first presentation to the clinician",
+    "Degree of pigmentation in the cells examined under microscopy"
+   ]
+  },
+  {
+   "id": "med-path.l27.q5",
+   "lessonId": "med-path.l27",
+   "kind": "mcq",
+   "prompt": "Which skin cancer is the most common and almost never metastasises?",
+   "choices": [
+    "Melanoma",
+    "Merkel cell carcinoma",
+    "Basal cell carcinoma",
+    "Squamous cell carcinoma"
+   ]
+  },
+  {
+   "id": "med-path.l28.q1",
+   "lessonId": "med-path.l28",
+   "kind": "mcq",
+   "prompt": "Which is the most common benign breast tumor in young women?",
+   "choices": [
+    "Fat necrosis, a firm mass that follows trauma",
+    "Fibroadenoma, a mobile and well-circumscribed mass",
+    "Phyllodes tumor, a leaf-like and rapidly enlarging mass",
+    "Intraductal papilloma, a subareolar mass with discharge"
+   ]
+  },
+  {
+   "id": "med-path.l28.q2",
+   "lessonId": "med-path.l28",
+   "kind": "mcq",
+   "prompt": "Which histologic feature characterises invasive lobular carcinoma?",
+   "choices": [
+    "Loss of E-cadherin with single-file infiltration",
+    "Comedo necrosis with central calcification in the ducts",
+    "Pools of mucin with floating clusters of tumor cells",
+    "Eczematous nipple change with cells in the epidermis"
+   ]
+  },
+  {
+   "id": "med-path.l28.q3",
+   "lessonId": "med-path.l28",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman has a firm breast mass. Biopsy shows invasive carcinoma that is negative for estrogen receptor, progesterone receptor and HER2. Her mother had ovarian cancer at 45. Which gene is most likely mutated?",
+   "choices": [
+    "HER2 (ERBB2)",
+    "RB1",
+    "MLH1",
+    "BRCA1"
+   ]
+  },
+  {
+   "id": "med-path.l28.q4",
+   "lessonId": "med-path.l28",
+   "kind": "mcq",
+   "prompt": "A 55-year-old woman has an erythematous swollen breast with skin thickening like an orange peel, and no discrete mass. Biopsy shows tumor cells within dermal lymphatics. Which statement is correct?",
+   "choices": [
+    "This is Paget disease, which is an eczema-like nipple lesion with an intact breast",
+    "This is phyllodes tumor, which is a benign leaf-like tumor in the stroma",
+    "This is inflammatory carcinoma, which carries a poor prognosis and is not infectious",
+    "This is acute mastitis, which responds to antibiotics and drainage of the abscess"
+   ]
+  },
+  {
+   "id": "med-path.l28.q5",
+   "lessonId": "med-path.l28",
+   "kind": "mcq",
+   "prompt": "Which prognostic factor is generally the most important in breast cancer?",
+   "choices": [
+    "Family history of breast cancer in a second-degree relative",
+    "Axillary lymph node status as part of the tumor stage",
+    "Patient age at the time of the first mammogram",
+    "Presence of calcifications on the initial mammogram"
+   ]
+  },
+  {
+   "id": "med-path.l29.q1",
+   "lessonId": "med-path.l29",
+   "kind": "mcq",
+   "prompt": "Which virus types are responsible for most cervical cancers?",
+   "choices": [
+    "High-risk HPV types 16 and 18",
+    "Low-risk HPV types 6 and 11",
+    "Herpes simplex virus type 2",
+    "Epstein-Barr virus"
+   ]
+  },
+  {
+   "id": "med-path.l29.q2",
+   "lessonId": "med-path.l29",
+   "kind": "mcq",
+   "prompt": "Which tumor of the ovary is the most common benign germ cell tumor?",
+   "choices": [
+    "Granulosa cell tumor, which secretes estrogen",
+    "Mature cystic teratoma, which contains tissues from all germ layers",
+    "Dysgerminoma, which resembles testicular seminoma",
+    "Yolk sac tumor, which secretes alpha-fetoprotein"
+   ]
+  },
+  {
+   "id": "med-path.l29.q3",
+   "lessonId": "med-path.l29",
+   "kind": "mcq",
+   "prompt": "A 22-year-old woman has sudden lower abdominal pain, vaginal spotting and 7 weeks of amenorrhea. Her hCG is positive and the uterus is empty on ultrasound. She had pelvic inflammatory disease a year ago. Which is the most likely site of implantation?",
+   "choices": [
+    "The ovarian surface, where the follicle ruptures after ovulation",
+    "The uterine cornua, where the myometrium is thin and distensible",
+    "The fallopian tube ampulla, where scarring impairs transport of the embryo",
+    "The cervical canal, where inflammation makes the mucosa receptive"
+   ]
+  },
+  {
+   "id": "med-path.l29.q4",
+   "lessonId": "med-path.l29",
+   "kind": "mcq",
+   "prompt": "A 27-year-old has first-trimester bleeding with uterine size larger than dates and a markedly raised hCG. Pathology shows diffuse swelling of villi with trophoblastic proliferation and no fetal tissue. Which genotype is expected?",
+   "choices": [
+    "69,XXY with two paternal sets and one maternal set",
+    "46,XY with chromosomes from both parents",
+    "47,XX with an extra maternal chromosome",
+    "46,XX with all chromosomes from the paternal side"
+   ]
+  },
+  {
+   "id": "med-path.l29.q5",
+   "lessonId": "med-path.l29",
+   "kind": "mcq",
+   "prompt": "A 62-year-old obese woman has postmenopausal bleeding. Which condition most likely underlies this?",
+   "choices": [
+    "Endometrial hyperplasia or carcinoma from unopposed estrogen",
+    "Cervical carcinoma in situ from persistent HPV infection",
+    "Ovarian mature teratoma from germ cell proliferation",
+    "Adenomyosis from growth of endometrium in the myometrium"
+   ]
+  },
+  {
+   "id": "med-path.l30.q1",
+   "lessonId": "med-path.l30",
+   "kind": "mcq",
+   "prompt": "Which testicular tumor is the most common single type and is highly radiosensitive?",
+   "choices": [
+    "Yolk sac tumor",
+    "Leydig cell tumor",
+    "Seminoma",
+    "Embryonal carcinoma"
+   ]
+  },
+  {
+   "id": "med-path.l30.q2",
+   "lessonId": "med-path.l30",
+   "kind": "mcq",
+   "prompt": "Why is a varicocele more common on the left side?",
+   "choices": [
+    "The left testicular vein drains directly into the inferior vena cava",
+    "The left spermatic cord is longer and twists more easily on itself",
+    "The left testis hangs lower and is at risk of more frequent trauma",
+    "The left testicular vein drains into the left renal vein at a right angle"
+   ]
+  },
+  {
+   "id": "med-path.l30.q3",
+   "lessonId": "med-path.l30",
+   "kind": "mcq",
+   "prompt": "A 17-year-old has sudden severe testicular pain with nausea, a high-riding testis and absent cremasteric reflex. Which management is correct?",
+   "choices": [
+    "Urgent surgical exploration with detorsion and fixation of the testes",
+    "Oral antibiotics for presumed epididymitis with scrotal elevation",
+    "Observation with analgesia and follow-up ultrasound the next week",
+    "Aspiration of fluid from the tunica vaginalis for diagnostic purposes"
+   ]
+  },
+  {
+   "id": "med-path.l30.q4",
+   "lessonId": "med-path.l30",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man has bone pain. Radiographs show sclerotic lesions in the lumbar vertebrae, and PSA is 95 ng/mL. Which route most likely explains the spread to the spine?",
+   "choices": [
+    "The pulmonary veins connected to the left atrium and arteries",
+    "The vertebral venous plexus connected to the prostatic venous plexus",
+    "The portal vein connected to the inferior mesenteric vein",
+    "The thoracic duct connected to the left subclavian vein"
+   ]
+  },
+  {
+   "id": "med-path.l30.q5",
+   "lessonId": "med-path.l30",
+   "kind": "mcq",
+   "prompt": "Which prostate zone is the usual site of carcinoma?",
+   "choices": [
+    "The central zone",
+    "The periurethral zone",
+    "The peripheral zone",
+    "The transition zone"
+   ]
+  }
+ ]
+}

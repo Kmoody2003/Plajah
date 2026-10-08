@@ -1,0 +1,1429 @@
+{
+ "courseId": "law-admin",
+ "verifier": "B",
+ "fetched": 68,
+ "note": "Jurisdiction: U.S. federal. Some sources (CRS, Justia, supremecourt.gov PDFs, Federal Register) were blocked or unreadable, so Cornell LII, Wikipedia, law-firm alerts and whitehouse.gov were used instead. Main currency issue: Trump v. Slaughter (June 29, 2026) overruled Humphrey's Executor.",
+ "questions": [
+  {
+   "id": "law-admin.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/551"
+   ]
+  },
+  {
+   "id": "law-admin.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/505/788"
+   ]
+  },
+  {
+   "id": "law-admin.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l01.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Trump_v._Slaughter",
+    "https://www.venable.com/insights/publications/2026/06/supreme-court-overrules-humphreys-executor"
+   ],
+   "note": "Choice 0 is the best answer but out of date: Trump v. Slaughter (June 29, 2026) held FTC commissioners removable at will, so FTC insulation is no longer merely \"contested\"."
+  },
+  {
+   "id": "law-admin.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nondelegation_doctrine_in_the_United_States"
+   ]
+  },
+  {
+   "id": "law-admin.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nondelegation_doctrine_in_the_United_States"
+   ],
+   "note": "Carter Coal (1936) is sometimes counted as a private-delegation case, but the standard count is the two 1935 cases."
+  },
+  {
+   "id": "law-admin.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Gundy_v._United_States"
+   ]
+  },
+  {
+   "id": "law-admin.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/298/238"
+   ]
+  },
+  {
+   "id": "law-admin.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lucia_v._SEC"
+   ]
+  },
+  {
+   "id": "law-admin.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Seila_Law_LLC_v._Consumer_Financial_Protection_Bureau"
+   ]
+  },
+  {
+   "id": "law-admin.l03.q4",
+   "answer": 1,
+   "confidence": "low",
+   "ambiguous": true,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Trump_v._Slaughter",
+    "https://www.venable.com/insights/publications/2026/06/supreme-court-overrules-humphreys-executor",
+    "https://www.sidley.com/en/insights/newsupdates/2026/06/the-end-of-the-independent-agency-supreme-court-overrules-humphreys-executor"
+   ],
+   "note": "Framing is out of date: Trump v. Slaughter (June 29, 2026, 6-3) overruled Humphrey's Executor; a commission with rulemaking and enforcement power has no valid for-cause protection, so the Seila Law multimember question no longer decides the case."
+  },
+  {
+   "id": "law-admin.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Executive_Order_12866"
+   ],
+   "note": "EO 14215 (Feb 18, 2025) extends OIRA review to independent agencies."
+  },
+  {
+   "id": "law-admin.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/INS_v._Chadha"
+   ]
+  },
+  {
+   "id": "law-admin.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Youngstown_Sheet_%26_Tube_Co._v._Sawyer"
+   ]
+  },
+  {
+   "id": "law-admin.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/801"
+   ]
+  },
+  {
+   "id": "law-admin.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/INS_v._Chadha"
+   ]
+  },
+  {
+   "id": "law-admin.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ]
+  },
+  {
+   "id": "law-admin.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Vermont_Yankee_Nuclear_Power_Corp._v._Natural_Resources_Defense_Council,_Inc."
+   ]
+  },
+  {
+   "id": "law-admin.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/06-593"
+   ]
+  },
+  {
+   "id": "law-admin.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/551"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Perez_v._Mortgage_Bankers_Ass%27n"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ]
+  },
+  {
+   "id": "law-admin.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/410/224"
+   ]
+  },
+  {
+   "id": "law-admin.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/410/224"
+   ]
+  },
+  {
+   "id": "law-admin.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/557"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/408/564"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/424/319"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/421/35"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/424/319"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-859"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/239/441"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/318/80"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/332/194"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/239/441"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/520/154"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/470/821"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/401/402"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/470/821"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/542/55"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/463/29"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/340/474"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supct/html/07-582.ZO.html"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/18-966"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-58"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/20-297"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/23-235"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/520/154"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/387/136"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/21-86"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/528/167"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-1008"
+   ],
+   "note": "Premise is oddly worded (a 2024 filing is timely even on the agency's own 2025 theory), but choice 2 is clearly the Corner Post answer."
+  },
+  {
+   "id": "law-admin.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/387/136"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/467/837"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/323/134"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/533/218"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/533/218"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Loper_Bright_Enterprises_v._Raimondo"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Loper_Bright_Enterprises_v._Raimondo"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Loper_Bright_Enterprises_v._Raimondo"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.gibsondunn.com/supreme-court-holds-that-district-courts-are-not-bound-by-agency-interpretations-in-enforcement-proceedings/"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Kisor_v._Wilkie"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/20-1530"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-506"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Kisor_v._Wilkie"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/20-1530"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/18-481"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/421/132"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552",
+    "https://www.law.cornell.edu/supremecourt/text/421/132"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552b"
+   ]
+  },
+  {
+   "id": "law-admin.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552a"
+   ]
+  },
+  {
+   "id": "law-admin.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552b"
+   ]
+  },
+  {
+   "id": "law-admin.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/491/440"
+   ]
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-admin.l01",
+   "claim": "Franklin v. Massachusetts (1992) held the President is not an agency under the APA, so presidential action is not reviewable under the APA.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/505/788"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l01",
+   "claim": "Under the APA a rule is an agency statement of general or particular applicability and future effect, and an order is the final disposition of a matter other than rulemaking.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/551"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l01",
+   "claim": "Independent agencies such as the FTC have statutory for-cause removal limits whose validity \"now sits at the center of a constitutional dispute\".",
+   "verdict": "contradicted",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Trump_v._Slaughter",
+    "https://www.venable.com/insights/publications/2026/06/supreme-court-overrules-humphreys-executor"
+   ],
+   "note": "Out of date (U.S.): Trump v. Slaughter, decided June 29, 2026 (6-3, Roberts, C.J.), overruled Humphrey's Executor and held the FTC Act's for-cause removal limit unconstitutional. For the FTC the dispute is resolved; the Federal Reserve was treated differently (Trump v. Cook, same day)."
+  },
+  {
+   "lessonId": "law-admin.l02",
+   "claim": "The nondelegation doctrine has been enforced to strike down statutes only in Panama Refining and Schechter Poultry, both 1935.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nondelegation_doctrine_in_the_United_States"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l02",
+   "claim": "Gundy v. United States (2019): a Kagan plurality of four upheld the SORNA delegation; Alito concurred in the judgment; Gorsuch dissented for three; Kavanaugh later signalled interest.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Gundy_v._United_States"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l02",
+   "claim": "FCC v. Consumers' Research (2025) upheld the Universal Service Fund under the intelligible principle test and rejected the private-delegation challenge.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/FCC_v._Consumers%27_Research"
+   ],
+   "note": "Decided June 27, 2025, 6-3, Kagan, J."
+  },
+  {
+   "lessonId": "law-admin.l02",
+   "claim": "Carter v. Carter Coal Co. (1936) invalidated giving private parties power to set wages and hours for competitors.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/298/238"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l03",
+   "claim": "Humphrey's Executor (1935) upheld protecting FTC commissioners from removal except for inefficiency, neglect of duty or malfeasance, reasoning from quasi-legislative and quasi-judicial powers.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Humphrey%27s_Executor_v._United_States"
+   ],
+   "note": "Accurate as history; the same source notes it was overruled in Trump v. Slaughter (2026)."
+  },
+  {
+   "lessonId": "law-admin.l03",
+   "claim": "Seila Law (2020) barred for-cause protection for a single director with significant executive power, described exceptions for multimember expert bodies and inferior officers with limited duties, and severed the restriction.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Seila_Law_LLC_v._Consumer_Financial_Protection_Bureau"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l03",
+   "claim": "The FTC removal case asking whether Humphrey's Executor should be overruled is pending, and the lesson presents the Humphrey's multimember-body exception as current law.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Trump_v._Slaughter",
+    "https://www.venable.com/insights/publications/2026/06/supreme-court-overrules-humphreys-executor",
+    "https://www.sidley.com/en/insights/newsupdates/2026/06/the-end-of-the-independent-agency-supreme-court-overrules-humphreys-executor"
+   ],
+   "note": "Out of date: Trump v. Slaughter was decided June 29, 2026 (6-3) and overruled Humphrey's Executor. The President may remove at will officers who exercise executive power, including multimember commissioners. Companion case Trump v. Cook (5-4, same day) left Fed Governor Cook in office while her case continues. The lesson body and worked example need rewriting."
+  },
+  {
+   "lessonId": "law-admin.l03",
+   "claim": "Trump v. Wilcox (2025) stayed reinstatement of NLRB and MSPB members and described the Federal Reserve as a uniquely structured, quasi-private entity.",
+   "verdict": "supported",
+   "sources": [
+    "https://laborblog.vorys.com/supreme-court-sides-with-trump-regarding-removal-of-nlrb-and-mspb-members-and-suggests-that-the-federal-reserve-is-different"
+   ],
+   "note": "Order dated May 22, 2025."
+  },
+  {
+   "lessonId": "law-admin.l03",
+   "claim": "Lucia v. SEC (2018) held SEC ALJs are officers whose appointment by agency staff violated the Appointments Clause.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lucia_v._SEC"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l04",
+   "claim": "EO 12866 (1993), successor to EO 12291 (1981), has OIRA review significant rules with cost-benefit analysis.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Executive_Order_12866"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l04",
+   "claim": "In 2025 an executive order directed independent agencies to submit significant rules for presidential (OIRA) review.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.whitehouse.gov/presidential-actions/2025/02/ensuring-accountability-for-all-agencies/"
+   ],
+   "note": "EO 14215, signed Feb 18, 2025; excludes Fed monetary policy. After Trump v. Slaughter (2026) its legal footing is stronger than \"contested\" suggests."
+  },
+  {
+   "lessonId": "law-admin.l04",
+   "claim": "The CRA was used successfully only once before 2017; a disapproved rule may not be reissued in substantially the same form without new statutory authority; CRA determinations are not judicially reviewable.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Congressional_Review_Act",
+    "https://www.law.cornell.edu/uscode/text/5/801",
+    "https://www.law.cornell.edu/uscode/text/5/805"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l04",
+   "claim": "INS v. Chadha (1983) held a one-house veto unconstitutional for bypassing bicameralism and presentment; Jackson's Youngstown concurrence set out three categories of presidential power.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/INS_v._Chadha",
+    "https://en.wikipedia.org/wiki/Youngstown_Sheet_%26_Tube_Co._v._Sawyer"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l05",
+   "claim": "A final rule ordinarily takes effect no sooner than 30 days after publication (553(d)), with exceptions such as rules granting an exemption or relieving a restriction.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ],
+   "note": "553(b) now also requires a 100-word internet summary of a proposed rule (2023 amendment), which the lesson omits."
+  },
+  {
+   "lessonId": "law-admin.l05",
+   "claim": "Vermont Yankee (1978) held courts may not impose procedural requirements beyond those in the APA, Constitution or other statutes.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Vermont_Yankee_Nuclear_Power_Corp._v._Natural_Resources_Defense_Council,_Inc."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l05",
+   "claim": "Long Island Care at Home v. Coke (2007) applied the logical outgrowth test while upholding a rule.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/06-593"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l05",
+   "claim": "The APA treats repeal of a rule as rulemaking.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/551"
+   ],
+   "note": "551(5) defines rule making as formulating, amending, or repealing a rule."
+  },
+  {
+   "lessonId": "law-admin.l06",
+   "claim": "Section 553(a) exempts military or foreign affairs functions and matters relating to agency management or personnel or to public property, loans, grants, benefits or contracts.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l06",
+   "claim": "Good cause exception: the agency must find, and incorporate the finding and a brief statement of reasons in the rule, that notice is impracticable, unnecessary or contrary to the public interest.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l06",
+   "claim": "Perez v. Mortgage Bankers Association (2015) held notice and comment is not required to change an interpretive rule, rejecting the D.C. Circuit's Paralyzed Veterans doctrine.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Perez_v._Mortgage_Bankers_Ass%27n"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l07",
+   "claim": "Allegheny-Ludlum (1972) and Florida East Coast Railway (1973) held that \"after hearing\" alone does not trigger sections 556-557.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/410/224"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l07",
+   "claim": "Section 557(d) bars ex parte communications relevant to the merits between interested persons outside the agency and decision-makers in formal proceedings.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/557"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l07",
+   "claim": "The Negotiated Rulemaking Act of 1990 supplements, and does not displace, section 553.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/561"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l08",
+   "claim": "ALJs may be removed only for good cause established by the Merit Systems Protection Board.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/7521"
+   ],
+   "note": "The statute still reads this way; whether ALJ removal protections are constitutional is open after Free Enterprise Fund, Jarkesy and Slaughter."
+  },
+  {
+   "lessonId": "law-admin.l08",
+   "claim": "Withrow v. Larkin (1975): combining investigative and adjudicative functions does not by itself violate due process; presumption of honesty and integrity.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/421/35"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l08",
+   "claim": "Mathews v. Eldridge (1976) three-factor test; no pre-termination evidentiary hearing required for disability benefits.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/424/319"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l08",
+   "claim": "SEC v. Jarkesy (2024): Seventh Amendment requires a jury when the SEC seeks civil penalties for securities fraud; public rights exception inapplicable.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-859"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l08",
+   "claim": "Roth (1972) requires a legitimate claim of entitlement; Goldberg v. Kelly (1970) required a pre-termination evidentiary hearing for welfare.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/408/564",
+    "https://www.law.cornell.edu/supremecourt/text/397/254"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l09",
+   "claim": "Bi-Metallic (1915): no hearing required when the board raised the valuation of all taxable property in Denver by the same percentage; contrasted with Londoner.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/239/441"
+   ],
+   "note": "The increase was 40 percent."
+  },
+  {
+   "lessonId": "law-admin.l09",
+   "claim": "Chenery I (1943): a court may uphold agency action only on the grounds the agency invoked; Chenery II (1947): the choice between rule and adjudication lies in agency discretion.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/318/80",
+    "https://www.law.cornell.edu/supremecourt/text/332/194"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l09",
+   "claim": "Bowen v. Georgetown University Hospital (1988): agencies may not issue retroactive rules unless Congress expressly authorizes it.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/488/204"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l10",
+   "claim": "Bennett v. Spear (1997) two-part finality test: consummation of decision-making, and rights/obligations determined or legal consequences flow.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/520/154"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l10",
+   "claim": "Heckler v. Chaney (1985): non-enforcement decisions are presumptively unreviewable, rebuttable where the statute provides enforcement guidelines.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/470/821"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l10",
+   "claim": "Norton v. SUWA (2004): 706(1) compels only discrete action the agency is legally required to take; Overton Park: the committed-to-discretion exception is very narrow.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/542/55",
+    "https://www.law.cornell.edu/supremecourt/text/401/402"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l10",
+   "claim": "Abbott Laboratories: strong presumption of reviewability, overcome only by clear and convincing evidence of congressional intent.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/387/136"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l11",
+   "claim": "State Farm (1983) grounds for arbitrary and capricious review; the rescission failed for not considering an airbag-only alternative.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/463/29"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l11",
+   "claim": "FCC v. Fox (2009): the agency need not show the new policy is better, but must show awareness of the change, give good reasons, and account for serious reliance interests.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supct/html/07-582.ZO.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l11",
+   "claim": "Ohio v. EPA (2024) stayed the EPA rule because the agency likely failed to respond reasonably to comments about how the rule would work with fewer states.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/23A349"
+   ],
+   "note": "Decided June 27, 2024."
+  },
+  {
+   "lessonId": "law-admin.l11",
+   "claim": "Department of Commerce v. New York (2019) rejected the contrived VRA rationale for the census citizenship question; Universal Camera requires whole-record review.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/18-966",
+    "https://www.law.cornell.edu/supremecourt/text/340/474"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l12",
+   "claim": "FDA v. Alliance for Hippocratic Medicine (2024): plaintiffs who did not prescribe or use mifepristone lacked standing; speculative causal chain; federal conscience protections.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/23-235"
+   ],
+   "note": "Unanimous, June 13, 2024."
+  },
+  {
+   "lessonId": "law-admin.l12",
+   "claim": "United States v. Texas (2023): states lacked standing to challenge immigration enforcement priorities.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-58"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l12",
+   "claim": "TransUnion v. Ramirez (2021): a bare statutory violation is insufficient; class members whose files were disseminated had standing, others did not.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/20-297"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l13",
+   "claim": "Abbott Laboratories (1967): two-part ripeness test of fitness and hardship; labeling regulation challenged pre-enforcement.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/387/136"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l13",
+   "claim": "Darby v. Cisneros (1993): no exhaustion of optional appeals under the APA when not required by statute or rule and the action is final and operative.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/509/137"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l13",
+   "claim": "Axon Enterprise v. FTC (2023): structural constitutional challenges may be brought in district court.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/21-86"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l13",
+   "claim": "Laidlaw (2000) voluntary cessation standard; Corner Post (2024): an APA claim accrues when the plaintiff is injured.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/528/167",
+    "https://www.law.cornell.edu/supremecourt/text/22-1008"
+   ],
+   "note": "Corner Post decided July 1, 2024, 6-3."
+  },
+  {
+   "lessonId": "law-admin.l14",
+   "claim": "Skidmore (1944): weight depends on thoroughness, validity of reasoning, consistency, and power to persuade.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/323/134"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l14",
+   "claim": "Chevron (1984), Stevens, J., upheld the EPA bubble concept; step one asks whether Congress directly spoke to the precise question; step two asks about permissible construction.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/467/837"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l14",
+   "claim": "Mead (2001) limited Chevron to interpretations issued under delegated force-of-law authority; tariff classification letters get Skidmore; Christensen (2000) denied Chevron to opinion letters.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/533/218"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l14",
+   "claim": "Brand X (2005): an agency reading can override a prior judicial construction unless the court held the statute unambiguous.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "The page opened did not state the rule; not confirmed against a source."
+  },
+  {
+   "lessonId": "law-admin.l14",
+   "claim": "Brown & Williamson (2000) and King v. Burwell (2015) declined deference on questions of vast economic and political significance; in King the Court decided the question itself.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/529/120",
+    "https://www.law.cornell.edu/supremecourt/text/14-114"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l15",
+   "claim": "Loper Bright (2024), decided with Relentless, overruled Chevron \"by a vote of six to three\"; Roberts, C.J.; an NMFS rule required fishermen to pay for observers.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Loper_Bright_Enterprises_v._Raimondo"
+   ],
+   "note": "Minor imprecision: Loper Bright itself was 6-2 (Jackson recused); Relentless was 6-3."
+  },
+  {
+   "lessonId": "law-admin.l15",
+   "claim": "Prior Chevron-based holdings remain subject to statutory stare decisis; Skidmore respect remains; express delegations are policed for boundaries and reasoned decision-making.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Loper_Bright_Enterprises_v._Raimondo"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l15",
+   "claim": "McLaughlin Chiropractic v. McKesson (2025): district courts in enforcement proceedings are not bound by the FCC's TCPA interpretation under the Hobbs Act.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.gibsondunn.com/supreme-court-holds-that-district-courts-are-not-bound-by-agency-interpretations-in-enforcement-proceedings/"
+   ],
+   "note": "Decided June 20, 2025, Kavanaugh, J."
+  },
+  {
+   "lessonId": "law-admin.l15",
+   "claim": "Seven County Infrastructure Coalition v. Eagle County (2025) called for substantial deference to agencies on NEPA review choices.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Seven_County_Infrastructure_Coalition_v._Eagle_County"
+   ],
+   "note": "Decided May 29, 2025, Kavanaugh, J.; Gorsuch recused."
+  },
+  {
+   "lessonId": "law-admin.l16",
+   "claim": "Kisor v. Wilkie (2019) kept Auer but limited it (genuine ambiguity, authoritative, expertise, fair and considered judgment); four Justices would have overruled Auer.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Kisor_v._Wilkie"
+   ],
+   "note": "A search found no 2025-26 Supreme Court decision overruling Kisor, but its current status was not confirmed against a page."
+  },
+  {
+   "lessonId": "law-admin.l16",
+   "claim": "Biden v. Nebraska (2023): the HEROES Act power to \"waive or modify\" did not authorize cancelling about $430 billion in student debt.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-506"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l16",
+   "claim": "West Virginia v. EPA (2022) applied the major questions doctrine to generation shifting, an unheralded power in a long-extant statute.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/20-1530"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l17",
+   "claim": "FOIA requires a determination within 20 working days; review in district court is de novo with the burden on the agency.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l17",
+   "claim": "Food Marketing Institute v. Argus Leader (2019) defined confidential under Exemption 4 without a competitive-harm requirement.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/18-481"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l17",
+   "claim": "The 2016 amendments added a foreseeable harm standard and limited the deliberative process privilege to records under 25 years old; Sears (1975) excludes final opinions (working law) from Exemption 5.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552",
+    "https://www.law.cornell.edu/supremecourt/text/421/132"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l17",
+   "claim": "DOJ v. Reporters Committee (1989): compiled rap sheets on private individuals may be withheld; FOIA's purpose is to show what the government is up to.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/489/749"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l18",
+   "claim": "The Sunshine Act covers agencies headed by a collegial body of two or more members, a majority presidentially appointed with Senate confirmation; it has ten exemptions; closing a meeting requires a recorded vote.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552b"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l18",
+   "claim": "The Privacy Act permits disclosures required under FOIA (552a(b)(2)).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552a"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l18",
+   "claim": "FACA (1972); Public Citizen v. DOJ (1989) read \"utilized\" narrowly.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/491/440"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l18",
+   "claim": "Presidential records become subject to FOIA five years after the President leaves office, subject to restrictions.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.archives.gov/presidential-libraries/laws/1978-act.html"
+   ],
+   "note": "Restrictions may last up to 12 years."
+  }
+ ]
+}

@@ -5,6 +5,7 @@ import FxStageVisualizers, { type FxEngine, fxPresetName, loadShaderNames, loadM
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { getPlatformInfo } from '../../hooks/usePlatform';
+import { useViewport } from '../../hooks/useViewport';
 
 /**
  * The FX Stage on a television — the slideshow's shell with the visualizer as the backdrop.
@@ -22,8 +23,8 @@ import { getPlatformInfo } from '../../hooks/usePlatform';
  * sweet spot while still looking clean at ten feet. SHADER (lightest) is the default engine.
  */
 
-const TV_ENGINES: FxEngine[] = ['SHADER', 'GENERATOR', 'FLUX', 'MILKDROP'];
-const ENGINE_LABEL: Record<FxEngine, string> = { SHADER: 'Shader', GENERATOR: 'Generator', FLUX: 'Flux 3D', MILKDROP: 'MilkDrop' };
+const TV_ENGINES: FxEngine[] = ['SHADER', 'GENERATOR', 'FLUX', 'MILKDROP', 'TYPO', 'KAIJU'];
+const ENGINE_LABEL: Record<FxEngine, string> = { SHADER: 'Shader', GENERATOR: 'Generator', FLUX: 'Flux 3D', MILKDROP: 'MilkDrop', TYPO: 'Typography', KAIJU: 'Kaiju', LOOKS: 'Looks' };
 const getSurfaceRenderScale = () => {
   if (typeof window === 'undefined') return 1;
   const isTV = getPlatformInfo().isTV;
@@ -42,6 +43,7 @@ const TvFxSurface: React.FC = () => {
     currentTrack, currentAlbum, currentTime, duration, playTrack,
   } = useGlobalPlayer();
 
+  const { isPhone } = useViewport();
   const [engineIdx, setEngineIdx] = useState(2); // default to FLUX (index 2 in TV_ENGINES)
   const [isPlaylistLocked, setIsPlaylistLocked] = useState(false);
   const [isPlaylistHovered, setIsPlaylistHovered] = useState(false);
@@ -54,6 +56,31 @@ const TvFxSurface: React.FC = () => {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const hideTimer = useRef<any>(null);
+
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    wake();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) {
+        setPresetIndex(p => p + 1);
+      } else {
+        setPresetIndex(p => p - 1);
+      }
+      wake();
+    }
+  };
 
   const showing = isTvFxActive;
   const engine = TV_ENGINES[engineIdx];
@@ -114,6 +141,12 @@ const TvFxSurface: React.FC = () => {
   useEffect(() => {
     if (!showing) return;
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      const isField = (el: HTMLElement | null) =>
+        !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || el.closest?.('input, textarea, select, [contenteditable="true"]')));
+      if (isField(target) || isField(active)) return;
+
       const kc = e.keyCode || e.which;
       if (kc === 24 || kc === 25 || kc === 26 || kc === 164) return;   // volume / mute — system's
       const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
@@ -167,6 +200,8 @@ const TvFxSurface: React.FC = () => {
       aria-label="FX Stage visualizer"
       onMouseMove={wake}
       onClick={wake}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Dynamic resolution render, CSS-upscaled to fill. */}
       <div
@@ -179,7 +214,7 @@ const TvFxSurface: React.FC = () => {
       </div>
 
       {/* Floating Atmospheric Playlist Overlay (Option B) — right edge, coexists with lyrics */}
-      {currentAlbum && currentAlbum.tracks && currentAlbum.tracks.length > 0 && (
+      {!isPhone && currentAlbum && currentAlbum.tracks && currentAlbum.tracks.length > 0 && (
         <div
           className={`absolute top-0 bottom-[12rem] right-0 w-80 flex flex-col justify-center transition-all duration-500 ease-out z-[10] pointer-events-none ${showPlaylist ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}
           style={{ paddingRight: '2.5rem', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 30%)', maskImage: 'linear-gradient(to right, transparent 0%, black 30%)' }}
@@ -215,54 +250,120 @@ const TvFxSurface: React.FC = () => {
         </div>
       )}
 
-      {/* Right-hand synced lyrics — slides left when tracklist is open */}
+      {/* Synced lyrics */}
       {lyricWindow && (
-        <div
-          className="absolute top-0 bottom-0 flex flex-col justify-center px-14 pointer-events-none transition-all duration-500 ease-out"
-          style={{
-            right: showPlaylist ? '20rem' : '0',
-            width: '46%',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(6,2,12,0.45) 35%, rgba(6,2,12,0.78) 100%)',
-          }}
-        >
-          <div className="space-y-5">
-            {lyricWindow.lines.map((ln, i) => (
-              <p key={i} className={`font-black leading-tight transition-all duration-500 ${ln.on ? 'text-4xl' : 'text-2xl text-white/30'}`} style={ln.on ? { color: '#FF8C00' } : undefined}>
+        isPhone ? (
+          <div
+            className="absolute top-20 left-4 right-4 text-center pointer-events-none transition-all duration-500 ease-out z-[10]"
+          >
+            {lyricWindow.lines.filter(l => l.on).map((ln, i) => (
+              <p key={i} className="font-black text-xl leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] text-[#FF8C00]">
                 {ln.text || '♪'}
               </p>
             ))}
           </div>
-        </div>
+        ) : (
+          <div
+            className="absolute top-0 bottom-0 flex flex-col justify-center px-14 pointer-events-none transition-all duration-500 ease-out"
+            style={{
+              right: showPlaylist ? '20rem' : '0',
+              width: '46%',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(6,2,12,0.45) 35%, rgba(6,2,12,0.78) 100%)',
+            }}
+          >
+            <div className="space-y-5">
+              {lyricWindow.lines.map((ln, i) => (
+                <p key={i} className={`font-black leading-tight transition-all duration-500 ${ln.on ? 'text-4xl' : 'text-2xl text-white/30'}`} style={ln.on ? { color: '#FF8C00' } : undefined}>
+                  {ln.text || '♪'}
+                </p>
+              ))}
+            </div>
+          </div>
+        )
       )}
 
-      {/* Close (exit) — always an obvious way out, top-right, shown with the controls. */}
-      <button
-        onClick={exit}
-        aria-label="Close FX Stage"
-        className="absolute top-8 right-10 z-[20] flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white hover:bg-black/80 hover:border-white/40 transition-all duration-300 pointer-events-auto cursor-pointer"
-        style={{ opacity: controls ? 1 : 0 }}
-      >
-        <X size={20} /><span className="text-[11px] font-black uppercase tracking-widest">Close</span>
-      </button>
-
-      {/* Engine selector (top-left) — clickable pills so it's easy on mouse, touch, or remote */}
-      <div className="absolute top-8 left-10 z-[20] flex items-center gap-2 transition-opacity duration-300 pointer-events-auto" style={{ opacity: controls ? 1 : 0 }}>
-        <Sparkles size={18} className="text-[#FF8C00] mr-1" />
-        {TV_ENGINES.map((e, i) => (
+      {/* Header controls (safe-area phone vs TV/desktop) */}
+      {isPhone ? (
+        <div 
+          className="absolute top-0 inset-x-0 z-[20] px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 flex items-center justify-between pointer-events-auto bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300"
+          style={{ opacity: controls ? 1 : 0 }}
+        >
+          {/* Engine Badge / Picker */}
           <button
-            key={e}
-            onClick={() => { setEngineIdx(i); setPresetIndex(0); setIsPickerOpen(true); wake(); }}
-            className="px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5"
-            style={i === engineIdx
-              ? { background: '#FF8C00', color: '#000' }
-              : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
+            onClick={() => { setIsPickerOpen(true); wake(); }}
+            className="px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-black/60 border border-white/20 text-[#FF8C00] flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
           >
-            <span>{ENGINE_LABEL[e]}</span>
-            <ChevronDown size={11} className={i === engineIdx ? 'text-black/60' : 'text-white/40'} />
+            <Sparkles size={13} className="text-[#FF8C00]" />
+            <span>{ENGINE_LABEL[engine]}</span>
+            <ChevronDown size={12} className="opacity-70" />
           </button>
-        ))}
-        <span className="ml-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">▲▼ engine</span>
-      </div>
+
+          {/* Preset Stepper in header */}
+          <div className="flex items-center gap-1 bg-black/60 border border-white/15 rounded-full px-2 py-1 text-xs text-white/80">
+            <button
+              onClick={() => { setPresetIndex(p => p - 1); wake(); }}
+              className="px-1.5 py-0.5 text-white/60 hover:text-white active:scale-95"
+              aria-label="Previous preset"
+            >
+              ◀
+            </button>
+            <button
+              onClick={() => { setIsPickerOpen(true); wake(); }}
+              className="font-bold text-[11px] text-white px-1 max-w-[110px] truncate"
+            >
+              {fxPresetName(engine, presetIndex, presetNames[engine])}
+            </button>
+            <button
+              onClick={() => { setPresetIndex(p => p + 1); wake(); }}
+              className="px-1.5 py-0.5 text-white/60 hover:text-white active:scale-95"
+              aria-label="Next preset"
+            >
+              ▶
+            </button>
+          </div>
+
+          {/* Close Button */}
+          <button
+            onClick={exit}
+            aria-label="Close FX Stage"
+            className="px-3 py-1.5 rounded-full bg-black/60 border border-white/20 text-white flex items-center gap-1 text-xs font-bold active:scale-95 transition-all"
+          >
+            <X size={15} />
+            <span>Close</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Close (exit) — always an obvious way out, top-right, shown with the controls. */}
+          <button
+            onClick={exit}
+            aria-label="Close FX Stage"
+            className="absolute top-8 right-10 z-[20] flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full bg-black/60 border border-white/20 text-white hover:bg-black/80 hover:border-white/40 transition-all duration-300 pointer-events-auto cursor-pointer"
+            style={{ opacity: controls ? 1 : 0 }}
+          >
+            <X size={20} /><span className="text-[11px] font-black uppercase tracking-widest">Close</span>
+          </button>
+
+          {/* Engine selector (top-left) — clickable pills so it's easy on mouse, touch, or remote */}
+          <div className="absolute top-8 left-10 z-[20] flex items-center gap-2 transition-opacity duration-300 pointer-events-auto" style={{ opacity: controls ? 1 : 0 }}>
+            <Sparkles size={18} className="text-[#FF8C00] mr-1" />
+            {TV_ENGINES.map((e, i) => (
+              <button
+                key={e}
+                onClick={() => { setEngineIdx(i); setPresetIndex(0); setIsPickerOpen(true); wake(); }}
+                className="px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1.5"
+                style={i === engineIdx
+                  ? { background: '#FF8C00', color: '#000' }
+                  : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
+              >
+                <span>{ENGINE_LABEL[e]}</span>
+                <ChevronDown size={11} className={i === engineIdx ? 'text-black/60' : 'text-white/40'} />
+              </button>
+            ))}
+            <span className="ml-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">▲▼ engine</span>
+          </div>
+        </>
+      )}
 
       {/* Preset & Engine Dropdown Picker Modal */}
       {isPickerOpen && (
@@ -364,7 +465,7 @@ const TvFxSurface: React.FC = () => {
       )}
 
       {/* Playlist toggle — always-visible button above branding, lower-right */}
-      {currentAlbum && (
+      {!isPhone && currentAlbum && (
         <div
           className="absolute right-12 z-[20] pointer-events-auto transition-opacity duration-300"
           style={{ bottom: '14rem', opacity: controls ? 1 : 0.4 }}
@@ -392,85 +493,126 @@ const TvFxSurface: React.FC = () => {
       )}
 
       {/* Plajah Full Stage Mode — branding logo bug, lower-right above transport */}
-      <div
-        className="absolute right-12 z-[5] flex items-center gap-2 pointer-events-none select-none transition-opacity duration-500"
-        style={{ opacity: controls ? 0.7 : 0.25, bottom: '11rem' }}
-      >
-        <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Plajah</span>
-        {/* Plajah chevron mark — inline SVG */}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-          <defs>
-            <linearGradient id="pj-chev-grad" x1="6" y1="2" x2="18" y2="22" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="#8B5CF6" />
-              <stop offset="50%" stopColor="#D40055" />
-              <stop offset="100%" stopColor="#FF8C00" />
-            </linearGradient>
-          </defs>
-          <path d="M7 3.5C7 2.67 7.67 2 8.5 2c.4 0 .77.16 1.06.44l8 8.5a1.5 1.5 0 0 1 0 2.12l-8 8.5A1.5 1.5 0 0 1 7 20.5V3.5Z" fill="url(#pj-chev-grad)" />
-        </svg>
-        <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Full Stage Mode</span>
-      </div>
+      {!isPhone && (
+        <div
+          className="absolute right-12 z-[5] flex items-center gap-2 pointer-events-none select-none transition-opacity duration-500"
+          style={{ opacity: controls ? 0.7 : 0.25, bottom: '11rem' }}
+        >
+          <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Plajah</span>
+          {/* Plajah chevron mark — inline SVG */}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+            <defs>
+              <linearGradient id="pj-chev-grad" x1="6" y1="2" x2="18" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#8B5CF6" />
+                <stop offset="50%" stopColor="#D40055" />
+                <stop offset="100%" stopColor="#FF8C00" />
+              </linearGradient>
+            </defs>
+            <path d="M7 3.5C7 2.67 7.67 2 8.5 2c.4 0 .77.16 1.06.44l8 8.5a1.5 1.5 0 0 1 0 2.12l-8 8.5A1.5 1.5 0 0 1 7 20.5V3.5Z" fill="url(#pj-chev-grad)" />
+          </svg>
+          <span className="text-[11px] font-black uppercase tracking-[0.35em] text-white/70">Full Stage Mode</span>
+        </div>
+      )}
 
       {/* Bottom transport */}
-      <div
-        className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto z-[15]"
-        style={{ opacity: controls ? 1 : 0 }}
-      >
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/[0.06] shrink-0 grid place-items-center">
-            {art ? <img src={thumb(art, THUMB.small)} alt="" className="w-full h-full object-cover" /> : <Music2 size={22} className="text-white/30" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-2xl font-black text-white truncate">{currentTrack?.title || ''}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-base text-white/55 truncate">
-                {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}:</span>
-              </p>
-              <div className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-1 text-xs text-white/80">
-                <button
-                  onClick={() => { setPresetIndex(p => p - 1); wake(); }}
-                  className="hover:text-white transition-colors cursor-pointer px-1 text-white/60 hover:text-white"
-                  aria-label="Previous preset"
-                >
-                  ◀
-                </button>
-                <button
-                  onClick={() => { setIsPickerOpen(true); wake(); }}
-                  className="font-bold text-white px-2 hover:text-[#FF8C00] transition-colors flex items-center gap-1.5 cursor-pointer max-w-[240px]"
-                  title="Click to view full preset list"
-                >
-                  <span className="truncate">{fxPresetName(engine, presetIndex, presetNames[engine])}</span>
-                  <ChevronDown size={14} className="opacity-60 shrink-0" />
-                </button>
-                <button
-                  onClick={() => { setPresetIndex(p => p + 1); wake(); }}
-                  className="hover:text-white transition-colors cursor-pointer px-1 text-white/60 hover:text-white"
-                  aria-label="Next preset"
-                >
-                  ▶
-                </button>
+      {isPhone ? (
+        <div
+          className="absolute left-0 right-0 bottom-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-black/95 via-black/70 to-transparent transition-opacity duration-300 pointer-events-auto z-[15]"
+          style={{ opacity: controls ? 1 : 0 }}
+        >
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-11 h-11 rounded-lg overflow-hidden bg-white/[0.06] shrink-0 grid place-items-center">
+                {art ? <img src={thumb(art, THUMB.small)} alt="" className="w-full h-full object-cover" /> : <Music2 size={18} className="text-white/30" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-white truncate">{currentTrack?.title || ''}</p>
+                <p className="text-xs text-white/50 truncate">{currentTrack?.artist || currentAlbum?.artist || ''}</p>
               </div>
             </div>
+
+            <div className="flex items-center gap-2.5 shrink-0 text-white/90">
+              <button onClick={() => prev()} aria-label="Previous" className="p-1.5 active:scale-95 transition-transform"><SkipBack size={20} fill="currentColor" /></button>
+              <button onClick={() => togglePlay()} aria-label={isPlaying ? 'Pause' : 'Play'} className="w-10 h-10 rounded-full grid place-items-center active:scale-95 transition-transform shadow-md" style={{ background: '#FF8C00', color: '#000' }}>
+                {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
+              </button>
+              <button onClick={() => next()} aria-label="Next" className="p-1.5 active:scale-95 transition-transform"><SkipForward size={20} fill="currentColor" /></button>
+            </div>
           </div>
-          <div className="flex items-center gap-5 shrink-0 text-white/85">
-            <button onClick={() => prev()} aria-label="Previous" className="cursor-pointer hover:text-white transition-colors"><SkipBack size={26} fill="currentColor" /></button>
-            <button onClick={() => togglePlay()} aria-label={isPlaying ? 'Pause' : 'Play'} className="w-14 h-14 rounded-full grid place-items-center cursor-pointer hover:scale-105 transition-transform" style={{ background: '#FF8C00', color: '#000' }}>
-              {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" className="ml-0.5" />}
-            </button>
-            <button onClick={() => next()} aria-label="Next" className="cursor-pointer hover:text-white transition-colors"><SkipForward size={26} fill="currentColor" /></button>
+
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-[10px] tabular-nums text-white/45 w-8 text-right">{fmt(currentTime)}</span>
+            <div className="flex-1 h-1 rounded-full bg-white/15 overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#FF8C00' }} />
+            </div>
+            <span className="text-[10px] tabular-nums text-white/45 w-8">{fmt(duration)}</span>
           </div>
+
+          <p className="text-[9px] font-bold uppercase tracking-wider text-white/30 mt-2 text-center">
+            Swipe left/right to change look · Tap Close to exit
+          </p>
         </div>
-        <div className="mt-4 flex items-center gap-3">
-          <span className="text-[11px] tabular-nums text-white/45 w-11 text-right">{fmt(currentTime)}</span>
-          <div className="flex-1 h-1.5 rounded-full bg-white/15 overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#FF8C00' }} />
+      ) : (
+        <div
+          className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto z-[15]"
+          style={{ opacity: controls ? 1 : 0 }}
+        >
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/[0.06] shrink-0 grid place-items-center">
+              {art ? <img src={thumb(art, THUMB.small)} alt="" className="w-full h-full object-cover" /> : <Music2 size={22} className="text-white/30" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl font-black text-white truncate">{currentTrack?.title || ''}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-base text-white/55 truncate">
+                  {currentTrack?.artist || ''} <span className="text-white/30">· {ENGINE_LABEL[engine]}:</span>
+                </p>
+                <div className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-1 text-xs text-white/80">
+                  <button
+                    onClick={() => { setPresetIndex(p => p - 1); wake(); }}
+                    className="hover:text-white transition-colors cursor-pointer px-1 text-white/60 hover:text-white"
+                    aria-label="Previous preset"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    onClick={() => { setIsPickerOpen(true); wake(); }}
+                    className="font-bold text-white px-2 hover:text-[#FF8C00] transition-colors flex items-center gap-1.5 cursor-pointer max-w-[240px]"
+                    title="Click to view full preset list"
+                  >
+                    <span className="truncate">{fxPresetName(engine, presetIndex, presetNames[engine])}</span>
+                    <ChevronDown size={14} className="opacity-60 shrink-0" />
+                  </button>
+                  <button
+                    onClick={() => { setPresetIndex(p => p + 1); wake(); }}
+                    className="hover:text-white transition-colors cursor-pointer px-1 text-white/60 hover:text-white"
+                    aria-label="Next preset"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-5 shrink-0 text-white/85">
+              <button onClick={() => prev()} aria-label="Previous" className="cursor-pointer hover:text-white transition-colors"><SkipBack size={26} fill="currentColor" /></button>
+              <button onClick={() => togglePlay()} aria-label={isPlaying ? 'Pause' : 'Play'} className="w-14 h-14 rounded-full grid place-items-center cursor-pointer hover:scale-105 transition-transform" style={{ background: '#FF8C00', color: '#000' }}>
+                {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" className="ml-0.5" />}
+              </button>
+              <button onClick={() => next()} aria-label="Next" className="cursor-pointer hover:text-white transition-colors"><SkipForward size={26} fill="currentColor" /></button>
+            </div>
           </div>
-          <span className="text-[11px] tabular-nums text-white/45 w-11">{fmt(duration)}</span>
+          <div className="mt-4 flex items-center gap-3">
+            <span className="text-[11px] tabular-nums text-white/45 w-11 text-right">{fmt(currentTime)}</span>
+            <div className="flex-1 h-1.5 rounded-full bg-white/15 overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#FF8C00' }} />
+            </div>
+            <span className="text-[11px] tabular-nums text-white/45 w-11">{fmt(duration)}</span>
+          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/30 mt-4 text-center">
+            ◀ ▶ or CH +/− change look · ▲▼ engine · OK play/pause · Back to exit
+          </p>
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/30 mt-4 text-center">
-          ◀ ▶ or CH +/− change look · ▲▼ engine · OK play/pause · Back to exit
-        </p>
-      </div>
+      )}
     </div>,
     document.body,
   );

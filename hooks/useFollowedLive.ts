@@ -5,19 +5,14 @@
 import { useEffect, useState } from 'react';
 import { collection, query, where, limit } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
-import { db, fetchFollowedArtists } from '../services/backendService';
+import { db } from '../services/backendService';
+import { useFollowing } from './useFollowing';
 import type { LiveFeed } from '../types';
 
 export function useFollowedLive(uid: string | null | undefined): LiveFeed[] {
-  const [followed, setFollowed] = useState<Set<string>>(new Set());
+  // ids from the follows collection (live, uncapped) — not the legacy UserProfile.following
+  const { ids: followed } = useFollowing(uid);
   const [live, setLive] = useState<LiveFeed[]>([]);
-
-  useEffect(() => {
-    if (!uid) { setFollowed(new Set()); return; }
-    let alive = true;
-    fetchFollowedArtists(uid).then(list => { if (alive) setFollowed(new Set((list || []).map(a => a.uid))); }).catch(() => {});
-    return () => { alive = false; };
-  }, [uid]);
 
   useEffect(() => {
     if (!uid || followed.size === 0) { setLive([]); return; }

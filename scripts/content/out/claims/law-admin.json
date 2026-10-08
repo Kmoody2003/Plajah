@@ -1,0 +1,1322 @@
+{
+ "courseId": "law-admin",
+ "label": "Administrative Law",
+ "lessons": [
+  {
+   "id": "law-admin.l01",
+   "title": "The Administrative State and the APA",
+   "body": [
+    "Administrative law is the body of law that governs the agencies of government: how they are created, what powers they hold, what procedures they must follow, and how courts and other branches check them. Most of the law that touches daily life, from food safety to workplace rules to benefits, is made and applied by agencies rather than by Congress or courts directly. Lawyers call this the administrative state.",
+    "An agency is a governmental body that exercises authority delegated by statute. Under the Administrative Procedure Act (APA) of 1946, an agency is broadly any authority of the federal government other than Congress, the federal courts, and a few listed bodies. The Supreme Court held in Franklin v. Massachusetts (1992) that the President is not an agency for APA purposes, so presidential action is not reviewable under the APA even though the actions of the agencies he directs are.",
+    "The key principle is that an agency has only the power Congress gives it. Agencies are created by an organic or enabling statute that states their mission and authority. An agency action that goes beyond that grant is ultra vires, meaning beyond its powers, and a court will set it aside. Agencies have no inherent authority the way a legislature or a court does.",
+    "The federal system grew in waves. The Interstate Commerce Commission (1887) and the Federal Trade Commission (1914) were early regulators of industry. The New Deal added the Securities and Exchange Commission, the National Labor Relations Board and many others. A later wave in the 1960s and 1970s produced the Environmental Protection Agency, OSHA and similar health, safety and environmental bodies. The APA was Congress's attempt, after the New Deal, to give all of these agencies a common procedural code.",
+    "Agencies come in two structural families. Executive departments, such as Justice or Treasury, are headed by officials whom the President may remove at will. Independent agencies, such as the Federal Trade Commission, are typically led by a multimember board, with statutory limits on the President's power to remove its members, often for cause only. Later lessons show that this difference has been reshaped by the Supreme Court's recent removal decisions, which now let the President remove the heads of agencies that wield executive power, such as the FTC, at will.",
+    "Agencies combine functions that the Constitution separates among branches. They make rules that bind like statutes (legislative function), decide individual cases (judicial function), and investigate and prosecute (executive function). The APA's central distinction follows the first two: a rule is an agency statement of general or particular applicability and future effect, and an order is the final disposition of a matter other than rulemaking, which usually comes from adjudication. Much of the course turns on whether an agency used the right procedure for the kind of action it took.",
+    "Worked example: Congress passes a statute telling an agency to set safe levels of a workplace chemical. The agency drafts a standard, takes public comment and issues it as a rule. Later it fines a particular employer for violating the standard, which is adjudication. A court asked to review either action first asks whether the agency stayed within the statute, then whether it followed the proper procedure, and then whether its reasoning was lawful."
+   ]
+  },
+  {
+   "id": "law-admin.l02",
+   "title": "Delegation and the Nondelegation Doctrine",
+   "body": [
+    "Article I, Section 1 of the Constitution vests all legislative powers in Congress. Agencies make rules that function like laws, so the nondelegation doctrine asks whether Congress may transfer that rule-making power to someone else. If Congress could pass a statute that simply says make whatever rules are good for the country, the separation of powers would mean little.",
+    "The Court has never said Congress cannot delegate. Chief Justice Taft stated the modern test in J.W. Hampton, Jr. & Co. v. United States (1928): Congress may confer discretion if it lays down an intelligible principle to which the delegate must conform. The statute must tell the agency what the policy goal is and set boundaries, so a court can check whether the agency stayed inside them. The idea is that filling in details is permissible, whereas making the basic policy choices is for Congress.",
+    "The doctrine has been enforced in only two cases, both in 1935. In Panama Refining Co. v. Ryan the Court struck down a provision that let the President ban certain oil shipments without any standard to guide him. In A.L.A. Schechter Poultry Corp. v. United States it struck down the National Industrial Recovery Act's authority to approve codes of fair competition, which had almost no limiting standard. Since then the Court has upheld standards as broad as a rule that agencies act in the public interest, convenience or necessity, and the standard that an air quality standard be requisite to protect the public health with an adequate margin of safety (Whitman v. American Trucking Associations, 2001). Mistretta v. United States (1989) upheld the delegation to the Sentencing Commission, noting that in our complex society Congress must be able to delegate.",
+    "The doctrine seemed settled until Gundy v. United States (2019). Congress had authorized the Attorney General to specify how the sex offender registry law applied to people convicted before the law passed. A four-Justice plurality, with Justice Kagan writing, applied the intelligible principle test and upheld it. Justice Alito concurred in the judgment, but said he would be willing to reconsider the doctrine in a future case. Justice Gorsuch, in dissent for three, proposed a stricter test. Justice Kavanaugh later wrote that Gorsuch's approach deserved further consideration, which signalled interest among several Justices.",
+    "In FCC v. Consumers' Research (2025) the Court upheld the Universal Service Fund's funding scheme against a nondelegation challenge, applying the intelligible principle framework and rejecting the argument that the statute left the agency unconstrained. The majority did not abandon the test. The opinion also rejected a separate challenge based on the idea that a private entity assisted the agency, because the agency remained in control. As of this writing the intelligible principle test remains the law, with several Justices open to revisiting it.",
+    "Courts have worked around the issue through two tools. The canon of constitutional avoidance leads courts to read broad grants narrowly so that the statute does not violate nondelegation. Related to this is the major questions doctrine, covered in a later lesson. Private delegations are a different problem: Carter v. Carter Coal Co. (1936) invalidated giving private parties power to set wages and hours for competitors, and the Court has said that private bodies may not wield government power with no governmental control.",
+    "Worked example: A statute says the Secretary shall issue such regulations as the Secretary finds necessary and in the public interest, with no other direction. Under the Hampton test a challenger would argue there is no intelligible principle, but courts have upheld equally open-ended phrases, so the challenge would likely fail under current doctrine, though it would draw interest."
+   ]
+  },
+  {
+   "id": "law-admin.l03",
+   "title": "Appointment and Removal: Presidential Control of Personnel",
+   "body": [
+    "Article II vests the executive power in the President and tells him to take care that the laws be faithfully executed. Two constitutional provisions shape the personnel question. The Appointments Clause says principal officers are nominated by the President and confirmed by the Senate, while Congress may by law vest the appointment of inferior officers in the President alone, the courts of law, or heads of departments. The Constitution is silent on removal, so the rules come from case law.",
+    "Who is an officer? A person who exercises significant authority under federal law in a continuing position is an officer (Buckley v. Valeo, 1976). Lucia v. SEC (2018) applied that to administrative law judges in the SEC, holding that they are officers whose appointment by agency staff rather than by the Commission violated the clause. Inferior officers are those whose work is directed and supervised by a principal officer (Edmond v. United States, 1997).",
+    "Removal is the harder subject. In Myers v. United States (1926) the Court held that the President could remove a postmaster without Senate consent, endorsing a broad executive removal power. Nine years later Humphrey's Executor v. United States (1935) upheld a statute that protected FTC commissioners from removal except for inefficiency, neglect of duty or malfeasance. The Court reasoned that the FTC exercised quasi-legislative and quasi-judicial powers and so could be insulated from the President. Morrison v. Olson (1988) upheld for-cause protection for an independent counsel, replacing the quasi test with a question of whether the removal limit impedes the President's ability to perform his constitutional duties.",
+    "The modern Court narrowed Humphrey's and then overruled it. Free Enterprise Fund v. PCAOB (2010) struck down two layers of for-cause protection between the President and board members. Seila Law LLC v. CFPB (2020) held that Congress may not give a single director who wields significant executive power protection from at-will removal, and described Humphrey's as limited to multimember expert bodies that do not wield substantial executive power. Collins v. Yellen (2021) applied the same reasoning to the Federal Housing Finance Agency's director. Before 2026 these cases described two exceptions: multimember expert bodies, and inferior officers with limited duties.",
+    "The newest chapter is the most important. In 2025 the President removed members of the National Labor Relations Board and the Merit Systems Protection Board, and the Supreme Court granted interim stays allowing the removals (Trump v. Wilcox, 2025), while noting that the Federal Reserve is a uniquely structured quasi-private entity. The Court then took up the removal of an FTC commissioner. On June 29, 2026, in Trump v. Slaughter, it ruled six to three, in an opinion by Chief Justice Roberts, that Humphrey's Executor is overruled. The FTC exercises executive power through rulemaking, enforcement and litigation, so the President may remove its commissioners at will. The opinion also left open that the Federal Reserve, with its distinct historical tradition, may be treated differently.\nRemedy matters too. Even when a removal restriction is unconstitutional, the Court has treated it as severable, so the agency continues to exist and its past actions are not automatically void. Collins held that a challenger must show the restriction actually harmed them.",
+    "Worked example: A statute creates a five-member commission and says commissioners may be removed only for good cause. Under Trump v. Slaughter, a court would ask whether the body exercises executive power, such as rulemaking and enforcement. If it does, the for-cause limit cannot bind the President and he may remove a commissioner at will. Only a body exercising no part of the executive power, or the Federal Reserve with its distinct history, might still be protected, a question the Court left open."
+   ]
+  },
+  {
+   "id": "law-admin.l04",
+   "title": "Presidential and Congressional Oversight Tools",
+   "body": [
+    "Control of agencies runs through two political branches, each with tools that the courts have shaped.",
+    "For the President, the central tool is centralized regulatory review. Since Executive Order 12291 (1981) and its successor, Executive Order 12866 (1993), significant rules from executive agencies are reviewed by the Office of Information and Regulatory Affairs (OIRA), part of the Office of Management and Budget, before they issue. The order requires a cost-benefit analysis for significant rules and asks agencies to select approaches that maximize net benefits to the extent permitted by law. Independent agencies were historically outside this requirement, though recent administrations have sought to extend review to them. Executive Order 14215, Ensuring Accountability for All Agencies (February 18, 2025), directed independent regulatory agencies to submit proposed and final significant regulatory actions to OIRA before publication, with the Federal Reserve's monetary policy functions exempted. Trump v. Slaughter (2026), which confirmed the President's power to remove the heads of agencies that exercise executive power at will, supports that kind of presidential supervision.",
+    "Executive orders and memoranda direct how the executive branch carries out statutes. They are law-like only within the executive branch and only if they rest on constitutional or statutory authority. Youngstown Sheet & Tube Co. v. Sawyer (1952) is the foundational limit: the Court held that President Truman could not seize steel mills during the Korean War without statutory authority. Justice Jackson's concurrence set out three categories: presidential power is at its peak when Congress has authorized the action, in a zone of twilight when Congress is silent, and at its lowest ebb when the President acts against the will of Congress.",
+    "Congress has several tools. It controls the agency's budget and mission through appropriations, holds oversight hearings, confirms principal officers, and can amend the organic statute. It may also require reports.",
+    "The legislative veto was an attempt to let Congress undo agency action without passing a new statute. INS v. Chadha (1983) held that a one-house veto of an immigration decision was unconstitutional because it was legislative in effect and so had to comply with bicameralism and presentment, meaning passage by both houses and presentation to the President. Bowsher v. Synar (1986) added that Congress may not keep removal power over an executive officer, and so the Comptroller General could not execute the deficit control law.",
+    "The Congressional Review Act (CRA) of 1996 works within Chadha. Agencies must submit major rules to Congress, and Congress can pass a joint resolution of disapproval, which the President can veto. A resolution that becomes law invalidates the rule and bars the agency from issuing a substantially the same rule without new congressional authority. It was used only once before 2017, but it has been used much more since, mostly when party control of the White House changes. Courts generally do not review whether Congress properly used the CRA, since the statute bars judicial review of congressional determinations.",
+    "Worked example: An agency issues a significant rule shortly before a new administration takes office. The new Congress passes a CRA resolution and the new President signs it. The rule is void, and the agency cannot reissue a substantially similar rule unless a later statute authorizes it. The same result could not be reached by a one-house vote, because Chadha requires presentment."
+   ]
+  },
+  {
+   "id": "law-admin.l05",
+   "title": "Informal (Notice-and-Comment) Rulemaking",
+   "body": [
+    "Most federal rules are made through informal rulemaking, also called notice-and-comment rulemaking, governed by section 553 of the APA. The sequence has three core steps. First, the agency publishes a notice of proposed rulemaking in the Federal Register stating the time, place and nature of the proceeding, the legal authority for the rule, and either the terms of the proposed rule or a description of the subjects and issues involved. Second, the agency gives interested persons an opportunity to participate by submitting written comments, with or without oral presentation. Third, after considering the relevant matter presented, the agency adopts the rule with a concise general statement of its basis and purpose.",
+    "The concise statement is, in practice, long. Courts have read the APA together with the arbitrary and capricious standard to require that the agency respond to significant comments and explain its reasoning, so that a reviewing court can see why the agency chose as it did. A final rule is published in the Federal Register and ordinarily takes effect no sooner than thirty days after publication (section 553(d)), with exceptions such as a rule that grants an exemption or relieves a restriction.",
+    "The final rule must be a logical outgrowth of the proposal. Notice must be fair, so that interested people could anticipate the change that the agency finally makes. An agency may change a rule between proposal and adoption in response to comments, but if the final rule is so different that a reasonable commenter would not have realized it was on the table, the notice was inadequate. Long Island Care at Home, Ltd. v. Coke (2007) states the logical outgrowth idea in the course of upholding a rule.",
+    "Several supplements exist outside the APA. Executive Order 12866 requires OIRA review of significant rules and a cost-benefit analysis. The Regulatory Flexibility Act requires the agency to assess the effect of rules on small entities. The Paperwork Reduction Act controls information collection. Statutes like the National Environmental Policy Act can require a separate environmental review. The Federal Advisory Committee Act controls advice groups.",
+    "An important limit on courts is Vermont Yankee Nuclear Power Corp. v. NRDC (1978). The D.C. Circuit had required procedures beyond the APA's minimum, including extra hearing rights, as a condition of valid rulemaking. The Supreme Court reversed and held that courts may not impose procedural requirements that go beyond those the APA, the Constitution, or another statute require. Agencies are free to use more procedure, but courts may not demand it. After Vermont Yankee, courts police the quality of reasoning through arbitrary and capricious review rather than inventing new procedures.",
+    "Further, rulemaking may be initiated by a petition, since section 553(e) lets any interested person petition for the issuance, amendment or repeal of a rule. A denial of a petition is reviewable, though deferentially.",
+    "Agencies also may amend or repeal rules, and the APA treats that as rulemaking: the same procedures apply to repeal as to issuance. An agency that skips notice and comment to rescind a rule violates the APA.",
+    "Worked example: An agency proposes to limit emissions of a pollutant from coal plants at a level of 10 units. Comments from industry and public groups raise the cost of control and the health benefit. The final rule sets the limit at 8 units and adds a monitoring requirement not mentioned in the proposal. A challenger would say the monitoring requirement was not a logical outgrowth and the agency did not respond to the cost comments. The first argument could succeed if no reader of the proposal could have anticipated monitoring, and the second turns on whether the cost comment was significant."
+   ]
+  },
+  {
+   "id": "law-admin.l06",
+   "title": "Exemptions, Guidance and Legislative Rules",
+   "body": [
+    "Section 553 does not apply to every agency action, and the exemptions are among the most tested topics in administrative law. The APA exempts rulemaking from the whole of section 553 for matters involving a military or foreign affairs function of the United States. Section 553(a)(2) also exempts matters relating to agency management or personnel or to public property, loans, grants, benefits or contracts, though many agencies have waived that exemption by their own rules.",
+    "Within section 553(b), notice and comment is not required for interpretive rules, general statements of policy, and rules of agency organization, procedure or practice. It is also excused for good cause, when the agency finds for good cause, and incorporates the finding and a brief statement of the reasons into the rule, that notice and public procedure are impracticable, unnecessary or contrary to the public interest. Courts read good cause narrowly. An emergency, a statutory deadline that leaves no time, or a purely technical change that no one could object to may qualify.",
+    "The central distinction is between legislative rules and the rest. A legislative rule, also called a substantive rule, is issued under delegated authority and has the force and effect of law. Chrysler Corp. v. Brown (1979) states that a properly promulgated legislative rule can bind like a statute. It must come out of notice and comment unless an exemption applies. An interpretive rule instead advises the public of the agency's construction of statutes and rules it administers. It does not itself create new legal duties, though it may signal how the agency would enforce. A general statement of policy tells the public how the agency plans to exercise discretion in the future, without binding either the agency or the public.",
+    "Labels do not decide the question. Courts ask whether the document in substance creates new binding obligations, whether the agency treats it as binding when it acts, and whether it fills a gap in the statute by effectively amending a prior legislative rule. A policy statement that the agency applies as a rigid rule, never exercising discretion, may be a legislative rule in disguise, and so invalid if issued without notice and comment.",
+    "Perez v. Mortgage Bankers Association (2015) held that an agency need not use notice and comment to issue a new interpretive rule that departs from an earlier interpretation. This rejected a D.C. Circuit doctrine, the Paralyzed Veterans rule, that had required notice and comment to change a definitive interpretation. The Court said the APA's text controls and courts may not add procedure. Note, however, that where a prior interpretation produced serious reliance interests, an agency changing course must still explain itself under the arbitrary and capricious standard.",
+    "The case also set up an argument about deference to interpretive rules and an agency's reading of its own regulations, which the Court later narrowed in Kisor v. Wilkie (2019), as the deference track explains.",
+    "Worked example: An agency issues a guidance letter telling regulated companies that a disclosure practice is unlawful and that it will bring enforcement actions against any firm that continues it. The agency has previously never taken that position and its field staff are told to bring cases without exception. A challenger would argue that the guidance imposes a new binding duty, so that it is a legislative rule that should have gone through notice and comment, and that labelling it guidance does not control. If a court agrees, the guidance is set aside as procedurally invalid."
+   ]
+  },
+  {
+   "id": "law-admin.l07",
+   "title": "Formal and Hybrid Rulemaking",
+   "body": [
+    "Formal rulemaking is a trial-like version of rulemaking. Section 553(c) says that when rules are required by statute to be made on the record after opportunity for an agency hearing, the agency must follow sections 556 and 557 instead of the lighter notice-and-comment procedure. Those sections provide for an impartial presiding officer, oral evidence, cross-examination, a decision based exclusively on the record, and findings and conclusions on all material issues.",
+    "The trigger is the statute, not the agency's preference. Formal rulemaking applies only when Congress uses language about a hearing on the record. In United States v. Allegheny-Ludlum Steel Corp. (1972) and United States v. Florida East Coast Railway Co. (1973) the Supreme Court read a statute authorizing the Interstate Commerce Commission to set rates after hearing as not requiring on-the-record procedure. The Court held that the words after hearing, standing alone, did not trigger sections 556 and 557, and that Congress must use something closer to the statutory phrase on the record. Because of these decisions, formal rulemaking is rare. It is used in a small number of programs, such as certain Food and Drug Administration food standards.",
+    "The reason for its rarity is the time and expense. Cross-examination and a closed evidentiary record make rulemaking slow, and the famous example is a proceeding over the content of peanut butter that took years. Agencies and Congress therefore prefer informal rulemaking. Some statutes require hybrid rulemaking, an intermediate form that adds a few procedures, such as a public hearing or opportunity for rebuttal, to the notice-and-comment framework. Vermont Yankee prevents courts from adding such steps on their own, so hybrid procedures must come from a statute.",
+    "The rule against ex parte contacts is a good example of how process differs. In adjudication and formal rulemaking, section 557(d) bars communications between interested persons outside the agency and agency decision-makers about the merits, outside the record. In informal rulemaking there is no general statutory ban, though courts have sometimes required that critical information on which the agency relied be disclosed so commenters can respond, and the record should show it. The rule against prejudgment also differs: in rulemaking an official may have policy views but must not have an unalterably closed mind.",
+    "Agencies have an additional option under the Negotiated Rulemaking Act of 1990. The agency can convene a committee of representatives of affected interests to negotiate a consensus text, which the agency then proposes as a rule through ordinary notice and comment. Negotiated rulemaking does not displace section 553.",
+    "Worked example: A statute says the agency shall set standards for a food product after a hearing on the record. Under the Florida East Coast line of cases the court asks if the statute's wording meets the on-the-record standard. If it does, the agency must hold a trial-type hearing with cross-examination and decide on the record. If the statute says only after hearing, a court is likely to conclude that notice and comment suffices."
+   ]
+  },
+  {
+   "id": "law-admin.l08",
+   "title": "Formal Adjudication, ALJs and Due Process",
+   "body": [
+    "Adjudication is the agency process for deciding a particular case, such as whether a company violated a statute or whether a person qualifies for benefits. The APA's formal adjudication rules apply to adjudications required by statute to be determined on the record after opportunity for an agency hearing (section 554). If that trigger is met, the hearing follows sections 556 and 557: notice of the issues, an impartial presiding officer, the right to present evidence and cross-examine, a decision based on the record, and a separation of functions within the agency.",
+    "Presiding officers are usually administrative law judges (ALJs). The APA protects them with removal only for good cause established by the Merit Systems Protection Board, and bars them from consulting parties on the facts without notice. Section 554(d) separates adjudicators from investigators and prosecutors within a case, but the agency head, who oversees both, is not subject to the separation. Withrow v. Larkin (1975) held that the combination of investigative and adjudicative functions in one agency does not by itself violate due process, because adjudicators are presumed honest and impartial.",
+    "Most agency adjudications are informal, meaning no statute requires a trial-type hearing. They may still be subject to the Constitution. The Due Process Clause protects life, liberty and property, and the first question is whether a protected interest exists. Board of Regents v. Roth (1972) held that property interests come from independent sources such as statutes or contracts, and that a person must have a legitimate claim of entitlement, not just a unilateral expectation. Goldberg v. Kelly (1970) held that welfare recipients with a statutory entitlement were entitled to an evidentiary hearing before benefits were terminated.",
+    "Mathews v. Eldridge (1976) supplies the test for what process is due. The court balances three factors: the private interest affected, the risk of erroneous deprivation under current procedures and the value of added safeguards, and the government's interest including the burden of added procedures. Applying it to a disability benefits termination, the Court held a pre-termination evidentiary hearing was not required, because the decision turned largely on medical records and a post-termination hearing was available. The test is flexible: more is due when the interest is weighty and the process is likely to catch errors.",
+    "Remember also the relevance of evidence rules. Formal adjudication permits hearsay, since the Federal Rules of Evidence do not apply. Richardson v. Perales (1971) held that written medical reports can be substantial evidence even if the doctors do not testify. Decisions must be supported by substantial evidence on the whole record.",
+    "Constitutional limits on agency adjudication have grown. In SEC v. Jarkesy (2024) the Court held that the Seventh Amendment requires a jury trial when the SEC seeks civil penalties for securities fraud, because the claim resembles a common-law action and the public rights exception did not apply. The decision has led to challenges to other agency penalty proceedings, and the boundaries of the public rights exception remain contested.",
+    "Worked example: A state agency tenured to a licensed physician proposes to revoke the license without a hearing. The license is a property interest created by state law. Applying Mathews, the private interest is high, the risk of error from decision without hearing is real, and the burden of a hearing is modest, so due process requires notice and an opportunity to be heard, at least before final revocation."
+   ]
+  },
+  {
+   "id": "law-admin.l09",
+   "title": "Choosing Between Rulemaking and Adjudication",
+   "body": [
+    "The line between rulemaking and adjudication matters constitutionally, not just statutorily. Londoner v. Denver (1908) held that when a city assessed a tax on specific landowners based on facts peculiar to each, due process required notice and a hearing. Bi-Metallic Investment Co. v. State Board of Equalization (1915) held that no hearing was required when a board raised the valuation of all taxable property in Denver by the same percentage. The Court's reasoning is that where a rule applies to a large general group, individual hearings are impracticable and the affected people have their remedy in the political process. The usual framing: individualized, fact-specific decisions need process, and general policy choices do not.",
+    "Agencies often have a choice between making policy by rule and announcing it in an adjudication. The Chenery cases address that choice. In SEC v. Chenery Corp. (Chenery I, 1943) the Court held that a reviewing court may uphold agency action only on the grounds the agency itself invoked. If the agency's stated reason is wrong, the court may not sustain the decision on a different rationale the court thinks was available. The agency may reconsider and reach the same result on proper grounds. This record-based rule remains central to judicial review and underlies why agencies must explain themselves in full.",
+    "In Chenery II (1947), after the SEC redid its order on a different ground, the Court held that an agency has discretion to choose between rulemaking and case-by-case adjudication in announcing new principles. The choice is the agency's, and is reviewed only for abuse of discretion. Adjudication has advantages when the agency cannot foresee all problems in advance, but a new rule announced in adjudication may unfairly surprise parties who relied on prior law.",
+    "Retroactivity is the limit. The APA's definition of a rule includes the phrase future effect, and Bowen v. Georgetown University Hospital (1988) held that agencies may not issue retroactive rules unless Congress has expressly given them that power. Adjudications, by contrast, are customarily applied retroactively to the parties, since a decision resolves a past dispute. Courts balance the harm to reliance against the statutory interest in applying the new standard, and they are especially concerned when penalties are imposed for conduct that was lawful under earlier agency precedent. Related due process doctrine limits fines for conduct the agency never gave fair notice was prohibited.",
+    "Another issue is whether agency adjudication creates precedent. Agencies are expected to follow their own precedents or explain why they depart. A change in position is permitted but the agency must acknowledge the change and give a reasoned explanation, a point developed in the review standards lesson.",
+    "Worked example: An agency has never required hospitals to report a type of incident. In an enforcement case against one hospital, it announces that the statute has always required reporting and imposes a large penalty. The agency may announce new principles in adjudication under Chenery II, but the hospital will argue lack of fair notice and unfair retroactivity, and a court may bar the penalty while still allowing the rule to apply going forward."
+   ]
+  },
+  {
+   "id": "law-admin.l10",
+   "title": "Reviewability, Final Agency Action and Preclusion",
+   "body": [
+    "Judicial review of agency action is usually brought under the APA, sections 701 to 706. Section 702 gives a right of review to a person suffering legal wrong because of agency action, or adversely affected or aggrieved by it within the meaning of a relevant statute, and waives sovereign immunity in suits seeking non-monetary relief. The APA is not itself a grant of subject matter jurisdiction (Califano v. Sanders, 1977), so a plaintiff usually relies on federal question jurisdiction under 28 U.S.C. 1331 or a special review statute that sends the case straight to a court of appeals.",
+    "Section 704 limits APA review to final agency action for which there is no other adequate remedy in court. Bennett v. Spear (1997) states a two-part test for finality. The action must mark the consummation of the agency's decision-making process, so it is not tentative or interlocutory, and it must be one by which rights or obligations have been determined or from which legal consequences will flow. A preliminary staff report fails the first part. A compliance order carrying penalties for noncompliance passes. Courts also take a pragmatic approach, as in the cases that treat agency orders with serious practical consequences as final.",
+    "Section 701(a) removes two classes of action from review: those where a statute precludes review, and those where action is committed to agency discretion by law. Preclusion can be express or implied from the statute's structure, but courts apply a strong presumption favoring review, drawn from Abbott Laboratories v. Gardner (1967), and require clear and convincing evidence of legislative intent to bar it.",
+    "Committed to agency discretion is a narrow exception. In Citizens to Preserve Overton Park, Inc. v. Volpe (1971), the Court said it applies only in rare circumstances where the statute is drawn so that a court would have no meaningful standard against which to judge the agency's exercise of discretion. In Heckler v. Chaney (1985), the Court held that an agency's decision not to take an enforcement action is presumptively unreviewable, because it involves a balance of factors, such as resources and priorities, that agencies are better placed to weigh. The presumption can be rebutted where the statute provides guidelines for enforcement or where the agency has adopted a general policy that amounts to abdication of its statutory duties.",
+    "Contrast refusals to enforce with rulemaking or licensing decisions, which are generally reviewable. A related distinction separates a refusal to act at all from a discrete, required act, which can be compelled. Section 706(1) lets a court compel agency action unlawfully withheld or unreasonably delayed, but only where the agency failed to take a discrete action it is legally required to take (Norton v. Southern Utah Wilderness Alliance, 2004).",
+    "Another important limit is the record rule. Review is on the administrative record that was before the agency when it decided, not on a new record developed in court (Camp v. Pitts, 1973). Courts may allow limited discovery only on a strong showing of bad faith or incompleteness of the record.",
+    "Worked example: A citizens group asks an agency to bring enforcement action against a company for violating an environmental statute. The agency declines without explanation. Under Heckler v. Chaney the refusal is presumptively unreviewable, so the group would need to show that the statute supplies enforcement guidelines, or that the agency announced a policy of non-enforcement that abdicated its statutory responsibilities. If the agency had instead denied a permit application, the denial would be a final, reviewable action."
+   ]
+  },
+  {
+   "id": "law-admin.l11",
+   "title": "Standards of Review: Arbitrary and Capricious, Substantial Evidence, De Novo",
+   "body": [
+    "Section 706 tells a court what to do when it finds that agency action is unlawful. The standards differ by the kind of question and the type of proceeding.",
+    "Questions of law, such as what a statute means, are reviewed by the court without deference to the agency's view. Section 706 directs the court to decide all relevant questions of law, and in 2024 Loper Bright confirmed that this means independent judgment, as the next track explains. Section 706(2)(B) covers actions contrary to constitutional right, 706(2)(C) covers action in excess of statutory jurisdiction or authority, and 706(2)(D) covers action taken without observance of procedure required by law.",
+    "Findings of fact in formal proceedings, whether rulemaking or adjudication on the record, are reviewed under section 706(2)(E) for substantial evidence. Universal Camera Corp. v. NLRB (1951) explains that substantial evidence means such relevant evidence as a reasonable mind might accept as adequate to support a conclusion, and that the court must consider the whole record, including evidence that detracts from the agency's finding, not only the evidence that supports it. In practice the standard is deferential.",
+    "Most agency action falls under section 706(2)(A), which requires a court to hold unlawful and set aside agency action found to be arbitrary, capricious, an abuse of discretion, or otherwise not in accordance with law. Motor Vehicle Manufacturers Association v. State Farm (1983) is the leading case. A court may not substitute its judgment for the agency's, but it will find a rule arbitrary and capricious if the agency relied on factors Congress did not intend it to consider, entirely failed to consider an important aspect of the problem, offered an explanation that runs counter to the evidence, or is so implausible that it could not be ascribed to a difference in view or the product of agency expertise. In State Farm the agency's rescission of an automatic restraint rule failed because the agency did not consider an alternative, an airbag-only requirement, that was within the ambit of the existing rule.",
+    "Reasoned decision-making demands more when an agency changes course. FCC v. Fox Television Stations (2009) held that the agency need not show that its new policy is better than the old, but it must display awareness that it is changing position and give good reasons, and it must take into account serious reliance interests that the old policy engendered. Department of Commerce v. New York (2019) refused to defer to the stated rationale for adding a citizenship question to the census, because the evidence showed the stated reason was contrived, which shows that the court will review whether an explanation is genuine. A pretext is not a reasoned basis.",
+    "Ohio v. EPA (2024) is a recent application. The Court stayed an EPA rule because the agency likely failed to respond adequately to comments arguing that the rule would not work if a part of it were removed. The case reinforces that agencies must respond to significant comments.",
+    "De novo review applies in only a few situations: when a statute provides for it, and in the rare case when agency fact-finding procedures are inadequate in an adjudication (Overton Park). Factual findings in informal rulemaking are reviewed under the arbitrary and capricious standard rather than the stricter substantial evidence standard, though the difference may be small in practice.",
+    "Remedy: section 706(2) says the court shall hold unlawful and set aside. Courts often vacate and remand, though they sometimes remand without vacatur when vacatur would be disruptive and the agency may cure the defect. Whether a court may vacate a rule universally rather than as applied to the plaintiffs is debated among Justices.",
+    "Worked example: A agency repeals a safety rule with a short explanation, ignoring comments showing the safety rule had prevented serious injuries and without noting its reversal of an earlier finding. Under State Farm and Fox the repeal is vulnerable as arbitrary and capricious, because it failed to consider an important aspect and did not explain the change in position."
+   ]
+  },
+  {
+   "id": "law-admin.l12",
+   "title": "Standing and the Zone of Interests",
+   "body": [
+    "Article III limits federal courts to cases and controversies. Standing doctrine asks whether the plaintiff is the right person to bring the suit. Lujan v. Defenders of Wildlife (1992) states the three constitutional requirements. The plaintiff must have suffered an injury in fact, which is concrete and particularized and actual or imminent, not conjectural or hypothetical. There must be a causal connection between the injury and the conduct complained of, so the injury is fairly traceable to the defendant. And it must be likely, not merely speculative, that a favorable decision will redress the injury. The plaintiff bears the burden of showing each element at the stage of the case, so a complaint at the pleading stage needs plausible allegations while a summary judgment motion needs evidence.",
+    "Injury need not be economic. Aesthetic, environmental and recreational harm count, but a plaintiff must show personal use or enjoyment of the affected area. In Lujan, plaintiffs who said they hoped to someday visit places where endangered species were affected lacked an imminent injury, because they had no concrete plans. The Court also rejected a citizen suit theory based on a general interest in seeing the law enforced, since a generalized grievance shared by all citizens is not a particularized injury.",
+    "The Court has relaxed some elements for certain plaintiffs. Massachusetts v. EPA (2007) held that Massachusetts had standing to challenge the EPA's refusal to regulate greenhouse gas emissions from vehicles, and said that states are entitled to special solicitude in the standing analysis because of their sovereign interests. The application of that special solicitude has been narrowed in later cases.",
+    "Intangible harms are subject to limits. Spokeo, Inc. v. Robins (2016) and TransUnion LLC v. Ramirez (2021) hold that a bare statutory violation is not enough, and the plaintiff must show a concrete harm with a close relationship to a harm traditionally recognized as a basis for a lawsuit, such as reputational harm. In TransUnion, class members whose credit files were not disseminated lacked standing, while those whose false files were sent to third parties had it.",
+    "Recent decisions apply the doctrine against indirect plaintiffs. In FDA v. Alliance for Hippocratic Medicine (2024) doctors and medical groups challenging the FDA's loosening of rules on a drug lacked standing, because they did not prescribe or use it and their theory of injury depended on speculative downstream effects, and federal conscience protections already shield doctors from being required to perform or assist in abortions. United States v. Texas (2023) held that states lacked standing to challenge federal immigration enforcement priorities, because a plaintiff generally has no judicially cognizable interest in the prosecution of someone else.",
+    "Beyond Article III, the plaintiff must satisfy the zone of interests test, which is a requirement of the APA's cause of action. Association of Data Processing Service Organizations v. Camp (1970) asked whether the interest sought to be protected is arguably within the zone of interests protected by the statute, and Lexmark (2014) treats it as a question of whether the plaintiff falls within the class of plaintiffs whom Congress authorized to sue. The test is lenient under the APA, as Bennett v. Spear emphasized, and is denied only when the interests are so marginal or inconsistent with the statute's purposes that Congress could not have intended to permit the suit.",
+    "Organizations may sue on behalf of members if the members would have standing, the interests are germane to the organization's purpose, and neither the claim nor the relief requires individual members' participation (Hunt v. Washington State Apple Advertising Commission, 1977). Summers v. Earth Island Institute (2009) requires that the organization identify at least one specific member who is harmed.",
+    "Worked example: A grocery chain sues to challenge an agency approval of a competitor's product that it says is unsafe. The chain argues it will lose sales. Injury in fact is plausible, but traceability and redressability require facts showing that consumers would buy less from the chain because of the approval, and the zone of interests test asks whether the safety statute protects competitors, which is doubtful."
+   ]
+  },
+  {
+   "id": "law-admin.l13",
+   "title": "Ripeness, Exhaustion, Mootness and Timing",
+   "body": [
+    "Timing doctrines decide when a court will hear a challenge. They sit alongside standing and finality and overlap with them.",
+    "Ripeness asks whether a dispute has matured enough for a court to decide it. Abbott Laboratories v. Gardner (1967) sets a two-part test: the fitness of the issues for judicial decision, and the hardship to the parties of withholding court consideration. In Abbott, drug manufacturers could challenge a labeling regulation before enforcement. The question was legal, the regulation was final, and waiting would force them to choose between costly compliance and risking penalties. By contrast, Ohio Forestry Association, Inc. v. Sierra Club (1998) held that a challenge to a forest management plan was not ripe, because the plan itself did not authorize any logging and further agency steps would come, at which point the group could bring a challenge. Purely legal questions that need no further factual development are ripest.",
+    "Exhaustion of administrative remedies requires a party to use the agency's own procedures before going to court. The aim is to let the agency correct itself, to develop a record, and to use expertise. Under the APA, Darby v. Cisneros (1993) held that a plaintiff need not exhaust optional appeals when the statute or rule does not require exhaustion and the agency action is already final and operative. Where a statute requires exhaustion, a court enforces it. Courts may excuse exhaustion where the agency lacks power to grant relief, where it would be futile, or where there is irreparable harm, though recent cases are strict about such exceptions. Axon Enterprise, Inc. v. FTC (2023) held that a party facing an agency enforcement proceeding may bring a structural constitutional challenge to the agency's existence in district court, rather than waiting for review in the court of appeals after the agency finishes, because the harm of being subjected to an unconstitutional proceeding cannot be undone later.",
+    "Primary jurisdiction is a related doctrine used when a court case raises an issue within the special competence of an agency. The court may stay its hand and refer the issue to the agency. Unlike exhaustion, it concerns a case already in court on a nonadministrative claim.",
+    "Mootness is standing over time, since the controversy must remain live. A case becomes moot when circumstances change so that the court can no longer grant relief. A defendant's voluntary cessation of the challenged conduct does not moot a case unless it is absolutely clear the conduct could not reasonably be expected to recur (Friends of the Earth, Inc. v. Laidlaw, 2000). Exceptions also exist for conduct capable of repetition yet evading review. These rules matter when an agency rescinds a challenged policy after being sued.",
+    "Limits on time to sue are set by statute. Many review statutes give a short period, such as 60 days. For APA claims with no specific review statute, the general six-year statute of limitations for civil actions against the United States, 28 U.S.C. 2401(a), applies. Corner Post, Inc. v. Board of Governors (2024) held that a claim under the APA accrues when the plaintiff is injured, not when the rule was issued, so a business created years after a rule took effect may still challenge it within six years of its injury. This opens old rules to challenge by newly formed plaintiffs.",
+    "Worked example: A company receives an agency's letter stating that its product will be treated as a banned substance, and warning of penalties. No enforcement has started. Under Abbott, the legal question of classification is fit for decision, and the company faces a dilemma of heavy compliance costs or risking penalties, so the challenge is likely ripe. If instead the agency had merely announced that it was studying the issue, a court would find the matter unripe."
+   ]
+  },
+  {
+   "id": "law-admin.l14",
+   "title": "From Skidmore to Chevron: The History of Deference",
+   "body": [
+    "Statutes are often ambiguous, and agencies must read them to do their work. Who gets the last word on what an ambiguous statute means, the agency or the court? The answer has changed over time, and the history explains the present law.",
+    "Before 1984 the dominant approach was Skidmore deference, from Skidmore v. Swift & Co. (1944). A court gave an agency's interpretation weight in proportion to its power to persuade, looking at the thoroughness of the agency's consideration, the validity of its reasoning, its consistency with earlier and later pronouncements, and all the factors that give it power to persuade. It was respect, not a binding rule. The court decided the statute's meaning and treated the agency as a respected source.",
+    "Chevron U.S.A. Inc. v. Natural Resources Defense Council, Inc. (1984) changed this. The EPA had adopted a bubble concept for pollution sources under the Clean Air Act, and the Court upheld it. Justice Stevens set out a two-step test. At step one, the court asks whether Congress has directly spoken to the precise question at issue. If the intent of Congress is clear, that is the end of the matter. At step two, if the statute is silent or ambiguous on the specific issue, the question for the court is whether the agency's answer is based on a permissible construction of the statute. The theory was that ambiguity amounts to an implicit delegation to the agency to fill the gap, and that agencies have expertise and political accountability that courts lack.",
+    "Chevron was soon limited in several ways. United States v. Mead Corp. (2001) held that Chevron applies when Congress has delegated authority to the agency to make rules carrying the force of law, and the agency's interpretation was promulgated in the exercise of that authority, as in notice-and-comment rulemaking or formal adjudication. Informal documents such as a tariff classification letter were left to Skidmore weight. This threshold question was called step zero. Christensen v. Harris County (2000) had similarly denied Chevron to opinion letters.",
+    "National Cable & Telecommunications Association v. Brand X Internet Services (2005) held that an agency's reasonable interpretation under Chevron could override a prior judicial interpretation of the same statute, unless the court's earlier decision held that the statute unambiguously required its reading. This meant that agencies, not courts, controlled the meaning of ambiguous statutes over time.",
+    "The major questions strand emerged as an exception. In FDA v. Brown & Williamson Tobacco Corp. (2000) the Court declined to defer to the FDA's claim of authority to regulate tobacco, reasoning that Congress could not have meant to delegate a decision of such economic and political significance in so indirect a way, and that for extraordinary cases a court should hesitate before reading an ambiguous grant of authority to confer vast power. King v. Burwell (2015) applied the idea to refuse Chevron deference on a question of deep economic and political significance in the Affordable Care Act, though the Court then decided the issue itself.",
+    "By the 2010s, several Justices questioned Chevron, with critics pointing to the APA's instruction that the reviewing court shall decide all relevant questions of law, and to separation of powers concerns. Justice Gorsuch, then a circuit judge, argued in a 2016 concurrence that Chevron let the executive branch absorb power that belongs to the courts. Courts also grew uneven in how they applied step one. In practice the Court itself rarely used the Chevron framework in its later years, deciding many statutory cases without citing it. The setting was ready for a direct challenge.",
+    "Worked example: An agency regulation, issued after notice and comment under a delegation of rulemaking power, defines a statutory term in a way that the text can plausibly bear. Before 2024, a court would proceed to Chevron step one, find ambiguity, and then ask only whether the reading was reasonable. If the agency had expressed the same view in an informal letter, Mead would route the case to Skidmore."
+   ]
+  },
+  {
+   "id": "law-admin.l15",
+   "title": "Loper Bright and the Law Today",
+   "body": [
+    "In Loper Bright Enterprises v. Raimondo (2024), decided together with Relentless, Inc. v. Department of Commerce, the Supreme Court overruled Chevron by a vote of six to two in Loper Bright, with Justice Jackson recused, and six to three in Relentless. The case involved fishing companies challenging a National Marine Fisheries Service rule that required them to pay for observers aboard their vessels. Chief Justice Roberts wrote for the majority.",
+    "The Court's reasoning rested on the APA. Section 706 says the reviewing court shall decide all relevant questions of law and interpret statutory provisions. The Court said this reflects the traditional judicial role: courts exercise independent judgment about what the law is, and the fact that a statute is ambiguous does not mean Congress delegated interpretive power to the agency. Ambiguity is a normal feature of statutes, and resolving it is a legal question for courts. The Court also said that Chevron's presumption of implicit delegation was a fiction, that agencies have no special competence at resolving statutory ambiguities, and that Chevron had proved unworkable.",
+    "What replaced it? A court must exercise independent judgment in deciding whether an agency has acted within its statutory authority, using the traditional tools of statutory construction. The Court said that courts may, as before Chevron, seek aid from the interpretations of those responsible for implementing particular statutes, and that Skidmore respect remains, especially for interpretations issued contemporaneously with the statute and consistently maintained over a long period, which may be especially useful where a statute's meaning rests on factual matters within the agency's expertise.",
+    "The decision does recognize a continuing form of delegation. When Congress expressly delegates discretionary authority, using terms like appropriate or reasonable, or authorizes the agency to define a term, the court's role is to determine the boundaries of the delegation and to ensure the agency has engaged in reasoned decision-making within it. So the answer to who decides is the court for the statute's best meaning, unless the statute itself gives the agency discretion, in which case the court polices the limits. The majority also held that prior cases decided under Chevron remain subject to statutory stare decisis, so the holdings of those cases are not overturned just because Chevron fell, and reliance on Chevron alone is not a special justification for reopening them.",
+    "The effects continue to unfold. Challengers have sought to reopen older rules, though the Corner Post decision on timing and the stare decisis point limit this. Lower courts have applied Loper Bright to strike down interpretations in a number of settings. In McLaughlin Chiropractic Associates v. McKesson Corp. (2025) the Court held that district courts in enforcement proceedings are not bound by the FCC's interpretation of the Telephone Consumer Protection Act under the Hobbs Act, and must independently interpret the statute, applying Loper Bright. Seven County Infrastructure Coalition v. Eagle County (2025) emphasized substantial deference to agencies on the factual and policy aspects of environmental review under the National Environmental Policy Act, showing that deference to agency judgment remains where the question is one of fact or policy rather than meaning of the law. Learners should check recent decisions, since lower courts are still developing the line between law and discretion.",
+    "Worked example: A statute authorizes an agency to regulate any facility that emits a pollutant in a harmful amount, and the agency defines harmful amount to include any detectable quantity. Under Loper Bright, the court itself asks what the statute best means. If the statute assigns the agency discretion to determine what counts as harmful, the court asks if the definition lies within that boundary and whether the agency reasoned adequately. It does not defer simply because the term is ambiguous."
+   ]
+  },
+  {
+   "id": "law-admin.l16",
+   "title": "Agencies Reading Their Own Rules and the Major Questions Doctrine",
+   "body": [
+    "A separate deference question arises when an agency interprets its own regulation rather than a statute. Bowles v. Seminole Rock & Sand Co. (1945) held that the agency's interpretation of its own regulation has controlling weight unless plainly erroneous or inconsistent with the regulation. Auer v. Robbins (1997) reaffirmed this rule, and it became known as Auer or Seminole Rock deference. The rationale was that the agency that wrote the regulation is best placed to know what it meant.",
+    "Kisor v. Wilkie (2019) kept the doctrine but cut it back sharply. Justice Kagan's opinion said a court must first exhaust all the traditional tools of construction, and that deference is available only if the regulation is genuinely ambiguous. Even then the agency's reading must be reasonable, and the interpretation must also satisfy several further conditions: it must be the agency's authoritative or official position, not an ad hoc statement; it must implicate the agency's substantive expertise; and it must reflect fair and considered judgment, not a convenient litigating position or a surprising new reading that creates unfair surprise. Four Justices concurred only in the judgment, and Justice Gorsuch's opinion argued that Auer should be overruled in full. Loper Bright did not address Auer in terms, so as of this writing Kisor deference remains, and its fate is an open question that courts and commentators watch.",
+    "Another line of cases governs the scale of power an agency may claim. The major questions doctrine says that when an agency asserts power of vast economic and political significance, the court will not accept a vague or ancillary statutory grant and will require clear congressional authorization. Utility Air Regulatory Group v. EPA (2014) refused to read a statute to let the EPA require permits for millions of small sources, which would have given the agency vast authority to rewrite the law. West Virginia v. EPA (2022) used the phrase major questions doctrine and held that the Clean Air Act's generation shifting approach in the Clean Power Plan was not authorized, since the agency claimed an unheralded power in a long-extant statute. Biden v. Nebraska (2023) held that the HEROES Act did not authorize broad student loan cancellation by the Secretary of Education, since a waiver authority to modify provisions did not clearly authorize forgiving about 430 billion dollars in debt.",
+    "The doctrine's justification is that Congress is presumed to make decisions of great economic and political significance itself, and the stakes of a claimed power are reason to doubt that Congress delegated it quietly. Critics argue that it lacks a clear trigger, invites judicial policymaking and conflicts with textualism. Defenders see it as a clear statement rule grounded in the separation of powers. The Court has not defined precisely what makes a question major, referring to factors like the amount of money, the number of people and the novelty of the claimed power, and the agency's lack of expertise in the area.",
+    "How do these fit together after Loper Bright? Major questions is a tool of statutory interpretation that comes before any deference: if it applies, the agency needs clear authorization. Otherwise, the court reads the statute for its best meaning. Skidmore and Kisor operate in narrower areas.",
+    "Worked example: A decades-old statute allows an agency to take measures necessary to protect public health. The agency invokes it to impose a nationwide requirement on millions of businesses, with a very large economic cost, in an area it has never regulated. Under West Virginia and Nebraska, a court asks whether the claimed power is of vast significance, and if so whether Congress clearly authorized it. A general phrase like necessary measures likely will not suffice."
+   ]
+  },
+  {
+   "id": "law-admin.l17",
+   "title": "The Freedom of Information Act",
+   "body": [
+    "The Freedom of Information Act (FOIA), enacted in 1966 and codified at 5 U.S.C. section 552, gives any person a right of access to records of federal agencies, subject to nine exemptions. The Supreme Court has described its basic purpose as ensuring an informed citizenry and checking against corruption, and has said that its exemptions are to be read narrowly, with the burden on the agency to justify withholding.",
+    "FOIA applies to agencies in the executive branch, including independent regulatory agencies and the Executive Office of the President units that exercise substantial independent authority, but not to Congress, the federal courts, or the President's immediate personal staff and advisers. It does not apply to state or local governments, which have their own public records laws.",
+    "The statute has several parts. Agencies must publish certain materials in the Federal Register, such as rules and statements of organization. They must make available for public inspection final opinions in adjudications, policy statements and staff manuals that affect the public, and frequently requested records. And any person may make a request for records reasonably described, following agency procedures. The agency must determine within 20 working days whether to comply and notify the requester of its determination. Requesters may be charged fees that vary by category of requester, with reduced fees for news media and educational users, and fee waivers if disclosure is in the public interest. Requesters may appeal and then sue in district court, where review is de novo and the agency bears the burden of justifying withholding.",
+    "The nine exemptions are exclusive. Exemption 1 covers properly classified national security information. Exemption 2 covers internal personnel rules and practices. Exemption 3 covers matters made confidential by another statute that meets certain criteria. Exemption 4 covers trade secrets and commercial or financial information that is privileged or confidential. In Food Marketing Institute v. Argus Leader Media (2019), the Court held that commercial information is confidential at least where it is customarily kept private by its owner and provided to the government under an assurance of privacy, rejecting a requirement of competitive harm. Exemption 5 covers inter-agency or intra-agency memoranda that would be privileged in civil litigation, including the deliberative process privilege, the attorney-client privilege and attorney work product. NLRB v. Sears, Roebuck & Co. (1975) explains that the deliberative privilege protects predecisional, deliberative material, but not final opinions, which are the agency's working law. Exemption 6 protects personnel and medical files where disclosure would be a clearly unwarranted invasion of personal privacy. Exemption 7 protects certain law enforcement records on specified grounds, such as interference with proceedings or disclosure of confidential sources. Exemption 8 covers records on regulation of financial institutions. Exemption 9 covers geological and geophysical information about wells.",
+    "The FOIA Improvement Act of 2016 added a foreseeable harm standard: an agency may withhold information only if it reasonably foresees that disclosure would harm an interest protected by an exemption, or if disclosure is prohibited by law. It also limited the deliberative process privilege to records created fewer than 25 years before the request. Agencies must also release any reasonably segregable portion of a record after deleting exempt material. Courts review withholdings using an index or affidavit, called a Vaughn index after Vaughn v. Rosen (1973), that justifies each withholding. An agency may refuse to confirm or deny that records exist, known as a Glomar response, where the existence itself would reveal protected information.",
+    "The Court in Department of Justice v. Reporters Committee (1989) held that a compiled criminal rap sheet about a private individual could be withheld under privacy exemptions, since FOIA's core purpose is to shed light on what the government is up to, not on private citizens.",
+    "Worked example: A reporter requests an agency's internal draft memo recommending a policy and the final policy memo adopting it. The draft is predecisional and deliberative and may fall within Exemption 5, subject to the foreseeable harm requirement. The final memo that states the policy the agency actually adopted is working law and must be released."
+   ]
+  },
+  {
+   "id": "law-admin.l18",
+   "title": "Sunshine, Advisory Committees and the Privacy Act",
+   "body": [
+    "FOIA is one of several statutes that govern government transparency, and each addresses a different problem. Understanding the differences is a staple of the subject.",
+    "The Government in the Sunshine Act of 1976, codified at 5 U.S.C. section 552b, requires meetings of multimember agencies to be open to the public. It applies to agencies headed by a collegial body of two or more individuals, a majority of whom are appointed by the President with Senate confirmation. A meeting is a gathering of the members that conducts or disposes of agency business, and the Act requires advance public notice. Ten exemptions allow closing meetings for subjects like national security, personal privacy, trade secrets, and certain law enforcement and adjudicatory matters. The exemptions track FOIA's exemptions but not exactly. A single-head agency, such as a cabinet department, is not covered. Agencies may close meetings only after a recorded vote.",
+    "The Federal Advisory Committee Act (FACA) of 1972 regulates committees created or used by the executive branch to obtain advice. It requires that these committees have a charter, give notice of meetings, open meetings in most cases, and keep minutes and make records available. The purpose is to prevent hidden influence by private interests over government decisions and to keep the number of committees in check. A group is covered if it is established or utilized by an agency and includes members from outside the government. Exemptions exist for committees composed wholly of full-time federal officers, and the Supreme Court has read the term utilized narrowly in Public Citizen v. Department of Justice (1989), to avoid applying FACA to every consultation.",
+    "The Privacy Act of 1974, codified at 5 U.S.C. section 552a, protects individuals in the other direction. It regulates how federal agencies collect, maintain, use and disclose records about individuals that are retrieved by name or identifier. It prohibits disclosure of such a record without the person's written consent, subject to a list of exceptions, one of which is disclosure required under FOIA. A person has the right to access and request amendment of their own records. Because the two statutes overlap, an agency considering a FOIA request for personal information must weigh the privacy exemptions of FOIA, namely Exemptions 6 and 7(C), and the Privacy Act's constraints. The Privacy Act does not override a FOIA obligation: if FOIA requires disclosure, the Privacy Act permits it.",
+    "The Federal Records Act, with the Presidential Records Act of 1978, governs the creation, retention and disposal of federal records. Presidential records are owned by the United States and become subject to FOIA five years after the President leaves office, subject to restrictions. These statutes matter because FOIA is useful only if records exist, and there is a separate law about keeping them.",
+    "How do these fit together? The APA requires rulemaking transparency by notice and comment. FOIA makes records available on request. The Sunshine Act opens meetings of collegial bodies. FACA opens advice groups. The Privacy Act protects individuals' data. Each has its own scope, exemptions, and enforcement, and a single scenario can raise all of them.",
+    "Worked example: A five-member commission meets to deliberate a pending enforcement matter in private, after a recorded vote and a notice that the meeting will be closed under the exemption for adjudicatory matters. A reporter objects. Under the Sunshine Act the commission may close the meeting if one of the exemptions applies and it follows the required voting and notice procedures. The reporter may still use FOIA later to request records of the meeting, subject to its own exemptions."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-admin.l01.q1",
+   "lessonId": "law-admin.l01",
+   "kind": "mcq",
+   "prompt": "Under the Administrative Procedure Act, what does it mean for an agency action to be ultra vires?",
+   "choices": [
+    "The action exceeds the authority that Congress granted in the agency's enabling statute",
+    "The action was adopted without the notice-and-comment procedures that the APA requires for a legislative rule",
+    "The action was decided by a single official even though the agency's own internal rules assign such matters to a multimember board",
+    "The action was reviewed by the White House before it became final"
+   ]
+  },
+  {
+   "id": "law-admin.l01.q2",
+   "lessonId": "law-admin.l01",
+   "kind": "mcq",
+   "prompt": "Which of the following is the best description of the APA's basic distinction between a rule and an order?",
+   "choices": [
+    "A rule takes effect only after approval by a congressional committee, while an order takes effect on the agency's own authority alone",
+    "A rule is an agency statement with future effect, while an order is the final disposition of a matter other than rulemaking",
+    "A rule is issued only by independent agencies after a public hearing, while an order is issued only by executive departments in closed sessions",
+    "A rule binds the public, while an order binds only the agency's own employees and officers"
+   ]
+  },
+  {
+   "id": "law-admin.l01.q3",
+   "lessonId": "law-admin.l01",
+   "kind": "mcq",
+   "prompt": "Under Franklin v. Massachusetts (1992), which statement about the President and the APA is correct?",
+   "choices": [
+    "The President is an agency only when he acts through an executive order",
+    "The President is not an agency, but the APA requires him to consult the agencies he directs",
+    "The President is not an agency, so his own actions are not reviewable under the APA",
+    "The President is an agency, but his actions are exempt from the APA's notice requirements"
+   ]
+  },
+  {
+   "id": "law-admin.l01.q4",
+   "lessonId": "law-admin.l01",
+   "kind": "mcq",
+   "prompt": "Congress creates a Bureau of Home Safety by statute and directs it to set safety standards for household appliances. The Bureau, citing a general interest in consumer welfare, issues a rule banning all sales of gas-fired water heaters, which the statute does not mention. A manufacturer sues. What is the strongest argument for the manufacturer?",
+   "choices": [
+    "The Bureau is an independent agency, and independent agencies may never issue rules that directly burden private commercial parties without an act of Congress",
+    "The Bureau combined rulemaking and enforcement functions in one body, which the Constitution's separation of powers forbids in any single agency",
+    "The Bureau should have sought the approval of the President under the Appointments Clause before acting",
+    "The Bureau has only the powers conferred by its statute, and a general welfare purpose does not authorize a ban beyond the standards-setting authority granted"
+   ]
+  },
+  {
+   "id": "law-admin.l01.q5",
+   "lessonId": "law-admin.l01",
+   "kind": "mcq",
+   "prompt": "The Department of the Treasury, headed by a Secretary the President may remove at will, and the Federal Trade Commission, led by commissioners with for-cause removal protection, both issue rules. Which statement is most accurate about their legal differences?",
+   "choices": [
+    "The Treasury is an executive department under direct presidential control, while the FTC is an independent agency whose commissioners the President may now remove at will under Trump v. Slaughter (2026)",
+    "Treasury rules are subject to the APA and to presidential review, while FTC rules are wholly exempt from both because Congress created the FTC as an independent body outside the executive branch",
+    "The FTC must obtain OIRA clearance for every action it takes, while Treasury operates entirely free of White House review because it is an executive department",
+    "The Treasury holds inherent constitutional powers that the FTC lacks, because only executive departments may ever claim authority derived from Article II"
+   ]
+  },
+  {
+   "id": "law-admin.l02.q1",
+   "lessonId": "law-admin.l02",
+   "kind": "mcq",
+   "prompt": "Which test did Chief Justice Taft state in J.W. Hampton, Jr. & Co. v. United States (1928) for evaluating delegations of legislative power?",
+   "choices": [
+    "Congress may delegate only to a delegate who is a member of the executive branch and is confirmed by the Senate",
+    "Congress must specify every detail that the agency will later enforce",
+    "Congress may delegate only for a limited period, after which the delegation must be renewed by a new statute",
+    "Congress must lay down an intelligible principle to which the delegate is directed to conform"
+   ]
+  },
+  {
+   "id": "law-admin.l02.q2",
+   "lessonId": "law-admin.l02",
+   "kind": "mcq",
+   "prompt": "In how many Supreme Court decisions has a federal statute been struck down on nondelegation grounds, and in what year?",
+   "choices": [
+    "Six decisions, spread across the New Deal era and the wage-and-price-control cases of the 1970s",
+    "None, because the Court has only ever narrowed statutes by applying the constitutional avoidance canon",
+    "Two decisions, both in 1935, involving oil shipments and the National Industrial Recovery Act",
+    "One decision, in 1928, striking down the flexible tariff-setting statute that Taft's opinion had upheld"
+   ]
+  },
+  {
+   "id": "law-admin.l02.q3",
+   "lessonId": "law-admin.l02",
+   "kind": "mcq",
+   "prompt": "What was the result in Gundy v. United States (2019)?",
+   "choices": [
+    "The Court declined to decide the nondelegation question and dismissed the case as moot after the petitioner's sentence expired",
+    "A plurality upheld the delegation, with Justice Alito concurring in the judgment while signaling willingness to revisit the doctrine",
+    "The Court struck down the delegation by a unanimous vote as an unconstitutional transfer of legislative power to the Attorney General",
+    "A majority adopted a new and stricter test than the intelligible principle standard, requiring Congress to resolve all major policy questions itself"
+   ]
+  },
+  {
+   "id": "law-admin.l02.q4",
+   "lessonId": "law-admin.l02",
+   "kind": "mcq",
+   "prompt": "Congress enacts a statute authorizing the Secretary of Health to issue regulations that are 'requisite to protect the public from imminent and serious health hazards,' and requires findings supported by evidence and a report to Congress. A trade group argues the statute is an unconstitutional delegation. Under the Court's current doctrine, how is the challenge most likely to come out?",
+   "choices": [
+    "The challenge fails, because the statute states a policy goal and boundaries that satisfy the intelligible principle test",
+    "The challenge succeeds, because any statute that lets an agency set binding private obligations without specifying each regulated product violates Article I",
+    "The challenge succeeds unless the Secretary is confirmed by the Senate and also removable only for cause by the President",
+    "The challenge fails only if each of the Secretary's regulations is later approved by a joint resolution of Congress"
+   ]
+  },
+  {
+   "id": "law-admin.l02.q5",
+   "lessonId": "law-admin.l02",
+   "kind": "mcq",
+   "prompt": "A statute lets a private trade association of coal producers fix minimum wages and maximum hours that bind competing producers, with no agency review. A competitor challenges it. Which argument is strongest?",
+   "choices": [
+    "The statute violates the intelligible principle test only if the wage standard is expressed as a fixed number rather than a general policy",
+    "The statute is valid because private associations become agencies under the APA once Congress names them in the enabling statute",
+    "The statute is valid because Congress may delegate regulatory power to any entity, public or private, that has industry expertise",
+    "Private actors cannot be given regulatory power over competitors without governmental control, as Carter v. Carter Coal suggests"
+   ]
+  },
+  {
+   "id": "law-admin.l03.q1",
+   "lessonId": "law-admin.l03",
+   "kind": "mcq",
+   "prompt": "Under the Appointments Clause, how are principal officers of the United States appointed?",
+   "choices": [
+    "They are elected by the agencies they will lead",
+    "They are appointed by the courts of law and confirmed by the President",
+    "They are nominated by the President and confirmed by the Senate",
+    "They are chosen by the heads of departments and approved by Congress"
+   ]
+  },
+  {
+   "id": "law-admin.l03.q2",
+   "lessonId": "law-admin.l03",
+   "kind": "mcq",
+   "prompt": "What did Lucia v. SEC (2018) hold about the SEC's administrative law judges?",
+   "choices": [
+    "They are employees performing purely ministerial duties, so no constitutional appointment procedure applies to them at all",
+    "They are principal officers who must be nominated by the President and confirmed by the Senate before hearing any case",
+    "They are officers, but the Appointments Clause was satisfied because the SEC's chief ALJ and staff had selected them through a merit process",
+    "They are officers of the United States, so appointment by agency staff rather than the Commission violated the Appointments Clause"
+   ]
+  },
+  {
+   "id": "law-admin.l03.q3",
+   "lessonId": "law-admin.l03",
+   "kind": "mcq",
+   "prompt": "Which statement best describes Seila Law LLC v. CFPB (2020)?",
+   "choices": [
+    "Congress may not insulate a single director who wields substantial executive power from at-will removal by the President",
+    "Congress may never give for-cause removal protection to any official who heads an agency, whether alone or as part of a board",
+    "Seila Law overruled Humphrey's Executor in full, so every independent agency with removal-protected leaders was held unconstitutional",
+    "The CFPB was struck down in its entirety, and all of its past actions were declared void as a result"
+   ]
+  },
+  {
+   "id": "law-admin.l03.q4",
+   "lessonId": "law-admin.l03",
+   "kind": "mcq",
+   "prompt": "Congress creates a five-member Commission on Transport Standards, with members serving staggered terms and removable only for neglect of duty. The Commission may issue rules and bring civil enforcement actions in court. The President fires a member who is a political opponent without alleging neglect. The member sues for reinstatement. Which analysis best predicts the legal question the court must decide after Trump v. Slaughter (2026)?",
+   "choices": [
+    "Whether the Commission qualifies as an agency at all, because the President may remove only the heads of bodies that are not agencies",
+    "Whether the Commission exercises executive power through rulemaking and enforcement, because if it does the for-cause limit cannot bind the President",
+    "Whether the member was confirmed by the Senate, because Senate confirmation alone is what gives an officer constitutional tenure protection against presidential removal",
+    "Whether the removal violated the APA's requirement of notice and comment before any personnel change affecting agency members"
+   ]
+  },
+  {
+   "id": "law-admin.l03.q5",
+   "lessonId": "law-admin.l03",
+   "kind": "mcq",
+   "prompt": "A statute provides that Board members can be removed only for cause by Commissioners, who can themselves be removed only for cause by the President. A regulated company challenges a Board enforcement order, arguing the structure is unconstitutional. Under Free Enterprise Fund v. PCAOB (2010), what is the strongest argument?",
+   "choices": [
+    "The Board combines investigation and adjudication in one body, which the Constitution assigns to separate branches of government",
+    "The Board's members are inferior officers, and the Constitution forbids any removal protection for inferior officers of any kind",
+    "Two layers of for-cause protection impermissibly prevent the President from overseeing the officers who execute the law",
+    "The Commissioners lacked Senate confirmation, so every enforcement order the Board has issued is void from the start"
+   ]
+  },
+  {
+   "id": "law-admin.l04.q1",
+   "lessonId": "law-admin.l04",
+   "kind": "mcq",
+   "prompt": "Which office within the Executive Office of the President reviews significant executive agency rules under Executive Order 12866?",
+   "choices": [
+    "The Office of Special Counsel",
+    "The Office of Information and Regulatory Affairs",
+    "The Government Accountability Office",
+    "The Administrative Conference of the United States"
+   ]
+  },
+  {
+   "id": "law-admin.l04.q2",
+   "lessonId": "law-admin.l04",
+   "kind": "mcq",
+   "prompt": "What was the holding of INS v. Chadha (1983)?",
+   "choices": [
+    "A one-house legislative veto of executive action is unconstitutional because it bypasses bicameralism and presentment",
+    "Congress may veto agency rules by a majority vote of either house acting alone, at its discretion and without presentment",
+    "The legislative veto is unconstitutional only when the action reviewed was taken by an independent agency rather than an executive department",
+    "Congress may override any agency rule by a two-thirds vote of the Senate alone, without any action by the House"
+   ]
+  },
+  {
+   "id": "law-admin.l04.q3",
+   "lessonId": "law-admin.l04",
+   "kind": "mcq",
+   "prompt": "Which statement best describes Justice Jackson's concurrence in Youngstown Sheet & Tube Co. v. Sawyer (1952)?",
+   "choices": [
+    "Presidential power is the same in every case, regardless of what Congress has authorized, forbidden, or left unaddressed, because Article II vests all executive power in the President",
+    "The President holds inherent power to seize private property whenever national security is invoked, even against a contrary statute",
+    "Presidential power depends solely on whether the agency involved is independent or executive, not on Congress's position",
+    "Presidential power is at its maximum when acting with congressional authorization and at its lowest ebb when acting against Congress's will"
+   ]
+  },
+  {
+   "id": "law-admin.l04.q4",
+   "lessonId": "law-admin.l04",
+   "kind": "mcq",
+   "prompt": "An agency issues a major rule. Congress passes a joint resolution of disapproval under the Congressional Review Act, and the President signs it. Two years later, the agency, under new leadership, wants to issue a substantially similar rule using the same statute. Which analysis is most accurate?",
+   "choices": [
+    "The agency may reissue only if OIRA approves, because OIRA can waive the CRA bar",
+    "The resolution was ineffective unless it was passed within thirty days of the agency's original rulemaking notice",
+    "The agency is barred from issuing a substantially similar rule unless Congress later authorizes it by statute",
+    "The agency may reissue the rule at will, because a resolution only applies for the current Congress"
+   ]
+  },
+  {
+   "id": "law-admin.l04.q5",
+   "lessonId": "law-admin.l04",
+   "kind": "mcq",
+   "prompt": "Following a dispute with an agency, the House alone passes a resolution disapproving a rule and declares it void. The agency continues to enforce the rule. A regulated party asks whether the resolution has legal effect. What is the best answer?",
+   "choices": [
+    "No, but only because the rule was issued under the formal, on-the-record rulemaking procedures of sections 556 and 557 of the APA, which a single house cannot displace",
+    "No, because under Chadha a congressional action with the force of law must pass both houses and be presented to the President",
+    "Yes, because the House holds the power of the purse and may therefore nullify any rule it disfavors by its own resolution",
+    "Yes, but only if the resolution is also approved by the agency's own inspector general and published in the Federal Register"
+   ]
+  },
+  {
+   "id": "law-admin.l05.q1",
+   "lessonId": "law-admin.l05",
+   "kind": "mcq",
+   "prompt": "Which of the following is a required step in informal rulemaking under section 553 of the APA?",
+   "choices": [
+    "Publication of notice of proposed rulemaking and an opportunity for interested persons to submit written comments",
+    "A trial-type hearing before an administrative law judge in which the agency's staff may be cross-examined by every interested party",
+    "Approval of the proposed text by a joint committee of the House and Senate before publication",
+    "A public vote of the regulated industry showing that a majority of firms supports the new standard"
+   ]
+  },
+  {
+   "id": "law-admin.l05.q2",
+   "lessonId": "law-admin.l05",
+   "kind": "mcq",
+   "prompt": "What did Vermont Yankee Nuclear Power Corp. v. NRDC (1978) hold about courts and rulemaking procedure?",
+   "choices": [
+    "Courts may add procedure only for rules issued by independent agencies, not by executive departments",
+    "Courts may not impose procedural requirements on agencies beyond those found in the APA, the Constitution or another statute",
+    "Courts may impose any extra procedures that they consider needed to ensure a fair and complete record, because they review rules under the arbitrary-and-capricious standard",
+    "Courts must require agencies to hold oral hearings whenever a rule affects the safety of the public"
+   ]
+  },
+  {
+   "id": "law-admin.l05.q3",
+   "lessonId": "law-admin.l05",
+   "kind": "mcq",
+   "prompt": "An agency finalizes a rule that differs from its proposal. Which test will a court apply to decide whether notice was adequate?",
+   "choices": [
+    "Whether the final rule is more favorable to regulated parties than the proposal was",
+    "Whether a majority of comments received supported the change the agency eventually adopted",
+    "Whether the final rule was a logical outgrowth of the proposal, such that interested parties could have anticipated it",
+    "Whether the agency re-published the proposal in full for a second sixty-day comment period before making any change to the proposed text at all"
+   ]
+  },
+  {
+   "id": "law-admin.l05.q4",
+   "lessonId": "law-admin.l05",
+   "kind": "mcq",
+   "prompt": "The Department of Housing proposes a rule requiring landlords to install smoke detectors in all rental units. After comments, it issues a final rule that also requires annual inspections by licensed contractors, a requirement no one mentioned in the proposal and which was never discussed in the preamble. A landlord association sues. Which argument is strongest?",
+   "choices": [
+    "The rule is invalid because section 553 forbids agencies from changing any term between the proposal and the final rule, however small the change",
+    "The rule is invalid because the Department failed to hold a trial-type hearing with cross-examination",
+    "The rule is invalid because rules affecting private property require approval of the House and Senate",
+    "The inspection requirement was not a logical outgrowth of the proposal, so the notice failed to give fair warning"
+   ]
+  },
+  {
+   "id": "law-admin.l05.q5",
+   "lessonId": "law-admin.l05",
+   "kind": "mcq",
+   "prompt": "An agency, led by a new administration, withdraws a final rule by posting a notice on its website that the rule is rescinded effective immediately. There was no proposal, comment period or explanation. A public interest group sues. How is the court most likely to rule?",
+   "choices": [
+    "The rescission is invalid because repealing a legislative rule is itself rulemaking and requires the same procedures as issuing it",
+    "The rescission is valid because the agency may change policy at will without any procedure",
+    "The rescission is valid because only the issuance of a rule, and not its repeal or amendment, is subject to the procedures of section 553 and the arbitrary-and-capricious standard",
+    "The rescission is invalid only if the original rule had been issued through formal rulemaking"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q1",
+   "lessonId": "law-admin.l06",
+   "kind": "mcq",
+   "prompt": "Which of the following is exempt from notice-and-comment rulemaking under section 553(b)?",
+   "choices": [
+    "Any legislative rule that carries penalties of less than one million dollars",
+    "Rules issued by an agency that has no enforcement power",
+    "Any rule that the agency head certifies as important to national policy",
+    "Interpretive rules and general statements of policy"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q2",
+   "lessonId": "law-admin.l06",
+   "kind": "mcq",
+   "prompt": "What did Perez v. Mortgage Bankers Association (2015) hold?",
+   "choices": [
+    "An agency's interpretive rules have the force of law that binds both the agency and the public",
+    "An agency's interpretations can be changed only by a reviewing court and not by the agency itself",
+    "An agency need not use notice and comment to adopt a new interpretive rule that departs from an earlier interpretation",
+    "An agency must always use notice and comment to change a definitive interpretation of its own regulation, as the D.C. Circuit's Paralyzed Veterans doctrine had required"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q3",
+   "lessonId": "law-admin.l06",
+   "kind": "mcq",
+   "prompt": "Which factor is most relevant when a court decides if a guidance document is really a legislative rule?",
+   "choices": [
+    "Whether the document was published in the Federal Register rather than only posted on the agency website for public access",
+    "Whether in substance it creates new binding obligations and the agency treats it as binding when it acts",
+    "Whether the agency chose to label the document as guidance in its title and in the opening paragraph, rather than as a rule",
+    "Whether the document was signed by the agency head personally rather than by a staff member acting under delegated authority"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q4",
+   "lessonId": "law-admin.l06",
+   "kind": "mcq",
+   "prompt": "A federal agency finds that a statutory deadline falls in six days and that its previous rule will expire then, leaving a regulatory gap that would permit unsafe products to be sold. It issues a replacement rule without notice and comment, stating in the rule that notice would be impracticable and the reasons. A trade group sues on procedural grounds. What is the strongest ground for the agency?",
+   "choices": [
+    "The good cause exception in section 553(b)(B), supported by a finding and a brief statement of reasons incorporated in the rule",
+    "The interpretive rule exemption under section 553(b)(A), because the replacement rule merely explains what the statute already required of manufacturers",
+    "The military or foreign affairs function exemption, because keeping unsafe products off the market supports national security and public welfare",
+    "The exemption for rules of agency organization, procedure or practice, because the replacement rule changes only the agency's internal calendar and schedule"
+   ]
+  },
+  {
+   "id": "law-admin.l06.q5",
+   "lessonId": "law-admin.l06",
+   "kind": "mcq",
+   "prompt": "A federal agency issues a policy statement saying that it will generally not prosecute small firms that self-report violations within 30 days. Staff attorneys routinely bring cases against firms that report on day 31, saying they have no discretion to waive the deadline. A firm sues, arguing the 30-day rule was a legislative rule issued without notice and comment. What is the best analysis?",
+   "choices": [
+    "The statement is valid because general statements of policy are always exempt from notice and comment, regardless of how the agency actually applies them in practice",
+    "The statement is valid because only the courts, and never the agency itself, may decide whether a document is binding on the public, and no court has done so",
+    "The statement is invalid only because a policy of non-enforcement must be signed personally by the President and published in the Federal Register",
+    "The statement may be treated as a binding legislative rule because the agency applies it as mandatory, so the lack of notice and comment is a defect"
+   ]
+  },
+  {
+   "id": "law-admin.l07.q1",
+   "lessonId": "law-admin.l07",
+   "kind": "mcq",
+   "prompt": "When must an agency use the formal rulemaking procedures in sections 556 and 557 of the APA?",
+   "choices": [
+    "Whenever the agency head decides that a proposed rule is sufficiently controversial among the commenters who responded to the notice",
+    "Whenever the rule is issued by an independent regulatory agency rather than by an executive department headed by a cabinet officer",
+    "When a statute requires that rules be made on the record after opportunity for an agency hearing",
+    "Whenever the proposed rule would impose costs above a set dollar threshold on the regulated entities, as the agency's own regulations define it"
+   ]
+  },
+  {
+   "id": "law-admin.l07.q2",
+   "lessonId": "law-admin.l07",
+   "kind": "mcq",
+   "prompt": "In United States v. Florida East Coast Railway Co. (1973), how did the Court treat a statute that authorized the ICC to set rates after hearing?",
+   "choices": [
+    "It held that any statutory mention of a hearing, however it is phrased, triggers a full trial-type proceeding under sections 556 and 557",
+    "It held that rate-setting is never rulemaking but is always adjudication, so the APA's rulemaking provisions do not apply to it at all",
+    "It held that on-the-record procedure is required whenever the rule affects a single industry rather than the general public at large",
+    "It held that the words after hearing, without more, do not require on-the-record procedure under sections 556 and 557"
+   ]
+  },
+  {
+   "id": "law-admin.l07.q3",
+   "lessonId": "law-admin.l07",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes formal from informal rulemaking?",
+   "choices": [
+    "An evidentiary hearing with cross-examination and a decision based exclusively on the record",
+    "A requirement that the agency obtain approval from a federal court before the rule becomes effective and binds regulated parties",
+    "A requirement that the final rule be signed by the President personally and then published in the Federal Register in full text",
+    "A prohibition on any agency staff communicating with the regulated parties while the rulemaking remains open for public comment"
+   ]
+  },
+  {
+   "id": "law-admin.l07.q4",
+   "lessonId": "law-admin.l07",
+   "kind": "mcq",
+   "prompt": "A statute directs the Food Agency to set standards of identity for a processed food 'after notice and an opportunity for a public hearing.' A producer demands cross-examination of the agency's scientists before the standard is adopted. The agency proceeds by notice and comment only. Applying the Supreme Court's approach, who prevails?",
+   "choices": [
+    "The agency, but only if the new standard of identity is later approved by a vote of both houses of Congress within sixty days",
+    "The agency, because the statute does not clearly require a hearing on the record, so informal procedures suffice",
+    "The producer, because any statutory mention of a public hearing, without more, triggers the on-the-record procedures of sections 556 and 557",
+    "The producer, because the Constitution requires cross-examination in all rulemaking affecting a single industry"
+   ]
+  },
+  {
+   "id": "law-admin.l07.q5",
+   "lessonId": "law-admin.l07",
+   "kind": "mcq",
+   "prompt": "A Commission engaged in formal adjudication receives a private letter from a competitor of the respondent arguing the merits of the case, and the Commissioner reading it decides the case partly based on it. The respondent objects. What is the best analysis?",
+   "choices": [
+    "The contact is permitted so long as the letter is shorter than ten pages and a copy is later placed in the agency's public docket file",
+    "The objection fails because decision-makers in agencies are never bound by any statutory or constitutional restriction on private contacts with interested persons",
+    "Section 557(d) bars interested persons from making ex parte communications on the merits to decision-makers, and the decision may be set aside",
+    "The contact is permitted because the APA's bar on ex parte contacts applies only to informal rulemaking and not to any formal adjudication before a Commission"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q1",
+   "lessonId": "law-admin.l08",
+   "kind": "mcq",
+   "prompt": "Under Board of Regents v. Roth (1972), which is required before a person has a property interest protected by procedural due process?",
+   "choices": [
+    "A constitutional right to the particular government job or professional license that the person has previously held",
+    "A legitimate claim of entitlement created by an independent source such as a statute or contract",
+    "A unilateral expectation, however sincere, that a benefit will continue indefinitely once it has been granted",
+    "Any government benefit that the person has continuously received for more than five years, regardless of its statutory source"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q2",
+   "lessonId": "law-admin.l08",
+   "kind": "mcq",
+   "prompt": "Which three factors does Mathews v. Eldridge (1976) use to determine what process is due?",
+   "choices": [
+    "The private interest, the risk of erroneous deprivation and value of added safeguards, and the government's interest",
+    "The cost to the agency of holding hearings, the political importance of the case to the public, and the identity of the decision-maker who hears it",
+    "The size of the agency, the number of prior hearings the claimant has received, and the statutory text that created the benefit at issue",
+    "The seriousness of the alleged violation, the identity of the complainant who brought it, and the size of the agency's annual budget"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q3",
+   "lessonId": "law-admin.l08",
+   "kind": "mcq",
+   "prompt": "What did Withrow v. Larkin (1975) hold about an agency that combines investigative and adjudicative functions?",
+   "choices": [
+    "Combining them always violates due process, so every agency must use entirely separate bodies for investigation and for adjudication",
+    "Combining them is permitted only when the agency is an executive department headed by a cabinet member who is removable at the President's will",
+    "Combining them is permitted only when the parties consent in writing to the combined structure before any investigation begins",
+    "Combining these functions does not by itself violate due process, because adjudicators are presumed honest and impartial"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q4",
+   "lessonId": "law-admin.l08",
+   "kind": "mcq",
+   "prompt": "A state statute entitles any person who meets certain income criteria to a monthly housing subsidy. The state agency terminates Marisol's subsidy on the basis of a written report that she exceeded the income limit. She disputes the figures. Under existing law the state offers a full hearing within 60 days after termination, with back payment if she wins. She claims she is entitled to a hearing before termination. How is a court applying Mathews most likely to resolve it?",
+   "choices": [
+    "It will hold that no process is due at all, because discretionary-looking government subsidies are never property interests that due process protects, even when a statute entitles recipients to them",
+    "It will require the state to prove, by evidence beyond a reasonable doubt in a pre-termination proceeding, that her income exceeded the limit, because the penalty is severe and the interest at stake is subsistence, so no balancing is needed",
+    "It will weigh her interest in uninterrupted subsidy, the chance that a pre-termination hearing would catch errors, and the state's burden, and it may find that a prompt post-termination hearing is enough if she is not at risk of destitution",
+    "It will hold that due process always requires a full pre-termination trial-type hearing before an impartial officer in every benefits case, relying on Goldberg v. Kelly, and ignore the state's interests entirely"
+   ]
+  },
+  {
+   "id": "law-admin.l08.q5",
+   "lessonId": "law-admin.l08",
+   "kind": "mcq",
+   "prompt": "The SEC institutes an in-house proceeding before an ALJ seeking civil penalties from a hedge fund adviser for alleged securities fraud. The adviser objects that it is entitled to a jury trial in federal court. Under SEC v. Jarkesy (2024), what is the most likely outcome?",
+   "choices": [
+    "The adviser prevails, but only because the ALJ was not appointed by the President personally, as the Appointments Clause was held to require for such adjudicators",
+    "The adviser prevails, because the Seventh Amendment requires a jury when the SEC seeks civil penalties for fraud, a claim resembling a common-law action",
+    "The SEC prevails, because all agency proceedings, including those seeking civil penalties for fraud, fall within the public rights exception to the Seventh Amendment",
+    "The SEC prevails, because the Seventh Amendment never applies to claims that arise under a federal statute rather than under the common law, even for fraud penalties"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q1",
+   "lessonId": "law-admin.l09",
+   "kind": "mcq",
+   "prompt": "What did Bi-Metallic Investment Co. v. State Board of Equalization (1915) hold?",
+   "choices": [
+    "No individual hearing was required when a board raised valuations for all property across a large area",
+    "A hearing is required before any government body changes the tax rate or valuation applicable to any single taxpayer, however many others are affected",
+    "Due process applies only to decisions made by courts and never to administrative agencies or municipal boards, whatever property interests are affected",
+    "A board may adjust the valuations of individual owners only after a full trial with cross-examination of the assessors, as Londoner had held"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q2",
+   "lessonId": "law-admin.l09",
+   "kind": "mcq",
+   "prompt": "What is the central holding of SEC v. Chenery Corp. (Chenery I, 1943)?",
+   "choices": [
+    "An agency must always announce policy through rulemaking instead of through adjudication",
+    "A reviewing court may uphold agency action only on the grounds that the agency itself invoked",
+    "A reviewing court may substitute any rationale it finds more persuasive than the agency's own",
+    "An agency may never reach the same result after a court remands its decision"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q3",
+   "lessonId": "law-admin.l09",
+   "kind": "mcq",
+   "prompt": "According to Chenery II (1947), who decides whether to announce a new principle by rulemaking or by adjudication?",
+   "choices": [
+    "Congress, which must specify the method in every organic statute",
+    "The President, through the Office of Information and Regulatory Affairs",
+    "The agency, in the exercise of discretion that is reviewed only for abuse",
+    "The reviewing court, which must pick the more transparent method for each decision"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q4",
+   "lessonId": "law-admin.l09",
+   "kind": "mcq",
+   "prompt": "Under a statute that authorizes the Labor Agency to enforce a ban on unfair practices, the agency announces for the first time in a case against Brightway Corp. that a common scheduling practice is unfair, and imposes a large fine for conduct that occurred before the announcement. Brightway had followed agency guidance that approved the practice. What is Brightway's strongest argument?",
+   "choices": [
+    "The agency may never announce any new standard in an adjudication, but may announce new standards only through notice-and-comment rulemaking under section 553",
+    "The fine is invalid only because the agency head did not personally sign the order imposing it, as the statute is understood to require",
+    "The fine is valid because agency adjudications always apply their holdings retroactively to the parties, and due process places no limit on that practice even where earlier agency guidance approved it",
+    "The agency may announce new standards in adjudication, but imposing a penalty for conduct that earlier guidance approved denies fair notice and imposes unfair retroactive liability"
+   ]
+  },
+  {
+   "id": "law-admin.l09.q5",
+   "lessonId": "law-admin.l09",
+   "kind": "mcq",
+   "prompt": "A city council passes a measure reclassifying the zoning of every lot on one street and, separately, orders the demolition of one named owner's building after finding it unsafe, without a hearing. The owner of the building sues under due process. Applying Londoner and Bi-Metallic, what is the best analysis?",
+   "choices": [
+    "The rezoning of many properties needs no individual hearing, but the demolition decision turns on facts peculiar to one owner, so notice and a hearing are required",
+    "Neither action requires a hearing, because municipal legislative bodies are wholly exempt from due process requirements whenever they act by ordinance or resolution, even against one owner",
+    "Both actions require individual hearings, because any change to property rights, whether general or particular, requires an individual trial-type hearing first",
+    "Only the rezoning requires a hearing, because demolitions of unsafe buildings are always treated as emergencies that justify acting without notice to the owner"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q1",
+   "lessonId": "law-admin.l10",
+   "kind": "mcq",
+   "prompt": "Under Bennett v. Spear (1997), what are the two conditions for final agency action?",
+   "choices": [
+    "The action resolves every issue in the proceeding, and the agency has formally stated in writing that it will not entertain any petition for reconsideration of the result",
+    "The action carries a monetary penalty of at least the statutory minimum, and the affected party has already paid it under protest to preserve a refund claim",
+    "The action marks the consummation of the agency's decision-making process, and rights or obligations are determined or legal consequences flow from it",
+    "The action was signed by the head of the agency personally rather than by a delegate, and it has been published in the Federal Register for at least thirty days before any challenge"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q2",
+   "lessonId": "law-admin.l10",
+   "kind": "mcq",
+   "prompt": "What is the effect of Heckler v. Chaney (1985) on challenges to an agency's refusal to bring an enforcement action?",
+   "choices": [
+    "The refusal is always reviewable on the merits, because the APA permits judicial review of every agency inaction, however committed to the agency's judgment",
+    "The refusal is reviewable only if the agency fails to give written reasons for it, since the APA's explanation requirement applies to every denial",
+    "The refusal is unreviewable in every case, with no exception that a court may recognize, because enforcement is a core executive power under Article II",
+    "The refusal is presumptively unreviewable, though the presumption may be rebutted by statutory guidelines"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q3",
+   "lessonId": "law-admin.l10",
+   "kind": "mcq",
+   "prompt": "Under Citizens to Preserve Overton Park v. Volpe (1971), when is action committed to agency discretion by law under section 701(a)(2)?",
+   "choices": [
+    "Only in rare circumstances where the statute gives a court no meaningful standard against which to judge the discretion",
+    "Whenever the agency's decision involves specialized expertise in a technical field of science, medicine or engineering that judges are poorly equipped to second-guess",
+    "Whenever the agency acting is an independent regulatory commission headed by a multimember board rather than an executive department headed by a Secretary",
+    "Whenever Congress has used the word discretion anywhere in the organic statute, even if the provision at issue contains specific criteria for the decision"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q4",
+   "lessonId": "law-admin.l10",
+   "kind": "mcq",
+   "prompt": "A statute directs the Transportation Agency to issue a safety certificate to any carrier that meets specified standards. Carrier X applies, meets the standards, and receives a one-line denial. A competitor files a complaint with the agency urging it to open an enforcement proceeding against Carrier Y for violating the same standards, and the agency takes no action. Which statement is most accurate?",
+   "choices": [
+    "Only the competitor's complaint is reviewable, because a license denial is committed to agency discretion while a third-party enforcement petition raises a justiciable claim",
+    "Carrier X's denial is reviewable final action, but the refusal to bring enforcement against Carrier Y is presumptively unreviewable under Heckler v. Chaney",
+    "Both decisions are unreviewable, because agencies have complete discretion over licensing and enforcement matters under the statute and section 701(a)(2) of the APA applies to each",
+    "Both decisions are reviewable de novo, because a decision not to act is final agency action in every case and the court owes the agency no deference whatever"
+   ]
+  },
+  {
+   "id": "law-admin.l10.q5",
+   "lessonId": "law-admin.l10",
+   "kind": "mcq",
+   "prompt": "A plaintiff asks a court to order an agency to complete an overall land use plan faster and to issue more thorough monitoring of the lands it manages, under section 706(1). The statute describes broad goals but no specific required step. Under Norton v. Southern Utah Wilderness Alliance (2004), what is the likely result?",
+   "choices": [
+    "The claim succeeds, because the broad statutory goals are enforceable against the agency by an order in the nature of mandamus under section 706(1) of the APA",
+    "The claim fails, because section 706(1) applies only to final rules and never to adjudications or to the agency's planning and monitoring activities",
+    "The claim fails, because section 706(1) lets a court compel only discrete agency action that the agency is legally required to take",
+    "The claim succeeds, because a court may supervise the agency's entire land management program once any delay in completing the plan is shown"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q1",
+   "lessonId": "law-admin.l11",
+   "kind": "mcq",
+   "prompt": "Which standard applies under section 706(2)(A) to most agency policy decisions and informal rulemaking?",
+   "choices": [
+    "De novo review by the court of every factual and policy judgment made by the agency, with no deference to its conclusions",
+    "Whether the agency has acted with the unanimous consent of all the members of its governing board or commission",
+    "Whether the reviewing court would have made the same policy choice itself if it were standing in the agency's place",
+    "Arbitrary, capricious, an abuse of discretion, or otherwise not in accordance with law"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q2",
+   "lessonId": "law-admin.l11",
+   "kind": "mcq",
+   "prompt": "According to Motor Vehicle Manufacturers Association v. State Farm (1983), which is a ground for finding a rule arbitrary and capricious?",
+   "choices": [
+    "The agency's rule imposed substantial costs on the regulated industry",
+    "The agency's rule changed an earlier rule that had been in force for decades",
+    "The agency entirely failed to consider an important aspect of the problem",
+    "The agency reached a different conclusion from the one a court would have reached"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q3",
+   "lessonId": "law-admin.l11",
+   "kind": "mcq",
+   "prompt": "Under Universal Camera Corp. v. NLRB (1951), how must a court apply the substantial evidence standard?",
+   "choices": [
+    "It must treat any single piece of supporting evidence in the record as conclusive on review, whatever contrary evidence exists",
+    "It must consider the whole record, including evidence that detracts from the agency's finding",
+    "It must consider only the evidence that the agency cited and relied on in its final decision, disregarding the rest of the record",
+    "It must reweigh all of the evidence and substitute its own findings wherever it disagrees with the agency's factual conclusions"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q4",
+   "lessonId": "law-admin.l11",
+   "kind": "mcq",
+   "prompt": "An agency rescinds a seven-year-old rule requiring ventilation in warehouses. Its explanation says only that the rule is burdensome. Comments from workers, which the agency's notice does not mention, say injuries dropped sharply after the rule took effect and many employers relied on it in building design. A trade group supports the rescission. A public health group sues. What is the strongest ground for setting aside the rescission?",
+   "choices": [
+    "The agency failed to display awareness of the change, to consider the evidence and reliance interests, and to respond to significant comments",
+    "The agency lacks power to rescind any legislative rule that has been in effect for more than five years without a new act of Congress",
+    "The agency was required to prove by a preponderance of the evidence that the new policy is better than the old policy it replaced",
+    "The agency may change a rule only if a federal court first declares that the existing rule is invalid or exceeds the agency's statutory authority"
+   ]
+  },
+  {
+   "id": "law-admin.l11.q5",
+   "lessonId": "law-admin.l11",
+   "kind": "mcq",
+   "prompt": "In its rulemaking record, an agency says it is adding a question to a federal survey to help enforce a civil rights statute. Internal documents in the record, produced in discovery, show that the stated reason was not the real reason and that the question was pursued for other purposes. A state sues. Under Department of Commerce v. New York (2019), what is the best analysis?",
+   "choices": [
+    "The court must defer to any reason that the agency states in the record, because a court may never look beyond the stated rationale, however contrived",
+    "The court may uphold the action on any rationale that the court itself finds persuasive, under the doctrine of SEC v. Chenery Corp. (Chenery I)",
+    "The court may vacate the action only if Congress has first passed a joint resolution of disapproval that the President has signed",
+    "The court may set aside the action because the stated explanation was contrived, and the APA requires a genuine rationale that explains the agency's decision"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q1",
+   "lessonId": "law-admin.l12",
+   "kind": "mcq",
+   "prompt": "Which of the following is a required element of Article III standing as stated in Lujan v. Defenders of Wildlife (1992)?",
+   "choices": [
+    "An injury in fact that is concrete and particularized, fairly traceable to the defendant, and redressable by a favorable decision",
+    "A violation of a federal statute by the defendant, whether or not it caused any actual harm to the plaintiff, since Congress may create the right",
+    "A showing that the plaintiff is a citizen of the state in which the action is filed and that the amount in controversy exceeds the statutory minimum",
+    "An interest shared with the public at large, which enables any citizen to enforce the law as a private attorney general under the Take Care Clause"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q2",
+   "lessonId": "law-admin.l12",
+   "kind": "mcq",
+   "prompt": "In United States v. Texas (2023), what did the Supreme Court hold about states challenging federal immigration enforcement priorities?",
+   "choices": [
+    "The states lacked standing because immigration is exclusively a presidential matter under Article II and Congress has no role in setting enforcement priorities",
+    "The states lacked standing, because a litigant generally has no judicially cognizable interest in the prosecution or non-prosecution of another",
+    "The states had standing because they bore substantial detention and social-services costs, and the Court struck down the enforcement priorities on the merits as unlawful",
+    "The states had standing only because of the special solicitude for sovereign plaintiffs recognized in Massachusetts v. EPA, which controlled the outcome there"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q3",
+   "lessonId": "law-admin.l12",
+   "kind": "mcq",
+   "prompt": "What does TransUnion LLC v. Ramirez (2021) hold about statutory violations and standing?",
+   "choices": [
+    "Only monetary loss, and never reputational or informational harm, can supply an injury in fact for a member of a federal class action",
+    "A class action needs only a single class member with standing, even if all the other members suffered no harm at all, so every class member may recover damages",
+    "A bare statutory violation is not enough, and a plaintiff must show a concrete harm with a close relationship to a traditionally recognized injury",
+    "Any violation of a federal statute is automatically an injury in fact for every class member, since Congress may define injuries freely and courts must accept that choice"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q4",
+   "lessonId": "law-admin.l12",
+   "kind": "mcq",
+   "prompt": "A national association of physicians who say they object to a particular medical procedure sues to challenge a federal agency's approval of a drug used in that procedure. None of its members prescribes the drug. The members claim they might someday be asked to treat a patient who suffers complications. A federal conscience statute protects them from being required to assist. Which analysis is most consistent with FDA v. Alliance for Hippocratic Medicine (2024)?",
+   "choices": [
+    "The association has standing, because any doctor affected by a federal regulation may sue as a representative of the patients that the doctor might someday treat",
+    "The association has standing, because an organization may always sue when its mission is related to the regulation, without showing any injury of its own",
+    "The association lacks standing only because it did not first exhaust the optional administrative appeals that the agency's regulations make available to petitioners",
+    "The association likely lacks standing, because the injury depends on speculative downstream events and the statute shields the members from being compelled"
+   ]
+  },
+  {
+   "id": "law-admin.l12.q5",
+   "lessonId": "law-admin.l12",
+   "kind": "mcq",
+   "prompt": "A small manufacturer sues to challenge an agency rule that lets foreign competitors import goods more easily. It alleges that its sales will drop, supported by an affidavit with specific sales projections. The statute authorizing the rule aims to protect domestic consumer safety and says nothing of domestic producers. Which is the strongest argument against the manufacturer's APA claim, even if a weak one?",
+   "choices": [
+    "Its commercial interest may fall outside the zone of interests that a consumer safety statute protects, which is the only real obstacle, though that APA test is lenient",
+    "It lacks Article III standing, because lost sales caused by increased competition are never an injury in fact when the plaintiff is a private business",
+    "It lacks standing because only the importers who are directly regulated by the rule, and not their domestic competitors, may bring an APA challenge to it",
+    "It must show that Congress gave it a separate private right of action in the statute, since the APA creates no cause of action for business competitors"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q1",
+   "lessonId": "law-admin.l13",
+   "kind": "mcq",
+   "prompt": "What two considerations make up the ripeness test from Abbott Laboratories v. Gardner (1967)?",
+   "choices": [
+    "The number of plaintiffs affected by the rule and the statutory deadline within which any challenge to the rule must be filed in court",
+    "The fitness of the issues for judicial decision and the hardship to the parties of withholding court consideration",
+    "The size of the penalty that the agency may impose and the length of time since the agency first issued the challenged rule",
+    "The identity of the agency that issued the rule and the type of relief, injunctive or declaratory, that the plaintiff is seeking in court"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q2",
+   "lessonId": "law-admin.l13",
+   "kind": "mcq",
+   "prompt": "What did Axon Enterprise, Inc. v. FTC (2023) hold?",
+   "choices": [
+    "A party in an agency enforcement proceeding may bring a structural constitutional challenge in district court rather than waiting for appellate review after the agency decides",
+    "A party may never challenge the constitutionality of an agency in any court until all administrative proceedings have ended and the agency has issued a final order, as in Thunder Basin",
+    "A party must exhaust every optional administrative appeal that the agency offers before raising any constitutional claim about the agency's structure in a federal court, however severe the harm",
+    "A party may challenge the agency's structure only in the agency's own administrative hearing, with review of any ruling confined to the court of appeals and its ordinary review standards"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q3",
+   "lessonId": "law-admin.l13",
+   "kind": "mcq",
+   "prompt": "Under Friends of the Earth v. Laidlaw (2000), when does a defendant's voluntary cessation of challenged conduct moot a case?",
+   "choices": [
+    "Whenever the defendant announces that it has stopped the conduct, even if it may resume",
+    "Whenever the plaintiff is no longer personally affected by the conduct, whether or not it recurs",
+    "Whenever the agency issues a formal press release describing its decision to stop",
+    "Only when it is absolutely clear that the conduct could not reasonably be expected to recur"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q4",
+   "lessonId": "law-admin.l13",
+   "kind": "mcq",
+   "prompt": "In 2019 an agency adopted a rule. Corner Co. was formed in 2023 and was harmed by the rule in 2023. In 2024 it sued under the APA, which has no special limitations period for the claim. The agency argues that the six-year statute of limitations ran in 2025 for everybody, meaning the claim is time-barred if filed after that date, and in any case that the rule is too old to challenge. Under Corner Post (2024), how should the court rule on timeliness?",
+   "choices": [
+    "The claim is untimely, because new companies must petition the agency to amend the rule before suing",
+    "The claim is timely, but only because the rule was issued through formal rulemaking",
+    "The claim is timely, because an APA claim accrues when the plaintiff is injured, so the six-year period began in 2023",
+    "The claim is untimely, because the period runs from the date the rule was published and no new plaintiff may challenge it"
+   ]
+  },
+  {
+   "id": "law-admin.l13.q5",
+   "lessonId": "law-admin.l13",
+   "kind": "mcq",
+   "prompt": "A drug maker's regulation requires it to print a long name on all labels, with the cost of reprinting millions of labels. No enforcement has yet been brought. The company brings a pre-enforcement challenge, arguing the regulation exceeds the statute. The agency says the case is unripe because it has not yet charged the company. How is a court most likely to rule under Abbott Laboratories?",
+   "choices": [
+    "The case is ripe only if the regulation was issued through formal on-the-record rulemaking under sections 556 and 557 and not through informal notice and comment",
+    "The case is ripe, because the issue is a purely legal question about a final regulation and delay would force costly compliance or the risk of penalties",
+    "The case is unripe, because only an actual enforcement action brought by the agency can make a dispute over a regulation ripe for judicial review in any court",
+    "The case is unripe, because the company has not first appealed to the agency's inspector general or sought an advisory opinion from the agency's general counsel"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q1",
+   "lessonId": "law-admin.l14",
+   "kind": "mcq",
+   "prompt": "What was the Chevron framework's step one, as stated in Chevron U.S.A. Inc. v. NRDC (1984)?",
+   "choices": [
+    "Whether the agency issued its interpretation through notice-and-comment rulemaking",
+    "Whether the interpretation has been consistent since the statute was enacted",
+    "Whether Congress has directly spoken to the precise question at issue",
+    "Whether the agency's reading is the best reading of the statute in the court's view"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q2",
+   "lessonId": "law-admin.l14",
+   "kind": "mcq",
+   "prompt": "How did Skidmore deference differ from Chevron deference?",
+   "choices": [
+    "Skidmore bound the court to any interpretation by the agency, while Chevron gave the agency's view only persuasive weight",
+    "Skidmore applied only to regulations and Chevron applied only to statutes passed after 1946",
+    "Skidmore applied to independent agencies and Chevron applied only to executive departments",
+    "Skidmore gave weight to an agency view according to its power to persuade, while Chevron required acceptance of a reasonable reading of an ambiguous statute"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q3",
+   "lessonId": "law-admin.l14",
+   "kind": "mcq",
+   "prompt": "What did United States v. Mead Corp. (2001) hold about when Chevron applies?",
+   "choices": [
+    "It applies when Congress has delegated authority to make rules with the force of law and the agency's interpretation was issued in the exercise of that authority",
+    "It applies to every interpretation of a statute that an agency announces in any form",
+    "It applies only to interpretations contained in a federal regulation published for more than ten years",
+    "It applies only when the agency's interpretation has been approved by the Office of Information and Regulatory Affairs"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q4",
+   "lessonId": "law-admin.l14",
+   "kind": "mcq",
+   "prompt": "In 2002 a court of appeals held that a telecommunications statute was ambiguous about a certain online service and adopted what it considered the better reading, without holding that the text required it. In 2003 the agency, in a rulemaking authorized by Congress, adopted a different and reasonable reading. A company argues the court's earlier decision controls. Under Brand X (2005), what is the best analysis?",
+   "choices": [
+    "The agency's reading prevails only if Congress has ratified it by a later statute",
+    "The agency's reasonable reading prevails, because the earlier court did not hold that the statute unambiguously required its own reading",
+    "The earlier court decision controls, because courts always have the final word on statutory meaning under Marbury",
+    "The agency's reading is invalid, because an agency may never override a court's earlier interpretation"
+   ]
+  },
+  {
+   "id": "law-admin.l14.q5",
+   "lessonId": "law-admin.l14",
+   "kind": "mcq",
+   "prompt": "A tariff agency, without notice and comment, issues a classification ruling letter to one importer interpreting a customs statute. The importer disputes the ruling in court. Under Mead, which analysis is correct?",
+   "choices": [
+    "The letter receives no weight at all because it was not published in the Federal Register",
+    "The letter receives Chevron deference only if a majority of the agency's commissioners signed it",
+    "The ruling letter is not an exercise of law-making authority, so it receives Skidmore weight according to its persuasiveness rather than Chevron deference",
+    "The letter receives full Chevron deference because it was issued by the agency charged with administering the statute"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q1",
+   "lessonId": "law-admin.l15",
+   "kind": "mcq",
+   "prompt": "What did Loper Bright Enterprises v. Raimondo (2024) decide?",
+   "choices": [
+    "The Court reaffirmed Chevron and expanded it to cover agency interpretations of their own regulations",
+    "The Court held that courts must defer to agencies whenever a statute is silent on an issue",
+    "The Court dismissed the case because the fishing companies lacked standing to sue",
+    "The Court overruled Chevron and held that courts must exercise independent judgment in deciding what a statute means"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q2",
+   "lessonId": "law-admin.l15",
+   "kind": "mcq",
+   "prompt": "According to Loper Bright, how should courts treat past decisions that relied on Chevron?",
+   "choices": [
+    "Those holdings remain binding only if the agency re-adopts its interpretation within one year",
+    "Those holdings apply only to the specific agency rules that were before the courts at that time",
+    "Those holdings remain subject to statutory stare decisis, and reliance on Chevron alone is not a special reason to overturn them",
+    "Those holdings are automatically void and must be reopened in every pending case"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q3",
+   "lessonId": "law-admin.l15",
+   "kind": "mcq",
+   "prompt": "Under Loper Bright, how does a court treat a statute that expressly gives an agency discretionary authority, for example to determine what is appropriate?",
+   "choices": [
+    "The court invalidates the delegation as violating the nondelegation doctrine",
+    "The court identifies the boundaries of the delegation and checks that the agency stayed within them and reasoned adequately",
+    "The court ignores the delegation and substitutes its own view of what is appropriate",
+    "The court defers to the agency on any question, even the scope of the delegation itself"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q4",
+   "lessonId": "law-admin.l15",
+   "kind": "mcq",
+   "prompt": "A statute lets the Secretary of Labor issue rules covering 'employees engaged in hazardous work.' The Secretary issues a rule defining hazardous work to include any job that involves sitting for more than six hours. A company challenges the rule as beyond the statute. Which approach would a court take after Loper Bright?",
+   "choices": [
+    "It decides for itself the best reading of hazardous work using ordinary tools of construction, with respect for the agency's view according to its persuasiveness, and does not defer merely because the term is ambiguous",
+    "It applies Chevron step two and upholds the rule if any reasonable person could read hazardous work to include prolonged sitting",
+    "It declines to review the question because the Secretary has discretion over the definition of terms",
+    "It requires the Secretary to prove that Congress specifically approved the definition before the rule took effect"
+   ]
+  },
+  {
+   "id": "law-admin.l15.q5",
+   "lessonId": "law-admin.l15",
+   "kind": "mcq",
+   "prompt": "A company is sued in federal court under a statute for conduct that violates a regulatory agency's interpretation of that statute, issued decades ago under a special review statute that gave courts of appeals exclusive jurisdiction over challenges to the agency's orders. The company never challenged the order then. It now argues the interpretation is wrong. Under McLaughlin Chiropractic v. McKesson (2025), what is the best analysis?",
+   "choices": [
+    "The district court must follow the agency interpretation, because the company missed its chance to challenge it",
+    "The district court must dismiss the defense, because only the court of appeals may consider any interpretive question",
+    "The district court must give Chevron deference, because the agency's order was properly issued",
+    "The district court is not bound by the agency's interpretation merely because of the review statute, and must independently interpret the statute, applying Loper Bright"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q1",
+   "lessonId": "law-admin.l16",
+   "kind": "mcq",
+   "prompt": "What did Kisor v. Wilkie (2019) do to Auer deference?",
+   "choices": [
+    "It retained it but limited it to genuinely ambiguous regulations and to authoritative, expertise-based, considered agency readings",
+    "It abolished it and ordered courts to read every regulation without any weight for the agency",
+    "It expanded it to cover any agency interpretation of a statute",
+    "It extended it to cover any informal agency view expressed during litigation"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q2",
+   "lessonId": "law-admin.l16",
+   "kind": "mcq",
+   "prompt": "What is the central idea of the major questions doctrine as applied in West Virginia v. EPA (2022)?",
+   "choices": [
+    "An agency may act on important questions only after the President has approved in writing",
+    "When an agency claims power of vast economic and political significance, it must point to clear congressional authorization",
+    "An agency may never regulate any industry that affects more than a million people",
+    "A court must defer to an agency whenever the claimed power is of great national significance"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q3",
+   "lessonId": "law-admin.l16",
+   "kind": "mcq",
+   "prompt": "Why did the Court in Biden v. Nebraska (2023) reject the Secretary of Education's student loan cancellation under the HEROES Act?",
+   "choices": [
+    "The Secretary had failed to publish notice of the program in the Federal Register",
+    "The Secretary had exceeded the authority of the Treasury over federal appropriations",
+    "The statute's authority to waive or modify provisions did not clearly authorize forgiving debt on a scale of hundreds of billions of dollars",
+    "The Secretary lacked jurisdiction because student loans are governed by state law"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q4",
+   "lessonId": "law-admin.l16",
+   "kind": "mcq",
+   "prompt": "Under a 1990 regulation, an agency pays a benefit to veterans whose claims are 'received' after a certain date. In 2025 the agency, in a litigation brief and nowhere else, says 'received' means 'accepted as complete by a claims examiner.' Applicant files a claim that is eventually accepted after the cutoff. The regulation's text and structure, after careful analysis, support the ordinary meaning of arrival. How does a court applying Kisor most likely proceed?",
+   "choices": [
+    "It accepts the agency's reading, because Auer requires deference to any reasonable agency view about its own rule",
+    "It dismisses the case, because the agency's interpretation is an unreviewable matter of internal management",
+    "It requires the agency to restart rulemaking, because interpretive rules cannot be adopted in litigation briefs",
+    "It first uses all the tools of construction, and if the regulation is not genuinely ambiguous it applies the ordinary meaning without deference, particularly as the reading appears only in a litigating position"
+   ]
+  },
+  {
+   "id": "law-admin.l16.q5",
+   "lessonId": "law-admin.l16",
+   "kind": "mcq",
+   "prompt": "A 1970 statute allows an agency to 'adopt measures necessary to ensure a safe environment.' The agency now claims the power to require every household in the country to replace its heating system within five years. The estimated cost is hundreds of billions of dollars, and the agency has never claimed anything like this authority. Which argument is the strongest challenge for a trade association?",
+   "choices": [
+    "The claim involves a major question, so the agency must identify clear congressional authorization, and general language about necessary measures does not provide it",
+    "The claim violates the nondelegation doctrine, because courts invalidate any statute that mentions necessity",
+    "The claim is barred because the agency did not first obtain a declaratory judgment from the court",
+    "The claim is invalid because the statute is more than fifty years old and has expired"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q1",
+   "lessonId": "law-admin.l17",
+   "kind": "mcq",
+   "prompt": "Within how many working days must an agency determine whether to comply with a FOIA request?",
+   "choices": [
+    "One year from the date of the request",
+    "Twenty working days",
+    "Five calendar days",
+    "Ninety calendar days"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q2",
+   "lessonId": "law-admin.l17",
+   "kind": "mcq",
+   "prompt": "In Food Marketing Institute v. Argus Leader Media (2019), what did the Court hold about FOIA Exemption 4?",
+   "choices": [
+    "Commercial information is confidential at least when the owner customarily keeps it private and received it under an assurance of privacy, without a need to show competitive harm",
+    "Commercial information is confidential only if its disclosure would cause substantial competitive harm to the owner",
+    "Commercial information is never exempt if it was submitted voluntarily to an agency",
+    "Commercial information is confidential only if it qualifies as a trade secret under state law"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q3",
+   "lessonId": "law-admin.l17",
+   "kind": "mcq",
+   "prompt": "Which statement about FOIA Exemption 5 is correct?",
+   "choices": [
+    "It covers every internal memorandum, including final opinions that set agency policy",
+    "It covers any document that has been marked confidential by the author",
+    "It applies only to records of national security agencies and no others",
+    "It covers inter-agency or intra-agency records that would be privileged in civil litigation, such as deliberative material, but not an agency's final working law"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q4",
+   "lessonId": "law-admin.l17",
+   "kind": "mcq",
+   "prompt": "A journalist asks a federal agency for a staff attorney's memo to the agency head weighing options for a rule, written two months before the rule was adopted, and for the agency's published statement of policy adopted afterward. The agency withholds both under Exemption 5. Which analysis is most accurate?",
+   "choices": [
+    "Both documents must be released, because Exemption 5 was repealed by the 2016 amendments",
+    "The memo must be released and the policy statement withheld, because only final documents are deliberative",
+    "The memo is likely predecisional and deliberative, so withholding may be justified subject to foreseeable harm, but the adopted policy statement is final and must be released",
+    "Both documents must be withheld, because everything inside an agency relating to a rule is privileged"
+   ]
+  },
+  {
+   "id": "law-admin.l17.q5",
+   "lessonId": "law-admin.l17",
+   "kind": "mcq",
+   "prompt": "A requester asks an intelligence agency for any records about a named person, and the agency says it can neither confirm nor deny that it has any. A court reviews the response. Which statement is most accurate under FOIA practice?",
+   "choices": [
+    "A Glomar response is allowed only for records created within the preceding twenty-five years",
+    "A Glomar response is permitted when the existence or nonexistence of records would itself reveal information protected by an exemption",
+    "A Glomar response is never allowed, because the statute requires the agency to say whether records exist",
+    "A Glomar response is allowed only after the requester pays all fees in advance"
+   ]
+  },
+  {
+   "id": "law-admin.l18.q1",
+   "lessonId": "law-admin.l18",
+   "kind": "mcq",
+   "prompt": "Which statute requires meetings of multimember agencies to be open to the public unless an exemption applies?",
+   "choices": [
+    "The Paperwork Reduction Act",
+    "The Regulatory Flexibility Act",
+    "The Government in the Sunshine Act",
+    "The Privacy Act of 1974"
+   ]
+  },
+  {
+   "id": "law-admin.l18.q2",
+   "lessonId": "law-admin.l18",
+   "kind": "mcq",
+   "prompt": "How does the Privacy Act relate to FOIA when disclosure of a record is required by FOIA?",
+   "choices": [
+    "The Privacy Act always overrides FOIA and bars the disclosure",
+    "The Privacy Act applies only to records of private companies held by agencies",
+    "The Privacy Act requires the individual's consent even where FOIA mandates release",
+    "The Privacy Act permits disclosure that FOIA requires"
+   ]
+  },
+  {
+   "id": "law-admin.l18.q3",
+   "lessonId": "law-admin.l18",
+   "kind": "mcq",
+   "prompt": "Which description best fits a committee covered by the Federal Advisory Committee Act?",
+   "choices": [
+    "A group established or utilized by an agency to obtain advice, with members from outside the government",
+    "A group of agency employees meeting to plan internal staffing",
+    "A body of the federal courts that advises on procedural rules",
+    "A congressional subcommittee that reviews agency budgets"
+   ]
+  },
+  {
+   "id": "law-admin.l18.q4",
+   "lessonId": "law-admin.l18",
+   "kind": "mcq",
+   "prompt": "A cabinet department, headed by a single Secretary, holds a closed meeting with its senior staff to decide the department's budget priorities. A reporter says the Government in the Sunshine Act required an open meeting. What is the best analysis?",
+   "choices": [
+    "The Act does not apply, because budgeting is excluded from every federal transparency statute",
+    "The Act does not apply, because it covers agencies headed by a collegial body of two or more members, not a department with a single head",
+    "The Act applies, because every federal agency must open all meetings to the public",
+    "The Act applies, but only if the meeting lasts more than one day"
+   ]
+  },
+  {
+   "id": "law-admin.l18.q5",
+   "lessonId": "law-admin.l18",
+   "kind": "mcq",
+   "prompt": "A federal panel of eight industry executives is convened by an agency to recommend safety standards. The agency meets with them in private several times and does not publish minutes. A public interest group sues. What is the strongest argument for the group?",
+   "choices": [
+    "The panel is subject to the Privacy Act, which prohibits secret meetings of private persons",
+    "The panel is subject to FOIA as if it were an agency, so the group may demand its internal drafts",
+    "The panel is an advisory committee established or utilized by the agency with outside members, so FACA requires a charter, notice, open meetings and available records",
+    "The panel is a multimember agency, so the Sunshine Act requires it to publish its votes"
+   ]
+  }
+ ]
+}

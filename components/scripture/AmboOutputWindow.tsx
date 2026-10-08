@@ -11,15 +11,20 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  outputIdFromUrl, stackForOutput, subscribeToStudio,
+  makeOutput, outputIdFromUrl, stackForOutput, subscribeToStudio,
   type AmboOutput, type OutputMessage,
 } from '../../services/ambo/outputRouter';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
+import { installRemoteAmboAnalyser } from '../../services/ambo/amboAudioEngine';
+import { setVideoSyncRole } from '../../services/ambo/videoSync';
 import type { LiveStack } from '../../services/ambo/showModel';
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) => {
+  // Video in this window is a FOLLOWER of the studio's Program clip (one clock,
+  // always muted). Must be set before the first renderer builds a VideoSource.
+  setVideoSyncRole('follower');
   const id = outputId ?? outputIdFromUrl();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<LayerRenderer | null>(null);
@@ -29,19 +34,91 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   const [timers, setTimers] = useState<Record<string, number>>({});
   const [connected, setConnected] = useState(false);
   const [clock, setClock] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Visualizers here react to the studio's mix: its spectrum arrives over a
+  // BroadcastChannel (this window has no access to the studio's AudioContext).
+  useEffect(() => installRemoteAmboAnalyser(), []);
 
   // Subscribe to the studio.
   useEffect(() => {
     if (!id) return;
     const off = subscribeToStudio((m: OutputMessage) => {
+      if (m.type === 'CLOSE') {
+        rendererRef.current?.dispose();
+        rendererRef.current = null;
+        try {
+          const vids = Array.from(document.querySelectorAll('video, audio'));
+          vids.forEach((el: any) => { el.pause?.(); el.src = ''; el.load?.(); });
+        } catch {}
+        try { window.close(); } catch {}
+        return;
+      }
       setConnected(true);
-      const mine = m.outputs?.find(o => o.id === id) ?? null;
-      if (mine) setOutput(mine);
+      // An id the studio doesn't list (renamed output, stale window) still gets
+      // program rather than a black screen that looks connected.
+      const mine = m.outputs?.find(o => o.id === id)
+        ?? m.outputs?.find(o => o.kind === 'PROGRAM')
+        ?? makeOutput('PROGRAM', 'Program', { id });
+      setOutput(prev => (prev && JSON.stringify(prev) === JSON.stringify(mine) ? prev : mine));
       if (m.stack) setStack(m.stack);
       if (m.timers) setTimers(m.timers);
     });
     return off;
   }, [id]);
+
+  const [detectedResolution, setDetectedResolution] = useState<{ w: number; h: number } | null>(null);
+  const [showHud, setShowHud] = useState(true);
+
+  // Auto-detect the physical size and resolution of the output display this window is placed on
+  useEffect(() => {
+    const updateSize = () => {
+      const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+      const w = Math.round((window.screen?.width || window.innerWidth || 1920) * dpr);
+      const h = Math.round((window.screen?.height || window.innerHeight || 1080) * dpr);
+      setDetectedResolution({ w, h });
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    const timer = setTimeout(() => setShowHud(false), 3500);
+    return () => {
+      window.removeEventListener('resize', updateSize);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreen();
+      }
+    };
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    window.addEventListener('keydown', handleKey);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      document.removeEventListener('fullscreenchange', handleFsChange);
+    };
+  }, []);
+
+  // Prioritize detected physical resolution when auto-detect is active
+  const renderWidth = (output?.autoDetectDisplay !== false && detectedResolution?.w)
+    ? detectedResolution.w
+    : (output?.width || detectedResolution?.w || 1920);
+  const renderHeight = (output?.autoDetectDisplay !== false && detectedResolution?.h)
+    ? detectedResolution.h
+    : (output?.height || detectedResolution?.h || 1080);
 
   // Stage displays show a wall clock; it must tick even when nothing is cued.
   useEffect(() => {
@@ -49,25 +126,25 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     return () => clearInterval(t);
   }, []);
 
-  // One renderer for the life of the window.
+  // One renderer for the life of the window, rendering at physical detected resolution.
   useEffect(() => {
     const c = canvasRef.current;
     if (!c || !output) return;
-    const r = new LayerRenderer(c, { w: output.width ?? 1920, h: output.height ?? 1080 });
-    r.setOptions({ alpha: output.alpha, outputMask: output.mask, outputTransform: output.transform, timers });
+    const r = new LayerRenderer(c, { w: renderWidth, h: renderHeight });
+    r.setOptions({ alpha: output.alpha, outputMask: output.mask, outputTransform: output.transform, fit: output.fit, timers });
     r.start();
     rendererRef.current = r;
     return () => { r.dispose(); rendererRef.current = null; };
-  }, [output?.id, output?.width, output?.height, output?.alpha]);
+  }, [output?.id, renderWidth, renderHeight, output?.alpha]);
 
   // Push each new stack through the reconciler — this is where a background
   // survives a slide change.
   useEffect(() => {
     const r = rendererRef.current;
     if (!r || !output) return;
-    r.setOptions({ timers });
+    r.setOptions({ timers, outputMask: output.mask, outputTransform: output.transform, fit: output.fit });
     r.setStack(stackForOutput(stack, output));
-  }, [stack, output, timers]);
+  }, [stack, output, timers, renderWidth, renderHeight]);
 
   if (!id) {
     return (
@@ -80,11 +157,44 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   const isStage = output?.kind === 'STAGE';
 
   return (
-    <div style={{ ...shell, background: output?.alpha ? 'transparent' : '#000' }}>
+    <div
+      style={{ ...shell, background: output?.alpha ? 'transparent' : '#000' }}
+      onDoubleClick={toggleFullscreen}
+      title="Double-click or press 'F' to toggle borderless fullscreen"
+    >
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
       />
+
+      {/* Auto-detected display HUD badge */}
+      {showHud && (
+        <div style={hudStyle}>
+          <span style={dotStyle} />
+          <span>{output?.name || 'AMBO OUTPUT'} · {renderWidth}×{renderHeight} {output?.autoDetectDisplay !== false ? '(AUTO-DETECTED)' : ''}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFullscreen();
+            }}
+            style={{
+              marginLeft: 8,
+              padding: '2px 8px',
+              borderRadius: 4,
+              background: 'rgba(0, 218, 243, 0.2)',
+              border: '1px solid rgba(0, 218, 243, 0.5)',
+              color: '#00daf3',
+              fontSize: 10,
+              fontWeight: 800,
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+            }}
+          >
+            {isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen (F)'}
+          </button>
+        </div>
+      )}
 
       {/* Stage display furniture — never composited into program, drawn over
           the canvas so it can never leak onto the congregation's screens. */}
@@ -107,6 +217,23 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
       )}
     </div>
   );
+};
+
+const hudStyle: React.CSSProperties = {
+  position: 'absolute', top: 16, left: 16,
+  display: 'flex', alignItems: 'center', gap: 8,
+  padding: '6px 14px', borderRadius: 8,
+  background: 'rgba(10, 7, 17, 0.82)',
+  border: '1px solid rgba(0, 218, 243, 0.35)',
+  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6)',
+  color: '#00daf3', font: '700 11px/1 ui-monospace, monospace',
+  letterSpacing: '0.12em', pointerEvents: 'none',
+  transition: 'opacity 0.6s ease',
+};
+
+const dotStyle: React.CSSProperties = {
+  width: 7, height: 7, borderRadius: '50%',
+  background: '#00e676', boxShadow: '0 0 8px #00e676',
 };
 
 const shell: React.CSSProperties = {

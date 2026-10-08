@@ -1,0 +1,37 @@
+[package]
+name = "plajah-compositor"
+version = "0.1.0"
+edition = "2024"
+description = "GPU-composited multi-output renderer for Plajah Ambo"
+
+[dependencies]
+# GPU rendering
+wgpu = "25"
+# Windowing + event loop
+winit = "0.30"
+# Async runtime for IPC
+tokio = { version = "1", features = ["full"] }
+# JSON protocol with the host app
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Image loading (PNG, JPEG, WebP)
+image = "0.25"
+# Text rendering
+glyphon = "0.7"
+cosmic-text = "0.12"
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# Byte math for textures
+bytemuck = { version = "1", features = ["derive"] }
+# Named pipes (Windows IPC)
+tokio-util = { version = "0.7", features = ["codec"] }
+# Fast hashing for texture cache
+ahash = "0.8"
+# Ordered float for layer z-index
+ordered-float = "5"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true

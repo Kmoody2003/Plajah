@@ -2,7 +2,8 @@
  * Onboarding — the short two-page setup shown AFTER the Welcome Package letter on first
  * login: (1) "What brings you here?" (routes you to the right home), (2) "Homes & Studios"
  * (the brand explainer — every medium has a stage AND a studio). Ported from the approved
- * onboarding preview. Full-screen overlay; on finish calls onDone(homeView) to land the
+ * onboarding preview. When a viewer profile is supplied a third optional page, "Find your people"
+ * (interests -> follow >=5 suggested, skippable), is appended. Full-screen overlay; on finish calls onDone(homeView) to land the
  * user on their chosen home. Deliberately skippable — nothing here is a wall.
  */
 import React, { useState } from 'react';
@@ -11,10 +12,14 @@ import {
   ArrowRight, LayoutGrid, Music2, Clapperboard, BookOpen, GraduationCap, Trophy,
   SlidersHorizontal, Film, Play, Scissors, PenTool, Compass,
 } from 'lucide-react';
+import type { UserProfile } from '../types';
+import OnboardingFollowStep from './discovery/OnboardingFollowStep';
 
 interface OnboardingProps {
   /** Called when the user finishes (or skips) — pass the AppView id of their chosen home. */
   onDone: (homeView: string) => void;
+  /** Optional: when given, adds the "Find your people" follow step as the last page. */
+  viewer?: UserProfile | null;
 }
 
 type Pick = { key: string; label: string; desc: string; icon: React.ComponentType<any>; color: string; home: string; badge?: string };
@@ -50,8 +55,9 @@ const ROWS: Row[] = [
   ] },
 ];
 
-const Onboarding: React.FC<OnboardingProps> = ({ onDone }) => {
+const Onboarding: React.FC<OnboardingProps> = ({ onDone, viewer }) => {
   const [step, setStep] = useState(0);
+  const lastStep = viewer ? 2 : 1;
   const [pick, setPick] = useState('everything');
   const chosen = PICKS.find(p => p.key === pick) || PICKS[0];
 
@@ -65,7 +71,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onDone }) => {
         {/* progress */}
         <div className="flex items-center gap-2 mb-8">
           <span className="text-[15px] font-black italic uppercase tracking-tight text-white mr-auto">Plajah</span>
-          {[0, 1].map(i => (
+          {Array.from({ length: lastStep + 1 }, (_, i) => i).map(i => (
             <span key={i} className={`h-1 rounded-full transition-all ${i <= step ? 'w-9 bg-gradient-to-r from-[#D40055] to-[#FF8C00]' : 'w-6 bg-white/15'}`} />
           ))}
         </div>
@@ -102,6 +108,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onDone }) => {
               })}
             </div>
           </>
+        ) : step === 2 && viewer ? (
+          <OnboardingFollowStep viewer={viewer} />
         ) : (
           <>
             <div className="text-center max-w-2xl mx-auto mb-7">
@@ -151,13 +159,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ onDone }) => {
         {step === 0 ? (
           <button onClick={() => onDone(chosen.home)} className="text-[11px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors px-4 py-3.5">Skip</button>
         ) : (
-          <button onClick={() => setStep(0)} className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3.5 text-[12px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all"><span aria-hidden>←</span> Back</button>
+          <button onClick={() => setStep(s => Math.max(0, s - 1))} className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3.5 text-[12px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all"><span aria-hidden>←</span> Back</button>
         )}
         <button
-          onClick={() => (step === 0 ? setStep(1) : onDone(chosen.home))}
+          onClick={() => (step < lastStep ? setStep(step + 1) : onDone(chosen.home))}
           className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] px-8 py-3.5 text-[12px] font-black uppercase tracking-widest text-white shadow-[0_10px_30px_-8px_rgba(212,0,85,0.6)] hover:scale-[1.03] active:scale-95 transition-all"
         >
-          {step === 0 ? <>Continue <ArrowRight size={15} /></> : <>Enter Plajah <Compass size={15} /></>}
+          {step < lastStep ? <>Continue <ArrowRight size={15} /></> : <>Enter Plajah <Compass size={15} /></>}
         </button>
       </div>
     </motion.div>

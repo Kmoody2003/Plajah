@@ -155,10 +155,12 @@ export interface BaseData {
   upcoming: Album[];
   artists: UserProfile[];
   userProfile: UserProfile | null;
+  /** Uids the viewer follows (from the `follows` collection; UserProfile.following is never written). */
+  followingIds?: readonly string[];
 }
 
 export function syncRails(section: string, base: BaseData): TvRail[] | null {
-  const { albums, upcoming, artists, userProfile } = base;
+  const { albums, upcoming, artists, userProfile, followingIds } = base;
   switch (section) {
     case 'NEW':
       return nonEmpty([
@@ -168,7 +170,7 @@ export function syncRails(section: string, base: BaseData): TvRail[] | null {
       ]);
 
     case 'FOR_YOU': {
-      const following = userProfile?.following || [];
+      const following = followingIds ?? [];
       return nonEmpty([
         { id: 'follow', title: 'From Artists You Follow', items: albums.filter(a => following.includes(a.ownerId || '')).map(albumItem) },
         { id: 'soon', title: 'Coming Soon', items: upcoming.slice(0, 20).map(albumItem) },

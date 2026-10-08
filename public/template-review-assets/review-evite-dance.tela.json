@@ -1,0 +1,352 @@
+{
+  "id": "review-evite-dance-copy-16aa6a6c-8626-42ce-a428-895b24f618bb",
+  "ownerId": "local-review",
+  "title": "Body Electric · review copy",
+  "createdAt": 1790719091341,
+  "updatedAt": 1790719091341,
+  "frames": [
+    {
+      "id": "review-evite-dance-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-dance-vector"
+      ],
+      "label": "Body Electric"
+    }
+  ],
+  "devices": {
+    "review-evite-dance-vector": {
+      "id": "review-evite-dance-vector",
+      "type": "VECTOR",
+      "name": "Body Electric",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-dance-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#e6ff59",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-dance-head",
+          "kind": "ELLIPSE",
+          "x": 259,
+          "y": 86,
+          "w": 52,
+          "h": 52,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-dance-body",
+          "kind": "LINE",
+          "x": 285,
+          "y": 145,
+          "w": 47,
+          "h": 101,
+          "fill": "none",
+          "stroke": "#292246",
+          "strokeWidth": 22,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            285,
+            145,
+            332,
+            246
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-dance-arm-a",
+          "kind": "LINE",
+          "x": 188,
+          "y": 154,
+          "w": 98,
+          "h": 55,
+          "fill": "none",
+          "stroke": "#d64bb2",
+          "strokeWidth": 19,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            286,
+            154,
+            188,
+            209
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-dance-arm-b",
+          "kind": "LINE",
+          "x": 286,
+          "y": 120,
+          "w": 122,
+          "h": 34,
+          "fill": "none",
+          "stroke": "#292246",
+          "strokeWidth": 19,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            286,
+            154,
+            408,
+            120
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-dance-leg-a",
+          "kind": "LINE",
+          "x": 224,
+          "y": 239,
+          "w": 105,
+          "h": 113,
+          "fill": "none",
+          "stroke": "#292246",
+          "strokeWidth": 24,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            329,
+            239,
+            224,
+            352
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-dance-leg-b",
+          "kind": "LINE",
+          "x": 329,
+          "y": 239,
+          "w": 126,
+          "h": 83,
+          "fill": "none",
+          "stroke": "#d64bb2",
+          "strokeWidth": 24,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            329,
+            239,
+            455,
+            322
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-dance-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-dance-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#f8f5d4",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-dance-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Body electric",
+          "fontSize": 41,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-dance-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Dance together / feel everything",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-dance-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-dance-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-dance-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-dance-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-dance-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#292246",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-dance",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-dance-head",
+          "property": "rotation",
+          "from": 0,
+          "to": -3,
+          "delay": 0,
+          "duration": 2800
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        48,
+        55,
+        60,
+        62
+      ],
+      "tempo": 84
+    }
+  }
+}

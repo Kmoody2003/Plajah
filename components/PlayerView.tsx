@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cleanDescription } from '../utils/description';
 import { Album, Track, Comment, Character, IPWorld, Video } from '../types';
-import { buildShareUrl } from '../services/deepLinkService';
+import { buildShareUrl, buildShowUrl } from '../services/deepLinkService';
 import { getActiveCaption } from '../src/lib/captions';
 import WorldBadge from './WorldBadge';
 import ImmersiveBadge from './ImmersiveBadge';
@@ -19,8 +19,12 @@ import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames, loadShaderNames } from './FxStageVisualizers';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth, fetchPersonalPlaylists, addTracksToPlaylist } from '../services/backendService';
+import { probeShaderGpu } from '../services/shaders/shaderGate';
+import LookedCover from './chora/looks/LookedCover';
+const LooksCouncilPanel = React.lazy(() => import('./chora/looks/LooksCouncilPanel'));
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth, loginWithGoogle, fetchPersonalPlaylists, addTracksToPlaylist } from '../services/backendService';
 import ShareButton from './ShareButton';
+import ArtistSupportSheet, { musicOffers, type SupportTab } from './ArtistSupportSheet';
 import ChoraQualityButton from './ChoraQualityButton';
 import { createPortal } from 'react-dom';
 import OfflineDownloadButton from './OfflineDownloadButton';
@@ -519,6 +523,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   // position (audio streams locally per listener — see services/partyService.ts). Same primitive
   // as watch-along/read-along.
   const [activePartyId, setActivePartyId] = useState<string | null>(partyId ?? null);
+  // Gift / buy / Plajah+ sheet (shared with Show Mode)
+  const [supportSheet, setSupportSheet] = useState<SupportTab | null>(null);
   useEffect(() => { setActivePartyId(partyId ?? null); }, [partyId]);
   const party = useParty(activePartyId);
 
@@ -650,6 +656,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [fxEngine, setFxEngine] = useState<'FLOW' | 'PAINT' | FxEngine>('FLUX');
   const [fxPresetIndex, setFxPresetIndex] = useState(0);
   const [fxMenuOpen, setFxMenuOpen] = useState(false);
+  // Looks engine = open-source WebGPU library; only offered where WebGPU actually works (hidden on TVs / older browsers).
+  const [looksAvailable, setLooksAvailable] = useState(false);
+  const [looksCouncilOpen, setLooksCouncilOpen] = useState(false);
+  useEffect(() => { let dead = false; probeShaderGpu().then(g => { if (!dead) setLooksAvailable(g.reason === 'ok'); }); return () => { dead = true; }; }, []);
 
   const selectGatefoldStage = useCallback((mode: GatefoldStageMode, deliberate = true) => {
     if (deliberate) setIsStageCycling(false);
@@ -681,11 +691,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
   const [shaderNames, setShaderNames] = useState<string[]>([]);
   const [fxSearch, setFxSearch] = useState('');
-  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX';
+  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX' || fxEngine === 'TYPO' || fxEngine === 'KAIJU' || fxEngine === 'LOOKS';
   const FX_OPTIONS = [
     { id: 'FLOW' as const, label: 'Flow' }, { id: 'PAINT' as const, label: 'Paint' },
-    { id: 'FLUX' as const, label: 'Flux 3D' },
+    { id: 'FLUX' as const, label: 'Flux 3D' }, { id: 'TYPO' as const, label: 'Typo' }, { id: 'KAIJU' as const, label: 'Kaiju' },
     { id: 'SHADER' as const, label: 'Shaders' }, { id: 'GENERATOR' as const, label: 'Generators' }, { id: 'MILKDROP' as const, label: 'MilkDrops' },
+    ...(looksAvailable ? [{ id: 'LOOKS' as const, label: 'Looks' }] : []),
   ];
   // Lazily fetch each async engine's full preset name list the first time it's used —
   // butterchurn's presets, and the Signature Series shader library.
@@ -715,9 +726,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   // Selector: the three types stay separate (pills); the active pixels type gets its own
   // dropdown listing ALL its Plajah Pixels presets, plus ◀ ▶ to step through them.
   const fxSelectorEl = (
-    <div className="flex items-center gap-2 shrink-0 min-w-0">
+    <div className="flex flex-wrap items-center justify-center gap-2 min-w-0 max-w-full">
       {/* Type pills — Flow / Paint / MilkDrops / Shaders / Generators */}
-      <div className="flex items-center gap-0.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1 shrink-0">
+      <div className="flex items-center gap-0.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1 max-w-full overflow-x-auto no-scrollbar">
         {FX_OPTIONS.map(opt => (
           <button key={opt.id} onClick={() => selectFxEngine(opt.id)}
             className={`shrink-0 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${fxEngine === opt.id ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
@@ -738,12 +749,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           </button>
           <button onClick={() => cycleFxPreset(1)} aria-label="Next preset"
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all cursor-pointer"><ChevronRight size={14} /></button>
+          {fxEngine === 'LOOKS' && (
+            <button onClick={() => setLooksCouncilOpen(true)} aria-label="Ask the Art Council for a look"
+              className="shrink-0 h-7 px-3 rounded-full bg-small-orange text-black text-[9px] font-black uppercase tracking-widest cursor-pointer">Council</button>
+          )}
           {fxMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFxMenuOpen(false)} />
               <div className="absolute top-full right-0 mt-2 w-64 max-h-80 overflow-hidden flex flex-col rounded-2xl bg-[#141418] border border-white/15 shadow-2xl z-50 p-2">
                 <div className="px-2 pt-1 pb-2 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.15em] text-white/40 border-b border-white/5">
-                  <span>{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : 'Generators'}</span>
+                  <span>{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : fxEngine === 'TYPO' ? 'Typography' : fxEngine === 'KAIJU' ? 'Kaiju Dance Party' : fxEngine === 'LOOKS' ? 'Looks' : 'Generators'}</span>
                   <span>{fxPresetList.length || 0}</span>
                 </div>
                 {fxPresetList.length > 8 && (
@@ -778,6 +793,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </>
           )}
         </div>
+      )}
+      {looksCouncilOpen && fxEngine === 'LOOKS' && (
+        <React.Suspense fallback={null}><LooksCouncilPanel onClose={() => setLooksCouncilOpen(false)} /></React.Suspense>
       )}
     </div>
   );
@@ -1639,32 +1657,54 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               })()}
             </div>
           ) : (
-            <div className="w-full h-full relative text-left block">
-              {isFlipped ? (
-                <div className="w-full h-full animate-in fade-in duration-500">
-                  <AnimatedSlideshow
-                    images={resolveSlideshowImages(album, currentTrack)}
-                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
-                    themeColor={album.themeColor}
-                  />
-                </div>
-              ) : gatefoldOn && choraNext.isNight ? (
-                /* Night Registry (mobile Gatefold): the Orrery replaces the cover —
-                   tracks orbit the album; tapping a node plays it. */
+            <div className="w-full h-full relative text-left block overflow-hidden">
+              {gatefoldStageMode === 'ORRERY' ? (
+                /* Orrery Stage on mobile */
                 <div
-                  className="w-full h-full flex items-center justify-center"
+                  className="w-full h-full flex items-center justify-center relative"
                   style={{ background: 'radial-gradient(90% 120% at 50% -20%, rgba(107,0,153,0.45), transparent 65%), radial-gradient(60% 80% at 85% 10%, rgba(0,218,243,0.12), transparent 60%), #060210' }}
                 >
                   <OrreryStage
                     album={album}
                     tracks={localTracks}
                     activeIndex={currentTrackIndex}
+                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
                     onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
                   />
                 </div>
+              ) : (gatefoldStageMode === 'SLIDESHOW' || isFlipped) ? (
+                /* Embedded mobile Slideshow */
+                <div className="w-full h-full animate-in fade-in duration-500 relative">
+                  <AnimatedSlideshow
+                    key={`mobile-slide-${album.id}-${currentTrack?.id || 'album'}`}
+                    images={gatefoldSlides.length > 0 ? gatefoldSlides : resolveSlideshowImages(album, currentTrack)}
+                    startIndex={0}
+                    presentation="panel"
+                    isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                    themeColor={album.themeColor}
+                  />
+                </div>
+              ) : gatefoldStageMode === 'FX' ? (
+                /* FX Stage audio visualizer in mobile viewer */
+                <div className="w-full h-full animate-in fade-in duration-500 relative bg-black">
+                  <div className="absolute inset-0">
+                    {isPixelsEngine ? (
+                      <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                    ) : (
+                      <>
+                        <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
+                        {visualizerType === 'PAINT' && <div className="absolute inset-0"><PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} /></div>}
+                      </>
+                    )}
+                  </div>
+                </div>
               ) : (
-                <img
+                /* Cover Art */
+                <LookedCover
                   src={thumb((currentTrack?.images?.[0]) || album.coverImage, THUMB.large) || undefined}
+                  textureSrc={(currentTrack?.images?.[0]) || album.coverImage}
+                  trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                  controls="bottom-right"
                   alt={currentTrack?.title || album.title}
                   loading="lazy"
                   decoding="async"
@@ -1674,16 +1714,83 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
               
-              <div className="absolute inset-0 flex items-center justify-center p-8">
-                {(!globalIsPlaying || !isCurrentTrackGlobal) && !(gatefoldOn && choraNext.isNight) && (
+              <div className="absolute inset-0 flex items-center justify-center p-8 pointer-events-none">
+                {(!globalIsPlaying || !isCurrentTrackGlobal) && gatefoldStageMode === 'ART' && !isFlipped && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); playTrack(album.tracks[0], album, 'LIBRARY'); setCurrentTrackIndex(0); }}
-                    className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transform scale-100 opacity-100 transition-all duration-500 border border-white/30 shadow-2xl z-10"
+                    className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transform scale-100 opacity-100 transition-all duration-500 border border-white/30 shadow-2xl z-10 pointer-events-auto"
                   >
                     <Play size={32} />
                   </button>
                 )}
               </div>
+
+              {/* Mobile Stage View Switcher Pills */}
+              <div 
+                className="absolute top-3 left-3 z-30 flex items-center gap-1 p-1 rounded-full bg-black/60 backdrop-blur-xl border border-white/15 max-w-[calc(100%-4.5rem)] overflow-x-auto no-scrollbar shadow-lg"
+                style={{ top: 'max(0.75rem, env(safe-area-inset-top))', left: 'max(0.75rem, env(safe-area-inset-left))' }}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setIsFlipped(false); selectGatefoldStage('ART'); }}
+                  className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    gatefoldStageMode === 'ART' && !isFlipped
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Art
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setIsFlipped(false); selectGatefoldStage('SLIDESHOW'); }}
+                  className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                    gatefoldStageMode === 'SLIDESHOW' || isFlipped
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Slideshow
+                </button>
+                {gatefoldOn && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsFlipped(false); selectGatefoldStage('ORRERY'); }}
+                    className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                      gatefoldStageMode === 'ORRERY'
+                        ? 'text-white font-black'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
+                    style={gatefoldStageMode === 'ORRERY' ? { backgroundImage: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' } : {}}
+                  >
+                    Orrery
+                  </button>
+                )}
+                {canUseFxStage() && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsFlipped(false); selectGatefoldStage('FX'); }}
+                    className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap ${
+                      gatefoldStageMode === 'FX'
+                        ? 'bg-small-orange/20 border border-small-orange/60 text-small-orange'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Activity size={10} /> FX
+                  </button>
+                )}
+                {gatefoldStageMode === 'FX' && canUseFxStage() && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsTvFxActive(true); }}
+                    title="Open Fullscreen FX Stage"
+                    className="px-2 py-1 rounded-full bg-small-orange text-black text-[9px] font-black uppercase tracking-wider flex items-center gap-0.5 hover:bg-white transition-all shadow-sm whitespace-nowrap"
+                  >
+                    <Maximize2 size={9} /> Full
+                  </button>
+                )}
+              </div>
+
               {/* Share icon overlaid on cover art */}
               <button
                 onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
@@ -1691,26 +1798,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 style={{top:'max(1rem, env(safe-area-inset-top))', right:'max(1rem, env(safe-area-inset-right))'}}
               >
                 <Share2 size={16} />
-              </button>
-              {/* Flip cover ⇄ slideshow — small badge on the art (only when the album/track has extra images) */}
-              {(((currentTrack?.images?.length || 0) > 1) || ((album.slideshow?.length || 0) > 0)) && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setIsFlipped(f => !f); }}
-                  title={isFlipped ? 'Show cover art' : 'Show slideshow'}
-                  className={`absolute top-4 left-4 z-20 w-10 h-10 rounded-xl backdrop-blur-md border flex items-center justify-center transition-all ${isFlipped ? 'bg-small-orange/30 border-small-orange/50 text-small-orange' : 'bg-black/50 border-white/20 text-white/60 hover:text-white hover:bg-black/70'}`}
-                  style={{top:'max(1rem, env(safe-area-inset-top))', left:'max(1rem, env(safe-area-inset-left))'}}
-                >
-                  <Layers size={16} />
-                </button>
-              )}
-              {/* FX Stage entry — audio-reactive visualizers on phone/tablet */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsVisualizerLayout(true); }}
-                title="FX Stage — audio-reactive visualizers"
-                className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 backdrop-blur-md border border-white/15 text-white/70 hover:text-white hover:border-small-orange/50 transition-all text-[9px] font-black uppercase tracking-widest"
-                style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))', left: 'max(1rem, env(safe-area-inset-left))' }}
-              >
-                <Activity size={12} /> FX Stage
               </button>
               {/* Floating Track Info on Cover — Gatefold: sleeve credits (italic title,
                   gradient artist, live ember progress bar); classic keeps the old style */}
@@ -2049,7 +2136,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             artist={t.artist || album.artist}
                             text={`Check out ${t.title} by ${t.artist || album.artist} on Plajah.com`}
                             url={buildShareUrl('album', album.id, { track: t.id })}
+                            showModeUrl={buildShowUrl(album.id, { track: t.id })}
                             imageUrl={album.coverImage}
+                            contentType="music"
+                            ctaText="▶ LISTEN LOSSLESS ON PLAJAH"
                             plajahLabel="Share to Plajah feed"
                             onPostToPlajah={async () => {
                               await createPost({
@@ -3059,7 +3149,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     </motion.div>
                   ) : (
                     <motion.div key="art-gatefold" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="absolute inset-0 overflow-hidden group flex items-center justify-center">
-                      <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105" />
+                      <LookedCover src={thumb(album.coverImage, THUMB.large) || undefined} textureSrc={album.coverImage} trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
                       <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
@@ -3162,7 +3252,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 pt-8 relative z-10">
                    <AnimatePresence mode="wait" initial={false}>
                      <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group">
-                       <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                       <LookedCover src={thumb(album.coverImage, THUMB.large) || undefined} textureSrc={album.coverImage} trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                        {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
                        <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
@@ -3717,6 +3807,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      </button>
                    )}
 
+                   {/* Back the artist — gift always; buy only when the artist priced the release */}
+                   {album.ownerId && album.ownerId !== user?.uid && (
+                     <div className={`flex items-center gap-2 ${currentTrack ? '' : 'ml-auto'}`}>
+                       <button onClick={() => setSupportSheet('gift')} className="pj-btn pj-btn--primary pj-btn--sm">Gift this artist</button>
+                       {musicOffers(album, currentTrack).any && (
+                         <button onClick={() => setSupportSheet('buy')} className="pj-btn pj-btn--accent pj-btn--sm">Buy</button>
+                       )}
+                     </div>
+                   )}
+
                    {/* Share — to the Plajah feed or out to social sites */}
                    <div className={currentTrack ? '' : 'ml-auto'}>
                      <ShareButton
@@ -3724,7 +3824,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        artist={album.artist}
                        text={`Check out ${currentTrack?.title || album.title} by ${album.artist} on Plajah.com`}
                        url={buildShareUrl('album', album.id, { track: currentTrack?.id })}
+                       showModeUrl={buildShowUrl(album.id, { track: currentTrack?.id })}
                        imageUrl={album.coverImage}
+                       contentType="album"
+                       ctaText="▶ LISTEN LOSSLESS ON PLAJAH"
                        plajahLabel="Share to Plajah feed"
                        onPostToPlajah={async () => {
                          await createPost({
@@ -4913,6 +5016,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             exitSelectMode();
           }}
         />
+      )}
+      {supportSheet && (
+        <ArtistSupportSheet album={album} track={currentTrack as any} user={user as any} initialTab={supportSheet} onClose={() => setSupportSheet(null)} onSignUp={() => { loginWithGoogle(); }} />
       )}
     </div>
   );

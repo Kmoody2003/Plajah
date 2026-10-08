@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import HistoryMomentPulseCard from './HistoryMomentPulseCard';
+import { takeVaultPreset } from '../services/loreaOpen';
 import { Album, Track, UserProfile, Playlist } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { canUpload } from '../services/tvCapabilities';
 import PageHeader from './PageHeader';
+import { KaijuLogoDuo } from './kaiju/KaijuMascots';
+import { KaijuGlobalSignal } from './kaiju/KaijuGlobalSignal';
 const AlbumArt3DViewer = lazy(() => import('./AlbumArt3DViewer'));
 import {
   Play, Pause, SkipForward, SkipBack, Heart, Share2,
@@ -47,10 +50,28 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import { WC26_TEAMS } from '../data/worldCup2026';
 import { ANTHEM_LYRICS } from '../data/anthemLyrics';
 import { WC_ANTHEM_ALBUM } from '../data/wcAnthemAlbum';
-import { shareAsset, shareText } from '../services/deepLinkService';
+import { shareAsset, shareText, buildShareUrl, buildShowUrl } from '../services/deepLinkService';
+import ShareButton from './ShareButton';
 
 // Share a single Chora track — the link lands on the track's album page and (via the
 // AutoPlayCountdown) offers a 5s auto-play. `albumId` is the track's parent album.
+// Track share with the full platform menu (copy / social / Show Mode) instead of the bare native sheet.
+// Touch devices have no hover, so the control stays visible there.
+const TrackShare: React.FC<{ albumId: string; album?: Album; track: { id: string; title?: string; artist?: string }; className: string }> = ({ albumId, album, track, className }) => (
+  <div onClick={e => e.stopPropagation()}>
+    <ShareButton
+      title={track.title || album?.title || ''}
+      artist={track.artist || album?.artist}
+      text={shareText(track.title, track.artist || album?.artist)}
+      url={buildShareUrl('track', albumId, { track: track.id })}
+      showModeUrl={buildShowUrl(albumId, { track: track.id })}
+      imageUrl={album?.coverImage}
+      contentType="music"
+      iconSize={10}
+      className={className + ' [@media(hover:none)]:opacity-100'}
+    />
+  </div>
+);
 const shareTrack = (albumId: string, track: { id: string; title?: string; artist?: string }) => {
   shareAsset('track', albumId, {
     title: track.title,
@@ -264,6 +285,8 @@ const WcAnthemPlaylist: React.FC<{ onOpenAlbum?: (album: Album) => void }> = ({ 
 
 const ChoraRadio = React.lazy(() => import('./RadioView'));
 import DailyMixCard from './DailyMixCard';
+import RecentRail from './chora/RecentRail';
+import { useFollowing } from '../hooks/useFollowing';
 
 /** Which Chora tabs this device shows. */
 const CHORA_TABS = (): readonly TabType[] =>
@@ -285,6 +308,8 @@ interface MusicViewProps {
 
 const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUser, userProfile, initialTab, onUploadMusic, onNavigate }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
+  // Source of truth for who the viewer follows is the `follows` collection (UserProfile.following was never written).
+  const musicFollowing = useFollowing(userProfile?.uid);
   const [artists, setArtists] = useState<UserProfile[]>([]);
   const [curatedPlaylists, setCuratedPlaylists] = useState<Playlist[]>([]);
   const [vaultTracks, setVaultTracks] = useState<ArchiveTrack[]>([]);
@@ -311,8 +336,11 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   //   PRIMARY   what kind of audio this is        (null = the featured view)
   //   SECONDARY genre/subcategory, scoped to kind (null = all of that kind)
   //   SORT      a ranking, never a category
-  const [vaultKindSel, setVaultKindSel] = useState<AudioKind | null>(null);
-  const [vaultSub, setVaultSub] = useState<string | null>(null);
+  // A pending preset (from Language Arts / Learn: "hear the era") opens straight onto that shelf. Read once.
+  const vaultPresetRef = useRef<ReturnType<typeof takeVaultPreset> | undefined>(undefined);
+  if (vaultPresetRef.current === undefined) vaultPresetRef.current = takeVaultPreset();
+  const [vaultKindSel, setVaultKindSel] = useState<AudioKind | null>(() => (vaultPresetRef.current?.kind as AudioKind) ?? null);
+  const [vaultSub, setVaultSub] = useState<string | null>(() => vaultPresetRef.current?.sub ?? null);
   const [vaultSort, setVaultSort] = useState<VaultSort>('TRENDING');
   const [vaultLoading, setVaultLoading] = useState(false);
   const [vaultShelves, setVaultShelves] = useState<Array<VaultShelf & { items: ArchiveTrack[] }>>([]);
@@ -1654,6 +1682,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
           <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-2 relative z-10" style={{ opacity: choraNextOn ? 1 : 0.82 }}>
+            <KaijuGlobalSignal>
             {choraNextOn ? (
               <ChoraNextMasthead
                 albums={albums}
@@ -1664,10 +1693,12 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 onExit={() => choraNext.setEnabled(false)}
                 onFeedback={() => window.dispatchEvent(new CustomEvent('OPEN_BUG_REPORT', { detail: { context: 'chora-next' } }))}
                 onSelectAlbum={onSelectAlbum}
+                mascots={<KaijuLogoDuo className="h-14 sm:h-16 lg:h-20" />}
               />
             ) : (
-              <PageHeader>Plajah Chora</PageHeader>
+              <PageHeader mark={<KaijuLogoDuo />}>Plajah Chora</PageHeader>
             )}
+            </KaijuGlobalSignal>
             {/* Both banners are off on TV. The Plajah+ promo belongs in the side panel, not
                 stacked above the content a viewer came for; and the World Cup anthems banner is
                 for a tournament that has finished — the playlist still lives in Playlists, which
@@ -2396,13 +2427,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                            <Plus size={10} />
                          </button>
                          {/* Share this track — lands on its album page with a 5s auto-play countdown */}
-                         <button
-                           onClick={e => { e.stopPropagation(); const alb = albums.find(a => a.tracks?.some(t => t.id === track.id)); if (alb) shareTrack(alb.id, track); }}
-                           className="tap p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 hover:text-small-orange transition-all shrink-0"
-                           title="Share this track"
-                         >
-                           <Share2 size={10} />
-                         </button>
+                         {(() => { const alb = albums.find(a => a.tracks?.some(t => t.id === track.id)); return alb ? <TrackShare albumId={alb.id} album={alb} track={track} className="tap p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 hover:text-small-orange transition-all shrink-0" /> : null; })()}
                          {/* The Breakdown */}
                          <button
                            onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track, album: albums.find(a => a.tracks?.some(t => t.id === track.id)) ?? null } })); }}
@@ -2425,7 +2450,13 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                {tabWordmark('For You')}
 
                {/* ── Your Daily Mix — Chora curates a ≤40-min mix from your taste ── */}
+               {userProfile && <RecentRail kind="JUMP" showEmpty albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                <DailyMixCard onSelectAlbum={onSelectAlbum} />
+               {userProfile && <RecentRail kind="SONGS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="ARTISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="ALBUMS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="PLAYLISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="MOST_PLAYED" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
 
                {/* ── Coming Soon ── */}
                {upcomingAlbums.length > 0 && (
@@ -2462,7 +2493,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                <section>
                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">From Authors You Follow</h2>
                  <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
-                   {albums.filter(a => userProfile.following?.includes(a.ownerId || '')).map((album) => (
+                   {albums.filter(a => musicFollowing.ids.has(a.ownerId || '')).map((album) => (
                      <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
                         <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-white/5 shadow-xl relative">
                           <ThreeDImage src={thumb(album.coverImage, THUMB.card)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
@@ -2477,7 +2508,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                <section>
                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">Suggested Creators</h2>
                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 mask-fade-edges">
-                    {artists.filter(a => !userProfile.following?.includes(a.uid)).slice(0, 10).map(artist => (
+                    {artists.filter(a => !musicFollowing.ids.has(a.uid)).slice(0, 10).map(artist => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
                          <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-white/5 p-1 relative">
                             <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
@@ -2508,6 +2539,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 
                 {activeTab === 'PLAYLISTS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
+                    {userProfile && <RecentRail kind="PLAYLISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     {tabWordmark('Playlists', true)}
 
                     {/* ── World Cup 2026 National Anthems ── */}
@@ -2643,13 +2675,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                             <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate">{track.artist}</p>
                                           </div>
                                           <span className="text-[9px] font-bold text-white/40 shrink-0">{fmtPlays(trackStats[track.id] ?? 0)} plays</span>
-                                          <button
-                                            onClick={e => { e.stopPropagation(); const albId = (track as any).albumId || albums.find(a => a.tracks?.some(t => t.id === track.id))?.id; if (albId) shareTrack(albId, track); }}
-                                            className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 text-white/30 hover:text-small-orange transition-all shrink-0"
-                                            title="Share this track"
-                                          >
-                                            <Share2 size={10} />
-                                          </button>
+                                          {(() => { const albId = (track as any).albumId || albums.find(a => a.tracks?.some(t => t.id === track.id))?.id; return albId ? <TrackShare albumId={albId} album={albums.find(a => a.id === albId)} track={track} className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 text-white/30 hover:text-small-orange transition-all shrink-0" /> : null; })()}
                                           <button
                                             onClick={async () => {
                                               await removeTrackFromPlaylist(pl.id, track.id);
@@ -2704,6 +2730,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                 {activeTab === 'ARTISTS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
+                    {userProfile && <RecentRail kind="ARTISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     <div className="flex items-center justify-between">
                       {tabWordmark('Artists', true)}
                       <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
@@ -2794,6 +2821,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                 {activeTab === 'ALBUMS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
+                    {userProfile && <RecentRail kind="ALBUMS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     <div className="flex items-center justify-between">
                       {tabWordmark('Albums', true)}
                       <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
@@ -2921,6 +2949,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                 {activeTab === 'MIXES' && (
                   <section className="animate-in fade-in duration-500 space-y-10">
+                    {userProfile && <RecentRail kind="MIXES" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     <div className="flex items-center justify-between">
                       {tabWordmark('Mixes', true)}
                     </div>
@@ -3336,7 +3365,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   );
                 })()}
 
-                {activeTab === 'MY_LIBRARY' && userProfile && <MyLibraryView profile={userProfile} onSelectAlbum={onSelectAlbum} />}
+                {activeTab === 'MY_LIBRARY' && userProfile && <><div className="px-4 sm:px-6 lg:px-12 pt-4">{userProfile && <RecentRail kind="LOCKER" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}</div><MyLibraryView profile={userProfile} onSelectAlbum={onSelectAlbum} /></>}
               </>
             )}
           </div>

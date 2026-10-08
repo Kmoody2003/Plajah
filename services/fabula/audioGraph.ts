@@ -37,6 +37,7 @@ export const CLEAN_DEFAULT: CleanSettings = { hpf: 0, lpf: 0, hum: 0, trim: 0, d
 export const CLIP_AUDIO_DEFAULT: ClipAudio = { vol: 1, eq: [0, 0, 0, 0, 0], comp: { ...COMP_DEFAULT } };
 
 import { platformAudio } from '../mediaEngine/audioRuntime';
+import { isWindowsApp, listWindowsAudioDevices, selectWindowsAudioDevice } from '../windowsBridgeService';
 import { FxChainHost, softClipCurve, SpectraEQ, MasteringChain, type FxInstance, type SpectraState, type MasteringState } from './audioFx';
 let _ctx: AudioContext | null = null;
 export function getAudioCtx(): AudioContext | null {
@@ -63,16 +64,41 @@ export function audioEngineInfo(): { sampleRate: number; baseLatencyMs: number; 
   };
 }
 
-/** Output devices (audiooutput). Needs one prior mic/permission grant to expose labels. */
+/** Output devices (audiooutput). Supports Chromium devices + Windows native ASIO and WASAPI Exclusive. */
 export async function listOutputDevices(): Promise<{ deviceId: string; label: string }[]> {
+  const result: { deviceId: string; label: string }[] = [];
+
+  if (isWindowsApp()) {
+    try {
+      const nativeDevs = await listWindowsAudioDevices();
+      for (const nd of nativeDevs) {
+        const tag = nd.driverType === 'ASIO' ? '[ASIO]' : nd.driverType === 'WASAPI_EXCLUSIVE' ? '[WASAPI Exclusive]' : '[Windows Audio]';
+        result.push({
+          deviceId: nd.id,
+          label: `${tag} ${nd.name}${nd.minBufferFrames ? ` (${nd.minBufferFrames} spls)` : ''}`,
+        });
+      }
+    } catch { }
+  }
+
   try {
     const devs = await navigator.mediaDevices.enumerateDevices();
-    return devs.filter((d) => d.kind === 'audiooutput').map((d) => ({ deviceId: d.deviceId, label: d.label || `Output ${d.deviceId.slice(0, 6)}` }));
-  } catch { return []; }
+    for (const d of devs) {
+      if (d.kind === 'audiooutput') {
+        result.push({ deviceId: d.deviceId, label: d.label || `Output ${d.deviceId.slice(0, 6)}` });
+      }
+    }
+  } catch { }
+
+  return result;
 }
 
-/** Route the whole engine to a specific hardware output (Chromium: AudioContext.setSinkId). */
+/** Route the whole engine to a specific hardware output (ASIO / WASAPI / AudioContext.setSinkId). */
 export async function setOutputDevice(sinkId: string): Promise<boolean> {
+  if (isWindowsApp() && (sinkId.startsWith('asio:') || sinkId.startsWith('wasapi:'))) {
+    const driverType = sinkId.startsWith('asio:') ? 'ASIO' : 'WASAPI_EXCLUSIVE';
+    return await selectWindowsAudioDevice(sinkId, driverType);
+  }
   try {
     if (_ctx && typeof (_ctx as any).setSinkId === 'function') { await (_ctx as any).setSinkId(sinkId); return true; }
     return false;

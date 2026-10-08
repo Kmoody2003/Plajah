@@ -1,0 +1,1447 @@
+{
+ "courseId": "art-movements-classical",
+ "verifier": "B",
+ "note": "Only 4 pages fetched (Wikipedia); other claims checked from knowledge.",
+ "fetched": 4,
+ "questions": [
+  {
+   "id": "art-movements-classical.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l05.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Lesson hedges ('probably'); answer is the only defensible choice."
+  },
+  {
+   "id": "art-movements-classical.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l19.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l19.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l20.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l20.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l21.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l21.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l21.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l21.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l22.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l22.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l22.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l22.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l23.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l23.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l23.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l23.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l24.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l24.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l24.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l24.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l25.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l25.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l25.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l25.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l26.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l26.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l26.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l26.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l27.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l27.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l27.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l27.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l27.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l28.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l28.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l28.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "art-movements-classical.l28.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "art-movements-classical.l01",
+   "claim": "Chauvet cave drawings are over 30,000 years old",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l01",
+   "claim": "Lascaux found in 1940",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l01",
+   "claim": "Venus of Willendorf is over 25,000 years old",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l02",
+   "claim": "Giza pyramids built c. 2500 BCE, largest for Khufu",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l02",
+   "claim": "Amarna style under Akhenaten c. 1350 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l02",
+   "claim": "Carter found Tutankhamun's tomb in 1922",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l03",
+   "claim": "Standard of Ur dates c. 2600-2500 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l03",
+   "claim": "Hammurabi stele c. 1750 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l03",
+   "claim": "Assyrian Nineveh reliefs in the 7th century BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l04",
+   "claim": "Parthenon built 447-432 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l04",
+   "claim": "Hellenistic period 323-31 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l04",
+   "claim": "Red-figure replaced black-figure in late 6th c. BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l05",
+   "claim": "Colosseum opened 80 CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l05",
+   "claim": "Trajan's Column dedicated 113 CE (Dacian campaigns)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Trajan%27s_Column"
+   ],
+   "note": "Opened page: dedicated 12 May 113, Dacian wars."
+  },
+  {
+   "lessonId": "art-movements-classical.l05",
+   "claim": "Vesuvius erupted 79 CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l06",
+   "claim": "Constantinople dedicated 330 CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l06",
+   "claim": "Hagia Sophia completed 537 by Anthemius and Isidore",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hagia_Sophia"
+   ],
+   "note": "Opened page: completed 27 Dec 537; architects match."
+  },
+  {
+   "lessonId": "art-movements-classical.l06",
+   "claim": "Iconoclasm images restored 843",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l07",
+   "claim": "Dome of the Rock completed c. 691-692 under Abd al-Malik",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l07",
+   "claim": "Taj Mahal built mainly 1630s-1640s for Shah Jahan",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l07",
+   "claim": "Alhambra mainly 13th-14th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l08",
+   "claim": "Bayeux Tapestry is an embroidery of later 11th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l08",
+   "claim": "Norman conquest 1066",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l08",
+   "claim": "Romanesque term is a 19th-century coinage",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l09",
+   "claim": "Saint-Denis choir consecrated 1144",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Basilica_of_Saint-Denis"
+   ],
+   "note": "Opened page: dedicated 11 June 1144."
+  },
+  {
+   "lessonId": "art-movements-classical.l09",
+   "claim": "Notre-Dame begun 1163",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l09",
+   "claim": "Sainte-Chapelle consecrated 1248",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l10",
+   "claim": "Song dynasty 960-1279",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l10",
+   "claim": "Guo Xi Early Spring dated 1072",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l10",
+   "claim": "Southern Song begins 1127",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l11",
+   "claim": "Edo period 1603-1868",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l11",
+   "claim": "Harunobu full-colour prints from 1765",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l11",
+   "claim": "Hokusai Thirty-Six Views early 1830s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l12",
+   "claim": "British expedition looted Benin in 1897",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l12",
+   "claim": "Great Zimbabwe 11th-15th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l12",
+   "claim": "Ife copper-alloy heads c. 12th-15th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l13",
+   "claim": "Bonampak murals late 8th century CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l13",
+   "claim": "Cahokia flourished c. 1050-1350",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l13",
+   "claim": "Olmec colossal heads more than 2,500 years old",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l14",
+   "claim": "Alberti On Painting 1435",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l14",
+   "claim": "Florence dome completed 1436",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l14",
+   "claim": "Masaccio Holy Trinity c. 1425-27",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l15",
+   "claim": "School of Athens 1509-11",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l15",
+   "claim": "Sistine ceiling 1508-12 for Julius II",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l15",
+   "claim": "Last Supper c. 1495-98",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l16",
+   "claim": "Titian Assumption 1516-18 in the Frari",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l16",
+   "claim": "Fresco struggles in Venice's damp",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l16",
+   "claim": "Van Eyck as oil master",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l17",
+   "claim": "Ghent Altarpiece completed 1432",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l17",
+   "claim": "Arnolfini Portrait 1434",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l17",
+   "claim": "Reformation began 1517",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l18",
+   "claim": "Mannerism c. 1520-1600",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l18",
+   "claim": "El Greco Burial of Count of Orgaz 1586-88",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l18",
+   "claim": "Madonna with the Long Neck c. 1534-40",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l19",
+   "claim": "Council of Trent 1545-63",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l19",
+   "claim": "Calling of Saint Matthew 1599-1600",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l19",
+   "claim": "Las Meninas 1656",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l20",
+   "claim": "Eighty Years' War 1568-1648",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l20",
+   "claim": "VOC founded 1602",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l20",
+   "claim": "Night Watch 1642",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l21",
+   "claim": "Pilgrimage to Cythera 1717",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l21",
+   "claim": "Wieskirche 1745-54",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l21",
+   "claim": "A Harlot's Progress 1732",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l22",
+   "claim": "Herculaneum excavations 1738, Pompeii 1748",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l22",
+   "claim": "Oath of the Horatii 1784",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l22",
+   "claim": "Death of Marat 1793",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l23",
+   "claim": "Raft of the Medusa 1818-19 on 1816 wreck",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l23",
+   "claim": "Third of May 1808 painted 1814",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l23",
+   "claim": "Liberty Leading the People 1830",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l24",
+   "claim": "Royal Academy founded 1648",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l24",
+   "claim": "Salon des Refuses 1863",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l24",
+   "claim": "Cabanel Birth of Venus 1863 bought by Napoleon III",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l25",
+   "claim": "Stone Breakers 1849 destroyed 1945",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l25",
+   "claim": "Pavilion of Realism 1855",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l25",
+   "claim": "Photography processes announced 1839",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l26",
+   "claim": "PRB founded 1848",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l26",
+   "claim": "Millais Ophelia 1851-52",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l26",
+   "claim": "Christ in the House of His Parents 1850 attacked by Dickens",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l27",
+   "claim": "First exhibition 1874; Leroy mocked Impression, Sunrise",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l27",
+   "claim": "Eight exhibitions 1874-1886",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l27",
+   "claim": "Paint tubes invented by 1841",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l28",
+   "claim": "Perry arrived 1853-54",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  },
+  {
+   "lessonId": "art-movements-classical.l28",
+   "claim": "Burty coined Japonisme 1872",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Japonisme"
+   ],
+   "note": "Opened page confirms Burty 1872."
+  },
+  {
+   "lessonId": "art-movements-classical.l28",
+   "claim": "Van Gogh copied Hiroshige 1887",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From own knowledge; not opened."
+  }
+ ]
+}

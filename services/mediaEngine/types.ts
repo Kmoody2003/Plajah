@@ -5,7 +5,7 @@
 // switcher and sync engine operate on these regardless of how frames are acquired.
 // See the handoff spec (Router · Switcher · TBC · Codec stack).
 
-export type SourceKind = 'decklink' | 'ndi' | 'srt' | 'rtmp' | 'webrtc' | 'uvc' | 'file' | 'braw';
+export type SourceKind = 'decklink' | 'ndi' | 'omt' | 'srt' | 'avb' | 'rtmp' | 'webrtc' | 'uvc' | 'file' | 'braw' | 'ambo' | 'switcher';
 
 export type Tally = 'off' | 'preview' | 'program';
 
@@ -95,21 +95,34 @@ export interface SyncEngine {
 
 /** Host-reported feature flags — which source kinds this build can actually acquire. */
 export interface Capabilities {
-  host: 'browser' | 'tauri' | 'capacitor';
+  host: 'browser' | 'tauri' | 'winui' | 'capacitor';
   platform: 'windows' | 'macos' | 'android' | 'ios' | 'linux' | 'unknown';
   sources: Record<SourceKind, boolean>;
   hardwareGenlock: boolean;   // DeckLink SDI ref / PTP available
   ndi: boolean;
+  omt?: boolean;
+  srt?: boolean;
+  avb?: boolean;
+  nativeOmt?: boolean;
+  nativeSrt?: boolean;
+  nativeAvb?: boolean;
   brawDecode: boolean;
   webgpu: boolean;
+  cameraControl?: boolean;    // Canon CCAPI, ARRI CAP, Blackmagic, Sony
+  mainconceptMpeg2?: boolean; // MainConcept MPEG-2 Broadcast / XDCAM engine
 }
 
 export const DEFAULT_HOUSE_FORMAT: VideoFormat = { width: 1920, height: 1080, fps: 59.94, colorspace: 'bt709' };
 
 export const KIND_LABEL: Record<SourceKind, string> = {
-  decklink: 'DeckLink', ndi: 'NDI', srt: 'SRT', rtmp: 'RTMP',
+  decklink: 'DeckLink', ndi: 'NDI', omt: 'OMT (LAN)', srt: 'SRT (WAN)', avb: 'AVB (Audio)', rtmp: 'RTMP',
   webrtc: 'WebRTC', uvc: 'Webcam', file: 'File', braw: 'BRAW',
+  ambo: 'Ambo Output', switcher: 'Live Switcher',
 };
 
+/** Pseudo-source id meaning "the switcher's composited program" — routable to any
+ *  destination (STREAM, RECORD, AUX) alongside the real sources. */
+export const PROGRAM_SOURCE_ID = 'PGM';
+
 /** Which kinds need native code (unavailable in a browser tab). */
-export const NATIVE_ONLY: SourceKind[] = ['decklink', 'ndi', 'srt', 'rtmp', 'braw'];
+export const NATIVE_ONLY: SourceKind[] = ['decklink', 'ndi', 'omt', 'srt', 'avb', 'rtmp', 'braw'];

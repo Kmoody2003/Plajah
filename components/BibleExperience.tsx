@@ -23,12 +23,10 @@ import {
 } from '../services/serviceNotes';
 import LectioReader from './scripture/LectioReader';
 import { SACRED_SECTIONS, HYMNS, LibrarySection, PRIMARY_TEXTS } from '../data/sacredLibrary';
-import { auth, loadBibleNotes, saveBibleNote } from '../services/backendService';
+import { auth } from '../services/backendService';
 
 const ICONS: Record<string, React.FC<any>> = { ScrollText, Users, Landmark, Pickaxe, Map: MapIcon, Swords, Crown, Gem };
-const NOTES_KEY = 'plajah_bible_notes_v1';
-const loadNotes = (): Record<string, string> => { try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); } catch { return {}; } };
-const saveNotes = (n: Record<string, string>) => { try { localStorage.setItem(NOTES_KEY, JSON.stringify(n)); } catch { /* */ } };
+// Verse notes live in the shared notebook: services/readerNotes → verseNotes.
 
 const askAria = (prompt: string) => window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt } }));
 
@@ -137,7 +135,7 @@ const Home: React.FC<{ onOpen: (v: View) => void }> = ({ onOpen }) => (
     {/* Quick facts band */}
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-12">
       {[
-        ['66', 'Books'], ['5', 'Languages'], ['21', 'Councils'],
+        ['66 / 73', 'Bible canons'], ['5', 'Languages'], ['21', 'Councils'],
         ['4th c.', 'Oldest Hymn'], ['125 BC', 'Oldest Scroll'], ['∞', 'To Explore'],
       ].map(([v, l]) => (
         <div key={l} className="text-center py-4 rounded-2xl bg-white/[0.03] border border-white/8">

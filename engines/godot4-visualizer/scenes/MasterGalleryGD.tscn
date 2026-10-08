@@ -1,0 +1,33 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Environment" path="res://default_env.tres" id="1_env"]
+[ext_resource type="Script" path="res://scripts/plajah_audio_bridge.gd" id="2_audio"]
+[ext_resource type="Script" path="res://scripts/master_gallery_gd.gd" id="3_master"]
+[ext_resource type="PackedScene" path="res://scenes/Image1_ObsidianRipple_1to1.tscn" id="4_s1"]
+[ext_resource type="PackedScene" path="res://scenes/Image2_NeonColonnade_1to1.tscn" id="5_s2"]
+[ext_resource type="PackedScene" path="res://scenes/Image3_MonolithGallery_1to1.tscn" id="6_s3"]
+[ext_resource type="PackedScene" path="res://scenes/Image4_TheatricalProscenium_1to1.tscn" id="7_s4"]
+
+[node name="MasterGalleryGD" type="Node3D" node_paths=PackedStringArray("scene_image1", "scene_image2", "scene_image3", "scene_image4")]
+script = ExtResource("3_master")
+scene_image1 = NodePath("Scene1_FluidMacro")
+scene_image2 = NodePath("Scene2_NeonColonnade")
+scene_image3 = NodePath("Scene3_MonolithGallery")
+scene_image4 = NodePath("Scene4_TheatricalProscenium")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("1_env")
+
+[node name="PlajahAudioBridge" type="Node" parent="."]
+script = ExtResource("2_audio")
+
+[node name="Scene1_FluidMacro" parent="." instance=ExtResource("4_s1")]
+
+[node name="Scene2_NeonColonnade" parent="." instance=ExtResource("5_s2")]
+visible = false
+
+[node name="Scene3_MonolithGallery" parent="." instance=ExtResource("6_s3")]
+visible = false
+
+[node name="Scene4_TheatricalProscenium" parent="." instance=ExtResource("7_s4")]
+visible = false

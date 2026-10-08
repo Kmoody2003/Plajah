@@ -21,9 +21,10 @@ import { BookOpen, Search, Filter, Star, Clock, ChevronRight, Bookmark, Download
 import { useContextMenu } from './ui/ContextMenu';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { motion, AnimatePresence } from 'motion/react';
-import LazyImage from './LazyImage';
 import { warmImages } from '../src/lib/performanceCache';
 import ChipRail from './ui/ChipRail';
+import { WritersDesk } from './lorea/WritersDesk';
+import LazyImage from './LazyImage';
 
 interface BookTabProps {
   onSelectBook: (book: any) => void;
@@ -97,6 +98,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   const [googleBooks, setGoogleBooks] = useState<GoogleBook[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeGenre, setActiveGenre] = useState(GENRES[0]);
+  const [loreaMode, setLoreaMode] = useState<'LIBRARY' | 'WRITERS_DESK'>('LIBRARY');
   // Never block on initial render — classics are bundled as static data
   const [isLoading, setIsLoading] = useState(false);
 
@@ -310,6 +312,14 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     { id: 'cite', label: 'Copy citation', onSelect: (b) => { try { navigator.clipboard.writeText(`${b.title} — ${b.authors.join(', ')}`); } catch { /* clipboard blocked */ } } },
   ]);
 
+  if (loreaMode === 'WRITERS_DESK') {
+    return (
+      <div className="flex-1 w-full pb-32 lg:pb-40">
+        <WritersDesk onBackToLibrary={() => setLoreaMode('LIBRARY')} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 p-4 sm:p-6 lg:p-12 max-w-7xl mx-auto w-full pb-32 lg:pb-40">
       {bookMenu.node}
@@ -331,6 +341,14 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
       {/* Control bar — single centered row beneath the header, above the genre tabs */}
       <div className="mb-10 flex flex-wrap items-center justify-center gap-3 animate-in fade-in duration-700">
+        {/* The Writer's Desk — Authoring, chapter outlines, research, and submissions */}
+        <button
+          onClick={() => setLoreaMode('WRITERS_DESK')}
+          className="flex items-center gap-2 px-5 py-2.5 text-white text-xs font-black uppercase tracking-widest rounded-full transition-all hover:opacity-90 shadow-lg"
+          style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', boxShadow: '0 8px 24px rgba(6,182,212,0.25)' }}
+        >
+          <span>✍️</span> The Writer's Desk
+        </button>
         {/* Kids Library — public-domain children's books + learn-to-read tools */}
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'KIDS_LIBRARY' } }))}

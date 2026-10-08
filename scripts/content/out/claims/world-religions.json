@@ -1,0 +1,768 @@
+{
+ "courseId": "world-religions",
+ "label": "World Religions: A Study Guide",
+ "lessons": [
+  {
+   "id": "world-religions.l01",
+   "title": "How We Study the World's Faiths",
+   "body": [
+    "Studying religion is different from practising one. A student of religion asks what a tradition teaches, how its followers worship, and what has happened in its history, without deciding which tradition is true. The goal is understanding and respect, not ranking.",
+    "A helpful habit is to describe each faith in its own words: \"Buddhists believe,\" \"Muslims hold,\" \"In Christianity.\" That keeps the study accurate and keeps the student from speaking for the tradition.",
+    "The Sacred Library in Plajah gives every faith the same ten galleries so that traditions can be compared on equal footing: Sacred Texts, The Story, Key Figures, Beliefs and Teachings, Practices, Branches, Places and Art, Calendar, Ethics and Living, and Study Tools and Glossary.",
+    "Faiths are not all built the same way. Buddhism, for example, is described as non-theistic, with teachings (the Dharma) rather than a creed about a creator, and with schools rather than denominations. A good study notices where a tradition fits the template and where it bends it.",
+    "Why it mattered: neutral, source-based study lets people of any belief, or none, learn about one another's traditions and understand the history, art and law those traditions shaped."
+   ]
+  },
+  {
+   "id": "world-religions.l02",
+   "title": "Hinduism: Many Paths, One Dharma",
+   "body": [
+    "Hinduism developed over thousands of years in South Asia and has no single founder. Its learning is gathered in many texts: the Vedas, the oldest and most revered; the Upanishads, which explore the nature of the self and ultimate reality; and the great epics, the Mahabharata, which contains the Bhagavad Gita, and the Ramayana.",
+    "Central ideas include dharma (duty and right living), karma (action and its results), samsara (the cycle of rebirth) and moksha (liberation from that cycle). Many Hindus understand ultimate reality, called Brahman, as appearing in many forms, and they worship deities such as Vishnu, Shiva and the Goddess, while others emphasise one God or the formless.",
+    "Hindus describe several paths toward the goal: the path of action, the path of devotion (bhakti), the path of knowledge, and the path of meditation. This is why the tradition is often called a family of paths rather than a single creed.",
+    "Everyday worship, called puja, is offered at home shrines and in temples. Major festivals include Diwali, the festival of lights, Holi and Navaratri. Hindu temples are famous for their carved sculpture, and music and dance have long been offered as worship."
+   ]
+  },
+  {
+   "id": "world-religions.l03",
+   "title": "From the Bodhi Tree: The Story of Buddhism",
+   "body": [
+    "Buddhism began in India around the 5th century BCE with Siddhartha Gautama. Buddhist tradition says he left a life of comfort to search for an answer to suffering, and that he awakened while meditating under a tree at Bodh Gaya. He became known as the Buddha, meaning the awakened one, and spent decades teaching, beginning with a first sermon at Sarnath.",
+    "Buddhists do not describe the Buddha as a creator or a god. They honour him as a teacher who found and showed a path out of suffering. His disciples, including Ananda, remembered his teachings, which were passed on orally before being written down.",
+    "In the 3rd century BCE the Indian emperor Ashoka supported the Buddhist community and sent teachers abroad, helping the faith spread. Over the following centuries monks, merchants and pilgrims carried Buddhism along the Silk Road into Central Asia and China, and by sea into Southeast Asia. It later reached Korea, Japan and Tibet.",
+    "The Sacred Library summarises Buddhism as a path of awakening with no creator God and a way out of suffering. The tradition today counts roughly 500 million followers, according to the library's fact sheet."
+   ]
+  },
+  {
+   "id": "world-religions.l04",
+   "title": "The Dharma: Truths, Path and Marks",
+   "body": [
+    "The Buddha's teaching is called the Dharma. The Sacred Library calls it a diagnosis and a way, rather than a creed. Its heart is the Four Noble Truths: life involves dukkha, often translated as suffering or unsatisfactoriness; dukkha has a cause, which is craving; dukkha can end, which is nirvana; and there is a path that leads to its end.",
+    "That path is the Eightfold Path: right view, right intention, right speech, right action, right livelihood, right effort, right mindfulness and right concentration. Buddhists often group these as wisdom, ethical conduct and meditation. The path is called the Middle Way because it avoids both indulgence and harsh self-denial.",
+    "Buddhist teaching also describes three marks of existence: anicca (impermanence), dukkha, and anatta (not-self, the absence of a fixed, independent self). Karma means intentional action and its results, and samsara is the round of birth, death and rebirth driven by craving and ignorance. Nirvana, which means the blowing-out of craving, is freedom from that round.",
+    "The Dhammapada puts a central idea simply in its first verse: all that we are is the result of what we have thought. Buddhism places great weight on the training of the mind."
+   ]
+  },
+  {
+   "id": "world-religions.l05",
+   "title": "Buddhist Texts, Practice and Schools",
+   "body": [
+    "Buddhism has several canons rather than one closed book. The Pali Canon, kept by Theravada Buddhists, is called the Tripitaka, or three baskets. Mahayana traditions also honour sutras in Sanskrit, Chinese and Tibetan collections.",
+    "Two texts in the Sacred Library show the range. The Dhammapada, from the Pali Canon, is a collection of 423 verses in 26 chapters, and is among the most widely read Buddhist scriptures. It teaches in short verses, such as: hatred does not cease by hatred but ceases by love. The Heart Sutra, a Mahayana text, is a single short page chanted in Zen, Tibetan and Pure Land communities. It teaches emptiness (shunyata), the idea that things lack independent, inherent existence, and ends with the mantra \"Gate gate paragate.\"",
+    "Practice is described as training rather than petition. It includes meditation (samatha and vipassana, and zazen in Zen), chanting, the Five Precepts and pilgrimage.",
+    "The three great vehicles are Theravada, Mahayana and Vajrayana, with schools such as Zen and Pure Land within them. The Dalai Lama is a leading teacher in the Tibetan tradition, and Nagarjuna was a great Mahayana philosopher. Vesak marks the Buddha's birth, awakening and passing."
+   ]
+  },
+  {
+   "id": "world-religions.l06",
+   "title": "Judaism: Covenant, Torah and Festivals",
+   "body": [
+    "Judaism is one of the oldest continuing faiths, and Jews understand their relationship with God through covenant. Jewish tradition traces the covenant to Abraham and to the giving of the Torah to Moses at Mount Sinai.",
+    "The sacred scripture is the Tanakh, the Hebrew Bible, whose three parts are the Torah (the five books of Moses), the Nevi'im (the prophets) and the Ketuvim (the writings). The Talmud records centuries of rabbinic discussion that interprets the Torah and applies it to daily life. The Dead Sea Scrolls, which include the Great Isaiah Scroll from about 125 BCE, show how carefully these texts were copied.",
+    "Central practices include Shabbat, the weekly day of rest from Friday evening to Saturday evening, prayer in the synagogue, the Shema, which affirms one God, and dietary laws called kashrut. Jewish teaching places great weight on study and on acts of justice and kindness.",
+    "The Jewish year is marked by Rosh Hashanah and Yom Kippur, Sukkot, Hanukkah, Purim, Passover (Pesach) and Shavuot. Passover remembers the exodus from Egypt. In modern times Jewish communities include Orthodox, Conservative and Reform movements, among others."
+   ]
+  },
+  {
+   "id": "world-religions.l07",
+   "title": "Christianity: The Story and the Creeds",
+   "body": [
+    "Christianity began in the 1st century in Judea, centred on Jesus of Nazareth. Christians believe Jesus is the Son of God and that he was crucified and rose again, and they hold that his message is good news for all people. The apostle Paul, through his letters and journeys, helped carry the faith across the Roman world.",
+    "As the church grew, councils met to state its beliefs. The Council of Nicaea in 325 gave the church the Nicene Creed, which the Council of Constantinople in 381 completed. The Councils of Ephesus (431) and Chalcedon (451) addressed how Christ is both divine and human. The Nicene Creed states the central Christian conviction of one God in three persons: Father, Son and Holy Spirit.",
+    "Two later events reshaped Christianity's map. The split of 1054 divided the Church into Western (Catholic) and Eastern (Orthodox) branches. In 1517, Martin Luther's challenge to the church of his day began the Reformation and led to the Protestant churches.",
+    "Key figures include Augustine and Thomas Aquinas. The Sacred Library records about 2.4 billion Christians worldwide, and the cross is the symbol of the faith."
+   ]
+  },
+  {
+   "id": "world-religions.l08",
+   "title": "Christian Worship, Branches and Art",
+   "body": [
+    "The Christian scripture is the Bible, made up of the Old and New Testaments. Christians read it in worship, in private study and in tools such as reading plans and commentaries. Early copies, like the Codex Sinaiticus from around 330 to 360 CE, are preserved in libraries today.",
+    "Worship centres on prayer, hymns and the sacraments or ordinances. Baptism marks entry into the community, and the Eucharist, also called communion, remembers the Last Supper of Jesus with his disciples. Christians describe their ethics as love of God and neighbour, and often point to the Sermon on the Mount and the Beatitudes.",
+    "There are three major families: Catholic, Orthodox and Protestant. Each has its own history, leadership and customs, though all share the core of the Nicene Creed.",
+    "The church year retells the story of Jesus through seasons: Advent, Christmas, Lent, Easter and Pentecost. Easter is generally regarded as the most important feast.",
+    "Christianity has produced a great deal of art and architecture, including basilicas and cathedrals, illuminated manuscripts, sacred icons in the Orthodox tradition, and hymns and choral music."
+   ]
+  },
+  {
+   "id": "world-religions.l09",
+   "title": "Islam: Revelation and the Five Pillars",
+   "body": [
+    "Islam arose in Arabia in the 7th century CE. Muslims hold that God, called Allah in Arabic, is one, and that the Qur'an was revealed in Arabic to the Prophet Muhammad, who lived from about 570 to 632 CE, over some twenty-three years. Muhammad preached in Mecca, and in 622 he and his followers migrated to Medina, an event called the Hijra that begins the Islamic calendar.",
+    "Alongside the Qur'an, Muslims turn to the Sunnah, the example of the Prophet recorded in hadith reports. Scholars developed law, called fiqh, from these sources.",
+    "The Five Pillars summarise Muslim practice: the shahada (the declaration of faith), salat (prayer five times a day), zakat (giving to those in need), sawm (fasting during the month of Ramadan) and hajj (the pilgrimage to Mecca, which a Muslim performs once if able).",
+    "The two main branches are Sunni and Shia Islam. Major festivals are Eid al-Fitr, which ends Ramadan, and Eid al-Adha, which falls during the pilgrimage season.",
+    "In art, mosques feature domes, minarets and courtyards, and calligraphy of Qur'anic verses and geometric patterns are celebrated forms. In the early medieval period, centres of learning such as Baghdad were famous for scholarship."
+   ]
+  },
+  {
+   "id": "world-religions.l10",
+   "title": "Sikhism: Guru Granth Sahib and Seva",
+   "body": [
+    "Sikhism began in the Punjab region of South Asia with Guru Nanak, who lived from 1469 to 1539. Sikhs hold that there is one God, expressed in the opening symbol Ik Onkar, and that people should live honestly, remember God and share with others. Guru Nanak was followed by nine more Gurus.",
+    "Guru Arjan, the fifth Guru, compiled the Adi Granth in 1604. Guru Gobind Singh, the tenth Guru, founded the Khalsa community in 1699 and declared that the scripture, now called the Guru Granth Sahib, would be the eternal Guru. Sikhs treat it with deep reverence, and it is kept at the centre of every gurdwara, the Sikh place of worship.",
+    "Sikh teaching stresses equality and rejects caste distinctions. Three guiding practices are often summarised as remembering God, earning an honest living and sharing with others. Seva, selfless service, is central, and each gurdwara runs a free community kitchen called langar, where everyone eats together as equals.",
+    "The Golden Temple (Harmandir Sahib) in Amritsar is the most famous Sikh shrine. Vaisakhi, in spring, is a major festival and recalls the founding of the Khalsa."
+   ]
+  },
+  {
+   "id": "world-religions.l11",
+   "title": "Sacred Texts Around the World",
+   "body": [
+    "Almost every tradition has texts it treats as sacred, but they differ in form, number and use. Some traditions have a canon, an agreed list of books. The Christian Bible, the Jewish Tanakh, the Muslim Qur'an and the Sikh Guru Granth Sahib are examples. Others, such as Buddhism, have several canons: the Pali Canon, Chinese collections and Tibetan collections.",
+    "Many scriptures began as oral teaching. The Vedas were memorised and recited for generations, and the Buddha's teachings were remembered by his followers before being written down. Because of this, recitation and chanting remain central ways of honouring the text.",
+    "Texts are often supported by commentary. The Talmud interprets the Torah, Muslim scholars gather the Sunnah in hadith reports, and Buddhist and Christian thinkers have written commentaries for centuries. Manuscripts can be physical treasures too, such as Codex Sinaiticus or the Great Isaiah Scroll from the Dead Sea Scrolls.",
+    "Languages matter. Many readers study in the original tongues, such as Hebrew, Greek, Arabic, Pali, Sanskrit and Gurmukhi, or use translations. The Sacred Library's reader tools include glosses and parallel translations.",
+    "Why it mattered: reading texts directly is one of the best ways to hear a tradition in its own voice."
+   ]
+  },
+  {
+   "id": "world-religions.l12",
+   "title": "The Sacred Year: Calendars and Holy Days",
+   "body": [
+    "Every tradition marks time. Holy days remind communities of key events, give rhythm to the year and bring people together.",
+    "Many calendars follow the moon. The Islamic calendar is lunar, so Ramadan moves earlier through the seasons by about ten or eleven days each year in the common calendar. The Jewish and Hindu calendars are lunisolar, adjusted to keep festivals in their seasons. Buddhist observance also follows the moon: Vesak marks the Buddha's birth, awakening and passing, and Uposatha days offer regular times for renewal.",
+    "Christians follow a liturgical year that runs from Advent through Christmas, Lent and Easter to Pentecost. The Council of Nicaea in 325 gave the church a way of fixing the date of Easter.",
+    "Other major observances include Rosh Hashanah, Yom Kippur and Passover in Judaism; Eid al-Fitr and Eid al-Adha in Islam; Diwali and Holi in Hinduism; Vaisakhi in Sikhism; and Losar, the Tibetan new year, in Buddhism.",
+    "Many of these days include fasting, feasting, giving to others, prayer, or special stories told again. Studying a calendar is a quick way to see what a community values."
+   ]
+  },
+  {
+   "id": "world-religions.l13",
+   "title": "Religion, Art, Law and Society",
+   "body": [
+    "Religions do more than teach beliefs. They have shaped the physical world, law and everyday habits of service.",
+    "In art and architecture, the Buddhist stupa and mandala, the Hindu temple's carved sculpture, the Christian cathedral and icon, the Islamic mosque with calligraphy and geometric pattern, and the Sikh Golden Temple are all expressions of devotion that people still visit. Music, chant and hymns carry teachings across generations.",
+    "Law has been influenced too. Jewish tradition developed a body of law from the Torah and Talmud. In Islam, scholars built fiqh from the Qur'an and Sunnah. Christian church courts developed canon law over the centuries. In the 3rd century BCE, the emperor Ashoka promoted Buddhist-inspired principles of compassion in his public edicts.",
+    "Faith traditions also shape service. Muslims practise zakat, Sikhs run langar and practise seva, Buddhists emphasise compassion and loving-kindness (metta), and Christians speak of works of mercy. Many schools, hospitals and charities began in religious communities.",
+    "Modern societies protect freedom of belief in different ways. In the United States, for example, the First Amendment protects the free exercise of religion and forbids an established one. Studying the faiths helps students understand why these protections matter."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "world-religions.l01.q1",
+   "lessonId": "world-religions.l01",
+   "kind": "mcq",
+   "prompt": "What is the aim of an academic study of religion?",
+   "choices": [
+    "To understand what traditions teach and practise, without ranking them",
+    "To prove which religion is correct",
+    "To persuade students to convert",
+    "To mock beliefs that seem strange"
+   ]
+  },
+  {
+   "id": "world-religions.l01.q2",
+   "lessonId": "world-religions.l01",
+   "kind": "mcq",
+   "prompt": "Which phrasing best fits a neutral study guide?",
+   "choices": [
+    "Buddhists are mistaken that craving causes suffering",
+    "Buddhists believe that craving causes suffering",
+    "Everyone knows craving causes suffering",
+    "Only Buddhists are right about craving"
+   ]
+  },
+  {
+   "id": "world-religions.l01.q3",
+   "lessonId": "world-religions.l01",
+   "kind": "mcq",
+   "prompt": "How many galleries does the Sacred Library use as a template for each faith?",
+   "choices": [
+    "Three",
+    "Five",
+    "Ten",
+    "Twenty"
+   ]
+  },
+  {
+   "id": "world-religions.l01.q4",
+   "lessonId": "world-religions.l01",
+   "kind": "mcq",
+   "prompt": "Why does the Sacred Library let some faiths deviate from the template?",
+   "choices": [
+    "Some faiths are less important",
+    "Some faiths have no history",
+    "The template is optional for older faiths",
+    "Some traditions are structured differently, such as teachings rather than a creed"
+   ]
+  },
+  {
+   "id": "world-religions.l02.q1",
+   "lessonId": "world-religions.l02",
+   "kind": "mcq",
+   "prompt": "Which text is part of the Mahabharata and is highly revered by many Hindus?",
+   "choices": [
+    "The Dhammapada",
+    "The Bhagavad Gita",
+    "The Guru Granth Sahib",
+    "The Talmud"
+   ]
+  },
+  {
+   "id": "world-religions.l02.q2",
+   "lessonId": "world-religions.l02",
+   "kind": "mcq",
+   "prompt": "What does dharma mean in Hindu thought?",
+   "choices": [
+    "Duty and right living",
+    "A holy mountain",
+    "A style of music",
+    "A type of temple"
+   ]
+  },
+  {
+   "id": "world-religions.l02.q3",
+   "lessonId": "world-religions.l02",
+   "kind": "mcq",
+   "prompt": "What is moksha?",
+   "choices": [
+    "A festival of colour",
+    "A temple priest",
+    "A sacred river",
+    "Liberation from the cycle of rebirth"
+   ]
+  },
+  {
+   "id": "world-religions.l02.q4",
+   "lessonId": "world-religions.l02",
+   "kind": "mcq",
+   "prompt": "Why is Hinduism often described as a family of paths?",
+   "choices": [
+    "It has a single creed that all must recite",
+    "It has exactly one scripture",
+    "It includes devotion, action, knowledge and meditation as ways toward the goal",
+    "It was founded by one teacher in one year"
+   ]
+  },
+  {
+   "id": "world-religions.l03.q1",
+   "lessonId": "world-religions.l03",
+   "kind": "mcq",
+   "prompt": "Where do Buddhists say Siddhartha Gautama awakened?",
+   "choices": [
+    "In a cave at Mecca",
+    "On a mountain in Judea",
+    "Under a tree at Bodh Gaya",
+    "At Amritsar"
+   ]
+  },
+  {
+   "id": "world-religions.l03.q2",
+   "lessonId": "world-religions.l03",
+   "kind": "mcq",
+   "prompt": "What does the title Buddha mean?",
+   "choices": [
+    "The awakened one",
+    "The creator",
+    "The king of gods",
+    "The first priest"
+   ]
+  },
+  {
+   "id": "world-religions.l03.q3",
+   "lessonId": "world-religions.l03",
+   "kind": "mcq",
+   "prompt": "Which Indian emperor supported Buddhism and sent teachers abroad?",
+   "choices": [
+    "Hammurabi",
+    "Ashoka",
+    "Constantine",
+    "Akbar"
+   ]
+  },
+  {
+   "id": "world-religions.l03.q4",
+   "lessonId": "world-religions.l03",
+   "kind": "mcq",
+   "prompt": "How did Buddhism spread to China and Central Asia?",
+   "choices": [
+    "It spread only by sea from Africa",
+    "It was carried by Roman legions",
+    "It spread only through printed books",
+    "Monks, merchants and pilgrims carried it along trade routes such as the Silk Road"
+   ]
+  },
+  {
+   "id": "world-religions.l04.q1",
+   "lessonId": "world-religions.l04",
+   "kind": "mcq",
+   "prompt": "How many Noble Truths are in the Buddha's core teaching?",
+   "choices": [
+    "Two",
+    "Four",
+    "Eight",
+    "Ten"
+   ]
+  },
+  {
+   "id": "world-religions.l04.q2",
+   "lessonId": "world-religions.l04",
+   "kind": "mcq",
+   "prompt": "What does anatta mean?",
+   "choices": [
+    "Not-self",
+    "Compassion",
+    "Rebirth",
+    "Meditation"
+   ]
+  },
+  {
+   "id": "world-religions.l04.q3",
+   "lessonId": "world-religions.l04",
+   "kind": "mcq",
+   "prompt": "What does the Buddhist tradition say is the cause of dukkha?",
+   "choices": [
+    "Fate alone",
+    "Sacred days",
+    "Lack of wealth",
+    "Craving"
+   ]
+  },
+  {
+   "id": "world-religions.l04.q4",
+   "lessonId": "world-religions.l04",
+   "kind": "mcq",
+   "prompt": "Why is the Eightfold Path called the Middle Way?",
+   "choices": [
+    "It sits between two sacred mountains",
+    "It combines Hinduism and Christianity",
+    "It avoids both indulgence and harsh self-denial",
+    "It lasts exactly eight years"
+   ]
+  },
+  {
+   "id": "world-religions.l05.q1",
+   "lessonId": "world-religions.l05",
+   "kind": "mcq",
+   "prompt": "What does Tripitaka mean?",
+   "choices": [
+    "Three baskets",
+    "Three jewels",
+    "Three vehicles",
+    "Three marks"
+   ]
+  },
+  {
+   "id": "world-religions.l05.q2",
+   "lessonId": "world-religions.l05",
+   "kind": "mcq",
+   "prompt": "How many verses does the Dhammapada contain, according to the Sacred Library?",
+   "choices": [
+    "108",
+    "1,000",
+    "423",
+    "66"
+   ]
+  },
+  {
+   "id": "world-religions.l05.q3",
+   "lessonId": "world-religions.l05",
+   "kind": "mcq",
+   "prompt": "Which teaching is central to the Heart Sutra?",
+   "choices": [
+    "The Five Pillars",
+    "Emptiness (shunyata)",
+    "The ten Gurus",
+    "The Nicene Creed"
+   ]
+  },
+  {
+   "id": "world-religions.l05.q4",
+   "lessonId": "world-religions.l05",
+   "kind": "mcq",
+   "prompt": "Which of these are the three great vehicles of Buddhism?",
+   "choices": [
+    "Catholic, Orthodox and Protestant",
+    "Sunni, Shia and Sufi",
+    "Orthodox, Conservative and Reform",
+    "Theravada, Mahayana and Vajrayana"
+   ]
+  },
+  {
+   "id": "world-religions.l06.q1",
+   "lessonId": "world-religions.l06",
+   "kind": "mcq",
+   "prompt": "What is the Tanakh?",
+   "choices": [
+    "A weekly day of rest",
+    "The Hebrew Bible",
+    "A Jewish festival",
+    "A prayer shawl"
+   ]
+  },
+  {
+   "id": "world-religions.l06.q2",
+   "lessonId": "world-religions.l06",
+   "kind": "mcq",
+   "prompt": "What does Passover remember?",
+   "choices": [
+    "The exodus from Egypt",
+    "The giving of the Qur'an",
+    "The birth of the Buddha",
+    "The founding of the Khalsa"
+   ]
+  },
+  {
+   "id": "world-religions.l06.q3",
+   "lessonId": "world-religions.l06",
+   "kind": "mcq",
+   "prompt": "Which text records centuries of rabbinic discussion applying the Torah to life?",
+   "choices": [
+    "The Dhammapada",
+    "The Didache",
+    "The Upanishads",
+    "The Talmud"
+   ]
+  },
+  {
+   "id": "world-religions.l06.q4",
+   "lessonId": "world-religions.l06",
+   "kind": "mcq",
+   "prompt": "What does the Great Isaiah Scroll, from about 125 BCE, show?",
+   "choices": [
+    "Judaism began in the 20th century",
+    "The Torah was never written down",
+    "Jewish scriptures were carefully copied over many centuries",
+    "Hebrew died out as a written language"
+   ]
+  },
+  {
+   "id": "world-religions.l07.q1",
+   "lessonId": "world-religions.l07",
+   "kind": "mcq",
+   "prompt": "What is the Nicene Creed?",
+   "choices": [
+    "A Buddhist chant",
+    "A Sikh hymn",
+    "A Hindu epic",
+    "A statement of Christian belief from the councils of 325 and 381"
+   ]
+  },
+  {
+   "id": "world-religions.l07.q2",
+   "lessonId": "world-religions.l07",
+   "kind": "mcq",
+   "prompt": "In what year did Martin Luther's challenge begin the Reformation?",
+   "choices": [
+    "325",
+    "1517",
+    "1054",
+    "1776"
+   ]
+  },
+  {
+   "id": "world-religions.l07.q3",
+   "lessonId": "world-religions.l07",
+   "kind": "mcq",
+   "prompt": "What happened in 1054?",
+   "choices": [
+    "The Church divided into Western and Eastern branches",
+    "The Council of Nicaea met",
+    "The Qur'an was completed",
+    "The Khalsa was founded"
+   ]
+  },
+  {
+   "id": "world-religions.l07.q4",
+   "lessonId": "world-religions.l07",
+   "kind": "mcq",
+   "prompt": "What central conviction does the Nicene Creed state about God?",
+   "choices": [
+    "Many gods ruling together",
+    "God as an impersonal force only",
+    "One God in three persons: Father, Son and Holy Spirit",
+    "God as a human king"
+   ]
+  },
+  {
+   "id": "world-religions.l08.q1",
+   "lessonId": "world-religions.l08",
+   "kind": "mcq",
+   "prompt": "Which sacrament, also called communion, remembers the Last Supper?",
+   "choices": [
+    "The Eucharist",
+    "Baptism",
+    "Vaisakhi",
+    "Zakat"
+   ]
+  },
+  {
+   "id": "world-religions.l08.q2",
+   "lessonId": "world-religions.l08",
+   "kind": "mcq",
+   "prompt": "Which are the three major families of Christianity?",
+   "choices": [
+    "Sunni, Shia and Sufi",
+    "Theravada, Mahayana and Vajrayana",
+    "Orthodox, Conservative and Reform",
+    "Catholic, Orthodox and Protestant"
+   ]
+  },
+  {
+   "id": "world-religions.l08.q3",
+   "lessonId": "world-religions.l08",
+   "kind": "mcq",
+   "prompt": "Which season ends the Christian liturgical year's Easter cycle?",
+   "choices": [
+    "Advent",
+    "Pentecost",
+    "Vesak",
+    "Ramadan"
+   ]
+  },
+  {
+   "id": "world-religions.l08.q4",
+   "lessonId": "world-religions.l08",
+   "kind": "mcq",
+   "prompt": "Which early manuscript from around 330 to 360 CE preserves the oldest complete New Testament?",
+   "choices": [
+    "The Dhammapada",
+    "The Great Isaiah Scroll",
+    "Codex Sinaiticus",
+    "The Heart Sutra"
+   ]
+  },
+  {
+   "id": "world-religions.l09.q1",
+   "lessonId": "world-religions.l09",
+   "kind": "mcq",
+   "prompt": "How many times a day do Muslims perform the ritual prayer, salat?",
+   "choices": [
+    "Once",
+    "Five",
+    "Three",
+    "Seven"
+   ]
+  },
+  {
+   "id": "world-religions.l09.q2",
+   "lessonId": "world-religions.l09",
+   "kind": "mcq",
+   "prompt": "What is the Hijra?",
+   "choices": [
+    "The pilgrimage to Mecca",
+    "The fast of Ramadan",
+    "The migration from Mecca to Medina in 622",
+    "A mosque dome"
+   ]
+  },
+  {
+   "id": "world-religions.l09.q3",
+   "lessonId": "world-religions.l09",
+   "kind": "mcq",
+   "prompt": "Which pillar is fasting during Ramadan?",
+   "choices": [
+    "Sawm",
+    "Zakat",
+    "Hajj",
+    "Shahada"
+   ]
+  },
+  {
+   "id": "world-religions.l09.q4",
+   "lessonId": "world-religions.l09",
+   "kind": "mcq",
+   "prompt": "What do the Qur'an and the Sunnah provide for scholars of fiqh?",
+   "choices": [
+    "Maps of trade routes",
+    "The Christian creeds",
+    "Instructions for building stupas",
+    "The sources from which law is developed"
+   ]
+  },
+  {
+   "id": "world-religions.l10.q1",
+   "lessonId": "world-religions.l10",
+   "kind": "mcq",
+   "prompt": "Who founded Sikhism?",
+   "choices": [
+    "Guru Nanak",
+    "Guru Gobind Singh",
+    "The Buddha",
+    "Muhammad"
+   ]
+  },
+  {
+   "id": "world-religions.l10.q2",
+   "lessonId": "world-religions.l10",
+   "kind": "mcq",
+   "prompt": "What is langar?",
+   "choices": [
+    "A Sikh war song",
+    "A free community kitchen at the gurdwara",
+    "A pilgrimage route",
+    "A style of turban"
+   ]
+  },
+  {
+   "id": "world-religions.l10.q3",
+   "lessonId": "world-religions.l10",
+   "kind": "mcq",
+   "prompt": "Which Guru founded the Khalsa in 1699?",
+   "choices": [
+    "Guru Arjan",
+    "Guru Nanak",
+    "Guru Gobind Singh",
+    "Guru Angad"
+   ]
+  },
+  {
+   "id": "world-religions.l10.q4",
+   "lessonId": "world-religions.l10",
+   "kind": "mcq",
+   "prompt": "Why is the Guru Granth Sahib central to a gurdwara?",
+   "choices": [
+    "It is a map of the Punjab",
+    "It is a collection of laws about farming",
+    "It is a record of the Ten Commandments",
+    "Sikhs treat it as the eternal Guru"
+   ]
+  },
+  {
+   "id": "world-religions.l11.q1",
+   "lessonId": "world-religions.l11",
+   "kind": "mcq",
+   "prompt": "Which scripture is the Sikh holy book?",
+   "choices": [
+    "The Guru Granth Sahib",
+    "The Tanakh",
+    "The Pali Canon",
+    "The Qur'an"
+   ]
+  },
+  {
+   "id": "world-religions.l11.q2",
+   "lessonId": "world-religions.l11",
+   "kind": "mcq",
+   "prompt": "How were the Vedas first passed down?",
+   "choices": [
+    "By printing",
+    "By radio",
+    "By memorising and reciting them",
+    "By email"
+   ]
+  },
+  {
+   "id": "world-religions.l11.q3",
+   "lessonId": "world-religions.l11",
+   "kind": "mcq",
+   "prompt": "Which tradition has several canons, such as Pali, Chinese and Tibetan?",
+   "choices": [
+    "Sikhism",
+    "Buddhism",
+    "Judaism",
+    "Islam"
+   ]
+  },
+  {
+   "id": "world-religions.l11.q4",
+   "lessonId": "world-religions.l11",
+   "kind": "mcq",
+   "prompt": "Why do many readers study scriptures in original languages like Hebrew, Greek or Pali?",
+   "choices": [
+    "Because translations are forbidden",
+    "Because only scholars may read them",
+    "Because the original is shorter",
+    "To read the source closely and see details that translations can blur"
+   ]
+  },
+  {
+   "id": "world-religions.l12.q1",
+   "lessonId": "world-religions.l12",
+   "kind": "mcq",
+   "prompt": "Which Buddhist festival marks the Buddha's birth, awakening and passing?",
+   "choices": [
+    "Diwali",
+    "Passover",
+    "Vesak",
+    "Pentecost"
+   ]
+  },
+  {
+   "id": "world-religions.l12.q2",
+   "lessonId": "world-religions.l12",
+   "kind": "mcq",
+   "prompt": "Which festival ends the month of Ramadan?",
+   "choices": [
+    "Eid al-Adha",
+    "Eid al-Fitr",
+    "Holi",
+    "Yom Kippur"
+   ]
+  },
+  {
+   "id": "world-religions.l12.q3",
+   "lessonId": "world-religions.l12",
+   "kind": "mcq",
+   "prompt": "What did the Council of Nicaea in 325 help to settle?",
+   "choices": [
+    "The date of Ramadan",
+    "The date of Vesak",
+    "The date of Diwali",
+    "A way of fixing the date of Easter"
+   ]
+  },
+  {
+   "id": "world-religions.l12.q4",
+   "lessonId": "world-religions.l12",
+   "kind": "mcq",
+   "prompt": "Why does Ramadan move earlier through the seasons each year?",
+   "choices": [
+    "The Islamic calendar is lunar and about ten or eleven days shorter than the solar year",
+    "It is set by a king each year",
+    "It follows the harvest",
+    "It follows the Christian calendar"
+   ]
+  },
+  {
+   "id": "world-religions.l13.q1",
+   "lessonId": "world-religions.l13",
+   "kind": "mcq",
+   "prompt": "Which structure is a famous Sikh shrine in Amritsar?",
+   "choices": [
+    "The Golden Temple",
+    "A Buddhist stupa",
+    "A Gothic cathedral",
+    "A Hindu mandir"
+   ]
+  },
+  {
+   "id": "world-religions.l13.q2",
+   "lessonId": "world-religions.l13",
+   "kind": "mcq",
+   "prompt": "What is zakat?",
+   "choices": [
+    "A pilgrimage",
+    "Giving to those in need",
+    "A festival of colour",
+    "A sacred river"
+   ]
+  },
+  {
+   "id": "world-religions.l13.q3",
+   "lessonId": "world-religions.l13",
+   "kind": "mcq",
+   "prompt": "Which emperor promoted compassion in public edicts in the 3rd century BCE?",
+   "choices": [
+    "Constantine",
+    "Hammurabi",
+    "Ashoka",
+    "Charlemagne"
+   ]
+  },
+  {
+   "id": "world-religions.l13.q4",
+   "lessonId": "world-religions.l13",
+   "kind": "mcq",
+   "prompt": "What does the First Amendment say about religion?",
+   "choices": [
+    "It requires one national faith",
+    "It bans all religious art",
+    "It requires prayer in schools",
+    "It protects free exercise and forbids an established religion"
+   ]
+  }
+ ]
+}

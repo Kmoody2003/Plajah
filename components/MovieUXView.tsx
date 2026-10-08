@@ -43,7 +43,10 @@ import { getPlatformInfo } from '../hooks/usePlatform';
 import { BuyToOwn, useOwnership } from './BuyToOwn';
 import AriaMark from './aria/AriaMark';
 import { watchAnalysisJob, type TaleoAnalysisJob } from '../services/storyIntelService';
+import { MoreLikeThis, StoryBreakdown, useRelatedFilms, filmArt } from './taleo/FilmExtras';
 
+// Universal Video Player (Pixels & CrossOver DSP)
+const ReelloUniversalVideoPlayer = React.lazy(() => import('./reello/ReelloUniversalVideoPlayer'));
 // Owner-only Story Intelligence review surface — lazy so viewers never pay for it.
 const StoryIntelReview = React.lazy(() => import('./taleo/StoryIntelReview'));
 
@@ -776,6 +779,10 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   /** Payload waiting behind the studio ident. Non-null only between Watch Now and the ident ending. */
   const [prerollFor, setPrerollFor] = useState<Video | null>(null);
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
+  const [useUniversalPlayer, setUseUniversalPlayer] = useState(() => {
+    // Universal player is the default (versioned key so devices that had the old opt-in saved as off get it too).
+    try { return localStorage.getItem('plajah_use_universal_player_v2') !== 'false'; } catch { return true; }
+  });
   // Alternate cuts (extended / director's / …). The primary payload is remembered so we
   // can switch back; selecting an alternate just swaps the playback URL (direct file).
   const [activeVersionId, setActiveVersionId] = useState<string>('primary');
@@ -827,6 +834,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
       userName: currentUser?.displayName || 'Anonymous',
       userPhoto: currentUser?.photoURL || '',
       rating: 5,
+      text,
       comment: text,
       timestamp: Date.now(),
     }, ...prev]);
@@ -1005,6 +1013,9 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     if (!isOwner || !item.id) { setStoryIntelJob(null); return; }
     return watchAnalysisJob(item.id, setStoryIntelJob);
   }, [isOwner, item.id]);
+
+  // More-like-this films (shared by the page row and the end-of-film suggestions).
+  const relatedFilms = useRelatedFilms(item as any, 12);
 
   const handlePlay = () => {
     // Gate paid films: without a license (or being the creator), don't start playback —
@@ -1185,6 +1196,12 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
       exitPlayer();
     };
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      const isField = (el: HTMLElement | null) =>
+        !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || el.closest?.('input, textarea, select, [contenteditable="true"]')));
+      if (isField(target) || isField(active)) return;
+
       const kc = e.keyCode || e.which;
       const isBack = kc === 4 || e.key === 'Backspace' || e.key === 'XF86Back' || e.key === 'GoBack';
       if (isBack || e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); leave(); }
@@ -1197,6 +1214,25 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
       window.removeEventListener('plajah:hardware-back', onHardwareBack);
     };
   }, [activeVideo, exitPlayer]);
+
+  // End-of-film suggestions: next episode first (series), then more-like-this.
+  const upNextConfig = useMemo(() => {
+    const toItem = (v: any, subtitle: string, play: () => void) => ({
+      id: String(v.id), title: v.title, subtitle, thumbnailUrl: filmArt(v), onPlay: play,
+    });
+    const items: Array<ReturnType<typeof toItem>> = [];
+    const eps: Video[] = ((item as Album).seasons || []).flatMap(s => s.episodes || []);
+    const idx = activeVideo ? eps.findIndex(e => e.id === activeVideo.id) : -1;
+    if (idx >= 0 && idx + 1 < eps.length) {
+      const ne = eps[idx + 1];
+      items.push(toItem(ne, `Next episode${ne.episodeNumber ? ` · E${ne.episodeNumber}` : ''}`, () => setActiveVideo(ne)));
+    }
+    for (const r of relatedFilms) {
+      if (items.length >= 4) break;
+      items.push(toItem(r, 'More like this', () => { exitPlayer(); onOpenItem?.(r as any); }));
+    }
+    return items.length ? { items, onTimeoutExit: exitPlayer } : undefined;
+  }, [item, activeVideo, relatedFilms, exitPlayer, onOpenItem]);
 
   // ── Next-episode autoplay (TV series) ─────────────────────────────────────
   const [autoplayNextEp, setAutoplayNextEp] = useState(true);
@@ -1333,20 +1369,30 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
           tabs and page chrome visible around a playing film. A portal has no such ancestor. */}
       {activeVideo && createPortal(
         <div ref={videoContainerRef} className="fixed inset-0 z-[200] bg-black" data-tv-no-trap>
-          {/* On a TV the browser Fullscreen API routes through the WebView's onShowCustomView — a
-              dead fullscreen surface with no UI and no way out (the trap VideoPlayer avoids). The
-              player is already full-bleed here, so onToggleFullscreen is dropped on TV; desktop keeps it. */}
-          <CinemaPlayer
-            key={activeVideo.id || activeVideo.url}
-            video={activeVideo}
-            poster={coverImage || undefined}
-            onVideoRef={el => { setVideoElement(el); if (el) videoRef.current = el; }}
-            isFullscreen={isFullscreen}
-            onToggleFullscreen={getPlatformInfo().isTV ? undefined : toggleFullscreen}
-            onWhatIfParticipation={handleWhatIfParticipation}
-            onEnded={handleEpisodeEnded}
-            onBack={exitPlayer}
-          />
+          {useUniversalPlayer ? (
+            <React.Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" /></div>}>
+              <ReelloUniversalVideoPlayer
+                video={activeVideo}
+                album={item as Album}
+                context="TALEO"
+                currentUser={currentUser}
+                onClose={exitPlayer}
+                upNext={upNextConfig}
+              />
+            </React.Suspense>
+          ) : (
+            <CinemaPlayer
+              key={activeVideo.id || activeVideo.url}
+              video={activeVideo}
+              poster={coverImage || undefined}
+              onVideoRef={el => { setVideoElement(el); if (el) videoRef.current = el; }}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={getPlatformInfo().isTV ? undefined : toggleFullscreen}
+              onWhatIfParticipation={handleWhatIfParticipation}
+              onEnded={handleEpisodeEnded}
+              onBack={exitPlayer}
+            />
+          )}
 
           {/* Up next episode (autoplay) */}
           <AnimatePresence>
@@ -1453,7 +1499,15 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
               </button>
 
               {/* ── HERO ─────────────────────────────────────────────────────── */}
-              <div className="flex flex-col lg:flex-row gap-10 items-start">
+              <div className="relative isolate flex flex-col lg:flex-row gap-10 items-start lg:items-end lg:min-h-[48vh]">
+                {/* Big cover backdrop: best available art, full-bleed behind the title block, with a scrim */}
+                {(filmArt(item) || coverImage) && (
+                  <div aria-hidden className={`absolute -z-10 -top-28 h-[min(80vh,760px)] pointer-events-none overflow-hidden ${getPlatformInfo().isTV ? '-inset-x-16' : '-inset-x-5 lg:-inset-x-16'}`}>
+                    <img src={filmArt(item) || coverImage} alt="" className="w-full h-full object-cover object-top" onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/10" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-transparent" />
+                  </div>
+                )}
                 {/* Left metadata */}
                 <div className="flex-1 space-y-5 min-w-0">
                   {/* Badges */}
@@ -1588,14 +1642,33 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                   {/* CTAs */}
                   <div className="flex flex-wrap gap-3 pt-1">
                     {hasFilmAccess ? (
-                      <motion.button
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={handlePlay}
-                        className="h-12 px-6 sm:px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-colors shadow-lg"
-                      >
-                        <Play fill="currentColor" size={18} /> Watch Now
-                      </motion.button>
+                      <div className="flex items-center gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handlePlay}
+                          className="h-12 px-6 sm:px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-colors shadow-lg"
+                        >
+                          <Play fill="currentColor" size={18} /> Watch Now
+                        </motion.button>
+
+                        <button
+                          onClick={() => {
+                            const next = !useUniversalPlayer;
+                            setUseUniversalPlayer(next);
+                            try { localStorage.setItem('plajah_use_universal_player_v2', next ? 'true' : 'false'); } catch {}
+                          }}
+                          className={`h-12 px-4 rounded-full border text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
+                            useUniversalPlayer
+                              ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                              : 'bg-white/[0.07] hover:bg-white/[0.12] border-white/10 text-white/70 hover:text-white'
+                          }`}
+                          title={useUniversalPlayer ? 'Using Universal Video Player' : 'Switch to Universal Video Player'}
+                        >
+                          <Sparkles size={15} className={useUniversalPlayer ? 'text-black' : 'text-amber-400'} />
+                          <span className="hidden sm:inline">{useUniversalPlayer ? 'Universal ON' : 'Universal Player'}</span>
+                        </button>
+                      </div>
                     ) : (
                       <BuyToOwn
                         kind="film"
@@ -1864,6 +1937,10 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                   )}
                 </section>
               )}
+
+              {/* ── STORY INTELLIGENCE / MORE LIKE THIS ───────────────────────── */}
+              <StoryBreakdown item={item as any} job={storyIntelJob} />
+              <MoreLikeThis related={relatedFilms as any} onOpenItem={onOpenItem as any} />
 
               {/* ── CAST & CREW (movieMetadata) ───────────────────────────────── */}
               {castMembers.length > 0 && (

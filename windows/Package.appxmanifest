@@ -89,6 +89,65 @@
           </uap:FileTypeAssociation>
         </uap:Extension>
 
+        <!-- File type associations: Photos & Images -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="image">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.jpg</uap:FileType>
+              <uap:FileType>.jpeg</uap:FileType>
+              <uap:FileType>.png</uap:FileType>
+              <uap:FileType>.gif</uap:FileType>
+              <uap:FileType>.webp</uap:FileType>
+              <uap:FileType>.avif</uap:FileType>
+              <uap:FileType>.bmp</uap:FileType>
+              <uap:FileType>.tiff</uap:FileType>
+              <uap:FileType>.tif</uap:FileType>
+              <uap:FileType>.ico</uap:FileType>
+              <uap:FileType>.svg</uap:FileType>
+              <uap:FileType>.heic</uap:FileType>
+              <uap:FileType>.dng</uap:FileType>
+              <uap:FileType>.raw</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>Plajah Photo Viewer</uap:DisplayName>
+            <uap:EditFlags OpenIsSafe="true" />
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
+        <!-- File type associations: Videos -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="video">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.mp4</uap:FileType>
+              <uap:FileType>.mkv</uap:FileType>
+              <uap:FileType>.mov</uap:FileType>
+              <uap:FileType>.avi</uap:FileType>
+              <uap:FileType>.webm</uap:FileType>
+              <uap:FileType>.m4v</uap:FileType>
+              <uap:FileType>.wmv</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>Plajah Video Player</uap:DisplayName>
+            <uap:EditFlags OpenIsSafe="true" />
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
+        <!-- File type associations: Audio / Music -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="audio">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.mp3</uap:FileType>
+              <uap:FileType>.wav</uap:FileType>
+              <uap:FileType>.flac</uap:FileType>
+              <uap:FileType>.aac</uap:FileType>
+              <uap:FileType>.m4a</uap:FileType>
+              <uap:FileType>.ogg</uap:FileType>
+              <uap:FileType>.wma</uap:FileType>
+              <uap:FileType>.aiff</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>Plajah Music Player</uap:DisplayName>
+            <uap:EditFlags OpenIsSafe="true" />
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
         <!-- Share target: receive content shared FROM other Windows apps -->
         <uap:Extension Category="windows.shareTarget">
           <uap:ShareTarget Description="Share to Plajah">
@@ -117,6 +176,9 @@
 
     <!-- Microphone — for audiobook recording (MAI Transcribe 1.5) -->
     <DeviceCapability Name="microphone" />
+
+    <!-- Pictures library — for local photos import & gallery viewing -->
+    <uap:Capability Name="picturesLibrary" />
 
     <!-- Music library — for local music file import -->
     <uap:Capability Name="musicLibrary" />

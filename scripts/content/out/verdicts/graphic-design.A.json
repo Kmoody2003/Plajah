@@ -1,0 +1,1378 @@
+{
+ "courseId": "graphic-design",
+ "verifier": "A",
+ "fetched": 12,
+ "note": "Web fetches worked. Only claims backed by an opened page are marked supported; the rest are unverifiable (not checked). Questions answered from knowledge; course content is conceptual and uncontroversial.",
+ "questions": [
+  {
+   "id": "graphic-design.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l21.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l21.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l21.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l22.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l22.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l23.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l23.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l23.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l23.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l23.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l24.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l24.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "graphic-design.l24.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "graphic-design.l01",
+   "claim": "Stop sign: red, eight-sided, one word",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l01",
+   "claim": "Design must answer who/what/where before tools (practice claim)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l01",
+   "claim": "Painter vs designer: client, brief, budget",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l02",
+   "claim": "Position: Western readers start near top left",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l02",
+   "claim": "Size is the strongest hierarchy tool",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l02",
+   "claim": "Three hierarchy levels often enough",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l03",
+   "claim": "Dark-on-light value contrast makes text readable",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l03",
+   "claim": "Headline 18pt over 16pt body is a timid contrast",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l03",
+   "claim": "Style guides record repeated choices",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l04",
+   "claim": "Gestalt: things close together are seen as a group",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Gestalt_psychology"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "graphic-design.l04",
+   "claim": "Flush-left ragged-right is the usual choice for reading",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l04",
+   "claim": "Weak (almost) alignment looks like an error",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l05",
+   "claim": "One point = 1/72 inch in digital use",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Point_(typography)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "graphic-design.l05",
+   "claim": "12 points make a pica",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Point_(typography)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "graphic-design.l05",
+   "claim": "Typeface vs font definition; ascender/descender/counter terms",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l06",
+   "claim": "Garamond old style; Baskerville transitional; Bodoni Didone",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l06",
+   "claim": "Helvetica as best-known neo-grotesque; Gill Sans humanist",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l06",
+   "claim": "Script faces hard to read in long passages/all caps",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l07",
+   "claim": "Limit to two or three typefaces",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l07",
+   "claim": "Superfamilies give harmony via weights",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l07",
+   "claim": "Similar x-height pairs comfortably",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l08",
+   "claim": "Leading ~120% of type size starting point",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l08",
+   "claim": "Measure 45 to 75 characters per line",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Line_length"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "graphic-design.l08",
+   "claim": "Kerning is per letter pair; tracking is whole word/block",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l09",
+   "claim": "Justified text can create rivers without hyphenation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l09",
+   "claim": "Use proper quotes/dashes; avoid underline emphasis",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l09",
+   "claim": "Paragraph styles update all headings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l10",
+   "claim": "Macro vs micro whitespace",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l10",
+   "claim": "Symmetrical balance feels formal and calm",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l10",
+   "claim": "Whitespace need not be white",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l11",
+   "claim": "Margins, columns, gutters, modules, baseline grid definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l11",
+   "claim": "Twelve divides evenly into 2, 3, 4, 6",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l11",
+   "claim": "Responsive grids rearrange columns",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l12",
+   "claim": "Screens are additive RGB; print subtractive CMYK",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l12",
+   "claim": "Complementary colors sit opposite on the wheel",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l12",
+   "claim": "White signifies mourning in some cultures",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l13",
+   "claim": "Images protected by copyright; need license",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l13",
+   "claim": "Never stretch image out of proportion",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l13",
+   "claim": "Overlay/solid panel improves text contrast",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l14",
+   "claim": "WCAG AA: normal text 4.5:1, large text 3:1",
+   "verdict": "supported",
+   "sources": [
+    "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+   ],
+   "note": "Confirmed for WCAG 2.2 SC 1.4.3."
+  },
+  {
+   "lessonId": "graphic-design.l14",
+   "claim": "Color vision deficiency affects a minority, mostly men",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Color_blindness"
+   ],
+   "note": "About 8% of Northern European men vs ~0.5% of women."
+  },
+  {
+   "lessonId": "graphic-design.l14",
+   "claim": "Focus states for keyboard users; alt text for screen readers",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l15",
+   "claim": "Nike Swoosh designed by Carolyn Davidson in early 1970s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nike,_Inc."
+   ],
+   "note": "First used June 1971."
+  },
+  {
+   "lessonId": "graphic-design.l15",
+   "claim": "Logo types: wordmark, lettermark, pictorial, combination",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l15",
+   "claim": "Brand guidelines specify clear space, minimum size, misuse",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l16",
+   "claim": "Poster needs one message and one hierarchy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l16",
+   "claim": "Contrast of scale creates focal point",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l16",
+   "claim": "Early 20th century produced influential posters",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l17",
+   "claim": "Inner margin (gutter) needs extra room at binding",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l17",
+   "claim": "Books printed in signatures, page counts in multiples",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l17",
+   "claim": "E-books use reflowable text",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l18",
+   "claim": "Dieline is flat template of cuts, folds, glue areas",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l18",
+   "claim": "Required content rules vary by product and country",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l18",
+   "claim": "Printing finishes: varnish, foil, embossing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l19",
+   "claim": "Responsive design adapts layout to device",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l19",
+   "claim": "UI is the visual layer within UX",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l19",
+   "claim": "Design systems are shared component libraries",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l20",
+   "claim": "PNG uses lossless compression and supports transparency",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Portable_Network_Graphics"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "graphic-design.l20",
+   "claim": "JPEG lossy for photographs; SVG vector for web",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l20",
+   "claim": "Vectors scale without loss",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l21",
+   "claim": "Bleed about 1/8 inch (3 mm) in the US",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bleed_(printing)"
+   ],
+   "note": "Printers set their own; posters/die-cuts often need 1/4 inch."
+  },
+  {
+   "lessonId": "graphic-design.l21",
+   "claim": "Photos about 300 ppi for print",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l21",
+   "claim": "Small black text as 100% K only",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l22",
+   "claim": "Swiss Style centered in Zurich and Basel",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/International_Typographic_Style"
+   ],
+   "note": "Source dates emergence to 1930s-1950s; lesson says postwar, developed 1950s-60s. Broadly consistent, though origins arguably earlier than lesson implies."
+  },
+  {
+   "lessonId": "graphic-design.l22",
+   "claim": "Helvetica 1957 by Max Miedinger with Eduard Hoffmann; Univers by Frutiger 1957",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Helvetica"
+   ],
+   "note": "Both shown at Graphic 57; renamed Helvetica 1959-60 (named Neue Haas Grotesk 1957)."
+  },
+  {
+   "lessonId": "graphic-design.l22",
+   "claim": "Bauhaus German school of the 1920s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bauhaus"
+   ],
+   "note": "Operated 1919-1933."
+  },
+  {
+   "lessonId": "graphic-design.l23",
+   "claim": "Process: brief, research, ideation, concept, refine, delivery",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l23",
+   "claim": "Critique should be tied to the brief",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l23",
+   "claim": "Agree revision rounds and written approval in advance",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l24",
+   "claim": "Dark patterns such as hidden cancel buttons",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l24",
+   "claim": "Fonts are licensed software with separate web/app/print terms",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  },
+  {
+   "lessonId": "graphic-design.l24",
+   "claim": "Contracts state ownership, typically transfers on payment",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; matches general knowledge only."
+  }
+ ]
+}

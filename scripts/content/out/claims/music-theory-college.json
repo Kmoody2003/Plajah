@@ -1,0 +1,1879 @@
+{
+ "courseId": "music-theory-college",
+ "label": "Music Theory (College)",
+ "lessons": [
+  {
+   "id": "music-theory-college.l01",
+   "title": "First Species Counterpoint",
+   "body": [
+    "Species counterpoint is a graded method for learning to write independent melodic lines. It is best known from Johann Joseph Fux's treatise Gradus ad Parnassum, which teaches in five stages, or species, each adding rhythmic complexity. In every exercise you write a new line against a given melody, the cantus firmus (fixed song), which is a slow, smooth line in whole notes.",
+    "In first species, each note of the counterpoint sounds against one note of the cantus firmus. Only consonances are allowed: the perfect unison, fifth and octave, plus major and minor thirds and sixths. In strict two-voice writing the perfect fourth is treated as a dissonance.",
+    "Strict rules govern how the lines move. Contrary motion, where one voice rises while the other falls, is preferred. Parallel perfect fifths and octaves are forbidden because they destroy the independence of the voices. Moving by similar motion into a perfect interval (a direct or hidden fifth or octave) is avoided. The exercise begins and ends on a perfect consonance, and unisons are normally used only at the start and end.",
+    "The cadence is fixed. If the counterpoint is above a cantus firmus in D Dorian that ends E then D, the penultimate note is C-sharp, a major sixth above E, which steps up to D to make an octave. A leading tone approached this way gives the final its sense of arrival.",
+    "These limits may seem artificial, but they train the ear to hear each line as a melody and every vertical sonority as a deliberate choice."
+   ]
+  },
+  {
+   "id": "music-theory-college.l02",
+   "title": "Species Two to Five",
+   "body": [
+    "The remaining species add rhythmic variety while keeping the discipline of the first. Each introduces one new way of treating dissonance.",
+    "In second species, two notes in the counterpoint sound against each cantus firmus note. The strong beat, the first of each pair, must be consonant. The weak beat may be dissonant, but only as a passing tone, approached and left by step in the same direction.",
+    "Third species uses four notes against one. Passing tones remain the main source of dissonance, and the line gains a pattern called the cambiata or changing-note figure, in which a dissonance is left by a leap of a third. Melodic variety increases, but the strong beats stay consonant.",
+    "Fourth species is built on syncopation. A note is tied across the barline so that a dissonance may occur on the strong beat. It must be prepared as a consonance on the previous weak beat, held while the cantus firmus changes beneath it to make a dissonance, and then resolved by step down. Above the cantus firmus the classic suspensions are 7-6 and 4-3 (and 9-8); below it, the 2-3 appears. If the tie would form an unusable dissonance, the line breaks the syncopation and moves on.",
+    "Fifth species, or florid counterpoint, combines all four earlier species, plus eighth-note decoration, in a single melody. It is the closest the method comes to real composition, because the line must now balance rhythm, contour and dissonance treatment at once."
+   ]
+  },
+  {
+   "id": "music-theory-college.l03",
+   "title": "Renaissance Modal Polyphony",
+   "body": [
+    "Renaissance polyphony is organized by modes rather than major and minor keys. A mode is characterized by its final, the note on which it ends, and by its range. On the white keys, Dorian has the final D, Phrygian E, Lydian F and Mixolydian G. Each of these authentic modes has a plagal partner, whose range lies about a fourth lower while keeping the same final. Writers such as Glarean later recognized Aeolian and Ionian as well, bringing the total to twelve.",
+    "The style associated with Giovanni Pierluigi da Palestrina, whose Missa Papae Marcelli is a famous example, is the model for later species counterpoint. Several equal voices, often four to six, sing without instruments. Melodies move mostly by step, and a leap is usually followed by a step in the opposite direction. Voices enter in imitation, each taking up a motive in turn, so that the texture is a web of related lines rather than a melody with accompaniment.",
+    "Dissonance is carefully controlled. It appears as passing tones on weak beats, as neighbor tones, and as prepared suspensions on the strong beat that resolve down by step. At a cadence, singers customarily raise the note a step below the final to create a leading tone, as in the C-sharp in a Dorian cadence on D, a practice called musica ficta.",
+    "The sound is smooth, balanced and calm, because large leaps, abrupt rhythms and unprepared dissonances are rare. Studying this style teaches you to treat harmony as the result of independent, singable melodies."
+   ]
+  },
+  {
+   "id": "music-theory-college.l04",
+   "title": "Baroque Counterpoint and Fugue",
+   "body": [
+    "Baroque counterpoint is tonal: it is shaped by major and minor keys and functional harmony, not modes. Its central form is the fugue, a composition built on a short theme called the subject that is imitated by every voice.",
+    "A fugue begins with an exposition. The first voice states the subject alone in the tonic. The second voice enters with the answer, normally a transposition of the subject to the dominant, while the first voice continues with new material called the countersubject. Each remaining voice then enters in turn, alternating between tonic and dominant. An answer that is an exact transposition is a real answer. When the subject emphasizes the dominant, the answer is often adjusted slightly to stay in the home key, producing a tonal answer.",
+    "After the exposition come episodes, passages usually built from fragments of the subject or countersubject and often moving through sequences, that modulate. Between them are middle entries of the subject in related keys. Devices of intensification include stretto, in which entries overlap before the subject has finished, as well as augmentation, diminution and inversion. Invertible counterpoint lets the voices swap registers.",
+    "Johann Sebastian Bach is the supreme master. His Well-Tempered Clavier consists of two books, each with a prelude and fugue in every major and minor key, 24 pairs per book. His Art of Fugue explores a single subject through many techniques. Analyzing a fugue means mapping its entries, keys and episodes, and following how the subject changes."
+   ]
+  },
+  {
+   "id": "music-theory-college.l05",
+   "title": "Figured Bass and Basso Continuo",
+   "body": [
+    "In Baroque music the bass line was often written with numbers beneath the notes, a shorthand called figured bass. The player of a chord instrument, such as a harpsichord, organ or lute, supplied the chords, while a bass instrument such as a cello, viola da gamba or bassoon doubled the bass line. Together they formed the basso continuo, the harmonic foundation of ensemble music from the early 17th century onward. Realizing a figured bass in performance is a skill that mixes theory and improvisation.",
+    "The figures describe intervals above the bass note, counted by letter name and interpreted in the key signature. A bass note with no figure normally means a root-position triad, the same as 5/3. A 6 indicates a first-inversion triad (sixth and third above the bass), and 6/4 a second-inversion triad. For seventh chords, 7 means root position, 6/5 first inversion, 4/3 second inversion, and 4/2 (often written 2) third inversion.",
+    "Accidentals alter the pitches. A sharp, flat or natural alone beneath a note affects the third above the bass. A slash through a figure, or a plus sign, raises that interval. Dashes extend the figure over several notes.",
+    "For example, over a bass C with the figure 6/4, the upper notes are the sixth and fourth above C, which are A and F: an F major triad in second inversion. Realizing figures well means keeping the upper voices smooth, avoiding parallel fifths and octaves, and shaping the texture to fit the musical character. Roman numerals and inversion symbols in modern analysis are direct descendants of this system."
+   ]
+  },
+  {
+   "id": "music-theory-college.l06",
+   "title": "Voice Leading in Depth",
+   "body": [
+    "Four-part writing, with soprano, alto, tenor and bass, is the standard laboratory for common-practice voice leading. The rules grow from the principle that each voice should be a singable, independent line while the chords stay clear.",
+    "Spacing matters. Adjacent upper voices (soprano and alto, alto and tenor) should be within an octave of each other, while the gap between tenor and bass may be larger. Voices should not cross, so that no lower voice rises above a higher one, and should not overlap, so that a voice does not move past the previous pitch of a neighboring voice.",
+    "Motion between chords follows several guidelines. Keep common tones in the same voice, and move other voices to the nearest available chord tone. Avoid parallel perfect fifths and octaves. Be wary of direct (hidden) fifths and octaves between the outer voices, which are reached by similar motion. Contrary motion between soprano and bass is the safest solution, and a good outer-voice framework makes the inner voices easier.",
+    "Doubling is chosen by function. In a root-position triad, the root is normally doubled. The leading tone is not doubled, because it is a strong tendency tone and doubling it leads to parallel octaves on resolution. Chordal sevenths are not doubled either.",
+    "Tendency tones resolve by habit. The leading tone rises to the tonic, and the chordal seventh falls by step, for example F to E in a G7 chord moving to C major. A complete V7 may resolve to an incomplete I with a tripled root, in order to keep the voices moving smoothly. Learning the rules and then understanding why they work is the point."
+   ]
+  },
+  {
+   "id": "music-theory-college.l07",
+   "title": "Cadences and Phrase Structure",
+   "body": [
+    "A cadence is a melodic and harmonic formula that closes a phrase. Common-practice theory distinguishes several types by the chords and by the sense of finality they create.",
+    "The perfect authentic cadence (PAC) is V or V7 moving to I, both chords in root position, with the tonic note in the soprano of the final chord. It sounds most conclusive. An imperfect authentic cadence (IAC) has the same harmony but weakens the effect through an inversion or a soprano that does not end on the tonic. A half cadence (HC) ends on V and feels like a comma. A deceptive cadence moves V to vi, substituting the submediant for the expected tonic. A plagal cadence is IV moving to I, the Amen cadence. In minor keys, a Phrygian half cadence, iv6 moving to V, has a bass that falls by a half step from the sixth to the fifth scale degree, like A-flat to G in C minor.",
+    "Cadences articulate larger structures. A period consists of two phrases: an antecedent that usually ends with a half cadence and a consequent that answers with an authentic cadence. A sentence has a different design: a presentation, in which a basic idea is stated and repeated, followed by a continuation, which fragments the material and drives to a cadence.",
+    "A cadence is often prepared by a predominant chord (ii, IV, or ii6) and a cadential 6/4, which is a tonic second inversion chord acting as a decoration of V. Understanding these formulas helps you hear where the music breathes."
+   ]
+  },
+  {
+   "id": "music-theory-college.l08",
+   "title": "Tonicization and Secondary Dominants",
+   "body": [
+    "Tonicization is the brief emphasis of a diatonic chord other than the tonic as if it were a temporary tonic. The usual tool is a secondary (applied) dominant, a dominant-function chord that is not in the home key's own diatonic set. The notation V/V is read \"five of five\", meaning the dominant of the dominant.",
+    "In C major, the dominant of G is D major. So V/V is D-F-sharp-A, and V7/V adds C: D-F-sharp-A-C. The F-sharp is the accidental that signals the tonicization of G. A secondary dominant resolves to its target chord, here V, just as a normal V resolves to I. Other examples in C major are V/ii (A-C-sharp-E, leading to D minor), V/vi (E-G-sharp-B, leading to A minor), V7/IV (C-E-G-B-flat, leading to F) and V7/vi (E-G-sharp-B-D).",
+    "A leading-tone chord may also be applied. For example, vii°7/V in C major is F-sharp, A, C and E-flat, resolving to G major. Because the leading-tone and secondary-dominant chords borrow a raised or lowered note, spotting those accidentals is the key to analysis.",
+    "Only chords that could stand as a tonic can be tonicized, namely major or minor triads. The diminished triad vii° is not tonicized in the usual sense, as its diminished fifth prevents it from sounding stable.",
+    "Tonicization differs from modulation in degree: a tonicization is short, often a chord or two, and the original key stays in force, whereas a modulation establishes a new key through a cadence and sustained harmonic confirmation. The boundary can be debated, so analysts use the length and the strength of the cadence as guides."
+   ]
+  },
+  {
+   "id": "music-theory-college.l09",
+   "title": "Modulation: Pivot, Common-Tone and Chromatic",
+   "body": [
+    "A modulation is a change of key that is confirmed by a cadence in the new key, as distinct from a brief tonicization. The ease of a modulation depends on how closely the two keys are related. Closely related keys differ by at most one accidental in their key signatures. To C major, the closely related keys are G major, F major and the minors A, E and D.",
+    "The most common method is pivot-chord modulation. A pivot chord is diatonic in both the old and the new key and is reinterpreted at the point of change. Moving from C major to G major, the A minor chord is vi in C and ii in G. The analyst labels it with two Roman numerals. After the pivot comes a predominant or dominant chord that confirms the new key, followed by a cadence.",
+    "In common-tone modulation, a pitch is held or restated between chords from keys that do not share a pivot chord. The shared note links the two sonorities, so that a bold harmonic change is smoothed. This technique is typical of Romantic music.",
+    "In chromatic modulation, a chord is altered by a chromatic inflection so that it can belong to the new key. A major triad on the tonic may be turned into a dominant seventh by adding a flat seventh, for example.",
+    "An enharmonic modulation reinterprets a chord by respelling its notes. The fully diminished seventh chord is a favorite because its symmetrical structure lets it be respelled to resolve into several different keys. A modulation without any preparation, one phrase ending and the next beginning in the new key, is called a phrase modulation."
+   ]
+  },
+  {
+   "id": "music-theory-college.l10",
+   "title": "Mixed-Mode Borrowing",
+   "body": [
+    "Modal mixture, or mode mixture, is the use of chords from the parallel mode, which is the key with the same tonic but opposite quality. In C major, the parallel minor is C minor, so the lowered third, sixth and seventh scale degrees (E-flat, A-flat and B-flat) can be borrowed. This is a different relationship from the relative key, which shares a key signature but not a tonic.",
+    "Chords from the parallel minor are labeled with accidentals before the Roman numeral. In C major the borrowed chords include the minor tonic, ii° (D-F-A-flat), the minor subdominant iv (F-A-flat-C), the lowered mediant ♭III (E-flat-G-B-flat), the lowered submediant ♭VI (A-flat-C-E-flat) and the lowered seventh ♭VII (B-flat-D-F). Of these, iv and ♭VI are the most common in the Classical and Romantic repertoire, and they darken a phrase just before the cadence.",
+    "The effect is one of sudden shadow. A major-key piece may shift to a minor iv chord before returning to the bright tonic, which gives a poignant bittersweet color. The reverse also occurs. A piece in a minor key may end on a major tonic triad, which is the Picardy third, a historical device inherited from modal practice.",
+    "Mixture can be heard in many Classical-era and Romantic pieces by Beethoven, Schubert and Brahms. Analytically, a borrowed chord must be distinguished from a secondary dominant: a borrowed chord uses the notes of the parallel minor, while an applied dominant comes from a different key's dominant. Spotting the lowered 6̂ and 3̂ in a major-key passage is an easy first signal of mixture."
+   ]
+  },
+  {
+   "id": "music-theory-college.l11",
+   "title": "The Neapolitan Chord",
+   "body": [
+    "The Neapolitan chord is a major triad built on the lowered second scale degree, written ♭II. In C minor or C major it is D-flat, F and A-flat. It is a chromatic predominant that usually leads to the dominant, and it is characteristic of minor keys, though it appears in major as well.",
+    "It is usually found in first inversion, with the third of the chord (F in the example) in the bass, which is why it is written N6, or the \"Neapolitan sixth\". In this position the bass is the fourth scale degree, which moves by step to the dominant. The root of the chord is the lowered second degree, and in the typical four-part texture the third, which is in the bass, is doubled.",
+    "Voice leading is distinctive. The lowered second degree (D-flat) tends to fall to the leading tone (B natural) in a progression such as N6 to V. The melodic interval of a diminished third from D-flat to B, between the chord and the dominant, is acceptable and has a characteristic expressive pull. The chord usually progresses either directly to V or to a cadential 6/4 that then resolves to V7.",
+    "A simple progression in C minor runs i, N6, V, i, or i, N6, cadential 6/4, V, i. In A minor, the Neapolitan chord is B-flat, D, F.",
+    "The name comes from an association with a group of 18th-century composers working in Naples, though the chord itself had been used earlier, and its use was widespread throughout the common-practice period. Neapolitan chords tend to appear at emotionally intense moments: lamentation, climax or an approach to a final cadence."
+   ]
+  },
+  {
+   "id": "music-theory-college.l12",
+   "title": "Augmented Sixth Chords",
+   "body": [
+    "Augmented sixth chords are chromatic predominant chords. Each contains the interval of an augmented sixth between the lowered sixth scale degree in the bass and the raised fourth scale degree above it. In C minor these notes are A-flat and F-sharp. They resolve outward by half step to an octave on the dominant: A-flat falls to G and F-sharp rises to G. The next chord is usually V, often preceded by a cadential 6/4.",
+    "The three standard types differ in the extra note or notes they add. The Italian sixth (It+6) is the simplest and has only three distinct pitches: A-flat, C and F-sharp, with the tonic C doubled. The French sixth (Fr+6) adds the second scale degree, giving A-flat, C, D and F-sharp. It sounds like a dominant seventh chord with a lowered fifth. The German sixth (Ger+6) adds the lowered third degree, giving A-flat, C, E-flat and F-sharp.",
+    "The German sixth presents a voice-leading problem. When it resolves directly to the root-position dominant, the voice on E-flat moves to D while the bass moves from A-flat to G, which creates parallel perfect fifths between them. Composers avoid the fifths by resolving to a cadential 6/4 first, or tolerate them in some textures.",
+    "Enharmonically, A-flat, C, E-flat, F-sharp is enharmonically equivalent to A-flat, C, E-flat, G-flat, a dominant seventh chord: it sounds the same but is spelled differently. This allows a German sixth to serve as a pivot into a distant key by respelling. The chord therefore appears often in Classical and Romantic modulations. The names are traditional labels, not statements of national origin."
+   ]
+  },
+  {
+   "id": "music-theory-college.l13",
+   "title": "Chromatic Mediants and Altered Dominants",
+   "body": [
+    "Chromatic mediant relationships join two triads whose roots lie a third apart, but which do not belong to the same key. The triads usually have the same quality, and they share exactly one common tone. Taking C major as the reference, the chromatic mediants are E major (sharing the note E), A-flat major (sharing C), E-flat major (sharing G) and A major (sharing E). The lack of functional connection produces a striking, often magical or dramatic effect. Schubert, Liszt and Wagner used these relationships, and later composers made them a staple of colorful harmonic writing.",
+    "In common-practice harmony, the dominant is the chord most open to expansion. Stacking further thirds above the dominant seventh yields the dominant ninth. On G, G-B-D-F-A is a dominant ninth chord, and the eleventh and thirteenth can be added to give dominant elevenths and thirteenths. In practice, some tones are omitted.",
+    "Altered dominants change one or more chord tones chromatically to intensify the pull to the tonic. A flat ninth adds A-flat above a G7 chord, and a raised fifth replaces D with D-sharp (spelled G, B, D-sharp, F). The altered tones resolve by step: D-sharp to E, and A-flat to G.",
+    "These sounds became prominent in the 19th century and are essential to jazz. Recognizing them means identifying the underlying dominant seventh, then labeling the alterations as additions or changes. Analyzing a chromatic mediant passage means noting the common tone and the way the voices glide to it by small steps."
+   ]
+  },
+  {
+   "id": "music-theory-college.l14",
+   "title": "Sonata Form: The Exposition",
+   "body": [
+    "Sonata form is the most important structure for first movements of Classical symphonies, sonatas and quartets. It has three main parts: exposition, development and recapitulation, sometimes followed by a coda. Its drama comes from tonal conflict: the exposition moves away from the home key, and the recapitulation resolves that conflict.",
+    "The exposition begins with the primary theme (P), stated in the tonic key. Next comes a transition (TR) whose job is to modulate. It often builds energy and ends on a strong dominant of the new key. In many works there is a medial caesura (MC), a short pause or break that divides the transition from the secondary theme.",
+    "The secondary theme (S) is stated in the new key. In a major-key movement, this is typically the dominant. In a minor-key movement, it is usually the relative major (III). The theme is often lyrical, contrasting with the primary one. A closing section (C) confirms the new key with a firm cadence, called the essential expositional closure (EEC) in Sonata Theory, and may include closing themes.",
+    "The exposition therefore ends in a key other than the tonic. Because of this, the harmonic tension of the exposition is real, and most Classical-era works repeat the exposition so that the listener can absorb it before development starts.",
+    "In Mozart's piano sonatas, as in his Sonata in C major, K. 545, the plan is clear: a primary theme in C, a transition, then a secondary theme in G. Beethoven stretched the form with longer transitions, extra themes and more daring keys, but the underlying plan continued to serve him."
+   ]
+  },
+  {
+   "id": "music-theory-college.l15",
+   "title": "Sonata Form: Development, Recapitulation, Coda",
+   "body": [
+    "After the exposition comes the development, the least constrained part of sonata form. It takes material from the exposition, often fragments of the primary theme or the closing theme, and puts it through harmonic and motivic change. Typical techniques include sequence, modulation to remote keys, fragmentation of motives, changes of texture and register, and contrapuntal combination. It does not usually introduce a lot of brand-new themes. The development often ends with a retransition, which prepares the home key by lingering on the dominant of the tonic, building tension before the return.",
+    "The recapitulation brings back the material of the exposition. The primary theme returns in the tonic, as expected. The key change is in the secondary theme, which appears now in the tonic as well, rather than in the contrasting key. This is called tonal resolution, and it is the structural point of the whole form. The transition has to be adjusted so that it does not modulate away. In a minor-key movement, the secondary theme often appears in the tonic minor or, in some works, the parallel major.",
+    "A coda, literally a tail, follows the recapitulation's closing material. It reinforces the home key with additional cadences and may bring a last reference to the main theme. Beethoven often expanded codas so that they function as a second development before a final affirmation.",
+    "To analyze a movement, label each section, give the key of each theme and mark the points where the music pauses or cadences. Compare the exposition and recapitulation bar by bar to see exactly what changed and why."
+   ]
+  },
+  {
+   "id": "music-theory-college.l16",
+   "title": "Schenkerian Basics",
+   "body": [
+    "Heinrich Schenker developed an approach to tonal music that treats a piece as the elaboration of a simple underlying structure. The core idea is that surface details, the foreground, expand and decorate deeper levels, the middleground and finally the background. Analysts use a special graphic notation, in which note heads of different values show structural weight, to show how one level unfolds from another.",
+    "The deepest structure is the Ursatz, or fundamental structure. It has two parts. The first is the Urlinie, the fundamental line, a stepwise descent in the upper voice to the tonic, from the third scale degree (3̂-2̂-1̂), the fifth (5̂-4̂-3̂-2̂-1̂) or, less often, the octave. The second is the bass arpeggiation, or Bassbrechung, which outlines the tonic, the dominant and back to the tonic (I-V-I). Under the second scale degree, the harmony is V.",
+    "Some works are built on an interruption: the Urlinie descends to 2̂ over the dominant, stops, and then begins again from the top to complete the descent to 1̂ with the final tonic. Such a design is common in period structures that end the first phrase on a half cadence.",
+    "Prolongation is how structural notes and harmonies are made to last. A tone or chord is prolonged when it continues to govern even though other notes intervene. Common means include passing tones, neighbor tones (which step away and return), arpeggiation and unfolding.",
+    "Schenkerian reading is not a recipe. It asks you to hear which notes are essential and which are ornamental. Even if you never graph a piece, learning to listen this way helps explain why tonal music feels goal-directed."
+   ]
+  },
+  {
+   "id": "music-theory-college.l17",
+   "title": "Late-Romantic Chromaticism and the Tristan Chord",
+   "body": [
+    "By the second half of the 19th century, composers were stretching the limits of tonality. Chromatic voice leading, unusual chord successions, long-delayed resolutions and constant modulation made the tonic harder to pin down. The tonic still organizes a work, but it may be hinted at far more than it is stated. Richard Wagner is the central figure in this development, and his music dramas shaped a generation.",
+    "The best-known example is the opening of the Prelude to Wagner's Tristan und Isolde. The prelude begins in the world of A minor. The second bar contains the famous Tristan chord, spelled F, B, D-sharp and G-sharp. In pitch terms it is equivalent to F, A-flat, C-flat and E-flat, a half-diminished seventh chord, but it is spelled the way it is because of how the voices move. In context, the chord leads to a dominant seventh chord on E (E, G-sharp, B, D).",
+    "Analysts have offered many interpretations of the chord, including as an altered predominant and as a chord built from appoggiaturas. The enduring quality of the passage is not a single label but the way it is used: the dissonance does not resolve to a stable tonic. Instead, the music passes from one tense chord to the next, and the sense of yearning matches the drama.",
+    "Wagner's technique of linking motives to characters, ideas or objects, called the leitmotif, also affects harmony. Later composers such as Mahler and Strauss continued to stretch the language in different ways. These practices set the stage for the abandoning of tonality in the 20th century."
+   ]
+  },
+  {
+   "id": "music-theory-college.l18",
+   "title": "Impressionism: Whole-Tone and Pentatonic Scales",
+   "body": [
+    "Claude Debussy and Maurice Ravel are the two composers most closely connected with musical Impressionism, a term borrowed from painting and applied loosely. Rather than driving functional progressions toward a cadence, their music often emphasizes color, atmosphere and static harmony. Chords are valued for sound as much as for function, and dissonances may go unresolved.",
+    "The whole-tone scale has six notes, each a whole step from the next: C, D, E, F-sharp, G-sharp, B-flat. Because the scale has no half steps and no perfect fifths, and because every note is equivalent in structure, it has no obvious tonic. There are only two distinct whole-tone collections, since transposing by a whole step gives the same notes. Triads that can be built from the scale are augmented triads. The sound is floating and ambiguous. Debussy's prelude Voiles is built largely on this scale.",
+    "The pentatonic scale has five notes and no half steps. The major pentatonic from C is C, D, E, G, A. It has a simple, open sound, and it appears in folk music around the world. In Impressionist writing it supplies a bright, uncomplicated color and often appears along with modal harmonies.",
+    "Impressionist composers also used planing, or parallel chord motion: a chord shape moves up and down as a block, with no regard for functional harmony or for the voice-leading rules of earlier periods. Added-note chords, such as ninths and sixths, and modal writing add to the effect. The aim is a palette of timbres and moods rather than the goal-driven logic of the Classical style."
+   ]
+  },
+  {
+   "id": "music-theory-college.l19",
+   "title": "The Octatonic Collection",
+   "body": [
+    "The octatonic scale has eight pitch classes and alternates whole steps and half steps. Starting from C with a whole step first, it reads C, D, E-flat, F, G-flat, A-flat, A, B, then back to C. Starting with a half step instead gives the other ordering of the same type, C, D-flat, E-flat, E, F-sharp, G, A, B-flat. Both are called octatonic, and theorists refer to the whole-half and half-whole forms.",
+    "Because the pattern repeats every three semitones, the scale maps onto itself when transposed by a minor third. Only three distinct octatonic collections exist. Messiaen called it the second mode of limited transposition, though the collection was used long before him: Rimsky-Korsakov and other Russian composers favored it, and it entered French and Eastern European music from there.",
+    "Its structure is rich. A single collection contains two fully diminished seventh chords, for the whole-half form from C: C, E-flat, G-flat, A and D, F, A-flat, B. It also contains tritones, minor triads, and dominant seventh chords; for instance, D, F-sharp (G-flat), A and C form a D dominant seventh chord, and the same collection includes D, F, A, a D minor triad. The collection can therefore behave like an interplay of major and minor colors, sometimes sounding bluesy or mysterious.",
+    "Analysts recognize octatonic passages by finding a stretch of music where all notes belong to one of the three collections, and by noticing the symmetrical, interlocking diminished seventh chords. Because the collection has no single tonic, composers can use it to suspend tonal direction or to alternate with diatonic music."
+   ]
+  },
+  {
+   "id": "music-theory-college.l20",
+   "title": "Neo-Riemannian Transformations",
+   "body": [
+    "Neo-Riemannian theory, developed in the late 20th century from ideas of the theorist Hugo Riemann, describes relations between major and minor triads through small, efficient voice-leading moves. It is especially helpful for music of the Romantic period in which chords follow each other without functional logic, such as chromatic mediants.",
+    "Three basic operations convert a major triad into a minor one, or the reverse, while keeping two common tones. Parallel (P) changes the quality while keeping the root and fifth: C major becomes C minor, as the third, E, moves to E-flat. Leading-tone exchange (L) moves the root down a half step in a major triad: C major becomes E minor, as C moves to B while E and G stay. Relative (R) moves the fifth of a major triad up a whole step: C major becomes A minor, as G moves to A while C and E stay.",
+    "Applied to a minor triad, each operation works in the opposite direction. Each is its own inverse, so applying it twice returns you to the starting chord. The transformations can be combined to make paths. Alternating P and L, starting on C major, produces C major, C minor, A-flat major, A-flat minor, E major, E minor, and then returns to C major: a cycle of six triads, called the hexatonic cycle.",
+    "The operations are often shown on a geometric grid called the Tonnetz, where triads form adjacent triangles. Neo-Riemannian theory shows that distant chords can be linked by smooth, nearly parallel motion, which explains why certain Romantic progressions sound natural though they have no common key."
+   ]
+  },
+  {
+   "id": "music-theory-college.l21",
+   "title": "Pitch-Class Set Theory: Normal Order and Prime Form",
+   "body": [
+    "Pitch-class set theory gives tools for analyzing music that is not organized by traditional tonality. A pitch class groups all pitches that are the same note name in any octave, and enharmonic spellings. The standard numbering sets C at 0, C-sharp at 1, and so on up to B at 11. Thus F-sharp is 6, A is 9, and B-flat is 10. A pitch-class set is an unordered collection of these numbers.",
+    "To compare sets, we reduce them to a standard form. Normal order is the most compact way of writing the set as an ascending arrangement, with the smallest interval between its first and last numbers. For {0, 4, 7}, the C major triad, the normal order is 0, 4, 7.",
+    "Prime form goes a step further. You write the normal order of the set and of its inversion, transpose each to begin on 0, and choose the one that is more tightly packed toward the left. The major triad inverts to {0, 5, 8}, whose most compact arrangement is 5, 8, 0, and transposing to start on 0 yields (0, 3, 7). The original is (0, 4, 7), so the prime form is (0, 3, 7). This shows that major and minor triads belong to the same set class, because inversion and transposition do not change the class.",
+    "For example, the pitches D, E-flat and G are {2, 3, 7}. Normal order is 2, 3, 7, which transposes to (0, 1, 5). The inversion has prime form (0, 4, 5), and (0, 1, 5) is the smaller, so the prime form is (0, 1, 5).",
+    "Allen Forte's labeling assigns catalogue numbers to set classes; the major and minor triads are 3-11, the diminished triad is 3-10 and the augmented triad 3-12. Prime form lets you recognize the same sound-structure across a piece, whatever the transposition or ordering."
+   ]
+  },
+  {
+   "id": "music-theory-college.l22",
+   "title": "Interval-Class Vectors",
+   "body": [
+    "An interval class (ic) groups an interval with its inversion, ignoring direction and octave. There are six of them: ic1 is the semitone or its inversion the major seventh, ic2 the whole tone, ic3 the minor third, ic4 the major third, ic5 the perfect fourth and ic6 the tritone. The distance between two pitch classes, counted the short way around the twelve-note circle, gives the interval class directly.",
+    "The interval-class vector is a six-digit summary showing how many times each interval class appears among all pairs of notes in a set. The six digits are written in order from ic1 to ic6 inside angle brackets. For the major triad {0, 4, 7}, the pairs are 0-4 (ic4), 0-7 (ic5) and 4-7 (ic3), so the vector is <001110>. For the diminished triad {0, 3, 6}, the pairs give two minor thirds and a tritone, <002001>. The augmented triad {0, 4, 8} has three major thirds, <000300>. The whole-tone scale has the vector <060603>, and the diatonic collection <254361>.",
+    "For a set of n notes, the number of pairs is n(n-1)/2, so the digits of the vector always add up to that number. Triads sum to 3 and tetrachords to 6.",
+    "Sets in the same class always have the same vector, but the reverse is not always true. Two sets that share a vector without being related by transposition or inversion are called Z-related. The simplest example is the pair (0, 1, 4, 6) and (0, 1, 3, 7), both with the vector <111111>.",
+    "Vectors help to compare the sound of sets: a set with lots of ic5 and ic4 sounds triadic or consonant, while one rich in ic1 and ic6 sounds more dissonant."
+   ]
+  },
+  {
+   "id": "music-theory-college.l23",
+   "title": "Twelve-Tone Serialism",
+   "body": [
+    "Twelve-tone serialism, or dodecaphony, is a method of composition associated with Arnold Schoenberg and his students Anton Webern and Alban Berg. It organizes a piece around a tone row, an ordering of all twelve pitch classes with none repeated. Because every pitch class is equally important, no one note acts as a tonic, and the method avoids a sense of key.",
+    "A row can be used in four basic forms. The prime form (P) is the original order. The retrograde (R) reads the prime backward. The inversion (I) turns every interval of the prime upside down, so that a rise becomes an equal fall. The retrograde inversion (RI) reads the inversion backward. Each form can be transposed to begin on any of the twelve pitch classes, so a row has 48 possible forms. The forms are labeled by the starting pitch class, for example P0 or I5.",
+    "A twelve-by-twelve matrix lays out all forms. Write P0 across the top row, then write the inversion of P0 down the first column, starting on the same pitch class. Each row is then filled in by transposing the prime to begin on the pitch class in the first column. Reading across from left to right gives prime forms, right to left gives retrogrades, top to bottom gives inversions and bottom to top gives retrograde inversions.",
+    "For example, with P0 = 0 2 4 6 8 10 1 3 5 7 9 11, the inversion I0 is 0 10 8 6 4 2 11 9 7 5 3 1, and P5 is 5 7 9 11 1 3 6 8 10 0 2 4.",
+    "Composers use the row for melody and for chords, allowing the notes to be distributed in any octave and rhythm. The row supplies the pitch material, but the other musical choices stay free."
+   ]
+  },
+  {
+   "id": "music-theory-college.l24",
+   "title": "Minimalism, Aleatory and Spectralism",
+   "body": [
+    "The second half of the 20th century saw many alternatives to both tonality and serialism. Three approaches that students should recognize are minimalism, aleatory music and spectralism.",
+    "Minimalism, developing in the United States from the 1960s, uses a pared-down set of materials, steady pulse, consonant or modal harmony and gradual change. Composers such as Steve Reich, Philip Glass, Terry Riley and La Monte Young are the best-known names. Characteristic techniques include repetition of short patterns, additive process, in which notes are added to or removed from a pattern step by step, and phasing, in which two identical patterns played at slightly different speeds gradually move out of alignment and back. The listener hears the process itself as the music.",
+    "Aleatory music, or chance music, leaves some element to chance or to the performer. In indeterminate works, the composer may specify materials but not their order or timing. John Cage used chance operations, such as consulting the I Ching, to determine pitches, durations and dynamics in some pieces. Other composers, such as Witold Lutosławski, used controlled aleatory, in which players follow notated patterns but are free in rhythm so that the overall sound is shaped.",
+    "Spectralism arose in France in the 1970s with composers including Gérard Grisey and Tristan Murail. It builds harmony and form from the analysis of the acoustic spectrum of sound, especially the overtone series. Instruments imitate the partials of a sound, often with microtonal tuning, and music may unfold as a slow transformation of a sound's spectrum. Computer analysis frequently supplies the data.",
+    "Each approach redefines what material and structure can mean in music."
+   ]
+  },
+  {
+   "id": "music-theory-college.l25",
+   "title": "Jazz Harmony: ii-V-I and Tritone Substitution",
+   "body": [
+    "The ii-V-I progression is the basic harmonic unit of jazz. In jazz, chords are normally seventh chords. In C major the progression is D minor seventh (D, F, A, C), G dominant seventh (G, B, D, F) and C major seventh (C, E, G, B). The roots follow the circle of fifths, each falling a fifth, which creates strong forward motion.",
+    "Voice leading explains its smoothness. The most important notes in each chord are the third and seventh, the guide tones. In the progression, the seventh of D minor (C) falls by a half step to the third of G7 (B), and the seventh of G7 (F) falls by a half step to the third of the C major seventh chord (E). Even with a single chord shape for each, the line created by these notes is smooth and recognizable.",
+    "In minor keys, the progression becomes ii half-diminished seventh, V7 and i. In C minor, that is D, F, A-flat, C, followed by G7 and a C minor chord.",
+    "The tritone substitution replaces a dominant seventh chord with the dominant seventh chord whose root is a tritone away. For G7, the substitute is D-flat 7. The two chords share the same two important notes: B and F in G7 are the third and seventh, and in D-flat 7 they appear as C-flat (the same pitch as B) and F, with the roles reversed. The substitution turns ii-V-I into D minor seventh, D-flat 7, C major seventh, so the bass descends chromatically: D, D-flat, C.",
+    "Learning to hear these progressions in standard tunes is a core skill for jazz improvisers and arrangers."
+   ]
+  },
+  {
+   "id": "music-theory-college.l26",
+   "title": "Upper Extensions and Reharmonization",
+   "body": [
+    "Jazz chords are built by stacking thirds above the seventh, adding extensions: the ninth, eleventh and thirteenth. The ninth is a step above the octave, the eleventh a fourth, and the thirteenth a sixth. Thus a C9 chord has C, E, G, B-flat and D. A G13 chord has G, B, D, F, A and E, though the fifth and eleventh are often omitted.",
+    "Choice of extensions is guided by the chord's function and by avoid notes. On a major chord, the natural eleventh clashes with the major third, so the raised eleventh, which implies the Lydian sound, is usually preferred. On dominant chords, altered extensions are possible: flat ninth, sharp ninth, sharp eleventh and flat thirteenth. These produce the altered dominant sound.",
+    "Reharmonization is the practice of replacing the chords of a melody with new ones while keeping the tune. Several tools are standard. Diatonic substitution replaces a chord with another sharing most of its notes: E minor seventh (E, G, B, D) may stand for C major seventh because it shares E, G and B. Tritone substitution replaces a dominant. Secondary ii-V progressions can be inserted before any chord to approach it. Backcycling is the technique of approaching a target chord by its dominant, then approaching that chord by its dominant, and so on around the cycle of fifths.",
+    "A good reharmonization respects the melody. Each new chord should contain or support the melody note, and the bass should move in a sensible line. Arrangers use these devices to give a familiar tune a fresh color, and the same ideas help improvisers choose scales."
+   ]
+  },
+  {
+   "id": "music-theory-college.l27",
+   "title": "Modal Jazz",
+   "body": [
+    "Modal jazz arose in the late 1950s as a reaction to the fast-moving chord changes of bebop. Instead of a new chord every beat or two, it builds a piece on a single mode, or a small number of them, for many measures. The musicians improvise melodies from the notes of that mode, which gives the music a stable, open and sometimes meditative character.",
+    "A mode is a scale built on a different degree of the major scale, and each has a distinctive sound that comes from one or two characteristic notes. Dorian is the white-key scale on D: D, E, F, G, A, B, C. It is like a natural minor scale, but with a natural sixth instead of a lowered sixth, which gives it a slightly brighter color. Mixolydian is major with a lowered seventh. G Mixolydian, G, A, B, C, D, E, F, has the same notes as C major. Lydian is major with a raised fourth, and it is a common choice for major chords. Phrygian has a lowered second, and Locrian a lowered second and a lowered fifth, which is why it is unstable and rarely used as a tonic.",
+    "The same pitch collection can produce different modes depending on the tonic that the bass and chords emphasize. D Dorian and C major use the same notes, but the music sounds different because the note D is the center.",
+    "In practice, modal jazz players mix modal thinking with other ideas. They may build chords in fourths instead of thirds, shift the mode by a half step for contrast or add chromatic notes outside the mode. Understanding modes lets you hear the character of a vamp and choose notes with intent."
+   ]
+  },
+  {
+   "id": "music-theory-college.l28",
+   "title": "Analysis Methodology and Writing About Music",
+   "body": [
+    "Analysis is the disciplined study of how a piece of music is built and why it works as it does. A good method moves in steps. First, listen and look: read the score while you hear a recording, and note the form, texture, key, meter and any surprises. Second, label the details: add Roman numerals, mark cadences, identify themes, and map the large-scale sections. Third, look for patterns and relationships, such as recurring motives, harmonic sequences or links between sections. Fourth, interpret: ask what the patterns do and why a composer might have chosen them.",
+    "Roman numeral conventions are standard. Uppercase numerals are major triads and lowercase numerals are minor ones. A small circle after a lowercase numeral denotes a diminished triad, and a circle with a slash denotes a half-diminished seventh chord. Figures to the right show inversion and chord members.",
+    "Writing about music requires a different discipline from analyzing it. Begin with a thesis, a claim that can be argued, not just a description. \"The movement has three sections\" is an observation; \"the key of the secondary theme unsettles the tonic until the recapitulation resolves it\" is an argument. Support the claim with specific evidence from the score, and cite measure numbers so that readers can find each passage, for instance m. 24-32. Quote short musical examples when they help.",
+    "Distinguish description from interpretation. Do not narrate the piece bar by bar. Use precise vocabulary, define unusual terms, and consider the historical and stylistic context so that you compare the piece with its genre and period. A good paper leaves readers with a new way of hearing the work."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "music-theory-college.l01.q1",
+   "lessonId": "music-theory-college.l01",
+   "kind": "tf",
+   "prompt": "In first species counterpoint, each note of the counterpoint is set against exactly one note of the cantus firmus.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l01.q2",
+   "lessonId": "music-theory-college.l01",
+   "kind": "mcq",
+   "prompt": "In strict two-voice species counterpoint, which interval is treated as a dissonance?",
+   "choices": [
+    "Perfect fifth",
+    "Perfect fourth",
+    "Major sixth",
+    "Minor third"
+   ]
+  },
+  {
+   "id": "music-theory-college.l01.q3",
+   "lessonId": "music-theory-college.l01",
+   "kind": "mcq",
+   "prompt": "A cantus firmus in D Dorian ends E to D with the counterpoint above. Which penultimate note is standard?",
+   "choices": [
+    "B",
+    "F",
+    "C-sharp",
+    "C natural"
+   ]
+  },
+  {
+   "id": "music-theory-college.l01.q4",
+   "lessonId": "music-theory-college.l01",
+   "kind": "tf",
+   "prompt": "Parallel perfect fifths between two voices are permitted in strict first species as long as the notes are consonant.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l01.q5",
+   "lessonId": "music-theory-college.l01",
+   "kind": "mcq",
+   "prompt": "The cantus firmus moves C to D while the counterpoint above moves G to A. What is the error?",
+   "choices": [
+    "Parallel perfect fifths",
+    "Voice crossing",
+    "Parallel thirds",
+    "Hidden octaves"
+   ]
+  },
+  {
+   "id": "music-theory-college.l02.q1",
+   "lessonId": "music-theory-college.l02",
+   "kind": "mcq",
+   "prompt": "Which species is built on syncopation and suspensions?",
+   "choices": [
+    "Second species",
+    "Third species",
+    "First species",
+    "Fourth species"
+   ]
+  },
+  {
+   "id": "music-theory-college.l02.q2",
+   "lessonId": "music-theory-college.l02",
+   "kind": "tf",
+   "prompt": "In second species, the strong beat may be dissonant as long as the weak beat is consonant.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l02.q3",
+   "lessonId": "music-theory-college.l02",
+   "kind": "mcq",
+   "prompt": "In fourth species, how should a suspended dissonance resolve?",
+   "choices": [
+    "It need not resolve",
+    "Down by step",
+    "Up by step",
+    "By a leap down a third"
+   ]
+  },
+  {
+   "id": "music-theory-college.l02.q4",
+   "lessonId": "music-theory-college.l02",
+   "kind": "mcq",
+   "prompt": "How many counterpoint notes sound against each cantus firmus note in third species?",
+   "choices": [
+    "One",
+    "Eight",
+    "Four",
+    "Two"
+   ]
+  },
+  {
+   "id": "music-theory-college.l02.q5",
+   "lessonId": "music-theory-college.l02",
+   "kind": "tf",
+   "prompt": "Fifth species combines the techniques of the earlier four species.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l03.q1",
+   "lessonId": "music-theory-college.l03",
+   "kind": "mcq",
+   "prompt": "Which note is the final of the Phrygian mode on the white keys?",
+   "choices": [
+    "F",
+    "G",
+    "E",
+    "D"
+   ]
+  },
+  {
+   "id": "music-theory-college.l03.q2",
+   "lessonId": "music-theory-college.l03",
+   "kind": "tf",
+   "prompt": "In Palestrina-style polyphony, the melodic lines move mostly by step.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l03.q3",
+   "lessonId": "music-theory-college.l03",
+   "kind": "mcq",
+   "prompt": "Which white-key mode has the final F?",
+   "choices": [
+    "Lydian",
+    "Mixolydian",
+    "Dorian",
+    "Phrygian"
+   ]
+  },
+  {
+   "id": "music-theory-college.l03.q4",
+   "lessonId": "music-theory-college.l03",
+   "kind": "tf",
+   "prompt": "A plagal mode has the same final as its authentic partner but a range roughly a fourth lower.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l03.q5",
+   "lessonId": "music-theory-college.l03",
+   "kind": "mcq",
+   "prompt": "At a Dorian cadence on D, singers customarily raise which note?",
+   "choices": [
+    "A to B-flat",
+    "F to F-sharp",
+    "C to C-sharp",
+    "E to F"
+   ]
+  },
+  {
+   "id": "music-theory-college.l04.q1",
+   "lessonId": "music-theory-college.l04",
+   "kind": "mcq",
+   "prompt": "In a fugue exposition, the answer normally states the subject at which pitch level?",
+   "choices": [
+    "The submediant",
+    "The dominant",
+    "The mediant",
+    "The subdominant"
+   ]
+  },
+  {
+   "id": "music-theory-college.l04.q2",
+   "lessonId": "music-theory-college.l04",
+   "kind": "tf",
+   "prompt": "A countersubject typically accompanies the answer as the first voice continues.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l04.q3",
+   "lessonId": "music-theory-college.l04",
+   "kind": "mcq",
+   "prompt": "What is stretto in a fugue?",
+   "choices": [
+    "A passage with no subject",
+    "The final cadence",
+    "A modulation to the relative key",
+    "Entries of the subject overlapping before it ends"
+   ]
+  },
+  {
+   "id": "music-theory-college.l04.q4",
+   "lessonId": "music-theory-college.l04",
+   "kind": "tf",
+   "prompt": "A tonal answer is always an exact transposition of the subject.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l04.q5",
+   "lessonId": "music-theory-college.l04",
+   "kind": "mcq",
+   "prompt": "What does Bach's Well-Tempered Clavier contain?",
+   "choices": [
+    "Preludes only in minor keys",
+    "Two books of prelude and fugue pairs in all 24 keys",
+    "One set of twelve fugues only",
+    "Thirty variations on one theme"
+   ]
+  },
+  {
+   "id": "music-theory-college.l05.q1",
+   "lessonId": "music-theory-college.l05",
+   "kind": "mcq",
+   "prompt": "Over a bass note G with the figure 6 and no accidentals in the key signature, which pitches form the chord?",
+   "choices": [
+    "G, B, E",
+    "G, B, D",
+    "G, C, E",
+    "G, A, D"
+   ]
+  },
+  {
+   "id": "music-theory-college.l05.q2",
+   "lessonId": "music-theory-college.l05",
+   "kind": "mcq",
+   "prompt": "A bass note C is figured 6/4 with no accidentals. Which chord is it?",
+   "choices": [
+    "G major in first inversion",
+    "F major in second inversion",
+    "C major in root position",
+    "A minor in first inversion"
+   ]
+  },
+  {
+   "id": "music-theory-college.l05.q3",
+   "lessonId": "music-theory-college.l05",
+   "kind": "tf",
+   "prompt": "A bass note with no figure normally implies a root-position triad.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l05.q4",
+   "lessonId": "music-theory-college.l05",
+   "kind": "mcq",
+   "prompt": "What does the figure 6/5 indicate?",
+   "choices": [
+    "A root-position seventh chord",
+    "A second-inversion triad",
+    "A third-inversion seventh chord",
+    "A first-inversion seventh chord"
+   ]
+  },
+  {
+   "id": "music-theory-college.l05.q5",
+   "lessonId": "music-theory-college.l05",
+   "kind": "tf",
+   "prompt": "Basso continuo normally involves a bass-line instrument together with a chord-playing instrument.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l06.q1",
+   "lessonId": "music-theory-college.l06",
+   "kind": "mcq",
+   "prompt": "In a G7 chord moving to C major, how does the chordal seventh F normally resolve?",
+   "choices": [
+    "Up by step to G",
+    "Stays as a common tone",
+    "Down a fifth to B",
+    "Down by step to E"
+   ]
+  },
+  {
+   "id": "music-theory-college.l06.q2",
+   "lessonId": "music-theory-college.l06",
+   "kind": "tf",
+   "prompt": "The leading tone is normally not doubled in four-part writing.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l06.q3",
+   "lessonId": "music-theory-college.l06",
+   "kind": "mcq",
+   "prompt": "Which spacing guideline applies to the upper three voices in SATB writing?",
+   "choices": [
+    "Soprano and tenor within a third",
+    "Soprano-alto and alto-tenor within an octave",
+    "All voices within a fifth",
+    "Tenor and bass within an octave"
+   ]
+  },
+  {
+   "id": "music-theory-college.l06.q4",
+   "lessonId": "music-theory-college.l06",
+   "kind": "mcq",
+   "prompt": "What is voice overlap?",
+   "choices": [
+    "A voice leaping a seventh",
+    "A voice resolving a seventh up",
+    "A voice moving past the previous pitch of a neighboring voice",
+    "Two voices singing the same note"
+   ]
+  },
+  {
+   "id": "music-theory-college.l06.q5",
+   "lessonId": "music-theory-college.l06",
+   "kind": "tf",
+   "prompt": "Contrary motion between the outer voices helps avoid parallel perfect intervals.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l07.q1",
+   "lessonId": "music-theory-college.l07",
+   "kind": "mcq",
+   "prompt": "Which progression is a deceptive cadence?",
+   "choices": [
+    "V to I",
+    "I to V",
+    "V to vi",
+    "IV to I"
+   ]
+  },
+  {
+   "id": "music-theory-college.l07.q2",
+   "lessonId": "music-theory-college.l07",
+   "kind": "tf",
+   "prompt": "A half cadence ends on the dominant chord.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l07.q3",
+   "lessonId": "music-theory-college.l07",
+   "kind": "mcq",
+   "prompt": "Which conditions make a perfect authentic cadence?",
+   "choices": [
+    "V to I in root position with tonic in the soprano",
+    "V6 to I with the third in the soprano",
+    "IV to I",
+    "V to vi"
+   ]
+  },
+  {
+   "id": "music-theory-college.l07.q4",
+   "lessonId": "music-theory-college.l07",
+   "kind": "mcq",
+   "prompt": "In a Phrygian half cadence in C minor, how does the bass move?",
+   "choices": [
+    "D falls to C",
+    "A-flat falls to G",
+    "F falls to E",
+    "G rises to A-flat"
+   ]
+  },
+  {
+   "id": "music-theory-college.l07.q5",
+   "lessonId": "music-theory-college.l07",
+   "kind": "tf",
+   "prompt": "A sentence begins with a presentation in which a basic idea is stated and repeated.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l08.q1",
+   "lessonId": "music-theory-college.l08",
+   "kind": "mcq",
+   "prompt": "Which notes form V/V in C major?",
+   "choices": [
+    "D, F, A",
+    "D, F-sharp, A",
+    "G, B, D",
+    "E, G-sharp, B"
+   ]
+  },
+  {
+   "id": "music-theory-college.l08.q2",
+   "lessonId": "music-theory-college.l08",
+   "kind": "mcq",
+   "prompt": "Which notes form V7/vi in C major?",
+   "choices": [
+    "E, G, B, D",
+    "D, F-sharp, A, C",
+    "E, G-sharp, B, D",
+    "A, C-sharp, E, G"
+   ]
+  },
+  {
+   "id": "music-theory-college.l08.q3",
+   "lessonId": "music-theory-college.l08",
+   "kind": "tf",
+   "prompt": "The diminished triad vii° is normally not tonicized.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l08.q4",
+   "lessonId": "music-theory-college.l08",
+   "kind": "mcq",
+   "prompt": "Which chord is V7/IV in G major?",
+   "choices": [
+    "G, B, D, F",
+    "G, B, D, F-sharp",
+    "D, F-sharp, A, C",
+    "C, E, G, B-flat"
+   ]
+  },
+  {
+   "id": "music-theory-college.l08.q5",
+   "lessonId": "music-theory-college.l08",
+   "kind": "tf",
+   "prompt": "A tonicization is typically briefer than a modulation and does not establish a new key.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l09.q1",
+   "lessonId": "music-theory-college.l09",
+   "kind": "mcq",
+   "prompt": "In a modulation from C major to G major, what function does the A minor chord have in G?",
+   "choices": [
+    "ii",
+    "vi",
+    "IV",
+    "iii"
+   ]
+  },
+  {
+   "id": "music-theory-college.l09.q2",
+   "lessonId": "music-theory-college.l09",
+   "kind": "mcq",
+   "prompt": "Which key is closely related to C major?",
+   "choices": [
+    "B major",
+    "A minor",
+    "F-sharp major",
+    "E-flat major"
+   ]
+  },
+  {
+   "id": "music-theory-college.l09.q3",
+   "lessonId": "music-theory-college.l09",
+   "kind": "tf",
+   "prompt": "The fully diminished seventh chord is often used for enharmonic modulation because it can be respelled to resolve to different keys.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l09.q4",
+   "lessonId": "music-theory-college.l09",
+   "kind": "mcq",
+   "prompt": "What is a common-tone modulation?",
+   "choices": [
+    "One that uses a diatonic pivot chord",
+    "One that moves to the relative key without any cadence",
+    "One that changes the mode only",
+    "One that links chords by a shared pitch"
+   ]
+  },
+  {
+   "id": "music-theory-college.l09.q5",
+   "lessonId": "music-theory-college.l09",
+   "kind": "tf",
+   "prompt": "The C major tonic chord functions as IV in G major and can serve as a pivot chord.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l10.q1",
+   "lessonId": "music-theory-college.l10",
+   "kind": "mcq",
+   "prompt": "Which chord is the lowered submediant, bVI, in C major?",
+   "choices": [
+    "A, C, E",
+    "E-flat, G, B-flat",
+    "F, A-flat, C",
+    "A-flat, C, E-flat"
+   ]
+  },
+  {
+   "id": "music-theory-college.l10.q2",
+   "lessonId": "music-theory-college.l10",
+   "kind": "mcq",
+   "prompt": "Which notes form the borrowed iv chord in C major?",
+   "choices": [
+    "F, A-flat, C",
+    "F, A, C",
+    "D, F, A-flat",
+    "B-flat, D, F"
+   ]
+  },
+  {
+   "id": "music-theory-college.l10.q3",
+   "lessonId": "music-theory-college.l10",
+   "kind": "tf",
+   "prompt": "A Picardy third is a major tonic chord at the end of a minor-key passage.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l10.q4",
+   "lessonId": "music-theory-college.l10",
+   "kind": "tf",
+   "prompt": "Mixture chords are borrowed from the relative minor, not the parallel minor.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l10.q5",
+   "lessonId": "music-theory-college.l10",
+   "kind": "mcq",
+   "prompt": "Which notes form bIII in C major?",
+   "choices": [
+    "E, G-sharp, B",
+    "E-flat, G-flat, B-flat",
+    "A-flat, C, E-flat",
+    "E-flat, G, B-flat"
+   ]
+  },
+  {
+   "id": "music-theory-college.l11.q1",
+   "lessonId": "music-theory-college.l11",
+   "kind": "mcq",
+   "prompt": "Which notes make up the Neapolitan sixth in C minor, from the bass upward?",
+   "choices": [
+    "A-flat, C, F",
+    "D, F, A-flat",
+    "F, A-flat, D-flat",
+    "D-flat, F, A-flat"
+   ]
+  },
+  {
+   "id": "music-theory-college.l11.q2",
+   "lessonId": "music-theory-college.l11",
+   "kind": "tf",
+   "prompt": "The Neapolitan chord normally functions as a predominant.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l11.q3",
+   "lessonId": "music-theory-college.l11",
+   "kind": "mcq",
+   "prompt": "Which notes form the Neapolitan chord in A minor?",
+   "choices": [
+    "B-flat, D, F",
+    "B, D, F-sharp",
+    "B-flat, D-flat, F",
+    "A-flat, C, E-flat"
+   ]
+  },
+  {
+   "id": "music-theory-college.l11.q4",
+   "lessonId": "music-theory-college.l11",
+   "kind": "mcq",
+   "prompt": "The Neapolitan sixth most commonly resolves to which chord?",
+   "choices": [
+    "bVI",
+    "V or cadential 6/4 leading to V",
+    "iii",
+    "VII"
+   ]
+  },
+  {
+   "id": "music-theory-college.l11.q5",
+   "lessonId": "music-theory-college.l11",
+   "kind": "tf",
+   "prompt": "The Neapolitan chord is normally used in root position.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l12.q1",
+   "lessonId": "music-theory-college.l12",
+   "kind": "mcq",
+   "prompt": "Which notes form the German augmented sixth chord in C minor?",
+   "choices": [
+    "A-flat, C, E-flat, G",
+    "A-flat, C, E-flat, F-sharp",
+    "A-flat, C, D, F-sharp",
+    "A-flat, C, F-sharp"
+   ]
+  },
+  {
+   "id": "music-theory-college.l12.q2",
+   "lessonId": "music-theory-college.l12",
+   "kind": "mcq",
+   "prompt": "Which notes form the French augmented sixth chord in C minor?",
+   "choices": [
+    "A-flat, C, F-sharp",
+    "A-flat, D, F, B",
+    "A-flat, C, D, F-sharp",
+    "A-flat, C, E-flat, F-sharp"
+   ]
+  },
+  {
+   "id": "music-theory-college.l12.q3",
+   "lessonId": "music-theory-college.l12",
+   "kind": "tf",
+   "prompt": "The Italian sixth has only three distinct pitch classes.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l12.q4",
+   "lessonId": "music-theory-college.l12",
+   "kind": "mcq",
+   "prompt": "To which pitch do the outer voices of an augmented sixth resolve in C minor?",
+   "choices": [
+    "G",
+    "C",
+    "E-flat",
+    "D"
+   ]
+  },
+  {
+   "id": "music-theory-college.l12.q5",
+   "lessonId": "music-theory-college.l12",
+   "kind": "tf",
+   "prompt": "A German augmented sixth chord is enharmonically equivalent to a dominant seventh chord.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l13.q1",
+   "lessonId": "music-theory-college.l13",
+   "kind": "mcq",
+   "prompt": "Which triads are chromatic mediants of C major?",
+   "choices": [
+    "E major and A-flat major",
+    "D minor and G major",
+    "F major and G major",
+    "A minor and E minor"
+   ]
+  },
+  {
+   "id": "music-theory-college.l13.q2",
+   "lessonId": "music-theory-college.l13",
+   "kind": "mcq",
+   "prompt": "Which pitch do C major and E major triads share?",
+   "choices": [
+    "None",
+    "E",
+    "C",
+    "G"
+   ]
+  },
+  {
+   "id": "music-theory-college.l13.q3",
+   "lessonId": "music-theory-college.l13",
+   "kind": "mcq",
+   "prompt": "Which notes make up a dominant ninth chord on G?",
+   "choices": [
+    "G, B, D, A, C",
+    "G, B-flat, D, F, A",
+    "G, B, D, F, A",
+    "G, B, D, F-sharp, A"
+   ]
+  },
+  {
+   "id": "music-theory-college.l13.q4",
+   "lessonId": "music-theory-college.l13",
+   "kind": "tf",
+   "prompt": "A G7 chord with a flat ninth contains A-flat.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l13.q5",
+   "lessonId": "music-theory-college.l13",
+   "kind": "mcq",
+   "prompt": "Which notes form G7 with a raised fifth?",
+   "choices": [
+    "G, B, D-sharp, F",
+    "G, B, D, F-sharp",
+    "G, B-flat, D-sharp, F",
+    "G, B, E-flat, F"
+   ]
+  },
+  {
+   "id": "music-theory-college.l14.q1",
+   "lessonId": "music-theory-college.l14",
+   "kind": "mcq",
+   "prompt": "In a major-key Classical sonata exposition, in which key is the secondary theme usually stated?",
+   "choices": [
+    "The subdominant",
+    "The tonic",
+    "The relative minor",
+    "The dominant"
+   ]
+  },
+  {
+   "id": "music-theory-college.l14.q2",
+   "lessonId": "music-theory-college.l14",
+   "kind": "mcq",
+   "prompt": "In a minor-key exposition, the secondary theme is usually in which key?",
+   "choices": [
+    "The relative major",
+    "The tonic minor",
+    "The dominant major",
+    "The parallel major"
+   ]
+  },
+  {
+   "id": "music-theory-college.l14.q3",
+   "lessonId": "music-theory-college.l14",
+   "kind": "tf",
+   "prompt": "The transition in an exposition typically modulates toward the key of the secondary theme.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l14.q4",
+   "lessonId": "music-theory-college.l14",
+   "kind": "tf",
+   "prompt": "A Classical sonata exposition normally ends in the tonic key.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l14.q5",
+   "lessonId": "music-theory-college.l14",
+   "kind": "mcq",
+   "prompt": "What is a medial caesura?",
+   "choices": [
+    "The end of the recapitulation",
+    "A theme in the development",
+    "A key change in the coda",
+    "A break dividing the transition from the secondary theme"
+   ]
+  },
+  {
+   "id": "music-theory-college.l15.q1",
+   "lessonId": "music-theory-college.l15",
+   "kind": "mcq",
+   "prompt": "In a typical recapitulation, in which key does the secondary theme appear?",
+   "choices": [
+    "The relative minor",
+    "The subdominant",
+    "The tonic",
+    "The dominant"
+   ]
+  },
+  {
+   "id": "music-theory-college.l15.q2",
+   "lessonId": "music-theory-college.l15",
+   "kind": "tf",
+   "prompt": "A development section often fragments and sequences motives from the exposition.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l15.q3",
+   "lessonId": "music-theory-college.l15",
+   "kind": "mcq",
+   "prompt": "A retransition usually prepares the recapitulation by emphasizing which harmony?",
+   "choices": [
+    "The dominant of the home key",
+    "The Neapolitan chord",
+    "The relative minor",
+    "The subdominant of the dominant"
+   ]
+  },
+  {
+   "id": "music-theory-college.l15.q4",
+   "lessonId": "music-theory-college.l15",
+   "kind": "tf",
+   "prompt": "A coda follows the closing material of the recapitulation.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l15.q5",
+   "lessonId": "music-theory-college.l15",
+   "kind": "mcq",
+   "prompt": "What is the usual order of the three main sections of sonata form?",
+   "choices": [
+    "Exposition, recapitulation, development",
+    "Recapitulation, exposition, development",
+    "Exposition, development, recapitulation",
+    "Development, exposition, recapitulation"
+   ]
+  },
+  {
+   "id": "music-theory-college.l16.q1",
+   "lessonId": "music-theory-college.l16",
+   "kind": "mcq",
+   "prompt": "What are the two components of the Ursatz?",
+   "choices": [
+    "The tonic and the subdominant",
+    "The Urlinie and the bass arpeggiation",
+    "The exposition and the recapitulation",
+    "The foreground and the background"
+   ]
+  },
+  {
+   "id": "music-theory-college.l16.q2",
+   "lessonId": "music-theory-college.l16",
+   "kind": "mcq",
+   "prompt": "Which is a possible Urlinie?",
+   "choices": [
+    "7-5-3",
+    "4-6-1",
+    "3-2-1",
+    "1-3-5"
+   ]
+  },
+  {
+   "id": "music-theory-college.l16.q3",
+   "lessonId": "music-theory-college.l16",
+   "kind": "tf",
+   "prompt": "A neighbor tone prolongs a note by stepping away and returning.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l16.q4",
+   "lessonId": "music-theory-college.l16",
+   "kind": "mcq",
+   "prompt": "Which level of a Schenkerian analysis is the most abstract?",
+   "choices": [
+    "Background",
+    "Foreground",
+    "Middleground",
+    "Surface"
+   ]
+  },
+  {
+   "id": "music-theory-college.l16.q5",
+   "lessonId": "music-theory-college.l16",
+   "kind": "mcq",
+   "prompt": "In an interruption, on which scale degree does the first descent of the Urlinie stop?",
+   "choices": [
+    "5, supported by IV",
+    "2, supported by V",
+    "1, supported by I",
+    "3, supported by I"
+   ]
+  },
+  {
+   "id": "music-theory-college.l17.q1",
+   "lessonId": "music-theory-college.l17",
+   "kind": "mcq",
+   "prompt": "How is the Tristan chord spelled in the Prelude to Tristan und Isolde?",
+   "choices": [
+    "F, B, D-sharp, G-sharp",
+    "F, A, C, E",
+    "F, A-flat, C, E-flat",
+    "F, B-flat, D, G"
+   ]
+  },
+  {
+   "id": "music-theory-college.l17.q2",
+   "lessonId": "music-theory-college.l17",
+   "kind": "tf",
+   "prompt": "The pitches of the Tristan chord are enharmonically equivalent to a half-diminished seventh chord.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l17.q3",
+   "lessonId": "music-theory-college.l17",
+   "kind": "mcq",
+   "prompt": "In which work does the Tristan chord appear?",
+   "choices": [
+    "Debussy's Voiles",
+    "Beethoven's Fifth Symphony",
+    "Wagner's Tristan und Isolde",
+    "Bach's Art of Fugue"
+   ]
+  },
+  {
+   "id": "music-theory-college.l17.q4",
+   "lessonId": "music-theory-college.l17",
+   "kind": "mcq",
+   "prompt": "To what chord does the Tristan chord resolve in the Prelude?",
+   "choices": [
+    "A tonic A minor chord",
+    "A major seventh on C",
+    "A diminished triad on G",
+    "A dominant seventh on E"
+   ]
+  },
+  {
+   "id": "music-theory-college.l17.q5",
+   "lessonId": "music-theory-college.l17",
+   "kind": "tf",
+   "prompt": "Delaying the resolution of dissonant chords is characteristic of late-Romantic harmony.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l18.q1",
+   "lessonId": "music-theory-college.l18",
+   "kind": "mcq",
+   "prompt": "How many distinct whole-tone collections exist?",
+   "choices": [
+    "Three",
+    "Six",
+    "Twelve",
+    "Two"
+   ]
+  },
+  {
+   "id": "music-theory-college.l18.q2",
+   "lessonId": "music-theory-college.l18",
+   "kind": "tf",
+   "prompt": "The whole-tone scale contains no half steps.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l18.q3",
+   "lessonId": "music-theory-college.l18",
+   "kind": "mcq",
+   "prompt": "Which notes form the C major pentatonic scale?",
+   "choices": [
+    "C, D, E, F, G",
+    "C, D, E, G, A",
+    "C, D, F, G, B-flat",
+    "C, E-flat, F, G, B-flat"
+   ]
+  },
+  {
+   "id": "music-theory-college.l18.q4",
+   "lessonId": "music-theory-college.l18",
+   "kind": "mcq",
+   "prompt": "What kind of triad can be built from notes of the whole-tone scale?",
+   "choices": [
+    "Minor",
+    "Diminished",
+    "Augmented",
+    "Major"
+   ]
+  },
+  {
+   "id": "music-theory-college.l18.q5",
+   "lessonId": "music-theory-college.l18",
+   "kind": "tf",
+   "prompt": "Planing is the parallel motion of a chord shape as a block.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l19.q1",
+   "lessonId": "music-theory-college.l19",
+   "kind": "mcq",
+   "prompt": "How many distinct octatonic collections exist?",
+   "choices": [
+    "Four",
+    "Twelve",
+    "Three",
+    "Two"
+   ]
+  },
+  {
+   "id": "music-theory-college.l19.q2",
+   "lessonId": "music-theory-college.l19",
+   "kind": "tf",
+   "prompt": "The octatonic scale alternates whole steps and half steps.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l19.q3",
+   "lessonId": "music-theory-college.l19",
+   "kind": "mcq",
+   "prompt": "Which chord is contained in the octatonic collection C, D, E-flat, F, G-flat, A-flat, A, B?",
+   "choices": [
+    "C, E-flat, G-flat, A",
+    "C, E, G, B",
+    "C, E, G, B-flat",
+    "C, E-flat, G, B-flat"
+   ]
+  },
+  {
+   "id": "music-theory-college.l19.q4",
+   "lessonId": "music-theory-college.l19",
+   "kind": "mcq",
+   "prompt": "How many different pitch classes does an octatonic collection contain?",
+   "choices": [
+    "Ten",
+    "Eight",
+    "Seven",
+    "Six"
+   ]
+  },
+  {
+   "id": "music-theory-college.l19.q5",
+   "lessonId": "music-theory-college.l19",
+   "kind": "tf",
+   "prompt": "A single octatonic collection can contain both a D major triad and a D minor triad.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l20.q1",
+   "lessonId": "music-theory-college.l20",
+   "kind": "mcq",
+   "prompt": "What does the P transformation do to C major?",
+   "choices": [
+    "Produces F major",
+    "Produces C minor",
+    "Produces A minor",
+    "Produces E minor"
+   ]
+  },
+  {
+   "id": "music-theory-college.l20.q2",
+   "lessonId": "music-theory-college.l20",
+   "kind": "mcq",
+   "prompt": "What does the L transformation do to C major?",
+   "choices": [
+    "Produces C minor",
+    "Produces A-flat major",
+    "Produces E minor",
+    "Produces A minor"
+   ]
+  },
+  {
+   "id": "music-theory-college.l20.q3",
+   "lessonId": "music-theory-college.l20",
+   "kind": "mcq",
+   "prompt": "What does the R transformation do to C major?",
+   "choices": [
+    "Produces E minor",
+    "Produces C minor",
+    "Produces G major",
+    "Produces A minor"
+   ]
+  },
+  {
+   "id": "music-theory-college.l20.q4",
+   "lessonId": "music-theory-college.l20",
+   "kind": "tf",
+   "prompt": "Each of P, L and R keeps two common tones between the triads it connects.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l20.q5",
+   "lessonId": "music-theory-college.l20",
+   "kind": "mcq",
+   "prompt": "Alternating P and L from C major produces a cycle of how many distinct triads?",
+   "choices": [
+    "Twelve",
+    "Six",
+    "Four",
+    "Eight"
+   ]
+  },
+  {
+   "id": "music-theory-college.l21.q1",
+   "lessonId": "music-theory-college.l21",
+   "kind": "mcq",
+   "prompt": "What is the prime form of the C major triad?",
+   "choices": [
+    "(0, 3, 7)",
+    "(0, 4, 7)",
+    "(0, 5, 8)",
+    "(0, 3, 8)"
+   ]
+  },
+  {
+   "id": "music-theory-college.l21.q2",
+   "lessonId": "music-theory-college.l21",
+   "kind": "mcq",
+   "prompt": "In pitch-class integer notation with C as 0, what number is A?",
+   "choices": [
+    "7",
+    "9",
+    "8",
+    "10"
+   ]
+  },
+  {
+   "id": "music-theory-college.l21.q3",
+   "lessonId": "music-theory-college.l21",
+   "kind": "mcq",
+   "prompt": "What is the prime form of the pitch classes D, E-flat and G?",
+   "choices": [
+    "(0, 2, 7)",
+    "(0, 1, 6)",
+    "(0, 1, 5)",
+    "(0, 4, 5)"
+   ]
+  },
+  {
+   "id": "music-theory-college.l21.q4",
+   "lessonId": "music-theory-college.l21",
+   "kind": "tf",
+   "prompt": "Sets related by transposition or inversion belong to the same set class.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l21.q5",
+   "lessonId": "music-theory-college.l21",
+   "kind": "tf",
+   "prompt": "Normal order is the most compact ascending arrangement of a pitch-class set.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l22.q1",
+   "lessonId": "music-theory-college.l22",
+   "kind": "mcq",
+   "prompt": "What is the interval-class vector of a major triad?",
+   "choices": [
+    "<002001>",
+    "<000300>",
+    "<010101>",
+    "<001110>"
+   ]
+  },
+  {
+   "id": "music-theory-college.l22.q2",
+   "lessonId": "music-theory-college.l22",
+   "kind": "tf",
+   "prompt": "For a set of n notes, the digits of its interval-class vector add up to n(n-1)/2.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l22.q3",
+   "lessonId": "music-theory-college.l22",
+   "kind": "mcq",
+   "prompt": "What do the digits of the vector of any tetrachord add up to?",
+   "choices": [
+    "12",
+    "6",
+    "4",
+    "3"
+   ]
+  },
+  {
+   "id": "music-theory-college.l22.q4",
+   "lessonId": "music-theory-college.l22",
+   "kind": "mcq",
+   "prompt": "What is the interval-class vector of an augmented triad?",
+   "choices": [
+    "<002001>",
+    "<060603>",
+    "<000300>",
+    "<001110>"
+   ]
+  },
+  {
+   "id": "music-theory-college.l22.q5",
+   "lessonId": "music-theory-college.l22",
+   "kind": "tf",
+   "prompt": "Z-related sets share an interval-class vector but are not related by transposition or inversion.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l23.q1",
+   "lessonId": "music-theory-college.l23",
+   "kind": "tf",
+   "prompt": "In a twelve-tone row, each of the twelve pitch classes appears exactly once.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l23.q2",
+   "lessonId": "music-theory-college.l23",
+   "kind": "mcq",
+   "prompt": "How many forms does a twelve-tone row have, counting P, I, R and RI at all transpositions?",
+   "choices": [
+    "12",
+    "24",
+    "36",
+    "48"
+   ]
+  },
+  {
+   "id": "music-theory-college.l23.q3",
+   "lessonId": "music-theory-college.l23",
+   "kind": "mcq",
+   "prompt": "For P0 = 0 2 4 6 8 10 1 3 5 7 9 11, what is the second pitch class of I0?",
+   "choices": [
+    "10",
+    "2",
+    "11",
+    "1"
+   ]
+  },
+  {
+   "id": "music-theory-college.l23.q4",
+   "lessonId": "music-theory-college.l23",
+   "kind": "mcq",
+   "prompt": "For P0 = 0 2 4 6 8 10 1 3 5 7 9 11, what are the first four pitch classes of P5?",
+   "choices": [
+    "0 2 4 6",
+    "5 7 9 11",
+    "5 6 8 10",
+    "7 9 11 1"
+   ]
+  },
+  {
+   "id": "music-theory-college.l23.q5",
+   "lessonId": "music-theory-college.l23",
+   "kind": "mcq",
+   "prompt": "In a standard matrix, how is a retrograde form read?",
+   "choices": [
+    "Top to bottom down a column",
+    "Along the diagonal",
+    "Right to left along a row",
+    "Left to right along a row"
+   ]
+  },
+  {
+   "id": "music-theory-college.l24.q1",
+   "lessonId": "music-theory-college.l24",
+   "kind": "mcq",
+   "prompt": "What is phasing in minimalism?",
+   "choices": [
+    "Choosing notes by coin toss",
+    "Identical patterns at slightly different speeds drifting apart and back",
+    "Gradually adding notes to a pattern",
+    "Tuning an instrument to the overtone series"
+   ]
+  },
+  {
+   "id": "music-theory-college.l24.q2",
+   "lessonId": "music-theory-college.l24",
+   "kind": "tf",
+   "prompt": "Aleatory music leaves some elements to chance or to the performer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l24.q3",
+   "lessonId": "music-theory-college.l24",
+   "kind": "mcq",
+   "prompt": "On what is spectralism chiefly based?",
+   "choices": [
+    "Twelve-tone rows",
+    "Folk melodies",
+    "Figured bass",
+    "The acoustic spectrum and overtones of sound"
+   ]
+  },
+  {
+   "id": "music-theory-college.l24.q4",
+   "lessonId": "music-theory-college.l24",
+   "kind": "mcq",
+   "prompt": "Which feature is typical of minimalism?",
+   "choices": [
+    "Repetition of short patterns with gradual change",
+    "Constant modulation",
+    "Total serialism",
+    "Free improvisation only"
+   ]
+  },
+  {
+   "id": "music-theory-college.l24.q5",
+   "lessonId": "music-theory-college.l24",
+   "kind": "tf",
+   "prompt": "John Cage used chance operations in the composition of some works.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l25.q1",
+   "lessonId": "music-theory-college.l25",
+   "kind": "mcq",
+   "prompt": "Which chords form ii-V-I in C major with seventh chords?",
+   "choices": [
+    "Dm7, G7, Cmaj7",
+    "Dm7, G7, Cm7",
+    "Dm7, G7, C6/4",
+    "Em7, A7, Dmaj7"
+   ]
+  },
+  {
+   "id": "music-theory-college.l25.q2",
+   "lessonId": "music-theory-college.l25",
+   "kind": "mcq",
+   "prompt": "Which chord is the tritone substitution for G7?",
+   "choices": [
+    "A-flat 7",
+    "D-flat 7",
+    "D7",
+    "C-sharp minor 7"
+   ]
+  },
+  {
+   "id": "music-theory-college.l25.q3",
+   "lessonId": "music-theory-college.l25",
+   "kind": "tf",
+   "prompt": "G7 and D-flat 7 share the same tritone, the pitches B and F, with the pitch B spelled C-flat in D-flat 7.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l25.q4",
+   "lessonId": "music-theory-college.l25",
+   "kind": "mcq",
+   "prompt": "In C minor, which chord quality is the ii chord of a minor ii-V-i?",
+   "choices": [
+    "Minor seventh",
+    "Major seventh",
+    "Dominant seventh",
+    "Half-diminished seventh"
+   ]
+  },
+  {
+   "id": "music-theory-college.l25.q5",
+   "lessonId": "music-theory-college.l25",
+   "kind": "tf",
+   "prompt": "In ii-V-I, the seventh of ii resolves down by half step to the third of V.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l26.q1",
+   "lessonId": "music-theory-college.l26",
+   "kind": "mcq",
+   "prompt": "Which note is the ninth of a C9 chord?",
+   "choices": [
+    "E",
+    "F",
+    "B-flat",
+    "D"
+   ]
+  },
+  {
+   "id": "music-theory-college.l26.q2",
+   "lessonId": "music-theory-college.l26",
+   "kind": "mcq",
+   "prompt": "Which note is the thirteenth of a G13 chord?",
+   "choices": [
+    "E",
+    "F",
+    "C",
+    "A"
+   ]
+  },
+  {
+   "id": "music-theory-college.l26.q3",
+   "lessonId": "music-theory-college.l26",
+   "kind": "mcq",
+   "prompt": "Why can E minor seventh substitute for C major seventh?",
+   "choices": [
+    "They are enharmonic",
+    "They share E, G and B",
+    "They share the same root",
+    "They share C and E only"
+   ]
+  },
+  {
+   "id": "music-theory-college.l26.q4",
+   "lessonId": "music-theory-college.l26",
+   "kind": "tf",
+   "prompt": "The natural eleventh is usually avoided on major chords because it clashes with the major third.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l26.q5",
+   "lessonId": "music-theory-college.l26",
+   "kind": "mcq",
+   "prompt": "What is backcycling?",
+   "choices": [
+    "Playing a progression in reverse",
+    "Replacing a dominant with a chord a tritone away",
+    "Repeating the melody an octave lower",
+    "Approaching a target chord with its dominant, then that chord with its dominant, and so on"
+   ]
+  },
+  {
+   "id": "music-theory-college.l27.q1",
+   "lessonId": "music-theory-college.l27",
+   "kind": "mcq",
+   "prompt": "Which notes form D Dorian?",
+   "choices": [
+    "D, E-flat, F, G, A, B-flat, C",
+    "D, E, F, G, A, B-flat, C",
+    "D, E, F, G, A, B, C",
+    "D, E, F-sharp, G, A, B, C"
+   ]
+  },
+  {
+   "id": "music-theory-college.l27.q2",
+   "lessonId": "music-theory-college.l27",
+   "kind": "mcq",
+   "prompt": "What is the characteristic note of the Lydian mode?",
+   "choices": [
+    "The lowered seventh",
+    "The lowered second",
+    "The natural sixth",
+    "The raised fourth"
+   ]
+  },
+  {
+   "id": "music-theory-college.l27.q3",
+   "lessonId": "music-theory-college.l27",
+   "kind": "tf",
+   "prompt": "Modal jazz often stays on a single mode for long stretches.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l27.q4",
+   "lessonId": "music-theory-college.l27",
+   "kind": "mcq",
+   "prompt": "Which major scale has the same notes as G Mixolydian?",
+   "choices": [
+    "F major",
+    "C major",
+    "G major",
+    "D major"
+   ]
+  },
+  {
+   "id": "music-theory-college.l27.q5",
+   "lessonId": "music-theory-college.l27",
+   "kind": "tf",
+   "prompt": "Dorian has a natural sixth, while Aeolian has a lowered sixth.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l28.q1",
+   "lessonId": "music-theory-college.l28",
+   "kind": "mcq",
+   "prompt": "Which feature best marks a strong analytical paragraph?",
+   "choices": [
+    "A purely personal reaction",
+    "A claim supported by specific score evidence",
+    "A bar-by-bar narration",
+    "A list of facts about the composer"
+   ]
+  },
+  {
+   "id": "music-theory-college.l28.q2",
+   "lessonId": "music-theory-college.l28",
+   "kind": "tf",
+   "prompt": "Citing measure numbers helps readers locate the evidence for a claim.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l28.q3",
+   "lessonId": "music-theory-college.l28",
+   "kind": "mcq",
+   "prompt": "What does a lowercase Roman numeral with a small circle denote?",
+   "choices": [
+    "A major triad",
+    "An augmented triad",
+    "A minor seventh chord",
+    "A diminished triad"
+   ]
+  },
+  {
+   "id": "music-theory-college.l28.q4",
+   "lessonId": "music-theory-college.l28",
+   "kind": "tf",
+   "prompt": "Good analysis only describes what happens bar by bar, without interpretation.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-theory-college.l28.q5",
+   "lessonId": "music-theory-college.l28",
+   "kind": "mcq",
+   "prompt": "Which statement is a description rather than an interpretation?",
+   "choices": [
+    "The modulation heightens the drama.",
+    "The second theme is in G major.",
+    "The second theme unsettles the tonic until the recapitulation.",
+    "The harmony expresses longing."
+   ]
+  }
+ ]
+}

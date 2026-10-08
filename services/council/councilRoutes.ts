@@ -21,6 +21,8 @@ export interface CouncilDeps {
   authMiddleware: any;
   apiLimiter: any;
   firestoreAuthHeaders: () => Promise<Record<string, string>>;
+  /** Server-verified entitlement for the caller. The council NEVER trusts a client-sent tier; without this it is FREE. */
+  resolveTier?: (req: any) => Promise<string>;
   /** optional: shipped libraries so a director's portfolio reads from what exists */
   libraries?: { packs?: Array<{ id: string; name: string; councilStyle: string }> };
   /** injectable lanes and store, so the four-round protocol can run under test without a network */
@@ -211,8 +213,10 @@ export function createCouncil(deps: CouncilDeps) {
       catch (e: any) { res.status(502).json({ error: e?.message || 'Council unavailable' }); }
     });
     app.post('/api/council/deliberate', apiLimiter, authMiddleware, async (req: any, res: any) => {
-      const { brief, depth, directors, tier = 'FREE' } = req.body || {};
+      // `tier` in the body is ignored: the caller's entitlement is resolved server-side.
+      const { brief, depth, directors } = req.body || {};
       if (!brief || typeof brief.ask !== 'string' || brief.ask.trim().length < 8) return res.status(400).json({ error: 'brief.ask required' });
+      const tier = deps.resolveTier ? await deps.resolveTier(req).catch(() => 'FREE') : 'FREE';
       const cap = await checkCap(req.uid, String(tier));
       if (!cap.ok) return res.status(429).json({ error: `The council has met ${cap.cap} times for you today. Upgrade for more sessions.` });
       const clean: CouncilBrief = { ask: String(brief.ask).slice(0, 2000), surface: brief.surface ? String(brief.surface).slice(0, 80) : undefined, domain: brief.domain ? String(brief.domain).slice(0, 40) : undefined, audience: brief.audience ? String(brief.audience).slice(0, 300) : undefined, feeling: brief.feeling ? String(brief.feeling).slice(0, 300) : undefined, constraints: Array.isArray(brief.constraints) ? brief.constraints.slice(0, 8).map((c: any) => String(c).slice(0, 200)) : undefined, references: Array.isArray(brief.references) ? brief.references.slice(0, 8).map((c: any) => String(c).slice(0, 200)) : undefined };

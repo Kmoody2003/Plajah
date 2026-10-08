@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +32,12 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.plajah.app.data.PlatformItem
+import com.plajah.app.ui.components.ChoraAtmosphericBackground
+import com.plajah.app.ui.components.ChoraFxStageView
+import com.plajah.app.ui.components.ChoraSlideshowView
+import com.plajah.app.ui.components.ChoraStageMode
+import com.plajah.app.ui.components.ChoraStagePillBar
+import com.plajah.app.ui.components.ChoraVinylArtView
 import com.plajah.app.ui.components.Eyebrow
 import com.plajah.app.ui.theme.PlajahBrand
 import com.plajah.app.ui.theme.PlajahTheme
@@ -52,6 +59,7 @@ fun ChoraAlbumScreen(album:PlatformItem,onBack:()->Unit,onOpenClassic:(String)->
     var position by remember{mutableLongStateOf(0)}
     var duration by remember{mutableLongStateOf(0)}
     var tab by remember{mutableStateOf("TRACKS")}
+    var stageMode by rememberSaveable { mutableStateOf(ChoraStageMode.ORRERY) }
     var playbackError by remember { mutableStateOf<String?>(null) }
     fun ownsQueue()=player.currentMediaItem?.mediaId?.startsWith(album.id+":")==true
     DisposableEffect(player,album.id){
@@ -76,21 +84,62 @@ fun ChoraAlbumScreen(album:PlatformItem,onBack:()->Unit,onOpenClassic:(String)->
     fun skip(step:Int){if(player.mediaItemCount==0){play(selected);return};if(step>0)player.seekToNextMediaItem()else player.seekToPrevious();player.play()}
     val track=album.tracks.getOrNull(selected)
     val timedLine=track?.timedLyrics?.lastOrNull{it.first*1000<=position}?.second
-    Column(Modifier.fillMaxSize().background(NightGround).safeDrawingPadding()){
-        Row(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
-            Row(Modifier.clickable(onClick=onBack).padding(end=16.dp),verticalAlignment=Alignment.CenterVertically){ChoraBackMark();Text("BACK",fontSize=11.sp,fontWeight=FontWeight.Black,letterSpacing=1.1.sp)}
-            Column(Modifier.weight(1f),horizontalAlignment=Alignment.CenterHorizontally){Text(album.title.uppercase(),fontSize=12.sp,fontWeight=FontWeight.Black,letterSpacing=1.2.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text(album.creator.uppercase(),fontSize=8.sp,fontWeight=FontWeight.Bold,letterSpacing=2.4.sp,color=ChoraOrange,maxLines=1)}
-            IconButton(onClick={context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply{type="text/plain";putExtra(Intent.EXTRA_TEXT,album.platformUrl)},"Share on"))}){Icon(Icons.Rounded.Share,"Share")}
-        }
-        Box(Modifier.fillMaxWidth().weight(1f).background(Brush.verticalGradient(listOf(Color(0xFF220433),NightGround,Color.Black)))) {
-            ChoraOrrery(album,selected,{play(it)},Modifier.align(Alignment.Center))
-            Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent,Color.Black))).padding(24.dp)) {
-                Text(track?.title?:album.title,fontSize=24.sp,fontWeight=FontWeight.Black,fontStyle=FontStyle.Italic,lineHeight=24.sp,maxLines=2)
-                Text(album.creator.uppercase(),fontSize=11.sp,letterSpacing=2.sp,color=ChoraOrange,fontWeight=FontWeight.Black)
-                Spacer(Modifier.height(12.dp))
-                Box(Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(.16f))){Box(Modifier.fillMaxWidth(if(duration>0)(position.toFloat()/duration).coerceIn(0f,1f)else 0f).fillMaxHeight().background(Spatial))}
+    ChoraAtmosphericBackground(isPlaying = playing) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()){
+            Row(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
+                Row(Modifier.clickable(onClick=onBack).padding(end=16.dp),verticalAlignment=Alignment.CenterVertically){ChoraBackMark();Text("BACK",fontSize=11.sp,fontWeight=FontWeight.Black,letterSpacing=1.1.sp)}
+                Column(Modifier.weight(1f),horizontalAlignment=Alignment.CenterHorizontally){Text(album.title.uppercase(),fontSize=12.sp,fontWeight=FontWeight.Black,letterSpacing=1.2.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text(album.creator.uppercase(),fontSize=8.sp,fontWeight=FontWeight.Bold,letterSpacing=2.4.sp,color=ChoraOrange,maxLines=1)}
+                IconButton(onClick={context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply{type="text/plain";putExtra(Intent.EXTRA_TEXT,album.platformUrl)},"Share on"))}){Icon(Icons.Rounded.Share,"Share")}
             }
-        }
+
+            // Stage Area with Stage Switcher (ART | SLIDESHOW | FX STAGE | ORRERY)
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                when (stageMode) {
+                    ChoraStageMode.ART -> {
+                        ChoraVinylArtView(
+                            album = album,
+                            isPlaying = playing,
+                            modifier = Modifier.size(240.dp).align(Alignment.Center)
+                        )
+                    }
+                    ChoraStageMode.SLIDESHOW -> {
+                        val slideImages = remember(album) {
+                            listOfNotNull(
+                                album.image.takeIf { it.isNotBlank() },
+                                album.platformUrl.takeIf { it.isNotBlank() && it.startsWith("http") }
+                            ).ifEmpty { listOf(album.image) }
+                        }
+                        ChoraSlideshowView(
+                            images = slideImages,
+                            albumTitle = album.title,
+                            artistName = album.creator,
+                            isPlaying = playing,
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                    ChoraStageMode.FX_STAGE -> {
+                        ChoraFxStageView(
+                            isPlaying = playing,
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                    ChoraStageMode.ORRERY -> {
+                        ChoraOrrery(album, selected, { play(it) }, Modifier.align(Alignment.Center))
+                    }
+                }
+
+                // Track and Artist info over gradient
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.85f)))).padding(16.dp)) {
+                    Text(track?.title?:album.title,fontSize=22.sp,fontWeight=FontWeight.Black,fontStyle=FontStyle.Italic,lineHeight=24.sp,maxLines=2,color=Color.White)
+                    Text(album.creator.uppercase(),fontSize=11.sp,letterSpacing=2.sp,color=ChoraOrange,fontWeight=FontWeight.Black)
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(.16f))){Box(Modifier.fillMaxWidth(if(duration>0)(position.toFloat()/duration).coerceIn(0f,1f)else 0f).fillMaxHeight().background(Spatial))}
+                }
+            }
+            // Stage mode switcher sits at the BOTTOM of the stage area (original placement)
+            Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                ChoraStagePillBar(activeMode = stageMode, onSelectMode = { stageMode = it })
+            }
         Box(Modifier.weight(1f).fillMaxWidth().background(Color.Black.copy(.7f))) {
             when(tab) {
                 "TRACKS" -> LazyColumn(contentPadding=PaddingValues(top=24.dp)) { itemsIndexed(album.tracks,key={_,t->t.id}) { index,item ->
@@ -116,16 +165,19 @@ fun ChoraAlbumScreen(album:PlatformItem,onBack:()->Unit,onOpenClassic:(String)->
             }
         }
         playbackError?.let{Text(it,Modifier.padding(horizontal=16.dp),fontSize=11.sp,color=ChoraOrange)}
-        Row(Modifier.fillMaxWidth().height(52.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
+        Row(Modifier.fillMaxWidth().height(54.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
             IconButton(onClick={shuffle=!shuffle;player.shuffleModeEnabled=shuffle}){Icon(Icons.Rounded.Shuffle,"Shuffle",tint=if(shuffle)ChoraOrange else Color.White.copy(.5f))}
             IconButton(onClick={skip(-1)}){Icon(Icons.Rounded.SkipPrevious,"Previous")}
-            IconButton(onClick={if(!ownsQueue())play(selected)else if(player.isPlaying)player.pause()else player.play()}){Icon(if(playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,"Play or pause",tint=ChoraOrange)}
+            IconButton(onClick={if(!ownsQueue())play(selected)else if(player.isPlaying)player.pause()else player.play()},modifier=Modifier.size(48.dp).background(Spatial,CircleShape)){Icon(if(playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,"Play or pause",tint=Color.White,modifier=Modifier.size(28.dp))}
             IconButton(onClick={skip(1)}){Icon(Icons.Rounded.SkipNext,"Next")}
             IconButton(onClick={repeat=!repeat;player.repeatMode=if(repeat)Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF}){Icon(Icons.Rounded.RepeatOne,"Repeat one",tint=if(repeat)ChoraCyan else Color.White.copy(.5f))}
+            var castingActive by remember { mutableStateOf(false) }
+            IconButton(onClick={castingActive=!castingActive;android.widget.Toast.makeText(context,if(castingActive)"Connected to Living Room (Cast)" else "Casting disconnected",android.widget.Toast.LENGTH_SHORT).show()}){Icon(if(castingActive)Icons.Rounded.CastConnected else Icons.Rounded.Cast,"Cast to device",tint=if(castingActive)ChoraCyan else Color.White.copy(.6f))}
         }
         Row(Modifier.fillMaxWidth().background(Color(0xFF0A0610)).horizontalScroll(rememberScrollState()).padding(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(3.dp)) {
             listOf("TRACKS" to "Tracks","LYRICS" to "Lyrics","MEDIA" to "Videos","COMMENTS" to "Feed","INFO" to "Notes").forEach{(id,label)->Box(Modifier.height(30.dp).background(if(tab==id)Spatial else Brush.linearGradient(listOf(Color.Transparent,Color.Transparent)),CircleShape).clickable{tab=id}.padding(horizontal=12.dp),contentAlignment=Alignment.Center){Text(label.uppercase(),fontSize=9.sp,fontWeight=FontWeight.Black,letterSpacing=.9.sp,color=Color.White.copy(if(tab==id)1f else .5f))}}
             Text("NIGHT ☾",Modifier.padding(8.dp),fontSize=9.sp,color=Color.White.copy(.7f))
         }
     }
+}
 }

@@ -1,0 +1,242 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plajah PHI database (`plajah-phi`) — a SEPARATE Firestore database from `plajah-prod`.
+// Deploy this file to that database only. Nothing here is readable by the public, and everything
+// stored is ciphertext (see services/clinic/phi): the rules decide WHO may fetch or change a
+// document, the encryption decides who can READ it. Both must be defeated to expose a patient.
+//
+//   • Default deny: anything not matched below is refused.
+//   • Roles (minimum necessary):  OWNER  all records, membership, recovery, audit log
+//                                 ADMIN  appointments / intake / superbills, membership (not owners/admins), audit log
+//                                 PROVIDER  all records
+//                                 STAFF  appointments, intake        BILLER  appointments (read), superbills
+//   • Every change to a record, a member, a key grant or recovery data must arrive in the SAME batch
+//     as an audit entry by the same person stamped with server time (checked with getAfter).
+//   • Audit entries can be created, never changed or deleted. Records and members are never deleted
+//     (suspend, don't erase — retention). A signed (locked) record can never be changed.
+// Keep ROLE_* in services/clinic/phi/types.ts identical to the role functions below.
+// ─────────────────────────────────────────────────────────────────────────────
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── membership helpers ───────────────────────────────────────────────────
+    function signedIn() { return request.auth != null; }
+    function clinicRef(c) { return /databases/$(database)/documents/clinics/$(c); }
+    function memberRef(c, u) { return /databases/$(database)/documents/clinics/$(c)/members/$(u); }
+    function auditRef(c, id) { return /databases/$(database)/documents/clinics/$(c)/audit/$(id); }
+    function me(c) { return get(memberRef(c, request.auth.uid)).data; }
+    function isActive(c) { return signedIn() && exists(memberRef(c, request.auth.uid)) && me(c).status == 'ACTIVE'; }
+    function hasRole(c, roles) { return isActive(c) && me(c).role in roles; }
+
+    // ── what each role may do ────────────────────────────────────────────────
+    function readKinds(role) {
+      return role in ['OWNER', 'PROVIDER'] ? ['appointment', 'intake', 'soap', 'superbill']
+        : role == 'ADMIN' ? ['appointment', 'intake', 'superbill']
+        : role == 'STAFF' ? ['appointment', 'intake']
+        : role == 'BILLER' ? ['appointment', 'superbill']
+        : [];
+    }
+    function writeKinds(role) {
+      return role in ['OWNER', 'PROVIDER'] ? ['appointment', 'intake', 'soap', 'superbill']
+        : role == 'ADMIN' ? ['appointment', 'intake', 'superbill']
+        : role == 'STAFF' ? ['appointment', 'intake']
+        : role == 'BILLER' ? ['superbill']
+        : [];
+    }
+    function assignable(role) {
+      return role == 'OWNER' ? ['ADMIN', 'PROVIDER', 'STAFF', 'BILLER']
+        : role == 'ADMIN' ? ['PROVIDER', 'STAFF', 'BILLER']
+        : [];
+    }
+    function grantableDomains(role) { return role == 'OWNER' ? ['front', 'clinical'] : role == 'ADMIN' ? ['front'] : []; }
+    function roleHoldsDomain(role, domain) { return domain == 'front' || role in ['OWNER', 'PROVIDER']; }
+
+    // ── audit linkage: the write must come with its audit entry, same person, server time ──
+    function auditedBy(c, id) {
+      // A key rotation spans several batches that share one KEY_ROTATE audit entry written in the first.
+      return id is string && getAfter(auditRef(c, id)).data.actorUid == request.auth.uid
+        && (getAfter(auditRef(c, id)).data.at == request.time
+            || (getAfter(auditRef(c, id)).data.action == 'KEY_ROTATE' && hasRole(c, ['OWNER', 'ADMIN'])));
+    }
+    function auditedRecord(c, recordId, kind) {
+      let id = request.resource.data.auditId;
+      let a = getAfter(auditRef(c, id)).data;
+      return id is string && a.actorUid == request.auth.uid
+        && ((a.recordId == recordId && a.kind == kind && a.at == request.time)
+            || (a.action == 'KEY_ROTATE' && hasRole(c, ['OWNER', 'ADMIN'])));
+    }
+
+    // ── a clinic ─────────────────────────────────────────────────────────────
+    match /clinics/{clinicId} {
+      allow get: if isActive(clinicId) || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow list: if false;
+      // Only the person whose uid prefixes the clinic id can create it — nobody can squat another clinic's id.
+      allow create: if signedIn() && clinicId.size() <= 140 && clinicId.matches(request.auth.uid + '__.*')
+        && request.resource.data.keys().hasOnly(['ownerUid', 'name', 'createdAt', 'ver'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.ver == 1
+        && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 120));
+      allow update: if hasRole(clinicId, ['OWNER']) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 120;
+      allow delete: if false;
+
+      // ── members ────────────────────────────────────────────────────────────
+      match /members/{uid} {
+        function memberShape(d) {
+          return d.keys().hasOnly(['uid', 'role', 'status', 'displayName', 'addedBy', 'createdAt', 'updatedAt', 'auditId', 'pub', 'wrappedPriv'])
+            && d.uid == uid && d.role in ['OWNER', 'ADMIN', 'PROVIDER', 'STAFF', 'BILLER'] && d.status in ['ACTIVE', 'SUSPENDED']
+            && d.addedBy is string && d.createdAt is timestamp && d.updatedAt is timestamp
+            && (!('displayName' in d) || (d.displayName is string && d.displayName.size() <= 80));
+        }
+        function keyShape(d) {
+          return d.pub is string && d.pub.size() >= 80 && d.pub.size() <= 200
+            && d.wrappedPriv.keys().hasOnly(['salt', 'iter', 'iv', 'ct'])
+            && d.wrappedPriv.iter is int && d.wrappedPriv.iter >= 100000
+            && d.wrappedPriv.salt is string && d.wrappedPriv.iv is string && d.wrappedPriv.ct is string && d.wrappedPriv.ct.size() < 2000;
+        }
+
+        // A member reads their own record (so they can see "suspended"); owners/admins read everyone's.
+        allow get: if signedIn() && (request.auth.uid == uid || hasRole(clinicId, ['OWNER', 'ADMIN']));
+        allow list: if hasRole(clinicId, ['OWNER', 'ADMIN']);
+
+        allow create:
+          // the founder creates their own OWNER record straight after creating the clinic
+          if (signedIn() && request.auth.uid == uid && get(clinicRef(clinicId)).data.ownerUid == uid
+              && memberShape(request.resource.data) && request.resource.data.role == 'OWNER' && request.resource.data.status == 'ACTIVE'
+              && request.resource.data.addedBy == uid && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+              && keyShape(request.resource.data))
+          // an owner/admin invites someone: no keys yet, the person enrolls themselves
+          || (isActive(clinicId) && memberShape(request.resource.data)
+              && request.resource.data.role in assignable(me(clinicId).role) && request.resource.data.status == 'ACTIVE'
+              && request.resource.data.addedBy == request.auth.uid && !('pub' in request.resource.data) && !('wrappedPriv' in request.resource.data)
+              && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+              && auditedBy(clinicId, request.resource.data.auditId));
+
+        allow update: if isActive(clinicId) && request.resource.data.uid == uid && request.resource.data.updatedAt == request.time
+          && request.resource.data.addedBy == resource.data.addedBy && request.resource.data.createdAt == resource.data.createdAt
+          && auditedBy(clinicId, request.resource.data.auditId)
+          && (
+            // enrol: pick a passphrase once (an owner may re-key after using the recovery key)
+            (request.auth.uid == uid && (!('pub' in resource.data) || resource.data.role == 'OWNER')
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pub', 'wrappedPriv', 'updatedAt', 'auditId'])
+              && keyShape(request.resource.data))
+            // change passphrase: same key pair, re-sealed
+            || (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['wrappedPriv', 'updatedAt', 'auditId'])
+              && request.resource.data.pub == resource.data.pub && keyShape(request.resource.data))
+            // owner/admin changes someone else's role or status — never their own, never an owner/admin they may not manage
+            || (request.auth.uid != uid && hasRole(clinicId, ['OWNER', 'ADMIN'])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status', 'updatedAt', 'auditId'])
+              && resource.data.role in assignable(me(clinicId).role) && request.resource.data.role in assignable(me(clinicId).role)
+              && request.resource.data.status in ['ACTIVE', 'SUSPENDED'])
+          );
+        allow delete: if false;
+      }
+
+      // ── key grants: a data key sealed for one member ───────────────────────
+      match /grants/{grantId} {
+        function grantShape(d) {
+          return d.keys().hasOnly(['uid', 'domain', 'wraps', 'grantedBy', 'updatedAt', 'auditId'])
+            && d.domain in ['front', 'clinical'] && grantId == d.uid + '_' + d.domain
+            && d.grantedBy == request.auth.uid && d.updatedAt == request.time
+            && d.wraps is list && d.wraps.size() >= 1 && d.wraps.size() <= 8;
+        }
+        allow get: if isActive(clinicId) && (grantId.matches(request.auth.uid + '_(front|clinical)')
+          || (hasRole(clinicId, ['OWNER']) ) || (hasRole(clinicId, ['ADMIN']) && grantId.matches('.*_front')));
+        allow list: if false;
+        allow create, update: if isActive(clinicId) && grantShape(request.resource.data)
+          && request.resource.data.domain in grantableDomains(me(clinicId).role)
+          && get(memberRef(clinicId, request.resource.data.uid)).data.status == 'ACTIVE'
+          && roleHoldsDomain(get(memberRef(clinicId, request.resource.data.uid)).data.role, request.resource.data.domain)
+          && auditedBy(clinicId, request.resource.data.auditId);
+        allow delete: if hasRole(clinicId, ['OWNER']) || (hasRole(clinicId, ['ADMIN']) && grantId.matches('.*_front'));
+      }
+
+      // ── recovery: the owner's way back in if a passphrase is forgotten ─────
+      match /vault/{docId} {
+        function recoveryKeys(d) { return d.keys().hasOnly(['pub', 'sealedPriv', 'createdAt', 'updatedAt', 'auditId']); }
+        function wrapKeys(d) { return d.keys().hasOnly(['domain', 'wraps', 'updatedAt', 'auditId']) && d.wraps is list && d.wraps.size() >= 1 && d.wraps.size() <= 8 && d.updatedAt == request.time; }
+        allow get: if (docId == 'recovery' && hasRole(clinicId, ['OWNER', 'ADMIN']))
+          || ((docId == 'recwrap-front' || docId == 'recwrap-clinical') && hasRole(clinicId, ['OWNER']));
+        allow list: if false;
+        allow create, update:
+          if (docId == 'recovery' && hasRole(clinicId, ['OWNER']) && recoveryKeys(request.resource.data)
+              && request.resource.data.pub is string && request.resource.data.updatedAt == request.time
+              && auditedBy(clinicId, request.resource.data.auditId))
+          || (docId == 'recwrap-front' && hasRole(clinicId, ['OWNER', 'ADMIN']) && wrapKeys(request.resource.data) && request.resource.data.domain == 'front'
+              && auditedBy(clinicId, request.resource.data.auditId))
+          || (docId == 'recwrap-clinical' && hasRole(clinicId, ['OWNER']) && wrapKeys(request.resource.data) && request.resource.data.domain == 'clinical'
+              && auditedBy(clinicId, request.resource.data.auditId));
+        allow delete: if false;
+      }
+
+      // ── records: ciphertext + a few non-identifying fields ─────────────────
+      match /records/{recordId} {
+        function recordShape(d) {
+          return d.keys().hasOnly(['kind', 'rev', 'keyId', 'iv', 'ct', 'authorUid', 'updatedBy', 'createdAt', 'updatedAt', 'locked', 'auditId', 'contentSha', 'day', 'apptRef', 'status'])
+            && d.keys().hasAll(['kind', 'rev', 'keyId', 'iv', 'ct', 'authorUid', 'updatedBy', 'createdAt', 'updatedAt', 'locked', 'auditId'])
+            && d.kind in ['appointment', 'intake', 'soap', 'superbill']
+            && recordId.matches('[A-Za-z0-9_-]{6,64}')
+            && d.rev is int && d.rev >= 1
+            && d.keyId is string && d.keyId.size() >= 6 && d.keyId.size() <= 32
+            && d.iv is string && d.iv.size() == 16
+            && d.ct is string && d.ct.size() >= 24 && d.ct.size() <= 900000
+            && d.locked is bool && d.auditId is string && d.auditId.size() <= 40
+            && d.createdAt is timestamp && d.updatedAt is timestamp
+            && (d.locked ? ('contentSha' in d && d.contentSha is string && d.contentSha.size() == 64) : !('contentSha' in d))
+            && (!('day' in d) || (d.day is string && d.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')))
+            && (!('apptRef' in d) || (d.apptRef is string && d.apptRef.size() <= 64))
+            && (!('status' in d) || (d.status is string && d.status.size() <= 24));
+        }
+
+        // Queries must filter on `kind` to stay inside what the caller's role may read.
+        allow get, list: if isActive(clinicId) && resource.data.kind in readKinds(me(clinicId).role);
+
+        allow create: if isActive(clinicId) && recordShape(request.resource.data)
+          && request.resource.data.kind in writeKinds(me(clinicId).role)
+          && request.resource.data.rev == 1
+          && request.resource.data.authorUid == request.auth.uid && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+          && auditedRecord(clinicId, recordId, request.resource.data.kind);
+
+        // Optimistic concurrency (rev goes up by exactly one) and signed records never change.
+        allow update: if isActive(clinicId) && recordShape(request.resource.data)
+          && resource.data.locked == false
+          && request.resource.data.kind == resource.data.kind
+          && request.resource.data.kind in writeKinds(me(clinicId).role)
+          && request.resource.data.rev == resource.data.rev + 1
+          && request.resource.data.authorUid == resource.data.authorUid
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time
+          && auditedRecord(clinicId, recordId, request.resource.data.kind);
+
+        allow delete: if false;
+      }
+
+      // ── audit trail: write-once ────────────────────────────────────────────
+      match /audit/{entryId} {
+        function actionAllowed(a) {
+          return a in ['VAULT_UNLOCK', 'VAULT_LOCK', 'MEMBER_ENROLL', 'PASSPHRASE_CHANGE', 'CREATE_RECORD', 'UPDATE_RECORD', 'LOCK_RECORD', 'READ_RECORD', 'LIST_RECORDS', 'EXPORT_RECORD', 'PRINT_RECORD']
+            || (a in ['MEMBER_ADD', 'MEMBER_ROLE', 'MEMBER_SUSPEND', 'MEMBER_RESTORE', 'KEY_GRANT', 'KEY_ROTATE', 'AUDIT_VIEW'] && hasRole(clinicId, ['OWNER', 'ADMIN']))
+            || (a in ['CLINIC_CREATE', 'VAULT_RECOVER'] && hasRole(clinicId, ['OWNER']));
+        }
+        allow get, list: if hasRole(clinicId, ['OWNER', 'ADMIN']);
+        allow create: if isActive(clinicId)
+          && request.resource.data.keys().hasOnly(['actorUid', 'action', 'kind', 'recordId', 'at', 'sid', 'seq', 'prev', 'hash'])
+          && request.resource.data.actorUid == request.auth.uid && request.resource.data.at == request.time
+          && request.resource.data.action is string && actionAllowed(request.resource.data.action)
+          && request.resource.data.kind in ['', 'appointment', 'intake', 'soap', 'superbill']
+          && request.resource.data.recordId is string && request.resource.data.recordId.size() <= 140
+          && request.resource.data.sid is string && request.resource.data.sid.size() <= 24
+          && request.resource.data.seq is int && request.resource.data.seq >= 1
+          && request.resource.data.prev is string && (request.resource.data.prev.size() == 0 || request.resource.data.prev.size() == 64)
+          && request.resource.data.hash is string && request.resource.data.hash.size() == 64;
+        allow update, delete: if false;
+      }
+    }
+
+    // Everything else, anywhere in this database: no.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

@@ -1,0 +1,620 @@
+{
+ "fps": 30,
+ "perFrame": 16,
+ "channels": [
+  {
+   "name": "x",
+   "scale": 200
+  },
+  {
+   "name": "y",
+   "scale": 200
+  },
+  {
+   "name": "rot",
+   "scale": 500
+  },
+  {
+   "name": "spin",
+   "scale": 30000
+  },
+  {
+   "name": "headRot",
+   "scale": 500
+  },
+  {
+   "name": "headX",
+   "scale": 300
+  },
+  {
+   "name": "headY",
+   "scale": 300
+  },
+  {
+   "name": "armL",
+   "scale": 150
+  },
+  {
+   "name": "armR",
+   "scale": 150
+  },
+  {
+   "name": "legL",
+   "scale": 500
+  },
+  {
+   "name": "legR",
+   "scale": 500
+  },
+  {
+   "name": "liftL",
+   "scale": 300
+  },
+  {
+   "name": "liftR",
+   "scale": 300
+  },
+  {
+   "name": "tail",
+   "scale": 500
+  },
+  {
+   "name": "mane",
+   "scale": 30000
+  },
+  {
+   "name": "squash",
+   "scale": 30000
+  }
+ ],
+ "credit": "Data from mocap.cs.cmu.edu (funded by NSF EIA-0196217)",
+ "clips": [
+  {
+   "id": "05_03",
+   "name": "Arabesque turn",
+   "styles": [
+    "ballet",
+    "zen"
+   ],
+   "frames": 107,
+   "duration": 3.57,
+   "energy": 1,
+   "beat": 1.167,
+   "beatConf": 0.39,
+   "offset": 0,
+   "srcStart": 0,
+   "alignYaw": -2.3218
+  },
+  {
+   "id": "05_05",
+   "name": "Jeté en tournant",
+   "styles": [
+    "ballet"
+   ],
+   "frames": 227,
+   "duration": 7.57,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 3424,
+   "srcStart": 0,
+   "alignYaw": -1.5666
+  },
+  {
+   "id": "05_07",
+   "name": "Small jetés & pirouette",
+   "styles": [
+    "ballet"
+   ],
+   "frames": 296,
+   "duration": 9.87,
+   "energy": 1,
+   "beat": 0.767,
+   "beatConf": 0.18,
+   "offset": 10688,
+   "srcStart": 0,
+   "alignYaw": 0.0092
+  },
+  {
+   "id": "05_09",
+   "name": "Glissade",
+   "styles": [
+    "ballet",
+    "zen"
+   ],
+   "frames": 285,
+   "duration": 9.5,
+   "energy": 0.63,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 20160,
+   "srcStart": 0,
+   "alignYaw": -0.1548
+  },
+  {
+   "id": "05_12",
+   "name": "Arms high, tendu",
+   "styles": [
+    "ballet",
+    "zen"
+   ],
+   "frames": 337,
+   "duration": 11.23,
+   "energy": 0.27,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 29280,
+   "srcStart": 0,
+   "alignYaw": -2.6581
+  },
+  {
+   "id": "05_17",
+   "name": "Grand jeté",
+   "styles": [
+    "ballet"
+   ],
+   "frames": 260,
+   "duration": 8.67,
+   "energy": 1,
+   "beat": 1.033,
+   "beatConf": 0.46,
+   "offset": 40064,
+   "srcStart": 0,
+   "alignYaw": 2.9463
+  },
+  {
+   "id": "49_09",
+   "name": "Side arabesque",
+   "styles": [
+    "zen",
+    "ballet"
+   ],
+   "frames": 478,
+   "duration": 15.93,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 48384,
+   "srcStart": 0,
+   "alignYaw": 0.046
+  },
+  {
+   "id": "49_10",
+   "name": "Fold in, curl",
+   "styles": [
+    "zen"
+   ],
+   "frames": 354,
+   "duration": 11.8,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 63680,
+   "srcStart": 0,
+   "alignYaw": -0.7559
+  },
+  {
+   "id": "49_12",
+   "name": "Lean & arch arms",
+   "styles": [
+    "zen",
+    "ballet"
+   ],
+   "frames": 281,
+   "duration": 9.37,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 75008,
+   "srcStart": 0,
+   "alignYaw": -0.155
+  },
+  {
+   "id": "49_22",
+   "name": "Balance, elbow by ear",
+   "styles": [
+    "zen"
+   ],
+   "frames": 320,
+   "duration": 10.67,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 84000,
+   "srcStart": 0,
+   "alignYaw": -0.275
+  },
+  {
+   "id": "143_35",
+   "name": "Macarena",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 318,
+   "duration": 10.6,
+   "energy": 0.61,
+   "beat": 0.233,
+   "beatConf": 0.65,
+   "offset": 94240,
+   "srcStart": 0,
+   "alignYaw": 2.9198
+  },
+  {
+   "id": "143_34",
+   "name": "Chicken dance",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 195,
+   "duration": 6.5,
+   "energy": 0.96,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 104416,
+   "srcStart": 0,
+   "alignYaw": 3.0543
+  },
+  {
+   "id": "141_12",
+   "name": "The Twist",
+   "styles": [
+    "edm",
+    "rock",
+    "groove"
+   ],
+   "frames": 140,
+   "duration": 4.67,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 110656,
+   "srcStart": 0,
+   "alignYaw": -2.2028
+  },
+  {
+   "id": "90_28",
+   "name": "Breakdance",
+   "styles": [
+    "edm",
+    "rock"
+   ],
+   "frames": 192,
+   "duration": 6.4,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 115136,
+   "srcStart": 0,
+   "alignYaw": -0.2462
+  },
+  {
+   "id": "90_32",
+   "name": "Moonwalk",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 180,
+   "duration": 6,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 121280,
+   "srcStart": 0,
+   "alignYaw": -2.9934
+  },
+  {
+   "id": "55_01",
+   "name": "Whirl",
+   "styles": [
+    "edm",
+    "ballet"
+   ],
+   "frames": 451,
+   "duration": 15.03,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 127040,
+   "srcStart": 0,
+   "alignYaw": -1.3804
+  },
+  {
+   "id": "143_08",
+   "name": "Jumping twists",
+   "styles": [
+    "edm",
+    "rock"
+   ],
+   "frames": 96,
+   "duration": 3.2,
+   "energy": 1,
+   "beat": 0.833,
+   "beatConf": 0.54,
+   "offset": 141472,
+   "srcStart": 0,
+   "alignYaw": 2.6779
+  },
+  {
+   "id": "143_09",
+   "name": "Jumping twists B",
+   "styles": [
+    "edm",
+    "rock"
+   ],
+   "frames": 135,
+   "duration": 4.5,
+   "energy": 1,
+   "beat": 1.133,
+   "beatConf": 0.34,
+   "offset": 144544,
+   "srcStart": 0,
+   "alignYaw": 2.2664
+  },
+  {
+   "id": "120_05",
+   "name": "Mickey dance",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 337,
+   "duration": 11.23,
+   "energy": 0.7,
+   "beat": 1.167,
+   "beatConf": 0.43,
+   "offset": 148864,
+   "srcStart": 0,
+   "alignYaw": -0.5042
+  },
+  {
+   "id": "120_06",
+   "name": "Mickey dance B",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 358,
+   "duration": 11.93,
+   "energy": 0.97,
+   "beat": 1.333,
+   "beatConf": 0.54,
+   "offset": 159648,
+   "srcStart": 0,
+   "alignYaw": -1.2142
+  },
+  {
+   "id": "79_18",
+   "name": "Air drums",
+   "styles": [
+    "rock"
+   ],
+   "frames": 199,
+   "duration": 6.63,
+   "energy": 0.55,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 171104,
+   "srcStart": 0,
+   "alignYaw": 0.0118
+  },
+  {
+   "id": "90_30",
+   "name": "Russian dance",
+   "styles": [
+    "rock",
+    "edm"
+   ],
+   "frames": 358,
+   "duration": 11.93,
+   "energy": 1,
+   "beat": 0.567,
+   "beatConf": 0.38,
+   "offset": 177472,
+   "srcStart": 0,
+   "alignYaw": -0.0413
+  },
+  {
+   "id": "120_21",
+   "name": "Robot",
+   "styles": [
+    "edm",
+    "rock"
+   ],
+   "frames": 777,
+   "duration": 25.9,
+   "energy": 0.2,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 188928,
+   "srcStart": 0,
+   "alignYaw": -2.7363
+  },
+  {
+   "id": "85_10",
+   "name": "Break finish",
+   "styles": [
+    "rock",
+    "edm"
+   ],
+   "frames": 193,
+   "duration": 6.43,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 213792,
+   "srcStart": 0,
+   "alignYaw": 0.0874
+  },
+  {
+   "id": "103_03",
+   "name": "Charleston",
+   "styles": [
+    "groove",
+    "rock"
+   ],
+   "frames": 110,
+   "duration": 3.67,
+   "energy": 1,
+   "beat": 0.333,
+   "beatConf": 0.48,
+   "offset": 219968,
+   "srcStart": 0,
+   "alignYaw": -1.6193
+  },
+  {
+   "id": "103_04",
+   "name": "Charleston side-by-side",
+   "styles": [
+    "groove"
+   ],
+   "frames": 125,
+   "duration": 4.17,
+   "energy": 1,
+   "beat": 0.667,
+   "beatConf": 0.42,
+   "offset": 223488,
+   "srcStart": 0,
+   "alignYaw": -1.462
+  },
+  {
+   "id": "60_01",
+   "name": "Salsa",
+   "styles": [
+    "groove"
+   ],
+   "frames": 559,
+   "duration": 18.63,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 227488,
+   "srcStart": 0,
+   "alignYaw": 0.8816
+  },
+  {
+   "id": "60_05",
+   "name": "Salsa B",
+   "styles": [
+    "groove"
+   ],
+   "frames": 418,
+   "duration": 13.93,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 245376,
+   "srcStart": 0,
+   "alignYaw": 1.5889
+  },
+  {
+   "id": "60_10",
+   "name": "Salsa C",
+   "styles": [
+    "groove"
+   ],
+   "frames": 298,
+   "duration": 9.93,
+   "energy": 1,
+   "beat": 0.7,
+   "beatConf": 0.11,
+   "offset": 258752,
+   "srcStart": 0,
+   "alignYaw": 0.9463
+  },
+  {
+   "id": "61_03",
+   "name": "Salsa D",
+   "styles": [
+    "groove"
+   ],
+   "frames": 457,
+   "duration": 15.23,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 268288,
+   "srcStart": 0,
+   "alignYaw": -1.2607
+  },
+  {
+   "id": "55_02",
+   "name": "Lambada",
+   "styles": [
+    "groove"
+   ],
+   "frames": 543,
+   "duration": 18.1,
+   "energy": 0.25,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 282912,
+   "srcStart": 0,
+   "alignYaw": -0.0316
+  },
+  {
+   "id": "64_02",
+   "name": "Swing",
+   "styles": [
+    "groove",
+    "rock"
+   ],
+   "frames": 122,
+   "duration": 4.07,
+   "energy": 0.79,
+   "beat": 1.5,
+   "beatConf": 0.09,
+   "offset": 300288,
+   "srcStart": 0,
+   "alignYaw": 1.6351
+  },
+  {
+   "id": "111_37",
+   "name": "Wave",
+   "styles": [
+    "greet"
+   ],
+   "frames": 80,
+   "duration": 2.67,
+   "energy": 0.24,
+   "beat": 1.567,
+   "beatConf": 0.09,
+   "offset": 304192,
+   "srcStart": 0,
+   "alignYaw": -1.4622
+  },
+  {
+   "id": "141_16",
+   "name": "Wave hello",
+   "styles": [
+    "greet"
+   ],
+   "frames": 74,
+   "duration": 2.47,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 306752,
+   "srcStart": 0,
+   "alignYaw": -2.4483
+  },
+  {
+   "id": "120_04",
+   "name": "Conducting",
+   "styles": [
+    "zen",
+    "ballet"
+   ],
+   "frames": 840,
+   "duration": 28,
+   "energy": 0.87,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 309120,
+   "srcStart": 67,
+   "alignYaw": -0.0748
+  }
+ ]
+}

@@ -16,7 +16,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { recordFeedInteraction } from '../services/backendService';
+import { recordFeedInteraction, fetchFollowingIds } from '../services/backendService';
 import { computeDiscovery, computeFeedScore, type ViewerContext } from '../services/feedScoreEngine';
 import type { FeedItem } from '../types';
 
@@ -85,22 +85,23 @@ export function useDwellTracker(
  * This is cached for the session lifetime — only fetches once per uid.
  */
 
-const ctxCache = new Map<string, ViewerContext>();
+// Short TTL so a fresh follow/unfollow is reflected without a reload.
+const CTX_TTL_MS = 5 * 60_000;
+const ctxCache = new Map<string, { at: number; ctx: ViewerContext }>();
+
+export const invalidateViewerContext = (uid?: string) => { if (uid) ctxCache.delete(uid); else ctxCache.clear(); };
 
 async function buildViewerContext(uid: string): Promise<ViewerContext> {
-  if (ctxCache.has(uid)) return ctxCache.get(uid)!;
+  const cached = ctxCache.get(uid);
+  if (cached && Date.now() - cached.at < CTX_TTL_MS) return cached.ctx;
 
   const followedAuthorIds = new Set<string>();
   const sharedSongChatAuthorIds = new Set<string>();
   const sharedClubAuthorIds = new Set<string>();
 
   try {
-    // Followed users
-    const userDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', uid)));
-    const userData = userDoc.docs[0]?.data();
-    if (userData?.following) {
-      (userData.following as string[]).forEach(id => followedAuthorIds.add(id));
-    }
+    // Followed users — from the `follows` collection (UserProfile.following is legacy/never written)
+    (await fetchFollowingIds(uid, 1000)).forEach(id => followedAuthorIds.add(id));
 
     // Song live chat rooms the user has participated in
     const chatRooms = await getDocs(
@@ -137,7 +138,7 @@ async function buildViewerContext(uid: string): Promise<ViewerContext> {
   }
 
   const ctx: ViewerContext = { followedAuthorIds, sharedSongChatAuthorIds, sharedClubAuthorIds };
-  ctxCache.set(uid, ctx);
+  ctxCache.set(uid, { at: Date.now(), ctx });
   return ctx;
 }
 

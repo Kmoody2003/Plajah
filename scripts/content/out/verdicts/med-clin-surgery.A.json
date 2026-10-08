@@ -1,0 +1,1154 @@
+{
+ "courseId": "med-clin-surgery",
+ "verifier": "A",
+ "note": "WebFetch returned 403 or cookie walls on PubMed, NEJM, NCBI Bookshelf, ScienceDirect, Wiley; used PubMed eutils via curl and other open pages. Claims not backed by an opened page are unverifiable. No option text was cut off mid-sentence. 3 claims per lesson.",
+ "fetched": 10,
+ "questions": [
+  {
+   "id": "med-clin-surgery.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l01.q2",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "2024 ACC/AHA allows bridging only in highest thrombotic risk; for hernia repair in AF (CHA2DS2-VASc unknown) no routine bridging is best."
+  },
+  {
+   "id": "med-clin-surgery.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q3",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Several options are loosely true of obstruction; 'peritonitis, acidosis or strangulation' is clearly the operative indication."
+  },
+  {
+   "id": "med-clin-surgery.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "5.5 cm matches SVS/ESVS thresholds for men."
+  },
+  {
+   "id": "med-clin-surgery.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l13.q1",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Under ATLS 11 (xABCDE) the order after x is A, B, C, D, E; choice 0 matches, but wording 'usual order' is loose."
+  },
+  {
+   "id": "med-clin-surgery.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-surgery.l01",
+   "claim": "ACC/AHA perioperative guideline most recently revised 2024; 4 METs (two flights of stairs) functional capacity threshold",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ccjm.org/content/92/4/213"
+   ],
+   "note": "2024 guideline keeps the 4 MET threshold."
+  },
+  {
+   "lessonId": "med-clin-surgery.l01",
+   "claim": "SGLT2 inhibitors are held several days before surgery (euglycemic ketoacidosis)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ccjm.org/content/92/4/213"
+   ],
+   "note": "Current guidance: hold 3-4 days (4 for ertugliflozin)."
+  },
+  {
+   "lessonId": "med-clin-surgery.l01",
+   "claim": "Warfarin stopped ~5 days; bridging not routine (BRIDGE trial)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "2024 guideline page supports selective bridging only for highest thrombotic risk; BRIDGE paper page returned 403, only seen in search snippets."
+  },
+  {
+   "lessonId": "med-clin-surgery.l02",
+   "claim": "Five Ws fever timing: UTI days 3-5, wound infection days 5-7",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l02",
+   "claim": "Anastomotic leak typically days 5-7 (elsewhere in lesson 5 to 10 days)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Minor internal inconsistency in the lesson (5-10 vs 5-7); both within accepted range."
+  },
+  {
+   "lessonId": "med-clin-surgery.l02",
+   "claim": "Wound dehiscence with salmon-colored serosanguinous drainage days 5-10",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l03",
+   "claim": "Balanced transfusion near 1:1:1 as in PROPPR",
+   "verdict": "supported",
+   "sources": [
+    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=25647203&rettype=abstract&retmode=text"
+   ],
+   "note": "PROPPR compared 1:1:1 vs 1:1:2; no 24h/30d mortality difference but better hemostasis and fewer exsanguination deaths with 1:1:1."
+  },
+  {
+   "lessonId": "med-clin-surgery.l03",
+   "claim": "Early tranexamic acid reduces death from bleeding in trauma (CRASH-2)",
+   "verdict": "supported",
+   "sources": [
+    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=20554319&rettype=abstract&retmode=text"
+   ],
+   "note": "Abstract: TXA safely reduced death in bleeding trauma patients."
+  },
+  {
+   "lessonId": "med-clin-surgery.l03",
+   "claim": "Lactated Ringer not contraindicated in hyperkalemia",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l04",
+   "claim": "Etomidate suppresses adrenal steroid synthesis; succinylcholine hyperkalemia in burns/denervation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l04",
+   "claim": "ASA fasting: 2 h clear liquids, 6 h light meal, 8 h fatty meal",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l04",
+   "claim": "Dantrolene blocks sarcoplasmic reticulum calcium release (malignant hyperthermia)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l05",
+   "claim": "CODA trial: antibiotics noninferior; substantial minority needed appendectomy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippets (not an opened page) reported 29% appendectomy by 90 days; NEJM page returned 403."
+  },
+  {
+   "lessonId": "med-clin-surgery.l05",
+   "claim": "Ultrasound first in children and pregnancy, MRI follow-up",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l05",
+   "claim": "Visceral-to-parietal pain migration in appendicitis",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l06",
+   "claim": "Cecal diameter above ~12 cm raises perforation risk",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l06",
+   "claim": "Sigmoid volvulus: coffee-bean sign, endoscopic decompression then elective resection",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l06",
+   "claim": "Mesenteric ischemia: CT angiography test of choice, heparin, lactate may be normal early",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l07",
+   "claim": "Asymptomatic/minimally symptomatic inguinal hernias in men can be observed (randomized trial, low incarceration)",
+   "verdict": "supported",
+   "sources": [
+    "https://jamanetwork.com/journals/jama/fullarticle/202212"
+   ],
+   "note": "Fitzgibbons JAMA 2006: hernia accident rate about 0.0018 per patient-year."
+  },
+  {
+   "lessonId": "med-clin-surgery.l07",
+   "claim": "Femoral hernia more common in women, high strangulation risk, repair urgently/early",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l07",
+   "claim": "Direct hernia medial to inferior epigastric vessels in Hesselbach triangle",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l08",
+   "claim": "Bariatric surgery for BMI 35 or more, or 30 or more with comorbidity, per recent society statements",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC9834364/"
+   ],
+   "note": "2022 ASMBS/IFSO: BMI >=35 regardless of comorbidity; 30-34.9 with metabolic disease should be considered (lesson wording slightly firmer)."
+  },
+  {
+   "lessonId": "med-clin-surgery.l08",
+   "claim": "Hinchey classification; abscess >3-4 cm drained percutaneously",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l08",
+   "claim": "Rectal cancer: MRI staging, neoadjuvant chemoradiation then TME",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l09",
+   "claim": "Tokyo Guidelines favor early laparoscopic cholecystectomy for acute cholecystitis",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC9885794/"
+   ],
+   "note": "TG18 proposes early LC if patient can tolerate surgery and expertise exists, regardless of time since onset (lesson says within the first days, slightly narrower)."
+  },
+  {
+   "lessonId": "med-clin-surgery.l09",
+   "claim": "Charcot triad and Reynolds pentad; cholangitis treated with antibiotics and urgent drainage",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippets only (TG18 diagnostic criteria; Charcot triad low sensitivity); page not opened."
+  },
+  {
+   "lessonId": "med-clin-surgery.l09",
+   "claim": "ASGE choledocholithiasis risk stratification: bilirubin >4 mg/dL with dilated duct",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ASGE 2019 criteria not opened; verify current high-risk criteria."
+  },
+  {
+   "lessonId": "med-clin-surgery.l10",
+   "claim": "PANTER trial: step-up approach less morbidity than open necrosectomy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippets only (NEJM 2010); page not opened."
+  },
+  {
+   "lessonId": "med-clin-surgery.l10",
+   "claim": "HCC diagnosed by arterial enhancement with washout; Milan criteria",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l10",
+   "claim": "Courvoisier sign; Whipple triad for insulinoma",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l11",
+   "claim": "USPSTF 2019: one-time ultrasound screening in men 65-75 who ever smoked",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/abdominal-aortic-aneurysm-screening"
+   ],
+   "note": "Still the current recommendation (Dec 2019, grade B)."
+  },
+  {
+   "lessonId": "med-clin-surgery.l11",
+   "claim": "Elective AAA repair at 5.5 cm in men",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "SVS 2018 seen only in search snippets."
+  },
+  {
+   "lessonId": "med-clin-surgery.l11",
+   "claim": "NASCET: CEA for 70-99% symptomatic stenosis within ~2 weeks",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippets only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l12",
+   "claim": "Rutherford classification; heparin then thrombolysis/embolectomy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l12",
+   "claim": "Compartment pressure within ~30 mmHg of diastolic supports diagnosis",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l12",
+   "claim": "Phlegmasia cerulea dolens; IVC filter only with contraindication to anticoagulation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l13",
+   "claim": "ATLS current teaching places control of massive external hemorrhage first (xABCDE)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.facs.org/for-medical-professionals/news-publications/news-and-articles/acs-brief/september-16-2025-issue/trauma-care-gets-major-upgrade-with-launch-of-atls-11/"
+   ],
+   "note": "ACS: ATLS 11 (2025) added x to ABCDE."
+  },
+  {
+   "lessonId": "med-clin-surgery.l13",
+   "claim": "Needle cricothyroidotomy preferred in children under ~12",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l13",
+   "claim": "Thoracotomy considered for 1,500 mL immediate chest tube output or 200 mL/h",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l14",
+   "claim": "ATLS hemorrhage classes I-IV percentages",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l14",
+   "claim": "Tranexamic acid within 3 hours; balanced early blood products, limit crystalloid",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ATLS 11 summaries in search results mention 1:1:1 and limiting crystalloid; the 3-hour TXA window was not seen on an opened page."
+  },
+  {
+   "lessonId": "med-clin-surgery.l14",
+   "claim": "After splenectomy/embolization vaccinate: pneumococcus, Hib, meningococcus",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l15",
+   "claim": "GCS 13-15 mild, 9-12 moderate, 8 or below severe",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l15",
+   "claim": "Cushing triad hypertension, bradycardia, irregular respiration",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l15",
+   "claim": "High-dose steroids not recommended in acute spinal cord injury",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l16",
+   "claim": "Parkland formula 4 mL/kg/%TBSA lactated Ringer, half in first 8 h, urine output ~0.5 mL/kg/h",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippets agree (adults >20% TBSA) but page not opened (ScienceDirect 403)."
+  },
+  {
+   "lessonId": "med-clin-surgery.l16",
+   "claim": "Rule of nines: 9% head and each arm, 18% each leg, 18% front and back trunk",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l16",
+   "claim": "CO poisoning gives falsely normal pulse oximetry; hydroxocobalamin for cyanide",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l17",
+   "claim": "USPSTF 2024: biennial mammography for women 40-74",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening"
+   ],
+   "note": "Current (April 2024, grade B)."
+  },
+  {
+   "lessonId": "med-clin-surgery.l17",
+   "claim": "Tamoxifen premenopausal, aromatase inhibitors postmenopausal",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l17",
+   "claim": "Inflammatory breast cancer treated with systemic therapy first",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l18",
+   "claim": "RET mutation in MEN2 medullary carcinoma; exclude pheochromocytoma first",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l18",
+   "claim": "Hyperparathyroidism surgery criteria: calcium >1 mg/dL above ULN, age <50",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l18",
+   "claim": "Hypocalcemia 1-3 days after total thyroidectomy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l19",
+   "claim": "Testicular torsion viability falls after ~6 hours",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l19",
+   "claim": "Scaphoid retrograde blood supply, avascular necrosis",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l19",
+   "claim": "Obstructing stone with infection needs urgent decompression",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l20",
+   "claim": "Antibiotic prophylaxis within 60 minutes before incision, stop within 24 h, cefazolin",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened. WHO 2016 recommends within 120 minutes (search snippet) while CDC/ASHP use 60; lesson blends them."
+  },
+  {
+   "lessonId": "med-clin-surgery.l20",
+   "claim": "Remodeling: type III replaced by type I collagen; scar ~80% of normal strength",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l20",
+   "claim": "LRINEC supportive only; type I necrotizing infection polymicrobial",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page not opened (blocked or not fetched); matches memory only."
+  }
+ ]
+}

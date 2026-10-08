@@ -1,0 +1,1466 @@
+{
+ "courseId": "law-jurisprudence",
+ "label": "Jurisprudence: The Philosophy of Law",
+ "lessons": [
+  {
+   "id": "law-jurisprudence.l01",
+   "title": "What Jurisprudence Asks",
+   "body": [
+    "Jurisprudence is the philosophical study of law. Lawyers usually ask what the law is on a particular point: does this contract bind, is this search lawful. Philosophers ask what makes anything law at all, what law is for, and when it deserves obedience. The subject divides into three broad kinds of question.",
+    "The first is analytical, or conceptual: what is the nature of law, and how does it differ from commands of a gunman, rules of etiquette, or the rules of a club? A related question is validity, meaning what makes a particular rule part of the legal system. Different theories answer by pointing to different things: the will of a sovereign, a basic norm, social practice among officials, moral truth, or the predictions of how courts will actually decide.",
+    "The second is normative: what ought the law to be, what should it permit or forbid, and what justifies punishment, taxation or property? Here jurisprudence meets political philosophy and ethics. Theories of justice, rights and punishment belong in this part of the subject.",
+    "The third concerns adjudication and interpretation: how do judges decide hard cases, how much room do they have, and how should they read texts and precedents? Theories of formalism, realism, originalism and Dworkin's interpretivism all give answers.",
+    "A useful way to hold the map in mind is the contest over the connection between law and morality. Natural law theorists claim there is some necessary connection: an extremely unjust enactment fails in some way to be law, or at least to be law in the fullest sense. Legal positivists claim that whether something is law depends on social facts, such as who made it and how, and not on whether it is good. The positivist can still say that bad laws should be disobeyed. The claim is about the identification of law, not about its worth. Realists and critical schools raise a different challenge: the official story about neutral rules hides the way power, politics and interests shape legal outcomes.",
+    "Two warnings help from the start. Labels cover families of views, and individual authors often reject part of the family portrait. And these debates are not only abstract. When a judge says that the plain text controls, that a statute cannot mean something absurd, that a principle of fairness limits a rule, or that a punishment is excessive, she is taking a position that jurisprudence has named and studied.",
+    "This course takes each school on its own terms before examining the criticisms, because a theory is easiest to judge once its strongest version is on the table. It also keeps law's contested political questions separate from the question of what the law currently is, since the philosophy asks how to reason about such questions, not what to conclude.",
+    "Worked example: a statute bans vehicles in a park. A police officer stops a child on a tricycle. A positivist asks whether the statute was validly enacted and what its words and practice settle. A natural lawyer may ask about the law's purpose. A realist asks how the local judges will actually rule. A critical scholar asks whose interests the rule serves. Each question is legitimate, and each school is best at one of them."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l02",
+   "title": "The Natural Law Tradition",
+   "body": [
+    "Natural law theory holds that law has a necessary connection to morality, and that there are standards of right that do not depend on what any human legislature says. The idea is old and takes several forms. Aristotle, in the Nicomachean Ethics, distinguished what is just by nature from what is just by convention, although he treated the natural as changeable in human affairs. The Stoics and Cicero in the Roman world described a law of reason, the same everywhere, binding all rational beings, which no state can repeal. Cicero's account in On the Republic and On the Laws is the classic source for the claim that a state without justice is not a true commonwealth.",
+    "Thomas Aquinas, in the thirteenth century, gave the tradition its most influential structure in the Summa Theologiae. He distinguished four kinds of law: eternal law, the divine reason governing the whole creation; natural law, the participation of rational creatures in eternal law, accessible by reason; divine law, given by revelation; and human law, the particular rules made by communities. Human law derives its force from natural law in two ways. Some of its rules are conclusions drawn from natural precepts, as the ban on murder follows from the precept to do no harm. Others are determinations, specifications of what nature leaves open, as the rule to drive on one side of the road settles a coordination problem.",
+    "For Aquinas a human law that conflicts with natural law is not a law in the full sense but a corruption or perversion of law. A famous slogan, often traced to Augustine, says that an unjust law is no law at all. Scholars debate how strong a claim this is. A moderate reading says unjust enactments lack the moral binding force of law and do not generate a duty of obedience, though people may still obey them to avoid scandal or disorder. The strong reading says such enactments are not legally valid. Many natural lawyers adopt the moderate reading.",
+    "Natural law arguments have played a prominent role in public life. Early modern thinkers such as Grotius and Locke developed natural rights from the tradition, which later shaped declarations of rights. Opponents of slavery and later of racial segregation invoked a higher law, and the Nuremberg trials after the Second World War relied on the idea that some acts are criminal even when ordered or legalized by a regime.",
+    "Objections come from several directions. Positivists object that the thesis confuses what the law is with what it ought to be, which makes it harder to see and say clearly that an evil regime had laws. Skeptics argue that people disagree about the content of natural law, so it cannot provide the common standard it promises. Defenders reply that disagreement does not show there is no truth, and that the theory's claim is about the structure of practical reasoning: law is a rational enterprise aimed at the common good, so a rule that serves nothing of the sort is defective as law.",
+    "Worked example: a regime enacts a statute requiring citizens to report neighbors for harboring refugees, with severe penalties for failing to report. A strong natural lawyer says it lacks legal validity. A moderate one says it is law in a thin sense but not binding in conscience. A positivist says it is law but morally monstrous and ought to be disobeyed."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l03",
+   "title": "Modern Natural Law: Fuller, Finnis and Radbruch",
+   "body": [
+    "Twentieth-century natural law theory shifted from theology to the structure of law itself. Lon Fuller, in The Morality of Law (1964), argued that law is a purposive activity, the enterprise of subjecting human conduct to the governance of rules, and that this purpose generates an internal morality. He identified eight ways in which a legal system can fail: failing to make rules at all and deciding ad hoc; failing to publicize the rules; abusing retroactive legislation; failing to make rules understandable; enacting contradictory rules; requiring conduct beyond the powers of the affected party; changing the rules so often that people cannot orient themselves; and a failure of congruence between the rules as announced and their actual administration. He called these principles of legality. Fuller thought that a system that failed totally would not be law, and that a regime committed to such principles would be pressed, at the margin, toward fairness. He called this an internal, procedural natural law.",
+    "Fuller's fable of the Speluncean Explorers (1949) put the issue into five judicial opinions about trapped cavers who killed one of their number to survive, showing that different philosophies of law lead to different results on the same facts. In the Hart-Fuller debate, published in the Harvard Law Review in 1958, Fuller defended his view against H. L. A. Hart's positivism, using among other examples the post-war prosecution of a woman who had denounced her husband under Nazi-era law. A West German court convicted her, reasoning that the statute was so contrary to the sound conscience of decent people that it was not binding. Hart thought it was better to say that the law was valid but too evil to obey and to punish her under a new retroactive statute, to avoid blurring the issues. Fuller thought the court's approach, or something like it, was better.",
+    "Gustav Radbruch, a German legal philosopher who had been a positivist before the war, reached a view often called the Radbruch formula after 1945. Positive law, secured by enactment and power, has priority even when unjust and contrary to the public interest, unless the conflict between statute and justice reaches an intolerable degree, in which case the statute must yield as flawed law. Extreme injustice is not law. German courts later referred to this idea in cases about East German border guards after reunification, an example of the continuing influence of the formula, though scholars debate how it was applied.",
+    "John Finnis, in Natural Law and Natural Rights (1980), offered a contemporary version rooted in Aquinas. He argued that there are basic goods that are self-evidently worth pursuing, including life, knowledge, play, aesthetic experience, sociability or friendship, practical reasonableness and religion. Practical reasonableness yields requirements such as impartiality, respect for every basic value in every act, and promoting the common good. Law is a response to the need to coordinate action for the common good, and the central case of law is law that does this well. Unjust enactments are law in a derivative sense, and they lack the moral obligation that a just law has, though there may be reasons to comply to preserve the rule of law.",
+    "Critics say these theories confuse conceptual and moral claims, and that Fuller's principles are efficacy conditions common to any system of rules, including a ruthless one. Hart noted that poisoners need techniques too without poisoning being moral. Fuller's defenders respond that the principles of legality respect people as agents capable of following rules.",
+    "Worked example: a government secretly adopts rules, applies them retroactively, and changes them without notice. Fuller would say these officials are failing at law-making and moving away from law, a conclusion that a pure source-based theorist can accept as factual but would describe differently."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l04",
+   "title": "Bentham, Austin and the Command Theory",
+   "body": [
+    "Legal positivism holds that the existence and content of law depend on social facts, not on moral merit. Its classical form was developed by Jeremy Bentham and John Austin. Bentham was a utilitarian who wanted law reformed according to the principle of utility, the greatest happiness of the greatest number, and he insisted on separating the description of law as it is from the criticism of law as it ought to be. He was impatient with common-law mystification and with judges who claimed to discover pre-existing law. He famously called the idea of natural rights, in the French Declaration, nonsense upon stilts. Bentham's scorn was not for justice but for the idea that moral claims could settle what the law is.",
+    "John Austin, in The Province of Jurisprudence Determined (1832), gave the standard command theory. Law, properly so called, is a command of a sovereign, backed by a threat of sanction, addressed to members of a political society. The sovereign is a person or body that is habitually obeyed by the bulk of the society and does not habitually obey anyone else. A command expresses a wish that others behave in a certain way and a power to harm them if they do not. Rules of positive morality, such as etiquette, and laws by analogy are not law in the strict sense. The theory has attractions: it is clear, descriptive, and explains law's coercive quality.",
+    "Austin separated law from morality: the existence of law is one thing, its merit or demerit another. This is the separation thesis in its classic form. He did not deny that unjust laws are bad. He denied that their badness changes their status. A judge may find a law abhorrent and still recognize it as law.",
+    "Hart's later critique, in The Concept of Law, argued that the command theory fails on several grounds. Many laws do not command at all but confer powers, such as the power to make a will or contract or to marry, and these are better seen as enabling rules than as orders backed by threats. Austin's sovereign makes the legislator seem to be above the law, but modern constitutional systems limit the legislature itself. The habit of obedience cannot explain the continuity of legal authority after a sovereign dies or is replaced, since a new ruler has no habit of obedience to build on, and yet laws continue to apply. Customary law, which does not originate in commands, becomes difficult to explain. And the theory cannot distinguish being obliged from having an obligation. Hart's example was a gunman who orders a bank clerk to hand over money: the clerk is obliged to comply, but the clerk has no obligation to do so in the sense that a legal duty involves.",
+    "Some defenders note that Bentham's own theory was more sophisticated than the textbook Austin, and that the command theory should be seen as a first step toward modern positivism rather than a position still defended. The core of Austin's insight, that law is a human artifact whose existence depends on social facts, remains central.",
+    "Worked example: a country's parliament passes a tax statute and the courts apply it. Under Austin, the statute is law because the sovereign commanded it and a sanction supports it. Hart would add that the statute is valid because it satisfies a rule of recognition that officials accept, which explains why a new parliament's statutes are also law even though its members were not the old sovereign."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l05",
+   "title": "Hart's The Concept of Law",
+   "body": [
+    "H. L. A. Hart's The Concept of Law (1961) is the central text of modern positivism. Hart began from the failure of the command theory and offered a different picture: law is a system of rules, and what distinguishes a legal system from a mere set of orders is the union of primary and secondary rules.",
+    "Primary rules impose duties: do not steal, pay your taxes. A society with only primary rules, Hart said, would have three defects. The rules would be uncertain, because there would be no way to settle doubts about what they are. They would be static, because there would be no deliberate way to change them. And enforcement would be inefficient, because there would be no body authorized to settle disputes. The remedies are secondary rules. The rule of recognition identifies what counts as a valid rule of the system: it might say that whatever the legislature enacts, or whatever the constitution specifies, is law. Rules of change authorize the creation and repeal of rules. Rules of adjudication empower officials to determine whether a rule has been broken and to impose sanctions.",
+    "The rule of recognition is the ultimate criterion of validity, and it is a social rule, existing because officials actually practice it, taking an internal point of view. This is Hart's key distinction. From the external point of view an observer notes regularities of behavior and perhaps predicts penalties. From the internal point of view a participant accepts the rule as a standard of conduct and criticizes deviation from it. A legal system exists when ordinary people generally obey the primary rules and officials accept the secondary rules, especially the rule of recognition, as common standards for official behavior.",
+    "Hart also addressed open texture. Rules are expressed in general language, and general terms have a core of settled meaning and a penumbra where application is uncertain. A rule banning vehicles in a park clearly covers a truck, and it is unclear whether it covers a bicycle, a toy car or a war memorial tank. In the penumbra judges must exercise discretion, informed by purposes and consequences. For Hart this makes law incomplete, and in hard cases judges legislate interstitially, which he thought was a realistic and not a scandalous description.",
+    "Hart accepted a limited connection to natural law, which he called the minimum content of natural law. Given a few contingent facts about human beings (vulnerability, approximate equality, limited altruism, limited resources, and limited understanding and strength of will), any viable legal system will contain rules restricting violence, protecting property and enforcing promises. This explains why law and morality overlap without making the overlap conceptually necessary.",
+    "On the debate with Fuller, Hart held that the separation thesis does not mean laws are morally immune from criticism. It means we can recognize something as law and still condemn it. In his view this clarity is a moral advantage: if wicked laws are denied the name of law, people may conclude they need not think hard about resisting what is legal and wrong, or they may treat everything that is legal as morally binding.",
+    "Critics have pressed several points. Dworkin argued that Hart's picture cannot account for legal principles that bind judges. Others argue that practice-based accounts have trouble explaining disagreement among officials about the rule of recognition itself. Hart's Postscript, published after his death in 1994, answered Dworkin and allowed that a rule of recognition could incorporate moral criteria.",
+    "Worked example: a state's constitution says that statutes passed by the legislature and signed by the governor are law. Officials routinely treat such statutes as binding and criticize each other for departing from them. On Hart's account that practice is the rule of recognition, and a statute is valid by satisfying it, regardless of its fairness."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l06",
+   "title": "Kelsen, Raz and the Positivist Family",
+   "body": [
+    "Positivism is a family of views, and contemporary debates concern which positivism is best. Hans Kelsen, an Austrian-born jurist who helped draft the Austrian constitution and later worked in the United States, developed the Pure Theory of Law (first edition 1934, second edition 1960). He aimed to purify legal science of politics, psychology, sociology and ethics, so that the study of law would describe norms without evaluating them. For Kelsen, a legal system is a hierarchy of norms in which each norm derives its validity from a higher norm, authorizing its creation. A court order is valid because a statute authorizes it, the statute because the constitution does, and the first constitution because of the Grundnorm, or basic norm, which is not itself posited but presupposed by legal science. The basic norm states that one ought to behave as the framers of the first constitution ordained. It is a transcendental presupposition that makes it possible to interpret the facts as law, and it is not a moral claim. Critics have asked whether this device explains anything, and whether a presupposed norm differs from Hart's social practice of officials. Kelsen also held that legal norms are acts of will and that interpretation of norms by courts is partly a matter of choice, not knowledge.",
+    "Joseph Raz, in The Authority of Law (1979), developed the sources thesis: the existence and content of law can be determined without moral argument, by reference to social sources such as legislation and precedent. His argument comes from the nature of authority. Law claims to have authority, and authority on his service conception works by giving reasons that replace the subject's own balance of reasons. If subjects had to weigh the merits to find out what an authority requires, the authority could not do its job of guiding action. Therefore the identification of law must be possible by factual means.",
+    "This produces the debate between exclusive and inclusive positivism. Exclusive positivists such as Raz hold that morality can never be a condition of legal validity. Inclusive, or soft, positivists such as Jules Coleman and Wil Waluchow hold that a legal system's rule of recognition may incorporate moral criteria, so that some constitutional clause such as a guarantee of equal protection makes morality a condition of validity in that system, yet the fact that it does so is a matter of social practice and not of conceptual necessity. Hart's Postscript endorsed the inclusive view. The dispute matters because it shows that positivism does not entail that morality is irrelevant in legal reasoning. It entails that morality is relevant only if and because the system makes it so.",
+    "Scott Shapiro's Legality (2011) offers a more recent theory, the planning theory, which treats law as a massive social planning activity aimed at solving problems that moral reasoning alone cannot settle, with the basic rules as plans that officials adopt. He argues that law's claim to settle moral questions explains its distinct institutional form.",
+    "A third line of positivist thought emphasizes normativity: how can a social fact give rise to a duty? Kelsen answers with the basic norm, Hart with the internal point of view, and Raz with the claim that law purports to create obligations without necessarily doing so.",
+    "Worked example: a constitution forbids \"cruel and unusual\" punishment. An exclusive positivist says a judge applying it must use social sources, such as the framers' intent and precedent, and when those run out she has discretion. An inclusive positivist says the clause makes moral evaluation part of what the law is. Both treat the existence of the clause as a social fact."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l07",
+   "title": "Dworkin and Law as Integrity",
+   "body": [
+    "Ronald Dworkin presented the most influential challenge to positivism, first in an essay later reprinted in Taking Rights Seriously (1977) and then in Law's Empire (1986). His starting point was how judges actually reason in hard cases, where the explicit rules run out or conflict.",
+    "Dworkin distinguished rules from principles. Rules apply in an all-or-nothing fashion: if the facts are as the rule stipulates, then either the rule is valid and the answer it supplies must be accepted, or it is not. Principles, such as that no one should profit from his own wrong, have a dimension of weight and do not dictate results; they incline a decision in one direction and can be outweighed. In Riggs v. Palmer (New York, 1889), a grandson who murdered his grandfather to inherit under the will was held unable to take, although the statute of wills contained no exception. The court relied on the maxim that no one shall profit from his own wrong. Dworkin used this and Henningsen v. Bloomfield Motors (New Jersey, 1960), where the court limited a car maker's disclaimer by appeal to principles about fairness and public policy, to argue that law includes principles, and that principles are not valid by a pedigree test like Hart's rule of recognition, since they come from a sense of appropriateness developed over time. Hart's rule of recognition, he argued, cannot capture them.",
+    "From this Dworkin built the rights thesis: in hard cases judges should decide by identifying the rights that the parties have, not by making new policy, which is for legislatures. He also argued, controversially, that even in hard cases there is typically a right answer, though one that cannot be demonstrated beyond disagreement.",
+    "In Law's Empire he develops law as integrity. Judges should interpret the legal practice as a whole in the light that shows it as the best it can be, meeting two dimensions: fit with the past decisions and statutes, and justification in terms of moral and political principles. Adjudication is like adding a chapter to a chain novel, in which each author tries to make the whole text the best it can be while respecting what earlier authors wrote. His imagined judge, Hercules, is a superhuman judge with unlimited time who constructs the best theory of the law of his jurisdiction. Law's claim to be integrity expresses the ideal that a community should be governed by a single coherent vision of justice and fairness.",
+    "For Dworkin, law is an interpretive concept. Legal propositions are true in virtue of principles that provide the best justification of the legal practice, and so the question of what the law is cannot be separated from moral argument. He attacked what he called the semantic sting: the idea that legal disagreement must be a matter of different ideas about what the criteria for law are. For Dworkin the disagreement in real cases is often theoretical, about what the practice demands.",
+    "Critics say Dworkin's account overstates the determinacy of law, makes law too dependent on the judge's moral convictions, and gives judges too much power. Positivists reply that principles can be incorporated into law by a rule of recognition, a point Hart conceded in the Postscript. Raz argued that Dworkin's view confuses what a judge should do with what the law is. Dworkin's defenders respond that the debate shows that no neutral description of legal practice is possible.",
+    "Worked example: a statute grants an inheritance to \"the child of the testator.\" The child has abused the testator for years. Dworkin says Hercules would ask which principles best fit and justify the practice of inheritance law, and might conclude the abuser should not take, in the same spirit as Riggs."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l08",
+   "title": "Legal Formalism and Legal Realism",
+   "body": [
+    "Formalism, in the sense realists attacked, is the view that legal decisions follow logically from fixed rules and concepts, with little need for judges to consider policy. Its nineteenth-century American form is associated with Christopher Columbus Langdell, who developed the case method at Harvard and treated law as a science whose principles could be derived from the cases. The era of the Lochner decision (Lochner v. New York, 1905), in which the Supreme Court struck down a maximum-hours law for bakers by reference to liberty of contract, is often cited as the high point of formalist reasoning, though many scholars now argue that its judges were openly engaged in policy and that the label is somewhat caricatured.",
+    "Oliver Wendell Holmes Jr. laid down the realist program in The Path of the Law (1897). He urged lawyers to look at law from the viewpoint of the bad man, who cares only about the material consequences of his conduct and wants to predict what courts will do. Law, in this prediction theory, is the prediction of the incidence of public force through the courts. He argued that judges' decisions reflect, whether they know it or not, the felt necessities of the time and their views of public policy, and that legal reasoning obscures this. His dissent in Lochner said that the Fourteenth Amendment did not enact a particular economic theory, and that a constitution is not meant to embody one.",
+    "American Legal Realism flourished in the 1920s and 1930s. Karl Llewellyn, author of The Bramble Bush (1930) and the article Some Realism About Realism (1931), argued that legal rules often underdetermine outcomes and that courts follow patterns of behavior best seen by studying what judges actually do. Jerome Frank, in Law and the Modern Mind (1930), emphasized that trials are uncertain not only because rules are uncertain but because facts are: witnesses err, juries are unpredictable, and judges are people with hunches. He is often called a fact-skeptic, in contrast to rule-skeptics who focused on indeterminate rules. The common claim that realists said judges decide by what they had for breakfast is a caricature; the realists generally said that judges are influenced by their social views and by how they see the facts. Realists also urged integrating social science into law and judging legal rules by their effects, a legacy visible in the policy analysis used in modern courts and in law and economics.",
+    "Hart's critique of rule-skepticism in The Concept of Law was that realists mistook predictability for the concept of law and ignored the internal point of view: officials treat the rules as reasons for decision, and the fact that some cases are indeterminate does not mean all are. Modern empirical studies of judicial behavior, including the attitudinal model in political science, find that ideology predicts votes in politically charged Supreme Court cases, while studies of ordinary trial and appellate cases find that law and doctrine constrain outcomes more often. Debate continues about how much law constrains judges.",
+    "Realism's influence persisted in legal process theory, in the policy-oriented jurisprudence of the New Haven school, and in the critical movements that followed, which radicalized the claim of indeterminacy.",
+    "Worked example: two courts apply the same precedent about a landlord's duty to repair and reach opposite results. A formalist says one court misapplied the logic. A realist asks what facts the judges saw, which policies moved them, and whether the cases differ in ways the rule cannot capture."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l09",
+   "title": "Theories of Interpretation",
+   "body": [
+    "How should judges read a text? Theories of interpretation answer a question that every legal system faces, and each can be defended in terms of democratic legitimacy, stability, and fidelity to law.",
+    "Textualism holds that the statutory text, read in its ordinary meaning in context, is the law. Its defenders argue that legislatures enact texts, not intentions or purposes, that the legislative process of compromise would be undermined by judges who rely on unenacted purposes, and that focusing on text constrains judges and gives fair notice. Textualists use canons of construction and give limited weight to legislative history. In Bostock v. Clayton County (2020), the Supreme Court majority held that firing an employee for being gay or transgender is discrimination because of sex under Title VII, reasoning from the statute's ordinary meaning that the employer must take sex into account. The opinion was by Justice Gorsuch, a textualist, and the dissenters, who also emphasized text and the ordinary meaning of the words at the time of enactment, concluded otherwise, showing that a shared method does not guarantee agreement.",
+    "Originalism holds that the Constitution's meaning is fixed when it is adopted. Early versions stressed the framers' intentions, but the dominant form today, original public meaning, asks how a reasonable reader at the time would have understood the words. Its defenders argue that fixed meaning is needed for law to constrain, that legitimate change comes through amendment, and that otherwise unelected judges update the Constitution to match their views. In District of Columbia v. Heller (2008), the Court majority and the dissent both relied heavily on eighteenth-century history in disagreeing about whether the Second Amendment protects an individual right to keep arms for self-defense, which shows that originalist method does not remove disagreement and that historians and lawyers read evidence differently.",
+    "Purposivism holds that statutes should be read in light of their purposes, as the legislature would reasonably have understood them. Henry Hart and Albert Sacks's legal process materials proposed that judges should imagine the reasonable legislature pursuing reasonable purposes reasonably. Purposivists use committee reports and statutory context and accept that language is imperfect. Critics say that purposes are found at levels of abstraction that allow judges to choose.",
+    "Living constitutionalism holds that constitutional meaning evolves as society changes, through precedent, practice and changing moral understanding. David Strauss's common-law constitutionalism argues that the Constitution's meaning is developed in the way the common law is, constrained by precedent and by humility. The Court's opinions on cruel and unusual punishment have said that the clause draws its meaning from the evolving standards of decency that mark the progress of a maturing society, a formula used, for example, in the juvenile death penalty decision Roper v. Simmons (2005). Critics say this gives judges too much power and weakens constraint. Defenders say that rigid originalism produces results nobody accepts and that precedent and tradition provide discipline.",
+    "Pragmatism, associated with Richard Posner, evaluates interpretations by their consequences, while Stephen Breyer's active liberty approach emphasizes democratic participation. Dworkin's moral reading says abstract constitutional clauses should be read as asking moral questions.",
+    "Worked example: a town ordinance bans \"vehicles\" in a park and a veterans' group wishes to display a restored military truck as a monument. A textualist notes that a truck is plainly a vehicle but asks whether context suggests an exception. A purposivist asks what mischief the ordinance targeted, namely noise and danger, and would likely allow a static display. Each method has an account of why it is the right way to read."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l10",
+   "title": "Critical Legal Studies",
+   "body": [
+    "Critical Legal Studies (CLS) emerged in the United States in the late 1970s, after a conference at the University of Wisconsin in 1977, among law teachers who combined the realists' skepticism with ideas from Marxism, the Frankfurt School, structuralism and later postmodernism. Leading figures include Roberto Unger, Duncan Kennedy, Mark Kelman, Morton Horwitz and Karl Klare. It was less a unified theory than a stance.",
+    "The core claims can be set out in order. The first is the indeterminacy thesis: legal doctrine is contradictory enough, and general principles open enough, that it does not by itself determine the outcome of most cases. Strong versions say that for any case the available materials permit arguments both ways; moderate versions say indeterminacy is widespread and concentrated in contested areas. Scholars used a method sometimes called trashing, taking apart the reasoning of doctrines to show that they rest on opposed principles. Kennedy's Form and Substance in Private Law Adjudication (1976) argued that private law is organized around a conflict between individualism and altruism, and that no neutral reasoning can resolve it.",
+    "The second claim is that law is politics and ideology. If doctrine does not determine results, judges choose, and the choices tend to reflect and reinforce the existing social hierarchy while presenting it as natural and necessary. Law helps legitimate arrangements by making them look neutral and by shaping how people see what is possible. The liberal distinction between public and private spheres, for example, was said to hide the fact that decisions to leave matters to private ordering are themselves political decisions made by the state.",
+    "The third claim is a critique of liberal legalism, including rights discourse. Some critics argued that rights are indeterminate and protect existing distributions, while others thought rights talk could be useful for subordinated groups. Some CLS scholars, notably Unger, argued for constructive projects such as imagining institutional alternatives and empowering people to revise the arrangements of their society, which he called a program of deviationist doctrine and superliberalism.",
+    "CLS was criticized from several sides. Liberal theorists such as Dworkin argued that law has more structure than CLS allows, and that an interpretive practice constrains even when it does not determine. Positivists and empirical scholars noted that most legal questions in ordinary life have clear answers, which indeterminacy theorists tend to underplay, and that lawyers and clients depend on predictability. Others said that CLS lacked a positive program or that its critique of rights was dangerous to the groups that most need them. These last concerns were pressed by scholars of color and feminists who were sympathetic to critique but wanted to retain the language of rights, a dispute that fed into the emergence of critical race theory and feminist jurisprudence.",
+    "CLS declined as an organized movement in the 1990s, but its themes persist in legal scholarship: the claim that law is not autonomous from politics, attention to the way framing choices distribute power, and critical studies of the family, labor and property.",
+    "Worked example: a court must decide whether a landlord's duty to maintain a rental unit overrides the tenant's contract to accept the unit as is. CLS says that either result can be defended through principles, freedom of contract on one side and protection of the vulnerable on the other, and that the choice expresses a political view about the proper balance, whatever the opinion's language of neutrality. A liberal theorist responds that precedent and principle still narrow the choices."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l11",
+   "title": "Critical Race Theory",
+   "body": [
+    "Critical Race Theory (CRT) is a body of scholarship that began in American law schools in the late 1970s and 1980s, associated with Derrick Bell, Alan Freeman, Kimberlé Crenshaw, Richard Delgado, Mari Matsuda, Patricia Williams, Charles Lawrence and others. Several began in Critical Legal Studies and broke away because they thought CLS neglected race and undervalued the practical importance of civil rights. CRT is a legal-academic movement, and its ideas have been the subject of public controversy outside the academy, where the term is often used in broader and different senses.",
+    "Its main themes can be described in the movement's own terms. First, racism is not only individual prejudice but is often embedded in institutions, laws and practices, and may persist without intent. Second, race is a social construction, not a biological category, yet it has real effects. Third, Bell's interest-convergence thesis, from the article Brown v. Board of Education and the Interest-Convergence Dilemma (1980), holds that advances for Black Americans tend to occur when they also serve the interests of white elites. Bell argued that the Brown decision's timing was connected to Cold War foreign policy concerns and the interest in economic development in the South. Fourth, critics of colorblindness argue that formal neutrality can lock in existing disparities, because race-neutral rules operating on unequal conditions reproduce inequality. Fifth, many CRT writers use storytelling and counter-narrative, including personal and fictional narratives, to bring experiences outside the dominant account into legal discourse. Delgado's Storytelling for Oppositionists and Others (1989) argued that stories can challenge the majoritarian narrative.",
+    "Crenshaw's Demarginalizing the Intersection of Race and Sex (1989) introduced intersectionality, the idea that the experience of discrimination against Black women is not captured by considering race and sex separately. Her example was a lawsuit in which a court rejected a claim that a firm discriminated against Black women, because the firm hired white women for secretarial jobs and Black men for industrial jobs, and so no discrimination on either axis was shown. Intersectionality has spread well beyond law.",
+    "CRT writers differ about law. Some, like Bell in later work, were pessimistic about the permanence of racism and the limits of legal reform, while others, like Matsuda, emphasized the role of law in redress and the role of hate speech regulation. Their view of rights is generally more favorable than that of Critical Legal Studies, because rights have been useful to people of color historically.",
+    "Critics raise a number of objections. Randall Kennedy, a sympathetic critic, argued in 1989 that some CRT claims about the quality of minority scholarship and about the alleged bias of standard academic evaluation lack evidence. Daniel Farber and Suzanna Sherry criticized storytelling as a form of argument that is hard to evaluate. Others, including some liberal and conservative commentators, argue that CRT's focus on group identity and structural explanations undermines individual responsibility and universal principles like colorblindness and merit. They also dispute claims about interest convergence. Supporters respond that universal principles in practice have not delivered equality, and that CRT is a tool for identifying structural patterns. Since 2021 a number of US states have adopted laws restricting how certain concepts about race may be taught in public schools, with the scope of what is covered varying by state and with ongoing litigation.",
+    "Worked example: a hiring test, neutral on its face, screens out disproportionate numbers of Black applicants and is not strongly job-related. Under Griggs v. Duke Power Co. (1971), the disparate-impact doctrine allows such practices to be challenged without proof of intent, an application consistent with the structural view that neutral rules can have discriminatory effects."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l12",
+   "title": "Feminist Jurisprudence",
+   "body": [
+    "Feminist jurisprudence asks how law treats women and gender, and whether law's apparently neutral concepts reflect men's experience. It is not one theory but a family of approaches that disagree sharply with one another, and it is best understood by its main strands.",
+    "Liberal feminism, the earliest strand in modern law, argues for formal and substantive equality of opportunity: women should be treated as individuals, without sex stereotypes. Its legal triumphs include Reed v. Reed (1971), in which the Supreme Court for the first time struck down a sex-based classification under the Equal Protection Clause, a preference for male administrators of estates, and later cases in which the Court applied intermediate scrutiny. United States v. Virginia (1996) held that the exclusion of women from the Virginia Military Institute needed an exceedingly persuasive justification and was not met. Liberal feminists defend the ideals of neutrality and individual rights and argue that law has failed to live up to them.",
+    "Difference or cultural feminism emphasizes that women's experiences and values may differ from men's and should be recognized, not erased. Carol Gilligan's In a Different Voice (1982), a work in psychology, argued that many women reason in an ethic of care in contrast to an ethic of justice, and influenced legal scholars. Robin West's Jurisprudence and Gender (1988) argued that mainstream jurisprudence takes a masculine view of the person as separate, and neglects connection, such as the experience of pregnancy and nurturing. Critics worry that this approach risks reinforcing stereotypes and that the empirical claims about difference are contested.",
+    "Dominance feminism, developed by Catharine MacKinnon in Feminism Unmodified (1987) and Toward a Feminist Theory of the State (1989), argues that the central issue is not sameness or difference but power: gender is a hierarchy in which men dominate women, and law that treats women as the same as or different from men, measured by a male standard, will reproduce that hierarchy. MacKinnon's work led to the legal concept of sexual harassment as sex discrimination, a view adopted by the Supreme Court in Meritor Savings Bank v. Vinson (1986), which held that a hostile work environment can violate Title VII. MacKinnon and Andrea Dworkin also drafted ordinances treating pornography as a civil-rights violation; the Indianapolis version was held unconstitutional under the First Amendment in American Booksellers Association v. Hudnut (7th Cir. 1985). The dispute shows a tension between feminist legal aims and free speech principles, and some feminists opposed the ordinances.",
+    "Anti-essentialist and intersectional critiques, such as Angela Harris's Race and Essentialism in Feminist Legal Theory (1990), argue that generalizations about women often reflect the experiences of white, middle-class women, and that theories must account for how race, class and sexuality shape women's lives. Postmodern feminists question stable categories of sex and gender altogether. Susan Moller Okin's Justice, Gender and the Family (1989) argued that theories of justice such as Rawls's overlook the family as a site of inequality.",
+    "Critics from outside feminism argue that the dominance approach treats too many matters as power relations and neglects women's agency. Some critics also say that categorical claims about male power fit poorly with differences among men.",
+    "Worked example: an employer's policy denies benefits for pregnancy-related disability while covering other disabilities. A liberal approach asks whether pregnancy is like other conditions and demands equal treatment, a difference approach asks whether law must accommodate women's distinct biology, and a dominance approach asks whether the policy sustains women's subordination at work. These differences explain disputes within feminist legal theory."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l13",
+   "title": "Law and Economics",
+   "body": [
+    "Law and economics applies economic methods, especially the analysis of incentives and efficiency, to legal rules. Its modern growth began with Ronald Coase's The Problem of Social Cost (1960), Guido Calabresi's work on accidents, and Richard Posner's Economic Analysis of Law (1973). It can be positive, explaining the content and effects of legal rules, or normative, recommending rules that promote efficiency.",
+    "The Coase theorem states that if transaction costs are zero and property rights are well defined, bargaining will lead to an efficient allocation of resources regardless of how the law initially assigns rights. Coase's point was that transaction costs are never zero in practice, so the law's allocation of rights matters and courts should consider which assignment results in the lowest overall cost. His example of a rancher whose cattle trample a neighbor's crops illustrates that who is liable can be irrelevant to the use of land if bargaining is costless, and decisive when it is not.",
+    "Calabresi and Melamed's article of 1972, Property Rules, Liability Rules, and Inalienability, proposed a framework: an entitlement can be protected by a property rule, which allows transfer only through voluntary exchange, by a liability rule, which allows taking at a court-determined price, or by inalienability. In Boomer v. Atlantic Cement Co. (New York, 1970), neighbors sued a cement plant for nuisance, and the court held that the plant could continue if it paid permanent damages, a liability-rule solution instead of an injunction, and the case is a staple of the framework.",
+    "Efficiency has several meanings. A change is Pareto efficient if it makes someone better off without making anyone worse off. Because few changes meet this test, most analysis uses Kaldor-Hicks efficiency: a change is efficient if the winners could compensate the losers and still be better off, whether or not compensation is paid. Posner defended wealth maximization as a normative standard for the common law, arguing that judges tend to produce efficient rules.",
+    "A classic application is negligence. In United States v. Carroll Towing Co. (Second Circuit, 1947), Judge Learned Hand suggested that a defendant is negligent if the burden of precautions is less than the probability of harm multiplied by the magnitude of the loss: B less than P times L. Courts do not usually compute this formula numerically, but it captures the cost-benefit logic of negligence.",
+    "Critics make several points. The distributional objection says efficiency ignores who gets what, and willingness to pay reflects wealth. Dworkin's essay Is Wealth a Value? (1980) argued that wealth maximization is not an adequate moral standard because wealth is not itself valuable. Others say that economic analysis assumes rational preferences, and behavioral law and economics, drawing on psychology and the work of Kahneman and Tversky, shows systematic departures such as loss aversion and overconfidence, so law may need to account for them, as in Jolls, Sunstein and Thaler's 1998 article. Another objection is that the approach cannot explain rights that are non-market, such as basic liberties. Defenders respond that efficiency is one value among others and that economic analysis reveals the costs of legal choices whatever one's moral view.",
+    "Worked example: a factory emits smoke that harms a dozen nearby homeowners. Coasean analysis asks whether bargaining is feasible. With twelve owners, holdout and organizational costs may block a deal, so a court might choose between an injunction and damages by asking which rule produces the more efficient outcome, as in Boomer. A critic asks whose interests were left out of the calculation."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l14",
+   "title": "The Rule of Law",
+   "body": [
+    "The rule of law is one of the most praised and least agreed-upon ideas in politics. At its simplest it means that government is itself bound by law and that no one is above it. The question for jurisprudence is what else is included, and the answer separates formal, or thin, conceptions from substantive, or thick, ones.",
+    "A.V. Dicey, in Introduction to the Study of the Law of the Constitution (1885), gave a classic British formulation with three elements: the supremacy of regular law as against arbitrary power; equality before the law, with officials subject to the same ordinary courts as everyone else; and the idea that constitutional rights result from ordinary judicial decisions and not from a charter. His account has been criticized for ignoring the administrative state, but its emphasis on legal limits on officials remains. The eighteenth-century case Entick v. Carrington (1765) is often cited as an example: the court held that the king's messengers could not enter and search a home and seize papers without legal authority, rejecting the claim of state necessity.",
+    "Fuller's eight principles of legality, discussed earlier, supply a procedural account: laws should be general, public, prospective, clear, consistent, possible to follow, stable and applied as announced. Joseph Raz in The Rule of Law and Its Virtue (1977) gave a formal account with principles such as prospective, open and clear laws, relatively stable laws, guidance of particular laws by open, general rules, independence of the judiciary, natural justice, review power by courts, accessible courts, and limits on the discretion of crime-preventing agencies. For Raz, the rule of law is a virtue of legal systems, like the sharpness of a knife, which can be used for good or ill. A legal system that violates basic human rights might conform to the rule of law, and so the rule of law is not the whole of political morality.",
+    "Substantive conceptions add moral content. Dworkin's rights conception holds that the rule of law is the ideal of rule by an accurate public conception of individual rights, so that citizens can claim rights in courts. Lord Bingham in The Rule of Law (2010) proposed eight principles, including that law must be accessible, intelligible, clear and predictable; that questions of legal right should normally be decided by law and not discretion; that laws apply equally; that law must protect fundamental human rights; that means must be provided for resolving disputes without prohibitive cost; that public officials must act reasonably and within their powers; that the state must comply with its international obligations; and that adjudicative procedures must be fair. Critics of thick views say they merge the rule of law with justice generally, losing a distinct ideal that appeals across political disagreements.",
+    "Friedrich Hayek, in The Road to Serfdom (1944) and The Constitution of Liberty (1960), argued from a classical-liberal perspective that general, predictable rules protect individual freedom from arbitrary state power, and that economic planning threatens it.",
+    "A related distinction is between rule of law and rule by law. In rule by law, law is merely an instrument used by rulers, which authoritarian regimes can use to govern efficiently without being bound by it. In rule of law, rulers are constrained by it. The World Justice Project and other organizations publish indices that measure the rule of law across countries on factors such as constraints on government power and absence of corruption, which are used in policy debates, though measurement is itself contested.",
+    "Worked example: a government secretly issues a regulation, applies it to conduct that occurred before its publication, and punishes officials who refuse to enforce it. A thin account identifies failures of publicity, prospectivity and consistent application. A thick account adds that if the regulation also stripped a minority of basic rights, it would fail the rule of law even if it had been published and applied evenly."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l15",
+   "title": "Theories of Punishment",
+   "body": [
+    "Why may the state inflict suffering on an offender? Punishment needs justification because it involves the deliberate imposition of harm. The main theories answer from different starting points, and most modern systems blend them.",
+    "Retributivism holds that wrongdoers deserve punishment because they have done wrong, and that the punishment should be proportionate to the offense and the offender's culpability. The justification looks backward, to the offense. Kant argued that punishment must never be used merely as a means to some other good for the offender or society, and that it is imposed because the offender has committed a crime; he used the example of a society on an island that must execute its last murderer before dissolving. Hegel saw punishment as the negation of the negation of right, treating the criminal as a rational being who is honored by being held responsible. Modern retributivists such as Michael Moore defend desert as a moral basis, while others emphasize fair play: the offender has taken an unfair advantage over law-abiding citizens, and punishment restores the balance. Retributivism supplies proportionality and limits on punishing the innocent, but critics ask why suffering is intrinsically good and how to measure desert.",
+    "Consequentialist theories justify punishment by its good effects. Bentham and utilitarians stress deterrence: punishment deters the offender (specific deterrence) and others (general deterrence), by raising the expected cost of crime. Incapacitation protects the public by preventing offenders from committing crimes while confined. Rehabilitation aims to change the offender through treatment, education or training. Consequentialist theories are forward-looking, and critics argue that they could justify punishing the innocent or imposing disproportionate sentences if doing so would deter, or treat people as mere means. Empirical research shows that the certainty of detection tends to deter more than the severity of punishment, though the evidence is mixed and contested in detail.",
+    "Hart's Prolegomenon to the Principles of Punishment (1959) proposed a mixed view that distinguishes the general justifying aim of punishment, which for Hart is the utilitarian one of reducing crime, from the principles of distribution, which limit who may be punished and how much, drawing on retributive principles such as the requirement of guilt and proportionality. Rawls in Two Concepts of Rules (1955) made a related distinction between justifying a practice and justifying a particular act within it.",
+    "Expressive theories, such as Joel Feinberg's 1965 essay The Expressive Function of Punishment, hold that punishment communicates society's condemnation of the conduct, and that this expressive meaning is part of what distinguishes punishment from a mere penalty. Communicative theories, such as R. A. Duff's, say that punishment is an attempt to engage the offender in moral dialogue and elicit repentance. Restorative justice focuses on repairing harm to victims and communities and on offender accountability, through mediation and conferencing. Abolitionist critics argue that prisons cause more harm than they prevent and that alternatives should replace them.",
+    "Capital punishment is a controversial practice, and the arguments should be kept apart from the law. As a matter of current US law, the death penalty is constitutional, but the Supreme Court has limited its use: Furman v. Georgia (1972) struck down the then-existing statutes for arbitrary application, Gregg v. Georgia (1976) upheld new guided-discretion statutes, Atkins v. Virginia (2002) barred execution of people with intellectual disability, Roper v. Simmons (2005) barred execution of those who were under eighteen at the time of the crime, and Kennedy v. Louisiana (2008) barred it for the rape of a child that did not result in death. Many states and most of the world's countries have abolished it, and a number of states retain it by statute but have not carried out executions for years. Supporters rely mainly on retributive reasons and sometimes deterrence, and opponents rely on risk of error, uneven application, and the view that the state should not take life.",
+    "Worked example: a defendant who steals a loaf of bread for a starving child is given a long sentence to deter others. A retributivist objects that it is disproportionate, while a pure deterrence theorist must rely on empirical claims about effects. Hart's mixed view would cap the sentence by proportionality."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l16",
+   "title": "Justice as Fairness: Rawls",
+   "body": [
+    "John Rawls's A Theory of Justice (1971) revived political philosophy and set the terms for later debate. His problem was to identify principles of justice for the basic structure of society, the main institutions that distribute rights, duties and advantages. His method was social contract: principles of justice are those that free and equal persons would agree to in a fair initial situation.",
+    "That situation is the original position, a hypothetical device. Parties choose principles behind a veil of ignorance: they do not know their place in society, class, race, sex, natural abilities, conception of the good, or the generation they belong to, but they know general facts about psychology and economics. The veil ensures that no one can tailor principles to their advantage. Rawls argued that rational parties would choose two principles, with the first having priority over the second. The first principle says each person has an equal claim to a fully adequate scheme of equal basic liberties compatible with the same liberties for all. The second says social and economic inequalities must satisfy two conditions: they must be attached to positions open to all under fair equality of opportunity, and they must be to the greatest benefit of the least advantaged members of society, which is the difference principle.",
+    "Rawls argued that parties in the original position would use a conservative decision rule, close to maximin, which ranks alternatives by their worst outcomes, because the stakes are high and the probabilities unknown. This is a central point of contention. John Harsanyi argued that rational parties would instead maximize expected average utility, which would support a utilitarian principle. Rawls replied that utilitarianism fails to respect the separateness of persons, since it allows the sacrifice of some for the larger benefit of others.",
+    "The method of reflective equilibrium adjusts principles and considered judgments about particular cases until they cohere. In his later work, Political Liberalism (1993), Rawls recast justice as fairness as a political conception, not a comprehensive moral doctrine, which could be supported by an overlapping consensus of reasonable but conflicting religious and philosophical views in a pluralist society. He also developed the idea of public reason, that in debates about constitutional essentials citizens should offer reasons that others can accept.",
+    "Rawls has been criticized from many directions. Robert Nozick, in the next lesson, argued from libertarian premises. Communitarians such as Michael Sandel argued that the self in the original position is an unencumbered self, detached from the attachments that constitute people's identities. Feminist critics, including Susan Moller Okin, argued that Rawls does not apply the principles to the family. Others argue that the theory idealizes by focusing on perfectly just institutions and that it does not address global justice adequately, although Rawls's The Law of Peoples (1999) addressed international justice in a way many found less demanding than the domestic theory. Critics from the left have said that the difference principle does not go far enough in preventing concentrations of wealth, and Rawls himself discussed property-owning democracy as a more suitable regime than welfare-state capitalism.",
+    "The relevance to law lies in constitutional design, antidiscrimination law, taxation, and the idea that institutions must be justifiable to all citizens. Rawls is not a legal theorist, but his theory has been cited and debated by legal scholars and, less often, referred to in judicial opinions.",
+    "Worked example: a legislature considers a tax policy that boosts the economy and raises average incomes, while lowering the income of the poorest decile. A utilitarian might support it if total welfare rises. Rawls's difference principle would reject it unless the inequality improved the position of the least advantaged compared with the alternatives."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l17",
+   "title": "Nozick, Sen and Other Accounts of Justice",
+   "body": [
+    "Rawls is one contributor to a wide debate. This lesson sets out other major accounts, each in its own terms, so that they can be compared.",
+    "Robert Nozick's Anarchy, State, and Utopia (1974) is the leading libertarian answer. Starting from the premise that individuals have rights that no one may violate, Nozick argued that only a minimal state, limited to protection against force, theft and fraud and enforcement of contracts, is justified; a more extensive state violates rights. His theory of distributive justice is the entitlement theory, which is historical and unpatterned. A distribution is just if it arises from a just initial acquisition of holdings, just transfers, and rectification of past injustices in acquisition or transfer. He contrasted this with end-state and patterned principles, which hold that a distribution is just if it matches some pattern such as equality, because maintaining a pattern requires continuous interference. His Wilt Chamberlain example imagines a population in a distribution that satisfies any pattern one favors, and that many people each pay a small sum to watch a famous basketball player play; the resulting distribution, he said, is unequal but is the result of voluntary transfers, so any pattern would be disrupted by free exchange. He argued that taxation of earnings from labor is on a par with forced labor, a controversial claim.",
+    "Critics ask whether original acquisition of unowned things can be justified, given Locke's proviso that enough and as good be left for others, and how rectification should work given the history of conquest and slavery. G. A. Cohen argued that self-ownership, as Nozick conceives it, does not support the conclusion that property rights in external resources are absolute. Others note that the theory has little to say about the claims of those who start with very few resources, and that it depends on a strong premise about rights.",
+    "Amartya Sen's The Idea of Justice (2009) criticizes what he calls transcendental institutionalism, the approach of Rawls and others that seeks perfectly just institutions, and favors a comparative approach that asks how to reduce clear injustices and rank alternatives. He illustrated this with the story of three children who dispute who should get a flute: one can play it, one has no other toys, and one made it. Each of them has a reasoned claim, based on different principles, utilitarian, egalitarian and entitlement, and no single principle is obviously correct, yet one can often reach agreement that a certain change would reduce injustice. Sen is a central figure in the capability approach, developed with Martha Nussbaum, which holds that justice should be measured by what people are actually able to do and to be, their capabilities, rather than by resources or utility. Nussbaum proposed a list of central capabilities, including life, bodily health, bodily integrity, practical reason and affiliation, as the basis for constitutional guarantees. Critics ask whether the approach is specific enough to guide institutions, and who decides which capabilities count.",
+    "Aristotle's account, in Book V of the Nicomachean Ethics, distinguishes distributive justice, concerned with the fair division of honors and goods in proportion to merit or desert, and corrective justice, which restores equality after a wrong, as in tort and contract. Corrective justice theories of private law, associated with Ernest Weinrib and Jules Coleman, build on this.",
+    "Utilitarianism, from Bentham and John Stuart Mill, holds that the right act or rule maximizes overall welfare. Its defenders emphasize impartiality and concern with consequences, while critics emphasize that it may sacrifice individuals and ignore rights. Michael Walzer's Spheres of Justice (1983) argued that different goods, such as office, money and education, should be distributed by different principles, appropriate to their social meaning, and that justice means preventing domination by one sphere over others.",
+    "Worked example: a city has a parcel of land and three claimants: a developer who owns adjoining land, a group of homeless residents who need housing, and a community that made the park there. Nozick asks about the history of title. Rawls asks what arrangement would benefit the least advantaged. Sen asks how to reduce the most remediable injustice, and the capability approach asks what people can do and be."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l18",
+   "title": "Law and Morality: Enforcing Morals, Obedience and Civil Disobedience",
+   "body": [
+    "Even if law and morality are conceptually separate, the question remains how they should relate in practice. Should law enforce morality as such? Is there a duty to obey the law? When may a person disobey?",
+    "The modern debate began with the Wolfenden Report (1957) in Britain, which recommended that homosexual acts between consenting adults in private and prostitution not be criminal offenses, on the ground that the function of criminal law is to preserve public order and protect citizens from what is offensive or injurious, not to enforce a particular pattern of moral behavior. Patrick Devlin, a judge, responded in his 1959 lecture The Enforcement of Morals that a society is held together by a shared morality, and that law may enforce it, because society may protect itself against disintegration, as it does against treason. He argued that the limits are tolerance, privacy and the standard of the reasonable person's reaction of intolerance, indignation and disgust. Hart replied in Law, Liberty and Morality (1963), invoking John Stuart Mill's harm principle from On Liberty (1859): the only purpose for which power can rightfully be exercised over any member of a civilized community against his will is to prevent harm to others. Hart argued that Devlin offered no evidence that deviation from conventional morality threatens a society's existence, and that enforcing morality can itself cause suffering. Hart accepted some paternalism, such as laws limiting consent to harm.",
+    "Joel Feinberg's four-volume The Moral Limits of the Criminal Law (1984-88) refined the debate by defending the harm principle, supplemented by an offense principle for serious public nuisances, and rejecting legal moralism and most paternalism. Legal moralists such as Michael Moore defend the claim that immorality, even without harm to others, can be a reason for criminalization if it is wrongful. The question is alive in debates about drug laws, assisted dying and obscenity, where participants dispute what counts as harm and who is harmed. In US constitutional law, Bowers v. Hardwick (1986) upheld a Georgia sodomy statute partly on the ground that majority morality can be a legitimate basis for law; Lawrence v. Texas (2003) overruled Bowers and struck down a similar statute, holding that the state's interest in the morality of the practice was not sufficient. Debates among commentators about the roles of harm and morality continued in those opinions.",
+    "On the duty to obey, Plato's Crito presents Socrates arguing that he owes obedience to the laws of Athens because they raised and protected him, an early consent and gratitude argument. Modern theorists give various grounds: fairness, because those who benefit from a cooperative scheme should do their share; consent, hard to show for most citizens; natural duty to support just institutions (Rawls); and associative obligations (Dworkin). Raz argued that there is no general obligation to obey even a legitimate government, though there may be reasons to comply in many cases. Philosophical anarchists such as Robert Paul Wolff argue that the duty is incompatible with autonomy.",
+    "Civil disobedience is public, nonviolent, conscientious law-breaking to bring about change, in Rawls's formulation, directed at a society that is nearly just. Henry David Thoreau's essay (1849) defended refusing to pay taxes in protest against slavery and war. Martin Luther King Jr.'s Letter from Birmingham Jail (1963) argued that one has a moral responsibility to disobey unjust laws, citing Augustine's view that an unjust law is no law at all and Aquinas, while insisting that the disobedient must act openly and accept the penalty. In Walker v. City of Birmingham (1967), the Supreme Court, five to four, upheld contempt convictions of King and others for marching in violation of an injunction, without reaching the claim that the injunction was invalid, since they had not first sought to challenge it in court.",
+    "Worked example: a city bans overnight camping in parks, and activists camp in defiance to draw attention to homelessness, notify police in advance, and accept arrest. Under Rawls's criteria this may qualify as civil disobedience, whereas a violent or secret act would not, whatever one thinks about the cause."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l19",
+   "title": "The Nature of Rights",
+   "body": [
+    "Talk of rights is everywhere in law, but the word is used loosely. Wesley Hohfeld, in Some Fundamental Legal Conceptions as Applied in Judicial Reasoning (1913) and a second article in 1917, argued that what people call a right can mean four different things, and that clarity requires separating them. His scheme has eight terms in two groups of correlatives and opposites.",
+    "A claim-right, or right in the strict sense, correlates with a duty in another: if you have a right that I not trespass on your land, I have a duty not to. Its opposite is a no-right. A privilege, now often called a liberty, is the absence of a duty, correlating with a no-right in others: I have a privilege to walk on my own land, meaning I have no duty not to, and you cannot complain. A power is the ability to change legal relations, such as the power to sell property, make a will or form a contract, correlating with liability in the person whose relations are changed, and its opposite is disability. An immunity is freedom from having one's legal relations changed by another, correlating with disability: a person immune from suit cannot have the power to be sued exercised on her. By separating these, Hohfeld showed that a statement such as \"the press has a right to publish\" can mean a liberty, a claim against interference, an immunity from regulation, or a power, which have different consequences in a case.",
+    "Two theories compete about what rights are for. The will or choice theory, associated with Hart and, in different forms, with Kant and Savigny, holds that to have a right is to have control over another's duty: the right-holder can waive, enforce or release it. The interest theory, defended by Bentham, Ihering and, in modern form, Joseph Raz and Neil MacCormick, holds that a right exists when an aspect of the right-holder's well-being is a sufficient reason for holding another to a duty. The theories differ on cases: children and incompetent persons seem to have rights though they cannot waive them, which favors the interest theory, while the will theory has trouble with inalienable rights such as the prohibition on slavery, and the interest theory has trouble saying why a third-party beneficiary of a contract's promise lacks a right.",
+    "Dworkin's essay Rights as Trumps (1984) proposed that rights are political trumps held by individuals, which defeat the usual justification of collective goals. Rights, on his view, mark limits on what governments may do in the name of the general welfare.",
+    "The source of rights is another issue. Natural rights theorists such as Locke argued that individuals have rights prior to government, and that government exists to protect them. Legal positivists tend to say that legal rights are those the law recognizes, and that moral rights are a separate matter. Human rights are rights held by all persons as such, and in the international system they are stated in documents such as the Universal Declaration of Human Rights (1948), a General Assembly declaration and not a treaty, and in the International Covenants on Civil and Political Rights and on Economic, Social and Cultural Rights (both 1966), which are binding treaties for the states that have ratified them.",
+    "Rights have had critics. Bentham called natural rights nonsense and imprescriptible natural rights nonsense upon stilts, because he held that real rights are created by law. Burke attacked the abstract rights of man in favor of the inherited rights of Englishmen. Marx, in On the Jewish Question (1843), argued that the rights of man are rights of egoistic individuals separate from community. Alasdair MacIntyre in After Virtue (1981) said that belief in natural rights is like belief in witches and unicorns. Defenders reply that rights are ordinary and useful moral tools, and that rights discourse has protected the vulnerable. Communitarian and feminist writers ask for rights to be balanced by relationships and responsibilities.",
+    "Worked example: a tenant has a lease. Her claim-right to quiet enjoyment correlates with the landlord's duty not to interfere. Her liberty to have guests means the landlord has no right to forbid them. She has a power to renew or assign the lease if permitted. And she has an immunity from eviction without notice, correlating with the landlord's disability to terminate without it."
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l20",
+   "title": "How Philosophy Shows Up Inside Real Opinions",
+   "body": [
+    "Judges rarely cite philosophers, but their opinions use jurisprudential arguments constantly. Reading a case with the vocabulary of this course makes visible moves that otherwise pass as plain reasoning. This lesson gives a field guide with real examples and also warns against over-labelling.",
+    "Positivism and the plain law. When a judge says that a statute must be applied as written even though the result is harsh, and that relief is for the legislature, she is endorsing a separation between what the law is and what it should be. A judge who invokes the plain meaning rule or who refuses to read in an exception is assuming that the text's meaning is determined by the social fact of enactment. In Bostock, both the majority and the dissent proceeded from the text of Title VII and disagreed about its ordinary meaning, which illustrates that agreement on theory does not produce agreement on outcome.",
+    "Principles and integrity. In Riggs v. Palmer (1889), the New York Court of Appeals decided that a murderer could not inherit under his victim's will, although the statute set no exception, on the ground that no one should profit from his own wrong. Dworkin read this as a principle operating beside the rules. A court that fills a gap by appeal to fairness or the purpose of the doctrine is doing something Dworkin describes as integrity, and a positivist describes as discretion or incorporated moral standards, depending on the version.",
+    "Natural law and the higher law. The Declaration of Independence invoked laws of nature. The Nuremberg tribunals rejected defences of superior orders and legality under the Nazi regime for crimes against humanity, and German courts after the war and after reunification faced the problem of retrospectively judging acts that were lawful when done, in which the Radbruch formula and positivist replies were both used by courts and scholars. Justice Harlan's dissent in Plessy v. Ferguson (1896) said that the Constitution is color-blind and neither knows nor tolerates classes among citizens, a principle drawing on a conception of equal citizenship above the statute.",
+    "Realism and consequences. Holmes's Lochner dissent (1905) said that the case was decided on an economic theory the majority held, which a constitution does not enact. Brown v. Board of Education (1954) relied on social-science evidence about the effects of segregation on children, a realist approach, although the weight the Court placed on the evidence is debated. A judge who weighs the likely consequences of a rule is practicing something the realists encouraged.",
+    "Law and economics. In Carroll Towing (1947), Judge Hand's formula for negligence compares the burden of precautions to the expected loss, which is law and economics before the label. In Boomer v. Atlantic Cement (1970), the court weighed the cost of closing the plant against the harm to neighbors and chose damages.",
+    "Rights, equality and interpretation. In Heller, the debate between originalist and living-constitutional approaches took the form of a debate about historical evidence. In Roper v. Simmons, the Court invoked evolving standards of decency, which is a living-constitutional method, while the dissent argued that the Court should not substitute its own moral judgment, an originalist and democratic argument. In Lawrence v. Texas, the Court rejected moral disapproval as sufficient basis for criminalization, which echoes the Hart-Devlin dispute.",
+    "Punishment. Opinions on sentencing and the death penalty draw on retribution and deterrence. In Gregg v. Georgia, the plurality discussed both, and in Atkins the Court said that diminished culpability of people with intellectual disability weakens the retributive justification, while their reduced capacity for deliberation weakens deterrence.",
+    "A caution: reading theory into an opinion can overreach. Judges often combine approaches, and the label should be a question, not a conclusion.",
+    "Worked example: a court is asked to enforce a contract clause that, read literally, lets a seller keep a deposit even when the seller's own wrongful act caused the failure. The court refuses, relying on good faith. A reader can ask whether this is a Dworkinian principle, an incorporated moral standard in a positivist's rule of recognition, a realist's policy choice, or an economic argument about incentives, and the answer often shows which theory the reader finds most persuasive."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-jurisprudence.l01.q1",
+   "lessonId": "law-jurisprudence.l01",
+   "kind": "mcq",
+   "prompt": "Which question belongs most clearly to analytical, or conceptual, jurisprudence?",
+   "choices": [
+    "How should a legislature allocate funds between a police department and a public school?",
+    "Whether a particular defendant should be convicted on the evidence presented at his trial",
+    "What makes a particular rule part of a legal system, as distinct from a moral or social rule?",
+    "Which sentence length best deters theft across different kinds of offenders in society?"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l01.q2",
+   "lessonId": "law-jurisprudence.l01",
+   "kind": "mcq",
+   "prompt": "A legal positivist claims that a cruel statute is nonetheless law. Which statement best captures what the positivist is and is not claiming?",
+   "choices": [
+    "That the statute is morally good because it was enacted by the proper authorities in a regular way, so moral criticism of it is misplaced",
+    "That citizens have a moral duty to obey every validly enacted statute whatever its content",
+    "That judges should never consider moral arguments in any hard case that comes before them",
+    "That identifying law depends on social facts, while the statute remains open to moral criticism and disobedience"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l01.q3",
+   "lessonId": "law-jurisprudence.l01",
+   "kind": "mcq",
+   "prompt": "In a park where the ordinance bans \"vehicles,\" a veterans' group wants to mount a decommissioned truck as a memorial. Which school's question is correctly paired with its focus?",
+   "choices": [
+    "The realist asks how the local judges are likely to rule, based on how they have actually decided similar disputes",
+    "The positivist asks whether the monument would serve the common good in the way the natural law demands",
+    "The natural lawyer asks whether the ordinance was enacted by the proper officials following the proper procedures",
+    "The critical scholar asks only whether the dictionary definition of vehicle covers the truck in question"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l01.q4",
+   "lessonId": "law-jurisprudence.l01",
+   "kind": "mcq",
+   "prompt": "Which statement most accurately distinguishes a positivist from a strong natural-law theorist about a monstrously unjust enactment?",
+   "choices": [
+    "Both say it is not law, but they disagree about whether citizens may be punished for disobeying it",
+    "The positivist says it is law but ought to be disobeyed, while the strong natural lawyer says it lacks legal validity",
+    "The positivist says it is not law because it is unjust, while the strong natural lawyer says it is valid law",
+    "Both say it is valid law, but they disagree about whether judges may ever apply it in a case"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l01.q5",
+   "lessonId": "law-jurisprudence.l01",
+   "kind": "mcq",
+   "prompt": "Which of the following is a normative, rather than analytical, question in jurisprudence?",
+   "choices": [
+    "How do the criteria of validity differ between a legal order and the by-laws of a private members club?",
+    "Can a legal system exist if its officials do not accept any shared standard of legal validity at all?",
+    "What justifies the state in punishing an offender who has already served the sentence set for a crime?",
+    "What does it mean for a rule of recognition to exist in a given legal system at a particular moment in its history?"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l02.q1",
+   "lessonId": "law-jurisprudence.l02",
+   "kind": "mcq",
+   "prompt": "In Aquinas's scheme, which kind of law is the particular rules made by human communities?",
+   "choices": [
+    "Divine law",
+    "Human law",
+    "Eternal law",
+    "Natural law"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l02.q2",
+   "lessonId": "law-jurisprudence.l02",
+   "kind": "mcq",
+   "prompt": "According to Aquinas, how does human law relate to natural law when it fixes a rule such as driving on one side of the road?",
+   "choices": [
+    "As a determination, specifying what nature leaves open to settle a problem of coordination",
+    "As a conclusion, deduced directly from the natural precept to do no harm to other persons",
+    "As a corruption, because any specific rule necessarily departs from the content of natural law",
+    "As a revelation, communicated by divine law to the legislator in the form of positive commands"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l02.q3",
+   "lessonId": "law-jurisprudence.l02",
+   "kind": "mcq",
+   "prompt": "A regime makes it a crime not to report neighbors who shelter refugees. Which response correctly matches the described position?",
+   "choices": [
+    "A positivist says it is not law because it is unjust and therefore fails the validity test of a legal system",
+    "A strong natural lawyer says it is valid law and morally binding provided that it was enacted properly",
+    "A moderate natural lawyer says it creates a moral duty of obedience because all enacted statutes bind in conscience",
+    "A moderate natural lawyer says it lacks the moral binding force of law, though it may be law in a thin sense"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l02.q4",
+   "lessonId": "law-jurisprudence.l02",
+   "kind": "mcq",
+   "prompt": "A critic objects that natural law theory cannot provide a common standard because people disagree about natural law's content. Which reply would a natural lawyer most plausibly give?",
+   "choices": [
+    "Disagreement is resolved by the sovereign, whose commands settle the content of natural law within its territory",
+    "Disagreement is irrelevant because natural law consists only of rules that are accepted by all societies in history",
+    "Disagreement does not show there is no truth, and the claim concerns the structure of practical reasoning about the common good",
+    "Disagreement shows that the content is conventional, and so each community's customs fix the natural law for its members"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l02.q5",
+   "lessonId": "law-jurisprudence.l02",
+   "kind": "mcq",
+   "prompt": "Which thinker described a law of reason, the same everywhere and binding on all rational beings, that no state can repeal, as part of a Roman statement of natural law?",
+   "choices": [
+    "Kelsen",
+    "Cicero",
+    "Bentham",
+    "Austin"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l03.q1",
+   "lessonId": "law-jurisprudence.l03",
+   "kind": "mcq",
+   "prompt": "Which of the following is one of Lon Fuller's eight principles of legality?",
+   "choices": [
+    "Laws should not be retroactive",
+    "Laws should always protect minority groups",
+    "Laws should be made by elected assemblies",
+    "Laws should be enforced by independent juries"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l03.q2",
+   "lessonId": "law-jurisprudence.l03",
+   "kind": "mcq",
+   "prompt": "Why did Fuller regard his principles of legality as an \"internal morality\" of law?",
+   "choices": [
+    "Because they require that every law have a morally good substantive content in order to count as valid law in any legal system",
+    "Because the purpose of governing conduct by rules generates demands that a system must meet to succeed at that purpose",
+    "Because they are derived from divine revelation and so bind legislators in conscience as part of their religious duty",
+    "Because they were agreed upon by the framers of a particular constitution as a statement of their shared moral views on government"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l03.q3",
+   "lessonId": "law-jurisprudence.l03",
+   "kind": "mcq",
+   "prompt": "A court punishes a woman who denounced her husband under a Nazi-era statute that was valid when enacted. Which option best states the Hart-Fuller disagreement about this?",
+   "choices": [
+    "Both said the statute was valid, but Hart thought courts could simply ignore it in practice while Fuller said that they could not",
+    "Both denied that the statute was law, but they disagreed about whether any punishment could constitutionally follow from its breach",
+    "Hart said to call the statute law but too evil to obey and punish by retroactive legislation, while Fuller preferred to deny it legal validity",
+    "Hart said the statute was not law because it was unjust and so void, while Fuller said it was valid law but too evil for anyone to obey"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l03.q4",
+   "lessonId": "law-jurisprudence.l03",
+   "kind": "mcq",
+   "prompt": "A critic says Fuller's principles are only conditions of efficacy that any ruthless regime would also need, and so they are not moral. Which reply best fits Fuller's position?",
+   "choices": [
+    "The principles are not necessary conditions of law, so even ruthless regimes may wholly disregard them without losing their legal status",
+    "The principles are justified by consent given by all citizens behind a hypothetical veil of ignorance in an original position of equal freedom",
+    "The principles depend on natural rights held by individuals against the state, which no regime can validly deny to anyone in its territory",
+    "The principles treat people as agents capable of following rules, so they express respect for them and not just technique"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l03.q5",
+   "lessonId": "law-jurisprudence.l03",
+   "kind": "mcq",
+   "prompt": "What does the Radbruch formula say about an enacted statute?",
+   "choices": [
+    "It must yield as flawed law if its conflict with justice reaches an intolerable degree",
+    "It is void whenever it conflicts in any way with the justice that a judge happens to perceive",
+    "It is always valid because enactment and power secure legal certainty above all other values",
+    "It is valid only if a majority of citizens affirm it in a referendum following its enactment"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l04.q1",
+   "lessonId": "law-jurisprudence.l04",
+   "kind": "mcq",
+   "prompt": "In Austin's command theory, a sovereign is a person or body that",
+   "choices": [
+    "is chosen by a majority of citizens in a regular election held under a written constitution",
+    "is bound by natural law and the commands of religious authorities in the community",
+    "is recognized by other states as the legitimate government under rules of international law",
+    "is habitually obeyed by the bulk of society and does not habitually obey anyone else"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l04.q2",
+   "lessonId": "law-jurisprudence.l04",
+   "kind": "mcq",
+   "prompt": "Which criticism of the command theory did Hart make using rules that confer powers to make wills and contracts?",
+   "choices": [
+    "Such rules arise from custom and so cannot be understood as the commands of any single sovereign person or body",
+    "Such rules limit the sovereign and so show that no true sovereign can exist in any modern constitutional state",
+    "Such rules are not orders backed by threats, so the theory cannot account for power-conferring law",
+    "Such rules carry no sanction for their breach and so cannot be regarded as genuine law under any serious theory of law"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l04.q3",
+   "lessonId": "law-jurisprudence.l04",
+   "kind": "mcq",
+   "prompt": "A gunman orders a clerk to hand over the money, and the clerk complies. How does Hart use this example?",
+   "choices": [
+    "To show that morality and law are identical in nature, because both the gunman and the legislator command by threat of harm",
+    "To show that being obliged to act under threat differs from having an obligation, which the command theory fails to separate",
+    "To show that law necessarily rests on sanctions, since every legal duty is in the end nothing more than the experience of being threatened",
+    "To show that a sovereign need not be habitually obeyed, since the gunman is obeyed only on this one occasion and still commands"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l04.q4",
+   "lessonId": "law-jurisprudence.l04",
+   "kind": "mcq",
+   "prompt": "A monarch dies and a new one succeeds, and courts continue to apply the old monarch's laws. Which problem for Austin does this illustrate?",
+   "choices": [
+    "A new sovereign has no habit of obedience to build on, yet the law continues, so habit cannot explain legal continuity",
+    "A sovereign cannot be limited by law, yet the courts here limited the new monarch's power in a way Austin cannot describe",
+    "A sovereign must be elected, yet the new monarch took office by inheritance and not by a vote of the citizens",
+    "A sovereign must enforce morality, yet the old laws may not have been moral and so should not have continued to apply"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l04.q5",
+   "lessonId": "law-jurisprudence.l04",
+   "kind": "mcq",
+   "prompt": "What was Bentham's attitude toward the idea of natural rights?",
+   "choices": [
+    "He regarded it as the basis of all legitimate law, from which statutes must be derived",
+    "He regarded it as a useful fiction for judges who wish to extend legal protections",
+    "He regarded it as an account that was correct but of no importance for legal reform",
+    "He regarded it as nonsense, holding that real rights are created by law"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l05.q1",
+   "lessonId": "law-jurisprudence.l05",
+   "kind": "mcq",
+   "prompt": "In Hart's theory, which secondary rule identifies what counts as a valid rule of a legal system?",
+   "choices": [
+    "The rule of adjudication",
+    "The rule of obligation",
+    "The rule of recognition",
+    "The rule of change"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l05.q2",
+   "lessonId": "law-jurisprudence.l05",
+   "kind": "mcq",
+   "prompt": "What distinguishes the internal point of view from the external point of view in Hart's theory?",
+   "choices": [
+    "The judge applies the rule to the facts of the case, while the ordinary citizen only ever reads the rule in the statute book",
+    "The participant obeys the rule from fear of sanctions alone, while the observer obeys it from a sense of morality",
+    "The participant considers the rule just and fair, while the observer considers it unjust but follows it from habit",
+    "The participant accepts the rule as a standard and criticizes deviation, while the observer merely notes regularities"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l05.q3",
+   "lessonId": "law-jurisprudence.l05",
+   "kind": "mcq",
+   "prompt": "A statute bans \"vehicles\" in the park. An officer must decide whether it covers a child's electric toy car. How would Hart describe the situation?",
+   "choices": [
+    "The toy car falls in the penumbra of open texture, where judges exercise discretion guided by purposes and consequences",
+    "The toy car falls in the core of settled meaning, so the answer follows logically from the ordinary meaning of the word vehicle",
+    "The toy car shows that the statute is invalid, because a rule with any uncertainty about its scope cannot be law at all",
+    "The toy car shows that law is just prediction, since the answer depends entirely on what the judge will in fact decide"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l05.q4",
+   "lessonId": "law-jurisprudence.l05",
+   "kind": "mcq",
+   "prompt": "Hart says that any viable legal system contains rules protecting persons and property because of facts such as human vulnerability and limited altruism. What is this idea called, and what does it show?",
+   "choices": [
+    "The pure theory of law, showing that all valid norms are derived from a presupposed basic norm of the legal system",
+    "The minimum content of natural law, showing an overlap between law and morality that is contingent and not conceptually necessary",
+    "The sources thesis, showing that law can always be identified without any moral argument by looking at social facts alone",
+    "The rights thesis, showing that judges must decide hard cases by identifying the background rights held by the parties before them"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l05.q5",
+   "lessonId": "law-jurisprudence.l05",
+   "kind": "mcq",
+   "prompt": "According to Hart, in what circumstance does a legal system exist?",
+   "choices": [
+    "When the rules of the system meet the demands of justice as determined by the most reasonable available moral theory of rights",
+    "When courts have accurately predicted which of the rules will in fact be enforced by officials against persons who breach them",
+    "When ordinary people generally obey the primary rules and officials accept the secondary rules, especially recognition, as common standards",
+    "When a sovereign issues general commands to a population, and the population habitually obeys them out of fear of sanctions"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l06.q1",
+   "lessonId": "law-jurisprudence.l06",
+   "kind": "mcq",
+   "prompt": "What is the Grundnorm in Kelsen's Pure Theory of Law?",
+   "choices": [
+    "The rule of recognition that officials apply in identifying valid rules of the system",
+    "The basic norm, presupposed by legal science, that gives validity to the first constitution",
+    "The highest statute of the legal system, enacted by the sovereign in the form of a written code",
+    "The moral principle of justice that gives validity to every legal norm in the hierarchy"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l06.q2",
+   "lessonId": "law-jurisprudence.l06",
+   "kind": "mcq",
+   "prompt": "Raz's sources thesis says that",
+   "choices": [
+    "the existence and content of law can be determined by social sources, without moral argument",
+    "the content of law always derives from the moral sources of the society that enacts the law",
+    "the sources of law consist only of statutes and cannot include precedents or constitutional rules",
+    "the sources of law are the intentions of the legislators who enacted a statute at the time of enactment"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l06.q3",
+   "lessonId": "law-jurisprudence.l06",
+   "kind": "mcq",
+   "prompt": "A constitution forbids \"cruel and unusual punishment.\" Which pairing correctly describes how inclusive and exclusive positivists treat this clause?",
+   "choices": [
+    "The exclusive positivist says the clause makes morality a condition of validity, while the inclusive positivist says it never could",
+    "Both say that the clause makes moral evaluation a necessary part of every legal system by the very nature of law itself",
+    "Both say that moral evaluation is irrelevant to the application of the clause, since the clause is only a bare social fact",
+    "The inclusive positivist says the clause may make moral evaluation a condition of validity in that system, while the exclusive positivist denies morality can be such a condition"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l06.q4",
+   "lessonId": "law-jurisprudence.l06",
+   "kind": "mcq",
+   "prompt": "Raz argues from the nature of authority that law must be identifiable by factual means. Which step is part of that argument?",
+   "choices": [
+    "If the law is identifiable only through facts, then every legal rule must also be a genuine requirement of true morality",
+    "If the law claims authority, then every subject has a genuine moral duty to obey it in every single circumstance that arises",
+    "If subjects must weigh the merits to find out what an authority requires, the authority cannot serve its function of guiding action",
+    "If the law is identifiable only through moral argument, then no judge could ever reach a settled decision in any hard case that arises"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l06.q5",
+   "lessonId": "law-jurisprudence.l06",
+   "kind": "mcq",
+   "prompt": "Scott Shapiro's planning theory in Legality describes law as",
+   "choices": [
+    "a body of principles providing the best moral justification of the community's legal practice",
+    "a social planning activity that solves problems moral reasoning alone cannot settle",
+    "a set of predictions about how judges will decide cases that come before their courts",
+    "a hierarchy of norms deriving validity from a presupposed basic norm of the system"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l07.q1",
+   "lessonId": "law-jurisprudence.l07",
+   "kind": "mcq",
+   "prompt": "According to Dworkin, how do principles differ from rules?",
+   "choices": [
+    "Principles have a dimension of weight and can be outweighed, while rules apply in an all-or-nothing way",
+    "Principles are enacted by legislatures, while rules are developed by judges in the course of deciding cases",
+    "Principles apply only in moral argument, while rules apply only in legal argument before courts",
+    "Principles can never conflict with each other, while rules often conflict and must be reconciled"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l07.q2",
+   "lessonId": "law-jurisprudence.l07",
+   "kind": "mcq",
+   "prompt": "In Riggs v. Palmer, why did the court deny the murderer's inheritance despite a statute with no exception?",
+   "choices": [
+    "It followed a binding precedent that had expressly created an exception for murderers in the law of wills and inheritance",
+    "It relied on the maxim that no one should profit from his own wrong, which Dworkin treats as a legal principle",
+    "It applied a clear rule in the statute of wills that disqualifies any heir who has been convicted of a serious felony",
+    "It found the will invalid because the testator had been under duress at the time he executed the will, so no inheritance arose"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l07.q3",
+   "lessonId": "law-jurisprudence.l07",
+   "kind": "mcq",
+   "prompt": "Hercules is asked to decide a hard case. Which description matches law as integrity?",
+   "choices": [
+    "He predicts how the other judges of his court would decide and follows the prediction in order to avoid reversal",
+    "He chooses the outcome that maximizes overall welfare in the community, treating precedent only as evidence of welfare",
+    "He constructs the interpretation that best fits past decisions and statutes and best justifies them in moral and political principle",
+    "He applies the rule of recognition to identify the valid rules and uses his discretion where those rules run out"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l07.q4",
+   "lessonId": "law-jurisprudence.l07",
+   "kind": "mcq",
+   "prompt": "A positivist responds to Dworkin that a rule of recognition may itself incorporate principles such as fairness. What does this reply concede and keep?",
+   "choices": [
+    "It concedes that morality is necessary for legal validity in every system and keeps only the separation of sources",
+    "It concedes that judges have no discretion in hard cases and keeps only the claim that statutes are the sole source",
+    "It concedes that law is an interpretive concept and keeps only the claim that interpretation is not a social fact",
+    "It concedes that legal principles exist but keeps that their legal status depends on social practice and not on their moral merit alone"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l07.q5",
+   "lessonId": "law-jurisprudence.l07",
+   "kind": "mcq",
+   "prompt": "What did Dworkin mean by the \"semantic sting\"?",
+   "choices": [
+    "The idea that legal disagreement must concern what the criteria of law are, which he thought misdescribes theoretical disagreement",
+    "The idea that statutes should be interpreted by the dictionary meaning of their words and without reference to purposes",
+    "The idea that rules can be applied mechanically, so that judges never need to exercise judgment in a case",
+    "The idea that principles have no weight in legal argument, so that only rules can supply reasons for decisions"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l08.q1",
+   "lessonId": "law-jurisprudence.l08",
+   "kind": "mcq",
+   "prompt": "Holmes's \"bad man\" perspective in The Path of the Law views law as",
+   "choices": [
+    "a system of moral rules binding on everyone",
+    "a set of commands issued by a sovereign",
+    "an expression of the will of the people",
+    "a prediction of what courts will do in fact"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l08.q2",
+   "lessonId": "law-jurisprudence.l08",
+   "kind": "mcq",
+   "prompt": "What distinguishes Jerome Frank's skepticism from rule-skepticism?",
+   "choices": [
+    "Frank focused on appellate opinions and their reasoning, while rule-skeptics focused on the fact-finding work of trial courts and juries",
+    "Frank defended formalism against the realists, while rule-skeptics wanted to replace legal doctrine with empirical social science",
+    "Frank emphasized uncertainty about facts found at trial, while rule-skeptics emphasized the indeterminacy of legal rules",
+    "Frank denied that courts apply any legal rules, while rule-skeptics held that rules always decide every case"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l08.q3",
+   "lessonId": "law-jurisprudence.l08",
+   "kind": "mcq",
+   "prompt": "Two courts apply the same landlord-repair precedent and reach opposite results. Which analysis is characteristic of a realist rather than a formalist?",
+   "choices": [
+    "Ask whether the parties have consented to the rule in advance, so that whichever court's result applies binds them equally",
+    "Ask what facts and policies actually moved the judges and whether the cases differ in ways the rule does not capture",
+    "Ask which court correctly deduced the result from the abstract concept of a landlord's duty in the common law of property",
+    "Ask whether the legislature has given a clear command that makes one of the two results a plain violation of the governing statute"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l08.q4",
+   "lessonId": "law-jurisprudence.l08",
+   "kind": "mcq",
+   "prompt": "Hart's main criticism of rule-skepticism is that it",
+   "choices": [
+    "ignores the internal point of view, since officials treat rules as reasons for decision even when some cases are indeterminate",
+    "ignores the sanctions attached to rules, since the realists said that law is simply a set of predictions of punishment",
+    "ignores the role of judges in making law, since the realists said that courts are strictly bound by existing rules in every case",
+    "ignores the importance of moral argument, since the realists said that moral reasoning is the only real source of legal rules"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l08.q5",
+   "lessonId": "law-jurisprudence.l08",
+   "kind": "mcq",
+   "prompt": "Which statement about the common claim that realists said judges decide \"by what they had for breakfast\" is most accurate?",
+   "choices": [
+    "It is an accurate summary, because realists held that judicial decisions are random and show no pattern that could be studied",
+    "It is a formalist claim, because formalists believed that decisions depend chiefly on the personal mood of the individual judge",
+    "It is a natural-law claim, because natural lawyers hold that judges should be guided by their own moral intuitions",
+    "It is a caricature, because realists mostly said that judges are influenced by social views, policies and how they see the facts"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l09.q1",
+   "lessonId": "law-jurisprudence.l09",
+   "kind": "mcq",
+   "prompt": "Textualism holds that the meaning of a statute is",
+   "choices": [
+    "the meaning that best fits with changing social values and the progress of society",
+    "the result that has the best consequences for the parties and for the public at large",
+    "its ordinary text read in context, not the unenacted purposes or intentions of legislators",
+    "the purpose of the legislature as revealed in committee reports and the debates on the bill"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l09.q2",
+   "lessonId": "law-jurisprudence.l09",
+   "kind": "mcq",
+   "prompt": "In Bostock v. Clayton County, the majority and the dissent both relied on text. What does this show?",
+   "choices": [
+    "Textualism is incoherent, since it permits whatever result a judge prefers to reach in a statutory case before the court",
+    "Textualism requires unanimous decisions, since the ordinary meaning of a word is the same for every competent reader of English",
+    "Textualism is a form of purposivism, since both look chiefly for the subjective intent of the legislature in enacting the text",
+    "A shared interpretive method does not guarantee agreement, since judges may read the ordinary meaning differently"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l09.q3",
+   "lessonId": "law-jurisprudence.l09",
+   "kind": "mcq",
+   "prompt": "A town ordinance bans vehicles in a park. A veterans' group displays a stationary restored truck as a monument. Which pairing is correct?",
+   "choices": [
+    "A purposivist asks what mischief the ordinance targeted, such as noise and danger, and would likely allow a static display",
+    "A textualist asks what mischief the ordinance targeted, and would likely allow the display because the truck causes no danger to anyone",
+    "A purposivist holds that a truck is plainly a vehicle and so the ordinance bans the display whatever its purpose may have been",
+    "A living constitutionalist holds that the ordinance should be read according to the original intentions of its enactors alone"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l09.q4",
+   "lessonId": "law-jurisprudence.l09",
+   "kind": "mcq",
+   "prompt": "A critic says originalism reduces judicial discretion, while a living constitutionalist says it produces results nobody accepts. Which statement from the lesson best supports the originalist side?",
+   "choices": [
+    "Interpretations should be evaluated by their consequences for society as a whole in the circumstances of the present",
+    "Fixed meaning lets law constrain judges, and legitimate change comes through amendment by the people instead of updating by judges",
+    "Constitutional meaning evolves through precedent and practice in the manner of the common law, constrained by humility",
+    "Judges should read abstract clauses as asking moral questions that they answer with the best moral theory"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l09.q5",
+   "lessonId": "law-jurisprudence.l09",
+   "kind": "mcq",
+   "prompt": "The phrase \"evolving standards of decency\" is associated with which approach, and in which kind of decision?",
+   "choices": [
+    "Textualism, in cases about the meaning of statutes such as Title VII in Bostock v. Clayton County",
+    "Purposivism, in cases about the meaning of ordinances such as the ban on vehicles in public parks",
+    "Living constitutionalism, in cruel and unusual punishment cases such as Roper v. Simmons",
+    "Originalism, in cases about the meaning of the Second Amendment such as District of Columbia v. Heller"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l10.q1",
+   "lessonId": "law-jurisprudence.l10",
+   "kind": "mcq",
+   "prompt": "The indeterminacy thesis in Critical Legal Studies claims that",
+   "choices": [
+    "legal doctrine does not by itself determine the outcome of most cases",
+    "legal doctrine always determines the outcome of every case with complete precision",
+    "legal doctrine is irrelevant to the work of lawyers and judges in practice",
+    "legal doctrine is identical to the moral principles of the society that adopts it"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l10.q2",
+   "lessonId": "law-jurisprudence.l10",
+   "kind": "mcq",
+   "prompt": "Kennedy's Form and Substance in Private Law Adjudication argued that private law is organized around",
+   "choices": [
+    "a conflict between rules and principles that interpretive reasoning can resolve",
+    "a conflict between individualism and altruism that neutral reasoning cannot resolve",
+    "a conflict between efficiency and distributive fairness that economic reasoning can resolve",
+    "a conflict between natural law and positive law that moral reasoning can resolve"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l10.q3",
+   "lessonId": "law-jurisprudence.l10",
+   "kind": "mcq",
+   "prompt": "A court must decide whether a landlord's repair duty overrides a tenant's contract to take the unit \"as is.\" How would CLS and a liberal theorist such as Dworkin differ?",
+   "choices": [
+    "CLS says the contract must control since freedom of contract is neutral, while Dworkin says the repair duty must control",
+    "CLS says the result follows from the intent of the legislature, while Dworkin says it follows from the wishes of the parties",
+    "CLS says either result can be defended and the choice expresses a political balance, while Dworkin says precedent and principle narrow the choices",
+    "CLS says only one result is correct as a matter of pure legal logic, while Dworkin says the choice is purely a matter of the judge's own politics"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l10.q4",
+   "lessonId": "law-jurisprudence.l10",
+   "kind": "mcq",
+   "prompt": "Which criticism of CLS was pressed by scholars of color and feminists who were sympathetic to critique?",
+   "choices": [
+    "That a general critique of doctrine was too moderate to count as a genuine criticism of the legal order",
+    "That a general critique of the courts ignored the importance of judicial independence",
+    "That a general critique of precedent ignored the importance of stare decisis for property",
+    "That a general critique of rights was dangerous to groups that had used rights to gain protection"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l10.q5",
+   "lessonId": "law-jurisprudence.l10",
+   "kind": "mcq",
+   "prompt": "Which theme of CLS persists in legal scholarship today?",
+   "choices": [
+    "The claim that law is not autonomous from politics and that framing choices distribute power",
+    "The claim that legal doctrine is a closed logical system that judges discover and do not make",
+    "The claim that natural law supplies the content of every valid legal rule in a legal system",
+    "The claim that legal sanctions are the only reasons for citizens to obey the rules of law"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l11.q1",
+   "lessonId": "law-jurisprudence.l11",
+   "kind": "mcq",
+   "prompt": "Derrick Bell's interest-convergence thesis holds that",
+   "choices": [
+    "advances for Black Americans depend chiefly on the economic growth of the regions affected by them",
+    "advances for Black Americans tend to occur when they also serve the interests of white elites",
+    "advances for Black Americans occur mainly through the moral persuasion of the majority",
+    "advances for Black Americans are impossible without the unanimous support of the courts"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l11.q2",
+   "lessonId": "law-jurisprudence.l11",
+   "kind": "mcq",
+   "prompt": "What did Crenshaw's concept of intersectionality address in her 1989 article?",
+   "choices": [
+    "That discrimination against Black women may not be captured by considering race and sex separately",
+    "That discrimination can only be proved by direct evidence of the discriminator's intention to harm",
+    "That discrimination claims should be heard only by courts of the states where the plaintiff lives",
+    "That discrimination in employment should be remedied only by the voluntary action of employers"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l11.q3",
+   "lessonId": "law-jurisprudence.l11",
+   "kind": "mcq",
+   "prompt": "A hiring test, neutral on its face, screens out disproportionate numbers of Black applicants and is weakly related to the job. Which statement is correct?",
+   "choices": [
+    "Under Griggs v. Duke Power Co., it is lawful because a neutral rule cannot violate Title VII unless intent is shown",
+    "Under Brown v. Board of Education, it is unlawful because the test is a form of state-mandated racial segregation in schools",
+    "Under Reed v. Reed, it is unlawful because the test classifies applicants by sex and requires heightened scrutiny",
+    "Under Griggs v. Duke Power Co., it can be challenged under Title VII as disparate impact without proof of discriminatory intent"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l11.q4",
+   "lessonId": "law-jurisprudence.l11",
+   "kind": "mcq",
+   "prompt": "A critic argues that CRT's emphasis on group identity and structural explanations undermines individual responsibility and universal principles. Which reply would a CRT scholar most plausibly make?",
+   "choices": [
+    "Individual responsibility is the only relevant category, and group patterns are statistical accidents without any causes",
+    "Structural explanations are false, and the disparities described are fully explained by differences in individual choices",
+    "Universal principles have not in practice delivered equality, and structural analysis identifies patterns that individual-focused analysis misses",
+    "Universal principles are illusions, and for that reason no legal rule can ever be applied fairly to anyone in society"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l11.q5",
+   "lessonId": "law-jurisprudence.l11",
+   "kind": "mcq",
+   "prompt": "Which statement about the public use of the term \"critical race theory\" is most accurate according to the lesson?",
+   "choices": [
+    "It refers to a method of statutory interpretation based on the original public meaning of the Reconstruction Amendments",
+    "It refers to a legal-academic movement, but in public debate the term is often used in broader and different senses",
+    "It refers to a federal statute that requires schools to teach about racial history in every public school in the country",
+    "It refers to a legal doctrine adopted by the Supreme Court in the decision in Brown v. Board of Education in 1954"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l12.q1",
+   "lessonId": "law-jurisprudence.l12",
+   "kind": "mcq",
+   "prompt": "Reed v. Reed (1971) is significant in feminist legal history because the Court",
+   "choices": [
+    "for the first time held that single-sex military schools were unconstitutional in every case",
+    "for the first time upheld a statute that was designed to remedy past discrimination against women",
+    "for the first time struck down a sex-based classification under the Equal Protection Clause",
+    "for the first time recognized sexual harassment as a form of sex discrimination under Title VII"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l12.q2",
+   "lessonId": "law-jurisprudence.l12",
+   "kind": "mcq",
+   "prompt": "What is the central claim of dominance feminism associated with MacKinnon?",
+   "choices": [
+    "Women reason in an ethic of care, so law should reflect the values of connection and responsibility",
+    "Women should be treated as individuals, so law should remove all sex-based classifications in every legal setting",
+    "Women's experiences differ by race and class, so no general theory about women can be correct at all, whatever its premises",
+    "Gender is a hierarchy of power, so asking whether women are the same as or different from men misses the problem"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l12.q3",
+   "lessonId": "law-jurisprudence.l12",
+   "kind": "mcq",
+   "prompt": "An employer denies benefits for pregnancy-related disability while covering other disabilities. Which pairing matches an approach to its question?",
+   "choices": [
+    "A dominance approach asks whether the policy sustains women's subordination at work",
+    "A liberal approach asks whether the law must accommodate women's distinct biology and values",
+    "A difference approach asks only whether men and women have been treated identically in form",
+    "An anti-essentialist approach asks only whether the employer's intention was to harm the employee"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l12.q4",
+   "lessonId": "law-jurisprudence.l12",
+   "kind": "mcq",
+   "prompt": "The Indianapolis pornography ordinance drafted by MacKinnon and Dworkin was held unconstitutional in American Booksellers Association v. Hudnut. What does this show about feminist legal aims?",
+   "choices": [
+    "The ordinance was struck down because it treated men and women alike, in violation of the equal protection clause of the Fourteenth Amendment",
+    "A tension can exist between feminist legal goals and free speech principles, and feminists themselves disagreed about the ordinance",
+    "All feminist theorists supported the ordinance, and its invalidation shows that courts reject feminist claims",
+    "The Supreme Court decided that sex discrimination claims may never be brought under the First Amendment by any plaintiff"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l12.q5",
+   "lessonId": "law-jurisprudence.l12",
+   "kind": "mcq",
+   "prompt": "Angela Harris's Race and Essentialism in Feminist Legal Theory criticized the tendency to",
+   "choices": [
+    "rely on psychological studies to describe the way that women reason about morality",
+    "support legal rules that treat pregnancy in the same way as other physical conditions",
+    "generalize about women from the experiences of white, middle-class women",
+    "treat the law as neutral in all cases that involve differences between men and women"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l13.q1",
+   "lessonId": "law-jurisprudence.l13",
+   "kind": "mcq",
+   "prompt": "The Coase theorem states that, with zero transaction costs and well-defined rights, bargaining will",
+   "choices": [
+    "always lead to an equal distribution of resources among the parties involved in the dispute, whoever holds the rights",
+    "always require courts to impose the injunction that protects the most valuable use of the land",
+    "make the question of liability irrelevant even when transaction costs are high between the parties",
+    "lead to an efficient allocation of resources regardless of how the law initially assigns the rights"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l13.q2",
+   "lessonId": "law-jurisprudence.l13",
+   "kind": "mcq",
+   "prompt": "In the Hand formula from United States v. Carroll Towing Co., a defendant is negligent if",
+   "choices": [
+    "the magnitude of the loss is greater than the defendant's total wealth at the time of the accident in question",
+    "the burden of precautions is greater than the probability of harm divided by the loss",
+    "the burden of precautions is less than the probability of harm multiplied by the magnitude of the loss",
+    "the probability of harm is greater than fifty percent at the time that the defendant acted, whatever the burden of care"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l13.q3",
+   "lessonId": "law-jurisprudence.l13",
+   "kind": "mcq",
+   "prompt": "A factory's smoke harms twelve homeowners, and organizing them to bargain is costly. A court awards damages instead of an injunction, as in Boomer v. Atlantic Cement Co. Which framework describes the choice?",
+   "choices": [
+    "Austin's distinction between commands and sanctions, with damages as the sovereign's command to the factory",
+    "Calabresi and Melamed's distinction between property rules and liability rules, with damages as a liability-rule remedy",
+    "Hart's distinction between primary and secondary rules, with damages as a power-conferring rule of adjudication in the system",
+    "Rawls's distinction between the two principles of justice, with damages applying the difference principle to the dispute"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l13.q4",
+   "lessonId": "law-jurisprudence.l13",
+   "kind": "mcq",
+   "prompt": "Dworkin's essay Is Wealth a Value? criticized Posner's wealth maximization on which ground?",
+   "choices": [
+    "That wealth is not itself valuable, so maximizing it cannot be a sufficient moral standard for judging legal rules",
+    "That wealth cannot be measured in money at all, so no economic analysis of legal rules can ever be carried out in practice",
+    "That wealth is distributed equally, so maximizing it adds nothing to the welfare of the poorest members",
+    "That wealth is protected by natural rights, so courts may not consider it in a decision about nuisance"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l13.q5",
+   "lessonId": "law-jurisprudence.l13",
+   "kind": "mcq",
+   "prompt": "Kaldor-Hicks efficiency differs from Pareto efficiency in that it",
+   "choices": [
+    "requires that no one is made worse off by the change in the allocation of resources",
+    "requires that the change be approved by a majority vote of all of those who are affected by it",
+    "counts a change as efficient only if the resulting wealth is distributed equally among all the parties",
+    "counts a change as efficient if the winners could compensate the losers, whether or not they do"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l14.q1",
+   "lessonId": "law-jurisprudence.l14",
+   "kind": "mcq",
+   "prompt": "Entick v. Carrington (1765) is cited as an example of the rule of law because the court held that",
+   "choices": [
+    "the king's messengers could not search a home and seize papers without legal authority",
+    "the king's messengers could search any home when the state declared that necessity required it",
+    "the king's messengers were immune from suit for acts done in the course of their official duties",
+    "the king's messengers acted lawfully because Parliament had approved their conduct afterward"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l14.q2",
+   "lessonId": "law-jurisprudence.l14",
+   "kind": "mcq",
+   "prompt": "What distinguishes a thin (formal) conception of the rule of law from a thick (substantive) one?",
+   "choices": [
+    "A thin conception comes from natural law, while a thick conception comes from the writing of positivists",
+    "A thin conception concerns the form and procedures of law, while a thick conception adds substantive content such as human rights",
+    "A thin conception applies only to criminal law, while a thick conception applies to private law and constitutional law",
+    "A thin conception requires an independent judiciary, while a thick conception does not require any courts to be independent"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l14.q3",
+   "lessonId": "law-jurisprudence.l14",
+   "kind": "mcq",
+   "prompt": "A government secretly issues a regulation, applies it retroactively, and punishes officials who refuse to enforce it. Which analysis is correct?",
+   "choices": [
+    "A thick account finds no failure, since the regulation was issued by the government with authority to issue it",
+    "Neither account finds a failure, since the rule of law applies only to the conduct of private persons and companies",
+    "A thin account identifies failures of publicity, prospectivity and consistent application, and a thick account may add further failures",
+    "A thin account finds no failure, since only a violation of basic rights can count as a failure of the rule of law"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l14.q4",
+   "lessonId": "law-jurisprudence.l14",
+   "kind": "mcq",
+   "prompt": "Raz called the rule of law a virtue of legal systems \"like the sharpness of a knife.\" What follows from this analogy?",
+   "choices": [
+    "A legal system that conforms to the rule of law must also protect fundamental human rights in all of its provisions",
+    "A legal system that lacks the rule of law is not a legal system and cannot give rise to any legal obligations",
+    "A legal system that conforms to the rule of law must be democratic, because only democracies can have sharp laws",
+    "A legal system may conform to the rule of law and still be unjust, as a sharp knife can be used for good or ill"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l14.q5",
+   "lessonId": "law-jurisprudence.l14",
+   "kind": "mcq",
+   "prompt": "What is the difference between rule of law and rule by law?",
+   "choices": [
+    "In rule by law, law is an instrument of rulers who are not bound by it, while in rule of law rulers are constrained by law",
+    "In rule by law, courts apply the law strictly, while in rule of law courts apply the law according to the judge's ideas",
+    "In rule by law, citizens make the laws, while in rule of law the laws are made by a sovereign monarch",
+    "In rule by law, every law is moral, while in rule of law the content of the laws is a matter of indifference"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l15.q1",
+   "lessonId": "law-jurisprudence.l15",
+   "kind": "mcq",
+   "prompt": "A retributivist justifies punishment mainly by",
+   "choices": [
+    "the repair of harm to victims through mediation between offenders and victims",
+    "the fact that the offender deserves it because of the wrong that he has done",
+    "the reduction of future crime by deterring the offender and other potential offenders",
+    "the rehabilitation of the offender through education and training in prison programs"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l15.q2",
+   "lessonId": "law-jurisprudence.l15",
+   "kind": "mcq",
+   "prompt": "Hart's mixed view in the Prolegomenon distinguishes",
+   "choices": [
+    "the general justifying aim of punishment from the principles governing who may be punished and how much",
+    "the sovereign's commands from the sanctions that enforce them in a society at a given time",
+    "the retributive theory from the utilitarian theory by showing that the former is always correct",
+    "the harm principle from the offense principle by showing that the latter is not a ground for punishment"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l15.q3",
+   "lessonId": "law-jurisprudence.l15",
+   "kind": "mcq",
+   "prompt": "A defendant who stole bread for a hungry child receives a very long sentence meant to deter others. Which statement correctly describes the objections?",
+   "choices": [
+    "A retributivist approves because deterrence is the only valid aim, and a deterrence theorist objects on grounds of desert",
+    "An expressive theorist approves because long sentences communicate more condemnation, whatever the offender's culpability",
+    "A restorative theorist approves because the length of imprisonment determines how much harm is repaired to the victim",
+    "A retributivist objects that it is disproportionate, and a pure deterrence theorist must rely on empirical claims about effects"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l15.q4",
+   "lessonId": "law-jurisprudence.l15",
+   "kind": "mcq",
+   "prompt": "Under current US law, which statement about capital punishment is accurate according to the lesson?",
+   "choices": [
+    "The death penalty may be imposed for any serious crime including non-homicide offenses against children without limit",
+    "The death penalty is a matter solely for the states, and the Supreme Court has never limited its use under the Constitution",
+    "The death penalty is constitutional, but the Supreme Court has barred it for people with intellectual disability and for offenders under eighteen",
+    "The death penalty is unconstitutional in every case since the Court decided Furman v. Georgia in 1972 and has not changed that"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l15.q5",
+   "lessonId": "law-jurisprudence.l15",
+   "kind": "mcq",
+   "prompt": "Feinberg's expressive theory of punishment holds that",
+   "choices": [
+    "punishment is justified only if the offender consents to it in advance as a condition of living in the society",
+    "punishment communicates society's condemnation, which distinguishes it from a mere penalty",
+    "punishment is justified only to the extent that it reduces the amount of crime in the future",
+    "punishment is justified only if it restores the balance of benefits that the offender took unfairly"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l16.q1",
+   "lessonId": "law-jurisprudence.l16",
+   "kind": "mcq",
+   "prompt": "In Rawls's original position, the veil of ignorance means that the parties",
+   "choices": [
+    "do not know that they are choosing principles to govern the basic structure of society",
+    "do not know that other parties are free and equal persons who are choosing for themselves",
+    "do not know their place in society, their abilities, or their conception of the good",
+    "do not know any general facts about human psychology or about economics"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l16.q2",
+   "lessonId": "law-jurisprudence.l16",
+   "kind": "mcq",
+   "prompt": "Which statement correctly states Rawls's difference principle?",
+   "choices": [
+    "Social and economic inequalities are acceptable only if they raise total welfare in the society as a whole",
+    "Social and economic inequalities are acceptable only if they arise from voluntary transfers of just holdings",
+    "Social and economic inequalities are acceptable only if they match the contributions of each person to society",
+    "Social and economic inequalities are acceptable only if they are to the greatest benefit of the least advantaged"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l16.q3",
+   "lessonId": "law-jurisprudence.l16",
+   "kind": "mcq",
+   "prompt": "A legislature considers a policy that raises average incomes while lowering the income of the poorest tenth. How would Rawls and a utilitarian most likely differ?",
+   "choices": [
+    "A utilitarian might support it if total welfare rises, while Rawls would reject it unless it improved the position of the least advantaged",
+    "A utilitarian would reject it because it harms some persons, while Rawls would support it because average income rises",
+    "Both would support it because average income rises, though Rawls would require compensation to the poorest after the fact",
+    "Both would reject it because it fails equal basic liberties, which is the first principle of utilitarianism and of Rawls"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l16.q4",
+   "lessonId": "law-jurisprudence.l16",
+   "kind": "mcq",
+   "prompt": "Harsanyi argued that parties behind the veil would maximize expected average utility, while Rawls argued for a conservative rule close to maximin. What is Rawls's main reason?",
+   "choices": [
+    "The parties are indifferent to risk, so they would choose any rule that gives equal expected benefit",
+    "The stakes are high and the probabilities unknown, so parties would avoid risking the worst outcomes",
+    "The parties know their own abilities, so they would favor rules that benefit those with high ability",
+    "The parties are altruists, so they would choose the principles that help others most in society"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l16.q5",
+   "lessonId": "law-jurisprudence.l16",
+   "kind": "mcq",
+   "prompt": "In Political Liberalism, Rawls recast justice as fairness as",
+   "choices": [
+    "a utilitarian theory that aims to maximize the welfare of the citizens of a pluralist society",
+    "a legal theory that identifies the validity of laws through a rule accepted by officials of the system",
+    "a political conception that could be supported by an overlapping consensus among reasonable comprehensive doctrines",
+    "a comprehensive moral doctrine that all citizens must accept as the whole truth about the good life"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l17.q1",
+   "lessonId": "law-jurisprudence.l17",
+   "kind": "mcq",
+   "prompt": "Nozick's entitlement theory says that a distribution is just if it arises from",
+   "choices": [
+    "a hypothetical agreement made behind a veil of ignorance about social position",
+    "the principle of maximizing the total welfare of all members of society",
+    "the equalization of the capabilities that people have to function in society",
+    "just initial acquisition, just transfer, and rectification of past injustices"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l17.q2",
+   "lessonId": "law-jurisprudence.l17",
+   "kind": "mcq",
+   "prompt": "What point did Nozick use the Wilt Chamberlain example to make?",
+   "choices": [
+    "That individuals have no rights in their talents, so the community may claim the benefit of them",
+    "That the minimal state should regulate sports and entertainment in order to protect the public interest",
+    "That voluntary exchanges disrupt any pattern of distribution, so maintaining a pattern requires continuous interference",
+    "That famous athletes should be taxed at a higher rate in order to satisfy the difference principle"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l17.q3",
+   "lessonId": "law-jurisprudence.l17",
+   "kind": "mcq",
+   "prompt": "Three children dispute who should get a flute: one can play it, one has no other toys, and one made it. What point does Sen draw from the example?",
+   "choices": [
+    "The entitlement theory resolves the dispute in favor of the maker, so the question is one of history and not of justice",
+    "Several reasoned principles may support different claims, yet one can often agree on reducing a clear injustice without a single perfect principle",
+    "Only the utilitarian principle gives a defensible answer, since the claim of the one who can play it is the strongest",
+    "A veil of ignorance would resolve the dispute, since no child would know who made or could play the flute"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l17.q4",
+   "lessonId": "law-jurisprudence.l17",
+   "kind": "mcq",
+   "prompt": "A city has a parcel claimed by a developer who owns adjoining land, homeless residents, and a community that made the park. Which pairing of theory and question is correct?",
+   "choices": [
+    "Nozick asks about the history of title, and the capability approach asks what people can do and be",
+    "Rawls asks about the history of title, and Nozick asks which arrangement benefits the least advantaged",
+    "Sen asks which principle is perfectly just, and Rawls asks which injustice is most easily reduced",
+    "The capability approach asks who has title, and Nozick asks about the functionings of the parties"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l17.q5",
+   "lessonId": "law-jurisprudence.l17",
+   "kind": "mcq",
+   "prompt": "In Aristotle's account, corrective justice is concerned with",
+   "choices": [
+    "dividing honors and goods in proportion to merit or desert",
+    "maximizing the happiness of the greatest number of persons",
+    "protecting a minimal set of rights against the state",
+    "restoring equality after a wrong, as in tort and contract"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l18.q1",
+   "lessonId": "law-jurisprudence.l18",
+   "kind": "mcq",
+   "prompt": "Mill's harm principle holds that power may rightfully be exercised over a member of a civilized community against his will only",
+   "choices": [
+    "to prevent harm to others",
+    "to promote the moral improvement of the person",
+    "to protect the shared morality of the society",
+    "to maximize the wealth of the community"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l18.q2",
+   "lessonId": "law-jurisprudence.l18",
+   "kind": "mcq",
+   "prompt": "What was Devlin's main argument in The Enforcement of Morals?",
+   "choices": [
+    "A society is held together by tradition, and law should never be changed except by the decision of its courts",
+    "A society is held together by shared morality, and law may enforce it to protect the society from disintegration",
+    "A society is held together by markets, and law should be limited to enforcing contracts and property rights",
+    "A society is held together by consent, and law may be disobeyed whenever a citizen withdraws consent"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l18.q3",
+   "lessonId": "law-jurisprudence.l18",
+   "kind": "mcq",
+   "prompt": "In Lawrence v. Texas (2003), the Supreme Court overruled Bowers v. Hardwick and held that moral disapproval of a practice was not a sufficient basis for the statute. Which debate does this echo?",
+   "choices": [
+    "The Hart-Dworkin debate about whether principles are part of law",
+    "The Rawls-Nozick debate about whether distributions must follow a pattern",
+    "The Hart-Devlin debate about whether law may enforce morality as such",
+    "The Hart-Fuller debate about whether unjust enactments are law at all"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l18.q4",
+   "lessonId": "law-jurisprudence.l18",
+   "kind": "mcq",
+   "prompt": "Activists camp in a park in violation of a city ban, notify police in advance, and accept arrest to draw attention to homelessness. Under Rawls's criteria for civil disobedience, how does this act most likely rank?",
+   "choices": [
+    "It cannot qualify, because civil disobedience must be secret and must avoid every consequence of punishment",
+    "It cannot qualify, because civil disobedience is only available in societies that are completely unjust",
+    "It qualifies automatically, because any violation of law done for a good cause counts as civil disobedience",
+    "It may qualify, because it is public, nonviolent, conscientious, and the actors accept the legal consequences"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l18.q5",
+   "lessonId": "law-jurisprudence.l18",
+   "kind": "mcq",
+   "prompt": "In Walker v. City of Birmingham (1967), the Supreme Court",
+   "choices": [
+    "upheld contempt convictions of King and others for marching in violation of an injunction they had not first challenged in court",
+    "struck down the contempt convictions because the injunction violated the First Amendment on its face",
+    "held that unjust laws are void and that citizens may disobey them without suffering any penalty",
+    "held that the march was protected by the Fourteenth Amendment and that the city must issue a permit"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l19.q1",
+   "lessonId": "law-jurisprudence.l19",
+   "kind": "mcq",
+   "prompt": "In Hohfeld's scheme, a claim-right correlates with",
+   "choices": [
+    "a privilege in another person",
+    "a duty in another person",
+    "a liability in another person",
+    "a disability in another person"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l19.q2",
+   "lessonId": "law-jurisprudence.l19",
+   "kind": "mcq",
+   "prompt": "What does a Hohfeldian \"power\" refer to?",
+   "choices": [
+    "The ability to change legal relations, such as the power to make a will",
+    "The freedom from any duty to refrain from a given course of action",
+    "The protection against having one's legal relations changed by another",
+    "The claim that another person must perform a duty owed to the holder"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l19.q3",
+   "lessonId": "law-jurisprudence.l19",
+   "kind": "mcq",
+   "prompt": "A tenant asserts that the landlord cannot terminate the lease without notice. Which Hohfeldian pair describes this?",
+   "choices": [
+    "The tenant has a power and the landlord has a liability",
+    "The tenant has a privilege and the landlord has a no-right",
+    "The tenant has a claim-right and the landlord has a no-right",
+    "The tenant has an immunity and the landlord has a disability"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l19.q4",
+   "lessonId": "law-jurisprudence.l19",
+   "kind": "mcq",
+   "prompt": "Children seem to have rights though they cannot waive them. Which theory does this favor, and why?",
+   "choices": [
+    "The command theory, because rights depend on the sovereign's orders and not on the interests of the holder",
+    "The pure theory, because rights derive from a basic norm and not from the capacities of the holder",
+    "The interest theory, because rights protect interests and do not depend on the holder's power to waive or enforce",
+    "The will theory, because rights are controlled by their holders who must be able to waive and to enforce them"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l19.q5",
+   "lessonId": "law-jurisprudence.l19",
+   "kind": "mcq",
+   "prompt": "Which statement about the Universal Declaration of Human Rights (1948) is accurate?",
+   "choices": [
+    "It is a constitution adopted by the United Nations as the supreme law of its member states",
+    "It is a General Assembly declaration and not a treaty, while the 1966 Covenants are binding on ratifying states",
+    "It is a treaty ratified by all states and enforced by a single international court of human rights",
+    "It is a decision of the International Court of Justice binding on all members of the United Nations"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l20.q1",
+   "lessonId": "law-jurisprudence.l20",
+   "kind": "mcq",
+   "prompt": "A judge who says a statute must be applied as written even though the result is harsh, leaving relief to the legislature, is most clearly echoing",
+   "choices": [
+    "the critical claim that law is only politics by another name",
+    "the positivist separation of what the law is from what it ought to be",
+    "the natural law claim that unjust laws are not laws at all",
+    "the Dworkinian claim that law is the best moral interpretation"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l20.q2",
+   "lessonId": "law-jurisprudence.l20",
+   "kind": "mcq",
+   "prompt": "Judge Hand's negligence formula in Carroll Towing is best described as an early example of",
+   "choices": [
+    "law and economics, since it compares the burden of precautions with the expected loss",
+    "natural law, since it derives negligence from a precept of reason applicable to all people",
+    "legal formalism, since it deduces results from abstract concepts without regard to consequences",
+    "critical legal studies, since it shows that doctrine cannot settle any outcome in negligence cases"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l20.q3",
+   "lessonId": "law-jurisprudence.l20",
+   "kind": "mcq",
+   "prompt": "A court refuses to enforce a clause that lets a seller keep a deposit even when the seller's own wrong caused the failure, relying on good faith. How might different schools describe this?",
+   "choices": [
+    "A Dworkinian sees only a rule of recognition, while a realist sees a deduction from concepts and an economist an act of grace",
+    "A positivist sees a strict command of the sovereign, while a natural lawyer sees a rule that has been conventionally adopted",
+    "A critical scholar sees a mechanical application of the text, while a formalist sees the exercise of unstructured discretion",
+    "A Dworkinian sees a principle beside the rules, while a realist sees a policy choice and an economist an argument about incentives"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l20.q4",
+   "lessonId": "law-jurisprudence.l20",
+   "kind": "mcq",
+   "prompt": "In Atkins v. Virginia, the Court said that the diminished culpability of people with intellectual disability weakens the retributive justification, and their reduced capacity for deliberation weakens deterrence. What does this illustrate?",
+   "choices": [
+    "The use of the entitlement theory to decide whether the state may take the life of an offender",
+    "The use of the difference principle to decide how punishments should be distributed among citizens",
+    "The use of both retributive and deterrence theories of punishment in testing a constitutional limit",
+    "The use of the rule of recognition to identify the valid rules governing capital punishment in the states"
+   ]
+  },
+  {
+   "id": "law-jurisprudence.l20.q5",
+   "lessonId": "law-jurisprudence.l20",
+   "kind": "mcq",
+   "prompt": "Why does the lesson caution against over-labelling judicial opinions?",
+   "choices": [
+    "Judges only decide cases on the facts, so every theory of adjudication is irrelevant to understanding opinions",
+    "Judges often combine approaches, so a label should be treated as a question and not a conclusion",
+    "Judges never rely on any theory of law, so the labels have no explanatory value in reading cases",
+    "Judges are always positivists, so every opinion can be classified under a single label of that kind"
+   ]
+  }
+ ]
+}

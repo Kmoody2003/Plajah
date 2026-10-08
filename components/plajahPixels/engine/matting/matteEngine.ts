@@ -1,12 +1,15 @@
 // engine/matting/matteEngine.ts — media layer with alpha keying.
-// Three key modes:
+// Four key modes:
 //   luma   — keep bright pixels, drop dark (great for light-on-black loops)
 //   chroma — drop a green-ish key color
 //   ai     — MediaPipe selfie segmentation → confidence mask (needs network)
+//   sam    — Meta SAM promptable object segmentation (on-device, zero-cloud)
 // luma/chroma run fully offline on a downscaled work canvas. AI matte lazy-
-// loads @mediapipe/tasks-vision from CDN and gracefully falls back to luma.
+// loads @mediapipe/tasks-vision from CDN. SAM runs via SlimSAM/TensorRT locally.
 
-export type KeyMode = 'none' | 'luma' | 'chroma' | 'ai';
+import { segmentSamLatest, loadSam, samMatteStatus } from '../../../../services/fabula/samMatte';
+
+export type KeyMode = 'none' | 'luma' | 'chroma' | 'ai' | 'sam';
 
 export class MatteEngine {
   el: HTMLImageElement | HTMLVideoElement | null = null;
@@ -16,12 +19,15 @@ export class MatteEngine {
   scale = 1.0;
   react = true;
   ready = false;
+  promptPoint = { x: 0.5, y: 0.5 };
 
   private work = document.createElement('canvas');
   private wctx: CanvasRenderingContext2D | null = null;
   private ai: any = null;
   private aiReady = false;
   private aiTrying = false;
+  private samReady = false;
+  private samTrying = false;
 
   constructor(private onStatus?: (s: string) => void) {
     this.wctx = this.work.getContext('2d', { willReadFrequently: true });
@@ -67,6 +73,28 @@ export class MatteEngine {
     this.aiTrying = false;
   }
 
+  async trySAM() {
+    if (this.samReady || this.samTrying) return;
+    this.samTrying = true;
+    this.onStatus?.('Loading Meta SAM segmentation engine…');
+    try {
+      const handle = await loadSam();
+      if (handle) {
+        this.samReady = true;
+        this.onStatus?.('Meta SAM ready. Click canvas to track object.');
+      } else {
+        this.onStatus?.('Meta SAM unavailable, falling back to Luma.');
+        this.mode = 'luma';
+      }
+    } catch (e) {
+      console.warn('SAM matte unavailable:', e);
+      this.onStatus?.('Meta SAM load failed.');
+      this.mode = 'luma';
+    } finally {
+      this.samTrying = false;
+    }
+  }
+
   /** Composite the keyed layer onto `out`. `bass`/`level` drive reactive scale. */
   draw(out: CanvasRenderingContext2D, W: number, H: number, bass: number, level: number) {
     if (!this.ready || !this.el || this.mode === 'none') { out.clearRect(0, 0, W, H); return; }
@@ -102,6 +130,27 @@ export class MatteEngine {
             w.putImageData(img, 0, 0);
           }
           res.close?.();
+        } catch { /* skip frame */ }
+      }
+    } else if (this.mode === 'sam') {
+      if (!this.samReady) { this.trySAM(); }
+      else {
+        try {
+          const samMask = segmentSamLatest(this.el, this.promptPoint, bw, bh, 0.005);
+          if (samMask) {
+            const smCtx = samMask.getContext('2d');
+            if (smCtx) {
+              const maskData = smCtx.getImageData(0, 0, bw, bh).data;
+              const img = w.getImageData(0, 0, bw, bh);
+              const d = img.data;
+              for (let i = 0; i < d.length; i += 4) {
+                if (maskData[i] < 128) {
+                  d[i + 3] = 0;
+                }
+              }
+              w.putImageData(img, 0, 0);
+            }
+          }
         } catch { /* skip frame */ }
       }
     }

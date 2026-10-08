@@ -1,0 +1,21 @@
+# med-global-health: claims for expert review
+
+- l01: under-five deaths "roughly 12 million around 1990 to under 5 million" and "roughly three quarters of deaths are NCDs" are approximate; check against current IHME/WHO/UN IGME releases. Statement that modern GBD headline figures drop age weighting and discounting should be verified.
+- l03: the Omran 1971 date and the three-stage description are given from memory; slope and relative index definitions are simplified.
+- l04: SDG 3 targets (MMR under 70, under-5 25 per 1,000, neonatal 12 per 1,000) and the 42-day definition of maternal death; Thaddeus and Maine "Three Delays" attribution.
+- l05: measles R0 range 12 to 18; last natural smallpox case in Somalia 1977 and eradication declaration 1980; polio type 1 endemic only in Afghanistan and Pakistan "as of this writing"; EPI launch year 1974; Gavi founded 2000.
+- l06: Tu Youyou Nobel 2015; WHO recommendation of RTS,S and R21/Matrix-M; confirmed partial artemisinin resistance in East Africa; claims about seasonal malaria chemoprevention and IPTp-SP use.
+- l07: WHO endorsement of Xpert MTB/RIF in 2010; regimen composition (BPaL/BPaLM described loosely as "about six months"); statement that TB has regained position as leading infectious killer after COVID-19.
+- l08: dolutegravir as WHO-recommended first line; HPTN 052 description; lenacapavir as twice-yearly PrEP "as of this writing"; PEPFAR launch 2003 and Global Fund 2002; PMTCT "few percent or lower" and validation of elimination in some countries; PEP window of 72 hours.
+- l09: Ebola West Africa totals (about 28,000 cases, 11,000 deaths); 2015 Guinea ring vaccination trial design; approval of two monoclonal antibody products after the DRC trial (names omitted).
+- l10: WHO Constitution adopted 1946 and in force 1948; IHR in force 2007; list of PHEICs and years; the 2024 IHR amendments (pandemic emergency tier) and their entry into force and rejection by some states; 2025 WHO Pandemic Agreement adoption and unfinished PABS annex; "announced withdrawal of at least one major member".
+- l11: Global Health Security Index year (2019); COVAX outcomes; South Africa mRNA hub; CEPI 100 days goal; Pandemic Fund launch 2022 hosted by the World Bank; Nagoya Protocol tension description.
+- l12: "three quarters of NCD deaths occur in LMICs"; FCTC adopted 2003, in force 2005; HEARTS package; cervical cancer elimination 90-70-90 targets (age details 35 and 45).
+- l13: Bismarck 1880s and NHS 1948; classification of specific countries (France as variant, Japan, Spain, Switzerland, Netherlands) is simplified.
+- l14: Thailand UCS 2002 initial copayment; Uganda abolition of user fees 2001; Abuja 15 percent target; Brazil 1988 constitution; Seguro Popular "later restructured".
+- l15: WHO Model List first 1977; TRIPS in force 1995; Cipla 2001 offer and "over 90 percent" price fall; South Africa case withdrawn 2001; 2003 General Council decision made a permanent amendment (entered into force 2017); Medicines Patent Pool 2010 and UNITAID support.
+- l16: Alma-Ata location "then Soviet Union"; Walsh and Warren 1979; Ethiopia HEP start 2003; WHO shortfall projection of about ten million workers by 2030; Global Code adopted 2010.
+- l17: details of the Lurie and Wolfe critique and 1994 trial; current Helsinki wording on placebo and post-trial provisions (paraphrased, check against the 2013 and later versions); CIOMS guideline year.
+- l18: crude mortality threshold of 1 per 10,000 per day; Geneva Additional Protocols 1977; MSF founded 1971; WHO leads Health Cluster; triage categories.
+- l19: GRAM figures (1.27 million attributable, 4.95 million associated deaths in 2019); mcr-1 discovered 2015 in China; 2024 UNGA declaration target of 10 percent reduction by 2030; AWaRe group descriptions.
+- l20: General Comment 14 year 2000 and the four features; Paris Declaration 2005; statement about abrupt donor funding cuts "around 2025".

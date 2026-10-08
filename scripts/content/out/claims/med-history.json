@@ -1,0 +1,1075 @@
+{
+ "courseId": "med-history",
+ "label": "History of Medicine",
+ "lessons": [
+  {
+   "id": "med-history.l01",
+   "title": "Ancient Egypt and Mesopotamia",
+   "body": [
+    "Some of the earliest surviving medical writing comes from Egypt and Mesopotamia. In both societies, healing blended practical treatment with religious explanation, and historians warn against separating the two too sharply, since ancient people did not draw our line between medicine and magic.",
+    "Egyptian medical papyri survive in copies from the second millennium BCE. The Edwin Smith Papyrus, dated to roughly 1600 BCE and thought to copy older material, is the best known surgical text. It describes a series of cases, mostly injuries to the head, neck and chest, in a consistent format: title, examination, diagnosis, and then a verdict that the case is one the physician can treat, can contend with, or should not treat. Its authors note observations such as a pulsating wound and describe the brain's surface. The Ebers Papyrus, dated to around 1550 BCE, is a much larger collection of remedies and incantations that mentions drugs, skin diseases, eye problems and heart and vessel concepts. Egyptian mummification gave embalmers practical knowledge of organs, but it did not produce a systematic anatomy of the living body.",
+    "In Mesopotamia, medical texts are written in cuneiform on clay tablets. Two kinds of healer are usually distinguished. The asu worked with drugs, bandages and simple procedures, while the ashipu, closer to an exorcist, sought a supernatural cause for the illness and used rituals. The two roles overlapped in practice, and a patient might see both. A large diagnostic handbook, traditionally attributed to the scholar Esagil-kin-apli in the eleventh century BCE, organizes signs and prognoses. The Code of Hammurabi, from about the eighteenth century BCE, sets out fees and penalties for surgeons, including harsh punishments for failed operations, which shows that medical outcomes were already a legal matter.",
+    "A worked example of interpretation: when the Smith Papyrus tells a physician not to treat a certain skull injury, historians read this less as despair than as early prognosis, a skill that is later central in Greek medicine. A common mistake is to call this period purely superstitious. It contained careful observation alongside ritual, and the texts reveal an interest in classifying cases."
+   ]
+  },
+  {
+   "id": "med-history.l02",
+   "title": "Greece and Rome: Hippocrates and Galen",
+   "body": [
+    "Greek physicians of the fifth and fourth centuries BCE promoted the idea that diseases have natural causes and can be studied by observation. The Hippocratic Corpus, a collection of some sixty texts, is linked to the island of Cos and the physician Hippocrates, though scholars think many different authors wrote it and cannot say which works, if any, are by Hippocrates himself. A key text on the so-called sacred disease, probably epilepsy, argues that it is no more divine than any other disease and arises from natural causes in the brain. The Corpus values careful case histories, prognosis and the importance of diet, climate and regimen.",
+    "Humoral theory held that the body contains four humors: blood, phlegm, yellow bile and black bile. Health was a balance, and illness an imbalance, so treatments aimed to restore it by diet, rest, purging or bloodletting. The theory is wrong by modern science, but it gave physicians a coherent framework and a reason to individualize treatment. The Hippocratic Oath, whose origin and date are uncertain, expresses ideals such as helping the sick, avoiding harm and keeping confidences. The oath in its ancient form includes prohibitions, such as on giving abortifacients, that many modern versions omit.",
+    "Galen of Pergamon (born 129 CE) trained in the Greek East, served as physician to gladiators and later worked in Rome, where he attended emperors including Marcus Aurelius. He wrote voluminously on anatomy, physiology and drugs. Roman law and custom restricted dissection of human bodies, so Galen dissected animals such as pigs and monkeys and applied the findings to humans, which led to errors. For example, he described a rete mirabile at the base of the brain that exists in some animals but not in humans, and he believed that blood passed through pores in the septum of the heart. Galen also emphasized experiments, such as tying nerves in living animals to show their functions.",
+    "Galen's authority, preserved and extended by Arabic and then Latin translators, dominated medical teaching for well over a thousand years. This is an important lesson: a brilliant system can become an obstacle when it is treated as final. A common error is to say Galen did human dissections. He may have seen human bones and observed wounds, but his anatomy was largely animal."
+   ]
+  },
+  {
+   "id": "med-history.l03",
+   "title": "The Islamic Golden Age",
+   "body": [
+    "From roughly the eighth to the thirteenth century, scholars writing in Arabic, working in cities from Baghdad to Cairo and Cordoba, preserved, criticized and extended Greek and other learning. Translators, among them Hunayn ibn Ishaq, rendered Galen and Hippocrates into Arabic. This was not just transmission. Scholars compared texts with observation and sometimes disagreed with their authorities.",
+    "Al-Razi (Rhazes, about 854 to 925) was a physician in Rayy and Baghdad. His treatise on smallpox and measles is often called the first clear clinical distinction between the two diseases, describing the signs of each and their prognosis. His large encyclopedia, known in Latin as the Liber Continens, collected cases and quotations, and he wrote critically of Galen. Ibn Sina (Avicenna, 980 to 1037) wrote the Canon of Medicine, a systematic and comprehensive encyclopedia that organized medicine into principles, simple drugs, diseases by organ system and compounded remedies. It discussed ideas such as contagion by invisible agents and the testing of drugs, and was translated into Latin in the twelfth century and used as a standard text in European universities for centuries.",
+    "Other important figures include Abu al-Qasim al-Zahrawi (Albucasis) of Cordoba, whose surgical text with illustrations of instruments circulated widely, and Ibn al-Nafis, who in the thirteenth century wrote that blood passes from the right side of the heart to the lungs and then to the left, rejecting Galen's pores in the septum. Historians have debated how widely his idea was known in Europe.",
+    "Hospitals called bimaristans, from a Persian word meaning place of the sick, developed in this period. The larger ones had separate wards, physicians, pharmacies and teaching, and offered care to people regardless of wealth in many cases, supported by charitable endowments known as waqf. They were the forerunners of the teaching hospital.",
+    "A caution: popular accounts often credit this period with inventing modern science. A better view is that it was a major, creative stage in a long chain in which Greek, Indian, Persian and Arabic ideas were combined."
+   ]
+  },
+  {
+   "id": "med-history.l04",
+   "title": "Medieval Europe, the Black Death and Vesalius",
+   "body": [
+    "In medieval Europe, medical learning revived through the schools and universities. Salerno in southern Italy was an early center, and by the thirteenth century universities such as Bologna, Paris and Montpellier taught medicine from Greek and Arabic texts translated into Latin, mostly Galen and Avicenna. Teaching was text-based: professors read and commented on authorities while barbers and surgeons, who were trained as craftsmen, did the cutting. Monasteries and, later, hospitals provided care and charity.",
+    "The Black Death arrived in Europe around 1347 and killed a large fraction of the population within a few years; estimates for the death toll are uncertain, and a rough range of a third to a half of Europe is often cited. Modern genetic studies of ancient DNA indicate that the cause was the bacterium Yersinia pestis. Contemporary explanations included the humors, corrupted air (miasma), astrological conjunctions and divine anger. Even without the germ theory, communities discovered that isolation helped. In 1377, the Adriatic port of Ragusa required travelers from plague areas to wait thirty days before entering, and later Venice used forty days, which gave us the word quarantine, from the Italian for forty.",
+    "In the sixteenth century, anatomy was transformed. Andreas Vesalius, a Flemish anatomist at Padua, published De humani corporis fabrica in 1543, with detailed illustrations by artists in the circle of Titian's workshop, based on his own dissections of human bodies. He pointed out many errors in Galen, including that the human breastbone has a different structure than the one Galen described and that the heart's septum has no visible pores. He did so with respect, but it was a landmark in moving from authority to observation. The French army surgeon Ambroise Paré also changed practice in the 1500s by using ligatures to tie blood vessels after amputation instead of boiling oil or cautery.",
+    "A worked contrast: before Vesalius, a professor might read from Galen while a barber pointed at an animal part. After him, the student was expected to see the human body directly."
+   ]
+  },
+  {
+   "id": "med-history.l05",
+   "title": "The Scientific Revolution in Medicine",
+   "body": [
+    "In the seventeenth and eighteenth centuries, medicine gradually shifted from authority toward experiment and measurement. William Harvey, an English physician, published De Motu Cordis in 1628. By measuring the amount of blood the heart pumps per beat and multiplying by the heart rate, he argued that the quantity was too large to be made fresh and consumed by the body, so the blood must move in a circuit. He also demonstrated that valves in veins direct flow toward the heart. Harvey could not see the connections between arteries and veins. Marcello Malpighi, using a microscope in 1661, observed capillaries in the frog lung, which completed the picture.",
+    "The microscope opened a new world. Antonie van Leeuwenhoek, a Dutch cloth merchant who ground his own lenses, described bacteria, red blood cells and sperm in the 1670s and 1680s, although no one yet connected microbes to disease. Thomas Sydenham in England stressed careful bedside observation and the natural history of diseases, and is often called the English Hippocrates.",
+    "A second line of progress concerned the link between symptoms and the structures seen after death. In 1761 the Italian anatomist Giovanni Battista Morgagni published De Sedibus et Causis Morborum, correlating clinical histories with autopsy findings in hundreds of cases. This is the foundation of pathological anatomy: disease has a seat in organs. In the early nineteenth century, Rene Laennec invented the stethoscope in 1816 to listen to the chest and correlated sounds with findings at autopsy.",
+    "Another milestone was James Lind's comparison of treatments for scurvy aboard a British ship in 1747. He divided twelve sailors with scurvy into pairs and gave each pair a different remedy, and the pair given oranges and lemons recovered fastest. The trial was small and the Navy did not adopt citrus juice systematically for decades, which shows how slowly evidence changed policy. Vitamin C was identified in the twentieth century.",
+    "A worked lesson: Harvey's argument used quantity, not a seen structure, to defeat a theory held for fifteen centuries, and it was strengthened later by the microscope. Good evidence can arrive in different forms."
+   ]
+  },
+  {
+   "id": "med-history.l06",
+   "title": "Germ Theory: Snow, Semmelweis, Pasteur, Koch and Lister",
+   "body": [
+    "Until the nineteenth century, many doctors believed that disease came from miasma, foul air from decaying matter. Several investigators challenged this by observing patterns of illness. John Snow, a London physician, mapped cholera deaths in the Soho outbreak of 1854 and traced them to the Broad Street water pump, arguing that cholera spread through contaminated water. The handle of the pump was removed, although the outbreak was already declining, so the episode is better seen as a method of analysis than a dramatic cure.",
+    "Ignaz Semmelweis, a Hungarian obstetrician at the Vienna General Hospital, noticed in 1847 that women died of puerperal fever, a childbirth infection, far more often in the clinic staffed by doctors and students than in the one staffed by midwives. When a colleague died after a cut during an autopsy, with symptoms like those of the women, Semmelweis concluded that the doctors carried something from the dissecting room on their hands. He required handwashing with a chlorinated lime solution, and mortality fell sharply. Many colleagues resisted, partly because the idea implied that doctors had been causing deaths and because he had no theory of a germ. He died in 1865.",
+    "Louis Pasteur, a French chemist, showed through experiments with swan-necked flasks that microbes arise from other microbes in the air and not from spontaneous generation, and linked fermentation to living organisms. His work supported the germ theory of disease. Robert Koch, a German physician, demonstrated in 1876 that a specific bacterium causes anthrax, identified the tuberculosis bacillus in 1882 and the cholera bacterium in 1883. Koch's postulates, a set of criteria for linking a microbe to a disease, require that the organism be found in cases, grown in pure culture, cause disease when introduced into a healthy host, and be recovered again. They are a guide with known limits, since some microbes cannot be cultured and carriers exist.",
+    "Joseph Lister, a Scottish surgeon, read Pasteur's work and in 1867 began using carbolic acid on wounds and instruments to prevent infection, reporting a sharp fall in deaths. Later surgeons moved from antisepsis, killing germs on contact, to asepsis, preventing them from entering through sterilized instruments, gowns and gloves.",
+    "A common error is to say Semmelweis was simply ignored because he was wrong. The better explanation is that he had strong data but no mechanism and a confrontational style, and his message threatened professional identity."
+   ]
+  },
+  {
+   "id": "med-history.l07",
+   "title": "Anesthesia and the Transformation of Surgery",
+   "body": [
+    "Before anesthesia, surgery was a race against pain and shock. Surgeons were prized for speed, and many operations were limited to amputations, stone removal and treatment of injuries. Pain control used alcohol, opium, restraints and assistants.",
+    "Nitrous oxide was shown to relieve pain in the early 1800s, but it was not widely used in surgery at first. Crawford Long, a Georgia physician, used ether for an operation in 1842, though he did not publish his work until later. The public demonstration that changed practice happened on October 16, 1846, at Massachusetts General Hospital in Boston. A dentist, William Morton, administered ether to a patient while the surgeon John Collins Warren removed a neck tumor. The news spread rapidly across the Atlantic. In 1847 James Young Simpson in Edinburgh introduced chloroform, which was easier to give but carried a greater risk of sudden death from heart effects. John Snow in London made anesthesia safer by studying doses and inhalers, and he gave chloroform to Queen Victoria for childbirth in 1853.",
+    "Anesthesia made longer, more careful operations possible, but surgery remained dangerous because of infection. Only when antisepsis and asepsis were combined with anesthesia did the operating room become safer. William Halsted at Johns Hopkins promoted rubber gloves in the 1890s, and surgeons began to explore the abdomen, chest and brain. Blood group discovery by Karl Landsteiner in 1901 led to safer transfusion.",
+    "Later milestones include the heart-lung machine, first used successfully for open-heart surgery by John Gibbon in 1953, and organ transplantation. The first successful kidney transplant, between identical twins, was performed by Joseph Murray in Boston in 1954, and the first human heart transplant, by Christiaan Barnard in Cape Town in 1967. Immunosuppressive drugs later made transplants between unrelated people practical.",
+    "A useful point: anesthesia did not by itself reduce death rates at first, since longer operations led to more infection. Progress needed several advances working together."
+   ]
+  },
+  {
+   "id": "med-history.l08",
+   "title": "Vaccination from Jenner to Polio",
+   "body": [
+    "Smallpox killed a large share of its victims and scarred many survivors. Long before vaccines, people in Asia, Africa and the Middle East practiced variolation, deliberately infecting a healthy person with material from smallpox pustules to cause a milder illness and later immunity. It carried a real risk of death and could spread the disease. Lady Mary Wortley Montagu, who had seen it in the Ottoman Empire, promoted it in England around 1721, and in Boston Zabdiel Boylston inoculated people during the epidemic of that year on the urging of Cotton Mather.",
+    "Edward Jenner, an English country physician, took a different path. Having heard the observation that milkmaids who caught cowpox seemed protected against smallpox, he inoculated a boy, James Phipps, with cowpox material in 1796 and later exposed him to smallpox without disease. Jenner published his results in 1798. The word vaccine comes from the Latin for cow. Vaccination was safer than variolation, and spread widely. In the nineteenth century Pasteur extended the term to protection against other diseases and developed a rabies vaccine, first used in a boy named Joseph Meister in 1885.",
+    "Smallpox vaccination led to one of the great achievements of public health. A global campaign led by the World Health Organization, using surveillance and ring vaccination, ended with the last natural case in 1977 in Somalia, and the world was declared free of smallpox in 1980. It remains the only human disease eradicated.",
+    "Polio, a viral disease that can cause paralysis, caused summer epidemics in the twentieth century. Jonas Salk's inactivated vaccine, given by injection, was declared safe and effective after a large field trial in 1955. That year, vaccine produced by one manufacturer, Cutter Laboratories, contained live virus and caused cases of polio, a reminder that manufacturing control is vital. Albert Sabin's oral vaccine, using weakened live virus, was licensed in the United States in 1961 and was cheap and easy to give. Wild polio has been eliminated from most of the world but, as of this writing, continues in a few countries, and rare cases linked to the oral vaccine's weakened virus are a reason many countries now use the inactivated vaccine.",
+    "A worked contrast: variolation used the real disease in a controlled dose, whereas vaccination used a related, milder agent."
+   ]
+  },
+  {
+   "id": "med-history.l09",
+   "title": "The Antibiotic Revolution",
+   "body": [
+    "Before antibiotics, a scratch, a pneumonia or a childbirth infection could kill. The first targeted antimicrobial chemicals came from the German laboratory of Paul Ehrlich, who sought a magic bullet that would attack a microbe without harming the patient. His team's compound arsphenamine, marketed as Salvarsan in 1910, treated syphilis. It was toxic and hard to give, but it showed that chemistry could target an infection.",
+    "In 1935 Gerhard Domagk, working at the German company Bayer, showed that the dye Prontosil protected mice and people from streptococcal infection. French researchers soon showed that the active part was sulfanilamide, so a family of sulfonamide drugs followed. Domagk received the Nobel Prize in 1939, though the Nazi government prevented him from accepting it at the time. In 1937 a sulfanilamide preparation made with the solvent diethylene glycol in the United States poisoned more than a hundred people, which led to the Federal Food, Drug, and Cosmetic Act of 1938.",
+    "Alexander Fleming, at St Mary's Hospital in London, noticed in 1928 that a mold, Penicillium, had killed bacteria around it on a culture plate. He published the finding but could not purify the active substance. In Oxford in the late 1930s and early 1940s, Howard Florey, Ernst Chain and colleagues, including Norman Heatley, purified penicillin, showed it worked in mice, and treated the first patients in 1941. Wartime effort in the United States and Britain scaled up production, and by 1944 there was enough for Allied troops. Fleming, Florey and Chain shared the 1945 Nobel Prize in Physiology or Medicine.",
+    "Selman Waksman, a soil microbiologist, led the team that discovered streptomycin in 1943, the first effective drug for tuberculosis, and he is credited with popularizing the word antibiotic for substances made by microbes that inhibit others. Many other classes followed in the 1940s to 1960s.",
+    "Resistance appeared quickly. Bacteria that survive a drug multiply, and resistance genes can spread between species. Fleming himself warned in his Nobel lecture that underdosing could select resistant microbes. The long-term lesson is that antibiotics are a shared resource: overuse in people and animals favors resistant organisms, and the pipeline of new drug classes has been thin since the late twentieth century."
+   ]
+  },
+  {
+   "id": "med-history.l10",
+   "title": "The Modern Hospital and the Rise of Evidence",
+   "body": [
+    "For most of history the hospital was a place of charity for the poor, and people with means were treated at home. Hospitals were often dangerous because of crowding and infection. Several nineteenth and twentieth century developments produced the institution we know.",
+    "Florence Nightingale, an English nurse, led a team to the British military hospital at Scutari during the Crimean War in 1854. She emphasized ventilation, cleanliness and nutrition and gathered statistics, showing that most deaths were from disease and not wounds. She was a skilled statistician and used diagrams to persuade officials, and her work led to reform of army sanitation. In 1860 she founded a nurse training school at St Thomas' Hospital in London, which established nursing as a trained profession.",
+    "Medical education also changed. In 1910 Abraham Flexner, an educator commissioned by the Carnegie Foundation, published a report on medical schools in the United States and Canada. It recommended that schools be linked to universities, require laboratory science and clinical training, and meet strict standards. Many weak schools closed. The report raised quality, but it also reduced the number of schools admitting women and Black students, as a later lesson shows.",
+    "The intensive care unit has roots in the 1952 polio epidemic in Copenhagen. When patients with paralyzed breathing muscles overwhelmed the hospital, the anesthetist Bjorn Ibsen proposed positive-pressure ventilation by tube, with medical students squeezing bags by hand in shifts, and survival improved markedly. This led to dedicated units with specialized staff and equipment.",
+    "The randomized controlled trial reshaped how treatments are judged. The British Medical Research Council's streptomycin trial for tuberculosis, published in 1948, is often described as the first properly randomized clinical trial, with allocation by random numbers concealed from the investigators. Over the following decades, controlled trials became the standard for testing drugs, supporting what came to be called evidence-based medicine in the 1990s. In the United States, Medicare and Medicaid, created in 1965, changed who could pay for hospital care.",
+    "A worked point: Nightingale's reforms relied on counting and charting, an early example of using data to change institutions."
+   ]
+  },
+  {
+   "id": "med-history.l11",
+   "title": "Women and Minorities in Medicine",
+   "body": [
+    "The history of medicine includes many people who were kept out of the profession and many who were used in research without a choice. Both stories matter to understanding trust and evidence today.",
+    "Women were healers, midwives and nurses for centuries, but formal medical degrees were closed to them. Elizabeth Blackwell graduated from Geneva Medical College in New York in 1849 and is regarded as the first woman in the United States to receive a medical degree in modern times. Elizabeth Garrett Anderson qualified in Britain through the Society of Apothecaries in 1865 and later helped open medicine to women. Rebecca Lee Crumpler graduated from the New England Female Medical College in 1864 and is regarded as the first Black woman in the United States to earn a medical degree. James McCune Smith, who earned his degree in Glasgow in 1837 because American schools refused him, is regarded as the first Black American physician with a medical degree.",
+    "Institutional barriers continued into the twentieth century. After the Flexner Report in 1910 and the closing of weaker schools, only two historically Black medical schools in the United States, Howard and Meharry, remained from several that existed. Quotas and exclusion limited many women and Black, Jewish and other applicants for decades.",
+    "Exploitation in research was another theme. J. Marion Sims, often called the father of modern gynecology, developed a surgical repair for vesicovaginal fistula in the 1840s by operating repeatedly, without anesthesia, on enslaved women including Anarcha, Lucey and Betsey. Historians and ethicists debate how to weigh his contribution against the fact that these women could not consent. The Tuskegee study, discussed in the bioethics course, is another example.",
+    "Gaps in evidence also arose. In 1977 a US Food and Drug Administration guideline recommended excluding women of childbearing potential from early drug trials, in part after the thalidomide disaster. This meant that dosing and side effects were studied mostly in men. The NIH Revitalization Act of 1993 required that women and minorities be included in clinical research funded by NIH unless there is a clear reason.",
+    "The lesson: who is allowed to practice and who is studied shape what medicine knows and whom it serves."
+   ]
+  },
+  {
+   "id": "med-history.l12",
+   "title": "Public Health Milestones",
+   "body": [
+    "Much of the increase in human life expectancy over the last two centuries came from public health measures that prevent disease in populations, rather than from treatments for individual patients. The key milestones are worth knowing.",
+    "Sanitation. Edwin Chadwick's 1842 report on the sanitary condition of the laboring population of Great Britain linked filth and poor housing to disease and argued for drains, clean water and waste removal. The Public Health Act of 1848 set up a national board of health. After the Great Stink of 1858, when the Thames smelled so badly that Parliament was affected, the engineer Joseph Bazalgette built a large sewer network in London. Cholera outbreaks later declined in cities that treated their water.",
+    "Water treatment. Filtration and then chlorination of drinking water in the early twentieth century sharply reduced typhoid and other waterborne diseases. Jersey City, New Jersey, began chlorinating its supply in 1908, among the first large US trials. Community water fluoridation, beginning with Grand Rapids, Michigan, in 1945, reduced tooth decay, and remains debated in some places over consent and risk-benefit, though major health bodies have supported it.",
+    "Vaccination and disease control, covered earlier, joined a wider set of measures including pasteurization of milk, food safety rules, vector control and oral rehydration therapy, which uses a simple solution of salts and sugar to treat dehydration from diarrhea and is credited with saving many millions of lives.",
+    "Tobacco. In 1950, studies by Richard Doll and Austin Bradford Hill in Britain and by Ernest Wynder and Evarts Graham in the United States linked smoking with lung cancer. The 1964 report of the US Surgeon General concluded that smoking causes lung cancer in men and that it is a health hazard, a landmark use of epidemiology and criteria for causation. Smoking rates fell over decades with taxes, labeling and restrictions.",
+    "Other measures include seat belt and motor vehicle safety rules, workplace safety laws and lead removal from gasoline and paint. Public health also faces questions of liberty, as the bioethics course discusses.",
+    "A caution: the decline of many infectious diseases began before specific drugs or vaccines, so improved nutrition, housing and sanitation clearly mattered, though historians still debate how to apportion credit."
+   ]
+  },
+  {
+   "id": "med-history.l13",
+   "title": "Pandemics: 1918 Influenza and HIV",
+   "body": [
+    "Pandemics test medicine, governments and societies. Two twentieth century events show different lessons.",
+    "The influenza pandemic of 1918 to 1919 was caused by an influenza A virus of the H1N1 subtype. It appeared in waves, with a severe second wave in the autumn of 1918, and spread widely as troops and ships moved at the end of the First World War. It is often called the Spanish flu, but the name came from the fact that neutral Spain had a relatively free press that reported on it, and does not show that the disease began there; its origin is uncertain. Estimates of deaths range widely, with figures of roughly fifty million often cited and some estimates much higher or lower, because records were poor. Unusually, many deaths were among healthy young adults. Many deaths involved secondary bacterial pneumonia, and no antibiotics existed. Public health tools were limited to isolation, quarantine, masks, closing of public places and hygiene, and cities that used such measures early and kept them longer tended to fare better in later analyses. The virus itself was not identified until the 1930s, and the 1918 strain's genome was reconstructed from preserved tissue in the early 2000s.",
+    "HIV/AIDS emerged into recognition in 1981, when physicians in the United States reported clusters of unusual infections in previously healthy young men. The cause, a retrovirus later named human immunodeficiency virus, was identified in 1983 and 1984 by teams including that of Francoise Barre-Sinoussi and Luc Montagnier in France, and that of Robert Gallo in the United States. The early years were marked by fear and stigma, and by activism, in which patient groups pushed for faster drug testing and a voice in research. A first drug, zidovudine, was approved in 1987, and combination antiretroviral therapy, introduced in the mid 1990s, transformed HIV from a usually fatal disease into a manageable chronic infection for people with access to treatment. Prevention tools now include treatment that makes the virus undetectable, and pre-exposure prophylaxis. Access remains unequal across the world.",
+    "The common lessons are the value of surveillance, honest communication, preparedness and protection of vulnerable groups, and the danger of stigma, which can drive people away from testing and care."
+   ]
+  },
+  {
+   "id": "med-history.l14",
+   "title": "The Genomic Era",
+   "body": [
+    "Genetics entered medicine slowly. Gregor Mendel described inheritance of traits in peas in 1866, but his work was widely recognized only around 1900. In 1953, James Watson and Francis Crick proposed the double helix structure of DNA, building on X-ray diffraction images by Rosalind Franklin and Maurice Wilkins's group; the contribution of Franklin has been much discussed in later accounts. Frederick Sanger developed a practical method of DNA sequencing in 1977, and the polymerase chain reaction, developed by Kary Mullis in the 1980s, made it possible to copy small amounts of DNA.",
+    "The Human Genome Project, an international effort that began in 1990, produced a working draft announced in 2000 and a finished reference sequence declared complete in 2003. Later work in 2022 reported a complete, gap-free sequence of a human genome. The project cost billions at first, but sequencing costs then fell dramatically, so reading a person's genome is now affordable in many settings.",
+    "Genomics has changed medicine in several ways. Single-gene diseases such as cystic fibrosis, whose gene was found in 1989, can be diagnosed and screened. Cancer is increasingly classified by mutations as well as by organ, and targeted drugs followed. Imatinib, approved in 2001 for chronic myeloid leukemia, inhibits the abnormal protein produced by the BCR-ABL gene fusion and is a landmark example of precision treatment. Pharmacogenomics uses genetic variation to predict drug response. Large datasets also reveal polygenic risk, in which many small effects add up, though polygenic scores remain imperfect predictors and perform less well in people from groups that were underrepresented in the studies.",
+    "The history also contains a caution. In 1999, Jesse Gelsinger, an eighteen-year-old with a metabolic disorder, died in a gene therapy trial at the University of Pennsylvania after a severe immune reaction to the viral vector. The case led to tighter oversight and attention to conflicts of interest. Gene therapy has since succeeded for several conditions, and gene editing with CRISPR has produced approved treatments.",
+    "A recurring lesson: reading the code is not the same as understanding its meaning, and benefits of genomic medicine depend on who is included in the data and who can afford access."
+   ]
+  },
+  {
+   "id": "med-history.l15",
+   "title": "Failures and Reversals That Taught Caution",
+   "body": [
+    "Medicine has repeatedly adopted treatments with confidence and later learned they were wrong. Studying these episodes helps explain why modern medicine insists on controlled evidence.",
+    "Bloodletting was a standard treatment for about two thousand years, grounded in humoral theory and supported by clinical impressions, since patients sometimes improved afterward for other reasons. Systematic comparison in the nineteenth century, notably by the French physician Pierre Louis, showed no benefit in pneumonia, and it declined.",
+    "Thalidomide, sold from 1957 in Europe and elsewhere as a sedative and a remedy for morning sickness, caused severe birth defects, especially limb malformations, in thousands of children before it was withdrawn in 1961 and 1962. In the United States, the FDA reviewer Frances Kelsey withheld approval, partly because of concerns about the data, and the country was largely spared. The disaster led to the Kefauver-Harris Amendments of 1962, which required drugs to be shown effective as well as safe and strengthened rules for informed consent in trials.",
+    "Frontal lobotomy, a surgery that severs connections in the frontal lobes, was developed by the Portuguese neurologist Egas Moniz in the 1930s, and he shared the 1949 Nobel Prize for it. It was promoted in the United States by Walter Freeman, who used a transorbital approach. Tens of thousands of patients were operated on, often in institutions with little consent, and many were left with serious harm. Effective drugs and critique ended its use.",
+    "Hormone therapy after menopause was widely believed from observational studies to protect against heart disease. The randomized Women's Health Initiative, whose estrogen plus progestin arm was stopped early in 2002, found increased risks of breast cancer, stroke and blood clots without cardiac benefit. The rofecoxib (Vioxx) withdrawal in 2004, after trial evidence of increased heart attacks, is another example of safety signals emerging after wide use.",
+    "Reversals also run the other way. For decades, stomach ulcers were blamed on stress and acid. In the 1980s Barry Marshall and Robin Warren proposed that the bacterium Helicobacter pylori causes ulcers, which they supported by culture and by Marshall's well-known self-experiment, and they received the 2005 Nobel Prize.",
+    "Lessons: observational association is not proof of benefit, enthusiasm and authority can outrun evidence, harms may appear only in large or long studies, and sometimes a dismissed idea turns out to be right. Good practice is to demand controlled evidence while staying open to new findings."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-history.l01.q1",
+   "lessonId": "med-history.l01",
+   "kind": "mcq",
+   "prompt": "The Edwin Smith Papyrus is best known as an ancient Egyptian text on:",
+   "choices": [
+    "religious spells to protect the dead during their journey to the afterlife",
+    "the planting and harvest cycles used by farmers in the Nile Valley",
+    "the administration of taxes and the storage of grain in royal granaries",
+    "surgical cases, mainly injuries, with examination, diagnosis and prognosis"
+   ]
+  },
+  {
+   "id": "med-history.l01.q2",
+   "lessonId": "med-history.l01",
+   "kind": "mcq",
+   "prompt": "In Mesopotamian medicine, the ashipu was most like which kind of healer?",
+   "choices": [
+    "a pharmacist who prepared drugs from plants and minerals only",
+    "a midwife who attended only births within the households of the poor",
+    "an exorcist who sought a supernatural cause of an illness and used ritual",
+    "a surgeon who specialized in the removal of cataracts and the setting of broken bones"
+   ]
+  },
+  {
+   "id": "med-history.l01.q3",
+   "lessonId": "med-history.l01",
+   "kind": "mcq",
+   "prompt": "Why do historians caution against calling ancient Egyptian and Mesopotamian medicine purely superstitious?",
+   "choices": [
+    "The texts prove the people had discovered that germs cause disease",
+    "The texts show careful case classification and prognosis alongside ritual",
+    "The texts contain no ritual or religious elements of any kind, only practical remedies",
+    "The texts show the use of the microscope to examine blood and tissue"
+   ]
+  },
+  {
+   "id": "med-history.l01.q4",
+   "lessonId": "med-history.l01",
+   "kind": "mcq",
+   "prompt": "A papyrus case concludes that the physician should not treat a severe skull injury, even though it describes the wound carefully. A historian would most reasonably interpret this as evidence of:",
+   "choices": [
+    "an early practice of prognosis that distinguished curable from incurable cases",
+    "a religious ban on any physician ever touching the head of an injured person in Egypt",
+    "a failure by the writers to understand that the wound was serious at all",
+    "a legal rule that surgeons who failed to heal would receive no payment"
+   ]
+  },
+  {
+   "id": "med-history.l01.q5",
+   "lessonId": "med-history.l01",
+   "kind": "mcq",
+   "prompt": "The Code of Hammurabi sets fees and penalties for surgeons. What does this most clearly show about medicine in ancient Mesopotamia?",
+   "choices": [
+    "Surgery was unknown in that society, and the code was written to forbid anyone from attempting it",
+    "Healers were paid only in religious offerings and never in silver or goods",
+    "The code required all patients to be treated by ritual specialists exclusively",
+    "Medical practice and its outcomes were already subject to law and social expectations"
+   ]
+  },
+  {
+   "id": "med-history.l02.q1",
+   "lessonId": "med-history.l02",
+   "kind": "mcq",
+   "prompt": "What were the four humors in humoral theory?",
+   "choices": [
+    "Blood, phlegm, yellow bile and black bile",
+    "Blood, water, fire and earth as the basic elements",
+    "Heart, liver, brain and lungs as the principal organs",
+    "Heat, cold, dryness and moisture as the basic qualities"
+   ]
+  },
+  {
+   "id": "med-history.l02.q2",
+   "lessonId": "med-history.l02",
+   "kind": "mcq",
+   "prompt": "Why did Galen's anatomy contain errors about the human body?",
+   "choices": [
+    "He studied only the skeletons of people who had died long ago",
+    "He dissected mainly animals and applied the findings to humans",
+    "He refused to make any observation and relied only on religious books",
+    "He worked long before anyone had written anything about the anatomy of the body"
+   ]
+  },
+  {
+   "id": "med-history.l02.q3",
+   "lessonId": "med-history.l02",
+   "kind": "mcq",
+   "prompt": "The Hippocratic work on the sacred disease argues that epilepsy:",
+   "choices": [
+    "is contagious and can be prevented by the isolation of the sick",
+    "results from an imbalance of the planets at the time of a person's birth",
+    "has natural causes in the body and is no more divine than other diseases",
+    "is caused by the anger of the gods and must be treated only with prayer"
+   ]
+  },
+  {
+   "id": "med-history.l02.q4",
+   "lessonId": "med-history.l02",
+   "kind": "mcq",
+   "prompt": "A medieval scholar finds that his Galenic textbook describes a structure in the human brain that he cannot locate in any human body. Which explanation best fits the history of Galen's sources?",
+   "choices": [
+    "Galen invented the structure to win an argument with his colleagues in Rome",
+    "The structure exists in humans but disappears in every body after death",
+    "The structure was added to the text by Vesalius in the sixteenth century",
+    "Galen described the rete mirabile seen in animals and assumed humans had it too"
+   ]
+  },
+  {
+   "id": "med-history.l02.q5",
+   "lessonId": "med-history.l02",
+   "kind": "mcq",
+   "prompt": "What does the history of Galen's authority best illustrate?",
+   "choices": [
+    "A powerful system can become an obstacle to progress when it is treated as final",
+    "A single physician can make all of the discoveries that medicine will ever need",
+    "Ancient writers were always wrong about the body and had no useful ideas",
+    "Medical knowledge can only advance when books are lost or destroyed"
+   ]
+  },
+  {
+   "id": "med-history.l03.q1",
+   "lessonId": "med-history.l03",
+   "kind": "mcq",
+   "prompt": "Al-Razi (Rhazes) is especially remembered for:",
+   "choices": [
+    "the first successful transplant of a kidney between living twins",
+    "a clinical treatise distinguishing smallpox from measles",
+    "the discovery of penicillin in a mold on a culture plate",
+    "the invention of the compound microscope for studying blood"
+   ]
+  },
+  {
+   "id": "med-history.l03.q2",
+   "lessonId": "med-history.l03",
+   "kind": "mcq",
+   "prompt": "What was a bimaristan?",
+   "choices": [
+    "A hospital in the medieval Islamic world, often supported by charitable endowment",
+    "A type of herbal drug made from plant extracts and mineral oils",
+    "A school for translators who worked on Greek and Latin manuscripts in Baghdad",
+    "A military unit that cared for wounded soldiers during the long campaigns of the caliphs"
+   ]
+  },
+  {
+   "id": "med-history.l03.q3",
+   "lessonId": "med-history.l03",
+   "kind": "mcq",
+   "prompt": "The Canon of Medicine by Ibn Sina (Avicenna) is important because it:",
+   "choices": [
+    "proved that Galen had been entirely correct on every point he had written about",
+    "replaced all of the medical teaching in the Islamic world with a single religious text",
+    "introduced the idea that microbes cause the infectious diseases of humans",
+    "organized medical knowledge systematically and was used in European universities for centuries"
+   ]
+  },
+  {
+   "id": "med-history.l03.q4",
+   "lessonId": "med-history.l03",
+   "kind": "mcq",
+   "prompt": "Ibn al-Nafis wrote in the thirteenth century that blood passes from the right heart to the lungs and then to the left heart. Which Galenic view did this contradict?",
+   "choices": [
+    "That the humors must be kept in balance to maintain health in a person",
+    "That disease can be diagnosed from the appearance of the urine",
+    "That blood passes through invisible pores in the septum between the ventricles",
+    "That the liver is the main organ that makes the blood in the body and sends it out"
+   ]
+  },
+  {
+   "id": "med-history.l03.q5",
+   "lessonId": "med-history.l03",
+   "kind": "mcq",
+   "prompt": "A popular article claims the Islamic Golden Age invented modern science from nothing. Which response best reflects the historians' view in the lesson?",
+   "choices": [
+    "It was a period in which hospitals and universities did not yet exist anywhere",
+    "It was a creative stage in a long chain that combined Greek, Indian, Persian and Arabic ideas",
+    "It was merely a period of copying that added no new observations or ideas to earlier texts",
+    "It was entirely separate from Greek learning and never used any of those writings"
+   ]
+  },
+  {
+   "id": "med-history.l04.q1",
+   "lessonId": "med-history.l04",
+   "kind": "mcq",
+   "prompt": "What does the word quarantine come from?",
+   "choices": [
+    "The Greek for clean, since people were washed before entering a city",
+    "The Arabic for hospital, from the name of a famous ward in Baghdad",
+    "The Italian for forty, from the forty days that ships were held in Venice",
+    "The Latin for plague, since the first isolation of the sick was ordered in ancient Rome"
+   ]
+  },
+  {
+   "id": "med-history.l04.q2",
+   "lessonId": "med-history.l04",
+   "kind": "mcq",
+   "prompt": "Vesalius's De humani corporis fabrica (1543) was important because it:",
+   "choices": [
+    "proved that the humors do not exist and replaced them with germs",
+    "introduced the first general anesthetic for use in the surgery of the day",
+    "described the circulation of the blood through arteries and veins in full",
+    "was based on direct human dissection and corrected many of Galen's errors"
+   ]
+  },
+  {
+   "id": "med-history.l04.q3",
+   "lessonId": "med-history.l04",
+   "kind": "mcq",
+   "prompt": "Ambroise Paré changed battlefield surgery by using:",
+   "choices": [
+    "ligatures to tie blood vessels instead of boiling oil or cautery",
+    "chloroform to put the wounded to sleep before an amputation",
+    "carbolic acid sprays to clean wounds before they were stitched",
+    "rubber gloves to prevent infection passing from surgeon to patient"
+   ]
+  },
+  {
+   "id": "med-history.l04.q4",
+   "lessonId": "med-history.l04",
+   "kind": "mcq",
+   "prompt": "A fourteenth-century city council, believing plague spreads from travelers, requires arrivals from infected ports to wait outside the walls for a fixed period. How should a historian assess this policy?",
+   "choices": [
+    "As a policy that was invented in the twentieth century and read back into the past",
+    "As an effective practical measure that worked without any knowledge of germs",
+    "As a proof that the council had already discovered the bacterium that causes plague",
+    "As a useless ritual that had no connection to the spread of the disease"
+   ]
+  },
+  {
+   "id": "med-history.l04.q5",
+   "lessonId": "med-history.l04",
+   "kind": "mcq",
+   "prompt": "Modern studies of ancient DNA from plague victims have identified which cause of the Black Death?",
+   "choices": [
+    "The bacterium that causes cholera in drinking water",
+    "A fungus growing on stored rye in the damp winter",
+    "The bacterium Yersinia pestis",
+    "The measles virus carried by traders from Asia"
+   ]
+  },
+  {
+   "id": "med-history.l05.q1",
+   "lessonId": "med-history.l05",
+   "kind": "mcq",
+   "prompt": "What was Harvey's main argument in De Motu Cordis (1628)?",
+   "choices": [
+    "The liver makes new blood continually, and the body then uses all of it up in its tissues each day",
+    "The blood moves through pores in the septum of the heart from the right side to the left",
+    "The humors move through the body in four channels, each one linked to a different organ",
+    "The heart pumps blood in a circuit around the body, since the volume pumped is too large to be newly made"
+   ]
+  },
+  {
+   "id": "med-history.l05.q2",
+   "lessonId": "med-history.l05",
+   "kind": "mcq",
+   "prompt": "Morgagni's De Sedibus et Causis Morborum (1761) helped found:",
+   "choices": [
+    "public health, linking water supplies to the spread of cholera in a city",
+    "pharmacology, linking plant extracts to the treatment of fever in adults",
+    "pathological anatomy, linking symptoms in life to organ findings at autopsy",
+    "germ theory, linking specific microbes in the blood to the diseases of patients"
+   ]
+  },
+  {
+   "id": "med-history.l05.q3",
+   "lessonId": "med-history.l05",
+   "kind": "mcq",
+   "prompt": "What did Marcello Malpighi observe in 1661 that supported Harvey's theory?",
+   "choices": [
+    "Red blood cells in the blood of people who had died of a fever",
+    "Capillaries connecting arteries and veins in the lung of a frog",
+    "Bacteria moving in a drop of water under a simple magnifying lens",
+    "Valves in the veins of the arm that point in the direction of flow"
+   ]
+  },
+  {
+   "id": "med-history.l05.q4",
+   "lessonId": "med-history.l05",
+   "kind": "mcq",
+   "prompt": "In Lind's 1747 comparison, sailors with scurvy were divided into pairs and each pair received a different remedy. Why is this considered an important step even though the Navy was slow to act on the result?",
+   "choices": [
+    "It compared treatments in similar patients at the same time, an early form of controlled comparison",
+    "It proved that vitamin C was the cause of scurvy, which no earlier writer had ever suggested in print",
+    "It was a very large trial with enough sailors to settle every question about diet and health at sea",
+    "It was a blinded trial in which the sailors did not know what they had been given at all"
+   ]
+  },
+  {
+   "id": "med-history.l05.q5",
+   "lessonId": "med-history.l05",
+   "kind": "mcq",
+   "prompt": "Who invented the stethoscope in 1816?",
+   "choices": [
+    "Antonie van Leeuwenhoek",
+    "Thomas Sydenham",
+    "Giovanni Morgagni",
+    "Rene Laennec"
+   ]
+  },
+  {
+   "id": "med-history.l06.q1",
+   "lessonId": "med-history.l06",
+   "kind": "mcq",
+   "prompt": "John Snow's 1854 investigation of cholera in Soho concluded that:",
+   "choices": [
+    "cholera spread through contaminated water from the Broad Street pump",
+    "cholera spread through foul air rising from the decaying matter in a city",
+    "cholera was caused by a bacterium that he saw under his own microscope",
+    "cholera could be prevented by the washing of hands with chlorinated lime"
+   ]
+  },
+  {
+   "id": "med-history.l06.q2",
+   "lessonId": "med-history.l06",
+   "kind": "mcq",
+   "prompt": "Semmelweis reduced deaths from puerperal fever in Vienna in 1847 by requiring:",
+   "choices": [
+    "the administration of penicillin to every woman who was giving birth",
+    "handwashing with a chlorinated lime solution before examining patients",
+    "the removal of all patients from the hospital during the summer months",
+    "the use of carbolic acid sprays in the air of the operating theater"
+   ]
+  },
+  {
+   "id": "med-history.l06.q3",
+   "lessonId": "med-history.l06",
+   "kind": "mcq",
+   "prompt": "Which is the best statement of Koch's postulates?",
+   "choices": [
+    "A law that all diseases are caused by a single type of germ in the blood",
+    "A theory that miasma and microbes together explain the cause of every epidemic in history",
+    "Criteria for linking a specific microbe to a disease, with recognized limits such as carriers",
+    "A set of rules for sterilizing surgical instruments before an operation begins"
+   ]
+  },
+  {
+   "id": "med-history.l06.q4",
+   "lessonId": "med-history.l06",
+   "kind": "mcq",
+   "prompt": "A historian argues that Semmelweis was rejected not simply because he was wrong. Which evidence best supports this view?",
+   "choices": [
+    "He had refused to publish his data, and so no one in the medical profession had ever heard of it",
+    "He had proved that germs cause disease, but all of his proof was destroyed by the authorities",
+    "He had recommended a treatment that was shown in later trials to increase deaths",
+    "He had strong data showing that handwashing cut deaths but offered no mechanism, and the idea implicated doctors"
+   ]
+  },
+  {
+   "id": "med-history.l06.q5",
+   "lessonId": "med-history.l06",
+   "kind": "mcq",
+   "prompt": "Lister used carbolic acid on wounds and instruments in 1867. How did surgery later change from his approach?",
+   "choices": [
+    "It moved from antisepsis, killing germs on contact, to asepsis, keeping germs out with sterilization",
+    "It moved from asepsis to antisepsis, since carbolic acid was later found to be unnecessary for surgery",
+    "It moved from using sterilized tools to using no tools at all in the operating room",
+    "It moved from preventing infection to treating it only with penicillin in every case"
+   ]
+  },
+  {
+   "id": "med-history.l07.q1",
+   "lessonId": "med-history.l07",
+   "kind": "mcq",
+   "prompt": "Where and when was the public demonstration of ether anesthesia that changed surgical practice?",
+   "choices": [
+    "A hospital in Georgia in the United States, in 1842",
+    "Massachusetts General Hospital in Boston, in 1846",
+    "The Royal Infirmary in Edinburgh, in 1847",
+    "The Vienna General Hospital in Austria, in 1847"
+   ]
+  },
+  {
+   "id": "med-history.l07.q2",
+   "lessonId": "med-history.l07",
+   "kind": "mcq",
+   "prompt": "John Snow is also remembered in the history of anesthesia for:",
+   "choices": [
+    "studying doses and inhalers to make the giving of anesthetics safer",
+    "inventing ether and offering it to the public as a cure for pain",
+    "inventing the gloves that surgeons wear during an operation today",
+    "discovering that carbolic acid prevents wounds from becoming infected"
+   ]
+  },
+  {
+   "id": "med-history.l07.q3",
+   "lessonId": "med-history.l07",
+   "kind": "mcq",
+   "prompt": "Why did anesthesia not at first reduce surgical death rates?",
+   "choices": [
+    "Anesthetic drugs were so toxic that most patients died of them within an hour",
+    "Surgeons stopped operating once patients felt no pain, so fewer were treated",
+    "Patients refused to be put to sleep, and so the use of the drugs was rare",
+    "Longer operations exposed more patients to infection before antisepsis and asepsis"
+   ]
+  },
+  {
+   "id": "med-history.l07.q4",
+   "lessonId": "med-history.l07",
+   "kind": "mcq",
+   "prompt": "A 1950s surgeon describes the first successful kidney transplant, performed in 1954 between identical twins. Why was identical twinship important to that success?",
+   "choices": [
+    "Identical twins could consent to the operation without needing to be told about the risks",
+    "The donor's remaining kidney automatically grew large enough to support both people together",
+    "The recipient's immune system did not reject genetically identical tissue, since effective immunosuppression was not yet available",
+    "The twins shared the same blood supply, so the kidney did not require any blood vessels to be joined by the surgeon"
+   ]
+  },
+  {
+   "id": "med-history.l07.q5",
+   "lessonId": "med-history.l07",
+   "kind": "mcq",
+   "prompt": "Who performed the first human heart transplant in 1967?",
+   "choices": [
+    "William Halsted",
+    "Christiaan Barnard",
+    "John Gibbon",
+    "Joseph Murray"
+   ]
+  },
+  {
+   "id": "med-history.l08.q1",
+   "lessonId": "med-history.l08",
+   "kind": "mcq",
+   "prompt": "What was variolation?",
+   "choices": [
+    "A method of treating smallpox by bloodletting and purging during the course of the fever",
+    "A way of preventing smallpox by isolating infected households for forty days",
+    "Deliberate infection with material from smallpox to cause a milder illness and later immunity",
+    "Inoculation with cowpox material to protect a person against smallpox without any risk at all to them"
+   ]
+  },
+  {
+   "id": "med-history.l08.q2",
+   "lessonId": "med-history.l08",
+   "kind": "mcq",
+   "prompt": "When was smallpox declared eradicated worldwide?",
+   "choices": [
+    "1796, after Jenner's first inoculation of a boy",
+    "1955, after the large field trial of the Salk vaccine",
+    "1961, after the licensing of Sabin's oral vaccine",
+    "1980, after the last natural case in 1977"
+   ]
+  },
+  {
+   "id": "med-history.l08.q3",
+   "lessonId": "med-history.l08",
+   "kind": "mcq",
+   "prompt": "What is a main difference between the Salk and Sabin polio vaccines?",
+   "choices": [
+    "Salk used inactivated virus by injection, and Sabin used weakened live virus by mouth",
+    "Salk used weakened live virus by mouth, and Sabin used killed bacteria by injection",
+    "Salk protected against smallpox as well, whereas Sabin protected only against polio",
+    "Salk was tested only on animals, whereas Sabin was tested on children in a large trial"
+   ]
+  },
+  {
+   "id": "med-history.l08.q4",
+   "lessonId": "med-history.l08",
+   "kind": "mcq",
+   "prompt": "The 1955 Cutter incident, in which some polio vaccine contained live virus, is best interpreted as showing that:",
+   "choices": [
+    "regulators had no role in the testing of vaccines before they were distributed",
+    "manufacturing control and oversight are essential to vaccine safety",
+    "the inactivated vaccine concept was disproved and abandoned for decades",
+    "polio vaccines can never be made safely by any manufacturer under any conditions"
+   ]
+  },
+  {
+   "id": "med-history.l08.q5",
+   "lessonId": "med-history.l08",
+   "kind": "mcq",
+   "prompt": "A public health officer in 1970 wants to eliminate smallpox from a region with few health workers. Which strategy used in the global campaign was especially suited to this?",
+   "choices": [
+    "Isolating all travelers from other regions for forty days before they could enter",
+    "Waiting for a vaccine that would cure smallpox in people who were already infected",
+    "Surveillance to find cases, followed by ring vaccination of the people around each case",
+    "Vaccinating every single person in the world on the very same day with exactly the same vaccine"
+   ]
+  },
+  {
+   "id": "med-history.l09.q1",
+   "lessonId": "med-history.l09",
+   "kind": "mcq",
+   "prompt": "Who discovered in 1928 that a mold killed bacteria on a culture plate?",
+   "choices": [
+    "Howard Florey",
+    "Gerhard Domagk",
+    "Selman Waksman",
+    "Alexander Fleming"
+   ]
+  },
+  {
+   "id": "med-history.l09.q2",
+   "lessonId": "med-history.l09",
+   "kind": "mcq",
+   "prompt": "Streptomycin, discovered by the team of Selman Waksman in 1943, was important as the first effective drug for:",
+   "choices": [
+    "streptococcal infections",
+    "malaria",
+    "tuberculosis",
+    "syphilis"
+   ]
+  },
+  {
+   "id": "med-history.l09.q3",
+   "lessonId": "med-history.l09",
+   "kind": "mcq",
+   "prompt": "The Prontosil work of Gerhard Domagk in 1935 led to which class of drugs?",
+   "choices": [
+    "The tetracyclines, since the dye was found in the soil of a garden in Germany",
+    "The sulfonamides, since the active part of the dye was sulfanilamide",
+    "The penicillins, since the dye was made from a mold that killed the bacteria on a culture plate",
+    "The arsenicals, since the dye contained a compound of arsenic as its main part"
+   ]
+  },
+  {
+   "id": "med-history.l09.q4",
+   "lessonId": "med-history.l09",
+   "kind": "mcq",
+   "prompt": "A hospital finds that a once-reliable antibiotic now fails against a common bacterium, and that resistance is spreading to other species of bacteria. Which feature of bacteria best explains the rapid spread?",
+   "choices": [
+    "Resistance genes can be transferred between bacteria, and surviving bacteria multiply when the drug removes competitors",
+    "Bacteria decide to become resistant after being warned of the drug by the patient's immune system in the blood",
+    "Antibiotics create resistance genes in the bacteria by changing their DNA directly",
+    "Resistance appears only in bacteria that have never been exposed to any antibiotic"
+   ]
+  },
+  {
+   "id": "med-history.l09.q5",
+   "lessonId": "med-history.l09",
+   "kind": "mcq",
+   "prompt": "The 1937 sulfanilamide elixir disaster, in which a solvent poisoned more than a hundred people, led to which regulatory change in the United States?",
+   "choices": [
+    "The Kefauver-Harris Amendments of 1962, which required that new drugs be shown to be effective as well as safe",
+    "The creation of Medicare and Medicaid in 1965 to pay for hospital care of the elderly",
+    "The Pure Food and Drug Act of 1906, which banned the misbranding of food and drugs",
+    "The Federal Food, Drug, and Cosmetic Act of 1938, which required safety review of new drugs"
+   ]
+  },
+  {
+   "id": "med-history.l10.q1",
+   "lessonId": "med-history.l10",
+   "kind": "mcq",
+   "prompt": "What was Florence Nightingale's most important contribution to the reform of army hospitals?",
+   "choices": [
+    "Founding the first school of medicine in the United States for the training of women",
+    "Using statistics to show that most deaths came from disease and by improving sanitation",
+    "Inventing the stethoscope for listening to the chest of patients in the military hospital",
+    "Discovering that carbolic acid prevents infections of wounds after an operation"
+   ]
+  },
+  {
+   "id": "med-history.l10.q2",
+   "lessonId": "med-history.l10",
+   "kind": "mcq",
+   "prompt": "The Flexner Report of 1910 recommended that medical schools:",
+   "choices": [
+    "be linked to universities and require laboratory science and clinical training",
+    "be run by hospitals alone, without any laboratory or university connection",
+    "admit as many students as possible regardless of their previous schooling",
+    "teach only from the writings of ancient authors such as Galen and Avicenna"
+   ]
+  },
+  {
+   "id": "med-history.l10.q3",
+   "lessonId": "med-history.l10",
+   "kind": "mcq",
+   "prompt": "What was the main significance of the 1952 Copenhagen polio epidemic for hospital care?",
+   "choices": [
+    "It proved that the Salk vaccine was effective, and that is what ended the epidemic of that year",
+    "It showed that polio could be controlled by quarantine of all travelers into a city",
+    "It led to the creation of the first nursing school at St Thomas' Hospital in London",
+    "It showed the value of positive-pressure ventilation and led to dedicated intensive care units"
+   ]
+  },
+  {
+   "id": "med-history.l10.q4",
+   "lessonId": "med-history.l10",
+   "kind": "mcq",
+   "prompt": "The 1948 MRC streptomycin trial is often called the first properly randomized clinical trial. Which feature best supports that description?",
+   "choices": [
+    "Patients chose for themselves whether to be given the drug or to go without it",
+    "The doctors decided which patients seemed sick enough to receive the new drug",
+    "Patients were allocated by random numbers concealed from the investigators",
+    "All patients were given the same dose of the drug in the same hospital ward at the same time of day"
+   ]
+  },
+  {
+   "id": "med-history.l10.q5",
+   "lessonId": "med-history.l10",
+   "kind": "mcq",
+   "prompt": "Which pair of programs was created in the United States in 1965 and changed who could pay for hospital care?",
+   "choices": [
+    "The Veterans Administration and the Public Health Service",
+    "Medicare and Medicaid",
+    "Social Security and Workers' Compensation",
+    "The National Institutes of Health and the Food and Drug Administration"
+   ]
+  },
+  {
+   "id": "med-history.l11.q1",
+   "lessonId": "med-history.l11",
+   "kind": "mcq",
+   "prompt": "Who is regarded as the first woman to receive a modern medical degree in the United States?",
+   "choices": [
+    "Elizabeth Blackwell, in 1849",
+    "Rebecca Lee Crumpler, in 1864",
+    "Elizabeth Garrett Anderson, in 1865",
+    "Florence Nightingale, in 1860"
+   ]
+  },
+  {
+   "id": "med-history.l11.q2",
+   "lessonId": "med-history.l11",
+   "kind": "mcq",
+   "prompt": "After the Flexner Report era, which two historically Black medical schools in the United States remained?",
+   "choices": [
+    "Howard and Spelman",
+    "Howard and Meharry",
+    "Tuskegee and Morehouse",
+    "Hopkins and Meharry"
+   ]
+  },
+  {
+   "id": "med-history.l11.q3",
+   "lessonId": "med-history.l11",
+   "kind": "mcq",
+   "prompt": "The FDA's 1977 guideline recommending exclusion of women of childbearing potential from early drug trials had which consequence?",
+   "choices": [
+    "Drug trials were suspended in the United States until a new law could be passed",
+    "Pregnant women became the main group tested for the safety of new drugs",
+    "Dosing and side effects were studied mostly in men, which left gaps in evidence for women",
+    "More women than men were enrolled in the trials, which left large gaps in the evidence for men"
+   ]
+  },
+  {
+   "id": "med-history.l11.q4",
+   "lessonId": "med-history.l11",
+   "kind": "mcq",
+   "prompt": "A historian is asked to evaluate J. Marion Sims's fistula repair. Which approach is most consistent with the lesson?",
+   "choices": [
+    "Ignore the question of consent entirely, since the surgery was successful in the end for the women",
+    "Dismiss all of his surgical work as worthless, because it was done on patients who were unwilling",
+    "Claim that the women were free volunteers who had agreed to every one of the operations",
+    "Acknowledge the surgical advance while recognizing that the enslaved women could not give consent"
+   ]
+  },
+  {
+   "id": "med-history.l11.q5",
+   "lessonId": "med-history.l11",
+   "kind": "mcq",
+   "prompt": "Why does the history of who was excluded from medical schools and research matter to medical knowledge?",
+   "choices": [
+    "It shapes who practices, what questions are asked, and whom the evidence describes",
+    "It shows that practitioners from the excluded groups made no discoveries of any kind in this period",
+    "It proves that exclusion had no effect on the quality of the care that was given",
+    "It shows that research methods were the same for all populations in all periods"
+   ]
+  },
+  {
+   "id": "med-history.l12.q1",
+   "lessonId": "med-history.l12",
+   "kind": "mcq",
+   "prompt": "What did the 1964 US Surgeon General's report conclude?",
+   "choices": [
+    "Smoking is safe in moderation for most healthy adults",
+    "Lung cancer is caused mainly by air pollution in large cities",
+    "Tobacco should be banned from sale throughout the United States",
+    "Smoking causes lung cancer in men and is a health hazard"
+   ]
+  },
+  {
+   "id": "med-history.l12.q2",
+   "lessonId": "med-history.l12",
+   "kind": "mcq",
+   "prompt": "Joseph Bazalgette is associated with which public health achievement?",
+   "choices": [
+    "The map of cholera deaths in Soho that identified a contaminated pump",
+    "The 1842 report that linked poor housing and filth to ill health",
+    "A large sewer network for London after the Great Stink of 1858",
+    "The first chlorination of drinking water in a city of the United States"
+   ]
+  },
+  {
+   "id": "med-history.l12.q3",
+   "lessonId": "med-history.l12",
+   "kind": "mcq",
+   "prompt": "Oral rehydration therapy is a public health milestone because it:",
+   "choices": [
+    "requires that patients be given intravenous fluids in a hospital with equipment",
+    "treats dehydration from diarrhea with a simple solution of salts and sugar at low cost",
+    "prevents diarrhea by killing all of the bacteria that live in the drinking water supplies of a town",
+    "replaces vaccination as the main way to control cholera in poor countries"
+   ]
+  },
+  {
+   "id": "med-history.l12.q4",
+   "lessonId": "med-history.l12",
+   "kind": "mcq",
+   "prompt": "A student argues that vaccines and antibiotics alone explain the fall in deaths from infectious diseases in the early twentieth century. What is the best reply from the lesson?",
+   "choices": [
+    "Many declines began earlier, so sanitation, nutrition and housing clearly mattered, though credit is debated",
+    "Vaccines and antibiotics were responsible for every decline, and sanitation and nutrition had no effect at all",
+    "No decline occurred before 1950, so the argument cannot be assessed on the evidence given",
+    "Only chlorination of water mattered, and nothing else contributed to the decline in disease"
+   ]
+  },
+  {
+   "id": "med-history.l12.q5",
+   "lessonId": "med-history.l12",
+   "kind": "mcq",
+   "prompt": "Why do historians point to the Doll and Hill study of 1950 in the history of tobacco?",
+   "choices": [
+    "It was the first clinical trial in which smokers were assigned at random to quit or to carry on smoking",
+    "It proved that lung cancer was an infectious disease that could spread between people",
+    "It showed that smoking was harmless as long as the smoker did not inhale deeply",
+    "It was among the studies linking smoking to lung cancer that helped establish the causal connection"
+   ]
+  },
+  {
+   "id": "med-history.l13.q1",
+   "lessonId": "med-history.l13",
+   "kind": "mcq",
+   "prompt": "Why is the 1918 influenza pandemic often called the Spanish flu?",
+   "choices": [
+    "Spanish doctors discovered the virus and published the first description of the disease in print",
+    "The pandemic spread only in Spain and in the countries that Spain had colonized",
+    "Neutral Spain's press reported on it freely, although the disease did not necessarily begin there",
+    "The first cases were clearly identified in Madrid before the disease reached any other country"
+   ]
+  },
+  {
+   "id": "med-history.l13.q2",
+   "lessonId": "med-history.l13",
+   "kind": "mcq",
+   "prompt": "Which treatment transformed HIV infection into a manageable chronic condition from the mid 1990s?",
+   "choices": [
+    "A single dose of penicillin",
+    "The oral polio vaccine",
+    "Streptomycin given with rest",
+    "Combination antiretroviral therapy"
+   ]
+  },
+  {
+   "id": "med-history.l13.q3",
+   "lessonId": "med-history.l13",
+   "kind": "mcq",
+   "prompt": "What was unusual about the mortality pattern of the 1918 influenza?",
+   "choices": [
+    "Many deaths occurred among healthy young adults, often involving secondary bacterial pneumonia",
+    "Almost all of the deaths occurred among the elderly, as in a typical seasonal influenza in that period",
+    "Deaths occurred only in the army camps, and the civilian populations were spared",
+    "Deaths were rare in all age groups, and the pandemic was mainly a minor one"
+   ]
+  },
+  {
+   "id": "med-history.l13.q4",
+   "lessonId": "med-history.l13",
+   "kind": "mcq",
+   "prompt": "A city in 1918 closed schools and public gatherings early and maintained the measures for several weeks. A later analysis finds its death rate was lower than in a city that waited. Which conclusion is best supported, with appropriate caution?",
+   "choices": [
+    "Antibiotics were responsible, since the city had given penicillin to all of the sick patients",
+    "Early, sustained non-pharmaceutical measures were associated with better outcomes, although many other factors differed",
+    "Closing public places has been proven to have no effect on the spread of any respiratory virus",
+    "The city must have had a vaccine for influenza that was not available to the other city"
+   ]
+  },
+  {
+   "id": "med-history.l13.q5",
+   "lessonId": "med-history.l13",
+   "kind": "mcq",
+   "prompt": "During the early AIDS epidemic, activist groups pressed for changes in research. What was a lasting effect of this activism?",
+   "choices": [
+    "The end of the need for informed consent in studies of treatments for the disease",
+    "A rule that new drugs be tested only on animals before they are made available to patients",
+    "Greater patient involvement in drug testing and faster access to promising treatments",
+    "A ban on the use of any randomized controlled trials in the study of new treatments for HIV infections"
+   ]
+  },
+  {
+   "id": "med-history.l14.q1",
+   "lessonId": "med-history.l14",
+   "kind": "mcq",
+   "prompt": "What did the Human Genome Project produce?",
+   "choices": [
+    "A vaccine against the cancers that are linked to genetic mutations",
+    "A reference sequence of the human genome, declared complete in 2003",
+    "A cure for the inherited diseases that are caused by a single gene, which was found at once",
+    "A map of the brain that showed the function of each neuron"
+   ]
+  },
+  {
+   "id": "med-history.l14.q2",
+   "lessonId": "med-history.l14",
+   "kind": "mcq",
+   "prompt": "Imatinib is a landmark example of precision medicine because it:",
+   "choices": [
+    "targets the abnormal protein produced by the BCR-ABL gene fusion in chronic myeloid leukemia",
+    "treats all cancers by killing any cell that divides quickly in the body of a patient, whatever its mutation",
+    "prevents inherited disease by editing the DNA in an embryo before it is implanted",
+    "predicts which patients will develop leukemia by sequencing the genome at birth"
+   ]
+  },
+  {
+   "id": "med-history.l14.q3",
+   "lessonId": "med-history.l14",
+   "kind": "mcq",
+   "prompt": "Why do polygenic risk scores remain imperfect predictors?",
+   "choices": [
+    "They rely on a single gene for each condition, which makes them far too simple to be of any use in practice",
+    "They are calculated only from family history and never use any information about the DNA",
+    "They have been shown to be perfectly accurate for all groups but are not used by physicians",
+    "They add many small effects, and they perform less well in groups that were underrepresented in the studies"
+   ]
+  },
+  {
+   "id": "med-history.l14.q4",
+   "lessonId": "med-history.l14",
+   "kind": "mcq",
+   "prompt": "Jesse Gelsinger died in 1999 during a gene therapy trial. Which was the main consequence for the field?",
+   "choices": [
+    "A requirement that all gene therapies be tested first in healthy children before adults",
+    "A finding that the disease he had could never be treated by any form of gene therapy",
+    "Tighter oversight, with more attention to conflicts of interest and to the risks of viral vectors",
+    "A permanent end to all research on gene therapy in the United States and in the countries of Europe"
+   ]
+  },
+  {
+   "id": "med-history.l14.q5",
+   "lessonId": "med-history.l14",
+   "kind": "mcq",
+   "prompt": "A hospital plans to use a polygenic score developed mainly from data on people of European ancestry to counsel patients of other ancestries. Which concern is most consistent with the lesson?",
+   "choices": [
+    "The score is accurate for all groups, so no concern about it is justified at all",
+    "The score may be less accurate for groups that were underrepresented in the data, widening inequities",
+    "The score is illegal to use on any person who does not have European ancestry anywhere in the family",
+    "The score cannot be calculated for a person who has had a prior genome sequenced"
+   ]
+  },
+  {
+   "id": "med-history.l15.q1",
+   "lessonId": "med-history.l15",
+   "kind": "mcq",
+   "prompt": "Frances Kelsey is remembered because, as an FDA reviewer, she:",
+   "choices": [
+    "withheld approval of thalidomide, so the United States was largely spared the birth defects",
+    "discovered that thalidomide caused birth defects by examining the affected infants born in Europe",
+    "invented the oral rehydration solution that is used to treat dehydration from diarrhea",
+    "led the randomized trial that showed hormone therapy increases the risk of cancer"
+   ]
+  },
+  {
+   "id": "med-history.l15.q2",
+   "lessonId": "med-history.l15",
+   "kind": "mcq",
+   "prompt": "The Kefauver-Harris Amendments of 1962 required that new drugs be shown to be:",
+   "choices": [
+    "tested only on animals",
+    "effective as well as safe",
+    "cheap as well as common",
+    "sold only by prescription"
+   ]
+  },
+  {
+   "id": "med-history.l15.q3",
+   "lessonId": "med-history.l15",
+   "kind": "mcq",
+   "prompt": "Why did observational studies mislead physicians about hormone therapy after menopause?",
+   "choices": [
+    "Randomized trials are known to be less reliable than the observations of experienced doctors",
+    "Hormone therapy was found to be harmful in every observational study that was ever done",
+    "Women who chose the therapy differed in other ways that affected their health, which randomized trials avoid",
+    "The observational studies were too small to show any difference at all between the groups of women"
+   ]
+  },
+  {
+   "id": "med-history.l15.q4",
+   "lessonId": "med-history.l15",
+   "kind": "mcq",
+   "prompt": "A treatment is widely used because many clinicians report that patients improve afterward. Pierre Louis's work on bloodletting suggests which first step?",
+   "choices": [
+    "Rely on the experience of senior doctors, since they have seen the most cases",
+    "Assume that patients who improve did so because of the treatment itself",
+    "Wait for the treatment to be withdrawn before any evidence is gathered at all",
+    "Compare outcomes in similar patients who do and do not receive the treatment"
+   ]
+  },
+  {
+   "id": "med-history.l15.q5",
+   "lessonId": "med-history.l15",
+   "kind": "mcq",
+   "prompt": "The story of Marshall, Warren and Helicobacter pylori is included to show that:",
+   "choices": [
+    "a dismissed idea can turn out to be correct, so openness must be paired with strong evidence",
+    "every new idea that is rejected by experts will eventually be proven correct in the end by someone",
+    "the stress and acid theory of ulcers was supported by the best randomized trials",
+    "self-experimentation is the preferred way to establish the safety of new treatments"
+   ]
+  }
+ ]
+}

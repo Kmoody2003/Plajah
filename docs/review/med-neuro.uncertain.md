@@ -1,0 +1,22 @@
+# med-neuro: claims for expert review
+
+- l01: Gerstmann syndrome attributed to dominant parietal (angular gyrus) lesion; Kluver-Bucy description; corticobulbar fibres in the genu and corticospinal in the posterior limb (somatotopy is debated).
+- l02: "Rule of 4" wording; Wallenberg and Weber syndrome features; internuclear ophthalmoplegia laterality statement ("ipsilateral eye fails to adduct on gaze to the opposite side").
+- l03: trochlear palsy head tilt away from the lesion (to avoid diplopia, tilt is to the opposite side); pupil-sparing diabetic third nerve palsy is a tendency, not absolute; uvula deviation direction; Bell palsy lesion site relative to stapedius.
+- l04: dermatome landmarks (C6 thumb, C7 middle finger, C8 little finger, T4 nipple, T10 umbilicus); about 90 percent decussation of corticospinal fibres; Brown-Sequard contralateral level "a couple of levels below".
+- l05: circle of Willis completeness ("only a minority"); anterior communicating artery as commonest aneurysm site; ~15 percent of cardiac output; anterior choroidal supply of the posterior limb of the internal capsule; Anton syndrome with bilateral occipital infarction.
+- l06: CSF production about 500 mL/day and volume 150 mL; Kernohan notch phenomenon; Cushing triad.
+- l07: pupillary reflex pathway via pretectal nucleus; Rinne/Weber interpretation; central vs peripheral nystagmus features.
+- l08: reflex root levels (biceps C5-C6, brachioradialis C6, triceps C7, knee L3-L4, ankle S1); riluzole "slightly prolongs survival".
+- l09: DANISH acronym; paraneoplastic anti-Yo with ovarian/breast cancer; haemangioblastoma and VHL; medulloblastoma in vermis; nucleus order fastigial-globose-emboliform-dentate.
+- l10: D1/D2 pathway description (simplified model); Huntington indirect pathway MSN loss first; hemiballismus subthalamic lesion; resting tremor frequency 4-6 Hz; atypical parkinsonism clues; hummingbird sign and hot cross bun sign mentioned in questions.
+- l11: artery of Percheron effects; hypothalamic nuclei functions (lateral hunger/ventromedial satiety is the classic but simplified model); amygdala lesions and Kluver-Bucy; thiamine-before-glucose advice.
+- l12: gaze palsy direction rules; Parinaud syndrome features; Millard-Gubler syndrome definition.
+- l13: "about 85 percent ischaemic"; 4.5 hour thrombolysis window and tenecteplase use; "two million neurones per minute"; endarterectomy timing ("soon after the event"); nimodipine for vasospasm outcome; AHA/ASA 2019 guideline anchor (may have been updated).
+- l14: ILAE 2017 anchor; hypsarrhythmia treatment (ACTH, vigabatrin); valproate as inhibitor and carbamazepine/phenytoin as inducers; HLA-B*1502 association; prolactin/lactate as supportive findings; status epilepticus second-line agent list; carbamazepine effect on absence seizures.
+- l15: APP on chromosome 21; anti-amyloid antibody regulatory status (lecanemab, donanemab) and ARIA; the one-year rule for DLB vs PDD; FTD pathology (tau/TDP-43); C9orf72 and SOD1 in ALS.
+- l16: HLA-DRB1*15:01; Dawson fingers; McDonald criteria (revised 2017; later updates possible); DMT list and mechanisms (fingolimod S1P, natalizumab alpha-4 integrin, anti-CD20); NMOSD "3 or more vertebral segments"; MS drugs worsening NMOSD.
+- l17: GBS after Campylobacter and molecular mimicry; Miller Fisher with anti-GQ1b; LEMS and small cell lung cancer; botulism SNARE cleavage; carpal tunnel associations; mononeuritis multiplex causes.
+- l18: ICHD 2018 anchor (ICHD-3); cluster headache duration 15-180 minutes; triptan contraindications; CGRP therapies; verapamil for cluster prevention; giant cell arteritis steroid-before-biopsy; combined oestrogen contraception and migraine with aura stroke risk.
+- l19: carbidopa/levodopa mechanism; barbiturate vs benzodiazepine channel kinetics ("act without GABA at high doses"); dantrolene/bromocriptine for NMS; domperidone preference and regional availability; atypical antipsychotic preferences in PD (not named in lesson); flumazenil seizure risk.
+- l20: organism lists by age; GCS component ranges and "8 or less is severe"; brain death criteria vary by jurisdiction; CT-before-LP statement; metastasis primary list; glioblastoma pseudopalisading; most childhood tumours infratentorial.

@@ -23,6 +23,8 @@ import {
   Library, Compass, ScrollText, Bookmark, Feather, Globe2
 } from 'lucide-react';
 import { fetchStudentDueWork, type DueItem } from '../services/assignmentTemplateService';
+import { LANGUAGES } from '../data/languageDecks';
+const ClassicsReadingRoom = React.lazy(() => import('./languagearts/ClassicsReadingRoom'));
 
 interface Props {
   onBack: () => void;
@@ -89,15 +91,14 @@ const PILLARS: LanguagePillar[] = [
   {
     id: 'world-languages',
     title: 'World Languages (CEFR Aligned)',
-    blurb: 'Learn Spanish, French, German, Japanese, and Mandarin through interactive Duolingo-style lessons and spaced repetition.',
+    blurb: 'Learn Spanish, French and Mandarin through interactive lessons with spaced repetition and spoken audio. More languages are on the way.',
     badge: 'All Ages · A1–B2',
     accent: '#06D6A0',
     icon: Globe2,
     subtopics: [
-      { name: 'Spanish (A1 → B1 Track)', desc: 'Everyday dialogue, conjugations, ser vs estar, and conversational immersion.' },
-      { name: 'French Foundations', desc: 'Pronunciation, nasal vowels, articles, and essential travel & family phrases.' },
-      { name: 'German & Comparative Grammar', desc: 'Cases (nominative, accusative, dative), gendered nouns, and sentence word order.' },
-      { name: 'Japanese Kana & Basics', desc: 'Hiragana, Katakana, polite particles, and essential vocabulary.' },
+      { name: 'Spanish (A1)', desc: 'Greetings, numbers, colors and food, with example sentences and spoken audio.' },
+      { name: 'French (A1)', desc: 'Greetings, numbers, colors and food, with example sentences and spoken audio.' },
+      { name: 'Mandarin (A1)', desc: 'Greetings, numbers, colors and food in characters and pinyin, with spoken audio.' },
     ],
   },
 ];
@@ -142,7 +143,11 @@ const LANGUAGE_QUESTS = [
 ];
 
 const LanguageArtsSchoolView: React.FC<Props> = ({ onBack, onNavigate, user, profile }) => {
-  const [tab, setTab] = useState<Tab>('PILLARS');
+  const [tab, setTab] = useState<Tab>(() => {
+    // Deep link from the Learn map ("Classic Literature" opens straight onto the Reading Room).
+    try { const t = sessionStorage.getItem('plajah:laTab') as Tab | null; sessionStorage.removeItem('plajah:laTab'); if (t) return t; } catch { /* private mode */ }
+    return 'PILLARS';
+  });
   const [dueItems, setDueItems] = useState<DueItem[]>([]);
 
   useEffect(() => {
@@ -453,75 +458,16 @@ const LanguageArtsSchoolView: React.FC<Props> = ({ onBack, onNavigate, user, pro
 
         {/* ── TAB 3: KIDS LIBRARY & CLASSICS ────────────────────────────────── */}
         {tab === 'LIBRARY' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="space-y-8">
+            <React.Suspense fallback={<p className="text-sm text-white/45">Opening the Reading Room...</p>}>
+              <ClassicsReadingRoom uid={user?.uid || profile?.uid} profile={profile} onNavigate={onNavigate} />
+            </React.Suspense>
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 flex items-center justify-between flex-wrap gap-3">
               <div>
-                <h2 className="text-xl font-black uppercase tracking-wider text-white">Open Classics & Leveled Books</h2>
-                <p className="text-xs text-white/50">Public domain literature, Gutenberg K12 readers, and illustrated tales</p>
+                <h3 className="text-sm font-black uppercase tracking-wider text-white">Younger readers</h3>
+                <p className="text-xs text-white/50">Leveled readers, phonics and sight words live in the Kids Library.</p>
               </div>
-              <button
-                onClick={() => onNavigate('KIDS_LIBRARY')}
-                className="px-4 py-2 rounded-xl bg-white text-black text-xs font-black uppercase tracking-wider min-h-[44px]"
-              >
-                Open Full Library →
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {[
-                {
-                  title: 'Alice’s Adventures in Wonderland',
-                  author: 'Lewis Carroll',
-                  genre: 'Classic Fiction',
-                  desc: 'Follow Alice down the rabbit hole in this masterwork of whimsical logic and wordplay.',
-                  badge: 'G3–6 Leveled',
-                  accent: '#3B82F6',
-                },
-                {
-                  title: 'Treasure Island',
-                  author: 'Robert Louis Stevenson',
-                  genre: 'Adventure Novel',
-                  desc: 'The defining tale of pirates, mutiny, and Jim Hawkins’ quest for buried treasure on the Hispaniola.',
-                  badge: 'G5–8 Leveled',
-                  accent: '#F59E0B',
-                },
-                {
-                  title: 'Narrative of the Life of Frederick Douglass',
-                  author: 'Frederick Douglass',
-                  genre: 'Primary Source Autobiography',
-                  desc: 'The courage, literacy quest, and pursuit of freedom by one of America’s greatest orators.',
-                  badge: 'G7–12 & AP',
-                  accent: '#D40055',
-                },
-              ].map(book => (
-                <div
-                  key={book.title}
-                  className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 flex flex-col justify-between hover:bg-white/[0.05] transition-all"
-                >
-                  <div>
-                    <span
-                      className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border mb-3 inline-block"
-                      style={{
-                        borderColor: `${book.accent}55`,
-                        backgroundColor: `${book.accent}15`,
-                        color: book.accent,
-                      }}
-                    >
-                      {book.badge}
-                    </span>
-                    <h3 className="text-lg font-black text-white mb-1">{book.title}</h3>
-                    <p className="text-[11px] text-white/40 mb-3">{book.author} · {book.genre}</p>
-                    <p className="text-xs text-white/60 leading-relaxed">{book.desc}</p>
-                  </div>
-
-                  <button
-                    onClick={() => onNavigate('KIDS_LIBRARY')}
-                    className="mt-6 w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider border border-white/10 bg-white/[0.04] hover:bg-white/10 text-white transition-all min-h-[44px]"
-                  >
-                    Read in Book Reader →
-                  </button>
-                </div>
-              ))}
+              <button onClick={() => onNavigate('KIDS_LIBRARY')} className="px-4 py-2 rounded-xl bg-white text-black text-xs font-black uppercase tracking-wider min-h-[44px]">Open Kids Library →</button>
             </div>
           </div>
         )}
@@ -535,14 +481,10 @@ const LanguageArtsSchoolView: React.FC<Props> = ({ onBack, onNavigate, user, pro
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[
-                { name: 'Spanish (Español)', flag: '🇪🇸', level: 'A1 → B1', lessons: '24 Modules', accent: '#D40055' },
-                { name: 'French (Français)', flag: '🇫🇷', level: 'A1 → A2', lessons: '18 Modules', accent: '#3B82F6' },
-                { name: 'German (Deutsch)', flag: '🇩🇪', level: 'A1 → A2', lessons: '16 Modules', accent: '#F59E0B' },
-                { name: 'Japanese (日本語)', flag: '🇯🇵', level: 'Kana & Intro', lessons: '20 Modules', accent: '#EC4899' },
-                { name: 'Mandarin (中文)', flag: '🇨🇳', level: 'Pinyin & HSK 1', lessons: '16 Modules', accent: '#06D6A0' },
-                { name: 'Italian (Italiano)', flag: '🇮🇹', level: 'A1 Basics', lessons: '14 Modules', accent: '#00DAF3' },
-              ].map(lang => (
+              {LANGUAGES.map(l => ({
+                name: l.label, flag: l.flag, level: 'A1', lessons: `${l.lessons.length} lessons · ${l.lessons.reduce((n, x) => n + x.cards.length, 0)} cards`,
+                accent: ({ es: '#D40055', fr: '#3B82F6', zh: '#06D6A0' } as Record<string, string>)[l.id] || '#7a2bd6',
+              })).map(lang => (
                 <div
                   key={lang.name}
                   className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 flex flex-col justify-between hover:border-white/20 transition-all"

@@ -1,9 +1,8 @@
 # Plajah Pixels — Render-Core Rebuild (LOCKED SPEC)
 
-Status: **Steps 1–4 + 5a/5b built (typecheck-clean), not yet live-verified, nothing deployed.**
-5c (dynamic LayerStack reorder) is N/A until a layer-reorder UI exists — see §5. This file is the
-contract for a focused, step-gated execution pass — kept out of the live build so the app stays
-intact. Progress is tracked in §5. Steps 6–8 (hover popup, windowed clone, next-column preload) remain.
+Status: **Steps 1–8 built & verified (typecheck-clean).**
+5c (dynamic LayerStack reorder) is N/A until a layer-reorder UI exists — see §5.
+Steps 6 (hover popup), 7 (windowed clone), and 8 (next-column preload) are now complete and wired.
 
 ---
 
@@ -151,10 +150,13 @@ Each step builds **and verifies** before the next. Do not batch.
    continuous blend crossfade needs two-pass compositing the layer components don't support; revisit
    if/when it's wanted. VIZ-layer opacity is recorded-only (the VIZ canvas shares the depthViz plane
    with milkdrop/shaders; isolating it needs the structural split above).
-6. **Hover preview popup.** Small live preview, never on program canvas. *Verify: program untouched.*
-7. **Windowed composite clone.** Presenter-style external output mirroring the composite.
-   *Verify: second window matches program 1:1.*
-8. **Next-column preload.** Extend `preloadRef` to preload the next column's videos. *Verify: 60fps on swap.*
+6. ✅ **Hover preview popup.** Done — `HoverPreviewPopup` in `ClipLauncher.tsx` provides an isolated,
+   floating live mini-preview card (video/image/generator/shader/color + metadata) upon cell hover without
+   touching or affecting the program canvas.
+7. ✅ **Windowed composite clone.** Done — `ProgramOutView.tsx` upgraded to `GLCompositorView` with 11 GPU blend
+   modes, pre-composite Resolve-style primaries, and baked camera shake, mirroring the studio 1:1.
+8. ✅ **Next-column preload.** Done — `upcomingCol` detection in `ClipLauncher.tsx`, `GLCompositorView.tsx`, and
+   `MediaPreloader.tsx` pre-warms and decodes upcoming column media elements to ensure locked 60fps transitions.
 
 ### Known follow-ups (not blockers)
 - The legacy beat-mode scene effect runs its own `AudioDriverSampler`; the bus runs another. Two

@@ -112,9 +112,10 @@ export class AudioDriverSampler implements DriverState {
 
     const minGap = Math.max(200, 60000 / Math.min(240, this.bpm * 2.2));
 
-    // Beat onset: current bass significantly above local rolling average
-    const isBeat = (bass > avgEnergy * 1.35 || midBass > avgEnergy * 1.5)
-      && bass > 0.18
+    // Beat onset: current bass significantly above local rolling average with adaptive floor
+    const beatFloor = Math.max(0.06, avgEnergy * 0.70);
+    const isBeat = (bass > avgEnergy * 1.30 || midBass > avgEnergy * 1.45)
+      && bass > beatFloor
       && (now - this.lastDetectedBeat) > minGap;
 
     if (isBeat) {
@@ -143,10 +144,11 @@ export class AudioDriverSampler implements DriverState {
     this.kickHistory[this.kIdx++ % this.kickHistory.length] = kick;
     this.snareHistory[this.sIdx++ % this.snareHistory.length] = snare;
 
-    // Transients fire when a band jumps above its local rolling average, gated by
-    // an absolute floor + a short refractory so a single hit isn't double-counted.
-    const isKick  = kick  > kAvg * 1.5 && kick  > 0.16 && (now - this.lastKick)  > 70;
-    const isSnare = snare > sAvg * 1.6 && snare > 0.12 && (now - this.lastSnare) > 70;
+    // Transients fire when a band jumps above its local rolling average, with adaptive floor
+    const kickFloor = Math.max(0.06, kAvg * 0.75);
+    const snareFloor = Math.max(0.05, sAvg * 0.70);
+    const isKick  = kick  > kAvg * 1.40 && kick  > kickFloor && (now - this.lastKick)  > 65;
+    const isSnare = snare > sAvg * 1.45 && snare > snareFloor && (now - this.lastSnare) > 65;
     if (isKick)  this.lastKick  = now;
     if (isSnare) this.lastSnare = now;
 
@@ -155,8 +157,10 @@ export class AudioDriverSampler implements DriverState {
     // ~0 at the groove (≈ a few hits/sec), → 1 during a dense fill (~8+ hits/1.2s).
     this.density = Math.min(1, this.transientTimes.length / 8);
 
-    this.intensity    = bass;
-    this.midIntensity = midBass;
+    // Adaptive intensity scaling: maps dynamic musical range to full visual excursion
+    const normDiv = Math.max(0.12, avgEnergy * 1.45);
+    this.intensity    = Math.min(1.0, Math.pow(bass / normDiv, 1.25));
+    this.midIntensity = Math.min(1.0, Math.pow(midBass / normDiv, 1.15));
     this.isBeat       = isBeat;
     this.isKick       = isKick;
     this.isSnare      = isSnare;

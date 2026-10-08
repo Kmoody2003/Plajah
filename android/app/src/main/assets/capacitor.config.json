@@ -1,7 +1,7 @@
 {
 	"appId": "com.plajah.app",
 	"appName": "Plajah",
-	"webDir": "dist",
+	"webDir": "cap-shell",
 	"android": {
 		"appendUserAgent": "Plajah/2.0 Android",
 		"allowMixedContent": false,
@@ -33,6 +33,7 @@
 	},
 	"server": {
 		"url": "https://plajah.com",
+		"errorPath": "offline.html",
 		"cleartext": false,
 		"androidScheme": "https",
 		"hostname": "plajah.app",

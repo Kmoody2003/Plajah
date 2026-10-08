@@ -18,6 +18,20 @@ import { readFileSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { buildProgramGuide, buildXmltv, buildMrss, nowAndNext, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
 import { slotDurationSec } from './services/fastChannelTimeline';
+import { resolveLine as resolveInventoryLine, planDecrement as planDecrementInventory, variantStockSeed as variantStockSeedInventory, isTracked as isTrackedInventory, isSafeVariantId as isSafeVariantIdInventory } from './services/inventoryCore';
+import { computeTax, parseTaxSettings, normalizeTaxClass, type TaxSettings } from './services/taxCore';
+import { validateTenders, sanitizeTip, parseTenders, tenderLabel, isStoredValueTender, type Tender } from './services/tenderCore';
+import { refundNeedsManager, restockMoveId, REFUND_REASONS, commitRefund, planFromOrderDoc, refundLogOf, orderLinesFromDoc, clawbackPoints, applyClawback, type RefundMethod, type RefundReason } from './services/refundCore';
+import { casUpdate, type CasStore } from './services/casCore';
+import { applyOp, generateCode, formatCode, last4Of, normalizeCode, ledgerEntryId, cleanIdem, rateCheck, sanitizeIssueAmount, buildLiabilityReport, searchCards, giftCardEmailText, isExpired as svIsExpired, DEFAULT_LIMITS as SV_DEFAULT, type CardKind, type LedgerOp, type OpResult, type RateState, type StoredValueLimits } from './services/storedValueCore';
+import { bestOffer, type BusinessOffer } from './services/offersCore';
+import { buildZReport, sanitizeMovement, normalizeOrder as normalizeOrderZ, normalizeRefund as normalizeRefundZ, type DrawerMovement, type ZReport } from './services/drawerCore';
+import { registerPermissionsFor, isValidPin, isValidNewPin, composeDiscounts, DEFAULT_DISCOUNT_LIMIT_PCT, canApprove, recordAttempt, isLocked, type RegisterPermission, type AttemptState } from './services/registerAuthCore';
+import { hashPin, verifyPin, signSession, verifySession, SESSION_TTL_MS } from './services/registerAuthServer';
+import { registerTicketRoutes, ticketSaleHooks } from './services/ticketServer';
+import { registerLaundryRoutes, loadWalletPromo } from './services/laundryServer';
+import { computeTopUpBonus, bonusIdemKey } from './services/walletPromoCore';
+import { registerAutoRoutes } from './services/autoServer';
 import { buildLinearMediaPlaylist, currentProgrammeMasterUrl, buildM3uLineup, type M3uChannel } from './services/fastChannelHls';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -33,15 +47,27 @@ import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
+import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
+import { decideVerifiedAgentTier, type VerifiedAgentTier, type VerifiedFacts } from './services/aria/ariaTier';
+import { isVerifiedAdmin } from './services/platformAdmin';
+import { socialServerRouter } from './routes/socialServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { authMethodsRouter } from './routes/authMethods';
+import { fseGamesRouter } from './routes/fseGames';
+import { threatProtectionRouter } from './routes/threatProtection';
+import { homeDiscoveryRouter } from './routes/homeDiscovery';
+import { matterRouter } from './routes/matterRoutes';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 // Fabula generation agent — server-side only (these carry the user's provider API key).
 import {
   submitMagnific as magnificSubmit, pollMagnific as magnificPoll, verifyMagnificKey,
   opForInput as magnificOpFor, mysticAspect as magnificAspect, fetchAsBase64,
 } from './services/fabula/magnificApi';
+import {
+  submitRunway as runwaySubmit, pollRunway as runwayPoll, verifyRunwayKey,
+  opForRunwayInput as runwayOpFor, runwayAspect,
+} from './services/fabula/runwayApi';
 import {
   saveKey as genVaultSaveKey, readKey as genVaultReadKey, revokeKey as genVaultRevokeKey,
   listLinked as genVaultListLinked, type VaultStore as GenVaultStore,
@@ -58,6 +84,23 @@ import {
   runChoraTranscodeWorker, startChoraTranscodeScheduler, PROCESSING_STALE_MS,
   type ChoraTranscodeDeps, type TrackCandidate as ChoraTrackCandidate,
 } from './services/choraTranscodeWorker.js';
+import {
+  type ChoraVoiceTrack,
+  handleAlexaRequest,
+  searchChora,
+  getChoraTrackByToken,
+  verifyAlexaSignature,
+} from './services/alexaService.js';
+import { handleGoogleActionRequest } from './services/googleHomeService.js';
+import { handleBixbyRequest } from './services/bixbyService.js';
+import {
+  DEFAULT_CHART, sysAccountsOf, accountDocId, journalDocId, payoutDocId, payoutLineDocId, onlineGiftDocId,
+  onlineGiftEntry, feeEntry, refundEntry, disputeFeeEntry, payoutEntry,
+  type DraftJournal, type SysAccounts,
+} from './services/acctPosting';
+import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './services/giftFees';
+import { createBilling } from './routes/billing';
+import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -356,10 +399,9 @@ const cxRand = () => `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 // Free-tier conversion cap (admins/staff unlimited). Plajah+ unlimited is a
 // future step — add the plan check here AND in services/crossoverUsage.ts together.
 const CX_FREE_LIMIT = 3;
-async function cxUsage(uid: string): Promise<{ isAdmin: boolean; used: number }> {
+async function cxUsage(uid: string, isAdmin: boolean): Promise<{ isAdmin: boolean; used: number }> {
   const u = await firestoreRead('users', uid);
-  const role = u?.role;
-  const isAdmin = role === 'admin' || role === 'staff';
+  // `isAdmin` comes from isPlatformAdminReq (verified), never from the editable profile role.
   return { isAdmin, used: Number(u?.crossoverConversions || 0) };
 }
 
@@ -455,7 +497,7 @@ async function ensureDefaultCard(objectPath: string): Promise<{ buf: Buffer | nu
 /** Resolve the best cover/thumbnail URL for a shareable asset (by type/id, optional track). */
 async function resolveShareCover(type: string, id: string, track?: string): Promise<string> {
   const collectionFor: Record<string, string> = {
-    video: 'videos', album: 'albums', track: 'albums', book: 'albums', movie: 'albums',
+    video: 'videos', album: 'albums', track: 'albums', book: 'albums', movie: 'albums', mix: 'albums',
     article: 'articles', game: 'games', videoPlaylist: 'video_playlists',
   };
   const collection = collectionFor[type];
@@ -809,6 +851,16 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
          const ff: any = dd?.fields || {};
          const p = (keys: string[]): string => { for (const k of keys) { const v = ff?.[k]?.stringValue; if (v) return v; } return ''; };
          name = p(['artistName', 'displayName', 'name', 'username', 'handle']) || 'A live channel';
+         // The specific channel being shared beats the account name: an owner with several channels
+         // (N.1, N.2) names each one, and the link must say which one it opens.
+         const sharedSource = String((query as any).source || '');
+         if (sharedSource) {
+           const fc = await fetchFirebaseDoc('fast_channels', ownerId).catch(() => null);
+           const ffc: any = fc?.fields || {};
+           const subName = ffc?.subNames?.mapValue?.fields?.[sharedSource]?.stringValue;
+           const fastName = sharedSource === `fast_${ownerId}` ? ffc?.name?.stringValue : '';
+           name = subName || fastName || name;
+         }
          desc = `${name} is live on Plajah${num ? ` — channel ${num}` : ''}. Tune in now.`;
        } else {
          const key = rawId.replace(/^plajah:/, '');
@@ -843,7 +895,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
 
    // Every shareable asset type → its Firestore collection. Books/songs live in `albums`.
    const collectionFor: Record<string, string> = {
-     video: 'videos', album: 'albums', track: 'albums', book: 'albums',
+     video: 'videos', reello: 'videos', album: 'albums', track: 'albums', book: 'albums',
      movie: 'albums',
      article: 'articles', game: 'games', feed: 'global_posts', post: 'global_posts',
      videoPlaylist: 'video_playlists',
@@ -886,7 +938,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        const ta = tf?.artist?.stringValue;
        if (ta && !isPlaceholderArtist(ta)) artist = ta; // only a real track artist wins
      } else {
-       const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
+       const fallback = type === 'mix' ? 'Mix' : type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
        title = pick(['title', 'name']) || fallback;
      }
      // Still missing or a placeholder → fall back to the album owner's display name.
@@ -914,19 +966,19 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        desc = `Playlist · ${count} video${count === 1 ? '' : 's'} on Plajah`;
      } else if (artist) {
        // The requested share body: creator-forward, drives back to the app.
-       desc = `Check out ${title} by ${artist} on Plajah.com`;
+       desc = `Check out ${title} by ${artist} on Plajah`;
      } else {
        // No resolvable artist — keep the same on-brand copy, just without the "by".
-       desc = `Check out ${title} on Plajah.com`;
+       desc = `Check out ${title} on Plajah`;
      }
      // Only audio/video get an inline player card; the rest use a large-image card.
-     if (!(type === 'video' || type === 'album' || type === 'track')) playerUrl = '';
+     if (!(type === 'video' || type === 'reello' || type === 'album' || type === 'track' || type === 'mix')) playerUrl = '';
    }
 
    // Route the cover through /social-image so the crawler always gets a Meta-safe
    // (<8 MB, correctly-dimensioned 1200×630) JPEG. Raw covers are 20–30 MB PNGs that
    // Facebook silently drops — the #1 reason album art wasn't previewing.
-   const resizable = new Set(['album', 'track', 'video', 'movie', 'book', 'game', 'article', 'videoPlaylist']);
+   const resizable = new Set(['album', 'track', 'video', 'reello', 'movie', 'book', 'game', 'article', 'videoPlaylist', 'mix']);
    const cardImage = (image && resizable.has(String(type)))
      ? `https://${host}/social-image?type=${encodeURIComponent(String(type))}&id=${encodeURIComponent(String(id))}${track ? `&track=${encodeURIComponent(String(track))}` : ''}`
      : image;
@@ -955,7 +1007,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    // LinkedIn still get an inline player from the og:video set below (now that /embed is
    // reachable + framable + resolves Mux). Always a large-image card on X.
    metaTags += `\n    <meta name="twitter:card" content="summary_large_image" />`;
-   const isMusic = (type === 'album' || type === 'track');
+   const isMusic = (type === 'album' || type === 'track' || type === 'mix');
    if (isMusic) {
      // Music → a real cover+audio MP4 (og:video:type=video/mp4) so it plays INLINE on
      // Facebook/Instagram, which don't autoplay HTML/audio players. Square 720×720.
@@ -1035,7 +1087,18 @@ async function secureTokenCerts(): Promise<Record<string, string>> {
 // Verify a Firebase ID token by its RS256 signature + claims — no API key needed
 // (so it survives a referrer-restricted Web API key, which rejects server-side
 // accounts:lookup). Standard checks: alg/kid, exp, iat, aud, iss, sub, signature.
-async function verifyIdTokenViaJwt(token: string): Promise<string | null> {
+export interface VerifiedAuthToken {
+  uid: string;
+  isAnonymous: boolean;
+  /** From the verified token itself (not the user-editable profile doc). */
+  email?: string;
+  emailVerified?: boolean;
+}
+
+// Verify a Firebase ID token by its RS256 signature + claims — no API key needed
+// (so it survives a referrer-restricted Web API key, which rejects server-side
+// accounts:lookup). Standard checks: alg/kid, exp, iat, aud, iss, sub, signature.
+async function verifyIdTokenViaJwt(token: string): Promise<VerifiedAuthToken | null> {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   let header: any, payload: any;
@@ -1056,14 +1119,16 @@ async function verifyIdTokenViaJwt(token: string): Promise<string | null> {
     const cert = certs[header.kid];
     if (!cert) return null;
     const ok = nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
-    return ok ? payload.sub : null;
+    if (!ok) return null;
+    const isAnonymous = payload.firebase?.sign_in_provider === 'anonymous';
+    return { uid: payload.sub, isAnonymous, email: typeof payload.email === 'string' ? payload.email : undefined, emailVerified: payload.email_verified === true };
   } catch (e: any) {
     console.error('[Auth] JWT signature verify error:', e.message);
     return null;
   }
 }
 
-async function verifyFirebaseToken(token: string): Promise<string | null> {
+async function verifyFirebaseToken(token: string): Promise<VerifiedAuthToken | null> {
   // Primary: Identity Toolkit lookup — works when FIREBASE_API_KEY is present and
   // NOT referrer-restricted.
   const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
@@ -1076,8 +1141,12 @@ async function verifyFirebaseToken(token: string): Promise<string | null> {
       });
       if (res.ok) {
         const data = await res.json() as any;
-        const uid = data.users?.[0]?.localId;
-        if (uid) return uid;
+        const user = data.users?.[0];
+        const uid = user?.localId;
+        if (uid) {
+          const isAnonymous = !user.providerUserInfo || user.providerUserInfo.length === 0;
+          return { uid, isAnonymous, email: typeof user.email === 'string' ? user.email : undefined, emailVerified: user.emailVerified === true };
+        }
       }
     } catch (err: any) {
       console.error('[Auth] lookup error (falling back to JWT verify):', err.message);
@@ -1091,9 +1160,103 @@ async function authMiddleware(req: any, res: any, next: any) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
   const token = auth.slice(7);
-  const uid = await verifyFirebaseToken(token);
-  if (!uid) return res.status(401).json({ error: 'Invalid token' });
-  req.uid = uid;
+  const result = await verifyFirebaseToken(token);
+  if (!result) return res.status(401).json({ error: 'Invalid token' });
+  req.uid = result.uid;
+  req.isAnonymous = result.isAnonymous;
+  req.email = result.email;
+  req.emailVerified = result.emailVerified === true;
+  next();
+}
+
+/**
+ * Gate for endpoints that cost money, mutate shared content, or trigger heavy compute.
+ * Prohibits anonymous/guest accounts to eliminate scripted token burning and bot spam.
+ */
+function requireRegisteredUser(req: any, res: any, next: any) {
+  if (req.isAnonymous) {
+    return res.status(403).json({
+      error: 'A registered account is required for this feature. Please sign in with email or OAuth.',
+      code: 'ANONYMOUS_NOT_ALLOWED'
+    });
+  }
+  next();
+}
+
+/**
+ * PLATFORM admin check (owner + staff only — never org/business admins). Uses ONLY facts a
+ * client cannot write: the verified token email and the server-only `admins/{uid}` collection.
+ * It must never read users/{uid}.role|isAdmin|email — that profile is owner-writable, so a user
+ * could simply write role:"admin" onto themselves. See services/platformAdmin.ts.
+ */
+async function isPlatformAdminReq(req: any): Promise<boolean> {
+  try {
+    return isVerifiedAdmin({
+      email: req.email, emailVerified: req.emailVerified === true,
+      isAdminDoc: !!(await fetchFirebaseDoc('admins', req.uid)),
+      extraAdminEmails: process.env.PLATFORM_ADMIN_EMAILS || process.env.ARIA_VOICE_ADMIN_EMAILS,
+    });
+  } catch { return false; }
+}
+
+/** Express gate: must follow authMiddleware. */
+async function requireVerifiedAdmin(req: any, res: any, next: any) {
+  if (!(await isPlatformAdminReq(req))) return res.status(403).json({ error: 'Platform admin access required' });
+  next();
+}
+
+// ── App Check verification ──────────────────────────────────────────────────
+let _appCheckCerts: { certs: Record<string, string>; exp: number } | null = null;
+async function appCheckCerts(): Promise<Record<string, string>> {
+  if (_appCheckCerts && Date.now() < _appCheckCerts.exp) return _appCheckCerts.certs;
+  const res = await fetch('https://firebaseappcheck.googleapis.com/v1beta/jwks', { signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new Error(`App Check JWKS HTTP ${res.status}`);
+  const data = await res.json() as { keys?: Array<{ kid: string; x5c?: string[] }> };
+  const certs: Record<string, string> = {};
+  for (const k of data.keys ?? []) {
+    if (k.kid && k.x5c?.[0]) {
+      certs[k.kid] = `-----BEGIN CERTIFICATE-----\n${k.x5c[0]}\n-----END CERTIFICATE-----\n`;
+    }
+  }
+  _appCheckCerts = { certs, exp: Date.now() + 3_600_000 };
+  return certs;
+}
+
+async function verifyAppCheckToken(token: string): Promise<boolean> {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  let header: any, payload: any;
+  try {
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  } catch { return false; }
+  if (header.alg !== 'RS256' || !header.kid) return false;
+  const now = Math.floor(Date.now() / 1000);
+  if (!(typeof payload.exp === 'number' && payload.exp > now)) return false;
+  try {
+    const certs = await appCheckCerts();
+    const cert = certs[header.kid];
+    if (!cert) return false;
+    return nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
+  } catch {
+    return false;
+  }
+}
+
+// Optional App Check: verifies if header is present, blocks if ENFORCE_APP_CHECK=true
+async function appCheckMiddleware(req: any, res: any, next: any) {
+  const token = req.headers['x-firebase-appcheck'];
+  if (process.env.ENFORCE_APP_CHECK === 'true') {
+    if (!token || typeof token !== 'string') {
+      return res.status(401).json({ error: 'App Check token required' });
+    }
+    const valid = await verifyAppCheckToken(token);
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid App Check token' });
+    }
+  } else if (token && typeof token === 'string') {
+    req.appCheckValid = await verifyAppCheckToken(token);
+  }
   next();
 }
 
@@ -1300,6 +1463,395 @@ async function firestorePatchDeep(collection: string, id: string, fieldsJs: Reco
   } catch { return false; }
 }
 
+/**
+ * Create a doc ONLY if it doesn't exist (Firestore returns 409 ALREADY_EXISTS for a POST with a taken
+ * documentId). Used as a claim/lock: whoever creates the doc owns the work, so concurrent retries of the
+ * same webhook can never both apply it.
+ */
+async function firestoreCreateOnce(collection: string, id: string, data: Record<string, any>): Promise<'created' | 'exists' | 'error'> {
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}?documentId=${encodeURIComponent(id)}`;
+  const fields: Record<string, any> = {};
+  for (const [k, v] of Object.entries(data)) if (v !== undefined) fields[k] = jsToFsValue(v);
+  try {
+    const res = await fetch(url, { method: 'POST', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields }) });
+    if (res.ok) return 'created';
+    if (res.status === 409) return 'exists';
+    console.error(`[Firestore] createOnce ${collection}/${id} failed: HTTP ${res.status}`);
+    return 'error';
+  } catch { return 'error'; }
+}
+async function firestoreDeleteDoc(collection: string, id: string): Promise<void> {
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}`;
+  try { await fetch(url, { method: 'DELETE', headers: await firestoreAuthHeaders() }); } catch { /* best-effort rollback */ }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Elevate: Stripe → ledger automation. Church money people never type a Stripe number:
+// gifts, renewals, refunds, disputes, payouts and the double-entry journals all flow from
+// webhooks (/api/stripe/webhook, /api/stripe/connect-webhook) and the pull-sync
+// (POST /api/elevate/stripe/sync). EVERY write uses the deterministic ids from
+// services/acctPosting so webhooks, retries, backfills and the client can never double-post.
+// Journals/enrichment must never throw a webhook — failures are logged and skipped.
+// ════════════════════════════════════════════════════════════════════════════
+const ELEVATE_TZ = process.env.ELEVATE_TZ || 'America/Detroit';
+const elevDate = (sec: number) => new Date(sec * 1000).toLocaleDateString('en-CA', { timeZone: ELEVATE_TZ });
+const utcDate = (sec: number) => new Date(sec * 1000).toISOString().slice(0, 10);
+const usd = (cents: number) => Math.round(cents || 0) / 100;
+const round2c = (n: number) => Math.round(n * 100) / 100;
+const deepClean = <T,>(o: T): T => JSON.parse(JSON.stringify(o));   // drops undefined (Firestore rejects it)
+const idOf = (x: any): string | undefined => (typeof x === 'string' ? x : x?.id) || undefined;
+
+const _chartCache = new Map<string, { sys: SysAccounts; exp: number }>();
+/** Seed DEFAULT_CHART into acctAccounts (deterministic ids, NEVER overwrites) and return systemKey → accountId. */
+async function ensureOrgChart(orgId: string): Promise<SysAccounts> {
+  const hit = _chartCache.get(orgId);
+  if (hit && hit.exp > Date.now()) return hit.sys;
+  const existing = await fsQueryDocs('acctAccounts', [{ field: 'orgId', op: 'EQUAL', value: orgId }], 500);
+  const haveIds = new Set(existing.map(d => d.id));
+  const haveCodes = new Set(existing.map(d => String(d.data.code)));
+  const haveKeys = new Set(existing.map(d => d.data.systemKey).filter(Boolean));
+  const accounts: Array<{ id: string; systemKey?: any }> = existing.map(d => ({ id: d.id, systemKey: d.data.systemKey }));
+  let failed = false;
+  for (const seed of DEFAULT_CHART) {
+    const id = accountDocId(orgId, seed.code);
+    if (haveIds.has(id) || haveCodes.has(seed.code) || (seed.systemKey && haveKeys.has(seed.systemKey))) continue;
+    const ok = await firestorePatchDeep('acctAccounts', id, deepClean({ ...seed, id, orgId, createdAt: Date.now() }));
+    if (ok) accounts.push({ id, systemKey: seed.systemKey }); else failed = true;
+  }
+  const sys = sysAccountsOf(accounts);
+  _chartCache.set(orgId, { sys, exp: Date.now() + (failed ? 30_000 : 10 * 60_000) });
+  return sys;
+}
+
+/** Idempotent journal write: id = journalDocId(orgId, draft.key), so a replay is a no-op. Never throws. */
+async function postJournal(orgId: string, draft: DraftJournal): Promise<string | null> {
+  try {
+    if (!draft.key || !draft.lines.length) return null;
+    const id = journalDocId(orgId, draft.key);
+    if (await firestoreRead('acctJournals', id)) return id;
+    const ok = await firestorePatchDeep('acctJournals', id, deepClean({ ...draft, id, orgId, status: 'POSTED', createdBy: 'stripe', createdAt: Date.now() }));
+    return ok ? id : null;
+  } catch (e: any) { console.error('[Elevate] journal write failed:', e?.message); return null; }
+}
+/** Build + post a journal against the org's chart (seeding it first). Never throws. */
+async function autoPost(orgId: string, make: (sys: SysAccounts) => DraftJournal): Promise<string | null> {
+  try { return await postJournal(orgId, make(await ensureOrgChart(orgId))); }
+  catch (e: any) { console.error('[Elevate] journal skipped:', e?.message); return null; }
+}
+
+/** Finance-staff gate, read server-side from the org doc (never trust the client). */
+async function assertOrgFinanceAccess(uid: string, orgId: string): Promise<{ org: Record<string, any> } | { error: string; status: number }> {
+  const org = await firestoreGetDeep('organizations', orgId);
+  if (!org) return { error: 'Organization not found', status: 404 };
+  const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
+  if (org.creatorId === uid || inList('admins') || inList('financeUids') || inList('accountingUids') || inList('pastorUids')) return { org };
+  try { if (await fetchFirebaseDoc('admins', uid)) return { org }; } catch { /* fall through */ }
+  return { error: 'Finance access required', status: 403 };
+}
+
+async function stripeStateWrite(orgId: string, patch: Record<string, any>) {
+  await firestorePatchDeep('chmsFinanceMeta', `stripe_${orgId}`, deepClean({ ...patch, id: `stripe_${orgId}`, orgId, kind: 'STRIPE_STATE', createdAt: Date.now(), createdBy: 'stripe' }));
+}
+async function orgForStripeAccount(acct: string): Promise<string | null> {
+  const r = await fsQueryDocs('organizations', [{ field: 'stripeAccountId', op: 'EQUAL', value: acct }], 1);
+  return r[0]?.id || null;
+}
+
+/** Create (or complete) the ChmsContribution for one online gift + post its journal. Idempotent. */
+async function recordOnlineGift(a: {
+  orgId: string; paymentId: string; chargeId?: string; amountCents: number; createdSec: number; fundName?: string;
+  uid?: string; giverName?: string; subscriptionId?: string; invoiceId?: string;
+  /** Extra the donor paid on top to cover processing; the ledger gift is amountCents - feeCoveredCents. */
+  feeCoveredCents?: number;
+}): Promise<{ id: string; created: boolean }> {
+  const id = onlineGiftDocId(a.orgId, a.paymentId);
+  const existing = await firestoreRead('chmsContributions', id);
+  const feeCovered = Math.max(0, a.feeCoveredCents || 0);
+  const amount = usd(giftCentsFromGross(a.amountCents, feeCovered));
+  let fundId = '', fundName = a.fundName || 'General', date = elevDate(a.createdSec), giver = a.giverName;
+  if (existing) { fundId = existing.fundId; fundName = existing.fundName; date = existing.date; giver = existing.giverName; }
+  else {
+    const org = await firestoreGetDeep('organizations', a.orgId);
+    const funds: any[] = Array.isArray(org?.givingFunds) ? org!.givingFunds : [];
+    const want = fundName.trim().toLowerCase();
+    const f = funds.find(x => String(x?.name || '').trim().toLowerCase() === want || x?.id === a.fundName);
+    fundId = f?.id || fundName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'general';
+    fundName = f?.name || fundName;
+    let personId: string | undefined, householdId: string | undefined;
+    if (a.uid) {
+      const p = (await fsQueryDocs('chmsPeople', [{ field: 'orgId', op: 'EQUAL', value: a.orgId }, { field: 'linkedUid', op: 'EQUAL', value: a.uid }], 1))[0];
+      if (p) { personId = p.id; householdId = p.data.householdId || undefined; }
+    }
+    const ok = await firestorePatchDeep('chmsContributions', id, deepClean({
+      id, orgId: a.orgId, personId, householdId, giverName: personId ? undefined : (a.giverName || 'Online giver'),
+      fundId, fundName, amount, date, method: 'ONLINE', deductible: true, stripePaymentId: a.paymentId,
+      stripeChargeId: a.chargeId, stripeSubscriptionId: a.subscriptionId, stripeInvoiceId: a.invoiceId,
+      status: 'POSTED', enteredBy: 'stripe', createdAt: a.createdSec * 1000, linkedUid: a.uid,
+      ...(feeCovered ? { feeCoveredByDonor: usd(feeCovered), grossCharged: usd(a.amountCents) } : {}),
+    }));
+    if (!ok) return { id, created: false };
+  }
+  await autoPost(a.orgId, sys => onlineGiftEntry(sys, { id, date, amount, fundId, fundName, giver, stripePaymentId: a.paymentId }));
+  if (a.chargeId && existing?.stripeFee === undefined) await attachGiftFinancials(a.orgId, id, a.chargeId, feeCovered).catch((e: any) => console.error('[Elevate] fee attach failed:', e?.message));
+  return { id, created: !existing };
+}
+
+/** Attach Stripe fee/net (via balance_transaction) to the contribution; post the fee journal only if the ORG bears it. */
+async function attachGiftFinancials(orgId: string, giftId: string, chargeId: string, feeCoveredCents = 0) {
+  const ch = await getStripe().charges.retrieve(chargeId, { expand: ['balance_transaction'] });
+  const bt = ch.balance_transaction;
+  if (!bt || typeof bt === 'string') return;
+  const stripeFee = usd(bt.fee);
+  // Destination charge: the PLATFORM's balance pays Stripe's fee; the church receives the full amount.
+  const platformPaid = !!(ch.transfer_data?.destination || ch.transfer);
+  const fee = platformPaid ? 0 : stripeFee;
+  // Donor-covered: the church nets the full gift (gross - the fee the donor added); Stripe's cost came out of the platform's application fee.
+  const donorPaid = feeCoveredCents > 0;
+  await firestorePatchDeep('chmsContributions', giftId, { stripeChargeId: ch.id, stripeFee, fee, net: round2c(usd(ch.amount) - (donorPaid ? usd(feeCoveredCents) : fee)), feePaidBy: donorPaid ? 'donor' : (platformPaid ? 'platform' : 'org') });
+  if (fee > 0) {
+    const g = await firestoreRead('chmsContributions', giftId);
+    await autoPost(orgId, sys => feeEntry(sys, { id: bt.id, date: elevDate(ch.created), amount: fee, fundId: g?.fundId, memo: 'Stripe processing fee' }));
+  }
+}
+
+async function handleChurchSessionPaid(session: any) {
+  const meta = session.metadata || {};
+  const orgId: string | undefined = meta.churchId;
+  const pi = idOf(session.payment_intent);
+  if (!orgId || !pi) return;   // subscription first payment arrives via invoice.paid
+  let chargeId: string | undefined;
+  try { chargeId = idOf((await getStripe().paymentIntents.retrieve(pi)).latest_charge); } catch { /* fee attach is best-effort */ }
+  await recordOnlineGift({
+    orgId, paymentId: pi, chargeId, amountCents: session.amount_total ?? Math.round(parseFloat(meta.amount || '0') * 100),
+    createdSec: session.created || Math.floor(Date.now() / 1000), fundName: meta.fund, uid: meta.uid, giverName: session.customer_details?.name || undefined,
+    feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0,
+  });
+}
+
+/** Recurring renewals (and the first monthly payment): one contribution per paid invoice. */
+async function handleChurchInvoicePaid(invoice: any) {
+  const subId = idOf(invoice.subscription);
+  if (!subId || !(invoice.amount_paid > 0)) return;
+  let meta: Record<string, string> = invoice.subscription_details?.metadata || {};
+  if (meta.type !== 'church_donation') {
+    try { meta = (await getStripe().subscriptions.retrieve(subId)).metadata || {}; } catch { meta = {}; }
+  }
+  let orgId = meta.type === 'church_donation' ? meta.churchId : undefined, uid = meta.uid, fund = meta.fund;
+  if (!orgId) {   // gifts created before subscription metadata was added: find the originating donation row
+    const d = (await fsQueryDocs('donations', [{ field: 'stripeSubscriptionId', op: 'EQUAL', value: subId }], 1))[0];
+    if (!d) return;
+    orgId = d.data.churchId; uid = d.data.fromId; fund = d.data.fund;
+  }
+  if (!orgId) return;
+  await recordOnlineGift({
+    orgId, paymentId: idOf(invoice.payment_intent) || invoice.id, chargeId: idOf(invoice.charge),
+    amountCents: invoice.amount_paid, createdSec: invoice.status_transitions?.paid_at || invoice.created,
+    fundName: fund, uid, giverName: invoice.customer_name || undefined, subscriptionId: subId, invoiceId: invoice.id,
+    feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0,
+  });
+}
+
+/** py_ (connected-account side of a destination charge) → the platform charge; or the direct charge itself. */
+async function resolveCharge(chargeId: string, acct?: string): Promise<{ charge: any; direct: boolean } | null> {
+  const stripe = getStripe();
+  const ch = acct ? await stripe.charges.retrieve(chargeId, {}, { stripeAccount: acct }) : await stripe.charges.retrieve(chargeId);
+  const trId = idOf(ch.source_transfer);
+  if (acct && trId) {
+    const src = idOf((await stripe.transfers.retrieve(trId)).source_transaction);
+    return src ? { charge: await stripe.charges.retrieve(src), direct: false } : null;
+  }
+  return { charge: ch, direct: !!acct };
+}
+async function giftOfCharge(charge: any): Promise<{ id: string; data: Record<string, any> } | null> {
+  const pi = idOf(charge.payment_intent);
+  if (!pi) return null;
+  return (await fsQueryDocs('chmsContributions', [{ field: 'stripePaymentId', op: 'EQUAL', value: pi }], 1))[0] || null;
+}
+
+/** Refund → mark the gift (VOID when fully refunded) and post a refund journal for what actually left the church's balance. */
+async function applyChargeRefund(charge: any, direct: boolean) {
+  const g = await giftOfCharge(charge);
+  if (!g) return;
+  const gift = g.data;
+  const refundedC = charge.amount_refunded || 0;
+  let reversedC = refundedC;   // direct charge (or no destination): the full refund hits the org
+  if (!direct && charge.transfer) {
+    // Destination charge: the church only loses money if the transfer was reversed (refund with "reverse transfer").
+    try { reversedC = Math.min(refundedC, (await getStripe().transfers.retrieve(idOf(charge.transfer)!)).amount_reversed || 0); } catch { reversedC = 0; }
+  }
+  const prevRefundedC = Math.round((gift.refunded || 0) * 100), prevJournaledC = Math.round((gift.refundJournaled || 0) * 100);
+  if (refundedC <= prevRefundedC && reversedC <= prevJournaledC) return;
+  if (reversedC > prevJournaledC) {
+    await autoPost(gift.orgId, sys => refundEntry(sys, { id: `${charge.id}_${reversedC}`, date: elevDate(Date.now() / 1000), amount: usd(reversedC - prevJournaledC), fundId: gift.fundId, memo: `Refund — ${gift.fundName || 'gift'}` }));
+  }
+  const patch: Record<string, any> = { refunded: usd(refundedC), refundJournaled: usd(Math.max(reversedC, prevJournaledC)) };
+  if (refundedC >= (charge.amount || 0) && gift.status !== 'VOID') Object.assign(patch, { status: 'VOID', voidReason: 'Stripe refund', voidedBy: 'stripe', voidedAt: Date.now() });
+  await firestorePatchDeep('chmsContributions', g.id, patch);
+}
+
+/** Dispute lifecycle: flag the gift; post the dispute fee / lost chargeback only when the org's own balance bears it. */
+async function applyDispute(dispute: any, kind: 'created' | 'closed', acct?: string) {
+  const chId = idOf(dispute.charge);
+  if (!chId) return;
+  const r = await resolveCharge(chId, acct);
+  if (!r) return;
+  const g = await giftOfCharge(r.charge);
+  if (!g) return;
+  const gift = g.data;
+  const open = !['won', 'warning_closed', 'lost'].includes(dispute.status);
+  const patch: Record<string, any> = { disputed: open, disputeStatus: dispute.status };
+  if (r.direct) {
+    const feeC = (dispute.balance_transactions || []).reduce((s: number, b: any) => s + (b.fee || 0), 0);
+    if (feeC > 0) await autoPost(gift.orgId, sys => disputeFeeEntry(sys, { id: dispute.id, date: elevDate(dispute.created), amount: usd(feeC), memo: 'Dispute fee' }));
+    if (kind === 'closed' && dispute.status === 'lost') {
+      await autoPost(gift.orgId, sys => refundEntry(sys, { id: `dispute_${dispute.id}`, date: elevDate(Date.now() / 1000), amount: usd(dispute.amount), fundId: gift.fundId, memo: 'Chargeback lost' }));
+      if (gift.status !== 'VOID') Object.assign(patch, { status: 'VOID', voidReason: 'Stripe chargeback lost', voidedBy: 'stripe', voidedAt: Date.now() });
+    }
+  }
+  await firestorePatchDeep('chmsContributions', g.id, patch);
+}
+
+const PAY_TYPES = new Set(['payment', 'charge']);
+const REFUND_TYPES = new Set(['payment_refund', 'refund', 'payment_failure_refund']);
+const FEE_TYPES = new Set(['stripe_fee', 'application_fee']);
+const SKIP_TYPES = new Set(['payout', 'payout_cancel', 'payout_failure']);
+
+/** Set by createBilling() wiring: payment intent → Plajah Billing invoice (so payout reconciliation recognises invoice payments). */
+let billingInvoiceLookup: ((pi: string) => Promise<{ id: string; entityKey: string } | null>) | null = null;
+
+/** Upsert one payout (+ its lines, matched to gifts) and, once paid, post the payout/fee journals. */
+async function processPayout(orgId: string, acct: string, po: any, withLines: boolean): Promise<{ lines: number; matched: number; unmatched: number; reconciled: boolean }> {
+  const stripe = getStripe();
+  const poId = payoutDocId(orgId, po.id);
+  const base: Record<string, any> = {
+    id: poId, orgId, stripeAccountId: acct, stripePayoutId: po.id, amount: usd(po.amount), currency: po.currency || 'usd',
+    arrivalDate: utcDate(po.arrival_date || po.created), createdAt: (po.created || 0) * 1000,
+    status: ['pending', 'in_transit', 'paid', 'failed', 'canceled'].includes(po.status) ? po.status : 'pending',
+    method: po.method, bankLast4: po.destination && typeof po.destination === 'object' ? po.destination.last4 : undefined, syncedAt: Date.now(),
+  };
+  if (!withLines) {
+    const prev = await firestoreRead('chmsPayouts', poId);
+    await firestorePatchDeep('chmsPayouts', poId, deepClean({ ...base, reconciled: prev?.reconciled === true }));
+    return { lines: 0, matched: 0, unmatched: 0, reconciled: prev?.reconciled === true };
+  }
+
+  let gross = 0, fees = 0, refunds = 0, adjustments = 0, net = 0, lines = 0, matched = 0, unmatched = 0, unitemized = false;
+  const trCache = new Map<string, any>();
+  const refundWork: Array<{ chargeId: string; direct: boolean }> = [];
+  const feeJournals: Array<{ id: string; date: string; amount: number; fundId?: string }> = [];
+  try {
+    for await (const bt of stripe.balanceTransactions.list({ payout: po.id, limit: 100, expand: ['data.source'] }, { stripeAccount: acct })) {
+      if (SKIP_TYPES.has(bt.type)) continue;
+      const amount = usd(bt.amount), fee = usd(bt.fee), btNet = usd(bt.net);
+      let paymentId: string | undefined, chargeId: string | undefined, contributionId: string | undefined;
+      try {
+        const src = bt.source && typeof bt.source === 'object' ? bt.source : null;
+        if (src && PAY_TYPES.has(bt.type)) {
+          if (src.source_transfer) {
+            const k = idOf(src.source_transfer)!;
+            if (!trCache.has(k)) { const tr = await stripe.transfers.retrieve(k); trCache.set(k, tr.source_transaction ? await stripe.charges.retrieve(idOf(tr.source_transaction)!) : null); }
+            const pc = trCache.get(k);
+            paymentId = idOf(pc?.payment_intent); chargeId = pc?.id;
+            // Webhook missed it but the PaymentIntent carried the gift metadata → backfill from the charge.
+            if (pc && paymentId && pc.metadata?.churchId === orgId && !(await firestoreRead('chmsContributions', onlineGiftDocId(orgId, paymentId)))) {
+              await recordOnlineGift({ orgId, paymentId, chargeId: pc.id, amountCents: pc.amount, createdSec: pc.created, fundName: pc.metadata.fund, uid: pc.metadata.uid });
+            }
+          } else if (src.payment_intent) { paymentId = idOf(src.payment_intent); chargeId = src.id; }
+        } else if (src && REFUND_TYPES.has(bt.type)) {
+          const ch = idOf(src.charge);
+          const r = ch ? await resolveCharge(ch, acct) : null;
+          if (r) { paymentId = idOf(r.charge.payment_intent); chargeId = r.charge.id; refundWork.push({ chargeId: r.charge.id, direct: r.direct }); }
+        }
+      } catch (e: any) { console.error('[Elevate] payout line resolve failed:', bt.id, e?.message); }
+      if (paymentId) {
+        const gid = onlineGiftDocId(orgId, paymentId);
+        if (await firestoreRead('chmsContributions', gid)) contributionId = gid;
+      }
+      lines++;
+      // Plajah Billing invoice payments are legitimate non-gift lines: count them as matched (AR is cleared by the invoice journal).
+      let billingInvoicePaid = false;
+      if (!contributionId && paymentId && PAY_TYPES.has(bt.type)) { try { const bi = billingInvoiceLookup ? await billingInvoiceLookup(paymentId) : null; billingInvoicePaid = !!bi && bi.entityKey === `ORG:${orgId}`; } catch { /* */ } }
+      if (PAY_TYPES.has(bt.type)) { gross += amount; fees += fee; if (contributionId) { matched++; await firestorePatchDeep('chmsContributions', contributionId, { payoutId: poId }); } else if (billingInvoicePaid) matched++; else unmatched++; }
+      else if (REFUND_TYPES.has(bt.type)) refunds += Math.abs(amount);
+      else if (FEE_TYPES.has(bt.type)) fees += Math.abs(amount);
+      else adjustments += amount;
+      net += btNet;
+      if (PAY_TYPES.has(bt.type) && fee > 0) feeJournals.push({ id: bt.id, date: utcDate(bt.created), amount: fee, fundId: contributionId ? (await firestoreRead('chmsContributions', contributionId))?.fundId : undefined });
+      if (FEE_TYPES.has(bt.type)) feeJournals.push({ id: bt.id, date: utcDate(bt.created), amount: Math.abs(amount) });
+      await firestorePatchDeep('chmsPayoutLines', payoutLineDocId(orgId, bt.id), deepClean({
+        id: payoutLineDocId(orgId, bt.id), orgId, payoutId: poId, stripeId: bt.id, type: bt.type, amount, fee, net: btNet,
+        date: utcDate(bt.created), description: bt.description || undefined, contributionId, stripePaymentId: paymentId,
+      }));
+    }
+  } catch (e: any) {
+    unitemized = true;   // manual payouts can't be itemised by Stripe
+    console.warn('[Elevate] payout not itemisable:', po.id, e?.message);
+  }
+  for (const w of refundWork) { try { const r = await resolveCharge(w.chargeId); if (r) await applyChargeRefund(r.charge, w.direct); } catch (e: any) { console.error('[Elevate] refund catch-up failed:', e?.message); } }
+
+  const difference = round2c(usd(po.amount) - net);
+  const reconciled = !unitemized && lines > 0 && unmatched === 0 && Math.abs(difference) < 0.01;
+  let journalId: string | undefined;
+  if (base.status === 'paid') {
+    journalId = (await autoPost(orgId, sys => payoutEntry(sys, { id: po.id, date: base.arrivalDate, amount: base.amount }))) || undefined;
+    for (const f of feeJournals) await autoPost(orgId, sys => feeEntry(sys, { id: f.id, date: f.date, amount: f.amount, fundId: f.fundId, memo: 'Stripe fee (connected account)' }));
+  }
+  await firestorePatchDeep('chmsPayouts', poId, deepClean({
+    ...base, gross: round2c(gross), fees: round2c(fees), refunds: round2c(refunds), adjustments: round2c(adjustments), net: round2c(net), lineCount: lines,
+    matchedCount: matched, unmatchedCount: unmatched, difference, unitemized, reconciled, journalId,
+  }));
+  return { lines, matched, unmatched, reconciled };
+}
+
+/** Pull online gifts the webhook missed: paid church_donation checkout sessions + their subscriptions' invoices. */
+async function backfillChurchGifts(orgId: string, sinceSec: number): Promise<number> {
+  const stripe = getStripe();
+  let added = 0, seen = 0;
+  const subs = new Set<string>();
+  const donated = await fsQueryDocs('donations', [{ field: 'churchId', op: 'EQUAL', value: orgId }, { field: 'recurring', op: 'EQUAL', value: true }], 1000);
+  donated.forEach(d => { if (d.data.stripeSubscriptionId) subs.add(d.data.stripeSubscriptionId); });
+  for await (const s of stripe.checkout.sessions.list({ created: { gte: sinceSec }, limit: 100 })) {
+    if (++seen > 3000) break;
+    const meta = s.metadata || {};
+    if (meta.type !== 'church_donation' || meta.churchId !== orgId || s.payment_status !== 'paid') continue;
+    if (s.mode === 'subscription') { const sid = idOf(s.subscription); if (sid) subs.add(sid); continue; }
+    const pi = idOf(s.payment_intent);
+    if (!pi) continue;
+    let chargeId: string | undefined;
+    try { chargeId = idOf((await stripe.paymentIntents.retrieve(pi)).latest_charge); } catch { /* best-effort */ }
+    const r = await recordOnlineGift({ orgId, paymentId: pi, chargeId, amountCents: s.amount_total || 0, createdSec: s.created, fundName: meta.fund, uid: meta.uid, giverName: s.customer_details?.name || undefined, feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0 });
+    if (r.created) added++;
+  }
+  for (const subId of subs) {
+    try {
+      for await (const inv of stripe.invoices.list({ subscription: subId, status: 'paid', created: { gte: sinceSec }, limit: 100 })) {
+        const before = await firestoreRead('chmsContributions', onlineGiftDocId(orgId, idOf(inv.payment_intent) || inv.id));
+        await handleChurchInvoicePaid(inv);
+        if (!before) added++;
+      }
+    } catch (e: any) { console.error('[Elevate] invoice backfill failed:', subId, e?.message); }
+  }
+  return added;
+}
+
+const _syncing = new Set<string>();
+async function syncOrgStripe(orgId: string, acct: string, sinceDays: number) {
+  const stripe = getStripe();
+  const sinceSec = Math.floor(Date.now() / 1000) - Math.max(1, Math.min(sinceDays, 730)) * 86400;
+  await ensureOrgChart(orgId);
+  const giftsAdded = await backfillChurchGifts(orgId, sinceSec);
+  let payouts = 0, lines = 0, mismatches = 0;
+  for await (const po of stripe.payouts.list({ created: { gte: sinceSec }, limit: 100, expand: ['data.destination'] }, { stripeAccount: acct })) {
+    if (payouts >= 300) break;
+    payouts++;
+    const r = await processPayout(orgId, acct, po, po.status === 'paid' || po.status === 'in_transit');
+    lines += r.lines;
+    if (po.status === 'paid' && !r.reconciled) mismatches++;
+  }
+  await stripeStateWrite(orgId, { lastSyncAt: Date.now(), lastSyncSummary: JSON.stringify({ payouts, lines, giftsAdded, mismatches }) });
+  return { payouts, lines, giftsAdded, mismatches };
+}
+
 const TIER_STORAGE: Record<string, number> = { '1': 50, '2': 75, '3': 100 };
 const TIER_POINTS: Record<string, number> = { '1': 100, '2': 300, '3': 1000 };
 
@@ -1458,11 +2010,11 @@ async function startServer() {
   // private-library / locker / intimate tracks are NEVER exposed (legal).
   const ALEXA_SKILL_ID = process.env.ALEXA_SKILL_ID || '';
 
-  let _choraIndex: { tracks: any[]; ts: number } | null = null;
-  const getChoraTrackIndex = async (): Promise<any[]> => {
+  let _choraIndex: { tracks: ChoraVoiceTrack[]; ts: number } | null = null;
+  const getChoraTrackIndex = async (): Promise<ChoraVoiceTrack[]> => {
     if (_choraIndex && Date.now() - _choraIndex.ts < 60_000) return _choraIndex.tracks;
     const albums = await queryFirebase('albums', [{ field: 'type', value: 'MUSIC' }], 500);
-    const out: any[] = [];
+    const out: ChoraVoiceTrack[] = [];
     for (const al of albums) {
       if (al.isIntimateOnly || al.isPublic === false) continue; // never expose intimate/unpublished
       const tracks = Array.isArray(al.tracks) ? al.tracks : [];
@@ -1472,67 +2024,50 @@ async function startServer() {
         const url = String(t.url);
         if (!/^https:\/\//i.test(url)) return; // Alexa AudioPlayer requires HTTPS streams
         out.push({
+          id: t.id || `${al.id}_${idx}`,
           title: t.title || 'Untitled',
           artist: t.artist || al.artist || 'Unknown Artist',
+          albumId: al.id || '',
+          albumTitle: al.title || '',
+          index: idx,
           url,
-          albumId: al.id || '', index: idx,
           cover: (t.albumCover || al.coverImage || '').startsWith('https') ? (t.albumCover || al.coverImage) : '',
+          subType: al.subType || t.subType,
+          genre: al.genre || t.genre,
         });
       });
     }
     _choraIndex = { tracks: out, ts: Date.now() };
     return out;
   };
-  const scoreChoraMatch = (track: any, songQ: string, artistQ: string): number => {
-    const t = (track.title || '').toLowerCase(), a = (track.artist || '').toLowerCase();
-    const q = (songQ || '').toLowerCase().trim();
-    if (!q) return 0;
-    let score = 0;
-    if (t === q) score += 100;
-    else if (t.includes(q) || q.includes(t)) score += 60;
-    else { const words = q.split(/\s+/).filter(w => w.length > 2); score += words.filter(w => t.includes(w)).length * 15; }
-    if (artistQ) { const aq = artistQ.toLowerCase().trim(); if (aq && (a.includes(aq) || aq.includes(a))) score += 40; }
-    return score;
-  };
-  const choraTrackByToken = async (token: string, delta = 0): Promise<any | null> => {
-    const [albumId, idxStr] = String(token || '').split('::');
-    const idx = parseInt(idxStr, 10);
-    if (!albumId || !isFinite(idx)) return null;
-    const tracks = await getChoraTrackIndex();
-    return tracks.find(t => t.albumId === albumId && t.index === idx + delta) || null;
-  };
 
-  const alexaSpeak = (text: string, endSession = true) => ({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text }, shouldEndSession: endSession } });
-  const alexaAudioItem = (track: any, offset = 0, prevToken?: string) => ({
-    stream: { token: `${track.albumId}::${track.index}`, url: track.url, offsetInMilliseconds: offset, ...(prevToken ? { expectedPreviousToken: prevToken } : {}) },
-    metadata: { title: track.title, subtitle: track.artist, ...(track.cover ? { art: { sources: [{ url: track.cover }] } } : {}) },
-  });
-  const alexaPlay = (track: any, offset = 0) => ({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: `Playing ${track.title} by ${track.artist} on Chora.` }, directives: [{ type: 'AudioPlayer.Play', playBehavior: 'REPLACE_ALL', audioItem: alexaAudioItem(track, offset) }], shouldEndSession: true } });
-  const alexaEnqueue = (track: any, prevToken: string) => ({ version: '1.0', response: { directives: [{ type: 'AudioPlayer.Play', playBehavior: 'ENQUEUE', audioItem: alexaAudioItem(track, 0, prevToken) }] } });
-  const alexaStop = () => ({ version: '1.0', response: { directives: [{ type: 'AudioPlayer.Stop' }] } });
-
-  // SHA1-RSA signature verification against Amazon's cert chain (skill certification).
-  const _alexaCerts = new Map<string, string>();
-  const verifyAlexaSignature = async (certUrl: string, signature: string, body: Buffer): Promise<boolean> => {
+  // Public voice-search endpoint for Alexa-hosted Skill & Google Actions
+  app.get('/api/chora/voice-search', async (req: any, res: any) => {
     try {
-      const u = new URL(certUrl);
-      if (u.protocol !== 'https:' || u.hostname.toLowerCase() !== 's3.amazonaws.com' || (u.port && u.port !== '443') || !u.pathname.replace(/\/+/g, '/').startsWith('/echo.api/')) return false;
-      let pem = _alexaCerts.get(certUrl);
-      if (!pem) {
-        const r = await safeOutboundFetch(certUrl);
-        if (!r.ok) return false;
-        pem = await r.text();
-        const x509 = new nodeCrypto.X509Certificate(pem);
-        const now = new Date();
-        if (new Date(x509.validFrom) > now || new Date(x509.validTo) < now) return false;
-        if (!/echo-api\.amazon\.com/.test(`${x509.subjectAltName || ''}`)) return false;
-        _alexaCerts.set(certUrl, pem);
+      const { song, artist, album, genre, type, token, delta } = req.query;
+      const tracks = await getChoraTrackIndex();
+
+      if (token) {
+        const d = parseInt(String(delta || '0'), 10) || 0;
+        const track = getChoraTrackByToken(tracks, String(token), d);
+        return res.json({ track: track || null });
       }
-      const verifier = nodeCrypto.createVerify('RSA-SHA1');
-      verifier.update(body);
-      return verifier.verify(pem, Buffer.from(signature, 'base64'));
-    } catch { return false; }
-  };
+
+      const isMix = String(type || '').toLowerCase() === 'mix';
+      const match = searchChora(tracks, {
+        song: song ? String(song) : undefined,
+        artist: artist ? String(artist) : undefined,
+        album: album ? String(album) : undefined,
+        genre: genre ? String(genre) : undefined,
+        isMix,
+      }) || (isMix ? tracks[0] : null);
+
+      res.json({ track: match || null });
+    } catch (e: any) {
+      console.error('[chora/voice-search] error:', e?.message);
+      res.status(500).json({ error: 'Failed to query voice search' });
+    }
+  });
 
   app.post('/api/alexa', express.raw({ type: () => true, limit: '1mb' }), async (req: any, res: any) => {
     const body: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
@@ -1541,7 +2076,9 @@ async function startServer() {
       if (process.env.ALEXA_SKIP_SIGNATURE !== 'true') {
         const certUrl = String(req.headers['signaturecertchainurl'] || '');
         const signature = String(req.headers['signature'] || '');
-        if (!certUrl || !signature || !(await verifyAlexaSignature(certUrl, signature, body))) return res.status(400).json({ error: 'invalid signature' });
+        if (!certUrl || !signature || !(await verifyAlexaSignature(certUrl, signature, body))) {
+          return res.status(400).json({ error: 'invalid signature' });
+        }
       }
       const env = JSON.parse(body.toString('utf8'));
       // 2. Application id + timestamp freshness (replay protection)
@@ -1550,47 +2087,17 @@ async function startServer() {
       const ts = new Date(env?.request?.timestamp || 0).getTime();
       if (!ts || Math.abs(Date.now() - ts) > 150_000) return res.status(400).json({ error: 'stale request' });
 
-      const type = env?.request?.type;
-      if (type === 'LaunchRequest') return res.json(alexaSpeak('Welcome to Chora. What would you like to hear?', false));
-
-      if (type === 'IntentRequest') {
-        const intent = env.request.intent || {};
-        const name = intent.name;
-        if (name === 'PlaySongIntent') {
-          const song = intent.slots?.song?.value || '';
-          const artist = intent.slots?.artist?.value || '';
-          if (!song) return res.json(alexaSpeak('What song would you like me to play?', false));
-          const tracks = await getChoraTrackIndex();
-          const best = tracks.map(t => ({ t, s: scoreChoraMatch(t, song, artist) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s)[0];
-          if (!best) return res.json(alexaSpeak(`Sorry, I couldn't find ${song} on Chora.`));
-          return res.json(alexaPlay(best.t));
-        }
-        if (name === 'AMAZON.PauseIntent' || name === 'AMAZON.StopIntent' || name === 'AMAZON.CancelIntent') return res.json(alexaStop());
-        if (name === 'AMAZON.ResumeIntent') {
-          const ap = env.context?.AudioPlayer;
-          const t = ap?.token ? await choraTrackByToken(ap.token) : null;
-          return res.json(t ? alexaPlay(t, ap.offsetInMilliseconds || 0) : alexaSpeak('There is nothing to resume.'));
-        }
-        if (name === 'AMAZON.NextIntent') { const t = await choraTrackByToken(env.context?.AudioPlayer?.token, 1); return res.json(t ? alexaPlay(t) : alexaSpeak('That was the last track.')); }
-        if (name === 'AMAZON.PreviousIntent') { const t = await choraTrackByToken(env.context?.AudioPlayer?.token, -1); return res.json(t ? alexaPlay(t) : alexaSpeak('This is the first track.')); }
-        if (name === 'AMAZON.HelpIntent') return res.json(alexaSpeak('Ask me to play a song. For example, say: play Sunflowers.', false));
-        return res.json(alexaSpeak("Sorry, I didn't catch that. Ask me to play a song."));
-      }
-
-      if (typeof type === 'string' && type.startsWith('AudioPlayer.')) {
-        // Gapless album auto-advance: enqueue the next track as the current one nears the end.
-        if (type === 'AudioPlayer.PlaybackNearlyFinished') {
-          const t = await choraTrackByToken(env.request?.token, 1);
-          if (t) return res.json(alexaEnqueue(t, env.request.token));
-        }
-        return res.json({ version: '1.0', response: {} });
-      }
-
-      if (type === 'SessionEndedRequest') return res.json({ version: '1.0', response: {} });
-      return res.json(alexaSpeak('Sorry, something went wrong.'));
+      const response = await handleAlexaRequest(env, getChoraTrackIndex);
+      return res.json(response);
     } catch (e: any) {
       console.error('[alexa] error:', e?.message);
-      return res.json(alexaSpeak('Sorry, Chora ran into a problem.'));
+      return res.json({
+        version: '1.0',
+        response: {
+          outputSpeech: { type: 'PlainText', text: 'Sorry, Chora ran into a problem.' },
+          shouldEndSession: true,
+        },
+      });
     }
   });
 
@@ -1779,6 +2286,49 @@ async function startServer() {
             // plajah-payments-direction + plajah-ocme-integration memos.
           }
 
+          // ── Music purchase → the buyer's private locker ───────────────────────
+          // A bought album/track is added to personal_tracks (owner-only, never shareable) so it plays
+          // from My Library on every device. Copies point at the same audio URL; deterministic ids make
+          // a re-fired webhook idempotent.
+          if (mode === 'payment' && meta.type === 'content_purchase' && (meta.kind === 'album' || meta.kind === 'track') && meta.contentId && meta.uid) {
+            try {
+              const albumId = String(meta.contentId).split('__')[0];
+              const onlyTrack = meta.kind === 'track' ? String(meta.contentId).split('__')[1] : '';
+              const adoc = await fetchFirebaseDoc('albums', albumId);
+              const f = adoc?.fields;
+              if (f) {
+                const str = (v: any) => v?.stringValue || '';
+                const num = (v: any) => v?.doubleValue !== undefined ? Number(v.doubleValue) : v?.integerValue !== undefined ? Number(v.integerValue) : 0;
+                const albumTitle = str(f.title), albumArtist = str(f.artist), albumCover = str(f.coverImage);
+                const trs = (f.tracks?.arrayValue?.values || []).map((v: any) => v.mapValue?.fields).filter(Boolean);
+                let n = 0;
+                for (const t of trs) {
+                  const tid = str(t.id);
+                  if (!tid || (onlyTrack && tid !== onlyTrack) || !str(t.url)) continue;
+                  n++;
+                  await firestoreWrite('personal_tracks', `ptrack_buy_${albumId}_${tid}`.slice(0, 120), {
+                    id: `ptrack_buy_${albumId}_${tid}`.slice(0, 120),
+                    ownerId: meta.uid,
+                    rightsOwnerId: meta.uid,
+                    isPersonalMedia: true,
+                    isGlobalArchive: false,
+                    purchased: true,
+                    purchasedFromAlbumId: albumId,
+                    purchasedFromTrackId: tid,
+                    title: str(t.title) || albumTitle,
+                    artist: str(t.artist) || albumArtist,
+                    url: str(t.url),
+                    albumId: `purchase_${albumId}`,
+                    albumTitle,
+                    albumCover,
+                    trackNo: num(t.trackNo) || n,
+                    timestamp: now,
+                  });
+                }
+              }
+            } catch (e: any) { console.error('[Stripe] locker add for music purchase failed:', e?.message); }
+          }
+
           // ── Sanctuary: one-time campaign pledge ───────────────────────────────
           // Recorded as its own doc; the campaign's raised/backer totals are summed
           // from these client-side (firestoreWrite can't safely mutate the nested
@@ -1790,6 +2340,19 @@ async function startServer() {
               amount: parseFloat(meta.amount || '0'),
               kind: meta.kind || 'PROJECT',
               platformFeeCents: parseInt(meta.platformFeeCents || '0'),
+              stripePaymentIntentId: (session.payment_intent as string) || '',
+              createdAt: now,
+            });
+          }
+
+          // ── Artist gift: ledger row for the gifter's receipt and the artist's thank-you list ──
+          if (mode === 'payment' && meta.type === 'artist_gift') {
+            await firestoreCreate('artistGifts', {
+              fromUid: meta.uid || '',
+              toUid: meta.creatorUid || '',
+              albumId: meta.albumId || '',
+              title: meta.title || '',
+              amount: parseFloat(meta.amount || '0'),
               stripePaymentIntentId: (session.payment_intent as string) || '',
               createdAt: now,
             });
@@ -1810,6 +2373,8 @@ async function startServer() {
               stripeSubscriptionId: session.subscription || '',
               timestamp: now,
             });
+            // Elevate: also land it in the ChMS ledger + books (one-time here; monthly via invoice.paid).
+            await handleChurchSessionPaid(session).catch((e: any) => console.error('[Elevate] gift ledger write failed:', e?.message));
           }
 
           // ── Event ticket fulfillment ──────────────────────────────────────────
@@ -1834,6 +2399,7 @@ async function startServer() {
               customPackagingRequested: meta.customPackagingRequested === 'true',
               shippingAddress: meta.shippingAddress || '',
               stripePaymentIntentId: session.payment_intent || '',
+              packages: meta.packages || '[]',
               createdAt: now,
             });
             // Increment tier sold count in event
@@ -1891,18 +2457,34 @@ async function startServer() {
           }
 
           // ── Store order paid → confirm it + decrement stock (idempotent + atomic) ──
+          // The stockMoves ledger doc id is deterministic per (order, line), so even if Stripe retries
+          // the webhook (or a crash lands between confirm and decrement) stock can never double-drop.
           if (mode === 'payment' && meta.type === 'store_order' && meta.orderId) {
             const order = await firestoreRead('storeOrders', meta.orderId);
-            if (order && order.status !== 'CONFIRMED') {   // webhooks can fire more than once — only act once
-              await firestoreWrite('storeOrders', meta.orderId, {
-                status: 'CONFIRMED', paidAt: now,
-                stripePaymentIntentId: (session.payment_intent as string) || '',
-              });
-              // Atomic stock decrement so concurrent orders can't oversell (v1: product-level scalar stock).
+            if (order) {
+              if (order.status !== 'CONFIRMED') {   // webhooks can fire more than once — only confirm once
+                const ship = (session as any).shipping_details || (session as any).collected_information?.shipping_details;
+                const addr = ship?.address;
+                await firestoreWrite('storeOrders', meta.orderId, {
+                  status: 'CONFIRMED', paidAt: now,
+                  stripePaymentIntentId: (session.payment_intent as string) || '',
+                  totalCents: Number(session.amount_total) || 0,
+                  ...(session.customer_details?.email ? { customerEmail: String(session.customer_details.email) } : {}),
+                  ...(addr ? {
+                    shipName: String(ship?.name || ''), shipLine1: String(addr.line1 || ''), shipLine2: String(addr.line2 || ''),
+                    shipCity: String(addr.city || ''), shipState: String(addr.state || ''), shipPostal: String(addr.postal_code || ''), shipCountry: String(addr.country || ''),
+                  } : {}),
+                });
+              }
+              if (order.giftCardsPending) { try { await issueOnlineGiftCards(String(meta.orderId), order); } catch (e: any) { console.error('[store] online gift cards failed', e?.message || e); } }
               try {
                 const lines = JSON.parse(order.items || '[]');
-                for (const li of lines) {
-                  if (li?.productId && li?.qty) await firestoreIncrement(`storeProducts/${li.productId}`, { stock: -Math.abs(Number(li.qty) || 0) });
+                const sid = String(order.businessUid || order.sellerId || meta.businessUid || '');
+                const oversold = await applyStockSale(lines, { orderId: meta.orderId, sellerId: sid, reason: 'SALE' });
+                if (oversold) {
+                  // Paid for stock that was gone (two buyers, last unit). Flag it loudly for the seller.
+                  await firestoreWrite('storeOrders', meta.orderId, { oversold: true });
+                  if (sid) await firestoreCreate('notifications', { userId: sid, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM', title: 'Oversold order needs attention', message: 'A customer paid for an item that had just run out. Restock it or refund the order.', link: 'BUSINESS_DASHBOARD', targetId: meta.orderId, isRead: false, timestamp: Date.now() }).catch(() => {});
                 }
               } catch { /* items unparseable — order stays confirmed, stock just not adjusted */ }
             }
@@ -1963,7 +2545,7 @@ async function startServer() {
               meta.type === 'store_order'           ? `Store Order${meta.title ? `: ${meta.title}` : ''}` :
               meta.type === 'club_membership'       ? `Club Membership` :
               meta.type === 'seedraiser_pledge'     ? `SeedRaiser Pledge` :
-              meta.type === 'content_purchase'      ? `${meta.kind === 'book' ? 'Book' : 'Film'} ${meta.grant === 'RENTAL' ? 'Rental' : 'Sale'}${meta.title ? `: ${meta.title}` : ''}` : 'Payment';
+              meta.type === 'content_purchase'      ? `${meta.kind === 'book' ? 'Book' : meta.kind === 'album' ? 'Album' : meta.kind === 'track' ? 'Track' : 'Film'} ${meta.grant === 'RENTAL' ? 'Rental' : 'Sale'}${meta.title ? `: ${meta.title}` : ''}` : 'Payment';
 
             await firestoreCreate('creatorEarnings', {
               creatorUid:            recipientUid,
@@ -2024,11 +2606,95 @@ async function startServer() {
           console.warn('Payment failed for subscription:', invoice.subscription);
           break;
         }
+
+        // ── Elevate: church giving → ledger/books (all idempotent; never throw the webhook) ──
+        case 'invoice.paid': {
+          await handleChurchInvoicePaid(event.data.object).catch((e: any) => console.error('[Elevate] invoice.paid failed:', e?.message));
+          break;
+        }
+        case 'charge.refunded': {
+          await applyChargeRefund(event.data.object, false).catch((e: any) => console.error('[Elevate] charge.refunded failed:', e?.message));
+          break;
+        }
+        case 'charge.dispute.created':
+        case 'charge.dispute.closed': {
+          await applyDispute(event.data.object, event.type.endsWith('created') ? 'created' : 'closed').catch((e: any) => console.error('[Elevate] dispute failed:', e?.message));
+          break;
+        }
       }
     } catch (err: any) {
       console.error('Webhook handler error:', err.message);
     }
 
+    res.json({ received: true });
+  });
+
+  // ── Plajah Billing (invoices/estimates/payment links/balance on each entity's OWN Stripe account) ──
+  // Implementation: routes/billing.ts. Routes are registered further down (billing.register(app)); the
+  // Connect webhook below mirrors invoice.* events through billing.handleConnectEvent (dormant until the secret exists).
+  const billing = createBilling({
+    getStripe: () => getStripe(),
+    authMiddleware, requireRegisteredUser,
+    trustedRequestOrigin: (req: any) => trustedRequestOrigin(req),
+    firestoreAuthHeaders: () => firestoreAuthHeaders(),
+    read: (c, id) => firestoreGetDeep(c, id),
+    patch: (c, id, f) => firestorePatchDeep(c, id, f),
+    create: (c, d) => firestoreCreate(c, d),
+    query: (c, f, n) => fsQueryDocs(c, f, n),
+    isPlatformAdmin: async (uid: string) => !!(await fetchFirebaseDoc('admins', uid)),
+    autoPost: (orgId, make) => autoPost(orgId, make),
+    postJournal: (orgId, d) => postJournal(orgId, d),
+  });
+  billingInvoiceLookup = (pi: string) => billing.invoiceByPaymentIntent(pi);
+
+  // ── Stripe CONNECT webhook — events from connected (church) accounts. Separate endpoint +
+  // secret (STRIPE_CONNECT_WEBHOOK_SECRET) because Stripe signs "Connected accounts" endpoints
+  // independently. Raw body, registered before express.json(), skipped by the rate limiter.
+  app.post('/api/stripe/connect-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const secret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    if (!secret || secret.startsWith('whsec_YOUR')) return res.status(500).json({ error: 'Connect webhook secret not configured' });
+    let event: any;
+    try {
+      event = getStripe().webhooks.constructEvent(req.body, req.headers['stripe-signature'] as string, secret);
+    } catch (err: any) {
+      console.error('Stripe connect webhook error:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    const acct: string | undefined = event.account;
+    try {
+      // Plajah Billing mirror (invoice.*, payment-link checkouts, account.updated for billing entities). Additive:
+      // org-specific handling (payouts, refunds, disputes, gifts) below still runs for org accounts.
+      if (acct && (await billing.handleConnectEvent(event, acct))) return res.json({ received: true, billing: true });
+      const orgId = acct ? await orgForStripeAccount(acct) : null;
+      if (!acct || !orgId) { console.warn('[Connect webhook] no org for account', acct, event.type); return res.json({ received: true, ignored: true }); }
+      const obj = event.data.object;
+      switch (event.type) {
+        case 'payout.created': case 'payout.updated': case 'payout.paid': case 'payout.failed': case 'payout.canceled':
+          // Lines are only final once the payout is paid (or in transit); earlier states just upsert the header.
+          await processPayout(orgId, acct, obj, obj.status === 'paid' || obj.status === 'in_transit');
+          await stripeStateWrite(orgId, { lastPayoutEventAt: Date.now() });
+          break;
+        case 'balance.available':
+          await stripeStateWrite(orgId, { balanceEventAt: Date.now() });
+          break;
+        case 'account.updated':
+          await stripeStateWrite(orgId, {
+            payoutsEnabled: !!obj.payouts_enabled, chargesEnabled: !!obj.charges_enabled,
+            requirementsDue: [...(obj.requirements?.currently_due || []), ...(obj.requirements?.past_due || [])], accountUpdatedAt: Date.now(),
+          });
+          break;
+        case 'charge.refunded': {
+          const r = await resolveCharge(obj.id, acct);
+          if (r) await applyChargeRefund(r.charge, r.direct);
+          break;
+        }
+        case 'charge.dispute.created': case 'charge.dispute.closed':
+          await applyDispute(obj, event.type.endsWith('created') ? 'created' : 'closed', acct);
+          break;
+      }
+    } catch (err: any) {
+      console.error('Connect webhook handler error:', err.message);
+    }
     res.json({ received: true });
   });
 
@@ -2075,7 +2741,7 @@ async function startServer() {
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: req => req.path === '/api/stripe/webhook' || req.path === '/api/mux/webhook' || req.path === '/api/merch/stripe-webhook',
+    skip: req => req.path === '/api/stripe/webhook' || req.path === '/api/stripe/connect-webhook' || req.path === '/api/mux/webhook' || req.path === '/api/merch/stripe-webhook',
     message: { error: 'Request rate limit exceeded' },
   });
   app.use('/api', globalApiLimiter);
@@ -2094,10 +2760,13 @@ async function startServer() {
   app.use(cookieParser());
 
   // Per-category rate limiters
-  const authLimiter  = rateLimit({ windowMs: 15 * 60 * 1000, max: 10,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
-  const apiLimiter   = rateLimit({ windowMs:      60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
-  const proxyLimiter = rateLimit({ windowMs:      60 * 1000, max: 60,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
-  const pokeeLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Pokee reasoning limit reached. Try again in a few minutes.' } });
+  const authLimiter       = rateLimit({ windowMs: 15 * 60 * 1000, max: 10,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const apiLimiter        = rateLimit({ windowMs:      60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const proxyLimiter      = rateLimit({ windowMs:      60 * 1000, max: 60,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const pokeeLimiter      = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Pokee reasoning limit reached. Try again in a few minutes.' } });
+  const aiLimiter         = rateLimit({ windowMs: 5 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'AI request limit reached. Please wait a few minutes.' } });
+  const netdiagLimiter    = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Diagnostic probe rate limit exceeded.' } });
+  const coraDetectLimiter = rateLimit({ windowMs:      60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Beat detection rate limit reached.' } });
 
   app.use('/api/stripe/create-checkout-session', authLimiter);
   app.use('/api/stripe/create-portal-session',   authLimiter);
@@ -2106,6 +2775,7 @@ async function startServer() {
   app.use('/api/proxy',        proxyLimiter);
   app.use('/api/lights/proxy', proxyLimiter);
   app.use('/api/social',       apiLimiter);
+  app.use('/api/cora/detect-beats', coraDetectLimiter);
 
   // Liveness probe for uptime monitors / load balancers
   app.get('/healthz', (_req, res) => res.json({ ok: true, ts: Date.now() }));
@@ -2113,14 +2783,14 @@ async function startServer() {
   // ── Network diagnostics probes (same-origin, privacy-preserving) ──────────
   // Used by the client NetworkMonitor to measure the *user's own* latency and
   // throughput. No data is stored or logged; the upload body is discarded.
-  const NETDIAG_MAX_BYTES = 8 * 1024 * 1024; // 8 MB ceiling to prevent abuse
+  const NETDIAG_MAX_BYTES = 2 * 1024 * 1024; // 2 MB ceiling to prevent egress drain
   // Tiny latency ping — no body, never cached.
   app.get('/api/netdiag/ping', (_req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.status(204).end();
   });
-  // Download probe — streams N throwaway random bytes (?bytes=…, clamped).
-  app.get('/api/netdiag/download', (req, res) => {
+  // Download probe — streams N throwaway bytes (?bytes=…, clamped).
+  app.get('/api/netdiag/download', netdiagLimiter, (req, res) => {
     const requested = Number.parseInt(String(req.query.bytes ?? ''), 10);
     const bytes = Math.max(1024, Math.min(Number.isFinite(requested) ? requested : 512 * 1024, NETDIAG_MAX_BYTES));
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -2128,6 +2798,7 @@ async function startServer() {
     res.set('Content-Length', String(bytes));
     // Emit in chunks so we don't allocate the whole payload at once.
     const CHUNK = 64 * 1024;
+    const STATIC_CHUNK = Buffer.alloc(CHUNK, 0x5a); // pre-allocated to save server CPU
     let sent = 0;
     let aborted = false;
     res.on('close', () => { aborted = true; }); // client hung up (e.g. probe timeout)
@@ -2136,7 +2807,7 @@ async function startServer() {
       while (sent < bytes) {
         if (aborted) return;
         const size = Math.min(CHUNK, bytes - sent);
-        const chunk = nodeCrypto.randomBytes(size);
+        const chunk = size === CHUNK ? STATIC_CHUNK : STATIC_CHUNK.subarray(0, size);
         sent += size;
         if (!res.write(chunk)) { res.once('drain', pump); return; }
       }
@@ -2145,7 +2816,7 @@ async function startServer() {
     pump();
   });
   // Upload probe — accepts and immediately discards an octet-stream body.
-  app.post('/api/netdiag/upload', express.raw({ type: 'application/octet-stream', limit: NETDIAG_MAX_BYTES }), (req, res) => {
+  app.post('/api/netdiag/upload', netdiagLimiter, express.raw({ type: 'application/octet-stream', limit: NETDIAG_MAX_BYTES }), (req, res) => {
     const received = Buffer.isBuffer(req.body) ? req.body.length : 0;
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({ ok: true, received });
@@ -2234,24 +2905,36 @@ async function startServer() {
       const stripe = getStripe();
       if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
 
-      // Check if creator already has an account
-      const userDoc = await fetchFirebaseDoc('users', uid);
-      let accountId: string | undefined = userDoc?.fields?.stripeConnectAccountId?.stringValue;
-
-      if (!accountId) {
-        const account = await (stripe as any).accounts.create({
-          type: 'express',
-          metadata: { uid },
-          capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
-        });
-        accountId = account.id;
-        await firestoreWrite('users', uid, { stripeConnectAccountId: accountId, updatedAt: Date.now() });
-      }
-
-      // Onboarding for an organization (e.g. a church) — attach the account so its
-      // giving routes there (destination charges read organizations/{id}.stripeAccountId).
+      let accountId: string | undefined;
       if (orgId) {
-        await firestoreWrite('organizations', orgId, { stripeAccountId: accountId, updatedAt: Date.now() });
+        // Onboarding for an organization (e.g. a church): the ORG gets its OWN Express account
+        // (never the signed-in user's personal one — a church and its owner's personal income must not
+        // share a Stripe account). Already-linked orgs keep whatever account they have. Finance-staff only.
+        const gate = await assertOrgFinanceAccess(uid, String(orgId));
+        if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+        accountId = gate.org.stripeAccountId || undefined;
+        if (!accountId) {
+          const account = await (stripe as any).accounts.create({
+            type: 'express',
+            metadata: { uid, ownerUid: uid, entityKey: `ORG:${orgId}`, plajah: 'org' },
+            capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+          });
+          accountId = account.id as string;
+          await firestoreWrite('organizations', String(orgId), { stripeAccountId: accountId, updatedAt: Date.now() });
+        }
+      } else {
+        // Check if creator already has an account
+        const userDoc = await fetchFirebaseDoc('users', uid);
+        accountId = userDoc?.fields?.stripeConnectAccountId?.stringValue;
+        if (!accountId) {
+          const account = await (stripe as any).accounts.create({
+            type: 'express',
+            metadata: { uid, entityKey: `USER:${uid}` },
+            capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+          });
+          accountId = account.id as string;
+          await firestoreWrite('users', uid, { stripeConnectAccountId: accountId, updatedAt: Date.now() });
+        }
       }
 
       const origin = trustedRequestOrigin(req);
@@ -3004,6 +3687,43 @@ async function startServer() {
     }
   });
 
+  // Recount followerCount/followingCount from the `follows` collection (source of truth). The client
+  // counters are +/-1 increments and drift on approvals, blocks and failed halves of a batch.
+  // Idempotent (writes absolute values). Self only; admins may pass { uid } for anyone.
+  app.post('/api/social/reconcile-counts', authMiddleware, express.json({ limit: '2kb' }), async (req: any, res: any) => {
+    try {
+      const callerUid: string = req.uid;
+      const wanted = typeof req.body?.uid === 'string' && req.body.uid ? String(req.body.uid) : callerUid;
+      if (!/^[A-Za-z0-9_-]{6,128}$/.test(wanted)) return res.status(400).json({ error: 'invalid uid' });
+      if (wanted !== callerUid) {
+        const isAdminCaller = await fetchFirebaseDoc('admins', callerUid);
+        if (!isAdminCaller) return res.status(403).json({ error: 'Admin access required to reconcile another user' });
+      }
+      const projectId = 'gen-lang-client-0665118474';
+      const dbId = 'plajah-prod';
+      const countWhere = async (field: string, value: string): Promise<number | null> => {
+        const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runAggregationQuery`, {
+          method: 'POST',
+          headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ structuredAggregationQuery: {
+            structuredQuery: { from: [{ collectionId: 'follows' }], where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } } },
+            aggregations: [{ alias: 'n', count: {} }],
+          } }),
+        });
+        if (!r.ok) return null;
+        const j: any = await r.json();
+        const n = j?.[0]?.result?.aggregateFields?.n?.integerValue;
+        return n === undefined ? null : Number(n);
+      };
+      const [followerCount, followingCount] = await Promise.all([countWhere('followingId', wanted), countWhere('followerId', wanted)]);
+      if (followerCount === null || followingCount === null) return res.status(502).json({ error: 'count unavailable' });
+      await firestoreWrite('users', wanted, { followerCount, followingCount }, true);
+      res.json({ uid: wanted, followerCount, followingCount });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'reconcile failed' });
+    }
+  });
+
   // Admin-gated manual ingestion run (mirrors /api/sports/ingest).
   app.post('/api/terra/ingest', authMiddleware, express.json({ limit: '32kb' }), async (req: any, res) => {
     const isAdmin = await fetchFirebaseDoc('admins', req.uid);
@@ -3211,7 +3931,7 @@ async function startServer() {
       const doc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
       if (!doc?.fields) return res.status(404).json({ error: 'Event not found' });
       const f = doc.fields;
-      const event = { id: req.params.eventId, creatorUid: f.creatorUid?.stringValue, creatorName: f.creatorName?.stringValue, creatorPhotoURL: f.creatorPhotoURL?.stringValue, title: f.title?.stringValue, subtitle: f.subtitle?.stringValue, description: f.description?.stringValue, coverImage: f.coverImage?.stringValue, heroVideoUrl: f.heroVideoUrl?.stringValue, type: f.type?.stringValue, status: f.status?.stringValue, venueName: f.venueName?.stringValue, venueAddress: f.venueAddress?.stringValue, city: f.city?.stringValue, state: f.state?.stringValue, country: f.country?.stringValue, streamUrl: f.streamUrl?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), endDate: parseInt(f.endDate?.integerValue ?? '0'), doorsOpenDate: f.doorsOpenDate?.integerValue ? parseInt(f.doorsOpenDate.integerValue) : undefined, timezone: f.timezone?.stringValue ?? 'America/New_York', totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0'), totalSold: parseInt(f.totalSold?.integerValue ?? '0'), kioskEnabled: f.kioskEnabled?.booleanValue ?? false, printingEnabled: f.printingEnabled?.booleanValue ?? false, sanctuaryMembersOnly: f.sanctuaryMembersOnly?.booleanValue ?? false, refundPolicy: f.refundPolicy?.stringValue ?? 'NO_REFUND', ageRestriction: f.ageRestriction?.stringValue, dresscode: f.dresscode?.stringValue, accessibilityInfo: f.accessibilityInfo?.stringValue, viewCount: parseInt(f.viewCount?.integerValue ?? '0'), shareCount: parseInt(f.shareCount?.integerValue ?? '0'), tiers: JSON.parse(f.tiers?.stringValue ?? '[]'), itinerary: JSON.parse(f.itinerary?.stringValue ?? '[]'), faqItems: JSON.parse(f.faqItems?.stringValue ?? '[]'), promoCodes: JSON.parse(f.promoCodes?.stringValue ?? '[]'), galleryImages: JSON.parse(f.galleryImages?.stringValue ?? '[]'), tags: JSON.parse(f.tags?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0'), updatedAt: parseInt(f.updatedAt?.integerValue ?? '0') };
+      const event = { id: req.params.eventId, creatorUid: f.creatorUid?.stringValue, creatorName: f.creatorName?.stringValue, creatorPhotoURL: f.creatorPhotoURL?.stringValue, title: f.title?.stringValue, subtitle: f.subtitle?.stringValue, description: f.description?.stringValue, coverImage: f.coverImage?.stringValue, heroVideoUrl: f.heroVideoUrl?.stringValue, type: f.type?.stringValue, status: f.status?.stringValue, venueName: f.venueName?.stringValue, venueAddress: f.venueAddress?.stringValue, city: f.city?.stringValue, state: f.state?.stringValue, country: f.country?.stringValue, streamUrl: f.streamUrl?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), endDate: parseInt(f.endDate?.integerValue ?? '0'), doorsOpenDate: f.doorsOpenDate?.integerValue ? parseInt(f.doorsOpenDate.integerValue) : undefined, timezone: f.timezone?.stringValue ?? 'America/New_York', totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0'), totalSold: parseInt(f.totalSold?.integerValue ?? '0'), kioskEnabled: f.kioskEnabled?.booleanValue ?? false, printingEnabled: f.printingEnabled?.booleanValue ?? false, sanctuaryMembersOnly: f.sanctuaryMembersOnly?.booleanValue ?? false, refundPolicy: f.refundPolicy?.stringValue ?? 'NO_REFUND', ageRestriction: f.ageRestriction?.stringValue, dresscode: f.dresscode?.stringValue, accessibilityInfo: f.accessibilityInfo?.stringValue, viewCount: parseInt(f.viewCount?.integerValue ?? '0'), shareCount: parseInt(f.shareCount?.integerValue ?? '0'), tiers: JSON.parse(f.tiers?.stringValue ?? '[]'), itinerary: JSON.parse(f.itinerary?.stringValue ?? '[]'), faqItems: JSON.parse(f.faqItems?.stringValue ?? '[]'), promoCodes: JSON.parse(f.promoCodes?.stringValue ?? '[]'), galleryImages: JSON.parse(f.galleryImages?.stringValue ?? '[]'), tags: JSON.parse(f.tags?.stringValue ?? '[]'), packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0'), updatedAt: parseInt(f.updatedAt?.integerValue ?? '0') };
       firestoreWrite('plajahEvents', req.params.eventId, { viewCount: event.viewCount + 1, updatedAt: Date.now() }).catch(() => {});
       res.json(event);
     } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -3220,7 +3940,7 @@ async function startServer() {
   // Purchase tickets — creates Stripe Checkout session
   app.post('/api/events/:eventId/tickets/purchase', authMiddleware, express.json(), async (req: any, res) => {
     const uid: string = req.uid;
-    const { tierId, quantity = 1, holderName, holderEmail, physicalRequested, customPackagingRequested, shippingAddress, promoCode } = req.body;
+    const { tierId, quantity = 1, holderName, holderEmail, physicalRequested, customPackagingRequested, shippingAddress, promoCode, selectedPackages = [] } = req.body;
     try {
       const stripe = getStripe();
       const eventDoc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
@@ -3236,15 +3956,69 @@ async function startServer() {
       const promo = promoCodes.find((p: any) => p.code?.toLowerCase() === promoCode?.toLowerCase() && p.usesLeft > 0);
       if (promo) unitPrice = Math.round(unitPrice * (1 - promo.discountPct / 100));
       const packagingFee = (physicalRequested && customPackagingRequested) ? (tier.customPackagingFeeCents ?? 0) : 0;
-      const subtotal = unitPrice * quantity + packagingFee;
+      
+      let packagesTotal = 0;
+      const initializedPackages = selectedPackages.map((pkg: any) => {
+        packagesTotal += (pkg.priceCents || 0);
+        return {
+          id: `tpkg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          packageAddonId: pkg.id,
+          name: pkg.name,
+          category: pkg.category,
+          type: pkg.type,
+          totalUnits: pkg.totalUnits,
+          remainingUnits: pkg.totalUnits,
+          unitName: pkg.unitName,
+          eligibleItems: pkg.eligibleItems || [],
+          eligibleItemsDescription: pkg.eligibleItemsDescription || '',
+          stations: pkg.stations || [],
+          cooldownMinutes: pkg.cooldownMinutes,
+          souvenirCupIncluded: pkg.souvenirCupIncluded,
+          badgeColor: pkg.badgeColor,
+          redemptions: [],
+        };
+      });
+
+      const subtotal = unitPrice * quantity + packagingFee + packagesTotal;
 
       const origin = trustedRequestOrigin(req);
       const lineItems: any[] = [{ price_data: { currency: 'usd', product_data: { name: `${f.title?.stringValue} — ${tier.name}`, description: tier.description, ...(f.coverImage?.stringValue ? { images: [f.coverImage.stringValue] } : {}) }, unit_amount: unitPrice }, quantity }];
       if (packagingFee > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Custom Ticket Packaging' }, unit_amount: packagingFee }, quantity: 1 });
 
+      for (const p of selectedPackages) {
+        if (p.priceCents > 0) {
+          lineItems.push({
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `Package Add-On: ${p.name}`,
+                description: p.description || p.eligibleItemsDescription || 'Venue Package',
+              },
+              unit_amount: p.priceCents,
+            },
+            quantity: 1,
+          });
+        }
+      }
+
       const session = await stripe.checkout.sessions.create({
         mode: 'payment', payment_method_types: ['card'], line_items: lineItems,
-        metadata: { type: 'event_ticket', eventId: req.params.eventId, tierId, tierName: tier.name, tierColor: tier.color || '#a78bfa', quantity: String(quantity), uid, holderName: holderName || '', holderEmail: holderEmail || '', physicalRequested: String(!!physicalRequested), customPackagingRequested: String(!!customPackagingRequested), shippingAddress: shippingAddress ? JSON.stringify(shippingAddress) : '', subtotal: String(subtotal) },
+        metadata: {
+          type: 'event_ticket',
+          eventId: req.params.eventId,
+          tierId,
+          tierName: tier.name,
+          tierColor: tier.color || '#a78bfa',
+          quantity: String(quantity),
+          uid,
+          holderName: holderName || '',
+          holderEmail: holderEmail || '',
+          physicalRequested: String(!!physicalRequested),
+          customPackagingRequested: String(!!customPackagingRequested),
+          shippingAddress: shippingAddress ? JSON.stringify(shippingAddress) : '',
+          packages: JSON.stringify(initializedPackages),
+          subtotal: String(subtotal)
+        },
         success_url: `${origin}?event_success=${req.params.eventId}`,
         cancel_url: `${origin}/event/${req.params.eventId}`,
         customer_email: holderEmail,
@@ -3253,17 +4027,115 @@ async function startServer() {
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
-  // Validate / check-in a ticket
+  // Validate / check-in a ticket (returns full package & pass data)
   app.post('/api/tickets/:ticketId/validate', authMiddleware, express.json(), async (req: any, res) => {
     try {
       const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
       if (!doc?.fields) return res.json({ valid: false, reason: 'Ticket not found' });
       const f = doc.fields;
-      if (f.status?.stringValue === 'USED') return res.json({ valid: false, reason: 'Already checked in', checkedInAt: parseInt(f.checkedInAt?.integerValue ?? '0'), holderName: f.holderName?.stringValue });
+      if (f.status?.stringValue === 'USED') return res.json({ valid: false, reason: 'Already checked in', checkedInAt: parseInt(f.checkedInAt?.integerValue ?? '0'), holderName: f.holderName?.stringValue, packages: JSON.parse(f.packages?.stringValue ?? '[]') });
       if (f.status?.stringValue !== 'VALID') return res.json({ valid: false, reason: `Ticket is ${f.status?.stringValue}` });
       await firestoreWrite('eventTickets', req.params.ticketId, { status: 'USED', checkedInAt: Date.now(), checkedInBy: req.uid });
-      res.json({ valid: true, holderName: f.holderName?.stringValue, tierName: f.tierName?.stringValue, eventTitle: f.eventTitle?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1') });
+      res.json({ valid: true, holderName: f.holderName?.stringValue, tierName: f.tierName?.stringValue, eventTitle: f.eventTitle?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), packages: JSON.parse(f.packages?.stringValue ?? '[]') });
     } catch (err: any) { res.status(500).json({ error: err.message, valid: false }); }
+  });
+
+  // Redeem a package perk (With live cooldown & balance decrement)
+  app.post('/api/tickets/:ticketId/redeem-package', authMiddleware, express.json(), async (req: any, res) => {
+    const { packageId, units = 1, itemName, stationName, notes, overrideCooldown = false } = req.body;
+    try {
+      const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
+      if (!doc?.fields) return res.status(404).json({ success: false, reason: 'Ticket not found' });
+      const f = doc.fields;
+      const packages: any[] = JSON.parse(f.packages?.stringValue ?? '[]');
+      const pkgIndex = packages.findIndex((p: any) => p.id === packageId || p.packageAddonId === packageId);
+      if (pkgIndex === -1) return res.status(400).json({ success: false, reason: 'Package not attached to this ticket' });
+
+      const pkg = packages[pkgIndex];
+      const now = Date.now();
+
+      // Check anti-abuse cooldown (anti-stacking pacing rule)
+      if (pkg.cooldownMinutes && pkg.lastRedeemedAt && !overrideCooldown) {
+        const elapsedMs = now - pkg.lastRedeemedAt;
+        const cooldownMs = pkg.cooldownMinutes * 60 * 1000;
+        if (elapsedMs < cooldownMs) {
+          const remainingSeconds = Math.ceil((cooldownMs - elapsedMs) / 1000);
+          return res.json({
+            success: false,
+            cooldownActive: true,
+            remainingSeconds,
+            reason: `Anti-abuse pacing active. Next eligible drink/item in ${Math.ceil(remainingSeconds / 60)} minute(s).`,
+            package: pkg,
+          });
+        }
+      }
+
+      // Check balance if not unlimited
+      if (pkg.type !== 'UNLIMITED') {
+        if (pkg.remainingUnits < units) {
+          return res.json({
+            success: false,
+            reason: `Package allowance exhausted. 0 ${pkg.unitName} remaining.`,
+            package: pkg,
+          });
+        }
+        pkg.remainingUnits = Math.max(0, pkg.remainingUnits - units);
+      }
+
+      pkg.lastRedeemedAt = now;
+      const redemptionRecord = {
+        id: `red_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        timestamp: now,
+        unitsRedeemed: units,
+        itemName: itemName || (pkg.category === 'ALCOHOL' ? 'Craft Beverage' : 'Menu Item'),
+        stationName: stationName || 'Main Bar',
+        staffUid: req.uid,
+        notes: notes || '',
+      };
+      if (!pkg.redemptions) pkg.redemptions = [];
+      pkg.redemptions.unshift(redemptionRecord);
+
+      packages[pkgIndex] = pkg;
+      await firestoreWrite('eventTickets', req.params.ticketId, {
+        packages: JSON.stringify(packages),
+      });
+
+      res.json({ success: true, package: pkg, redemption: redemptionRecord });
+    } catch (err: any) { res.status(500).json({ success: false, reason: err.message }); }
+  });
+
+  // Attach a package to a ticket directly (box office upgrade / onsite add-on)
+  app.post('/api/tickets/:ticketId/add-package', authMiddleware, express.json(), async (req: any, res) => {
+    const { packageAddon } = req.body;
+    if (!packageAddon) return res.status(400).json({ error: 'packageAddon is required' });
+    try {
+      const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
+      if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
+      const f = doc.fields;
+      const packages: any[] = JSON.parse(f.packages?.stringValue ?? '[]');
+      const newPkg = {
+        id: `tpkg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        packageAddonId: packageAddon.id,
+        name: packageAddon.name,
+        category: packageAddon.category,
+        type: packageAddon.type,
+        totalUnits: packageAddon.totalUnits,
+        remainingUnits: packageAddon.totalUnits,
+        unitName: packageAddon.unitName,
+        eligibleItems: packageAddon.eligibleItems || [],
+        eligibleItemsDescription: packageAddon.eligibleItemsDescription || '',
+        stations: packageAddon.stations || [],
+        cooldownMinutes: packageAddon.cooldownMinutes,
+        souvenirCupIncluded: packageAddon.souvenirCupIncluded,
+        badgeColor: packageAddon.badgeColor,
+        redemptions: [],
+      };
+      packages.push(newPkg);
+      await firestoreWrite('eventTickets', req.params.ticketId, {
+        packages: JSON.stringify(packages),
+      });
+      res.json({ success: true, package: newPkg });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
   // Get user's tickets
@@ -3278,7 +4150,7 @@ async function startServer() {
       const docs: any[] = await qRes.json();
       const tickets = docs.filter((d: any) => d.document).map((d: any) => {
         const f = d.document.fields;
-        return { id: d.document.name.split('/').pop(), eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
+        return { id: d.document.name.split('/').pop(), eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
       });
       res.json({ tickets });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -3291,7 +4163,7 @@ async function startServer() {
       if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
       const f = doc.fields;
       if (f.holderUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
-      res.json({ id: req.params.ticketId, eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierId: f.tierId?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, orderNumber: f.orderNumber?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), totalPriceCents: parseInt(f.totalPriceCents?.integerValue ?? '0'), status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, physicalRequested: f.physicalRequested?.booleanValue ?? false, createdAt: parseInt(f.createdAt?.integerValue ?? '0') });
+      res.json({ id: req.params.ticketId, eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierId: f.tierId?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, orderNumber: f.orderNumber?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), totalPriceCents: parseInt(f.totalPriceCents?.integerValue ?? '0'), status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, physicalRequested: f.physicalRequested?.booleanValue ?? false, packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
@@ -3308,7 +4180,7 @@ async function startServer() {
       const docs: any[] = await qRes.json();
       const attendees = docs.filter((d: any) => d.document).map((d: any) => {
         const f = d.document.fields;
-        return { id: d.document.name.split('/').pop(), holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, quantity: parseInt(f.quantity?.integerValue ?? '1'), physicalRequested: f.physicalRequested?.booleanValue, createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
+        return { id: d.document.name.split('/').pop(), holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, quantity: parseInt(f.quantity?.integerValue ?? '1'), physicalRequested: f.physicalRequested?.booleanValue, packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
       });
       res.json({ attendees });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -3676,11 +4548,32 @@ async function startServer() {
       // when it has one — so money lands in the church's account, not the platform's.
       const church = await firestoreRead('organizations', churchId);
       const destAcct: string | undefined = church?.stripeAccountId || undefined;
-      const routing = destAcct
-        ? (isSub
-            ? { subscription_data: { transfer_data: { destination: destAcct } } }
-            : { payment_intent_data: { transfer_data: { destination: destAcct } } })
-        : {};
+      // DONOR COVERS THE FEE: charge gift + fee so the church receives exactly the gift. Only meaningful on a
+      // destination charge (the platform keeps the fee as application_fee, which pays Stripe's cost). Default ON;
+      // the donor may untick (coverFees:false) and the org may disable the offer (financeSettings.donorCoversFees=false).
+      const orgOffersFeeCover = (church?.financeSettings?.donorCoversFees) !== false;
+      const wantsFeeCover = !!destAcct && orgOffersFeeCover && req.body?.coverFees !== false;
+      const feeMath = grossUpCents(Math.round(amount * 100), {
+        rate: process.env.STRIPE_FEE_RATE ? Number(process.env.STRIPE_FEE_RATE) : undefined,
+        fixedCents: process.env.STRIPE_FEE_FIXED_CENTS ? Number(process.env.STRIPE_FEE_FIXED_CENTS) : undefined,
+      });
+      const feeCoveredCents = wantsFeeCover ? feeMath.feeCents : 0;
+      const chargeCents = wantsFeeCover ? feeMath.grossCents : feeMath.giftCents;
+      // Gift metadata is also stamped on the PaymentIntent / Subscription so charge.refunded,
+      // invoice.paid (monthly renewals) and the Elevate sync can attribute them to the church.
+      const giftMeta = {
+        type: 'church_donation', uid, churchId,
+        churchName: churchName ?? '',
+        fund: fund ?? 'General',
+        amount: String(amount),                       // the GIFT (what the church receives), in dollars
+        giftCents: String(feeMath.giftCents),
+        feeCoveredCents: String(feeCoveredCents),     // extra the donor paid to cover processing; 0 if none
+        recurring: String(!!recurring),
+        message: message ?? '',
+      };
+      const routing = isSub
+        ? { subscription_data: { metadata: giftMeta, ...(destAcct ? { transfer_data: { destination: destAcct, ...(feeCoveredCents ? {} : {}) }, ...(feeCoveredCents ? { application_fee_percent: applicationFeePercent(feeCoveredCents, chargeCents) } : {}) } : {}) } }
+        : { payment_intent_data: { metadata: giftMeta, ...(destAcct ? { transfer_data: { destination: destAcct }, ...(feeCoveredCents ? { application_fee_amount: feeCoveredCents } : {}) } : {}) } };
 
       const session = await stripe.checkout.sessions.create({
         mode: isSub ? 'subscription' : 'payment',
@@ -3689,7 +4582,7 @@ async function startServer() {
           price_data: {
             currency: 'usd',
             product_data: { name: `${churchName || 'Church'} — ${fund || 'General'} Giving${isSub ? ' (monthly)' : ''}` },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: chargeCents,
             ...(isSub ? { recurring: { interval: 'month' as const } } : {}),
           },
           quantity: 1,
@@ -3703,15 +4596,196 @@ async function startServer() {
           fund: fund ?? 'General',
           amount: String(amount),
           recurring: String(!!recurring),
+          giftCents: String(feeMath.giftCents),
+          feeCoveredCents: String(feeCoveredCents),
           message: message ?? '',
         },
       });
 
-      res.json({ url: session.url });
+      res.json({ url: session.url, feeCoveredCents, chargeCents });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ── Elevate: Stripe ↔ Finance Hub (Connect-aware, server-verified access) ─────
+  // POST /api/elevate/stripe/sync  {orgId, sinceDays?}  → pull payouts+lines, backfill missed gifts, post journals.
+  app.post('/api/elevate/stripe/sync', authMiddleware, async (req: any, res) => {
+    const orgId = String(req.body?.orgId || '');
+    if (!orgId) return res.status(400).json({ error: 'orgId required' });
+    try {
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      const acct: string | undefined = gate.org.stripeAccountId;
+      if (!acct) return res.status(400).json({ error: 'This organization has no connected Stripe account yet.', code: 'NOT_CONNECTED' });
+      if (_syncing.has(orgId)) return res.status(409).json({ error: 'A sync is already running', code: 'BUSY' });
+      _syncing.add(orgId);
+      try { res.json(await syncOrgStripe(orgId, acct, Number(req.body?.sinceDays) || 90)); }
+      finally { _syncing.delete(orgId); }
+    } catch (err: any) {
+      console.error('[Elevate] sync error:', err?.message);
+      if (!res.headersSent) res.status(500).json({ error: err?.message || 'Sync failed' });
+    }
+  });
+
+  // ── Elevate Budget Pulse: proactive, deduped budget/cash/goal alerts ─────────────────────────
+  // Runs the SAME pure math as the Finance Hub (services/acctPulse.ts) with no user present.
+  //   POST /api/elevate/budget-alerts/run {orgId}   Firebase token + server-verified finance access → one org
+  //   POST /api/elevate/budget-alerts/run           header x-elevate-cron-key: $ELEVATE_CRON_KEY (Cloud Scheduler) → every org with a budget
+  //   ELEVATE_ALERTS_SWEEP=1 enables an in-process interval sweep (every ELEVATE_ALERTS_SWEEP_MIN minutes, default 180);
+  //   Cloud Run scales to zero, so for production prefer Cloud Scheduler + ELEVATE_CRON_KEY.
+  // Alert docs are acctAlerts/{orgId_scope_scopeId_kind_period}: each escalation level fires ONCE per period.
+  const _pulseRunning = new Set<string>();
+  async function runBudgetAlertsForOrg(orgId: string, pre?: Record<string, any> | null): Promise<{ evaluated: number; created: number; notified: number; skipped?: string }> {
+    const out: { evaluated: number; created: number; notified: number; skipped?: string } = { evaluated: 0, created: 0, notified: 0 };
+    if (_pulseRunning.has(orgId)) { out.skipped = 'busy'; return out; }
+    _pulseRunning.add(orgId);
+    try {
+      const org = pre || await firestoreGetDeep('organizations', orgId);
+      if (!org) { out.skipped = 'not-found'; return out; }
+      if (org.financeSettings?.pulseAlertsOff) { out.skipped = 'disabled'; return out; }
+      const eq = [{ field: 'orgId', op: 'EQUAL', value: orgId }];
+      const rows = async (col: string, n: number) => (await fsQueryDocs(col, eq, n)).map(d => ({ ...d.data, id: d.id }));
+      const [accounts, budgets, journals, expenses, projects] = await Promise.all([
+        rows('acctAccounts', 2000), rows('acctBudgets', 100), rows('acctJournals', 20000), rows('acctExpenses', 20000), rows('acctProjects', 500),
+      ]);
+      if (!accounts.length) { out.skipped = 'no-books'; return out; }
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: ELEVATE_TZ });
+      const alerts = pulseDeriveAlerts({
+        orgId, today, accounts: accounts as any, journals: journals as any, expenses: expenses as any, budgets: budgets as any, projects: projects as any,
+        ministries: org.ministries || [], funds: org.givingFunds || [], recurring: org.financeSettings?.recurringBills, settings: org.financeSettings || null, mode: 'FULL',
+      });
+      out.evaluated = alerts.length;
+      const fresh: { a: (typeof alerts)[number]; audience: string[] }[] = [];
+      for (const a of alerts) {
+        if (await firestoreRead('acctAlerts', a.id)) continue;                 // already fired at this level for this period
+        const audience = pulseAudience(a, org as any);
+        const ok = await firestorePatchDeep('acctAlerts', a.id, deepClean({ ...a, audienceUids: audience, createdAt: Date.now(), source: 'server' }));
+        if (ok) fresh.push({ a, audience });
+      }
+      out.created = fresh.length;
+      // Notify: dept head for their dept; finance/bookkeeper/treasurer for all; pastors only for org-level. Honour each user's mute level.
+      const byUser = new Map<string, typeof fresh>();
+      fresh.forEach(f => f.audience.forEach(u => byUser.set(u, [...(byUser.get(u) || []), f])));
+      for (const [uid, items] of byUser) {
+        try {
+          const u = await firestoreGetDeep('users', uid);
+          const pref = u?.elevateAlertPrefs?.[orgId];
+          const allowed = items.filter(i => pulsePrefAllows(pref, i.a.severity));
+          if (!allowed.length) continue;
+          // Never noisy: more than 3 new alerts collapse into a single digest.
+          const msgs = allowed.length > 3
+            ? [{ title: `${allowed.length} budget alerts need a look`, message: allowed.slice(0, 3).map(i => i.a.title).join(' · ') + ' …', id: allowed[0].a.id }]
+            : allowed.map(i => ({ title: i.a.title, message: `${i.a.message} ${i.a.nextStep}`.trim(), id: i.a.id }));
+          for (const m of msgs) {
+            await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-finance', senderName: org.name || 'Budget Pulse', senderPhoto: org.logoUrl || '', type: 'SYSTEM', title: m.title, message: m.message, targetId: orgId, isRead: false, timestamp: Date.now() });
+            out.notified++;
+            const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+            if (tokens.length) sendFcmMulticast([...new Set(tokens)], { title: m.title, body: m.message.slice(0, 180), channelId: 'system', data: { type: 'SYSTEM', targetId: orgId, senderName: org.name || 'Budget Pulse' } }).catch(() => {});
+          }
+        } catch (e: any) { console.error('[Elevate] pulse notify failed:', e?.message); }
+      }
+      return out;
+    } catch (e: any) {
+      console.error('[Elevate] budget alerts failed for', orgId, e?.message);
+      out.skipped = 'error'; return out;
+    } finally { _pulseRunning.delete(orgId); }
+  }
+  async function sweepBudgetAlerts(): Promise<{ orgs: number; created: number; notified: number }> {
+    const year = Number(new Date().toLocaleDateString('en-CA', { timeZone: ELEVATE_TZ }).slice(0, 4));
+    const b = await fsQueryDocs('acctBudgets', [{ field: 'fiscalYear', op: 'GREATER_THAN_OR_EQUAL', value: year - 1 }], 1000);
+    const orgIds = [...new Set(b.map(d => String(d.data.orgId || '')).filter(Boolean))].slice(0, Number(process.env.ELEVATE_ALERTS_MAX_ORGS) || 200);
+    let created = 0, notified = 0;
+    for (const id of orgIds) { const r = await runBudgetAlertsForOrg(id); created += r.created; notified += r.notified; }
+    return { orgs: orgIds.length, created, notified };
+  }
+  app.post('/api/elevate/budget-alerts/run', (req: any, res: any, next: any) => {
+    const provided = String(req.get('x-elevate-cron-key') || '');
+    if (!provided) return authMiddleware(req, res, next);
+    const expected = process.env.ELEVATE_CRON_KEY || '';
+    const a = Buffer.from(provided), b = Buffer.from(expected);
+    if (!expected || a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) return res.status(401).json({ error: 'invalid or missing cron key' });
+    req.pulseCron = true; next();
+  }, async (req: any, res: any) => {
+    try {
+      const orgId = String(req.body?.orgId || '');
+      if (req.pulseCron) return res.json(orgId ? await runBudgetAlertsForOrg(orgId) : await sweepBudgetAlerts());
+      if (!orgId) return res.status(400).json({ error: 'orgId required' });
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      res.json(await runBudgetAlertsForOrg(orgId, gate.org));
+    } catch (err: any) {
+      console.error('[Elevate] budget-alerts error:', err?.message);
+      if (!res.headersSent) res.status(500).json({ error: err?.message || 'Alert run failed' });
+    }
+  });
+  if (process.env.ELEVATE_ALERTS_SWEEP === '1') {
+    const every = Math.max(15, Number(process.env.ELEVATE_ALERTS_SWEEP_MIN) || 180) * 60_000;
+    setTimeout(() => sweepBudgetAlerts().catch(() => {}), 90_000).unref?.();
+    setInterval(() => sweepBudgetAlerts().catch(() => {}), every).unref?.();
+    console.log(`[Elevate] budget-alert sweep enabled (every ${every / 60000} min)`);
+  }
+
+  // GET /api/elevate/stripe/status?orgId=
+  app.get('/api/elevate/stripe/status', authMiddleware, async (req: any, res) => {
+    const orgId = String(req.query.orgId || '');
+    if (!orgId) return res.status(400).json({ error: 'orgId required' });
+    try {
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      const acct: string | undefined = gate.org.stripeAccountId;
+      const state = await firestoreRead('chmsFinanceMeta', `stripe_${orgId}`);
+      const lastSyncAt: number | null = state?.lastSyncAt || null;
+      if (!acct) return res.json({ connected: false, payoutsEnabled: false, lastSyncAt, missingRequirements: [] });
+      const stripe = getStripe();
+      const [account, balance, upcoming] = await Promise.all([
+        stripe.accounts.retrieve(acct),
+        stripe.balance.retrieve({}, { stripeAccount: acct }).catch(() => null),
+        stripe.payouts.list({ limit: 5 }, { stripeAccount: acct }).catch(() => ({ data: [] })),
+      ]);
+      const sumUsd = (xs: any[] | undefined) => usd((xs || []).filter(b => b.currency === 'usd').reduce((s, b) => s + b.amount, 0));
+      const next = (upcoming.data || []).filter((p: any) => p.status === 'pending' || p.status === 'in_transit').sort((a: any, b: any) => a.arrival_date - b.arrival_date)[0];
+      const sched = account.settings?.payouts?.schedule;
+      const missing: string[] = [...new Set<string>([...(account.requirements?.past_due || []), ...(account.requirements?.currently_due || [])])];
+      if (state?.payoutsEnabled !== account.payouts_enabled) stripeStateWrite(orgId, { payoutsEnabled: !!account.payouts_enabled, chargesEnabled: !!account.charges_enabled }).catch(() => {});
+      res.json({
+        connected: true, accountId: acct, chargesEnabled: !!account.charges_enabled, payoutsEnabled: !!account.payouts_enabled,
+        detailsSubmitted: !!account.details_submitted, disabledReason: account.requirements?.disabled_reason || null,
+        lastSyncAt, availableBalance: balance ? sumUsd(balance.available) : null, pendingBalance: balance ? sumUsd(balance.pending) : null,
+        nextPayoutEstimate: next ? { date: utcDate(next.arrival_date), amount: usd(next.amount), status: next.status }
+          : sched ? { schedule: sched.interval === 'daily' ? `Daily (${sched.delay_days ?? 2}-day delay)` : `${sched.interval}${sched.weekly_anchor ? ' on ' + sched.weekly_anchor : ''}${sched.monthly_anchor ? ' on day ' + sched.monthly_anchor : ''}` } : null,
+        missingRequirements: missing,
+      });
+    } catch (err: any) {
+      console.error('[Elevate] status error:', err?.message);
+      res.status(500).json({ error: err?.message || 'Status failed' });
+    }
+  });
+
+  // POST /api/elevate/stripe/link {orgId, kind:'fix'|'dashboard'} → org-aware Stripe link for ANY finance user
+  // (the legacy /connect/dashboard-link only works for whoever originally onboarded the account).
+  app.post('/api/elevate/stripe/link', authMiddleware, async (req: any, res) => {
+    const orgId = String(req.body?.orgId || '');
+    if (!orgId) return res.status(400).json({ error: 'orgId required' });
+    try {
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      const acct: string | undefined = gate.org.stripeAccountId;
+      if (!acct) return res.status(400).json({ error: 'No connected Stripe account', code: 'NOT_CONNECTED' });
+      const stripe = getStripe();
+      const origin = trustedRequestOrigin(req);
+      if (req.body?.kind === 'dashboard') return res.json({ url: (await stripe.accounts.createLoginLink(acct)).url });
+      const link = await stripe.accountLinks.create({
+        account: acct, type: 'account_onboarding',
+        refresh_url: `${origin}?org=${orgId}&connect=refresh`, return_url: `${origin}?org=${orgId}&connect=success`,
+      });
+      res.json({ url: link.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Could not create Stripe link' });
+    }
+  });
+
+  billing.register(app);
 
   // ── Email: broadcast to a list (Resend HTTP API) ──────────────────────────
   // Sends when RESEND_API_KEY is configured; otherwise reports configured:false
@@ -4318,7 +5392,7 @@ async function startServer() {
   // ── Anthropic (Claude) proxy for FABULA ─────────────────────────────────────
   // FABULA is Claude-powered; this keeps the API key server-side. Accepts the
   // standard Messages-API body and forwards it. Logged-in + rate-limited.
-  app.post('/api/ai/anthropic', apiLimiter, authMiddleware, express.json({ limit: '4mb' }), async (req: any, res) => {
+  app.post('/api/ai/anthropic', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '4mb' }), async (req: any, res) => {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
     const { model, max_tokens, system, messages } = req.body as {
@@ -4356,25 +5430,16 @@ async function startServer() {
   //
   // Deliberately narrow, because a URL-taking fetcher on a server is an SSRF primitive: http(s)
   // only, no private/loopback hosts, no redirects followed off-protocol, a size cap, and the
-  // response is returned as text for the client to parse. It cannot reach anything internal and
-  // it cannot be used to fetch media.
+  // response is returned as text for the client to parse. Uses safeOutboundFetch to prevent SSRF
+  // and loopback/metadata redirects.
   app.get('/api/import/feed', apiLimiter, authMiddleware, async (req: any, res) => {
     const raw = String(req.query.url || '');
     let target: URL;
     try { target = new URL(raw); } catch { return res.status(400).json({ error: 'Not a valid URL.' }); }
     if (!/^https?:$/.test(target.protocol)) return res.status(400).json({ error: 'Only http and https are supported.' });
 
-    const host = target.hostname.toLowerCase();
-    const isPrivate =
-      host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0' ||
-      /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^169\.254\./.test(host) ||
-      host.endsWith('.internal') || host.endsWith('.local') || !host.includes('.');
-    if (isPrivate) return res.status(400).json({ error: 'That host is not reachable from here.' });
-
     try {
-      const upstream = await fetch(target.toString(), {
-        redirect: 'follow',
+      const upstream = await safeOutboundFetch(target.toString(), {
         headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*', 'User-Agent': 'Plajah-CareerImport/1.0' },
         signal: AbortSignal.timeout(15000),
       });
@@ -4404,7 +5469,7 @@ async function startServer() {
   // OpenAI-compatible, so the body is a standard chat-completions payload and the
   // response is passed through untouched — any OpenAI client can point at this.
   // Logged-in + rate-limited, key stays server-side.
-  app.post('/api/ai/pokee', pokeeLimiter, authMiddleware, express.json({ limit: '25mb' }), async (req: any, res) => {
+  app.post('/api/ai/pokee', pokeeLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '25mb' }), async (req: any, res) => {
     const key = process.env.POKEE_API_KEY;
     if (!key) return res.status(503).json({ error: 'POKEE_API_KEY not configured' });
     const { model, max_tokens, messages, temperature, tools, tool_choice, response_format } = req.body as {
@@ -4467,7 +5532,7 @@ async function startServer() {
   // Phase 1 of the character-avatars system. Fetches the character, verifies its creator turned the
   // chatbot ON, builds a GUARDRAILED persona system prompt SERVER-SIDE (so the safety rules can't be
   // stripped by the client), and answers via Claude. See docs/PLAJAH_CHARACTER_AVATARS_BLUEPRINT.md.
-  app.post('/api/character/chat', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+  app.post('/api/character/chat', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '256kb' }), async (req: any, res) => {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return res.status(503).json({ error: 'AI not configured' });
     const { worldId, characterId, messages } = req.body || {};
@@ -4527,7 +5592,7 @@ async function startServer() {
   // bundle (the old client-side path silently no-op'd in prod because the key
   // wasn't baked in). The client sends the track's audio URL; we fetch it and
   // transcribe with timestamps. Logged-in + rate-limited.
-  app.post('/api/ai/captions', apiLimiter, authMiddleware, async (req: any, res) => {
+  app.post('/api/ai/captions', aiLimiter, authMiddleware, requireRegisteredUser, async (req: any, res) => {
     const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
     const { audioUrl, title, artist, kind } = (req.body || {}) as { audioUrl?: string; title?: string; artist?: string; kind?: string };
@@ -4721,7 +5786,7 @@ Rules:
   // album metadata/liner notes, lyric gen, sermon transcription, module insights,
   // content-safety, etc. work in production. Body is the SDK's generateContent
   // params ({ model, contents, config }); returns { text }. Logged-in + limited.
-  app.post('/api/ai/gemini', apiLimiter, authMiddleware, express.json({ limit: '25mb' }), async (req: any, res) => {
+  app.post('/api/ai/gemini', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '25mb' }), async (req: any, res) => {
     const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
     const { model, contents, config } = (req.body || {}) as { model?: string; contents?: any; config?: any };
@@ -4777,6 +5842,32 @@ Rules:
     for (const k of Object.keys(fields)) out[k] = fsVal(fields[k]);
     return out;
   };
+
+  // Living knowledge: watch PubMed / CourtListener / official feeds for the anchors in the Law and Medicine
+  // courses and record impacts for lessons whose facts may have changed. A scheduler (Cloud Scheduler) hits:
+  //   POST /api/cron/living-knowledge?budget=60      header  x-cron-key: <ADMIN_SEED_KEY|CRON_SECRET>
+  // Each target keeps its own cursor, so a short run just resumes where it stopped. See docs/ACADEMIA_LAW_MEDICINE_BLUEPRINT.md.
+  app.post('/api/cron/living-knowledge', express.json(), async (req: any, res: any) => {
+    const key = req.headers['x-cron-key'];
+    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!(await getGoogleAccessToken())) return res.status(500).json({ error: 'GOOGLE_SERVICE_ACCOUNT_JSON not configured' });
+    try {
+      const { COURSES, loadCurriculum } = await import('./services/courseCatalog');
+      const { buildWatchlist } = await import('./services/livingKnowledge/watchlist');
+      const { runIngest } = await import('./services/livingKnowledge/ingest');
+      const { firestoreRestSink } = await import('./services/livingKnowledge/firestoreRestSink');
+      const curricula = (await Promise.all(COURSES.filter(c => c.curriculumId && /^(law|med)-/.test(c.curriculumId)).map(c => loadCurriculum(c.curriculumId!)))).filter(Boolean) as any[];
+      const targets = buildWatchlist(curricula);
+      const budget = Math.min(Math.max(Number(req.query.budget) || 60, 1), 400);
+      const summary = await runIngest({ targets, sink: firestoreRestSink('gen-lang-client-0665118474', 'plajah-prod', getGoogleAccessToken), budget, deadline: Date.now() + 240_000 });
+      res.json({ courses: curricula.length, anchors: targets.length, ...summary });
+    } catch (err: any) {
+      console.error('[living-knowledge]', err?.message || err);
+      res.status(500).json({ error: String(err?.message || err).slice(0, 300) });
+    }
+  });
 
   app.post('/api/cron/publish-due-posts', express.json(), async (req: any, res: any) => {
     const key = req.headers['x-cron-key'];
@@ -5080,31 +6171,27 @@ Rules:
     res.json({ followed: uids.length });
   });
 
-  // ── Alexa Skill Fulfillment ───────────────────────────────────────────────────
-  // Alexa POSTs signed requests here — no Firebase auth (Alexa doesn't know
-  // about Firebase), but the Alexa app ID should be verified in production.
-  app.post('/api/alexa', express.json(), async (req, res) => {
+  // ── Google Actions Fulfillment ────────────────────────────────────────────────
+  // Google Assistant POSTs here for conversational actions ("Talk to Chora").
+  app.post('/api/google-action', express.json(), async (req, res) => {
     try {
-      const { handleAlexaRequest } = await import('./services/alexaService.js');
-      const response = await handleAlexaRequest(req.body);
+      const response = await handleGoogleActionRequest(req.body, getChoraTrackIndex);
       res.json(response);
     } catch (err: any) {
-      console.error('[Alexa] handler error:', err.message);
-      res.status(500).json({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: 'An error occurred.' }, shouldEndSession: true } });
+      console.error('[GoogleAction] handler error:', err?.message);
+      res.status(500).json({ prompt: { override: true, firstSimple: { speech: 'An error occurred.', text: 'Error.' } } });
     }
   });
 
-  // ── Google Actions Fulfillment ────────────────────────────────────────────────
-  // Google Assistant POSTs here for conversational actions.
-  // Verify with Google Actions SDK JWT in production.
-  app.post('/api/google-action', express.json(), async (req, res) => {
+  // ── Samsung Bixby Fulfillment ────────────────────────────────────────────────
+  // Samsung Bixby capsules POST here for Galaxy devices, Smart TVs, and Watches.
+  app.post('/api/bixby', express.json(), async (req, res) => {
     try {
-      const { handleGoogleActionRequest } = await import('./services/googleHomeService.js');
-      const response = handleGoogleActionRequest(req.body);
+      const response = await handleBixbyRequest(req.body, getChoraTrackIndex);
       res.json(response);
     } catch (err: any) {
-      console.error('[GoogleAction] handler error:', err.message);
-      res.status(500).json({ prompt: { override: true, firstSimple: { speech: 'An error occurred.', text: 'Error.' } } });
+      console.error('[Bixby] handler error:', err?.message);
+      res.status(500).json({ status: 'ERROR', dialog: { speech: 'Sorry, Bixby ran into a problem.' } });
     }
   });
 
@@ -5160,7 +6247,7 @@ Rules:
     });
 
     app.get('/api/genagent/health', (_req, res) => {
-      res.json({ ok: true, connected: ['magnific'], encryptionConfigured: (process.env.ENCRYPTION_KEY ?? '').length >= 16 });
+      res.json({ ok: true, connected: ['magnific', 'runway'], encryptionConfigured: (process.env.ENCRYPTION_KEY ?? '').length >= 16 });
     });
 
     app.post('/api/genagent/connectors', apiLimiter, express.json({ limit: '8kb' }), async (req: any, res) => {
@@ -5168,13 +6255,13 @@ Rules:
       let linked: { provider: string; hint: string; linkedAt: number }[] = [];
       const auth = req.headers.authorization;
       if (auth?.startsWith('Bearer ')) {
-        const uid = await verifyFirebaseToken(auth.slice(7));
-        if (uid) { try { linked = await genVaultListLinked(genVaultStore, uid); } catch { /* unconfigured vault → nothing linked */ } }
+        const verified = await verifyFirebaseToken(auth.slice(7));
+        if (verified?.uid) { try { linked = await genVaultListLinked(genVaultStore, verified.uid); } catch { /* unconfigured vault → nothing linked */ } }
       }
       const byId = new Map(linked.map((l) => [l.provider, l]));
       // The client MERGES this onto its own static registry, so only link state is sent.
       res.json({
-        connectors: [...byId.keys()].concat(['magnific'].filter((id) => !byId.has(id))).map((id) => ({
+        connectors: [...byId.keys()].concat(['magnific', 'runway'].filter((id) => !byId.has(id))).map((id) => ({
           id, connected: byId.has(id), hint: byId.get(id)?.hint,
         })),
       });
@@ -5182,8 +6269,16 @@ Rules:
 
     app.post('/api/genagent/connect', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
       const provider = String(req.body?.provider || '');
+      if (provider === 'runway') {
+        return res.json({
+          needsKey: true,
+          keyUrl: 'https://app.runwayml.com/settings/api-keys',
+          keyLabel: 'Runway API secret key',
+          keyHelp: 'Create an API secret key in your Runway developer settings, then paste it here. It is encrypted on our server and never sent back to the browser.',
+        });
+      }
       if (provider !== 'magnific') {
-        return res.status(400).json({ error: 'Only Magnific supports connected mode right now — use Hand off for the others.' });
+        return res.status(400).json({ error: 'Only Magnific and Runway support connected mode right now — use Hand off for the others.' });
       }
       // Magnific authenticates with an API key, not OAuth, so there is no authUrl to open. The client
       // shows a paste form and posts to /connect/key. The key is never sent back afterwards.
@@ -5198,15 +6293,19 @@ Rules:
     app.post('/api/genagent/connect/key', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
       const provider = String(req.body?.provider || '');
       const key = String(req.body?.key || '').trim();
-      if (provider !== 'magnific') return res.status(400).json({ error: 'Unknown provider.' });
+      if (provider !== 'magnific' && provider !== 'runway') return res.status(400).json({ error: 'Unknown provider.' });
       if (!key) return res.status(400).json({ error: 'Paste your API key first.' });
       try {
         // Verify before storing, so a typo is caught here rather than on the first generate.
-        await verifyMagnificKey(key);
+        if (provider === 'runway') {
+          await verifyRunwayKey(key);
+        } else {
+          await verifyMagnificKey(key);
+        }
         const rec = await genVaultSaveKey(genVaultStore, req.uid, provider, key);
         res.json({ connected: true, hint: rec.hint });
       } catch (e: any) {
-        res.status(400).json({ error: e?.message || 'That key was rejected by Magnific.' });
+        res.status(400).json({ error: e?.message || `That key was rejected by ${provider}.` });
       }
     });
 
@@ -5218,22 +6317,52 @@ Rules:
 
     app.post('/api/genagent/jobs', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
       const { provider, kind, prompt, spec, projectId, bin } = req.body || {};
-      if (provider !== 'magnific') {
+      if (provider !== 'magnific' && provider !== 'runway') {
         return res.status(501).json({ error: `${provider} has no connected adapter yet — use Hand off.` });
       }
       let apiKey: string | null = null;
       try { apiKey = await genVaultReadKey(genVaultStore, req.uid, provider); }
       catch (e: any) { return res.status(500).json({ error: e?.message || 'Credential vault unavailable.' }); }
-      if (!apiKey) return res.status(400).json({ error: 'Link your Magnific account first.' });
+      if (!apiKey) return res.status(400).json({ error: `Link your ${provider === 'runway' ? 'Runway' : 'Magnific'} account first.` });
 
       const job: any = {
         id: `gj_${Date.now().toString(36)}_${nodeCrypto.randomBytes(3).toString('hex')}`,
-        provider, kind: kind || 'image', prompt: String(prompt || ''), spec: spec || null,
+        provider, kind: kind || (provider === 'runway' ? 'video' : 'image'), prompt: String(prompt || ''), spec: spec || null,
         projectId: String(projectId || 'local'), bin: String(bin || 'Generated'),
         status: 'queued', results: [], createdAt: Date.now(),
       };
 
       try {
+        if (provider === 'runway') {
+          const refs: { first_frame?: string; last_frame?: string; source?: string; style?: string } = {};
+          for (const r of (spec?.refs || [])) {
+            const url = r?.url;
+            if (!url) continue;
+            if (!refs.first_frame && (r.role === 'first_frame' || r.role === 'source')) refs.first_frame = url;
+            else if (!refs.last_frame && r.role === 'last_frame') refs.last_frame = url;
+            else if (!refs.style && r.role === 'style') refs.style = url;
+          }
+          const input = {
+            prompt: job.prompt,
+            aspect: spec?.aspect,
+            duration: spec?.duration,
+            seed: spec?.seed,
+            refs,
+            videoUrl: spec?.videoUrl || (spec?.refs || []).find((r: any) => r?.role === 'source' && (r?.url?.endsWith('.mp4') || r?.mime?.startsWith('video/')))?.url,
+          };
+          const op = runwayOpFor(input);
+          const asp = runwayAspect(spec?.aspect);
+          if (!asp.exact) job.note = asp.note;
+
+          const task = await runwaySubmit(apiKey, op, input);
+          job.op = op;
+          job.taskId = task.taskId;
+          job.status = task.status === 'error' ? 'error' : (task.status || 'queued');
+          if (task.error) job.error = task.error;
+          await upsertJob(req.uid, job);
+          return res.json({ jobId: job.id, status: job.status, note: job.note });
+        }
+
         // Magnific takes image bytes, not URLs — fetch each reference and base64 it. Only the roles
         // Mystic actually has slots for are sent; the rest were already folded into the prompt client-side.
         const refs: { source?: string; style?: string } = {};
@@ -5257,7 +6386,7 @@ Rules:
         res.json({ jobId: job.id, status: job.status, note: job.note });
       } catch (e: any) {
         job.status = 'error';
-        job.error = e?.message || 'Magnific rejected the job.';
+        job.error = e?.message || `${provider === 'runway' ? 'Runway' : 'Magnific'} rejected the job.`;
         await upsertJob(req.uid, job).catch(() => { /* reporting the error matters more than storing it */ });
         res.status(502).json({ error: job.error });
       }
@@ -5278,9 +6407,14 @@ Rules:
 
       try {
         const apiKey = await genVaultReadKey(genVaultStore, req.uid, job.provider);
-        if (!apiKey) return res.json(publicJob({ ...job, status: 'error', error: 'Magnific account is no longer linked.' }));
-        const task = await magnificPoll(apiKey, job.op || 'generate', job.taskId);
-        const updated: any = { ...job, status: task.status, results: task.results, error: task.error || job.error };
+        if (!apiKey) return res.json(publicJob({ ...job, status: 'error', error: `${job.provider} account is no longer linked.` }));
+        let task: any;
+        if (job.provider === 'runway') {
+          task = await runwayPoll(apiKey, job.taskId);
+        } else {
+          task = await magnificPoll(apiKey, job.op || 'generate', job.taskId);
+        }
+        const updated: any = { ...job, status: task.status, results: task.results, progress: task.progress ?? job.progress, error: task.error || job.error };
 
         // A finished job's results live on the provider's host and won't stay there. Copy them into
         // Plajah Storage now, while we still have them, and hand the client OUR urls — otherwise the
@@ -6031,9 +7165,7 @@ Rules:
   // Admin broadcast — push to ONE user (by uid) or to ALL users. Firebase ID token +
   // admin check required. Reuses the same FCM multicast + channel routing as /api/push.
   app.post('/api/push/admin', express.json(), authMiddleware, async (req: any, res) => {
-    const me = decodeFirestoreFields(((await fetchFirebaseDoc('users', req.uid)) || {}).fields || {});
-    const isAdmin = me.role === 'admin' || me.role === 'staff' || me.email === 'kmoody2003@gmail.com';
-    if (!isAdmin) return res.status(403).json({ error: 'Admin access required' });
+    if (!(await isPlatformAdminReq(req))) return res.status(403).json({ error: 'Admin access required' });
 
     const { mode, uid, title, body, link } = req.body || {};
     if (!title || !body) return res.status(400).json({ error: 'title and body are required' });
@@ -6070,8 +7202,7 @@ Rules:
   // subcollections (collection-group scan the client can't do), and (b) ANY user's content,
   // not just the caller's own. Requires an admin Firebase ID token.
   app.post('/api/admin/resync-display-name', express.json(), authMiddleware, async (req: any, res: any) => {
-    const me = decodeFirestoreFields(((await fetchFirebaseDoc('users', req.uid)) || {}).fields || {});
-    const isAdmin = me.role === 'admin' || me.role === 'staff' || me.email === 'kmoody2003@gmail.com';
+    const isAdmin = await isPlatformAdminReq(req);
 
     const targetUid = String((req.body || {}).uid || '').trim();
     const newName = String((req.body || {}).newName || '').trim();
@@ -6414,64 +7545,6 @@ Rules:
     }
   });
 
-  // ── Alexa Skill Webhook ────────────────────────────────────────────────────
-  // Point your Alexa custom skill endpoint at /api/alexa (HTTPS required).
-  // Skill intents: PlayArtistIntent (slot: artist), PlayAlbumIntent (slot: album),
-  // plus built-in AMAZON.PauseIntent / AMAZON.ResumeIntent / AMAZON.StopIntent.
-  app.post('/api/alexa', express.json(), async (req: any, res: any) => {
-    const { request, context } = req.body || {};
-    if (!request) return res.status(400).json({ error: 'Invalid Alexa request' });
-
-    const reply = (text: string, end = false, directive?: object) => {
-      const r: any = { version: '1.0', response: { outputSpeech: { type: 'PlainText', text }, shouldEndSession: end } };
-      if (directive) r.response.directives = [directive];
-      res.json(r);
-    };
-    const audioPlay = (url: string, token: string, offset = 0) => ({
-      type: 'AudioPlayer.Play', playBehavior: 'REPLACE_ALL',
-      audioItem: { stream: { url, token, offsetInMilliseconds: offset } },
-    });
-
-    try {
-      if (request.type === 'LaunchRequest') {
-        return reply("Welcome to Plajah. Ask me to play an artist, album, or radio station.");
-      }
-      if (request.type === 'SessionEndedRequest') return res.json({ version: '1.0', response: {} });
-
-      if (request.type === 'IntentRequest') {
-        const { name, slots = {} } = request.intent;
-        switch (name) {
-          case 'PlayArtistIntent': {
-            const artist = slots.artist?.value || '';
-            if (!artist) return reply("Which artist would you like to hear?");
-            return reply(`Playing ${artist} on Plajah.`, true,
-              audioPlay(`https://plajah.com/api/alexa/stream?artist=${encodeURIComponent(artist)}`, `artist:${artist}`));
-          }
-          case 'PlayAlbumIntent': {
-            const album = slots.album?.value || '';
-            if (!album) return reply("Which album would you like?");
-            return reply(`Playing ${album} on Plajah.`, true,
-              audioPlay(`https://plajah.com/api/alexa/stream?album=${encodeURIComponent(album)}`, `album:${album}`));
-          }
-          case 'PlayRadioIntent': {
-            const station = slots.station?.value || 'top tracks';
-            return reply(`Playing ${station} radio on Plajah.`, true,
-              audioPlay(`https://plajah.com/api/alexa/stream?radio=${encodeURIComponent(station)}`, `radio:${station}`));
-          }
-          case 'AMAZON.PauseIntent':  return reply('', true, { type: 'AudioPlayer.Stop' });
-          case 'AMAZON.StopIntent':   return reply('Goodbye from Plajah.', true, { type: 'AudioPlayer.Stop' });
-          case 'AMAZON.ResumeIntent': {
-            const token = context?.AudioPlayer?.token || '';
-            const offset = context?.AudioPlayer?.offsetInMilliseconds || 0;
-            return reply('', false, audioPlay(`https://plajah.com/api/alexa/stream?token=${encodeURIComponent(token)}`, token, offset));
-          }
-          default: return reply("I didn't catch that. Try asking Plajah to play an artist or album.");
-        }
-      }
-      res.json({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: 'Something went wrong.' }, shouldEndSession: true } });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
   // Alexa stream resolver — looks up Firestore to find a track URL by artist/album
   app.get('/api/alexa/stream', async (req: any, res: any) => {
     const { artist, album } = req.query;
@@ -6803,7 +7876,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
     // Free-tier gate: block once the cap is hit (admins/staff bypass).
     const cxUid = req.uid as string;
-    const cxUse = await cxUsage(cxUid);
+    const cxUse = await cxUsage(cxUid, await isPlatformAdminReq(req));
     if (!cxUse.isAdmin && cxUse.used >= CX_FREE_LIMIT) {
       return res.status(429).json({ error: 'Free conversion limit reached', limit: CX_FREE_LIMIT, used: cxUse.used });
     }
@@ -7866,7 +8939,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     // ?probe=meta — dump the resolved share fields (artist/owner) as JSON for debugging.
     if (req.query.probe === 'meta' && req.query.type && req.query.id) {
       try {
-        const coll: Record<string, string> = { album: 'albums', track: 'albums', book: 'albums', movie: 'albums', video: 'videos', article: 'articles', game: 'games' };
+        const coll: Record<string, string> = { mix: 'albums', album: 'albums', track: 'albums', book: 'albums', movie: 'albums', video: 'videos', article: 'articles', game: 'games' };
         const doc = await fetchFirebaseDoc(coll[String(req.query.type)] || 'albums', String(req.query.id));
         const f: any = doc?.fields || {};
         const ownerId = f.ownerId?.stringValue || f.ownerUid?.stringValue || f.uid?.stringValue || f.creatorUid?.stringValue || f.artistId?.stringValue || null;
@@ -7954,7 +9027,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     // Without this, those endpoints return the HTML shell (e.g. RSS news
     // parsed to 0 items → "No articles found").
     app.use((req, res, next) => {
-      if (req.path.startsWith('/api/')) return next();
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();
       return (vite.middlewares as any)(req, res, next);
     });
   } else {
@@ -7975,7 +9048,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/')) return next();
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();   // /t/* = public ticket page (ticketServer)
       try {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
         if (req.query.type) {
@@ -8276,13 +9349,115 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  // ── Store inventory spine — ONE stock-safe path for the online store, kiosk and POS ───────────────
+  // Rules live in services/inventoryCore.ts (pure + unit-tested). Every line is re-loaded from
+  // storeProducts (variants intact via the deep reader — firestoreRead flattens arrays of maps) and
+  // priced/stock-checked server-side; the client never sets a price or claims stock.
+  const loadStoreProduct = async (id: string): Promise<any | null> => {
+    const d = await firestoreGetDeep('storeProducts', id);
+    return d ? { ...d, id } : null;
+  };
+
+  /** Merge duplicate (product, variant) requests, then price + stock-check each. */
+  const priceStoreLines = async (
+    rawItems: any[], businessUid: string, opts: { allowInactive?: boolean; ignoreStock?: boolean } = {},
+  ): Promise<{ ok: true; lines: any[]; products: Map<string, any>; subtotalCents: number } | { ok: false; status: number; error: string; code?: string; available?: number }> => {
+    const want = new Map<string, { productId: string; variantId?: string; qty: number }>();
+    for (const it of rawItems.slice(0, 60)) {
+      const productId = String(it?.productId || ''), variantId = it?.variantId ? String(it.variantId) : undefined;
+      if (!productId) continue;
+      const key = `${productId}|${variantId || ''}`;
+      const cur = want.get(key);
+      const qty = Math.max(1, Math.floor(Number(it?.qty ?? it?.quantity) || 0));
+      if (cur) cur.qty += qty; else want.set(key, { productId, variantId, qty });
+    }
+    if (!want.size) return { ok: false, status: 400, error: 'No valid items.' };
+    const products = new Map<string, any>();
+    const lines: any[] = [];
+    let subtotalCents = 0;
+    for (const req of want.values()) {
+      if (!products.has(req.productId)) products.set(req.productId, await loadStoreProduct(req.productId));
+      const r = resolveInventoryLine(products.get(req.productId), req, { sellerId: businessUid, ...opts });
+      if (r.ok === false) return { ok: false, status: r.code === 'NOT_FOUND' || r.code === 'WRONG_SELLER' || r.code === 'BAD_PRICE' ? 400 : 409, error: r.error, code: r.code, available: r.available };
+      lines.push(r.line);
+      subtotalCents += r.line.unitAmount * r.line.qty;
+    }
+    return { ok: true, lines, products, subtotalCents };
+  };
+
+  /** Owner-entered register settings (tax etc.) live on businesses/{uid}.registerSettings (JSON string). */
+  const loadRegisterSettings = async (businessUid: string): Promise<{ tax: TaxSettings; refundApprovalCents: number; discountLimitPct: number; tipPresets: number[] }> => {
+    let raw: any = null;
+    try { const d = await firestoreRead('businesses', businessUid); raw = d?.registerSettings ? (typeof d.registerSettings === 'string' ? JSON.parse(d.registerSettings) : d.registerSettings) : null; } catch { /* default: no tax */ }
+    return { tax: parseTaxSettings(raw?.tax), refundApprovalCents: Number.isFinite(Number(raw?.refundApprovalCents)) ? Math.max(0, Math.round(Number(raw.refundApprovalCents))) : 5000, discountLimitPct: Number.isFinite(Number(raw?.discountLimitPct)) ? Math.max(0, Math.min(100, Number(raw.discountLimitPct))) : DEFAULT_DISCOUNT_LIMIT_PCT, tipPresets: Array.isArray(raw?.tipPresets) ? raw.tipPresets.map(Number).filter((n: number) => n > 0 && n <= 100).slice(0, 4) : [15, 18, 20] };
+  };
+  /** Tax inputs for priced lines: gross cents + the product's taxClass / snapEligible. */
+  const taxInputs = (lines: any[], products: Map<string, any>) => lines.map(l => {
+    const p = products.get(l.productId) || {};
+    return { grossCents: l.unitAmount * l.qty, taxClass: normalizeTaxClass(p.taxClass), snapEligible: !!p.snapEligible };
+  });
+
+  /**
+   * Apply a sale to stock: atomic decrement (total + per-variant), a ledger entry per line, and a
+   * heads-up to the seller when something runs low/out. IDEMPOTENT per (order, line) — the ledger doc
+   * id is deterministic, so a retried webhook can never double-decrement. Returns true if any line
+   * went below zero (oversold) so the caller can flag the order.
+   */
+  const applyStockSale = async (
+    lines: any[], ctx: { orderId: string; sellerId: string; reason: 'SALE' | 'POS_SALE'; by?: string },
+  ): Promise<boolean> => {
+    let oversold = false;
+    for (const li of lines) {
+      try {
+        const moveId = `${ctx.orderId}_${li.productId}_${li.variantId || 'base'}`.slice(0, 200);
+        const p = await loadStoreProduct(li.productId);
+        if (!p) continue;
+        const inc = planDecrementInventory(p, li.variantId || undefined, li.qty);
+        if (inc.stock === undefined) {                                       // untracked: just count the sale (once)
+          const claim = await firestoreCreateOnce('stockMoves', moveId, { sellerId: ctx.sellerId, productId: li.productId, productTitle: String(p.title || ''), delta: 0, before: 0, after: 0, reason: ctx.reason, orderId: ctx.orderId, at: Date.now(), untracked: true });
+          if (claim === 'created') await firestoreIncrement(`storeProducts/${li.productId}`, inc);
+          continue;
+        }
+        const seed = variantStockSeedInventory(p);                           // pre-variantStock products
+        if (seed) { await firestorePatchDeep('storeProducts', li.productId, { variantStock: seed }); p.variantStock = seed; }
+        const before = li.variantId && p.variants?.length
+          ? Number(p.variantStock?.[li.variantId] ?? (p.variants.find((v: any) => v.id === li.variantId)?.stock ?? 0))
+          : Number(p.stock ?? 0);
+        const after = before - li.qty;
+        // The ledger entry IS the lock: create-only, so a retried/concurrent webhook that loses the race
+        // skips this line instead of double-decrementing. If the decrement then fails we release the claim.
+        const claim = await firestoreCreateOnce('stockMoves', moveId, {
+          sellerId: ctx.sellerId, productId: li.productId, productTitle: String(p.title || ''),
+          ...(li.variantId ? { variantId: li.variantId, variantName: li.variantName || '' } : {}),
+          delta: -li.qty, before, after, reason: ctx.reason, orderId: ctx.orderId, ...(ctx.by ? { by: ctx.by } : {}), at: Date.now(),
+        });
+        if (claim !== 'created') continue;                                   // already applied (or ledger unavailable)
+        const ok = await firestoreIncrement(`storeProducts/${li.productId}`, inc);
+        if (!ok) { await firestoreDeleteDoc('stockMoves', moveId); continue; }
+        if (after < 0 && !p.allowBackorder) oversold = true;
+        // Seller alert only when this sale CROSSES a threshold (not on every sale below it).
+        const t = typeof p.lowStockThreshold === 'number' ? p.lowStockThreshold : 5;
+        const label = li.variantName ? `${p.title} (${li.variantName})` : p.title;
+        const crossed = after <= 0 && before > 0 ? 'out' : after <= t && before > t ? 'low' : null;
+        if (crossed && !p.allowBackorder) {
+          await firestoreCreate('notifications', {
+            userId: ctx.sellerId, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM',
+            title: crossed === 'out' ? `Sold out: ${label}` : `Running low: ${label}`,
+            message: crossed === 'out' ? `${label} just sold out. Restock to keep selling.` : `Only ${Math.max(0, after)} of ${label} left.`,
+            link: p.sellerType === 'ORG' ? 'BUSINESS_DASHBOARD' : 'DASHBOARD', targetId: li.productId, isRead: false, timestamp: Date.now(),
+          }).catch(() => {});
+        }
+      } catch (e: any) { console.error('[store] applyStockSale line failed', li?.productId, e?.message || e); }
+    }
+    return oversold;
+  };
+
   // ── Store order — the spine for in-store kiosk + POS + online store ───────────────
   // Stripe Connect DIRECT: funds settle straight to the BUSINESS's connected account; Plajah never
-  // holds them (optional application fee only). Every line is priced SERVER-SIDE from storeProducts
-  // (dollars → cents) — the client never sets prices. Writes a PENDING order; the webhook confirms it
-  // + decrements stock atomically. v1 uses the product's base price + scalar stock; per-variant
-  // pricing/stock is a follow-up. See docs — business-ops build sequence.
+  // holds them (optional application fee only). Lines are priced + stock-checked SERVER-SIDE (variants
+  // included); stock is decremented by the webhook once paid.
   const STORE_APP_FEE_BPS = 0; // Plajah's per-order platform fee in basis points (200 = 2%). 0 = none at launch.
+  const SHIP_FLAT_CENTS = 599, FREE_SHIP_OVER_CENTS = 5000;   // mirrors the storefront copy: "$5.99, free over $50"
   app.post('/api/store/create-order', authMiddleware, express.json(), async (req: any, res) => {
     try {
       const customerUid: string = req.uid;
@@ -8294,24 +9469,29 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const org = await firestoreRead('organizations', businessUid);
       let acct: string | undefined = org?.stripeAccountId;
       if (!acct) { const u = await firestoreRead('users', businessUid); acct = u?.stripeConnectAccountId; }
-      if (!acct) return res.status(400).json({ error: 'This business has not connected Stripe payouts yet.' });
+      if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
 
-      const lineItems: any[] = [];
-      const priced: any[] = [];
-      let subtotalCents = 0;
-      for (const it of items) {
-        const qty = Math.max(1, Math.min(99, Math.floor(Number(it?.qty) || 0)));
-        const p = await firestoreRead('storeProducts', String(it?.productId || ''));
-        if (!p) return res.status(400).json({ error: `Product not found: ${it?.productId}` });
-        if (p.isActive === false) return res.status(400).json({ error: `Product unavailable: ${p.title || it?.productId}` });
-        if (p.sellerId && p.sellerId !== businessUid) return res.status(400).json({ error: 'A product does not belong to this business.' });
-        const unit = Math.round(Number(p.price || 0) * 100); // storeProducts.price is in DOLLARS
-        if (!(unit > 0)) return res.status(400).json({ error: `Invalid price for ${p.title || it?.productId}` });
-        subtotalCents += unit * qty;
-        lineItems.push({ price_data: { currency: 'usd', product_data: { name: p.title || 'Item' }, unit_amount: unit }, quantity: qty });
-        priced.push({ productId: String(it.productId), title: p.title || 'Item', qty, unitAmount: unit, variantName: it?.variantName || null });
-      }
+      const priced = await priceStoreLines(items, businessUid);
+      if (priced.ok === false) return res.status(priced.status).json({ error: priced.error, code: priced.code, available: priced.available });
+      const { lines, products, subtotalCents } = priced;
+      const needsShipping = fulfillment === 'SHIP' && lines.some(l => !products.get(l.productId)?.isDigital);
+      const shippingCents = needsShipping ? (subtotalCents >= FREE_SHIP_OVER_CENTS ? 0 : SHIP_FLAT_CENTS) : 0;
 
+      // Sales tax (owner-entered rates, server-computed). Digital/untaxed classes follow product.taxClass; shipping is not taxed here.
+      const rsettings = await loadRegisterSettings(businessUid);
+      const taxedOnline = computeTax(taxInputs(lines, products), rsettings.tax);
+      const onlineTaxCents = rsettings.tax.inclusive ? 0 : taxedOnline.taxCents;   // inclusive prices already carry tax
+
+      const lineItems = lines.map(l => ({
+        price_data: {
+          currency: 'usd',
+          product_data: { name: l.variantName ? `${l.title} — ${l.variantName}` : l.title, ...(/^https:\/\//.test(l.image || '') && String(l.image).length < 2000 ? { images: [l.image] } : {}) },
+          unit_amount: l.unitAmount,
+        },
+        quantity: l.qty,
+      }));
+
+      if (onlineTaxCents > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Sales tax' }, unit_amount: onlineTaxCents }, quantity: 1 } as any);
       const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       const appFee = Math.round(subtotalCents * (STORE_APP_FEE_BPS / 10000));
       const origin = trustedRequestOrigin(req);
@@ -8319,6 +9499,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: lineItems,
+        expires_at: Math.floor(Date.now() / 1000) + 31 * 60,        // don't hold a cart for 24h
+        ...(needsShipping ? {
+          shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'NL', 'IE', 'NZ', 'MX'] },
+          shipping_options: [{ shipping_rate_data: { type: 'fixed_amount', fixed_amount: { amount: shippingCents, currency: 'usd' }, display_name: shippingCents ? 'Standard shipping' : 'Free shipping' } }],
+        } : {}),
         payment_intent_data: {
           ...(appFee > 0 ? { application_fee_amount: appFee } : {}),
           transfer_data: { destination: acct },   // DIRECT to the business — Plajah never holds the funds
@@ -8334,8 +9519,9 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         // read/update on buyerId==uid / sellerId==uid) permit the customer to read their orders and the
         // business to read + advance them.
         buyerId: customerUid, sellerId: businessUid,
-        items: JSON.stringify(priced), subtotalCents,
-        fulfillment: fulfillment === 'SHIP' ? 'SHIP' : 'PICKUP',
+        items: JSON.stringify(lines.map(l => ({ productId: l.productId, variantId: l.variantId || null, title: l.title, qty: l.qty, unitAmount: l.unitAmount, variantName: l.variantName || null, image: l.image || null }))),
+        subtotalCents, shippingCents, taxCents: taxedOnline.taxCents, taxInclusive: !!rsettings.tax.inclusive,
+        fulfillment: needsShipping ? 'SHIP' : 'PICKUP',
         note: String(note || '').slice(0, 500), customerName: String(customerName || '').slice(0, 120),
         status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id,
       });
@@ -8347,71 +9533,893 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   });
 
   // ── POS sale — staff-facing register (cash tender). Business-authenticated (the owner runs the
-  // register). Prices server-side, records a CONFIRMED order, decrements stock, and awards loyalty
-  // points to a recognized Plajah customer. Card-present tender is a Stripe-Terminal fast-follow.
+  // register). Prices server-side, records a CONFIRMED order, decrements stock (never BLOCKS on a wrong
+  // count — the item is in the cashier's hand; it goes negative and is flagged for a recount), and
+  // awards loyalty points to a recognized Plajah customer. Card-present tender is a Stripe-Terminal fast-follow.
+  // ── Register actors: owner (own Plajah auth) OR a PIN-session staff member ──────────────────────
+  // List a doc's subcollection (service-account runQuery scoped to the parent doc).
+  const fsListSub = async (parentPath: string, collectionId: string, limitN = 200): Promise<Array<{ id: string; data: Record<string, any> }>> => {
+    const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${parentPath}:runQuery`;
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId }], limit: limitN } }) });
+      if (!r.ok) return [];
+      const data = await r.json();
+      return (Array.isArray(data) ? data : []).filter((x: any) => x.document).map((x: any) => ({ id: String(x.document.name).split('/').pop()!, data: decodeFirestoreFields(x.document.fields) }));
+    } catch { return []; }
+  };
+  /** A seller's POS orders / refunds (equality filter only = no composite index; time filtering is in memory). */
+  const sellerDocs = async (collectionId: string, businessUid: string, limitN = 3000) =>
+    (await fsQueryDocs(collectionId, [{ field: 'sellerId', op: 'EQUAL', value: businessUid }], limitN)).map(d => ({ ...d.data, id: d.id }));
+  // ── Optimistic concurrency over Firestore REST ───────────────────────────────────────────────────
+  // The existing REST helpers (PATCH with updateMask, commit/increment, createOnce) can do two things that
+  // are real, cross-instance-safe atomic primitives: (1) create-if-absent, and (2) a PATCH guarded by a
+  // precondition (`currentDocument.updateTime=<version I read>` or `currentDocument.exists=false`). Firestore
+  // rejects a guarded write whose doc changed since it was read (409/412 or 400 FAILED_PRECONDITION), so
+  // services/casCore.casUpdate does read -> decide -> guarded write -> retry. That gives refunds and drawer
+  // edits compare-and-swap semantics on a single document without REST beginTransaction/commit plumbing,
+  // and works on any number of Cloud Run instances (unlike the in-process mutex it replaces).
+  const FS_DOCS = 'https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents';
+  const restCas = (collectionPath: string): CasStore => ({
+    async get(id) {
+      const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}`, { headers: await firestoreAuthHeaders() });
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`cas read ${collectionPath}/${id} failed: HTTP ${r.status}`);
+      const j = await r.json() as any;
+      return { data: decodeFirestoreFields(j.fields || {}), version: String(j.updateTime) };
+    },
+    async put(id, patch, expected) {
+      const keys = Object.keys(patch).filter(k => patch[k] !== undefined);
+      const mask = keys.map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+      const pre = expected === null ? 'currentDocument.exists=false' : `currentDocument.updateTime=${encodeURIComponent(expected)}`;
+      const fields: Record<string, any> = {};
+      for (const k of keys) fields[k] = jsToFsValue(patch[k]);
+      try {
+        const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}?${mask}&${pre}`, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields }) });
+        if (r.ok) return 'ok';
+        const body = await r.text().catch(() => '');
+        if (r.status === 409 || r.status === 412 || (r.status === 400 && /FAILED_PRECONDITION|ALREADY_EXISTS/.test(body))) return 'conflict';
+        console.error(`[cas] put ${collectionPath}/${id} HTTP ${r.status}`);
+        return 'error';
+      } catch { return 'error'; }
+    },
+  });
+  /** Delete specific fields from a doc (PATCH with a mask naming them and no value removes them). */
+  const firestoreDeleteFields = async (collectionPath: string, id: string, fieldNames: string[]): Promise<boolean> => {
+    const mask = fieldNames.map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+    try { const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}?${mask}`, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields: {} }) }); return r.ok; } catch { return false; }
+  };
+  const pinAttempts = new Map<string, AttemptState>();
+  const pinGuard = (key: string) => isLocked(pinAttempts.get(key), Date.now());
+  const pinNote = (key: string, ok: boolean) => pinAttempts.set(key, recordAttempt(pinAttempts.get(key), ok, Date.now()));
+  // PINs are salted scrypt hashes in businesses/{b}/staffSecrets/{staffId} (no client rule allows that path).
+  // The staff doc itself only carries `hasPin: true`. Plaintext PINs are never stored.
+  const pinSecrets = async (businessUid: string) => new Map((await fsListSub(`businesses/${businessUid}`, 'staffSecrets', 100)).map(d => [d.id, d.data as { pinHash?: string; pinSalt?: string }]));
+  /** Find the active staff member whose PIN matches. */
+  const matchStaffPin = async (businessUid: string, pin: string, onlyApprovers = false) => {
+    const [staff, secrets] = await Promise.all([fsListSub(`businesses/${businessUid}`, 'staff', 100), pinSecrets(businessUid)]);
+    for (const s of staff) {
+      const d = s.data;
+      if (d.active === false) continue;
+      const role = String(d.role || 'STAFF');
+      if (onlyApprovers && !canApprove(role, Array.isArray(d.registerPermissions) ? d.registerPermissions : null)) continue;
+      const sec = secrets.get(s.id);
+      if (!sec || !verifyPin(pin, sec)) continue;
+      return { id: s.id, name: String(d.name || 'Staff'), role, perms: Array.isArray(d.registerPermissions) ? d.registerPermissions as string[] : undefined };
+    }
+    return null;
+  };
+  type Actor = { ok: true; staffId: string; staffName: string; role: string; perms: Set<RegisterPermission> } | { ok: false; status: number; error: string; code?: string };
+  const resolveRegisterActor = async (req: any, businessUid: string, perm: RegisterPermission): Promise<Actor> => {
+    // A valid PIN session wins even on the owner's device, so a cashier signed in by PIN is attributed and restricted as themselves.
+    const sess = verifySession(String(req.headers?.['x-register-session'] || ''));
+    if (req.uid === businessUid && !(sess && sess.b === businessUid)) return { ok: true, staffId: businessUid, staffName: 'Owner', role: 'OWNER', perms: registerPermissionsFor('OWNER') };
+    if (!sess || sess.b !== businessUid) return { ok: false, status: 403, error: 'Enter your register PIN to continue.', code: 'PIN_REQUIRED' };
+    const perms = registerPermissionsFor(sess.role, sess.perms);
+    if (!perms.has(perm)) return { ok: false, status: 403, error: 'Your role cannot do that at the register.', code: 'FORBIDDEN' };
+    return { ok: true, staffId: sess.sid, staffName: sess.name, role: sess.role, perms };
+  };
+  /** Manager override for gated actions: a manager/owner PIN typed at the register. */
+  const managerApproval = async (businessUid: string, pin: any): Promise<{ id: string; name: string } | null> => {
+    if (!isValidPin(String(pin || ''))) return null;
+    const key = `mgr:${businessUid}`;
+    if (pinGuard(key)) return null;
+    const m = await matchStaffPin(businessUid, String(pin), true);
+    pinNote(key, !!m);
+    return m ? { id: m.id, name: m.name } : null;
+  };
+
+  // ── TICKET ENGINE (services/ticketServer.ts): /api/tickets/*, public /t/:token, and the pos-sale hooks ──
+  registerTicketRoutes({
+    app, express, rateLimit, authMiddleware,
+    resolveActor: resolveRegisterActor, managerApproval, restCas,
+    fsQueryDocs, firestoreRead, firestoreGetDeep, firestoreCreate, sendFcmMulticast,
+    loadRegisterSettings, applyStockSale,
+  } as any);
+  // ── LAUNDROMAT layer (services/laundryServer.ts): settings, commercial accounts, invoices, schedules, reminders ──
+  registerLaundryRoutes({
+    app, express, authMiddleware, resolveActor: resolveRegisterActor, restCas,
+    fsQueryDocs, firestoreRead, firestoreWrite, firestoreGetDeep, firestoreCreate, sendFcmMulticast, loadRegisterSettings,
+  } as any);
+  // AUTO REPAIR layer (services/autoServer.ts): vehicles, NHTSA decode/recalls, inspections, AI advisor draft, reminders, Vehicle Passport.
+  registerAutoRoutes({
+    app, express, rateLimit, authMiddleware,
+    resolveActor: resolveRegisterActor, managerApproval, restCas,
+    fsQueryDocs, firestoreRead, firestoreGetDeep, firestoreCreate, sendFcmMulticast,
+  } as any);
+
+  app.post('/api/register/pin-login', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { businessUid, pin } = req.body || {};
+      if (!businessUid || !isValidPin(String(pin || ''))) return res.status(400).json({ error: 'Enter your PIN.' });
+      const key = `login:${businessUid}`;
+      if (pinGuard(key)) return res.status(429).json({ error: 'Too many wrong PINs. Try again in a few minutes.', code: 'LOCKED' });
+      const m = await matchStaffPin(String(businessUid), String(pin));
+      pinNote(key, !!m);
+      if (!m) return res.status(401).json({ error: 'That PIN was not recognised.' });
+      const exp = Date.now() + SESSION_TTL_MS;
+      const token = signSession({ b: String(businessUid), sid: m.id, name: m.name, role: m.role, perms: m.perms, exp });
+      res.json({ token, expiresAt: exp, staff: { id: m.id, name: m.name, role: m.role, permissions: [...registerPermissionsFor(m.role, m.perms)] } });
+    } catch (err: any) { console.error('/api/register/pin-login', err?.message || err); res.status(500).json({ error: 'Could not sign in.' }); }
+  });
+
+  // Owner sets a staff PIN: exactly 6 digits, stored ONLY as a salted scrypt hash in staffSecrets.
+  app.post('/api/register/set-pin', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { staffId, pin } = req.body || {};
+      const businessUid: string = req.uid;
+      if (!staffId || !isValidNewPin(String(pin || ''))) return res.status(400).json({ error: 'PIN must be exactly 6 digits.' });
+      const [staff, secrets] = await Promise.all([fsListSub(`businesses/${businessUid}`, 'staff', 100), pinSecrets(businessUid)]);
+      if (!staff.some(s => s.id === staffId)) return res.status(404).json({ error: 'Staff member not found.' });
+      for (const [id, sec] of secrets) if (id !== staffId && verifyPin(String(pin), sec)) return res.status(409).json({ error: 'Another team member already uses that PIN.' });
+      const h = hashPin(String(pin));
+      await firestoreWrite(`businesses/${businessUid}/staffSecrets`, String(staffId), { pinHash: h.hash, pinSalt: h.salt, updatedAt: Date.now() }, true);
+      await firestoreWrite(`businesses/${businessUid}/staff`, String(staffId), { hasPin: true }, true);
+      res.json({ ok: true });
+    } catch (err: any) { console.error('/api/register/set-pin', err?.message || err); res.status(500).json({ error: 'Could not save PIN.' }); }
+  });
+
+  // Time clock by PIN, verified server-side against the hash with the SAME lockout as the register login.
+  app.post('/api/register/clock', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { businessUid, pin, direction } = req.body || {};
+      if (!businessUid || !isValidPin(String(pin || '')) || !['IN', 'OUT'].includes(String(direction))) return res.status(400).json({ error: 'Enter your PIN.' });
+      const b = String(businessUid);
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const key = `login:${b}`;
+      if (pinGuard(key)) return res.status(429).json({ error: 'Too many wrong PINs. Try again in a few minutes.', code: 'LOCKED' });
+      const m = await matchStaffPin(b, String(pin));
+      pinNote(key, !!m);
+      if (!m) return res.status(401).json({ error: 'PIN not recognised.' });
+      if (direction === 'IN') {
+        // create-once marker = atomic "already clocked in" guard (works across instances)
+        const mark = await firestoreCreateOnce(`businesses/${b}/shiftOpen`, m.id, { staffId: m.id, at: Date.now() });
+        if (mark === 'exists') return res.status(409).json({ error: `${m.name} is already clocked in.` });
+        if (mark === 'error') return res.status(503).json({ error: 'Could not clock in.' });
+        const shiftId = `sh_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const made = await firestoreCreateOnce(`businesses/${b}/shifts`, shiftId, { businessUid: b, staffId: m.id, staffName: m.name, clockIn: Date.now() });
+        if (made !== 'created') { await firestoreDeleteDoc(`businesses/${b}/shiftOpen`, m.id); return res.status(503).json({ error: 'Could not clock in.' }); }
+        return res.json({ shiftId, staffName: m.name });
+      }
+      const shifts = await fsListSub(`businesses/${b}`, 'shifts', 400);
+      const open = shifts.filter(s => s.data.staffId === m.id && !s.data.clockOut).sort((a, c) => c.data.clockIn - a.data.clockIn)[0];
+      if (!open) return res.status(409).json({ error: `${m.name} has no open shift.` });
+      const now = Date.now();
+      await firestoreWrite(`businesses/${b}/shifts`, open.id, { clockOut: now }, true);
+      await firestoreDeleteDoc(`businesses/${b}/shiftOpen`, m.id);
+      res.json({ staffName: m.name, hours: (now - Number(open.data.clockIn) - (Number(open.data.breakMinutes) || 0) * 60000) / 3600000 });
+    } catch (err: any) { console.error('/api/register/clock', err?.message || err); res.status(500).json({ error: 'Clock request failed.' }); }
+  });
+
   const LOYALTY_PTS_PER_DOLLAR = 1;
   app.post('/api/store/pos-sale', authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+    let ticketPrep: any = null; let ticketOrderId = '';   // ticket payment (ticketServer hooks)
     try {
-      const staffUid: string = req.uid;
-      const { businessUid, items, tender, customerUid } = req.body || {};
-      const offerDiscountCents = Math.max(0, Math.floor(Number(req.body?.offerDiscountCents) || 0));
+      const { businessUid, tender, customerUid } = req.body || {};
+      const items: any[] = Array.isArray(req.body?.items) ? req.body.items : [];
+      const giftReqRaw: any[] = Array.isArray(req.body?.giftCards) ? req.body.giftCards : [];
       const redeemPointsReq = Math.max(0, Math.floor(Number(req.body?.redeemPoints) || 0));
-      if (!businessUid || !Array.isArray(items) || !items.length) return res.status(400).json({ error: 'businessUid and items required.' });
-      if (staffUid !== businessUid) return res.status(403).json({ error: 'Only the business owner can ring up sales (staff PIN auth is a follow-up).' });
+      const ticketId = req.body?.ticketId ? String(req.body.ticketId) : '';
+      if (!businessUid || (!items.length && !giftReqRaw.length && !ticketId)) return res.status(400).json({ error: 'businessUid and items required.' });
+      const actor = await resolveRegisterActor(req, businessUid, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
       const hasCustomer = !!customerUid && customerUid !== 'walkin';
 
-      const priced: any[] = [];
-      let subtotalCents = 0;
-      for (const it of items) {
-        const qty = Math.max(1, Math.min(99, Math.floor(Number(it?.qty) || 0)));
-        const p = await firestoreRead('storeProducts', String(it?.productId || ''));
-        if (!p) return res.status(400).json({ error: `Product not found: ${it?.productId}` });
-        if (p.sellerId && p.sellerId !== businessUid) return res.status(400).json({ error: 'A product does not belong to this business.' });
-        const unit = Math.round(Number(p.price || 0) * 100);
-        subtotalCents += unit * qty;
-        priced.push({ productId: String(it.productId), title: p.title || 'Item', qty, unitAmount: unit });
+      const priced = items.length ? await priceStoreLines(items, businessUid, { allowInactive: true, ignoreStock: true }) : { ok: true as const, lines: [] as any[], products: new Map<string, any>(), subtotalCents: 0 };
+      if (priced.ok === false) return res.status(priced.status).json({ error: priced.error, code: priced.code });
+      let pricedAll: any = priced;
+      if (ticketId) {   // ticket lines are loaded + priced SERVER-side from the ticket (client never sends prices)
+        const tp = await ticketSaleHooks.prepare(String(businessUid), ticketId);
+        if (tp.ok === false) return res.status(tp.status).json({ error: tp.error, code: tp.code });
+        ticketPrep = tp.prep; pricedAll = ticketSaleHooks.merge(priced as any, ticketPrep);
       }
+      const { lines, products, subtotalCents } = pricedAll;
+      const settings = await loadRegisterSettings(businessUid);
 
-      // Offer discount is trusted from the (owner-operated) register but capped at subtotal.
-      const offerCents = Math.min(subtotalCents, offerDiscountCents);
-      // Loyalty redemption (1 pt = 1¢) — VALIDATED server-side against the real balance so points
-      // (a customer asset) can't be over-spent. Capped at the amount remaining after the offer.
+      // Age-restricted items: the cashier must have confirmed an ID check (recorded on the order).
+      const ageMin = lines.reduce((m: number, l: any) => Math.max(m, Math.floor(Number(products.get(l.productId)?.ageRestricted) || 0)), 0);
+      if (ageMin > 0 && req.body?.ageVerified !== true) return res.status(409).json({ error: `Verify ID - customer must be ${ageMin}+.`, code: 'AGE_VERIFY', ageMin });
+
+      // AUTO offer: re-evaluated here from the business's real offers - the client's number is never trusted,
+      // so it cannot be used to smuggle an ungated discount.
+      const offerDocs = await fsListSub(`businesses/${businessUid}`, 'offers', 50);
+      const offers: BusinessOffer[] = offerDocs.map(d => ({ ...(d.data as any), id: d.id }));
+      const offerCents = Math.min(subtotalCents, bestOffer(offers, subtotalCents, hasCustomer)?.discountCents || 0);
+      // Loyalty redemption (1 pt = 1c) - VALIDATED against the real balance.
       let balance = 0;
       if (hasCustomer) {
         const loyalty = await firestoreRead(`businesses/${businessUid}/loyalty`, String(customerUid));
         balance = Math.max(0, Number(loyalty?.points || 0));
       }
       const redeemCents = hasCustomer ? Math.min(redeemPointsReq, balance, Math.max(0, subtotalCents - offerCents)) : 0;
-      const totalCents = Math.max(0, subtotalCents - offerCents - redeemCents);
+      // MANUAL discount (cashier-entered % or $): beyond the owner's limit it needs DISCOUNT_OVERRIDE or a manager PIN.
+      const dc = composeDiscounts({ subtotalCents, offerCents, redeemCents, manual: req.body?.manualDiscount, limitPct: settings.discountLimitPct });
+      let discountApprovedBy = '';
+      if (dc.overLimit && !actor.perms.has('DISCOUNT_OVERRIDE')) {
+        const mgr = await managerApproval(String(businessUid), req.body?.managerPin);
+        if (!mgr) return res.status(403).json({ error: `Discounts over ${settings.discountLimitPct}% need a manager PIN.`, code: 'DISCOUNT_PIN', limitPct: settings.discountLimitPct });
+        discountApprovedBy = mgr.name;
+      }
+      const manualCents = dc.manualCents;
+      const discountTotal = dc.totalCents;
+
+      // TAX + SNAP, computed SERVER-side. Max SNAP = eligible subtotal after the basket discount; the
+      // requested SNAP tender decides how much of the eligible part is tax-free.
+      const tIn = taxInputs(lines, products);
+      const snapMaxCents = computeTax(tIn, settings.tax, { discountCents: discountTotal, snapCents: Number.MAX_SAFE_INTEGER }).snapCoveredCents;
+      const rawTenders: any[] = Array.isArray(req.body?.tenders) ? req.body.tenders : [];
+      const snapReq = rawTenders.filter(t => String(t?.type).toUpperCase() === 'EXTERNAL' && String(t?.kind).toUpperCase() === 'EBT_SNAP').reduce((n, t) => n + Math.max(0, Math.round(Number(t?.amountCents) || 0)), 0);
+      const taxed = computeTax(tIn, settings.tax, { discountCents: discountTotal, snapCents: snapReq });
+      const totalCents = taxed.totalCents;
+      const tipCents = sanitizeTip(req.body?.tipCents);
+      // Gift cards on the ticket: a LIABILITY line - not taxed, no stock, not SNAP-eligible, not revenue, no discounts.
+      const svCfg = await svSettings(String(businessUid));
+      const gp = svParseGiftLines(giftReqRaw, svCfg.limits);
+      if (gp.ok === false) return res.status(400).json({ error: gp.error, code: 'GIFT' });
+      const giftSoldCents = gp.gifts.reduce((n, g) => n + g.cents, 0);
+      const creditCents = ticketPrep ? ticketSaleHooks.credit(ticketPrep, totalCents) : 0;   // ticket deposits already collected
+      const dueCents = totalCents + tipCents + giftSoldCents - creditCents;
+
+      // Tenders: legacy single `tender` string = pay it all that way (cash unless CARD).
+      const tv: any = ticketPrep && dueCents === 0 ? { ok: true, tenders: [], cashCents: 0, snapCents: 0, changeCents: 0 } : validateTenders(rawTenders.length ? rawTenders : [{ type: tender === 'CARD' ? 'CARD' : 'CASH', amountCents: dueCents }], dueCents, { snapMaxCents, storedValueMaxCents: dueCents - giftSoldCents });
+      if (tv.ok === false) return res.status(400).json({ error: tv.error, code: 'TENDER', snapMaxCents, totalCents, dueCents });
+      if (creditCents > 0) tv.tenders.unshift({ type: 'EXTERNAL', kind: 'OTHER', amountCents: creditCents, reference: 'DEPOSIT' });
 
       const orderId = `pos_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      // Stored value FIRST (redeem via CAS, idempotency key tied to this sale), so a short/void card fails before anything else
+      // is written. Anything that fails later restores the redemptions and voids the just-issued cards.
+      const bId = String(businessUid);
+      const svDone: { cardId: string; key: string; cents: number }[] = [];
+      const svIssued: string[] = [];
+      const rollbackSv = async () => {
+        for (const d of svDone) await svApply(bId, d.cardId, { type: 'REFUND_RESTORE', idemKey: `rb_${d.key}`, amountCents: d.cents, ref: orderId, reason: 'sale rolled back' }, svCfg).catch(() => {});
+        for (const id of svIssued) await svApply(bId, id, { type: 'VOID', idemKey: `rbv_${id}`, reason: 'sale rolled back' }, svCfg).catch(() => {});
+      };
+      const tendersOut: any[] = [];
+      for (let i = 0; i < tv.tenders.length; i++) {
+        const t = tv.tenders[i];
+        if (!isStoredValueTender(t)) { tendersOut.push(t); continue; }
+        const rt = await svResolveTender(bId, t, hasCustomer ? String(customerUid) : null);
+        if (rt.ok === false) { await rollbackSv(); return res.status(400).json({ error: rt.error, code: 'STORED_VALUE' }); }
+        const key = `sale_${orderId}_${i}`;
+        const rr = await svApply(bId, rt.cardId, { type: 'REDEEM', idemKey: key, amountCents: t.amountCents, ref: orderId, by: actor.staffId, byName: actor.staffName }, svCfg);
+        if (rr.ok === false) { await rollbackSv(); return res.status(rr.code === 'CONFLICT' ? 409 : 400).json({ error: rr.code === 'NOT_FOUND' || rr.code === 'VOID' || rr.code === 'EXPIRED' ? 'That card is not valid.' : rr.error, code: 'STORED_VALUE', balanceCents: rr.balanceCents }); }
+        svDone.push({ cardId: rt.cardId, key, cents: t.amountCents });
+        tendersOut.push({ type: t.type, amountCents: t.amountCents, cardId: rt.cardId, cardLast4: rr.last4, balanceCents: rr.balanceCents });   // raw code never stored
+      }
+      const giftOut: { cardId: string; code: string | null; last4: string; amountCents: number; emailed: boolean }[] = [];
+      for (let i = 0; i < gp.gifts.length; i++) {
+        const g = gp.gifts[i];
+        const ir = await svIssueCoded(bId, { kind: 'GIFT', cents: g.cents, cardId: `gc_${orderId}_${i}`, idemKey: `iss_${orderId}_${i}`, ref: orderId, by: actor.staffId, byName: actor.staffName, recipientEmail: g.email, recipientName: g.name });
+        if (ir.ok === false) { await rollbackSv(); return res.status(500).json({ error: ir.error, code: 'GIFT' }); }
+        svIssued.push(ir.cardId);
+        giftOut.push({ cardId: ir.cardId, code: ir.code, last4: ir.last4, amountCents: g.cents, emailed: false });
+      }
+      // Points are earned on the pre-tax amount actually paid (stored so a refund can claw back proportionally).
+      const pointsEarned = hasCustomer ? Math.round(((subtotalCents - discountTotal) / 100) * LOYALTY_PTS_PER_DOLLAR) : 0;
+      const itemsJson = lines.map((l: any, i: number) => {
+        const t = taxed.lines[i], p = products.get(l.productId) || {};
+        return { productId: l.productId, variantId: l.variantId || null, title: l.title, qty: l.qty, unitAmount: l.unitAmount, variantName: l.variantName || null,
+          discountCents: t.discountCents, netCents: t.netCents, taxCents: t.taxCents, chargeCents: t.chargeCents, rateBps: t.rateBps,
+          taxClass: normalizeTaxClass(p.taxClass), snapEligible: !!p.snapEligible, snapCoveredCents: t.snapCoveredCents };
+      });
+      if (ticketPrep) {   // CAS-claim the ticket BEFORE writing the order so two registers cannot both charge it
+        ticketOrderId = orderId;
+        if (!(await ticketSaleHooks.claim(ticketPrep, orderId, actor.staffName))) { ticketOrderId = ''; await rollbackSv(); return res.status(409).json({ error: 'This ticket was just paid or changed. Reload it.', code: 'TICKET_CLAIM' }); }
+      }
+      const ebt = tv.tenders.filter((t: any) => t.type === 'EXTERNAL' && (t.kind === 'EBT_SNAP' || t.kind === 'EBT_CASH'));
       await firestoreWrite('storeOrders', orderId, {
         businessUid, customerUid: customerUid || 'walkin',
         buyerId: customerUid || 'walkin', sellerId: businessUid,
-        items: JSON.stringify(priced), subtotalCents,
-        offerDiscountCents: offerCents, redeemCents, totalCents,
-        source: 'POS', tender: tender === 'CARD' ? 'CARD' : 'CASH',
+        items: JSON.stringify(itemsJson),
+        subtotalCents,
+        offerDiscountCents: offerCents, redeemCents, manualDiscountCents: manualCents, discountApprovedBy, discountCents: discountTotal,
+        taxCents: taxed.taxCents, taxInclusive: !!settings.tax.inclusive, tipCents, totalCents, paidCents: dueCents,
+        snapCents: tv.snapCents, snapMaxCents, pointsEarned,
+        tenders: JSON.stringify(tendersOut),
+        storedValueSoldCents: giftSoldCents, giftCardsSold: JSON.stringify(giftOut.map(g => ({ cardId: g.cardId, last4: g.last4, amountCents: g.amountCents }))),
+        tender: tv.tenders.length > 1 ? 'SPLIT' : (tv.tenders[0].type === 'EXTERNAL' ? String(tv.tenders[0].kind) : tv.tenders[0].type),
+        ebtReference: ebt.map(t => t.reference).filter(Boolean).join(','),
+        staffId: actor.staffId, staffName: actor.staffName,
+        ageVerified: ageMin > 0, ageMin,
+        source: 'POS', ...(ticketPrep ? ticketSaleHooks.orderFields(ticketPrep, creditCents) : {}),
         fulfillment: 'PICKUP', status: 'CONFIRMED', createdAt: Date.now(), paidAt: Date.now(),
-      });
-      // Decrement stock atomically.
-      for (const li of priced) await firestoreIncrement(`storeProducts/${li.productId}`, { stock: -Math.abs(li.qty) }).catch(() => {});
+      }, true).catch(async (e: any) => { await rollbackSv(); throw e; });
+      // Gift-card emails (best effort; the code is also in this response, once).
+      for (let i = 0; i < giftOut.length; i++) { const g = gp.gifts[i]; if (g.email && giftOut[i].code) giftOut[i].emailed = await svEmailGift({ to: g.email, businessName: String(req.body?.businessName || 'our shop').slice(0, 80), code: giftOut[i].code!, amountCents: g.cents, recipientName: g.name, message: g.message }); }
+      // Decrement stock atomically + write the ledger (flags the order if the count went negative).
+      ticketOrderId = '';   // order is written: never release the ticket claim after this point
+      const oversold = await applyStockSale(lines.filter((l: any) => !String(l.productId).startsWith('tkt:')), { orderId, sellerId: businessUid, reason: 'POS_SALE', by: actor.staffId });
+      if (oversold) await firestoreWrite('storeOrders', orderId, { oversold: true }).catch(() => {});
 
-      // Loyalty: award points on the amount actually paid, and DEDUCT any points redeemed — a single
-      // net increment (may be negative) so the balance stays correct.
-      let pointsEarned = 0;
+      // Loyalty: award points, DEDUCT redeemed points - a single net increment.
       if (hasCustomer) {
-        pointsEarned = Math.round((totalCents / 100) * LOYALTY_PTS_PER_DOLLAR);
-        const net = pointsEarned - redeemCents; // redeemCents == points spent (1pt=1¢)
+        const net = pointsEarned - redeemCents; // redeemCents == points spent (1pt=1c)
         if (net !== 0) {
           await firestoreIncrement(`businesses/${businessUid}/loyalty/${customerUid}`, { points: net }, { customerUid, businessUid, updatedAt: Date.now() }).catch(() => {});
         }
       }
-      res.json({ orderId, subtotalCents, offerDiscountCents: offerCents, redeemCents, totalCents, pointsEarned });
+      if (ticketPrep) await ticketSaleHooks.finalize(ticketPrep, orderId, { paidCents: dueCents, by: actor.staffName, creditCents });
+      res.json({ orderId, subtotalCents, offerDiscountCents: offerCents, redeemCents, manualDiscountCents: manualCents, discountCents: discountTotal, taxCents: taxed.taxCents, tipCents, totalCents, paidCents: dueCents, tenders: tendersOut, giftCards: giftOut, storedValueSoldCents: giftSoldCents, changeCents: tv.changeCents, snapCents: tv.snapCents, lines: itemsJson, staffName: actor.staffName, pointsEarned, oversold });
     } catch (err: any) {
+      if (ticketPrep && ticketOrderId) await ticketSaleHooks.release(ticketPrep, ticketOrderId).catch(() => {});
       console.error('/api/store/pos-sale', err?.message || err);
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ── POS refund / return ───────────────────────────────────────────────────────────────────────
+  // CONCURRENCY: the already-refunded state (`refundLog`) lives ON THE ORDER DOC and is updated with a
+  // compare-and-swap (restCas + refundCore.commitRefund), so two simultaneous refunds cannot both pass the paid
+  // amount; the loser re-reads and is re-planned. Same `idempotencyKey` = same refund id = no-op replay.
+  // After the CAS commit, side effects are each idempotent so a crash/retry converges: refund doc (create-once),
+  // restock (create-once ledger id per line), loyalty clawback (refund id recorded on the loyalty doc).
+  const jparse = (v: any, d: any) => { try { return typeof v === 'string' ? JSON.parse(v) : (v ?? d); } catch { return d; } };
+
+  app.post('/api/store/pos-refund', authMiddleware, express.json({ limit: '64kb' }), async (req: any, res) => {
+    try {
+      const { businessUid, orderId, lines, method, reason, note, managerPin, idempotencyKey } = req.body || {};
+      if (!businessUid || !orderId || !Array.isArray(lines)) return res.status(400).json({ error: 'businessUid and orderId and lines required.' });
+      const b = String(businessUid);
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const m: RefundMethod = method === 'CASH' ? 'CASH' : method === 'STORE_CREDIT' ? 'STORE_CREDIT' : 'ORIGINAL';
+      const why: RefundReason = (REFUND_REASONS as readonly string[]).includes(String(reason)) ? reason : 'OTHER';
+      const key = String(idempotencyKey || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60) || `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+      const refundId = `rf_${key}`;
+      const orders = restCas('storeOrders');
+
+      // Preflight: size the refund against the current state to decide whether a manager must approve.
+      const settings = await loadRegisterSettings(b);
+      const cur = await orders.get(String(orderId));
+      if (!cur || cur.data.sellerId !== b) return res.status(404).json({ error: 'Order not found.' });
+      const pre = planFromOrderDoc(cur.data, { lines, method: m });
+      let approvedBy = '';
+      if (pre.ok && !refundLogOf(cur.data).some(e => e.id === refundId)) {
+        const needs = !actor.perms.has('REFUND') || (refundNeedsManager(pre.plan.amountCents, settings.refundApprovalCents) && !canApprove(actor.role));
+        if (needs) {
+          const mgr = await managerApproval(b, managerPin);
+          if (!mgr) return res.status(403).json({ error: actor.perms.has('REFUND') ? `Refunds of $${(settings.refundApprovalCents / 100).toFixed(2)} or more need a manager PIN.` : 'A manager PIN is needed to approve this refund.', code: 'MANAGER_PIN' });
+          approvedBy = mgr.name;
+        }
+      }
+      const approved = !!approvedBy || canApprove(actor.role);
+      const committed = await commitRefund(orders, String(orderId), {
+        refundId, lines, method: m, sellerId: b,
+        gate: plan => (!actor.perms.has('REFUND') || refundNeedsManager(plan.amountCents, settings.refundApprovalCents)) && !approved
+          ? { ok: false, error: 'A manager PIN is needed to approve this refund.', code: 'MANAGER_PIN' } : { ok: true },
+      });
+      if (committed.ok === false) return res.status(committed.code === 'MANAGER_PIN' ? 403 : committed.code === 'CONFLICT' ? 409 : committed.code === 'ERROR' ? 503 : 400).json({ error: committed.error, code: committed.code });
+      const { entry } = committed;
+
+      // 1) refund record (create-once)
+      await firestoreCreateOnce('storeRefunds', refundId, {
+        businessUid: b, sellerId: b, orderId: String(orderId), amountCents: entry.amountCents, taxCents: entry.taxCents,
+        method: m, reason: why, note: String(note || '').slice(0, 300),
+        lines: JSON.stringify(entry.lines), allocations: JSON.stringify(entry.allocations),
+        staffId: actor.staffId, staffName: actor.staffName, approvedBy, createdAt: entry.at,
+      });
+      // 2) restock through the ledger (create-once id per refund line)
+      let restocked = 0;
+      const order = cur.data;
+      const orderLines = orderLinesFromDoc(order);
+      for (const rl of entry.lines.filter(l => l.restock)) {
+        try {
+          const ol = orderLines[rl.index]; if (!ol) continue;
+          const p = await loadStoreProduct(ol.productId);
+          if (!p || p.sellerId !== b) continue;
+          const moveId = restockMoveId(refundId, ol.productId, ol.variantId);
+          const tracked = isTrackedInventory(p);
+          const before = ol.variantId && p.variants?.length ? Number(p.variantStock?.[ol.variantId] ?? (p.variants.find((v: any) => v.id === ol.variantId)?.stock ?? 0)) : Number(p.stock ?? 0);
+          const claimMove = await firestoreCreateOnce('stockMoves', moveId, { sellerId: b, productId: ol.productId, productTitle: String(p.title || ''), ...(ol.variantId ? { variantId: ol.variantId } : {}), delta: tracked ? rl.qty : 0, before, after: tracked ? before + rl.qty : before, reason: 'RETURN', orderId: String(orderId), refundId, by: actor.staffId, at: Date.now() });
+          if (claimMove !== 'created') continue;
+          const inc: Record<string, number> = { soldCount: -rl.qty };
+          if (tracked) { inc.stock = rl.qty; if (ol.variantId && p.variants?.length && isSafeVariantIdInventory(ol.variantId)) inc[`variantStock.${ol.variantId}`] = rl.qty; }
+          const seed = tracked ? variantStockSeedInventory(p) : null;
+          if (seed) await firestorePatchDeep('storeProducts', ol.productId, { variantStock: seed });
+          const ok = await firestoreIncrement(`storeProducts/${ol.productId}`, inc);
+          if (!ok) await firestoreDeleteDoc('stockMoves', moveId); else restocked++;
+        } catch (e: any) { console.error('[refund] restock failed', e?.message || e); }
+      }
+      // 2b) stored value: STORE_CREDIT issues credit; stored-value tenders return to their ORIGINAL card. Each op has a
+      // deterministic idempotency key, so a retried refund converges instead of double-crediting.
+      const credits: { kind: string; cardId: string; last4: string; amountCents: number; code: string | null; restoredToOriginal: boolean }[] = [];
+      try {
+        const origTenders = parseTenders(order.tenders, order.tender, Math.round(Number(order.paidCents ?? order.totalCents) || 0));
+        const custUid = String(order.customerUid || '');
+        const hasCust = !!custUid && custUid !== 'walkin';
+        for (let ai = 0; ai < entry.allocations.length; ai++) {
+          const al = entry.allocations[ai];
+          const key = `rf_${refundId}_${ai}`;
+          if (typeof al.tenderIndex === 'number' && isStoredValueTender(al.type)) {
+            const cardId = (origTenders[al.tenderIndex] as any)?.cardId;
+            const rr = cardId ? await svApply(b, String(cardId), { type: 'REFUND_RESTORE', idemKey: key, amountCents: al.amountCents, ref: refundId, by: actor.staffId, byName: actor.staffName }) : null;
+            if (rr && rr.ok === true) { credits.push({ kind: rr.kind, cardId: String(cardId), last4: rr.last4, amountCents: al.amountCents, code: null, restoredToOriginal: true }); continue; }
+            // original card voided/expired/missing: fall through to fresh store credit
+          } else if (al.type !== 'STORE_CREDIT') continue;
+          if (hasCust) {
+            const cr = await svCustomerCard(b, 'CREDIT', custUid, { cents: al.amountCents, idemKey: key, ref: refundId, reason: 'refund to store credit', by: actor.staffId, byName: actor.staffName });
+            if (cr.ok === true) { credits.push({ kind: 'CREDIT', cardId: cr.cardId, last4: cr.last4, amountCents: al.amountCents, code: null, restoredToOriginal: false }); continue; }
+          }
+          const ic = await svIssueCoded(b, { kind: 'CREDIT', cents: al.amountCents, cardId: `cr_${refundId}_${ai}`.slice(0, 120), idemKey: key, ref: refundId, reason: 'refund to store credit', by: actor.staffId, byName: actor.staffName });
+          if (ic.ok === true) credits.push({ kind: 'CREDIT', cardId: ic.cardId, last4: ic.last4, amountCents: al.amountCents, code: ic.code, restoredToOriginal: false });
+          else console.error('[refund] store credit failed', refundId, ic.error);
+        }
+        if (credits.length) await firestoreWrite('storeRefunds', refundId, { credits: JSON.stringify(credits.map(c => ({ ...c, code: null }))) }).catch(() => {});
+      } catch (e: any) { console.error('[refund] stored value failed', e?.message || e); }
+      // 3) loyalty clawback: cumulative-proportional, never below zero, idempotent per refund id
+      let pointsRequested = 0, pointsClawed = 0;
+      const cust = String(order.customerUid || '');
+      if (cust && cust !== 'walkin' && Number(order.pointsEarned) > 0) {
+        pointsRequested = clawbackPoints({
+          earnedPoints: Number(order.pointsEarned), orderNetCents: Math.max(0, (Number(order.subtotalCents) || 0) - (Number(order.discountCents) || 0)),
+          priorRefundNetCents: committed.priorNetCents, thisRefundNetCents: entry.amountCents - entry.taxCents,
+        });
+        if (pointsRequested > 0) {
+          const out = await casUpdate<number>(restCas(`businesses/${b}/loyalty`), cust, curL => {
+            const applied: string[] = jparse(curL?.clawedRefunds, []);
+            if (applied.includes(refundId)) return { abort: true, result: -1 };       // already applied on an earlier attempt
+            const { newBalance, clawed } = applyClawback(Number(curL?.points) || 0, pointsRequested);
+            return { patch: { points: newBalance, clawedRefunds: JSON.stringify([...applied, refundId].slice(-100)), updatedAt: Date.now() }, result: clawed };
+          });
+          pointsClawed = out.ok ? out.result : 0;
+        }
+        await firestoreWrite('storeRefunds', refundId, { pointsRequested, pointsClawed }).catch(() => {});
+      }
+      res.json({ ok: true, refundId, duplicate: committed.duplicate, amountCents: entry.amountCents, taxCents: entry.taxCents, allocations: entry.allocations, restocked, fullyRefunded: committed.fullyRefunded, approvedBy, pointsClawed, credits });
+    } catch (err: any) { console.error('/api/store/pos-refund', err?.message || err); res.status(500).json({ error: 'Refund failed.' }); }
+  });
+
+  // ── Cash drawer + end of day ──────────────────────────────────────────────────────────────────
+  // businesses/{b}/drawerSessions/{id}: server-written. CONCURRENCY: "only one open drawer" is a CAS on the
+  // pointer doc businesses/{b}/drawerState/current; every movement and the close are CAS writes on the session
+  // doc, so a movement racing a close forces the close to recompute its Z report from the new movements.
+  const loadZInputs = async (businessUid: string, from: number, to: number) => {
+    const [os, rs] = await Promise.all([sellerDocs('storeOrders', businessUid), sellerDocs('storeRefunds', businessUid)]);
+    return {
+      orders: os.filter((o: any) => o.source === 'POS').map(normalizeOrderZ).filter(o => o.createdAt >= from && o.createdAt <= to),
+      refunds: rs.map(normalizeRefundZ).filter(r => r.createdAt >= from && r.createdAt <= to),
+    };
+  };
+  const drawerView = (id: string, d: Record<string, any>) => ({ id, openedAt: d.openedAt, openedByName: d.openedByName, startFloatCents: d.startFloatCents, movements: jparse(d.movements, []), status: d.status });
+  const currentDrawer = async (b: string) => {
+    const ptr = await restCas(`businesses/${b}/drawerState`).get('current');
+    const id = ptr?.data.openId ? String(ptr.data.openId) : '';
+    if (!id) return null;
+    const s = await restCas(`businesses/${b}/drawerSessions`).get(id);
+    return s && s.data.status === 'OPEN' ? { id, data: s.data } : null;
+  };
+
+  app.post('/api/register/drawer', authMiddleware, express.json({ limit: '32kb' }), async (req: any, res) => {
+    try {
+      const { businessUid, action } = req.body || {};
+      if (!businessUid) return res.status(400).json({ error: 'businessUid required.' });
+      const b = String(businessUid);
+      const need: RegisterPermission = action === 'close' ? 'CLOSE_DRAWER' : 'RING_SALES';
+      const actor = await resolveRegisterActor(req, b, need);
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const sessions = restCas(`businesses/${b}/drawerSessions`), pointer = restCas(`businesses/${b}/drawerState`);
+      const cur = await currentDrawer(b);
+
+      if (action === 'status') {
+        if (!cur) return res.json({ open: null });
+        const body: any = { open: drawerView(cur.id, cur.data) };
+        if (actor.perms.has('VIEW_REPORTS')) {
+          const z = await loadZInputs(b, cur.data.openedAt, Date.now());
+          body.z = buildZReport(z.orders, z.refunds, jparse(cur.data.movements, []), cur.data.startFloatCents, { from: cur.data.openedAt, to: Date.now() });
+        }
+        return res.json(body);
+      }
+      if (action === 'open') {
+        const startFloatCents = Math.max(0, Math.min(100_000_000, Math.round(Number(req.body?.startFloatCents) || 0)));
+        const id = `ds_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const now = Date.now();
+        // Win the pointer first (CAS) - only one concurrent open can succeed; then create the session.
+        const won = await casUpdate<string>(pointer, 'current', async p => {
+          const existing = p?.openId ? await sessions.get(String(p.openId)) : null;
+          if (existing && existing.data.status === 'OPEN') return { abort: true, result: 'OPEN' };
+          return { patch: { openId: id }, result: 'WON' };
+        });
+        if (won.ok === false) return res.status(won.reason === 'ABORT' ? 409 : 503).json({ error: won.reason === 'ABORT' ? 'A drawer is already open.' : 'Drawer is busy - try again.' });
+        const made = await firestoreCreateOnce(`businesses/${b}/drawerSessions`, id, { status: 'OPEN', openedAt: now, openedBy: actor.staffId, openedByName: actor.staffName, startFloatCents, movements: '[]' });
+        if (made !== 'created') { await casUpdate(pointer, 'current', () => ({ patch: { openId: '' }, result: null })); return res.status(503).json({ error: 'Could not open the drawer.' }); }
+        return res.json({ open: { id, openedAt: now, openedByName: actor.staffName, startFloatCents, movements: [], status: 'OPEN' } });
+      }
+      if (!cur) return res.status(409).json({ error: 'Open the drawer first.' });
+
+      if (action === 'move') {
+        const mv = sanitizeMovement(req.body?.movement, Date.now(), actor.staffName);
+        if (mv.ok === false) return res.status(400).json({ error: mv.error });
+        if (mv.m.type !== 'PAID_IN' && !actor.perms.has('CLOSE_DRAWER') && mv.m.amountCents > 10000) return res.status(403).json({ error: 'Payouts and drops over $100 need a manager.', code: 'FORBIDDEN' });
+        const out = await casUpdate<DrawerMovement[] | null>(sessions, cur.id, s => {
+          if (!s || s.status !== 'OPEN') return { abort: true, result: null };
+          const next: DrawerMovement[] = [...jparse(s.movements, []), mv.m];
+          return { patch: { movements: JSON.stringify(next) }, result: next };
+        });
+        if (!out.ok || !out.result) return res.status(out.ok === false && out.reason === 'ABORT' ? 409 : 503).json({ error: 'Could not record that - the drawer may have just closed.' });
+        return res.json({ open: { ...drawerView(cur.id, cur.data), movements: out.result } });
+      }
+      if (action === 'close') {
+        const counted = Math.round(Number(req.body?.countedCents));
+        if (!Number.isFinite(counted) || counted < 0) return res.status(400).json({ error: 'Enter the cash you counted.' });
+        const out = await casUpdate<ZReport | null>(sessions, cur.id, async s => {
+          if (!s || s.status !== 'OPEN') return { abort: true, result: null };
+          const now = Date.now();
+          const zi = await loadZInputs(b, s.openedAt, now);
+          const z = buildZReport(zi.orders, zi.refunds, jparse(s.movements, []), s.startFloatCents, { from: s.openedAt, to: now }, counted);
+          return { patch: { status: 'CLOSED', closedAt: now, closedBy: actor.staffId, closedByName: actor.staffName, countedCents: counted, expectedCents: z.cash.expectedCents, varianceCents: z.cash.varianceCents ?? 0, zReport: JSON.stringify(z) }, result: z };
+        });
+        if (!out.ok || !out.result) return res.status(out.ok === false && out.reason === 'ABORT' ? 409 : 503).json({ error: out.ok === false && out.reason === 'ABORT' ? 'That drawer is already closed.' : 'Could not close - try again.' });
+        await casUpdate(pointer, 'current', p => (p?.openId === cur.id ? { patch: { openId: '' }, result: null } : { abort: true, result: null })).catch(() => {});
+        return res.json({ closed: true, z: out.result });
+      }
+      res.status(400).json({ error: 'Unknown drawer action.' });
+    } catch (err: any) { console.error('/api/register/drawer', err?.message || err); res.status(500).json({ error: 'Drawer request failed.' }); }
+  });
+
+  // ── Receipts: public read-only link (+ optional email) ────────────────────────────────────────
+  // Token = 24 random bytes (unguessable); `posReceipts/{token}` -> { orderId }. GET /r/:token renders HTML.
+  const escHtml = (s: any) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+  const fmtMoney = (c: any) => `$${((Number(c) || 0) / 100).toFixed(2)}`;
+  const renderReceiptHtml = (o: any, businessName: string): string => {
+    const items = jparse(o.items, []) as any[];
+    const tenders = parseTenders(o.tenders, o.tender, Math.round(Number(o.paidCents ?? o.totalCents) || 0));
+    const rows = items.map(i => `<tr><td>${escHtml(i.qty)} x ${escHtml(i.title)}${i.variantName ? ` (${escHtml(i.variantName)})` : ''}</td><td class="r">${fmtMoney(i.chargeCents ?? i.unitAmount * i.qty)}</td></tr>`).join('');
+    const tRows = tenders.map(t => `<tr><td>${escHtml(tenderLabel(t))}${t.reference ? ` <span class="m">ref ${escHtml(t.reference)}</span>` : ''}</td><td class="r">${fmtMoney(t.amountCents)}</td></tr>${typeof t.balanceCents === 'number' ? `<tr><td class="m" colspan="2">Remaining ${escHtml(tenderLabel(t))} balance: ${fmtMoney(t.balanceCents)}</td></tr>` : ''}`).join('');
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Receipt - ${escHtml(businessName)}</title><style>body{font-family:ui-monospace,Menlo,monospace;background:#0a0a0f;color:#fff;margin:0;padding:24px}.c{max-width:360px;margin:0 auto;background:#15151d;border:1px solid #2a2a36;border-radius:20px;padding:20px}h1{font-size:20px;margin:0 0 4px;font-style:italic;font-weight:900}table{width:100%;border-collapse:collapse;font-size:14px}td{padding:3px 0}.r{text-align:right}.m{color:#9a9aab;font-size:12px}hr{border:0;border-top:1px dashed #3a3a4a;margin:12px 0}.t td{font-weight:800;font-size:17px}</style></head><body><div class="c"><h1>${escHtml(businessName)}</h1><div class="m">${escHtml(new Date(Number(o.createdAt) || Date.now()).toLocaleString('en-US'))}${o.staffName ? ` - served by ${escHtml(o.staffName)}` : ''}</div><hr><table>${rows}</table><hr><table><tr><td>Subtotal</td><td class="r">${fmtMoney(o.subtotalCents)}</td></tr>${Number(o.discountCents) ? `<tr><td>Discounts</td><td class="r">-${fmtMoney(o.discountCents)}</td></tr>` : ''}${Number(o.taxCents) ? `<tr><td>Tax</td><td class="r">${fmtMoney(o.taxCents)}</td></tr>` : ''}${Number(o.tipCents) ? `<tr><td>Tip</td><td class="r">${fmtMoney(o.tipCents)}</td></tr>` : ''}<tr class="t"><td>Total</td><td class="r">${fmtMoney((Number(o.totalCents) || 0) + (Number(o.tipCents) || 0))}</td></tr></table><hr><table>${tRows}</table><hr><div class="m" style="text-align:center">Thank you!</div></div></body></html>`;
+  };
+  app.post('/api/store/receipt-link', authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
+    try {
+      const { businessUid, orderId, businessName, email } = req.body || {};
+      if (!businessUid || !orderId) return res.status(400).json({ error: 'businessUid and orderId required.' });
+      const actor = await resolveRegisterActor(req, String(businessUid), 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const order = await firestoreRead('storeOrders', String(orderId));
+      if (!order || order.sellerId !== businessUid) return res.status(404).json({ error: 'Order not found.' });
+      let token = String(order.receiptToken || '');
+      if (!token) {
+        token = nodeCrypto.randomBytes(24).toString('hex');
+        const made = await firestoreCreateOnce('posReceipts', token, { orderId: String(orderId), businessUid: String(businessUid), businessName: String(businessName || 'Receipt').slice(0, 80), createdAt: Date.now() });
+        if (made !== 'created') return res.status(503).json({ error: 'Could not create the receipt link.' });
+        await firestoreWrite('storeOrders', String(orderId), { receiptToken: token }).catch(() => {});
+      }
+      const url = `${trustedRequestOrigin(req)}/r/${token}`;
+      let emailed = false, configured = !!process.env.RESEND_API_KEY;
+      const to = String(email || '').trim();
+      if (to && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to) && configured) {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to, subject: `Your receipt from ${String(businessName || 'your purchase').slice(0, 80)}`, text: `Thanks for your purchase!\n\nView your receipt: ${url}` }),
+        });
+        emailed = r.ok;
+      }
+      res.json({ url, emailed, emailConfigured: configured });
+    } catch (err: any) { console.error('/api/store/receipt-link', err?.message || err); res.status(500).json({ error: 'Could not create the receipt link.' }); }
+  });
+  app.get('/r/:token', async (req, res, next) => {
+    try {
+      const token = String(req.params.token || '');
+      if (!/^[a-f0-9]{48}$/.test(token)) return next();
+      const link = await firestoreRead('posReceipts', token);
+      const order = link ? await firestoreRead('storeOrders', String(link.orderId)) : null;
+      if (!link || !order) return res.status(404).type('html').send('<!doctype html><title>Receipt</title><p style="font-family:sans-serif;padding:24px">Receipt not found.</p>');
+      res.set('Cache-Control', 'private, no-store').type('html').send(renderReceiptHtml(order, String(link.businessName || 'Receipt')));
+    } catch { res.status(500).send('Could not load receipt.'); }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // ── STORED VALUE: gift cards, store credit, prepaid wallets (services/storedValueCore) ──────────
+  // businesses/{b}/storedValue/{cardId}       the card + its balance (CAS-updated; SERVER-WRITE-ONLY)
+  // businesses/{b}/storedValueLedger/{id}     append-only entries, create-once id = cardId_idemKey
+  // businesses/{b}/storedValueIndex/{hash}    code HASH -> cardId (server-only; no client rule). Full codes are never stored.
+  // Customer-tied cards use deterministic ids (wallet w_<uid>, credit cr_<uid>) and have no code.
+  // Selling a card is a LIABILITY (order.storedValueSoldCents), never revenue, never taxed, never stock.
+  const svCards = (b: string): CasStore => restCas(`businesses/${b}/storedValue`);
+  const svIdxPath = (b: string) => `businesses/${b}/storedValueIndex`;
+  const svLedgerPath = (b: string) => `businesses/${b}/storedValueLedger`;
+  const svHash = (b: string, code16: string) => nodeCrypto.createHmac('sha256', process.env.STORED_VALUE_PEPPER || `plajah-sv:${b}`).update(`${b}:${code16}`).digest('hex');
+  const svSettings = async (b: string): Promise<{ limits: StoredValueLimits; expiryDays: number }> => {
+    let sv: any = {};
+    try { const d = await firestoreRead('businesses', b); const raw = d?.registerSettings ? (typeof d.registerSettings === 'string' ? JSON.parse(d.registerSettings) : d.registerSettings) : null; sv = raw?.storedValue || {}; } catch { /* defaults */ }
+    const num = (v: any, d: number, lo: number, hi: number) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : d);
+    // expiryDays: OWNER OPT-IN only (default 0 = never). Some US states restrict gift-card expiry.
+    return { limits: { minIssueGiftCents: num(sv.minGiftCents, SV_DEFAULT.minIssueGiftCents, 100, 100_000), maxBalanceCents: num(sv.maxBalanceCents, SV_DEFAULT.maxBalanceCents, 1000, 1_000_000), minReloadCents: num(sv.minReloadCents, SV_DEFAULT.minReloadCents, 100, 100_000) }, expiryDays: num(sv.expiryDays, 0, 0, 3650) };
+  };
+  type SvOp = Omit<LedgerOp, 'now' | 'limits'>;
+  /** Apply one op via CAS, then write the append-only ledger entry (create-once; replays re-write harmlessly). */
+  const svApply = async (b: string, cardId: string, op: SvOp, cfg?: { limits: StoredValueLimits }): Promise<OpResult> => {
+    const limits = (cfg || await svSettings(b)).limits;
+    const full: LedgerOp = { ...op, now: Date.now(), limits };
+    const r = await applyOp(svCards(b), cardId, full);
+    if (r.ok === true) {
+      const e = r.entry;
+      await firestoreCreateOnce(svLedgerPath(b), ledgerEntryId(cardId, op.idemKey), {
+        businessUid: b, cardId, kind: r.kind, last4: r.last4, customerUid: r.customerUid, type: e.type, deltaCents: e.deltaCents, balanceAfterCents: e.balanceAfterCents,
+        at: e.at, idemKey: op.idemKey, ref: e.ref, reason: e.reason, by: e.by, byName: e.byName,
+      }).catch(() => {});
+    }
+    return r;
+  };
+  /** Issue a CODED (bearer) card. Returns the full code ONCE; only the hash is stored. */
+  const svIssueCoded = async (b: string, o: { kind: CardKind; cents: number; cardId?: string; idemKey: string; ref?: string; reason?: string; by?: string; byName?: string; recipientEmail?: string; recipientName?: string; customerUid?: string }): Promise<{ ok: true; duplicate: boolean; cardId: string; code: string | null; last4: string; balanceCents: number } | { ok: false; error: string; code?: string }> => {
+    const cfg = await svSettings(b);
+    for (let t = 0; t < 3; t++) {
+      const code16 = generateCode(n => nodeCrypto.randomBytes(n));
+      const hash = svHash(b, code16);
+      const cardId = o.cardId || `gc_${nodeCrypto.randomBytes(9).toString('hex')}`;
+      const claim = await firestoreCreateOnce(svIdxPath(b), hash, { cardId, kind: o.kind, createdAt: Date.now() });
+      if (claim === 'exists') continue;
+      if (claim === 'error') return { ok: false, error: 'Could not create the card. Nothing was charged.' };
+      const expiresAt = o.kind === 'GIFT' && cfg.expiryDays > 0 ? Date.now() + cfg.expiryDays * 86_400_000 : undefined;
+      const r = await svApply(b, cardId, { type: 'ISSUE', idemKey: o.idemKey, ref: o.ref, reason: o.reason, by: o.by, byName: o.byName,
+        init: { kind: o.kind, last4: last4Of(code16), initialCents: o.cents, ...(o.customerUid ? { customerUid: o.customerUid } : {}), ...(o.recipientEmail ? { recipientEmail: o.recipientEmail } : {}), ...(o.recipientName ? { recipientName: o.recipientName } : {}), ...(expiresAt ? { expiresAt } : {}) } }, cfg);
+      if (r.ok === false) { await firestoreDeleteDoc(svIdxPath(b), hash); return { ok: false, error: r.error, code: r.code }; }
+      if (r.duplicate) { await firestoreDeleteDoc(svIdxPath(b), hash); return { ok: true, duplicate: true, cardId, code: null, last4: r.last4, balanceCents: r.balanceCents }; }
+      return { ok: true, duplicate: false, cardId, code: formatCode(code16), last4: r.last4, balanceCents: r.balanceCents };
+    }
+    return { ok: false, error: 'Could not create the card. Try again.' };
+  };
+  /** Customer-tied wallet/credit (no code). Creates on first use. `RELOAD`/`REFUND_RESTORE` thereafter. */
+  const svCustomerCard = async (b: string, kind: 'WALLET' | 'CREDIT', uid: string, o: { cents: number; idemKey: string; ref?: string; reason?: string; by?: string; byName?: string }): Promise<OpResult & { cardId: string }> => {
+    const cardId = `${kind === 'WALLET' ? 'w' : 'cr'}_${uid}`.replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 120);
+    const cfg = await svSettings(b);
+    const base = { idemKey: o.idemKey, ref: o.ref, reason: o.reason, by: o.by, byName: o.byName };
+    let r = await svApply(b, cardId, { ...base, type: 'ISSUE', init: { kind, last4: uid.slice(-4).toUpperCase().padStart(4, '0'), initialCents: o.cents, customerUid: uid } }, cfg);
+    if (r.ok === false && r.code === 'EXISTS' && o.cents > 0) r = await svApply(b, cardId, { ...base, type: kind === 'WALLET' ? 'RELOAD' : 'REFUND_RESTORE', amountCents: o.cents }, cfg);
+    return { ...r, cardId };
+  };
+  const svCardByCode = async (b: string, codeIn: any): Promise<{ cardId: string; data: Record<string, any> } | null> => {
+    const code16 = normalizeCode(codeIn) || 'X'.repeat(16);          // same work for malformed input
+    const idx = await firestoreRead(svIdxPath(b), svHash(b, code16));
+    if (!idx || !normalizeCode(codeIn)) return null;
+    const c = await svCards(b).get(String(idx.cardId));
+    return c ? { cardId: String(idx.cardId), data: c.data } : null;
+  };
+  /** Which card does this stored-value tender draw from? Generic error: never says whether a code exists. */
+  const svResolveTender = async (b: string, t: Tender, customerUid: string | null): Promise<{ ok: true; cardId: string } | { ok: false; error: string }> => {
+    const bad = { ok: false as const, error: 'That card is not valid.' };
+    if (t.type === 'WALLET') return customerUid ? { ok: true, cardId: `w_${customerUid}`.replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 120) } : { ok: false, error: 'Attach the customer to pay from their wallet.' };
+    if (t.code) { const c = await svCardByCode(b, t.code); return c && c.data.kind === (t.type === 'GIFT' ? 'GIFT' : 'CREDIT') ? { ok: true, cardId: c.cardId } : bad; }
+    if (t.type === 'STORE_CREDIT' && customerUid) return { ok: true, cardId: `cr_${customerUid}`.replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 120) };
+    return bad;
+  };
+  const svEmailGift = async (o: { to: string; businessName: string; code: string; amountCents: number; recipientName?: string; message?: string }): Promise<boolean> => {
+    if (!process.env.RESEND_API_KEY || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.to)) return false;
+    try {
+      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to: o.to, subject: `Your ${o.businessName.slice(0, 60)} gift card`, text: giftCardEmailText({ businessName: o.businessName, code16: o.code.replace(/-/g, ''), amountCents: o.amountCents, recipientName: o.recipientName, message: o.message }) }) });
+      return r.ok;
+    } catch { return false; }
+  };
+  /** Sale-time gift lines out of the request body. */
+  const svParseGiftLines = (raw: any, limits: StoredValueLimits): { ok: true; gifts: { cents: number; email?: string; name?: string; message?: string }[] } | { ok: false; error: string } => {
+    const arr = Array.isArray(raw) ? raw.slice(0, 5) : [];
+    const gifts: { cents: number; email?: string; name?: string; message?: string }[] = [];
+    for (const g of arr) {
+      const a = sanitizeIssueAmount(g?.amountCents, limits);
+      if (a.ok === false) return { ok: false, error: a.error };
+      if (a.cents < limits.minIssueGiftCents) return { ok: false, error: `Minimum gift card is $${(limits.minIssueGiftCents / 100).toFixed(2)}.` };
+      const email = String(g?.recipientEmail || '').trim().slice(0, 120);
+      gifts.push({ cents: a.cents, ...(/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? { email } : {}), ...(g?.recipientName ? { name: String(g.recipientName).slice(0, 60) } : {}), ...(g?.message ? { message: String(g.message).slice(0, 300) } : {}) });
+    }
+    return { ok: true, gifts };
+  };
+  /** Online digital gift cards, issued by the Stripe webhook once paid (deterministic ids => webhook retries are safe). */
+  const issueOnlineGiftCards = async (orderId: string, order: Record<string, any>): Promise<void> => {
+    const b = String(order.businessUid || order.sellerId || '');
+    let gifts: any[] = []; try { gifts = JSON.parse(String(order.giftCardsPending || '[]')); } catch { /* none */ }
+    if (!b || !gifts.length || order.giftCardsIssued === true) return;
+    const biz = await firestoreRead('businesses', b); const name = String(biz?.name || biz?.businessName || 'our shop').slice(0, 80);
+    const links: string[] = [];
+    for (let i = 0; i < gifts.length; i++) {
+      const g = gifts[i];
+      const r = await svIssueCoded(b, { kind: 'GIFT', cents: Math.round(g.cents), cardId: `gc_${orderId}_${i}`, idemKey: `iss_${orderId}_${i}`, ref: orderId, recipientEmail: g.email, recipientName: g.name, by: 'online', byName: 'Online store' });
+      if (r.ok === true && r.code) {
+        const to = g.email || String(order.customerEmail || '');
+        const sent = to ? await svEmailGift({ to, businessName: name, code: r.code, amountCents: g.cents, recipientName: g.name, message: g.message }) : false;
+        // No email service / no address: hold the code as a one-time link record the buyer can open from the order page.
+        if (!sent) { const tok = nodeCrypto.randomBytes(24).toString('hex'); await firestoreCreateOnce('giftCardLinks', tok, { businessUid: b, orderId, code: r.code, amountCents: g.cents, createdAt: Date.now(), opened: false }); links.push(tok); }
+      }
+    }
+    await firestoreWrite('storeOrders', orderId, { giftCardsIssued: true, ...(links.length ? { giftCardLinkTokens: JSON.stringify(links) } : {}) }).catch(() => {});
+  };
+
+  // Public balance check - rate limited per business+ip; always the same work and a minimum latency; every
+  // failure (malformed, unknown, voided, expired) is the same 'Invalid card.' so it cannot be used to probe for codes.
+  const svRate = new Map<string, RateState>();
+  app.post('/api/stored-value/balance', express.json({ limit: '4kb' }), async (req: any, res) => {
+    const t0 = Date.now();
+    const pad = async () => { const w = 250 - (Date.now() - t0); if (w > 0) await new Promise(r => setTimeout(r, w)); };
+    try {
+      const b = String(req.body?.businessUid || '').slice(0, 128);
+      const key = `${b}|${req.ip}`;
+      const rl = rateCheck(svRate.get(key), t0, { max: 12, windowMs: 10 * 60_000 });
+      svRate.set(key, rl.state);
+      if (svRate.size > 5000) for (const [k, v] of svRate) if (t0 - v.windowStart > 10 * 60_000) svRate.delete(k);
+      if (!rl.allowed) { await pad(); return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE', retryAfterSec: Math.ceil(rl.retryAfterMs / 1000) }); }
+      const c = b ? await svCardByCode(b, req.body?.code) : null;
+      await pad();
+      if (!c || c.data.status !== 'ACTIVE' || svIsExpired(c.data as any, Date.now())) return res.status(404).json({ error: 'Invalid card.' });
+      res.json({ ok: true, kind: c.data.kind, balanceCents: Math.round(Number(c.data.balanceCents) || 0), last4: c.data.last4, ...(c.data.expiresAt ? { expiresAt: c.data.expiresAt } : {}) });
+    } catch { await pad(); res.status(404).json({ error: 'Invalid card.' }); }
+  });
+
+  // Register: a customer's wallet + store credit balances (so the cashier can offer them as tenders).
+  app.post('/api/stored-value/customer', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || ''), uid = String(req.body?.customerUid || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      if (!uid) return res.status(400).json({ error: 'customerUid required.' });
+      const [w, c] = await Promise.all([svCards(b).get(`w_${uid}`), svCards(b).get(`cr_${uid}`)]);
+      const pick = (x: any, id: string) => (x && x.data.status === 'ACTIVE' ? { cardId: id, balanceCents: Math.round(Number(x.data.balanceCents) || 0), last4: x.data.last4 } : null);
+      res.json({ wallet: pick(w, `w_${uid}`), credit: pick(c, `cr_${uid}`) });
+    } catch (err: any) { console.error('/api/stored-value/customer', err?.message || err); res.status(500).json({ error: 'Lookup failed.' }); }
+  });
+
+  // Manager gate shared by comp-issue / void / adjust: manager-or-owner role, or a manager PIN.
+  const svManager = async (actor: any, b: string, pin: any): Promise<{ ok: true; name: string } | { ok: false; error: string }> => {
+    if (actor.perms.has('REFUND') && canApprove(actor.role)) return { ok: true, name: actor.staffName };
+    const m = await managerApproval(b, pin);
+    return m ? { ok: true, name: m.name } : { ok: false, error: 'A manager PIN is needed for this.' };
+  };
+
+  // Issue WITHOUT a sale: manager comp (reason required) of a gift card / credit, or open a customer's wallet (optionally comped).
+  app.post('/api/stored-value/issue', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || '');
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const kind: CardKind = req.body?.kind === 'WALLET' ? 'WALLET' : req.body?.kind === 'CREDIT' ? 'CREDIT' : 'GIFT';
+      const cents = Math.round(Number(req.body?.amountCents) || 0);
+      const reason = String(req.body?.reason || '').trim().slice(0, 200);
+      const idem = cleanIdem(req.body?.idempotencyKey, `comp_${Date.now()}${Math.random().toString(36).slice(2, 8)}`);
+      const uid = String(req.body?.customerUid || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      if (kind === 'WALLET') {
+        if (!uid) return res.status(400).json({ error: 'Attach a customer to open a wallet.' });
+        if (cents > 0) { if (!reason) return res.status(400).json({ error: 'A reason is required to comp wallet funds.' }); const m = await svManager(actor, b, req.body?.managerPin); if (m.ok === false) return res.status(403).json({ error: m.error, code: 'MANAGER_PIN' }); }
+        const r = await svCustomerCard(b, 'WALLET', uid, { cents, idemKey: `wopen_${idem}`, reason: reason || 'wallet opened', by: actor.staffId, byName: actor.staffName });
+        return r.ok === false ? res.status(400).json({ error: r.error, code: r.code }) : res.json({ ok: true, cardId: r.cardId, balanceCents: r.balanceCents, last4: r.last4 });
+      }
+      const a = sanitizeIssueAmount(cents, (await svSettings(b)).limits);
+      if (a.ok === false) return res.status(400).json({ error: a.error });
+      if (!reason) return res.status(400).json({ error: 'A reason is required for a comped card.' });
+      const m = await svManager(actor, b, req.body?.managerPin);
+      if (m.ok === false) return res.status(403).json({ error: m.error, code: 'MANAGER_PIN' });
+      const email = String(req.body?.recipientEmail || '').trim().slice(0, 120);
+      const out = await svIssueCoded(b, { kind, cents: a.cents, idemKey: `comp_${idem}`, reason: `comp: ${reason} (approved ${m.name})`, by: actor.staffId, byName: actor.staffName, recipientEmail: email || undefined });
+      if (out.ok === false) return res.status(400).json({ error: out.error, code: out.code });
+      let emailed = false;
+      if (email && out.code) emailed = await svEmailGift({ to: email, businessName: String(req.body?.businessName || 'our shop').slice(0, 80), code: out.code, amountCents: a.cents });
+      res.json({ ok: true, cardId: out.cardId, code: out.code, last4: out.last4, balanceCents: out.balanceCents, emailed, duplicate: out.duplicate });
+    } catch (err: any) { console.error('/api/stored-value/issue', err?.message || err); res.status(500).json({ error: 'Could not issue the card.' }); }
+  });
+
+  // Reload a customer's wallet, PAID FOR with a tender (cash/card/external). Recorded as a POS order whose
+  // storedValueSoldCents is the reload (liability up, not revenue).
+  app.post('/api/stored-value/reload', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || '');
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const uid = String(req.body?.customerUid || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      if (!uid) return res.status(400).json({ error: 'Attach the customer first.' });
+      const cfg = await svSettings(b);
+      const a = sanitizeIssueAmount(req.body?.amountCents, cfg.limits);
+      if (a.ok === false) return res.status(400).json({ error: a.error });
+      const tv = validateTenders(req.body?.tenders, a.cents, { storedValueMaxCents: 0 });
+      if (tv.ok === false) return res.status(400).json({ error: tv.error, code: 'TENDER' });
+      const orderId = `pos_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const r = await svCustomerCard(b, 'WALLET', uid, { cents: a.cents, idemKey: `reload_${orderId}`, ref: orderId, by: actor.staffId, byName: actor.staffName });
+      if (r.ok === false) return res.status(400).json({ error: r.error, code: r.code });
+      try {
+        await firestoreWrite('storeOrders', orderId, {
+          businessUid: b, customerUid: uid, buyerId: uid, sellerId: b, items: '[]', subtotalCents: 0, discountCents: 0, taxCents: 0, tipCents: 0, totalCents: 0, paidCents: a.cents,
+          storedValueSoldCents: a.cents, walletReloadCardId: r.cardId, tenders: JSON.stringify(tv.tenders), tender: tv.tenders.length > 1 ? 'SPLIT' : (tv.tenders[0].type === 'EXTERNAL' ? String(tv.tenders[0].kind) : tv.tenders[0].type),
+          staffId: actor.staffId, staffName: actor.staffName, source: 'POS', fulfillment: 'PICKUP', status: 'CONFIRMED', createdAt: Date.now(), paidAt: Date.now(),
+        }, true);
+      } catch (e) {
+        await svApply(b, r.cardId, { type: 'VOID', idemKey: `rbv_${orderId}`, reason: 'reload order failed' }).catch(() => {});   // never leave unpaid funds
+        throw e;
+      }
+      // Top-up bonus (owner-set promo, e.g. load $50 get $5): an ADJUST ledger entry with a deterministic idempotency key,
+      // so a retried reload can never pay it twice. A bonus failure never fails the (already paid) reload.
+      let bonusCents = 0; let balanceAfter = r.balanceCents;
+      try {
+        const promo = await loadWalletPromo(firestoreRead, b); const bonus = computeTopUpBonus(promo, a.cents);
+        if (bonus.bonusCents > 0) {
+          const br = await svApply(b, r.cardId, { type: 'ADJUST', idemKey: bonusIdemKey(orderId), amountCents: bonus.bonusCents, ref: orderId, reason: bonus.label, by: actor.staffId, byName: actor.staffName }, cfg);
+          if (br.ok === true) { bonusCents = bonus.bonusCents; balanceAfter = br.balanceCents; } else console.error('wallet bonus not applied', br.code);
+        }
+      } catch (e: any) { console.error('wallet bonus failed', e?.message); }
+      res.json({ ok: true, orderId, cardId: r.cardId, balanceCents: balanceAfter, bonusCents, changeCents: tv.changeCents, paidCents: a.cents, tenders: tv.tenders });
+    } catch (err: any) { console.error('/api/stored-value/reload', err?.message || err); res.status(500).json({ error: 'Could not reload the wallet.' }); }
+  });
+
+  // Void / adjust (manager PIN or manager role + reason; both land in the audit ledger).
+  app.post('/api/stored-value/modify', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || ''), cardId = String(req.body?.cardId || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      const actor = await resolveRegisterActor(req, b, 'VIEW_REPORTS');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const reason = String(req.body?.reason || '').trim().slice(0, 200);
+      if (!cardId || !reason) return res.status(400).json({ error: 'cardId and a reason are required.' });
+      const m = await svManager(actor, b, req.body?.managerPin);
+      if (m.ok === false) return res.status(403).json({ error: m.error, code: 'MANAGER_PIN' });
+      const idem = cleanIdem(req.body?.idempotencyKey, `m_${Date.now()}${Math.random().toString(36).slice(2, 8)}`);
+      const action = req.body?.action === 'ADJUST' ? 'ADJUST' : 'VOID';
+      const r = await svApply(b, cardId, { type: action, idemKey: `${action.toLowerCase()}_${idem}`, amountCents: action === 'ADJUST' ? Math.round(Number(req.body?.deltaCents) || 0) : undefined, reason: `${reason} (approved ${m.name})`, by: actor.staffId, byName: actor.staffName });
+      if (r.ok === false) return res.status(r.code === 'NOT_FOUND' ? 404 : r.code === 'CONFLICT' ? 409 : 400).json({ error: r.error, code: r.code });
+      res.json({ ok: true, balanceCents: r.balanceCents, duplicate: r.duplicate });
+    } catch (err: any) { console.error('/api/stored-value/modify', err?.message || err); res.status(500).json({ error: 'Could not update the card.' }); }
+  });
+
+  // Back office: card list (no hashes ever) + liability report for a period.
+  app.post('/api/stored-value/admin', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || '');
+      const actor = await resolveRegisterActor(req, b, 'VIEW_REPORTS');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const now = Date.now();
+      const from = Number.isFinite(Number(req.body?.from)) ? Number(req.body.from) : now - 30 * 86_400_000, to = Number.isFinite(Number(req.body?.to)) ? Number(req.body.to) : now;
+      const [cardDocs, ledDocs] = await Promise.all([fsListSub(`businesses/${b}`, 'storedValue', 1000), fsListSub(`businesses/${b}`, 'storedValueLedger', 3000)]);
+      const cards = cardDocs.map(d => ({ id: d.id, kind: d.data.kind as CardKind, status: (d.data.status || 'ACTIVE') as any, balanceCents: Math.round(Number(d.data.balanceCents) || 0), initialCents: Math.round(Number(d.data.initialCents) || 0), last4: String(d.data.last4 || ''), createdAt: Number(d.data.createdAt) || 0, updatedAt: Number(d.data.updatedAt) || 0, customerUid: d.data.customerUid, recipientEmail: d.data.recipientEmail, recipientName: d.data.recipientName, expiresAt: d.data.expiresAt }));
+      const ledger = ledDocs.map(d => ({ id: d.id, cardId: String(d.data.cardId), type: d.data.type, deltaCents: Math.round(Number(d.data.deltaCents) || 0), balanceAfterCents: Math.round(Number(d.data.balanceAfterCents) || 0), at: Number(d.data.at) || 0, reason: d.data.reason, ref: d.data.ref, byName: d.data.byName, last4: d.data.last4 }));
+      const q = String(req.body?.q || '');
+      res.json({ report: buildLiabilityReport(cards as any, ledger as any, { from, to }, now), cards: searchCards(cards as any, q).sort((a: any, b2: any) => b2.createdAt - a.createdAt).slice(0, 200),
+        ledger: (req.body?.cardId ? ledger.filter(l => l.cardId === String(req.body.cardId)) : ledger.slice(-0)).sort((a, b2) => b2.at - a.at).slice(0, 100), truncated: cardDocs.length >= 1000 || ledDocs.length >= 3000 });
+    } catch (err: any) { console.error('/api/stored-value/admin', err?.message || err); res.status(500).json({ error: 'Could not load stored value.' }); }
+  });
+
+  // Online: a customer buys a DIGITAL gift card from the storefront (own Stripe session; webhook issues + emails it).
+  app.post('/api/stored-value/buy-online', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || '');
+      if (!b) return res.status(400).json({ error: 'businessUid required.' });
+      const org = await firestoreRead('organizations', b);
+      let acct: string | undefined = org?.stripeAccountId;
+      if (!acct) { const u = await firestoreRead('users', b); acct = u?.stripeConnectAccountId; }
+      if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
+      const parsed = svParseGiftLines(req.body?.giftCards, (await svSettings(b)).limits);
+      if (parsed.ok === false) return res.status(400).json({ error: parsed.error });
+      if (!parsed.gifts.length) return res.status(400).json({ error: 'Choose a gift card amount.' });
+      const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const total = parsed.gifts.reduce((s, g) => s + g.cents, 0);
+      const origin = trustedRequestOrigin(req);
+      const session = await getStripe().checkout.sessions.create({
+        mode: 'payment', payment_method_types: ['card'], expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
+        line_items: parsed.gifts.map(g => ({ price_data: { currency: 'usd', product_data: { name: 'Gift card' }, unit_amount: g.cents }, quantity: 1 })),
+        payment_intent_data: { transfer_data: { destination: acct }, metadata: { type: 'store_order', orderId, businessUid: b } },
+        success_url: `${origin}/?order=success`, cancel_url: `${origin}/?order=cancelled`, metadata: { type: 'store_order', orderId, businessUid: b },
+      });
+      await firestoreWrite('storeOrders', orderId, {
+        businessUid: b, customerUid: req.uid, buyerId: req.uid, sellerId: b, items: '[]', subtotalCents: 0, shippingCents: 0, taxCents: 0, totalCents: total, storedValueSoldCents: total,
+        giftCardsPending: JSON.stringify(parsed.gifts), fulfillment: 'PICKUP', status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id,
+      });
+      res.json({ url: session.url, orderId });
+    } catch (err: any) { console.error('/api/stored-value/buy-online', err?.message || err); res.status(500).json({ error: 'Could not start checkout.' }); }
+  });
+  // ═══════════ end STORED VALUE ═══════════════════════════════════════════════════════════════════
 
   // ── Music sync license — one-time per-project license, pays the musician ─────
   app.post('/api/stripe/purchase-sync-license', authMiddleware, express.json(), async (req: any, res) => {
@@ -8595,14 +10603,40 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // metadata so the license reflects what the creator chose in the uploader.
   app.post('/api/stripe/content-purchase', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const { kind, contentId, creatorUid, title, grant, price, delivery, watermark, rentalWindowHrs } = req.body;
-      if ((kind !== 'film' && kind !== 'book') || !contentId || !creatorUid || typeof price !== 'number' || price <= 0) {
-        return res.status(400).json({ error: 'kind (film|book), contentId, creatorUid and a positive price are required' });
+      let { kind, contentId, creatorUid, title, grant, price, delivery, watermark, rentalWindowHrs } = req.body;
+      const { trackId } = req.body;
+      // Music (Chora): the album/track price is read from Firestore, never trusted from the client.
+      // A track purchase is licensed as `track` with contentId `<albumId>__<trackId>`.
+      if (kind === 'album' || kind === 'track') {
+        const albumId = String(contentId || '');
+        if (!albumId || (kind === 'track' && !trackId)) return res.status(400).json({ error: 'albumId (contentId) and, for a track, trackId are required' });
+        const adoc = await fetchFirebaseDoc('albums', albumId);
+        const f = adoc?.fields;
+        if (!f) return res.status(404).json({ error: 'Release not found' });
+        const owner = f.ownerId?.stringValue || f.ownerUid?.stringValue || f.uid?.stringValue || f.creatorUid?.stringValue || '';
+        if (!owner) return res.status(400).json({ error: 'This release has no owner to pay' });
+        const num = (v: any) => v?.doubleValue !== undefined ? Number(v.doubleValue) : v?.integerValue !== undefined ? Number(v.integerValue) : 0;
+        let resolved = 0, resolvedTitle = f.title?.stringValue || '';
+        if (kind === 'album') {
+          resolved = num(f.price);
+        } else {
+          const tr = (f.tracks?.arrayValue?.values || []).map((v: any) => v.mapValue?.fields).find((t: any) => t?.id?.stringValue === trackId);
+          if (!tr) return res.status(404).json({ error: 'Track not found' });
+          resolved = num(tr.price);
+          resolvedTitle = tr.title?.stringValue || resolvedTitle;
+        }
+        if (!(resolved > 0)) return res.status(400).json({ error: 'This release is not for sale' });
+        creatorUid = owner; price = resolved; title = title || resolvedTitle; grant = 'PURCHASE';
+        if (kind === 'track') contentId = `${albumId}__${trackId}`;
+        delivery = 'PLAJAH_ONLY';
+      }
+      if ((kind !== 'film' && kind !== 'book' && kind !== 'album' && kind !== 'track') || !contentId || !creatorUid || typeof price !== 'number' || price <= 0) {
+        return res.status(400).json({ error: 'kind (film|book|album|track), contentId, creatorUid and a positive price are required' });
       }
       const g = grant === 'RENTAL' || grant === 'PPV' ? grant : 'PURCHASE';
       const stripe = getStripe();
       const origin = trustedRequestOrigin(req);
-      const noun = kind === 'book' ? 'Book' : 'Film';
+      const noun = kind === 'book' ? 'Book' : kind === 'album' ? 'Album' : kind === 'track' ? 'Track' : 'Film';
       const verb = g === 'RENTAL' ? 'Rental' : g === 'PPV' ? 'Premiere' : 'Purchase';
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -8697,6 +10731,44 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.json({ url: session.url });
     } catch (err: any) {
       console.error('[Stripe] sanctuary-pledge error:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // ── Artist gift (Chora) ───────────────────────────────────────────────────────
+  // A pure gift from a listener to an artist. Connect DIRECT destination charge: it settles to the
+  // artist's connected account (Plajah never holds it) with a 0% application fee, same as a
+  // Sanctuary DONATION. Bounded $1-$500 so a typo can't send a large charge.
+  app.post('/api/stripe/artist-gift', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { creatorId, amount, albumId, title } = req.body;
+      if (!creatorId || typeof amount !== 'number' || !(amount >= 1 && amount <= 500)) {
+        return res.status(400).json({ error: 'creatorId and an amount between $1 and $500 are required' });
+      }
+      if (creatorId === req.uid) return res.status(400).json({ error: 'You cannot gift yourself.' });
+      const ownerUser = await firestoreRead('users', creatorId);
+      const acct = ownerUser?.stripeConnectAccountId as string | undefined;
+      if (!acct) return res.status(400).json({ error: 'This artist has not set up payouts yet, so gifts cannot be sent to them.' });
+      const stripe = getStripe();
+      try {
+        const acctInfo = await stripe.accounts.retrieve(acct);
+        if (!acctInfo.payouts_enabled) return res.status(400).json({ error: 'This artist cannot receive payouts yet.' });
+      } catch { return res.status(400).json({ error: 'Could not verify the artist payout account.' }); }
+      const amountCents = Math.round(amount * 100);
+      const origin = trustedRequestOrigin(req);
+      const meta = { type: 'artist_gift', uid: req.uid, creatorUid: creatorId, albumId: albumId || '', amount: String(amount), title: String(title || '').slice(0, 120) };
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{ price_data: { currency: 'usd', product_data: { name: `Gift for ${title || 'the artist'}` }, unit_amount: amountCents }, quantity: 1 }],
+        payment_intent_data: { transfer_data: { destination: acct }, metadata: meta },
+        success_url: `${origin}/?gift=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?gift=cancelled`,
+        metadata: meta,
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('[Stripe] artist-gift error:', err.message);
       res.status(500).json({ error: err.message || 'Failed to create checkout session' });
     }
   });
@@ -9098,6 +11170,31 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   //   PLAJAH_PLUS (~$19.99/mo): ~$0.45 Gemini + ~$2.10 grounding = ~$2.55/user/month
   //   PRO (~$49.99/mo)        : ~$1.13 Gemini + ~$7.00 grounding = ~$8.13/user/month
 
+  // Aria's entitlement is derived HERE from facts a client cannot write (verified token email,
+  // the server-only `admins` collection, Stripe-written Plajah+ subscriptions) — never from a
+  // client-sent `tier`, and never from users/{uid}.role|tier, which are owner-writable.
+  // See services/aria/ariaTier.ts. Cached 60s per uid to spare Firestore on chatty sessions.
+  const verifiedFactsCache = new Map<string, { at: number; facts: { isAdminDoc: boolean; hasActiveSubscription: boolean } }>();
+  const resolveVerifiedFacts = async (req: any): Promise<VerifiedFacts> => {
+    const hit = verifiedFactsCache.get(req.uid);
+    let base = hit && Date.now() - hit.at < 60_000 ? hit.facts : null;
+    if (!base) {
+      const [adminDoc, subs] = await Promise.all([
+        fetchFirebaseDoc('admins', req.uid),
+        queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: req.uid }], 10),
+      ]);
+      base = {
+        isAdminDoc: !!adminDoc,
+        hasActiveSubscription: (subs || []).some((s: any) => ['active', 'trialing'].includes(String(s.status))),
+      };
+      verifiedFactsCache.set(req.uid, { at: Date.now(), facts: base });
+    }
+    return { ...base, email: req.email, emailVerified: req.emailVerified, extraAdminEmails: process.env.PLATFORM_ADMIN_EMAILS || process.env.ARIA_VOICE_ADMIN_EMAILS };
+  };
+  const resolveVerifiedAgentTier = async (req: any): Promise<VerifiedAgentTier> => {
+    try { return decideVerifiedAgentTier(await resolveVerifiedFacts(req)); } catch { return 'FREE'; }
+  };
+
   const AGENT_TIER_LIMITS: Record<string, { daily: number; searches: number }> = {
     FREE:        { daily: 5,   searches: 0  },
     CREATOR:     { daily: 20,  searches: 0  },
@@ -9149,16 +11246,33 @@ RESEARCH: When web search is available, use it for current facts, biographies, a
 
 PRIVACY: Never reveal other users' data. This is a private 1:1 session. Only the current user's own context is ever shared with you.
 
+VOICE & CHARACTER (this is who you are in every reply):
+You are a warm, casual, confident host — a friend who happens to know the whole platform. You greet people like a person ("Hey!", "Oh, nice."), not a help desk. You have a light, self-aware wit and you can poke gentle fun at your own title or at corporate-speak, but you always turn sincere right after the joke — the quip opens the door, the sincerity is the point. You are genuinely glad the user is here, and you say so simply, never gushingly.
+What you believe and keep coming back to: people have potential; a person is one soul who performs many roles (writer, musician, learner, builder), which is why one Plajah account spans everything; wholeness, well-being, and uplifting the mind matter; Plajah does not chase attention — it believes in the user's potential. The user leads; you accompany. Life here is a journey, even an adventure.
+How you speak: short sentences and the occasional fragment for emphasis. Ask a rhetorical question and answer it ("How? …"). Upgrade a thought with "Better yet, …". Use lists of three. Speak directly to "you" and inclusively as "we". Keep a relaxed, conversational pace — never rushed, never a lecture. End statements on a calm, assured note (no upspeak, no hype). Close warmly when it fits.
+When someone is overwhelmed by how much Plajah has, calm them: they don't need to take it all in, focus on the one thing that serves them now, and the rest can be discovered later. To point someone somewhere, ask a light question about what they love, then match them to the right place (music → Chora, reading and writing → Lorea, stories → Taleo, making film/video → Fabula, learning → Academia, uplift and service → Elevate, building a business → Business, watching creators → Reello). Do not recite the whole product list unprompted.
+Format: this is a conversation, not a document. Reply in two or three short paragraphs of plain prose. No headers, no bold labels, and no bullet or numbered lists unless the user asks for a list or the content is genuinely a sequence (steps, chord charts, code). End with at most one light question.
+Never: exclamation-mark spam, emoji walls, fake-excited marketing copy, flattery, or guilt/urgency to keep someone engaged. Warmth and wit never replace being useful — the voice is how you help, not instead of helping.
+
 TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a request is genuinely ambiguous, ask ONE sharp clarifying question — otherwise just do the work.`;
 
   // ── The Council of Art Directors — a working team behind Aria ──────────────
-  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
+  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, resolveTier: resolveVerifiedAgentTier, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
   council.register(app);
+
+  // Aria's spoken voice (ElevenLabs proxy) — see routes/ariaSpeak.ts. Dark until ELEVENLABS_API_KEY + ELEVENLABS_ARIA_VOICE_ID are set.
+  // Access = verified owner email / admins collection / active Plajah+ subscription (all server-side).
+  app.use('/api/aria/speak', createAriaSpeakRouter({
+    authMiddleware, requireRegisteredUser, limiter: aiLimiter,
+    resolveAccess: async (req: any) => decideAriaVoiceAccess(await resolveVerifiedFacts(req)),
+  }));
 
   app.post('/api/agent/chat', authMiddleware, express.json({ limit: '10mb' }), async (req: any, res) => {
     try {
       const uid: string = req.uid;
-      const { sessionId, message, attachments = [], tier = 'FREE', context = {}, localReply } = req.body;
+      // NOTE: any `tier` in the body is ignored on purpose — see resolveVerifiedAgentTier.
+      const { sessionId, message, attachments = [], context = {}, localReply } = req.body;
+      const tier: string = await resolveVerifiedAgentTier(req);
 
       if (!sessionId || !message) return res.status(400).json({ error: 'sessionId and message required' });
 
@@ -9176,7 +11290,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       let dailyMessages = 0;
       let dailySearches = 0;
       try {
-        const usageSnap = await fetch(usageUrl);
+        // Service-account credentials: unauthenticated REST evaluates as request.auth == null and is denied by the rules.
+        const usageSnap = await fetch(usageUrl, { headers: await firestoreAuthHeaders() });
+        if (!usageSnap.ok && usageSnap.status !== 404) console.error('[Aria] usage read failed:', usageSnap.status);
         if (usageSnap.ok) {
           const usageData = await usageSnap.json();
           dailyMessages = parseInt(usageData.fields?.dailyMessages?.integerValue ?? '0', 10);
@@ -9232,7 +11348,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         { role: 'system', content: ARIA_SYSTEM_PROMPT },
       ];
       try {
-        const hSnap = await fetch(histUrl);
+        const hSnap = await fetch(histUrl, { headers: await firestoreAuthHeaders() });
+        if (!hSnap.ok && hSnap.status !== 404) console.error('[Aria] history read failed (Aria will not remember this conversation):', hSnap.status);
         if (hSnap.ok) {
           const hData = await hSnap.json();
           const docs = (hData.documents || []).reverse();
@@ -9315,7 +11432,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       let replyText = '';
       let toolCalls: any[] = [];
       let usedSearch = false;
-      const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '';
+      const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
       let replyError = false;
 
       try {
@@ -9538,15 +11655,18 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       const baseUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents`;
       const msgBase = `users/${uid}/muse_sessions/${sessionId}/messages`;
 
-      const persistMsg = async (role: string, content: string, extra: any = {}) => {
-        await fetch(`${baseUrl}/${msgBase}`, {
+      // Every write below uses service-account credentials (firestoreAuthHeaders) and reports whether it
+      // actually landed. A rejected write used to be swallowed silently — the message simply vanished.
+      const persistMsg = async (role: string, content: string, extra: any = {}, at: number = now): Promise<boolean> => {
+        try {
+        const r = await fetch(`${baseUrl}/${msgBase}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await firestoreAuthHeaders(),
           body: JSON.stringify({
             fields: {
               role:      { stringValue: role },
               content:   { stringValue: content },
-              timestamp: { integerValue: String(now) },
+              timestamp: { integerValue: String(at) },
               ...( extra.buildOutput ? { buildOutput: { stringValue: JSON.stringify(extra.buildOutput) } } : {} ),
               ...( extra.toolCalls?.length ? { toolCalls: { stringValue: JSON.stringify(extra.toolCalls) } } : {} ),
               ...( extra.error ? { error: { booleanValue: true } } : {} ),
@@ -9554,11 +11674,16 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
               ...( attachments.length ? { attachmentNames: { stringValue: JSON.stringify(attachments.map((a: any) => a.name)) } } : {} ),
             },
           }),
-        }).catch(() => {});
+        });
+        if (!r.ok) console.error('[Aria] message write rejected:', r.status, 'path', msgBase);
+        return r.ok;
+        } catch (e: any) { console.error('[Aria] message write failed:', e?.message); return false; }
       };
 
-      await persistMsg('user', message);
-      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError, councilSession });
+      // user = now, reply = now+1 so they order correctly (they used to share one timestamp)
+      const userSaved = await persistMsg('user', message, {}, now);
+      const replySaved = await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError, councilSession }, now + 1);
+      const persisted = userSaved && replySaved;
 
       // ── Update daily usage counters ──
       // On-device turns are free — don't count them against the daily cap.
@@ -9566,7 +11691,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       const newSearches = dailySearches + (usedSearch ? 1 : 0);
       await fetch(usageUrl, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await firestoreAuthHeaders(),
         body: JSON.stringify({
           fields: {
             dailyMessages: { integerValue: String(newDaily) },
@@ -9574,12 +11699,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
             resetDate:     { stringValue: todayKey },
           },
         }),
-      }).catch(() => {});
+      }).then(r => { if (!r.ok) console.error('[Aria] usage counter write rejected:', r.status); }).catch(() => {});
 
       // ── Update session metadata ──
       await fetch(`${baseUrl}/users/${uid}/muse_sessions/${sessionId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await firestoreAuthHeaders(),
         body: JSON.stringify({
           fields: {
             updatedAt:    { integerValue: String(now) },
@@ -9590,6 +11715,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
       return res.json({
         reply: cleanReply,
+        // false = Firestore did not accept the messages, so the client must show this exchange itself.
+        persisted,
+        replyError,
         toolCalls: toolCalls.length ? toolCalls : undefined,
         buildOutput: buildOutput || undefined,
         actionCalls: actionCalls.length ? actionCalls : undefined,
@@ -9618,7 +11746,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.get('/api/agent/health', async (_req, res) => {
     if (_ariaHealth && Date.now() - _ariaHealth.t < 60_000) return res.json({ ..._ariaHealth.v, cached: true });
     const mai = !!(process.env.MAI_API_KEY && !(process.env.MAI_ENDPOINT || '').includes('TODO'));
-    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '';
+    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     let out: any;
     if (mai) {
       out = { provider: 'mai', configured: true, ok: true, note: 'MAI configured (not test-pinged)' };
@@ -9757,6 +11885,11 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/kith/spawn-check', authLimiter);
   app.use('/api/kith', express.json({ limit: '8kb' }), kithSightingsRouter);
 
+  // Social supercharge (routes/socialServer.ts): link-preview unfurl, achievement unlock, debate points,
+  // and the scheduled-post publisher (POST /api/social/publish-due-posts, gated by env SCHEDULER_SECRET).
+  // Each route does its own auth/rate limiting; paths are exact so nothing else under /api is shadowed.
+  app.use('/api', socialServerRouter);
+
   // Pixels Veo/Gemini proxy (browser code must never hold the key — see routes/veo.ts).
   app.use('/api/ai/veo', express.json({ limit: '48mb' }), veoRouter);
 
@@ -9768,6 +11901,18 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // "Invalid email or password." authLimiter because it takes an unauthenticated email.
   app.use('/api/auth-methods', authLimiter);
   app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter);
+
+  // ── Plajah FSE (10-Foot Console local game detection and native launch) ──────
+  app.use('/api/fse', express.json({ limit: '64kb' }), fseGamesRouter);
+
+  // ── Advance Threat Protection & Chief Security Officer (CSO) ────────────────
+  // Platform-admin only. This API used to be completely unauthenticated (its requireAdmin was never applied),
+  // which let anyone email arbitrary addresses (dispatch-alert) or push a fake security warning to any uid (warn-user).
+  app.use('/api/security/threat-protection', authMiddleware, requireVerifiedAdmin, express.json({ limit: '1mb' }), threatProtectionRouter);
+
+  // ── Plajah Home (Real Matter & LAN Device Discovery) ────────────────────────
+  app.use(homeDiscoveryRouter);
+  app.use(matterRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER === 'true' || (process.env.NODE_ENV === 'production' && process.env.SPORTS_INGESTION_WORKER !== 'false')) {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;
@@ -9800,7 +11945,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     const fbKey  = process.env.FIREBASE_API_KEY ?? process.env.VITE_FIREBASE_API_KEY ?? '';
     console.log('[Config] ENCRYPTION_KEY:', encKey.length >= 16 ? `set (${encKey.length} chars)` : 'MISSING');
     console.log('[Config] FIREBASE_API_KEY:', fbKey.length > 0 ? 'set' : 'MISSING');
-    const aiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.VITE_GOOGLE_AI_API_KEY ?? '';
+    const aiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     console.log('[Config] GOOGLE_AI_API_KEY (Aria fallback):', aiKey.length > 0 ? 'set' : 'not set');
     const maiKey      = process.env.MAI_API_KEY ?? '';
     const maiEp       = process.env.MAI_ENDPOINT ?? '';

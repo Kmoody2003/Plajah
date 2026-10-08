@@ -27,11 +27,13 @@ async function mediaDir(): Promise<FileSystemDirectoryHandle | null> {
 // OPFS filenames must be filesystem-safe; the key ("studio:blob:<id>") has colons → sanitize.
 const fname = (key: string) => key.replace(/[^\w.\-]+/g, '_');
 
+const memStore = new Map<string, Blob>();
+
 export function opfsAvailable(): boolean {
   return typeof navigator !== 'undefined' && !!(navigator as any).storage?.getDirectory;
 }
 
-/** Store bytes for a media/proxy key. OPFS first, IndexedDB fallback. */
+/** Store bytes for a media/proxy key. OPFS first, IndexedDB fallback, in-memory resilient fallback. */
 export async function putBytes(key: string, blob: Blob): Promise<boolean> {
   const dir = await mediaDir();
   if (dir) {
@@ -42,13 +44,21 @@ export async function putBytes(key: string, blob: Blob): Promise<boolean> {
       await w.close();
       // If a stale IDB copy exists from before the OPFS migration, drop it so we don't keep two.
       idbDel(key).catch(() => {});
+      memStore.delete(key);
       return true;
     } catch { /* OPFS write failed (quota?) → fall through to IDB */ }
   }
-  try { await idbSet(key, blob); return true; } catch { return false; }
+  try {
+    await idbSet(key, blob);
+    memStore.delete(key);
+    return true;
+  } catch {
+    memStore.set(key, blob);
+    return true;
+  }
 }
 
-/** Read bytes for a media/proxy key. Checks OPFS, then IDB (migrating an IDB-only hit into OPFS). */
+/** Read bytes for a media/proxy key. Checks OPFS, then IDB (migrating an IDB-only hit into OPFS), then in-memory fallback. */
 export async function getBytes(key: string): Promise<Blob | null> {
   const dir = await mediaDir();
   if (dir) {
@@ -66,7 +76,7 @@ export async function getBytes(key: string): Promise<Blob | null> {
       return v as Blob;
     }
   } catch { /* */ }
-  return null;
+  return memStore.get(key) || null;
 }
 
 export async function hasBytes(key: string): Promise<boolean> {
@@ -74,10 +84,11 @@ export async function hasBytes(key: string): Promise<boolean> {
   if (dir) {
     try { const fh = await dir.getFileHandle(fname(key)); const f = await fh.getFile(); if (f && f.size) return true; } catch { /* */ }
   }
-  try { const v = await idbGet(key); return !!(v && (v as Blob).size); } catch { return false; }
+  try { const v = await idbGet(key); return !!(v && (v as Blob).size); } catch { return memStore.has(key); }
 }
 
 export async function delBytes(key: string): Promise<void> {
+  memStore.delete(key);
   const dir = await mediaDir();
   if (dir) { try { await dir.removeEntry(fname(key)); } catch { /* */ } }
   try { await idbDel(key); } catch { /* */ }

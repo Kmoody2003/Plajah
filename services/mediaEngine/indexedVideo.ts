@@ -1,7 +1,7 @@
 import { FrameRequests } from './frameRequests';
 
 let activeWorkers = 0;
-const MAX_WORKERS = 2;
+const MAX_WORKERS = (typeof window !== 'undefined' && ((window as any).__PLAJAH_WINUI__ || (window as any).__TAURI__)) ? 8 : 2;
 export function indexedVideoAvailable() { return typeof Worker !== 'undefined' && typeof VideoDecoder !== 'undefined'; }
 export function indexedVideoDiagnostics() { return { activeWorkers, maxWorkers: MAX_WORKERS }; }
 

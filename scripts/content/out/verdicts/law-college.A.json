@@ -1,0 +1,1292 @@
+{
+ "courseId": "law-college",
+ "verifier": "A",
+ "note": "WebFetch worked for most pages; britannica.com returned 403 and lsac.org 404, so Wikipedia, Cornell LII, uscourts.gov and ncbex.org were used. Claims with empty sources were not checked against an opened page and are unverifiable.",
+ "fetched": 25,
+ "questions": [
+  {
+   "id": "law-college.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l01.q6",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l02.q6",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l03.q6",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+   ]
+  },
+  {
+   "id": "law-college.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+   ]
+  },
+  {
+   "id": "law-college.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+   ]
+  },
+  {
+   "id": "law-college.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+   ]
+  },
+  {
+   "id": "law-college.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+   ]
+  },
+  {
+   "id": "law-college.l04.q6",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+   ]
+  },
+  {
+   "id": "law-college.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l05.q3",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Religious personal-status law with secular statutes is also called legal pluralism; mixed is the best fit."
+  },
+  {
+   "id": "law-college.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l05.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l05.q6",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+   ]
+  },
+  {
+   "id": "law-college.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+   ]
+  },
+  {
+   "id": "law-college.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+   ]
+  },
+  {
+   "id": "law-college.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+   ]
+  },
+  {
+   "id": "law-college.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+   ]
+  },
+  {
+   "id": "law-college.l06.q6",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+   ]
+  },
+  {
+   "id": "law-college.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+   ]
+  },
+  {
+   "id": "law-college.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+   ]
+  },
+  {
+   "id": "law-college.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+   ]
+  },
+  {
+   "id": "law-college.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+   ]
+  },
+  {
+   "id": "law-college.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+   ]
+  },
+  {
+   "id": "law-college.l07.q6",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+   ]
+  },
+  {
+   "id": "law-college.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+   ]
+  },
+  {
+   "id": "law-college.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+   ]
+  },
+  {
+   "id": "law-college.l08.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+   ],
+   "note": "Palsgraf key fact is that the package was not visibly dangerous (foreseeability)."
+  },
+  {
+   "id": "law-college.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+   ]
+  },
+  {
+   "id": "law-college.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+   ]
+  },
+  {
+   "id": "law-college.l08.q6",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+   ]
+  },
+  {
+   "id": "law-college.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l09.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l09.q6",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education"
+   ]
+  },
+  {
+   "id": "law-college.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education"
+   ]
+  },
+  {
+   "id": "law-college.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education"
+   ]
+  },
+  {
+   "id": "law-college.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education"
+   ]
+  },
+  {
+   "id": "law-college.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education"
+   ]
+  },
+  {
+   "id": "law-college.l10.q6",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education"
+   ]
+  },
+  {
+   "id": "law-college.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l11.q6",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+   ]
+  },
+  {
+   "id": "law-college.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+   ]
+  },
+  {
+   "id": "law-college.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+   ]
+  },
+  {
+   "id": "law-college.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+   ]
+  },
+  {
+   "id": "law-college.l12.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+   ]
+  },
+  {
+   "id": "law-college.l12.q6",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+   ]
+  },
+  {
+   "id": "law-college.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l13.q6",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ]
+  },
+  {
+   "id": "law-college.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ]
+  },
+  {
+   "id": "law-college.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ]
+  },
+  {
+   "id": "law-college.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ]
+  },
+  {
+   "id": "law-college.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ]
+  },
+  {
+   "id": "law-college.l14.q6",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ]
+  },
+  {
+   "id": "law-college.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l15.q6",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l16.q6",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l17.q6",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-college.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Multistate_Professional_Responsibility_Examination"
+   ]
+  },
+  {
+   "id": "law-college.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Multistate_Professional_Responsibility_Examination"
+   ]
+  },
+  {
+   "id": "law-college.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Multistate_Professional_Responsibility_Examination"
+   ]
+  },
+  {
+   "id": "law-college.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Multistate_Professional_Responsibility_Examination"
+   ]
+  },
+  {
+   "id": "law-college.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Multistate_Professional_Responsibility_Examination"
+   ]
+  },
+  {
+   "id": "law-college.l18.q6",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://en.wikipedia.org/wiki/Multistate_Professional_Responsibility_Examination"
+   ]
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-college.l01",
+   "claim": "Hammurabi, king of Babylon, c.1792-1750 BCE; stele in the Louvre",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Code_of_Hammurabi"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l01",
+   "claim": "Provisions are casuistic if-then cases and penalties vary by social rank; lex talionis",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Code_of_Hammurabi"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l01",
+   "claim": "Twelve Tables traditionally c.451-450 BCE from patrician/plebeian struggle",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Twelve_Tables"
+   ],
+   "note": "Source gives promulgation 449 BCE with decemvirs c.450; traditional 451-450 is a fair hedge."
+  },
+  {
+   "lessonId": "law-college.l02",
+   "claim": "Corpus Juris Civilis has Code, Digest/Pandects, Institutes, Novels; Tribonian",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Corpus_Juris_Civilis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l02",
+   "claim": "Sixth-century Justinian compilation (529-534)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Corpus_Juris_Civilis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l02",
+   "claim": "Bologna studied the Digest from the late eleventh century",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Corpus_Juris_Civilis"
+   ],
+   "note": "Text recovered c.1070; Bologna became the teaching centre."
+  },
+  {
+   "lessonId": "law-college.l03",
+   "claim": "Henry II itinerant justices laid basis of common law (second half of 12th century)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Henry_II_of_England"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l03",
+   "claim": "Magna Carta sealed 1215 by King John and barons; reissued; only a few clauses in force",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Magna_Carta"
+   ],
+   "note": "Three clauses remain in force in England and Wales."
+  },
+  {
+   "lessonId": "law-college.l03",
+   "claim": "Judicature Acts of the 1870s merged administration of law and equity",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Judicature_Acts"
+   ],
+   "note": "Acts of 1873 and 1875."
+  },
+  {
+   "lessonId": "law-college.l04",
+   "claim": "Blackstone Commentaries published from 1765",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Commentaries_on_the_Laws_of_England"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l04",
+   "claim": "Marbury v. Madison 1803, Marshall, judicial review",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l04",
+   "claim": "UCC codified commercial law for sales of goods as a state-adopted model statute",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l05",
+   "claim": "Common law/civil law family characteristics and examples",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No authoritative page opened."
+  },
+  {
+   "lessonId": "law-college.l05",
+   "claim": "South Africa mixed system with Roman-Dutch law",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l05",
+   "claim": "Louisiana, Quebec, Scotland as mixed systems",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l06",
+   "claim": "Erie v. Tompkins (1938): federal courts in diversity apply state substantive law",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l06",
+   "claim": "Supremacy Clause in Article VI makes Constitution, statutes, treaties supreme law",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l06",
+   "claim": "Restatements published by the American Law Institute are persuasive secondary authority",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l07",
+   "claim": "McCulloch v. Maryland (1819): implied power for national bank; state may not tax it",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l07",
+   "claim": "Veto override requires two thirds of each house",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l07",
+   "claim": "Tenth Amendment text and preemption categories",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l08",
+   "claim": "Palsgraf decided by NY Court of Appeals in 1928; Cardozo majority, Andrews dissent",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l08",
+   "claim": "Palsgraf facts: fireworks package dropped, scales fell, employee helped passenger board; judgment reversed",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+   ],
+   "note": "Reversed 4-3."
+  },
+  {
+   "lessonId": "law-college.l08",
+   "claim": "IRAC and case brief structure",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Pedagogical convention; not checked."
+  },
+  {
+   "lessonId": "law-college.l09",
+   "claim": "Holding vs dicta; plurality narrowest-grounds rule",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l09",
+   "claim": "Ratio decidendi as English term for holding",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l09",
+   "claim": "Two independent grounds are both holdings per many authorities",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l10",
+   "claim": "Plessy v. Ferguson 1896 separate but equal; Brown 1954 Equal Protection in public schools",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education"
+   ],
+   "note": "Brown rejected Plessy for education."
+  },
+  {
+   "lessonId": "law-college.l10",
+   "claim": "District court bound by its circuit and Supreme Court; other circuits persuasive",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l10",
+   "claim": "Supreme Court can overrule its own constitutional decisions with special justification",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l11",
+   "claim": "Federal system has 94 district courts, 13 courts of appeals (12 regional + Federal Circuit)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uscourts.gov/about-federal-courts/court-role-and-structure"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l11",
+   "claim": "Circuit split; Supreme Court not required to grant review",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l11",
+   "claim": "Circuit decisions bind district courts in that circuit only",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l12",
+   "claim": "Church of the Holy Trinity v. US 1892: statute barring labor or service of any kind did not reach English pastor",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-college.l12",
+   "claim": "Bicameralism and presentment as textualist argument",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l12",
+   "claim": "Case cited as purposive reasoning, criticised by textualists",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+   ],
+   "note": "Scalia criticism noted."
+  },
+  {
+   "lessonId": "law-college.l13",
+   "claim": "Canon definitions: noscitur, ejusdem generis, expressio unius, lenity, avoidance",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l13",
+   "claim": "Absurdity doctrine limited to obvious absurdity",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l13",
+   "claim": "Canons are not binding rules and can conflict",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l14",
+   "claim": "Chevron decided 1984 with two-step test",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chevron_U.S.A.,_Inc._v._Natural_Resources_Defense_Council,_Inc."
+   ],
+   "note": "Overruled June 2024."
+  },
+  {
+   "lessonId": "law-college.l14",
+   "claim": "Loper Bright (2024) overruled Chevron; APA requires independent judgment; Skidmore respect",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ],
+   "note": "Roberts opinion, 6-2 with Jackson not participating; lesson states no vote."
+  },
+  {
+   "lessonId": "law-college.l14",
+   "claim": "Court did not call into question prior cases relying on Chevron",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ],
+   "note": "Holdings that specific agency actions are lawful remain."
+  },
+  {
+   "lessonId": "law-college.l15",
+   "claim": "Validity/soundness and conditional inference forms",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard logic; no page opened."
+  },
+  {
+   "lessonId": "law-college.l15",
+   "claim": "Only if marks a necessary condition; unless = if not",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l15",
+   "claim": "Valid argument may have false conclusion if a premise is false",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l16",
+   "claim": "Ad hominem, straw man, false dilemma definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l16",
+   "claim": "Post hoc ergo propter hoc definition",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l16",
+   "claim": "Equivocation/begging the question definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l17",
+   "claim": "LSAT logic games (analytical reasoning) removed beginning August 2024; two LR, one RC",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Web search results (ABA Journal, Inside Higher Ed, US News snippets) agree, but lsac.org returned 404 and I did not open a page, so unverifiable under protocol."
+  },
+  {
+   "lessonId": "law-college.l17",
+   "claim": "Unscored writing sample taken separately",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "LSAC page 404."
+  },
+  {
+   "lessonId": "law-college.l17",
+   "claim": "Necessary assumption negation test",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "law-college.l18",
+   "claim": "NextGen bar exam introduced in stages by jurisdictions beginning 2026",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbex.org/exams/nextgen"
+   ],
+   "note": "First administration July 2026 in ten jurisdictions."
+  },
+  {
+   "lessonId": "law-college.l18",
+   "claim": "UBE = MEE + MPT + MBE; portable score; jurisdictions set own passing scores",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Uniform_Bar_Examination"
+   ],
+   "note": "Opened page covers bar exam components and portability."
+  },
+  {
+   "lessonId": "law-college.l18",
+   "claim": "MPRE tests professional conduct standards (ABA Model Rules)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Multistate_Professional_Responsibility_Examination"
+   ],
+   "note": ""
+  }
+ ]
+}

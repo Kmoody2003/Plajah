@@ -29,7 +29,10 @@ import {
   HardDriveDownload, FolderOpen, Download, ShieldCheck, Clapperboard,
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type AmbientFx } from '../services/liveComposer';
-import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
+import type { LensId } from '../services/lenses/lensEngine';
+import { LensPicker, LensVideoOverlay } from './LensVideoOverlay';
+import { tapToFrame } from '../services/lenses/auraOrbs';
+import { buildVTuberFromSheet, KAIJU_VTUBER_PRESETS } from '../services/vtuber/avatarFactory';
 import { buildBodyRig } from '../services/vtuber/bodyPuppet';
 import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
@@ -46,7 +49,7 @@ import { set as idbSet } from 'idb-keyval';
 
 // Bump on each camera/flip change so we can confirm on-device which build is actually running
 // (shown on the Go-Live setup screen). If the visible tag doesn't match, the device is on cached code.
-const CAM_BUILD = 'flip-r5';
+const CAM_BUILD = 'lens-r2';
 import {
   startLocalRecording, pickRecordingFile, supportsFilePicker,
   downloadLocalRecording, markLocalRecordingUploaded, deleteLocalRecording,
@@ -127,9 +130,19 @@ async function sendLiveEvent(streamId: string, emoji: string) {
   await addDoc(collection(db, 'streams', streamId, 'events'), { type: 'emote', emoji, uid: user.uid, ts: Date.now() });
 }
 
-/** Host-side: fires for each NEW audience event — emotes become on-stream bursts. */
-function useLiveEvents(streamId: string | null, onEmote: (emoji: string) => void) {
+/** Viewer → host: "I tapped here" (normalized frame coords) for the Aura lens's collectible orbs. */
+async function sendOrbTap(streamId: string, x: number, y: number) {
+  const user = auth.currentUser;
+  if (!user) return;
+  await addDoc(collection(db, 'streams', streamId, 'events'), {
+    type: 'orbTap', x, y, name: (user.displayName || 'Viewer').slice(0, 24), uid: user.uid, ts: Date.now(),
+  });
+}
+
+/** Host-side: fires for each NEW audience event — emotes become on-stream bursts, orb taps collect orbs. */
+function useLiveEvents(streamId: string | null, onEmote: (emoji: string) => void, onOrbTap?: (x: number, y: number, who: string) => void) {
   const cbRef = useRef(onEmote); cbRef.current = onEmote;
+  const orbRef = useRef(onOrbTap); orbRef.current = onOrbTap;
   useEffect(() => {
     if (!streamId) return;
     const since = Date.now();
@@ -139,6 +152,9 @@ function useLiveEvents(streamId: string | null, onEmote: (emoji: string) => void
         if (ch.type !== 'added') return;
         const d = ch.doc.data();
         if (d?.ts > since && d?.type === 'emote' && typeof d.emoji === 'string') cbRef.current(d.emoji.slice(0, 8));
+        else if (d?.ts > since && d?.type === 'orbTap' && Number.isFinite(d.x) && Number.isFinite(d.y)) {
+          orbRef.current?.(Math.max(0, Math.min(1, d.x)), Math.max(0, Math.min(1, d.y)), String(d.name || 'Viewer').slice(0, 24));
+        }
       });
     });
   }, [streamId]);
@@ -715,6 +731,41 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     if (!composerPublishedRef.current) await applyMode('front');
     composerRef.current?.setLook(look); setLookId(look);
   };
+  // Snap-style lenses (googly eyes / cardboard / matrix). Lives in the composer like looks do, so it
+  // is baked into the published + recorded frame. Camera modes only: it drops a screen-share or
+  // avatar mode back to the camera first, since those can't carry a lens.
+  const [lensId, setLensId] = useState<LensId>('none');
+  const [lensBusy, setLensBusy] = useState(false);
+  const [lensStatus, setLensStatus] = useState('');
+  const pickLens = async (id: LensId) => {
+    if (lensBusy) return;
+    setLensBusy(true);
+    try {
+      if (id !== 'none') {
+        const cameraMode = camMode === 'front' || camMode === 'rear' || camMode === 'both';
+        if (!composerPublishedRef.current || !cameraMode) await applyMode('front');
+      }
+      await composerRef.current?.setLens(id);
+      setLensId(id);
+      setFxError(null);
+    } catch (e: any) {
+      setFxError(e?.message || "Couldn't start that lens on this device.");
+    } finally { setLensBusy(false); }
+  };
+  const [auraInfo, setAuraInfo] = useState<ReturnType<LiveComposer['getAuraInfo']>>(null);
+  useEffect(() => {
+    if (lensId === 'none') { setLensStatus(''); setAuraInfo(null); return; }
+    const t = setInterval(() => {
+      setLensStatus(composerRef.current?.getLensStatus() ?? '');
+      setAuraInfo(lensId === 'aura' ? composerRef.current?.getAuraInfo() ?? null : null);
+    }, 800);
+    return () => clearInterval(t);
+  }, [lensId]);
+  // Tell viewers when orbs are in play, so their taps are worth sending (viewers read this off the stream doc).
+  useEffect(() => {
+    if (!isLive || !streamId) return;
+    updateDoc(doc(db, 'streams', streamId), { auraOn: lensId === 'aura' }).catch(() => {});
+  }, [lensId, isLive, streamId]);
   const uploadCube = async (file?: File | null) => {
     if (!file) return;
     if (!composerPublishedRef.current) await applyMode('front');
@@ -726,7 +777,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // Audience fun layer — ambient FX, on-stream emote bursts (audience-triggered), polls.
   const [ambientId, setAmbientId] = useState<AmbientFx>('none');
   const applyAmbient = (fx: AmbientFx) => { composerRef.current?.setAmbient(fx); setAmbientId(fx); };
-  useLiveEvents(streamId || null, emoji => composerRef.current?.spawnBurst(emoji, 10));
+  useLiveEvents(streamId || null, emoji => composerRef.current?.spawnBurst(emoji, 10),
+    (x, y, who) => { composerRef.current?.tapLens(x, y, who); });
   const [pollOpen, setPollOpen] = useState(false);
   const { poll, counts } = usePoll(streamId || null);
   const launchPoll = async (q: string, options: string[]) => {
@@ -801,6 +853,17 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       const raw = await res.blob();
       if (demo.body) await buildBodyFromBlob(raw, demo.body.crop, demo.body).catch(() => {});
       await buildAvatarFromBlob(await cropSheetFace(raw, demo.crop), demo.puppet);
+    } catch (e: any) { alert(e?.message || 'Could not load that character.'); setDemoId(null); }
+    finally { setAvatarBuilding(false); }
+  };
+  // Kaiju characters (Lorik / Lumi): ready-made face-tracked VTuber presets — no upload, full continuous face rig.
+  const useKaijuPreset = async (preset: typeof KAIJU_VTUBER_PRESETS[number]) => {
+    setAvatarBuilding(true); setBuildMsg(`Loading ${preset.name}…`); setDemoId(preset.id);
+    try {
+      if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+      composerRef.current.setAvatar(preset.descriptor as any);
+      setAvatarBuilt(true); setAvatarKind('vrm'); setVtuberStyleState('face');   // face-driven (no body rig yet), so the face/body toggle stays hidden
+      await applyMode('vtuber');
     } catch (e: any) { alert(e?.message || 'Could not load that character.'); setDemoId(null); }
     finally { setAvatarBuilding(false); }
   };
@@ -1249,7 +1312,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
         autoPlay
         muted
         playsInline
-        onPointerUp={() => {
+        onPointerUp={e => {
+          // Aura lens: a tap that lands on an orb collects it (and is NOT the first half of a flip double-tap).
+          if (lensId === 'aura' && composerRef.current) {
+            const pt = tapToFrame(e, e.currentTarget, mirror, 'contain');
+            if (pt && composerRef.current.tapLens(pt.x, pt.y, auth.currentUser?.displayName || 'Host')) { lastTapRef.current = 0; return; }
+          }
           // Double-tap-to-flip (mobile-safe): onDoubleClick never fires on touch, so detect two
           // taps within 300ms ourselves. A single tap does nothing (chat/controls own single taps).
           if (step === 'ended') return;
@@ -1594,7 +1662,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                   className="w-full max-w-md mx-auto bg-black/55 backdrop-blur-2xl rounded-2xl border border-white/10 overflow-hidden">
                   {/* Tab bar (also swipeable) */}
                   <div className="flex items-center gap-1 px-2 pt-2 pb-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {[['📷', 'Camera'], ['🎨', 'Looks'], ['🎭', 'Avatar'], ['🎙️', 'Voice'], ['🎉', 'Fun']].map(([icon, label], i) => (
+                    {[['📷', 'Camera'], ['🎨', 'Looks'], ['👀', 'Lenses'], ['🎭', 'Avatar'], ['🎙️', 'Voice'], ['🎉', 'Fun']].map(([icon, label], i) => (
                       <button key={label} onClick={() => scrollToTab(i)}
                         className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all ${modeTab === i ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/70'}`}>
                         {icon} {label}
@@ -1645,9 +1713,49 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         </button>
                       </div>
                     </div>
-                    {/* Slide 3 · Avatar */}
+                    {/* Slide 3 · Lenses */}
+                    <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-1 pb-2">Live lenses — baked into your stream</p>
+                      <LensPicker value={lensId} onChange={pickLens} status={lensStatus} busy={lensBusy} />
+                      {lensId === 'aura' && (
+                        <div className="mt-2 rounded-xl bg-white/[0.06] px-3 py-2">
+                          <p className="text-[11px] font-black text-white">
+                            {auraInfo ? `${auraInfo.icon} ${auraInfo.label}` : '🔮 Reading your aura…'}
+                            <span className="text-white/40 font-medium"> · estimated from your expression</span>
+                          </p>
+                          <p className="text-[10px] text-white/55 pt-1 leading-snug">Tap the floating orbs on your preview to collect them — your viewers can tap them too.</p>
+                          {!!auraInfo?.leaderboard.length && (
+                            <p className="text-[10px] text-orange-300 pt-1 font-bold">
+                              {auraInfo.leaderboard.map((l, i) => `${['🥇', '🥈', '🥉', '4.', '5.'][i]} ${l.who.split(' ')[0]} ${l.pts}`).join('  ')}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-[9px] text-white/30 pt-1.5 leading-snug">
+                        {lensId !== 'none' && camMode !== 'front' && camMode !== 'rear' && camMode !== 'both'
+                          ? 'Paused — lenses work on the camera views, not screen share or avatar.'
+                          : 'Stacks with Looks. Works on front and rear camera.'}
+                      </p>
+                    </div>
+                    {/* Slide 4 · Avatar */}
                     <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
                       <div className="grid grid-cols-3 gap-1.5">
+                        {KAIJU_VTUBER_PRESETS.map(pre => {
+                          const active = demoId === pre.id;
+                          return (
+                            <button key={pre.id} onClick={() => useKaijuPreset(pre)} disabled={avatarBuilding} title={pre.blurb}
+                              className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all disabled:opacity-50 ${active ? 'border-orange-400 ring-2 ring-orange-400/40' : 'border-white/12'}`}
+                              style={{ background: pre.id === 'kaiju-lorik' ? 'linear-gradient(160deg,#6B0099,#D40055 60%,#FF8C00)' : 'linear-gradient(160deg,#1F2B52,#B3430F 70%,#FF8C00)' }}>
+                              <span className="absolute inset-0 flex items-center justify-center text-3xl">{pre.emoji}</span>
+                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1 pt-3 pb-1">
+                                <span className="text-[10px] font-bold text-white flex items-center gap-0.5">{pre.name} · kaiju</span>
+                              </div>
+                              {active && avatarBuilding && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /></div>
+                              )}
+                            </button>
+                          );
+                        })}
                         {DEMO_AVATARS.map(demo => {
                           const active = demoId === demo.id;
                           return (
@@ -1705,7 +1813,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         {avatarBuilding ? (buildMsg || 'Loading…') : 'Tap a character — your face/body drives it live. Preview stays above.'}
                       </p>
                     </div>
-                    {/* Slide 4 · Voice */}
+                    {/* Slide 5 · Voice */}
                     <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
                       <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-1 pb-2">Voice changer</p>
                       <div className="flex flex-wrap gap-1.5">
@@ -1717,7 +1825,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         ))}
                       </div>
                     </div>
-                    {/* Slide 5 · Fun */}
+                    {/* Slide 6 · Fun */}
                     <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
                       <button onClick={() => { setModeMenuOpen(false); setPollOpen(true); }}
                         className="mb-2 px-3 py-2 rounded-xl text-[11px] font-black bg-gradient-to-r from-[#6B0099] to-[#FF8C00] text-white flex items-center gap-1.5">
@@ -1745,7 +1853,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                   </div>
                   {/* Dots + engine health */}
                   <div className="flex items-center justify-center gap-1.5 pt-1">
-                    {[0, 1, 2, 3, 4].map(i => (
+                    {[0, 1, 2, 3, 4, 5].map(i => (
                       <span key={i} className={`h-1.5 rounded-full transition-all ${modeTab === i ? 'w-4 bg-orange-400' : 'w-1.5 bg-white/25'}`} />
                     ))}
                   </div>
@@ -1753,7 +1861,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     {(() => {
                       const d = composerRef.current?.getDiagnostics();
                       return d
-                        ? `${composerPublishedRef.current ? 'LIVE' : 'idle'} · grade:${d.grade}${d.night ? '+night' : ''}${d.green ? '+green' : ''} · look:${d.look} · ${d.mode} · vtuber:${d.vtuber}${d.track ? ` · ${d.track}` : ''}`
+                        ? `${composerPublishedRef.current ? 'LIVE' : 'idle'} · grade:${d.grade}${d.night ? '+night' : ''}${d.green ? '+green' : ''} · look:${d.look} · lens:${d.lens} · ${d.mode} · vtuber:${d.vtuber}${d.track ? ` · ${d.track}` : ''}`
                         : 'engine off — raw camera';
                     })()}
                   </p>
@@ -2005,6 +2113,14 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [muted, setMuted] = useState(false);
   const [liked, setLiked] = useState(false);
+  // Viewer-side lens: filters what THIS viewer sees; never changes the broadcast.
+  const [lensId, setLensId] = useState<LensId>('none');
+  const [lensStatus, setLensStatus] = useState('');
+  const [lensOpen, setLensOpen] = useState(false);
+  // Aura orbs: the host's published video carries the orbs; a tap sends normalized coords to the host to referee.
+  const [auraOn, setAuraOn] = useState(false);
+  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
+  const lastOrbTapRef = useRef(0);
   const [likeCount, setLikeCount] = useState(0);
   const [guests, setGuests] = useState<Array<{ uid: string; name: string; photo?: string }>>([]);
   const [requested, setRequested] = useState(false);
@@ -2052,6 +2168,7 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
         setViewerCount(data.viewerCount ?? 0);
         setLikeCount(data.likeCount ?? 0);
         setStreamLive(data.isLive !== false);
+        setAuraOn(data.auraOn === true);
         setGuests(Array.isArray(data.guests) ? data.guests : []);
       }
     });
@@ -2118,8 +2235,32 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
         ref={videoRef}
         autoPlay
         playsInline
+        onPointerUp={e => {
+          if (!auraOn || !streamLive) return;
+          const now = Date.now();
+          if (now - lastOrbTapRef.current < 180) return;           // thumbs are fast; the host is rate-limited too
+          const pt = tapToFrame(e, e.currentTarget, false, 'cover');
+          if (!pt) return;
+          lastOrbTapRef.current = now;
+          sendOrbTap(streamId, +pt.x.toFixed(4), +pt.y.toFixed(4)).catch(() => {});
+          const id = now, x = e.clientX, y = e.clientY;
+          setRipples(r => [...r.slice(-5), { id, x, y }]);          // instant local feedback while the host decides
+          setTimeout(() => setRipples(r => r.filter(q => q.id !== id)), 500);
+        }}
         className="absolute inset-0 w-full h-full object-cover"
       />
+      <LensVideoOverlay videoRef={videoRef} lens={lensId} fit="cover" onStatus={setLensStatus} />
+      {ripples.map(r => (
+        <motion.div key={r.id} initial={{ scale: 0.3, opacity: 0.9 }} animate={{ scale: 1.6, opacity: 0 }} transition={{ duration: 0.5 }}
+          className="absolute w-14 h-14 -ml-7 -mt-7 rounded-full border-2 border-white/80 pointer-events-none z-10"
+          style={{ left: r.x, top: r.y }} />
+      ))}
+      {auraOn && streamLive && (
+        <div className="absolute left-1/2 -translate-x-1/2 z-10 pointer-events-none px-3 py-1.5 rounded-full bg-black/55 backdrop-blur text-[10px] font-black uppercase tracking-widest text-white/90"
+          style={{ top: 'calc(max(env(safe-area-inset-top), 12px) + 104px)' }}>
+          🔮 Tap the floating orbs to collect them
+        </div>
+      )}
 
       {/* Active poll — tap an option to vote, watch the bars race live */}
       <div className="absolute left-3 right-3 max-w-sm mx-auto z-10 pointer-events-none"
@@ -2296,6 +2437,11 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
             ))}
           </div>
         )}
+        {lensOpen && (
+          <div className="rounded-2xl bg-black/70 backdrop-blur-xl border border-white/10 p-2.5">
+            <LensPicker compact value={lensId} onChange={setLensId} status={lensStatus} />
+          </div>
+        )}
         {/* Action bar */}
         <div className="flex items-center gap-3">
           <button
@@ -2307,6 +2453,10 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
             {chatMsgs.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-[10px]">{chatMsgs.length}</span>
             )}
+          </button>
+          <button onClick={() => setLensOpen(o => !o)} aria-label="Lenses"
+            className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${lensId !== 'none' ? 'bg-orange-500 border-orange-500' : 'bg-black/60 backdrop-blur border-white/20'}`}>
+            <Sparkles size={20} className="text-white" />
           </button>
           <button onClick={toggleLike}
             className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${liked ? 'bg-red-500 border-red-500' : 'bg-black/60 backdrop-blur border-white/20'}`}>

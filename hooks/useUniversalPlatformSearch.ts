@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchAllLiveFeeds, fetchAllPublicAlbums, fetchAllPublicWorlds, fetchAllVideos, fetchDiscussionPosts,
-  fetchGames, fetchGlobalApps, fetchGlobalPhotos, listenToGlobalArticles, listenToGlobalPosts, searchUsers,
-} from '../services/backendService';
+  fetchGames, fetchGlobalApps, fetchGlobalPhotos, listenToGlobalArticles, listenToGlobalPosts, } from '../services/backendService';
+import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import { semanticSearch, type AzureSearchResult } from '../services/microsoftAIService';
 import { diversifyPublicSearchResults, maxPublicSearchScore, normalizePublicSearchQuery } from '../services/platformSearchService';
 import type { Album, Post, UserProfile, Video } from '../types';

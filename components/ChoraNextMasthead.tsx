@@ -28,6 +28,8 @@ interface ChoraNextMastheadProps {
   onExit: () => void;
   onFeedback: () => void;
   onSelectAlbum: (album: Album) => void;
+  /** Rendered beside the title (Chora's kaiju duo). */
+  mascots?: React.ReactNode;
 }
 
 /** Preview url for hover-unmute: promo kit sample first, then the first audio track. */
@@ -52,7 +54,7 @@ const SKY_SPOTS = [
 const fmtPlays = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n));
 
 const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
-  albums, upcomingAlbums, isNight, mode, onCycleMode, onExit, onFeedback, onSelectAlbum,
+  albums, upcomingAlbums, isNight, mode, onCycleMode, onExit, onFeedback, onSelectAlbum, mascots,
 }) => {
   const intentRef = useRef<number | null>(null);
   const reduceMotion = useReducedMotion();
@@ -95,7 +97,10 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
     <div className="cn-mast">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div className="min-w-0">
-          <h1>Plajah <span className="cn-grad">Chora</span></h1>
+          <div className="flex items-end gap-3">
+            <h1>Plajah <span className="cn-grad">Chora</span></h1>
+            {mascots}
+          </div>
           <div className="cn-issue">
             <span>{isNight ? 'The Sky Tonight' : 'The Listening Room'}</span>
             <span aria-hidden="true">·</span>

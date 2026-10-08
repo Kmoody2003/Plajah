@@ -1,0 +1,1620 @@
+{
+ "courseId": "art-movements-modern",
+ "verifier": "B",
+ "note": "WebFetch (Wikipedia, a secondary source) worked for the claims with sources listed; fetches for Soup Cans, Schroder House and the Rockefeller mural returned 404. All other claims and all question answers are from knowledge with no sources listed. Primary/museum pages not checked.",
+ "fetched": 21,
+ "questions": [
+  {
+   "id": "art-movements-modern.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l09.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l22.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l22.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l22.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l23.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l23.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l24.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l24.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l24.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l24.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l25.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l25.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l25.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l26.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l26.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l26.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l26.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l27.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l27.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l27.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l27.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l27.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l28.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l28.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l28.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l28.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "art-movements-modern.l28.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "art-movements-modern.l01",
+   "claim": "Photography was announced to the public in 1839",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l01",
+   "claim": "First Impressionist group exhibition was in Paris in 1874",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l01",
+   "claim": "Impressionism, Fauvism and Cubism were labels that began as critics' insults",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l02",
+   "claim": "Roger Fry coined Post-Impressionism for a 1910 London exhibition",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l02",
+   "claim": "Van Gogh painted The Starry Night in 1889 at the Saint-Remy asylum",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l02",
+   "claim": "Gauguin moved to Tahiti in 1891; Seurat's La Grande Jatte made in mid-1880s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l03",
+   "claim": "Moreas published the Symbolist manifesto in Le Figaro in 1886",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l03",
+   "claim": "Vienna Secession founded 1897 with Klimt; The Kiss c.1907-08",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l03",
+   "claim": "The Scream exists in several versions, first made 1893",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l04",
+   "claim": "Salon d'Automne 1905; Vauxcelles 'wild beasts' remark about a sculpture",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fauvism"
+   ],
+   "note": "Opened; page quotes 'Donatello among the wild beasts'."
+  },
+  {
+   "lessonId": "art-movements-modern.l04",
+   "claim": "Fauvism lasted only a few years, roughly to 1907-08",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fauvism"
+   ],
+   "note": "Opened; page says 1905-1908."
+  },
+  {
+   "lessonId": "art-movements-modern.l04",
+   "claim": "Matisse 1869-1954; Woman with a Hat 1905",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fauvism"
+   ],
+   "note": "Opened; Woman with a Hat 1905 confirmed."
+  },
+  {
+   "lessonId": "art-movements-modern.l05",
+   "claim": "Die Brucke founded 1905 in Dresden by architecture students",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l05",
+   "claim": "1937 Degenerate Art exhibition in Munich",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Degenerate_art"
+   ],
+   "note": "Opened; opened 19 July 1937."
+  },
+  {
+   "lessonId": "art-movements-modern.l05",
+   "claim": "Kirchner died by suicide in 1938",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Degenerate_art"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l06",
+   "claim": "Der Blaue Reiter formed 1911 in Munich; almanac 1912",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l06",
+   "claim": "Marc's Blue Horses 1911; Macke killed 1914, Marc at Verdun 1916",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l06",
+   "claim": "Hilma af Klint began abstract works around 1906",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l07",
+   "claim": "Picasso and Braque worked closely from about 1908; Les Demoiselles d'Avignon 1907",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l07",
+   "claim": "Still Life with Chair Caning 1912 used oilcloth printed with a caning pattern",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l07",
+   "claim": "Guernica 1937 responds to bombing of a Basque town",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l08",
+   "claim": "Futurist manifesto appeared in Le Figaro on 20 Feb 1909",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Futurism"
+   ],
+   "note": "Opened; first published 5 Feb 1909 in an Italian paper, reproduced in Le Figaro 20 Feb. Lesson wording is slightly loose but acceptable."
+  },
+  {
+   "lessonId": "art-movements-modern.l08",
+   "claim": "Boccioni died in 1916 after a fall from a horse during military training",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Futurism"
+   ],
+   "note": "Page confirms death in 1916 only; horse-fall cause from knowledge."
+  },
+  {
+   "lessonId": "art-movements-modern.l08",
+   "claim": "Balla's Dynamism of a Dog on a Leash 1912; Boccioni's Unique Forms of Continuity in Space 1913",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l09",
+   "claim": "Cabaret Voltaire opened in Zurich 1916 by Hugo Ball with Emmy Hennings",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l09",
+   "claim": "Duchamp's Fountain, signed R. Mutt, 1917, not shown, original lost",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fountain_(Duchamp)"
+   ],
+   "note": "Opened; page says suppressed from view; replicas exist."
+  },
+  {
+   "lessonId": "art-movements-modern.l09",
+   "claim": "Freytag-Loringhoven may have been involved in Fountain",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fountain_(Duchamp)"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l10",
+   "claim": "Breton's first Manifesto of Surrealism in 1924",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l10",
+   "claim": "Magritte Treachery of Images 1929; Dali Persistence of Memory 1931; Oppenheim Object 1936",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l10",
+   "claim": "Kahlo reportedly rejected the Surrealist label",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l11",
+   "claim": "Black Square shown at 0.10 in Petrograd Dec 1915, hung in the icon corner",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Black_Square_(painting)"
+   ],
+   "note": "Opened; page confirms icon-corner hanging and 1915 show (December date from knowledge)."
+  },
+  {
+   "lessonId": "art-movements-modern.l11",
+   "claim": "Tatlin's Monument to the Third International model 1919-20, never built",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l11",
+   "claim": "Lissitzky's Beat the Whites with the Red Wedge 1919",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l12",
+   "claim": "De Stijl began 1917 around Theo van Doesburg",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l12",
+   "claim": "Schroder House, Utrecht, 1924, UNESCO World Heritage site",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l12",
+   "claim": "Mondrian to London 1938 and New York 1940; Broadway Boogie Woogie 1942-43",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l13",
+   "claim": "Alain Locke edited The New Negro in 1925",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l13",
+   "claim": "Jacob Lawrence's 60-panel Migration Series 1940-41",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Migration_Series"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l13",
+   "claim": "Augusta Savage's Lift Every Voice and Sing for 1939 World's Fair, destroyed after",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l14",
+   "claim": "Vasconcelos commissioned murals from early 1920s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l14",
+   "claim": "Rivera's Rockefeller Center mural destroyed in 1934 over Lenin portrait",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; the Wikipedia fetch returned 404."
+  },
+  {
+   "lessonId": "art-movements-modern.l14",
+   "claim": "Rivera Detroit Industry murals 1932-33 funded by Edsel Ford",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l15",
+   "claim": "Pollock began pouring paintings in 1947; Autumn Rhythm 1950",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l15",
+   "claim": "Harold Rosenberg coined action painting in 1952",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l15",
+   "claim": "CIA secretly funded the Congress for Cultural Freedom",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l16",
+   "claim": "Warhol's 32 Campbell's Soup Cans shown at Ferus Gallery in 1962",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; the Wikipedia fetch returned 404."
+  },
+  {
+   "lessonId": "art-movements-modern.l16",
+   "claim": "Hamilton's 1956 collage Just what is it that makes today's homes so different",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l16",
+   "claim": "Lichtenstein's Whaam! 1963",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l17",
+   "claim": "Judd's essay Specific Objects 1965",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l17",
+   "claim": "Carl Andre's Equivalent VIII bought by the Tate; 1976 press controversy",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Equivalent_VIII"
+   ],
+   "note": "Opened; Tate bought it in 1972, controversy in 1976."
+  },
+  {
+   "lessonId": "art-movements-modern.l17",
+   "claim": "Michael Fried's Art and Objecthood 1967",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l18",
+   "claim": "LeWitt's Paragraphs on Conceptual Art 1967 and the machine quote",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l18",
+   "claim": "Kosuth One and Three Chairs 1965",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l18",
+   "claim": "Lippard and Chandler 1968 essay The Dematerialization of Art",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l19",
+   "claim": "The Responsive Eye at MoMA 1965 organized by William Seitz",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l19",
+   "claim": "Riley's Current 1964",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l19",
+   "claim": "Tinguely's Homage to New York 1960 at MoMA",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l20",
+   "claim": "Spiral Jetty April 1970, Great Salt Lake, about 1,500 ft",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Spiral_Jetty"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l20",
+   "claim": "Heizer's Double Negative 1969 in Nevada; Lightning Field 400 poles 1977",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l20",
+   "claim": "Christo and Jeanne-Claude wrapped the Reichstag in 1995",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l21",
+   "claim": "Cut Piece first performed 1964 in Kyoto, New York 1965",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cut_Piece"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l21",
+   "claim": "Rhythm 0 1974 Naples, six hours, 72 objects",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rhythm_0"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l21",
+   "claim": "Kaprow's 18 Happenings in 6 Parts 1959; Gutai founded 1954",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l22",
+   "claim": "Nochlin's essay 1971",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l22",
+   "claim": "The Dinner Party 1974-79, 39 place settings, 999 names, Brooklyn Museum",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/The_Dinner_Party"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l22",
+   "claim": "Guerrilla Girls began 1985; 1989 Met Museum poster",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l23",
+   "claim": "Chuck Close's Big Self-Portrait 1967-68",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l23",
+   "claim": "Audrey Flack's Marilyn (Vanitas) 1977",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l23",
+   "claim": "Louis K. Meisel popularized the name Photorealism",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l24",
+   "claim": "Baselitz upside-down figures from 1969",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l24",
+   "claim": "Sherman's Untitled Film Stills 1977-80, about 70 photographs",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l24",
+   "claim": "Levine's After Walker Evans 1981",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l25",
+   "claim": "TAKI 183 New York Times story 1971",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l25",
+   "claim": "Girl with Balloon sold for about 1.04 million pounds at Sotheby's 2018 and partly shredded",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Girl_with_Balloon"
+   ],
+   "note": "Opened; GBP 1,042,000."
+  },
+  {
+   "lessonId": "art-movements-modern.l25",
+   "claim": "Fairey's Hope poster AP dispute settled 2011",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l26",
+   "claim": "Beeple's Everydays sold for about 69.3 million dollars at Christie's March 2021",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Everydays:_The_First_5000_Days"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l26",
+   "claim": "Nam June Paik exhibited altered TVs in Wuppertal in 1963; TV Buddha 1974",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l26",
+   "claim": "Edmond de Belamy sold for 432,500 dollars in 2018",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l27",
+   "claim": "Documenta in Kassel since 1955; Enwezor directed Documenta 11 in 2002, first non-European",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Documenta"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l27",
+   "claim": "Ai Weiwei's 2010 Turbine Hall: about 100 million porcelain sunflower seeds made in Jingdezhen",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sunflower_Seeds_(artwork)"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l27",
+   "claim": "Biennials: Venice 1895, Sao Paulo 1951, Havana 1984, Gwangju 1995",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l28",
+   "claim": "Salvator Mundi sold Nov 2017 at Christie's for 450.3 million dollars incl. fees, a record",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Salvator_Mundi_(Leonardo)"
+   ],
+   "note": "Opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l28",
+   "claim": "Sotheby's founded 1744, Christie's 1766, Art Basel first held 1970",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "art-movements-modern.l28",
+   "claim": "Washington Principles 1998, non-binding",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  }
+ ]
+}

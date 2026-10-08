@@ -18,6 +18,16 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+windows-native/Plajah.WinUI/bin/
+windows-native/Plajah.WinUI/obj/
+# WinUI build outputs: wwwroot is a copy of the built web app (~7.8k files) and
+# AppPackages are MSIX builds. Unignored, Tailwind v4's auto source scan crawls
+# them and the dev server's index.css never finishes compiling.
+windows-native/Plajah.WinUI/wwwroot/
+windows-native/Plajah.WinUI/AppPackages*/
+# Code-signing key + cert — never commit.
+windows-native/Plajah.WinUI/*.pfx
+windows-native/Plajah.WinUI/*.cer
 dist
 dist-ssr
 *.local
@@ -81,3 +91,34 @@ public/irs/akrt-full/
 
 # Standalone Firstlight production preview (source/assets are tracked separately)
 dist-firstlight/
+
+# Native build outputs (Rust cargo targets, .NET bin/obj). Besides not belonging
+# in git, Tailwind v4 scans every unignored file — these made the dev server's
+# first index.css compile take minutes.
+compositor/target/
+rust/target/
+windows/bin/
+windows/obj/
+
+# Local build/package output and scratch (never commit; multi-GB)
+Plajah_Package_*/
+Plajah_Test_Package_*/
+windows-native/Plajah.WinUI/AppPackages*/
+windows-native/Plajah.WinUI/wwwroot/
+windows-native/Plajah.WinUI/Processing.NDI.Lib.x64.dll
+rust/**/target/
+.cache/
+.matter-nodes.json
+Aria voice deelopment/
+art_deco_audio_reactive/
+_apply_kc.cjs
+_dump_kc.cjs
+scratch_*.cjs
+patch_chora*.js
+.flux-math-preview/
+flux-math-preview.png
+/tmp/lectio-qa/
+/tmp/sacred-reader-build/
+
+# Dossier film render scratch
+.film-work/

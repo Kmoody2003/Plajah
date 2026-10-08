@@ -8,6 +8,12 @@ import { loadCloud, pickNewer } from '../../services/voca/vocaCloud';
 import { fetchUserClubs, fetchClassrooms } from '../../services/backendService';
 import { lessonLink } from '../../services/assignmentTemplateService';
 import { requestTextChat, proposeClub } from '../../services/homeroomService';
+import EduFeedPanel from '../academia/EduFeedPanel';
+import MediaToolsRow from '../academia/MediaToolsRow';
+import WellbeingPanel from '../academia/WellbeingPanel';
+import DailyScripture from '../academia/DailyScripture';
+import { useSchoolProfile } from '../../hooks/useSchoolProfile';
+import { loadLearnerStats, type LearnerStats, type AppStat } from '../../services/academiaStats';
 
 /**
  * Homeroom — the student's home screen (view STUDENT_HOME). The Creator Hub, rebuilt around school:
@@ -66,6 +72,18 @@ const CSS = `
 .hr .btn{appearance:none;cursor:pointer;height:42px;padding:0 18px;border-radius:99px;border:0;background:var(--grad);color:#fff;font-family:var(--fd);font-weight:800;font-size:.84rem;white-space:nowrap}
 .hr .btn.ghost{background:var(--g2);border:1px solid var(--bd);color:var(--ink)}
 .hr .btn:disabled{opacity:.5;cursor:not-allowed}
+.hr .apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.hr .app{appearance:none;border:0;cursor:pointer;text-align:left;border-radius:22px;padding:16px;min-height:150px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;color:#fff;transition:transform .15s}
+.hr .app:hover{transform:translateY(-2px)}
+.hr .app.feature{grid-column:span 2}
+.hr .app .nm{font-family:var(--fd);font-weight:900;font-style:italic;font-size:1.15rem;display:flex;align-items:center;gap:8px}
+.hr .app .big{font-family:var(--fd);font-weight:900;font-size:1.5rem;line-height:1.1;margin-top:auto}
+.hr .app .sub{font-size:.76rem;opacity:.85}
+.hr .app .go{font-family:var(--fd);font-weight:800;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;margin-top:8px;opacity:.95}
+.hr .app .pb{height:6px;border-radius:99px;background:rgba(255,255,255,.28);overflow:hidden;margin-top:8px}
+.hr .app .pb i{display:block;height:100%;background:#fff;border-radius:99px}
+.hr .app .new{position:absolute;top:12px;right:12px;font-family:var(--fd);font-weight:800;font-size:.58rem;letter-spacing:.1em;background:#fff;color:#12091b;padding:3px 7px;border-radius:99px}
+.hr .app.empty-app .big{font-size:1.05rem;opacity:.9}
 .hr .play{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .hr .game{appearance:none;border:0;cursor:pointer;text-align:left;border-radius:18px;padding:14px;min-height:96px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;color:#fff}
 .hr .game b{font-family:var(--fd);font-weight:900;font-style:italic;font-size:1rem}
@@ -94,6 +112,7 @@ const CSS = `
 .hr .note{font-size:.8rem;color:var(--faint)}
 .hr :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 @media (max-width:900px){.hr .grid{grid-template-columns:1fr}.hr .play{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.hr .app.feature{grid-column:span 1}}
 @media (max-width:520px){.hr .play{grid-template-columns:1fr}.hr .hello{grid-template-columns:1fr}}
 `;
 
@@ -124,12 +143,15 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
   const [classes, setClasses] = useState<any[] | null>(null);
   const [sheet, setSheet] = useState<null | 'chat' | 'club'>(null);
   const [toast, setToast] = useState('');
+  const [stats, setStats] = useState<LearnerStats | null>(null);
+  const { sp: schoolSp } = useSchoolProfile(profile, [classes?.[0]?.ownerId]);
   const coach = useRef<Mascot2DHandle>(null);
 
   useEffect(() => { const t = setTimeout(() => coach.current?.react('wave'), 500); return () => clearTimeout(t); }, []);
   useEffect(() => {
     if (!uid) { setClubs([]); setClasses([]); return; }
     let alive = true;
+    loadLearnerStats(uid).then(st => alive && setStats(st)).catch(() => {});
     loadCloud(uid).then(c => { const n = pickNewer(loadLocal(uid), c); if (alive && n) setVoca(n); });
     fetchUserClubs(uid).then(c => alive && setClubs(c || [])).catch(() => alive && setClubs([]));
     fetchClassrooms().then((all: any[]) => alive && setClasses((all || []).filter(c => c?.ownerId === uid || (c?.enrolledStudents || []).includes(uid)))).catch(() => alive && setClasses([]));
@@ -175,42 +197,36 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
           </div>
         </div>
 
+
+        <DailyScripture school={schoolSp} />
+        <WellbeingPanel role="student" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
+        <section aria-label="Learning apps">
+          <div className="card-hd" style={{ marginBottom: 10 }}>
+            <h2 className="h2">Jump in &amp; learn</h2>
+            <span className="note">Your progress shows on every card</span>
+          </div>
+          <div className="apps">
+            <AppCard feature name="Voca" tag="NEW" bg="linear-gradient(135deg,#D40055,#6B0099)" stat={stats?.voca}
+              fallback={`Today: ${story.title}`} sub={`${story.kind} · Level ${story.level} · ${zone}/3 strong reads to level up`} cta="🎙️ Read with Chora" onOpen={() => onNavigate('VOCA')} />
+            <AppCard name="Penna" bg="linear-gradient(135deg,#C9871F,#6B0099)" stat={stats?.penna} fallback="Handwriting" sub="Trace letters, earn the picture" onOpen={() => onNavigate('HANDWRITING_WORKSHOP')} />
+            <AppCard name="Reading Quest" bg="linear-gradient(135deg,#D40055,#7a2bd6)" stat={stats?.reading} fallback="Reading" sub="Phonics to comprehension" onOpen={() => onNavigate('READING_QUEST')} />
+            <AppCard name="Languages" bg="linear-gradient(135deg,#7a2bd6,#1e1b4b)" stat={stats?.languages} fallback="Languages" sub="Spanish, French, Mandarin" onOpen={() => onNavigate('LANGUAGE_QUEST')} />
+            <AppCard name="Math" bg="linear-gradient(135deg,#3B82F6,#1e1b4b)" fallback="Math drills" sub="Time Attack + practice by grade" onOpen={() => onNavigate('MATH_CLASSROOM')} />
+            <AppCard name="Science" bg="linear-gradient(135deg,#36c5f0,#1e3a8a)" fallback="Lab quests" sub="Explore the Lab Map" onOpen={() => onNavigate('SCIENCE_QUEST')} />
+            <AppCard name="History" bg="linear-gradient(135deg,#FF8C00,#7c2d12)" fallback="History quest" sub="Moments that shaped us" onOpen={() => onNavigate('HISTORY_QUEST')} />
+            <AppCard name="Library" bg="linear-gradient(135deg,#2bd67a,#0b5f6b)" fallback="Stories" sub="Leveled readers + phonics" onOpen={() => onNavigate('KIDS_LIBRARY')} />
+            <AppCard name="All courses" bg="linear-gradient(135deg,#1d4ed8,#0f172a)" fallback="Every subject" sub="Math to film, with practice and mastery" cta="Open the map →" onOpen={() => onNavigate('LEARN')} />
+            <AppCard name="Investigate" bg="linear-gradient(135deg,#0e7490,#0f172a)" fallback="Run an experiment" sub="Ask a question, graph real data, conclude" cta="Open the studio →" onOpen={() => onNavigate('INQUIRY')} />
+            <AppCard name="My Notebook" bg="linear-gradient(135deg,#6B0099,#1e1b4b)" fallback="Notes and drawings" sub="Write, draw and clip from your lessons" cta="Open my notes →" onOpen={() => onNavigate('NOTES')} />
+            <AppCard name="My Record" bg="linear-gradient(135deg,#0f766e,#1e293b)" stat={stats?.ledger} fallback="Learning record" sub="Your skills, owned by you" onOpen={() => onNavigate('LEARNER_LEDGER')} />
+          </div>
+        </section>
+
         <div className="grid">
           <div className="col">
             <TodayDueFirst uid={uid} role="student"
               onOpenAssignment={(id) => { try { window.history.pushState({}, '', lessonLink(id)); } catch { /* non-fatal */ } onNavigate('STUDENT_LESSON'); }}
               onNavigate={onNavigate} />
-
-            <div className="card">
-              <div className="card-hd"><h2 className="h2">Today's read</h2><button className="link" type="button" onClick={() => onNavigate('VOCA')}>Open Voca →</button></div>
-              <div className="read">
-                <div>
-                  <span className="eyebrow">{story.kind} · Level {story.level}</span>
-                  <h3 style={{ fontWeight: 900, fontSize: '1.25rem', margin: '4px 0' }}>{story.title}</h3>
-                  <div className="bar"><i style={{ width: `${Math.min(100, zone / 3 * 100)}%` }} /></div>
-                  <small style={{ color: 'var(--faint)', fontSize: '.76rem' }}>{zone}/3 strong reads to level up · Chora listens and coaches</small>
-                </div>
-                <button className="btn" type="button" onClick={() => onNavigate('VOCA')}>🎙️ Read with Chora</button>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-hd"><h2 className="h2">Play &amp; practice</h2></div>
-              <div className="play">
-                {[
-                  { v: 'VOCA', t: 'Voca', d: 'Read aloud with Chora', bg: 'linear-gradient(135deg,#D40055,#6B0099)', isNew: true },
-                  { v: 'HANDWRITING_WORKSHOP', t: 'Penna', d: 'Handwriting workshop', bg: 'linear-gradient(135deg,#C9871F,#6B0099)' },
-                  { v: 'KIDS_LIBRARY', t: 'Library', d: 'Stories + learn to read', bg: 'linear-gradient(135deg,#2bd67a,#0b5f6b)' },
-                  { v: 'LANGUAGE_QUEST', t: 'Languages', d: 'Spanish, French, Mandarin', bg: 'linear-gradient(135deg,#7a2bd6,#1e1b4b)' },
-                  { v: 'SCIENCE_QUEST', t: 'Science', d: 'Lab Map quests', bg: 'linear-gradient(135deg,#36c5f0,#1e3a8a)' },
-                  { v: 'MATH_CLASSROOM', t: 'Math', d: 'Drills by grade', bg: 'linear-gradient(135deg,#3B82F6,#1e1b4b)' },
-                ].map(g => (
-                  <button key={g.v} className="game" type="button" style={{ background: g.bg }} onClick={() => onNavigate(g.v)}>
-                    {g.isNew && <span className="new">NEW</span>}<b>{g.t}</b><small>{g.d}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <div className="card">
               <div className="card-hd"><h2 className="h2">My classes</h2><button className="link" type="button" onClick={() => onNavigate('CLASSROOMS')}>All classes →</button></div>
@@ -281,9 +297,13 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
               <div className="note" style={{ marginTop: 10 }}>Earned by reading, trying hard words again, and showing up. Never by beating anyone.</div>
             </div>
 
-            <button className="btn ghost" type="button" onClick={() => onNavigate('EDU_SOCIAL')}>School feed →</button>
           </div>
         </div>
+      </div>
+
+      <div className="wrap" style={{ marginTop: 16, color: '#fff' }}>
+        <MediaToolsRow prefsUid={classes?.[0]?.ownerId || uid} onNavigate={onNavigate} />
+        <EduFeedPanel currentUser={user || (uid ? { uid } : null)} profile={profile} eduRole="STUDENT" limit={2} onOpenFeed={() => onNavigate('EDU_SOCIAL')} />
       </div>
 
       {sheet === 'chat' && <ChatRequestSheet uid={uid} guardianUid={profile?.guardianUid} onClose={() => setSheet(null)} onDone={ok => { setSheet(null); flash(ok ? 'Request sent to your grown-up.' : "Couldn't send that right now. Ask your grown-up in person."); }} />}
@@ -293,6 +313,21 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
   );
 };
 export default HomeroomView;
+
+const AppCard: React.FC<{ name: string; bg: string; stat?: AppStat; fallback: string; sub: string; cta?: string; tag?: string; feature?: boolean; onOpen: () => void }> =
+  ({ name, bg, stat, fallback, sub, cta, tag, feature, onOpen }) => {
+    const started = !!stat?.started;
+    return (
+      <button type="button" className={`app ${feature ? 'feature' : ''} ${started ? '' : 'empty-app'}`} style={{ background: bg }} onClick={onOpen}>
+        {tag && <span className="new">{tag}</span>}
+        <span className="nm">{name}</span>
+        <span className="big">{started ? stat!.headline : fallback}</span>
+        <span className="sub">{started ? stat!.detail : sub}</span>
+        {started && stat!.pct != null && <span className="pb"><i style={{ width: `${Math.max(3, Math.min(100, stat!.pct))}%` }} /></span>}
+        <span className="go">{cta || (started ? 'Continue →' : 'Start →')}</span>
+      </button>
+    );
+  };
 
 const ChatRequestSheet: React.FC<{ uid?: string; guardianUid?: string; onClose: () => void; onDone: (ok: boolean) => void }> = ({ uid, guardianUid, onClose, onDone }) => {
   const [scope, setScope] = useState<'classes' | 'classes_clubs'>('classes');

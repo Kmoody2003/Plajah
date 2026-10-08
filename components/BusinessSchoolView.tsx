@@ -130,7 +130,7 @@ const BUSINESS_QUESTS = [
     emoji: '🏪',
     desc: 'Set prices, manage inventory, calculate change, and experience trade through play.',
     duration: '20 min',
-    tool: 'PRAXIS',
+    tool: 'BIZ_SIM',
     accent: '#8B5CF6',
   },
   {
@@ -140,7 +140,7 @@ const BUSINESS_QUESTS = [
     emoji: '🍋',
     desc: 'Cost your ingredients, model foot traffic on sunny vs rainy days, and maximize net profit.',
     duration: '25 min',
-    tool: 'PRAXIS',
+    tool: 'BIZ_SIM',
     accent: '#F59E0B',
   },
   {
@@ -582,6 +582,13 @@ const BusinessSchoolView: React.FC<Props> = ({ onBack, onNavigate, user, profile
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {[
+                {
+                  title: 'Venture Lab',
+                  desc: 'A business simulation for every age: establish a company, protect your name, run it turn by turn and read the books.',
+                  icon: Rocket,
+                  action: () => onNavigate('BIZ_SIM'),
+                  color: '#06D6A0',
+                },
                 {
                   title: 'Praxis Venture Studio',
                   desc: 'The interactive 8-stage company launcher with double-entry books and cap table calculator.',

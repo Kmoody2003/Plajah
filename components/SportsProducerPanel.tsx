@@ -23,7 +23,7 @@ import {
 import {
   subscribeGameState, updateGameState, pushHighlight,
   initGameState, buildCommentaryLine, speakCommentary,
-  buildPeriodLabel, defaultGameState,
+  buildPeriodLabel, defaultGameState, displayClock, clockTogglePatch,
   type GameState, type SportType, type HighlightType,
 } from '../services/sportscastService';
 
@@ -52,20 +52,6 @@ const HIGHLIGHTS: { type: HighlightType; label: string; color: string }[] = [
   { type: 'BIG_PLAY',     label: 'Big Play',     color: '#3B82F6' },
 ];
 
-// ─── Clock helpers ────────────────────────────────────────────────────────────
-
-function parseClock(str: string): number {
-  const [m = '0', s = '0'] = str.split(':');
-  return parseInt(m) * 60 + parseInt(s);
-}
-
-function formatClock(totalSeconds: number): string {
-  const s = Math.max(0, totalSeconds);
-  const m = Math.floor(s / 60);
-  const rem = s % 60;
-  return `${m}:${String(rem).padStart(2, '0')}`;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const SportsProducerPanel: React.FC<Props> = ({ feedId }) => {
@@ -76,15 +62,8 @@ const SportsProducerPanel: React.FC<Props> = ({ feedId }) => {
   const [lastComment, setLastComment] = useState('');
   const [hlFlash, setHlFlash] = useState<string | null>(null);
 
-  // Clock tick interval ref
-  const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const clockSecsRef = useRef(0);
-
-  // Keep clockSecs in sync with Firestore state
-  useEffect(() => {
-    if (!gs) return;
-    clockSecsRef.current = parseClock(gs.timeRemaining);
-  }, [gs?.timeRemaining]);
+  // The clock is anchored in Firestore (clockStartedAt); this only re-renders the display.
+  const [, setTick] = useState(0);
 
   // Subscribe to Firestore game state
   useEffect(() => {
@@ -106,19 +85,12 @@ const SportsProducerPanel: React.FC<Props> = ({ feedId }) => {
     }
   }, [feedId, gs, initialised]);
 
-  // Client-side clock countdown
+  // Display tick only — no writes while the clock runs.
   useEffect(() => {
-    if (!gs?.clockRunning) {
-      if (clockRef.current) clearInterval(clockRef.current);
-      return;
-    }
-    clockRef.current = setInterval(() => {
-      clockSecsRef.current = Math.max(0, clockSecsRef.current - 1);
-      const formatted = formatClock(clockSecsRef.current);
-      updateGameState(feedId, { timeRemaining: formatted });
-    }, 1000);
-    return () => { if (clockRef.current) clearInterval(clockRef.current); };
-  }, [gs?.clockRunning, feedId]);
+    if (!gs?.clockRunning) return;
+    const t = setInterval(() => setTick(n => n + 1), 500);
+    return () => clearInterval(t);
+  }, [gs?.clockRunning]);
 
   // ─── State update shortcuts ──────────────────────────────────────────────
 
@@ -140,16 +112,16 @@ const SportsProducerPanel: React.FC<Props> = ({ feedId }) => {
 
   const toggleClock = () => {
     if (!gs) return;
-    patch({ clockRunning: !gs.clockRunning });
+    patch(clockTogglePatch(gs));
   };
 
   const resetClock = (sport: SportType = gs?.sport ?? 'FOOTBALL') => {
     const defaults: Record<SportType, string> = {
       FOOTBALL: '12:00', BASKETBALL: '12:00',
-      HOCKEY: '20:00', SOCCER: '45:00',
+      HOCKEY: '20:00', SOCCER: '0:00', // soccer counts up
       BASEBALL: '0:00', OTHER: '0:00',
     };
-    patch({ timeRemaining: defaults[sport], clockRunning: false });
+    patch({ timeRemaining: defaults[sport], clockRunning: false, clockStartedAt: 0 });
   };
 
   const changeSport = (sport: SportType) => {
@@ -299,7 +271,8 @@ const SportsProducerPanel: React.FC<Props> = ({ feedId }) => {
                 {/* Clock display + editable input */}
                 <div className="flex items-center gap-2 mb-2">
                   <input
-                    value={gs.timeRemaining}
+                    value={gs.clockRunning ? displayClock(gs) : gs.timeRemaining}
+                    readOnly={gs.clockRunning}
                     onChange={e => patch({ timeRemaining: e.target.value })}
                     className="flex-1 bg-black/40 border border-white/8 rounded-xl px-3 py-2 text-white font-mono text-sm font-bold outline-none focus:ring-1 ring-amber-500/40 text-center"
                     placeholder="12:00"

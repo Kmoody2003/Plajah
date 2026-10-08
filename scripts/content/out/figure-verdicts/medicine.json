@@ -1,0 +1,212 @@
+[
+ {
+  "lesson": "med-g912.l02",
+  "id": "double-pump",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-g912.l02",
+  "id": "co-bp",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l05",
+  "id": "conduction-path",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l05",
+  "id": "ecg-waves",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l05",
+  "id": "ecg-rate-rule",
+  "verdict": "ok",
+  "issue": "Accurate (300/3=100, 300/4=75, 300/5=60). Optional: add \"for a regular rhythm\" since the rule only holds when R-R intervals are equal; lesson gives only the 4-box example.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l06",
+  "id": "cardiac-cycle-phases",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l07",
+  "id": "co-determinants",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l07",
+  "id": "frank-starling-schematic",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l14",
+  "id": "creatinine-gfr",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l15",
+  "id": "nephron-path",
+  "verdict": "ok",
+  "issue": "Accurate. Thin ascending limb is omitted (the lesson does not name it), so the strip is a simplification; optional to say \"thin and thick\" or leave as is.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l15",
+  "id": "diuretic-sites",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l19",
+  "id": "gastric-acid-control",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l20",
+  "id": "thyroid-axis",
+  "verdict": "ok",
+  "issue": "Accurate. Diagram draws feedback only to the pituitary while caption and alt also say hypothalamus (matches lesson). Optional: add edge th->hyp.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-physiology.l20",
+  "id": "adrenal-axis",
+  "verdict": "ok",
+  "issue": "Accurate and matches the lesson worked example. Optional: add edge cort->hyp to match caption; soften \"points to\" to \"is consistent with\" so it does not read as a diagnostic rule.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-biochem-genetics.l14",
+  "id": "rna-processing",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-biochem-genetics.l15",
+  "id": "mutation-types",
+  "verdict": "ok",
+  "issue": "Accurate. Caption mixes DNA notation (GAG to GTG) and RNA notation (CAG to UAG), as the lesson does; both standard.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-premed-biochem.l15",
+  "id": "central-dogma-vertical",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-premed-biochem.l15",
+  "id": "worked-codons",
+  "verdict": "ok",
+  "issue": "Complement of 3-TACGGATTT-5 is 5-AUGCCUAAA-3; AUG Met, CCU Pro, AAA Lys. Correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-pharm-principles.l05",
+  "id": "half-life-decay",
+  "verdict": "ok",
+  "issue": "Recomputed 100, 50, 25, 12.5, 6.25, 3.125; matches.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-pharm-principles.l05",
+  "id": "half-life-clearance",
+  "verdict": "ok",
+  "issue": "Recomputed: t1/2 6.93 h and 13.86 h; remaining at 48 h 0.82 percent and 9.07 percent; matches caption/alt.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-premed-chem.l05",
+  "id": "first-vs-zero-order",
+  "verdict": "ok",
+  "issue": "First-order values correct (100, 50, 25, 12.5, 6.25). Zero-order line is explicitly arbitrary (50 percent left at 24 h by construction). Fine.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-epi-biostats.l10",
+  "id": "two-by-two",
+  "verdict": "ok",
+  "issue": "Sens 180/200=90 percent, spec 720/800=90 percent; cell placement correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-epi-biostats.l11",
+  "id": "ppv-flow",
+  "verdict": "ok",
+  "issue": "PPV 90/585=15.38, NPV 9405/9415=99.89; counts correct.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-epi-biostats.l11",
+  "id": "ppv-prevalence",
+  "verdict": "ok",
+  "issue": "All values recomputed: 15.38, 66.67, 81.82 percent. 10 and 20 percent prevalence points are model points not in the lesson (the lesson 20 percent example is a pre-test probability with LR+ 8 giving 67 percent), so a reader could conflate them; caption already states sens 90 and spec 95.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-epi-biostats.l12",
+  "id": "roc-schematic",
+  "verdict": "ok",
+  "issue": "Area under y=x^0.3 is 1/1.3 = 0.769; matches about 0.77.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-epi-biostats.l12",
+  "id": "lead-time",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-path.l05",
+  "id": "hemostasis-steps",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-path.l05",
+  "id": "coag-pathways",
+  "verdict": "ok",
+  "issue": "Accurate as the lab-test model (PT = extrinsic plus common, aPTT = intrinsic plus common); caption already says high level.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-g35.l03",
+  "id": "blood-loop",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ },
+ {
+  "lesson": "med-g35.l05",
+  "id": "digestion-path",
+  "verdict": "ok",
+  "issue": "Verified against lesson text and standard references; no error.",
+  "fix": ""
+ }
+]

@@ -1,0 +1,23 @@
+# law-civpro: claims for expert review
+
+- l01: Kokkonen (1994) cited for presumption against federal jurisdiction; Steel Co. (1998) for jurisdiction-before-merits. Confident of holdings, verify pinpoint framing.
+- l02: Merrell Dow (1986) characterisation (no private right of action not automatically dispositive, but insufficient there). Gunn v. Minton (2013) described as "case within a case" with no effect on real patent outcome.
+- l03: LLC citizenship stated as the courts-of-appeals rule (members' citizenship), not a Supreme Court holding. Newman-Green (1989) stateless-citizen point. St. Paul Mercury legal-certainty test.
+- l04: Section 1367(b) wording summarised, not quoted; the Owen v. Kroger (1978) illustration. Removal one-year limit and bad-faith exception (1446(c)(1)); forum-defendant rule applies to "properly joined and served" defendants.
+- l05: Burnham (1990) vote split description (plurality vs four-Justice concurrence; Justice Stevens concurred in judgment separately).
+- l06: Asahi (1987) and Nicastro (2011) described at high level (fractured opinions; Nicastro concurrence by two Justices). Ford (2021) and BMS (2017) holdings.
+- l07: Mallory (2023) described as closely divided; reliance on Pennsylvania Fire (1917). Daimler/BNSF characterisations.
+- l08: Ferens (1990) extending Van Dusen to plaintiff-initiated transfer; Atlantic Marine choice-of-law holding; Goldlawr (1962) transfer without personal jurisdiction; Sinochem (2007).
+- l09: Rule 4(d) 60-day response time on waiver; Rule 4(m) 90 days; check against current FRCP text.
+- l10: Shady Grove (2010) plurality/concurrence description; Gasperini (1996) description; Walker v. Armco (1980).
+- l11: Johnson v. City of Shelby (2014), Erickson v. Pardus (2007) characterisations. Rule 11 21-day safe harbour.
+- l12: Rule 15(a)(1) timing (21 days after service of responsive pleading or Rule 12(b), (e) or (f) motion); Krupski holding.
+- l13: Statutory interpleader (28 U.S.C. 1335) $500 / minimal diversity; Rule 14 14-day window; Pimentel (2008) summarised briefly.
+- l14: CAFA thresholds; Rule 23(f) 14 days; Smith v. Bayer (2011); TransUnion (2021) framing; Shutts (1985).
+- l15: Numerical limits (10 depositions, 7 hours, 25 interrogatories) are defaults in current rules; Upjohn framing; FRE 502.
+- l16: Unitherm (2006) and Reeves (2000) characterisations; Rule 50(b) 28-day period; Tolan v. Cotton (2014).
+- l17: Colgrove v. Battin (1973); Edmonson (1991); Feltner (1998); Tull (1987) liability/amount split; Dimick (1935) additur.
+- l18: Semtek (2001) holding as described; Moitie (1981) description; Rule 41(a) two-dismissal rule.
+- l19: Parklane factors; Taylor v. Sturgell (2008) list of exceptions (six); Montana v. United States (1979) description.
+- l20: Microsoft v. Baker (2017) described as rejecting voluntary-dismissal finality in class cert context; 1292(b) ten-day application period; FRAP 4 time limits.
+- General: all cases cited from memory with year and court; no pin cites or reporter citations were used. Some distractor texts were lengthened to balance option lengths; reviewers should confirm no distractor is accidentally correct.

@@ -1,0 +1,929 @@
+{
+ "courseId": "money-school",
+ "label": "School of Money",
+ "lessons": [
+  {
+   "id": "fl-earn-1",
+   "title": "Where Money Actually Comes From",
+   "body": [
+    "Money arrives in a household through a small number of doors, and it is worth learning their names early, because each door behaves differently.",
+    "The first is wages — you give an employer your time and skill, and they give you money on a schedule. It is the most predictable door and, for most people for most of their lives, the widest one. The second is self-employment — you sell a product or service directly, so nobody caps what you earn and nobody guarantees it either. The third is income from things you own: interest on savings, rent from property, dividends from a company. This is the door that opens slowly and then, if you feed it for decades, opens very wide. The fourth is transfers — support from family, or from public programmes designed to catch people during unemployment, disability or old age.",
+    "Notice what separates the third door from the first two: wages and self-employment require your time, so they stop when you stop. Ownership income does not. Nothing in this course will tell you that one is virtuous and another is not — a paycheque is how most of the world's good work gets done. But understanding that the doors behave differently is the beginning of every plan you will ever make.",
+    "A useful habit, starting now: whenever you hear about someone's money, ask which door it came through. You will find that most confident public claims about wealth become much clearer, and sometimes much less impressive, once you can name the door."
+   ]
+  },
+  {
+   "id": "fl-earn-2",
+   "title": "Why the Offer Is Not the Paycheque",
+   "body": [
+    "The first payslip is a small shock for almost everyone. You were offered a number; a visibly smaller number arrives. Nothing has gone wrong. You are looking at the difference between gross pay — what you earned — and net pay, what reaches you after everything that is taken out along the way.",
+    "The deductions fall into groups. Income tax is withheld in advance on an estimate of what you will owe for the year, which is why filing a return later either refunds you or asks for the balance. Payroll taxes fund social insurance — retirement and medical programmes you will draw on decades from now. Then there are voluntary deductions you chose: a retirement contribution, health cover, a union fee. These last ones matter, because some of them are the rare case of money leaving your paycheque and still belonging to you.",
+    "Read the payslip as a document with a claim on it. Check that the hours are right. Check that the deductions match what you agreed to. Payroll errors are common and almost never corrected unless someone notices, and the person best placed to notice is you.",
+    "One number deserves special attention: the retirement contribution, especially if an employer matches part of it. A match is not a benefit in the abstract — it is an immediate, guaranteed return on money you set aside, and it is the closest thing to free money that ordinary finance offers."
+   ]
+  },
+  {
+   "id": "fl-earn-3",
+   "title": "What Education and Skill Are Worth",
+   "body": [
+    "Education is usually discussed as an identity — what kind of person you are going to be. It is also, unavoidably, a financial decision with a price tag, a time cost and a return, and refusing to look at that half does students no favours.",
+    "The cost has two parts. The obvious part is money paid: tuition, materials, fees. The hidden part is opportunity cost — the income you did not earn during the years you studied. For a long programme this hidden cost is frequently larger than the tuition, and it is the part most people never count.",
+    "The return is the difference between what you will earn with the qualification and what you would have earned without it, added up over a working life. Two things make that number swing enormously: the field, and whether you finish. Unfinished study with debt attached is the worst outcome in the whole calculation, and it is more common than prospectuses suggest.",
+    "So the honest question is not \"is education worth it\" — asked that broadly the question has no answer. It is: *this* programme, at *this* price, with *this* completion rate, leading to *this* work — how many years of the earnings difference does it take to repay the total cost? That number is the payback period, and you can estimate it on one sheet of paper. Do that before you sign anything, and note that apprenticeship, certification and on-the-job routes belong in the same comparison rather than being treated as a consolation prize."
+   ]
+  },
+  {
+   "id": "fl-spend-1",
+   "title": "Needs, Wants, and the Space Between",
+   "body": [
+    "Every course starts here, usually with two neat columns: needs on the left, wants on the right. Food, shelter, warmth. Sweets, games, the latest thing. It is a good beginning and it is not quite true, and pretending otherwise is why so many budgets collapse in the second week.",
+    "Almost everything is a spectrum. You need food; you do not need this particular meal from this particular restaurant. You need to get to work; whether that means a bus fare or a car with a payment attached is a choice. The useful question is not \"is this a need?\" but \"what is the cheapest version of this that still does the job, and how much am I paying above that line for comfort, speed or pleasure?\"",
+    "That reframing does something important: it stops a budget from being a list of forbidden things. You are allowed to pay above the line. Paying above the line is much of what money is *for*. You simply want to be the one who decided to, rather than discovering it afterwards in a statement.",
+    "Try it on one category this week. Write the true floor, write what you actually spent, and look at the gap without judging it. That gap is your first real piece of financial self-knowledge."
+   ]
+  },
+  {
+   "id": "fl-spend-2",
+   "title": "Building a Budget That Survives Contact",
+   "body": [
+    "A budget is a forecast, and forecasts are wrong. The skill is not producing a perfect one; it is producing one that keeps working when reality arrives.",
+    "Budgets usually fail for three reasons. First, they forget irregular expenses — the annual insurance, the car repair, the birthday season — so a \"normal\" month looks affordable and the real year does not. The fix is to total those yearly costs, divide by twelve, and treat that figure as a monthly line even though the bill is not monthly. Second, they are too detailed to maintain: nineteen categories is a system nobody keeps for six months. Five or six is a system people actually keep. Third, they leave no slack, so the first unplanned expense feels like failure and the whole thing gets abandoned.",
+    "A durable structure is simple: income at the top; fixed commitments; the twelfth-of-a-year sinking fund for irregulars; saving treated as a bill rather than a leftover; then a single flexible pool for everything else. When the flexible pool runs out, spending stops until the next period. That is the entire mechanism, and it works because it requires one decision a month instead of a hundred.",
+    "The last idea is the one that matters most: pay saving first, before the flexible pool, not after. Money that survives to the end of the month is not saved by anyone. Money moved on payday is."
+   ]
+  },
+  {
+   "id": "fl-spend-3",
+   "title": "Big Decisions: Housing and Transport",
+   "body": [
+    "Personal finance advice is full of small optimisations — the coffee, the subscription, the switched supplier. They are real, they are worth doing, and they are dwarfed by two decisions: where you live and how you travel. Get those roughly right and a budget has room to breathe. Get them wrong and no amount of small discipline will rescue it.",
+    "Housing is the larger of the two, and its true cost is never the headline number. Rent has utilities, deposit and moving costs attached. Ownership has property tax, insurance, maintenance and, crucially, the interest on the loan — which in the early years of a long mortgage exceeds the amount going to the debt itself. A rule of thumb people use is to keep total housing costs near or below a third of take-home pay; treat that as a signal rather than a law, but be very clear-eyed when you cross it, because housing costs are hard to reverse quickly.",
+    "Transport is the same shape of problem. A vehicle's purchase price is the beginning: insurance, fuel, servicing, tyres and depreciation follow it for as long as you own it. Depreciation is the biggest and the most invisible, because nobody sends you a bill for it.",
+    "The exercise that makes this concrete is to compute total annual cost of ownership rather than the monthly payment. Sellers quote monthly payments precisely because that number can be made to look small by stretching the term — and a longer term means you pay more in total for the same object."
+   ]
+  },
+  {
+   "id": "fl-save-1",
+   "title": "Why Saving Is Hard (and What Beats Willpower)",
+   "body": [
+    "Saving asks you to hand something enjoyable now to a stranger — your future self — whom you have never met and do not entirely believe in. Framed that way, it is remarkable anyone saves at all, and it explains why advice built on willpower reliably fails.",
+    "What works is structure. Move the money automatically, on the day income arrives, before it is available to spend. Put it somewhere with mild friction — a separate account, not the one attached to your card. Give each pot a name tied to a real thing, because \"emergency fund\" is abstract and \"the month I can survive without a job\" is not. And make the first goal small enough to actually reach, since the habit is built by finishing, not by aiming high.",
+    "None of this requires discipline in the moment, which is the point. You are designing a system that produces the outcome discipline would have produced, without needing you to be at your best every single day.",
+    "Start with one automatic transfer, however small. The amount matters far less than establishing that money moves without a decision."
+   ]
+  },
+  {
+   "id": "fl-save-2",
+   "title": "Compound Interest: The Only Free Lunch",
+   "body": [
+    "Simple interest pays you on what you put in. Compound interest pays you on what you put in *and* on the interest you already earned, so the balance grows on its own growth. Over a year the difference is dull. Over decades it stops being dull and becomes the entire story.",
+    "Two consequences follow, and they point in opposite directions.",
+    "The first is that time matters more than amount. A modest sum invested in your twenties routinely beats a much larger sum started in your forties, because the early money has more years to compound. This is genuinely the strongest argument in personal finance for starting before you feel ready, with an amount that feels too small to matter.",
+    "The second is that compounding is neutral about direction. Run it against you — on credit-card debt, on a high-interest loan — and it grows the amount you owe with exactly the same relentlessness. The same mechanism that makes early saving powerful makes carried debt expensive. This is why the credit strand comes next.",
+    "Go and use a calculator on this rather than trusting the prose. Put in a small monthly amount, a plausible rate, and a forty-year horizon, and then halve the horizon and look at what happens. The gap between those two numbers is the reason this lesson exists."
+   ]
+  },
+  {
+   "id": "fl-save-3",
+   "title": "Investing: Risk, Diversification and Time Horizon",
+   "body": [
+    "Saving protects money. Investing puts it to work and accepts the possibility of loss in exchange for the possibility of growth. Both are correct in the right place, and the thing that decides which is right is not your personality — it is your time horizon. Money you need in two years should not be exposed to markets that routinely fall for two years. Money you will not touch for thirty can be.",
+    "Investments differ in what you actually own. A share makes you a part-owner of a business, so you get its growth and its risk. A bond makes you a lender, so you get interest and the risk the borrower fails. A fund is a bundle of many of these at once, which is the practical way most people diversify.",
+    "Diversification is the one genuinely free improvement available. Spreading across many holdings removes the risk specific to any single company without reducing your expected return in the same proportion. It cannot protect you from a whole market falling — nothing can — but it removes the risk of being ruined by one bad choice.",
+    "Two costs decide more outcomes than stock-picking does. Fees compound against you exactly as returns compound for you, so a fraction of a percent per year is not trivial over decades. And taxes differ by account type; retirement accounts exist precisely to change that maths in your favour.",
+    "**This is education, not advice.** Nothing here recommends a specific investment for your situation. When the decision is large, the right move is a professional with a duty to act in your interest — and asking directly how they are paid."
+   ]
+  },
+  {
+   "id": "fl-credit-1",
+   "title": "What Borrowing Actually Costs",
+   "body": [
+    "Borrowing means using money now and returning more than you took. The extra is the price of time, and it is set by three things: the interest rate, how long you take, and how much you borrowed.",
+    "The trap is that lenders advertise the monthly payment, because the monthly payment is the number that can be made to look comfortable. Stretch a loan from three years to six and the monthly figure drops dramatically — while the total you pay rises, sometimes enormously, because you are renting the money for twice as long. A borrower comparing only monthly payments will reliably choose the more expensive loan and feel good about it.",
+    "So learn to ask for one number: total cost. Multiply the payment by the number of payments, subtract the amount borrowed, and you have the price of the loan in currency rather than percentages. Then compare that figure against what the thing is worth to you.",
+    "Two structural facts are worth memorising. On long loans, early payments are mostly interest and barely reduce the debt — which is why paying extra early is disproportionately powerful. And credit-card debt is different in kind, not degree: rates are high, compounding is relentless, and minimum payments are designed to keep the balance alive for years. Treat a carried card balance as the most urgent financial problem you have."
+   ]
+  },
+  {
+   "id": "fl-credit-2",
+   "title": "Credit Reports and Scores, Demystified",
+   "body": [
+    "Somewhere there is a file about how you have handled borrowed money. Credit-reporting agencies collect it, lenders report into it, and a score is calculated from it to summarise how reliably you repay. Understanding this file is not optional, because it quietly prices your housing, your loans, sometimes your insurance and occasionally your job.",
+    "The file contains your accounts, balances and limits, whether payments arrived on time, public records like bankruptcies, and a list of who has enquired. It does not contain your income, your savings or your character, which is why a high earner can have a poor score and a modest earner can have an excellent one.",
+    "What moves the number, in rough order of weight: paying on time, which dominates everything else; how much of your available credit you are using, where lower is better; how long your accounts have existed; and how recently you have applied for new credit. Notice that the two biggest levers are behavioural and free — pay on time, keep balances low relative to limits.",
+    "Two practical duties. Check your reports regularly, because errors are common and every study finds them; you are entitled to them at no cost. And if something is wrong, dispute it in writing with the agency — the process exists and it works, but only for people who use it."
+   ]
+  },
+  {
+   "id": "fl-risk-1",
+   "title": "How Insurance Actually Works",
+   "body": [
+    "Insurance is frequently taught as a list of products, which makes it boring and hard to reason about. The underlying idea is simpler and much more useful: many people each pay a small, certain amount so that the few who suffer a large, uncertain loss are made whole. You are buying the removal of a catastrophe you could not absorb.",
+    "That single idea answers most practical questions. Insure the things that would be ruinous — your ability to earn, your health, your home, harm you might cause others. Do not insure things you could comfortably replace, because for small losses you are simply paying the pool's running costs for no real transfer of risk. Extended warranties on inexpensive electronics are the classic example.",
+    "Two dials control the price. The deductible or excess is what you pay before cover begins; raising it lowers your premium and is sensible exactly when you have savings to cover it. The coverage limit is the most the policy will pay; setting it too low to save a little premium defeats the purpose of buying the policy at all.",
+    "Read one thing before you sign: the exclusions. That section tells you what is *not* covered, and it is where people discover, at the worst moment, that they bought something other than what they assumed."
+   ]
+  },
+  {
+   "id": "fl-risk-2",
+   "title": "Fraud, Scams and Your Identity",
+   "body": [
+    "Scams look endlessly various and are structurally almost identical. Nearly all of them combine three ingredients: manufactured urgency, an appeal to authority or affection, and a payment method that cannot be reversed.",
+    "Urgency exists to prevent thought — your account will be closed, the offer expires, the warrant is being issued. Authority or affection supplies trust: a tax office, a bank, a grandchild in trouble, a romance conducted entirely at a distance. And the payment demand is the tell that settles it, because legitimate institutions do not ask for gift cards, wire transfers to individuals, or cryptocurrency. Those methods are requested precisely because the money cannot be clawed back.",
+    "The defence is a rule rather than a judgement, since scams are engineered to defeat judgement under pressure: never act on an inbound contact. Hang up, close the message, and reach the organisation yourself using a number or address you already had. A real institution will be entirely happy to be called back. A scammer will fight hard to keep you on the line — that resistance is itself the confirmation.",
+    "Identity theft is the version where someone uses your details rather than your attention. Freeze your credit files if you are not actively borrowing; it is free and blocks most new-account fraud outright. And if it happens, there is an official recovery process with a step-by-step plan — use it rather than improvising."
+   ]
+  },
+  {
+   "id": "fl-biz-1",
+   "title": "How a Business Makes Money",
+   "body": [
+    "A business earns revenue when customers pay it, incurs costs producing what they paid for, and keeps the difference as profit. That sentence is the whole of the subject; everything else is precision about the words.",
+    "Costs split in a way that governs almost every decision. Variable costs rise with each unit you sell — materials, payment fees, the ingredients of the meal. Fixed costs continue whether you sell anything or not — rent, subscriptions, insurance. Revenue minus variable costs gives gross profit, and gross profit is what must eventually cover the fixed costs. The sales level where it exactly covers them is your break-even point, and knowing that single number tells you more about a young business than almost any other figure.",
+    "Here is the part that surprises people: profit and cash are not the same thing, and businesses die of the difference. You can sell profitably in June, be paid in September, and still be unable to pay your own bills in July. Profit is a measure of performance over a period; cash is whether money is in the account today. A business with good margins and bad timing fails just as completely as an unprofitable one.",
+    "So the discipline is to track both. Ask what each sale actually contributes after its own costs, and separately ask when the money arrives relative to when it must go out."
+   ]
+  },
+  {
+   "id": "fl-biz-2",
+   "title": "Keeping the Books",
+   "body": [
+    "Accounting is the language a business uses to describe itself, and like any language it is far easier to learn by speaking it about something you care about — which is why this lesson is done inside your own venture rather than on a textbook company.",
+    "Start with the chart of accounts: a named list of the buckets every transaction falls into — categories of income, of expense, of things you own, of things you owe. Sort transactions into consistent buckets and useful statements assemble themselves. Sort them inconsistently and no amount of later analysis will rescue the picture.",
+    "Two statements matter first. The income statement, or P&L, covers a period and answers \"did we make money?\" — revenue, minus cost of goods, minus expenses, equals profit. The balance sheet is a snapshot of one instant and answers \"what do we own and owe?\" — assets on one side, liabilities and owner's equity on the other, always in balance. The P&L is the film; the balance sheet is the photograph.",
+    "Double-entry is the technique underneath: every transaction touches at least two accounts, so the books must balance. It has survived since the fifteenth century because it catches errors structurally — if the sides disagree, something is wrong, and you know before the mistake compounds.",
+    "One rule outranks technique: never mix personal and business money. Separate accounts from day one. Commingled funds make books unreliable, taxes painful, and — for a company structured to limit your liability — can put that protection itself at risk."
+   ]
+  },
+  {
+   "id": "fl-biz-3",
+   "title": "Unit Economics and the Cost of Capital",
+   "body": [
+    "A business can grow enthusiastically toward its own destruction if each additional customer loses money. Unit economics is the discipline that prevents this by asking a deliberately narrow question: for one customer, what did we spend to acquire them, and what will they pay us over the whole relationship?",
+    "The first figure is customer acquisition cost — total sales and marketing spend divided by customers gained. The second is lifetime value — what a customer's purchases contribute after variable costs, across the time they stay. Compare them. If lifetime value does not comfortably exceed acquisition cost, growth makes the problem larger, faster. Practitioners often want that ratio around three to one, with the acquisition cost repaid within roughly a year, so growth funds itself rather than requiring endless outside money.",
+    "Then there is capital from outside, which is never free. Debt costs interest and must be repaid on a schedule regardless of how trading goes. Equity costs ownership — permanently, and including the share of everything the business ever becomes. Investors also demand a higher return than lenders, because they are paid last if things go badly. A blended figure for what a business's money costs is its cost of capital, and its use is simple: a project worth doing must return more than the money costs. Otherwise you are working to enrich your financiers.",
+    "The trap in raising money is confusing the amount with the price. Ten percent of a small company today may cost far more than it appears once the company is large — and dilution is permanent in a way that a repaid loan is not."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "money-school.fl-earn-1.q1",
+   "lessonId": "fl-earn-1",
+   "kind": "mcq",
+   "prompt": "Which source of income does NOT stop when you stop working?",
+   "choices": [
+    "A paycheque from a part-time job",
+    "Wages",
+    "Self-employment earnings",
+    "Rent from property you own"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-1.q2",
+   "lessonId": "fl-earn-1",
+   "kind": "mcq",
+   "prompt": "Support from family or a public unemployment programme is an example of which income door?",
+   "choices": [
+    "Ownership",
+    "Self-employment",
+    "Transfers",
+    "Wages"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-1.q3",
+   "lessonId": "fl-earn-1",
+   "kind": "mcq",
+   "prompt": "Maya earns $2,000 a month from her job and $50 a month in interest on savings. Which statement is correct?",
+   "choices": [
+    "The $50 is self-employment income",
+    "The $2,000 is wages and the $50 is ownership income",
+    "Both amounts are wages",
+    "The $2,000 is a transfer"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-1.q4",
+   "lessonId": "fl-earn-1",
+   "kind": "mcq",
+   "prompt": "Why does the lesson suggest asking \"which door did that money come through?\" when you hear about someone's wealth?",
+   "choices": [
+    "Because naming the door makes confident claims about wealth clearer and sometimes less impressive",
+    "Because wages are never worth discussing",
+    "Because the door determines how much tax is owed",
+    "Because only ownership income is respectable"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-2.q1",
+   "lessonId": "fl-earn-2",
+   "kind": "mcq",
+   "prompt": "What is net pay?",
+   "choices": [
+    "What reaches you after deductions are taken out",
+    "What you earned before deductions",
+    "Your employer's total cost of hiring you",
+    "Only your bonus pay"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-2.q2",
+   "lessonId": "fl-earn-2",
+   "kind": "tf",
+   "prompt": "True or false: An employer match on a retirement contribution is described as an immediate, guaranteed return on money you set aside.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-2.q3",
+   "lessonId": "fl-earn-2",
+   "kind": "mcq",
+   "prompt": "A worker has gross pay of $2,000 and net pay of $1,600. What percentage of gross actually reached the worker?",
+   "choices": [
+    "70%",
+    "60%",
+    "80%",
+    "75%"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-2.q4",
+   "lessonId": "fl-earn-2",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say you should check your own payslip for errors?",
+   "choices": [
+    "Errors only matter at tax filing time",
+    "Payslips are always wrong in the employer's favour",
+    "Employers are legally required to hide deductions",
+    "Payroll errors are common and rarely corrected unless someone notices, and you are best placed to notice"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-3.q1",
+   "lessonId": "fl-earn-3",
+   "kind": "mcq",
+   "prompt": "What is opportunity cost in the context of education?",
+   "choices": [
+    "The price of textbooks",
+    "The income you did not earn during the years you studied",
+    "The tuition fee charged",
+    "The interest on a student loan"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-3.q2",
+   "lessonId": "fl-earn-3",
+   "kind": "mcq",
+   "prompt": "Which outcome does the lesson call the worst in the education calculation?",
+   "choices": [
+    "Unfinished study with debt attached",
+    "Finishing a long degree",
+    "Studying in a low-paying field with no debt",
+    "Choosing an apprenticeship"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-3.q3",
+   "lessonId": "fl-earn-3",
+   "kind": "mcq",
+   "prompt": "A programme costs $20,000 in total (tuition plus lost income) and raises earnings by $5,000 a year. What is the payback period?",
+   "choices": [
+    "2 years",
+    "10 years",
+    "5 years",
+    "4 years"
+   ]
+  },
+  {
+   "id": "money-school.fl-earn-3.q4",
+   "lessonId": "fl-earn-3",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say \"is education worth it?\" is the wrong question to ask?",
+   "choices": [
+    "Because only the field matters, not the price",
+    "Because the answer is always yes",
+    "Because it asked so broadly has no answer; you must evaluate a specific programme, price, completion rate and career",
+    "Because education is never worth the cost"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-1.q1",
+   "lessonId": "fl-spend-1",
+   "kind": "mcq",
+   "prompt": "According to the lesson, what is the more useful question than \"is this a need?\"",
+   "choices": [
+    "Can I borrow the money?",
+    "Is this on sale?",
+    "Does everyone else have one?",
+    "What is the cheapest version that still does the job, and how much am I paying above that line?"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-1.q2",
+   "lessonId": "fl-spend-1",
+   "kind": "tf",
+   "prompt": "True or false: The lesson says you are not allowed to pay above the cheapest-version line.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-1.q3",
+   "lessonId": "fl-spend-1",
+   "kind": "mcq",
+   "prompt": "Sam spends $240 a month on lunches out. The cheapest version that does the job (packed lunches) would cost $90. How large is the gap?",
+   "choices": [
+    "$240",
+    "$150",
+    "$330",
+    "$90"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-1.q4",
+   "lessonId": "fl-spend-1",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say the two-column needs/wants budget often collapses in the second week?",
+   "choices": [
+    "Because almost everything is a spectrum, so rigid columns do not match reality",
+    "Because people forget to write it down",
+    "Because wants are always cheaper than needs",
+    "Because budgets are illegal to break"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-2.q1",
+   "lessonId": "fl-spend-2",
+   "kind": "mcq",
+   "prompt": "How does the lesson suggest handling irregular yearly expenses such as annual insurance?",
+   "choices": [
+    "Total the yearly costs, divide by twelve, and treat that as a monthly line",
+    "Ignore them until the bill arrives",
+    "Cut them from the budget",
+    "Put them on a credit card"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-2.q2",
+   "lessonId": "fl-spend-2",
+   "kind": "mcq",
+   "prompt": "When should saving happen in a durable budget, according to the lesson?",
+   "choices": [
+    "At the end of the month with whatever is left",
+    "First, treated like a bill, before the flexible pool",
+    "Only when income rises",
+    "After the flexible pool is spent"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-2.q3",
+   "lessonId": "fl-spend-2",
+   "kind": "mcq",
+   "prompt": "Your annual car insurance is $600 and your annual registration is $180. How much should you set aside each month for these two irregular costs?",
+   "choices": [
+    "$60",
+    "$78",
+    "$65",
+    "$50"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-2.q4",
+   "lessonId": "fl-spend-2",
+   "kind": "mcq",
+   "prompt": "Why does the lesson prefer five or six budget categories over nineteen?",
+   "choices": [
+    "Fewer categories always save more money",
+    "Categories do not matter at all",
+    "More categories are illegal",
+    "A system that is too detailed is one nobody keeps up for six months"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-3.q1",
+   "lessonId": "fl-spend-3",
+   "kind": "mcq",
+   "prompt": "Which two decisions does the lesson say dwarf small optimisations like switching suppliers or cutting subscriptions?",
+   "choices": [
+    "Clothes and entertainment",
+    "Where you live and how you travel",
+    "Gifts and holidays",
+    "Phone plan and groceries"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-3.q2",
+   "lessonId": "fl-spend-3",
+   "kind": "mcq",
+   "prompt": "What does the lesson call the biggest and most invisible cost of owning a vehicle?",
+   "choices": [
+    "Depreciation",
+    "Insurance",
+    "Fuel",
+    "Tyres"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-3.q3",
+   "lessonId": "fl-spend-3",
+   "kind": "mcq",
+   "prompt": "Using the one-third rule of thumb, what is the most you would aim to spend on housing with take-home pay of $3,600 a month?",
+   "choices": [
+    "$1,000",
+    "$1,800",
+    "$900",
+    "$1,200"
+   ]
+  },
+  {
+   "id": "money-school.fl-spend-3.q4",
+   "lessonId": "fl-spend-3",
+   "kind": "mcq",
+   "prompt": "Why do sellers quote a monthly payment rather than a total cost?",
+   "choices": [
+    "A longer term always lowers the total",
+    "Total cost is impossible to calculate",
+    "The monthly number can be made to look small by stretching the term, even though the total paid rises",
+    "Monthly payments are legally required"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-1.q1",
+   "lessonId": "fl-save-1",
+   "kind": "mcq",
+   "prompt": "According to the lesson, what works better than willpower for saving?",
+   "choices": [
+    "Waiting until you have a large sum",
+    "Checking your balance daily",
+    "Structure such as automatic transfers on the day income arrives",
+    "Telling friends your goals"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-1.q2",
+   "lessonId": "fl-save-1",
+   "kind": "tf",
+   "prompt": "True or false: The lesson recommends keeping savings in the same account that is attached to your everyday card.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-1.q3",
+   "lessonId": "fl-save-1",
+   "kind": "mcq",
+   "prompt": "Priya wants to save but keeps spending what is left in her main account. Which change best matches the lesson?",
+   "choices": [
+    "Set an automatic transfer of $50 to a separate account on payday",
+    "Check her balance every night",
+    "Try harder to resist spending",
+    "Wait until she earns more"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-1.q4",
+   "lessonId": "fl-save-1",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say to make the first savings goal small enough to reach?",
+   "choices": [
+    "Large goals are illegal",
+    "The habit is built by finishing, not by aiming high",
+    "Small amounts are free of tax",
+    "Small goals earn more interest"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-2.q1",
+   "lessonId": "fl-save-2",
+   "kind": "mcq",
+   "prompt": "What distinguishes compound interest from simple interest?",
+   "choices": [
+    "It only applies to loans",
+    "It pays on your deposit and on the interest already earned",
+    "It is paid only once",
+    "It is always a higher rate"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-2.q2",
+   "lessonId": "fl-save-2",
+   "kind": "mcq",
+   "prompt": "According to the lesson, which matters more for compounding: time or amount?",
+   "choices": [
+    "Time",
+    "Amount",
+    "Neither matters",
+    "They matter equally"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-2.q3",
+   "lessonId": "fl-save-2",
+   "kind": "mcq",
+   "prompt": "You put $1,000 in an account paying 5% compound interest per year. About how much do you have after 2 years?",
+   "choices": [
+    "$1,125.00",
+    "$1,050.00",
+    "$1,100.00",
+    "$1,102.50"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-2.q4",
+   "lessonId": "fl-save-2",
+   "kind": "mcq",
+   "prompt": "What does the lesson mean by saying compounding is \"neutral about direction\"?",
+   "choices": [
+    "It stops after forty years",
+    "It has no effect on loans",
+    "It also grows what you owe on credit-card debt with the same relentlessness",
+    "It only works when markets rise"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-3.q1",
+   "lessonId": "fl-save-3",
+   "kind": "mcq",
+   "prompt": "What makes you a lender rather than a part-owner of a business?",
+   "choices": [
+    "Buying a bond",
+    "Buying a fund of shares only",
+    "Opening a savings envelope",
+    "Buying a share"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-3.q2",
+   "lessonId": "fl-save-3",
+   "kind": "mcq",
+   "prompt": "According to the lesson, what decides whether money should be saved or exposed to market risk?",
+   "choices": [
+    "The current news",
+    "Your time horizon",
+    "Your age alone",
+    "Your personality"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-3.q3",
+   "lessonId": "fl-save-3",
+   "kind": "mcq",
+   "prompt": "Jordan needs a house deposit in two years and has $10,000. Which approach fits the lesson best?",
+   "choices": [
+    "Invest in only one company he likes",
+    "Spend it now",
+    "Keep it in a low-risk place, since markets can fall for two years",
+    "Put it all in a single volatile stock"
+   ]
+  },
+  {
+   "id": "money-school.fl-save-3.q4",
+   "lessonId": "fl-save-3",
+   "kind": "mcq",
+   "prompt": "What can diversification NOT do, according to the lesson?",
+   "choices": [
+    "Reduce the risk of being ruined by one bad choice",
+    "Be achieved through a fund",
+    "Remove the risk specific to a single company",
+    "Protect you from a whole market falling"
+   ]
+  },
+  {
+   "id": "money-school.fl-credit-1.q1",
+   "lessonId": "fl-credit-1",
+   "kind": "mcq",
+   "prompt": "Which three things set the price of borrowing?",
+   "choices": [
+    "Lender name, colour and branch",
+    "Credit score, age and income only",
+    "Interest rate, term and amount borrowed",
+    "Monthly payment, weather and fees"
+   ]
+  },
+  {
+   "id": "money-school.fl-credit-1.q2",
+   "lessonId": "fl-credit-1",
+   "kind": "tf",
+   "prompt": "True or false: On long loans, early payments are mostly interest and barely reduce the debt.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "money-school.fl-credit-1.q3",
+   "lessonId": "fl-credit-1",
+   "kind": "mcq",
+   "prompt": "A $6,000 loan is repaid at $200 a month for 36 months. What is the total cost of the loan (the extra paid beyond the amount borrowed)?",
+   "choices": [
+    "$1,200",
+    "$600",
+    "$1,800",
+    "$7,200"
+   ]
+  },
+  {
+   "id": "money-school.fl-credit-1.q4",
+   "lessonId": "fl-credit-1",
+   "kind": "mcq",
+   "prompt": "Why would a borrower who compares only monthly payments tend to choose the more expensive loan?",
+   "choices": [
+    "Shorter loans always cost more in total",
+    "Longer terms lower the monthly payment but raise the total paid",
+    "Lenders hide the monthly payment",
+    "Monthly payments include no interest"
+   ]
+  },
+  {
+   "id": "money-school.fl-credit-2.q1",
+   "lessonId": "fl-credit-2",
+   "kind": "mcq",
+   "prompt": "Which of these is NOT contained in a credit report, according to the lesson?",
+   "choices": [
+    "Whether payments arrived on time",
+    "Your income and savings",
+    "Public records such as bankruptcies",
+    "Account balances and limits"
+   ]
+  },
+  {
+   "id": "money-school.fl-credit-2.q2",
+   "lessonId": "fl-credit-2",
+   "kind": "mcq",
+   "prompt": "Which factor does the lesson say dominates everything else in a credit score?",
+   "choices": [
+    "Paying on time",
+    "Account age",
+    "Number of enquiries",
+    "Your employer"
+   ]
+  },
+  {
+   "id": "money-school.fl-credit-2.q3",
+   "lessonId": "fl-credit-2",
+   "kind": "mcq",
+   "prompt": "Leo has a $5,000 credit limit and a $4,000 balance. Which action would most directly improve the part of his score about how much available credit he uses?",
+   "choices": [
+    "Opening three new cards at once",
+    "Missing one payment",
+    "Closing his oldest account",
+    "Paying the balance down to $1,000"
+   ]
+  },
+  {
+   "id": "money-school.fl-credit-2.q4",
+   "lessonId": "fl-credit-2",
+   "kind": "mcq",
+   "prompt": "Why can a high earner have a poor credit score?",
+   "choices": [
+    "Scores only count savings",
+    "Income is the main factor in a score",
+    "The score reflects repayment behaviour, not income",
+    "High earners are penalised"
+   ]
+  },
+  {
+   "id": "money-school.fl-risk-1.q1",
+   "lessonId": "fl-risk-1",
+   "kind": "mcq",
+   "prompt": "What is the core idea of insurance in the lesson?",
+   "choices": [
+    "Many people pay a small certain amount so the few who suffer a large loss are made whole",
+    "You buy a product that returns your money",
+    "It guarantees you never suffer a loss",
+    "The insurer invests your premium for you"
+   ]
+  },
+  {
+   "id": "money-school.fl-risk-1.q2",
+   "lessonId": "fl-risk-1",
+   "kind": "mcq",
+   "prompt": "What does raising your deductible (excess) normally do?",
+   "choices": [
+    "Raises your premium",
+    "Lowers your premium",
+    "Raises the coverage limit",
+    "Removes exclusions"
+   ]
+  },
+  {
+   "id": "money-school.fl-risk-1.q3",
+   "lessonId": "fl-risk-1",
+   "kind": "mcq",
+   "prompt": "Which purchase is the lesson most likely to say is NOT worth insuring?",
+   "choices": [
+    "Your ability to earn",
+    "Your home",
+    "An extended warranty on an inexpensive gadget you could easily replace",
+    "Harm you might cause others"
+   ]
+  },
+  {
+   "id": "money-school.fl-risk-1.q4",
+   "lessonId": "fl-risk-1",
+   "kind": "mcq",
+   "prompt": "Why does the lesson tell you to read the exclusions before signing?",
+   "choices": [
+    "They list the premiums",
+    "They are the only legally binding part",
+    "They are always the shortest section",
+    "They show what is not covered, which people otherwise discover at the worst moment"
+   ]
+  },
+  {
+   "id": "money-school.fl-risk-2.q1",
+   "lessonId": "fl-risk-2",
+   "kind": "mcq",
+   "prompt": "Which three ingredients do nearly all scams combine, according to the lesson?",
+   "choices": [
+    "Spelling errors, odd logos and cold calls",
+    "Interest, fees and penalties",
+    "Low prices, free gifts and long contracts",
+    "Manufactured urgency, an appeal to authority or affection, and an irreversible payment method"
+   ]
+  },
+  {
+   "id": "money-school.fl-risk-2.q2",
+   "lessonId": "fl-risk-2",
+   "kind": "mcq",
+   "prompt": "Which payment demand does the lesson call the tell that settles it is a scam?",
+   "choices": [
+    "A cheque in the post",
+    "A credit card payment",
+    "Gift cards, wire transfers to individuals or cryptocurrency",
+    "A bank transfer to a company"
+   ]
+  },
+  {
+   "id": "money-school.fl-risk-2.q3",
+   "lessonId": "fl-risk-2",
+   "kind": "mcq",
+   "prompt": "A caller says they are from your bank, that your account will close in an hour, and asks you to read out a code. What should you do?",
+   "choices": [
+    "Send a small test payment",
+    "Hang up and contact the bank yourself using a number you already had",
+    "Read the code to keep the account open",
+    "Ask the caller for their phone number and call it back"
+   ]
+  },
+  {
+   "id": "money-school.fl-risk-2.q4",
+   "lessonId": "fl-risk-2",
+   "kind": "mcq",
+   "prompt": "Why does the lesson give a rule rather than rely on judgement to defeat scams?",
+   "choices": [
+    "Because scams are engineered to defeat judgement under pressure",
+    "Because scams never use pressure",
+    "Because rules are easier to forget",
+    "Because judgement is always wrong"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-1.q1",
+   "lessonId": "fl-biz-1",
+   "kind": "mcq",
+   "prompt": "Which of these is a fixed cost?",
+   "choices": [
+    "Monthly rent",
+    "Materials for each unit",
+    "Ingredients for each meal sold",
+    "Payment fees per sale"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-1.q2",
+   "lessonId": "fl-biz-1",
+   "kind": "tf",
+   "prompt": "True or false: Profit and cash are the same thing.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-1.q3",
+   "lessonId": "fl-biz-1",
+   "kind": "mcq",
+   "prompt": "A cafe sells each coffee for $4 with $1 of variable cost, and has $3,000 of fixed costs a month. How many coffees must it sell to break even?",
+   "choices": [
+    "1,500",
+    "3,000",
+    "1,000",
+    "750"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-1.q4",
+   "lessonId": "fl-biz-1",
+   "kind": "mcq",
+   "prompt": "How can a business with good margins still fail?",
+   "choices": [
+    "Profit is always too small",
+    "Customers pay too early",
+    "Fixed costs disappear",
+    "Bad timing: it can be paid in September but owe bills in July"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-2.q1",
+   "lessonId": "fl-biz-2",
+   "kind": "mcq",
+   "prompt": "Which statement is a snapshot of one instant, showing what a business owns and owes?",
+   "choices": [
+    "The chart of accounts",
+    "The payslip",
+    "The income statement",
+    "The balance sheet"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-2.q2",
+   "lessonId": "fl-biz-2",
+   "kind": "mcq",
+   "prompt": "What does double-entry bookkeeping require of every transaction?",
+   "choices": [
+    "It is recorded twice in the same account",
+    "It is approved by two people",
+    "It touches at least two accounts so the books balance",
+    "It is paid in two instalments"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-2.q3",
+   "lessonId": "fl-biz-2",
+   "kind": "mcq",
+   "prompt": "A business has revenue of $10,000, cost of goods of $4,000 and expenses of $3,000. What is its profit on the income statement?",
+   "choices": [
+    "$4,000",
+    "$3,000",
+    "$6,000",
+    "$7,000"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-2.q4",
+   "lessonId": "fl-biz-2",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say you should never mix personal and business money?",
+   "choices": [
+    "It makes books unreliable and taxes painful, and can risk liability protection",
+    "It lowers your credit score directly",
+    "It is always taxed twice",
+    "It is required by double entry"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-3.q1",
+   "lessonId": "fl-biz-3",
+   "kind": "mcq",
+   "prompt": "How is customer acquisition cost calculated in the lesson?",
+   "choices": [
+    "Fixed costs divided by units",
+    "Lifetime value divided by years",
+    "Total sales and marketing spend divided by customers gained",
+    "Revenue divided by profit"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-3.q2",
+   "lessonId": "fl-biz-3",
+   "kind": "mcq",
+   "prompt": "What does equity cost a business owner, as described in the lesson?",
+   "choices": [
+    "Nothing",
+    "A one-time fee",
+    "Interest on a schedule",
+    "A permanent share of ownership"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-3.q3",
+   "lessonId": "fl-biz-3",
+   "kind": "mcq",
+   "prompt": "A business spends $3,000 on marketing and gains 50 customers. Each customer has a lifetime value of $180. What is the lifetime value to acquisition cost ratio?",
+   "choices": [
+    "3 to 1",
+    "0.33 to 1",
+    "1.5 to 1",
+    "6 to 1"
+   ]
+  },
+  {
+   "id": "money-school.fl-biz-3.q4",
+   "lessonId": "fl-biz-3",
+   "kind": "mcq",
+   "prompt": "Why can growth make a business worse if lifetime value does not exceed acquisition cost?",
+   "choices": [
+    "Investors stop charging interest",
+    "Each new customer loses money, so growth makes the problem larger, faster",
+    "Growth lowers variable costs",
+    "Customers always leave immediately"
+   ]
+  }
+ ]
+}

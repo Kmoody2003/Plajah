@@ -1,0 +1,1623 @@
+{
+ "courseId": "med-biochem-genetics",
+ "label": "Biochemistry and Medical Genetics",
+ "lessons": [
+  {
+   "id": "med-biochem-genetics.l01",
+   "title": "Enzymes and Kinetics",
+   "body": [
+    "Enzymes are catalysts, usually proteins, that speed a reaction by lowering its activation energy. They do not change the equilibrium or the free energy difference between substrate and product, and they are not consumed. Many need a cofactor (a metal ion) or a coenzyme (an organic molecule, often derived from a vitamin) to work. A catalytically inactive protein lacking its cofactor is an apoenzyme; with the cofactor in place it is a holoenzyme.",
+    "For a simple enzyme, the Michaelis-Menten equation describes how the reaction velocity v depends on substrate concentration [S]: v = Vmax[S] / (Km + [S]). Vmax is the velocity when every enzyme molecule is saturated, and it is proportional to the total enzyme concentration. Km is the substrate concentration at which velocity is half of Vmax, and it is an inverse index of apparent affinity: a low Km means the enzyme reaches half-saturation at a low substrate level. On a Lineweaver-Burk (double reciprocal) plot of 1/v against 1/[S], the y-intercept is 1/Vmax, the x-intercept is -1/Km and the slope is Km/Vmax.",
+    "Inhibitors are classified by how they change those parameters. A competitive inhibitor resembles the substrate and binds the active site, so it can be overcome by raising [S]: Vmax is unchanged and apparent Km rises, and the Lineweaver-Burk lines cross on the y-axis. A noncompetitive inhibitor binds a different site on either the free enzyme or the enzyme-substrate complex, so raising [S] cannot overcome it: Vmax falls and Km is unchanged, and the lines cross on the x-axis. An uncompetitive inhibitor binds only the enzyme-substrate complex and lowers both Vmax and Km, giving parallel lines. Irreversible inhibitors, such as aspirin acetylating cyclooxygenase, behave like a loss of active enzyme and lower Vmax.",
+    "Regulatory enzymes often do not follow hyperbolic kinetics. Allosteric enzymes show a sigmoidal velocity curve because of cooperativity: substrate binding at one subunit raises the affinity of the others. Regulation also occurs by covalent modification (phosphorylation by kinases and removal by phosphatases), by feedback inhibition from the end product of a pathway, by induction or repression of enzyme synthesis, and by proteolytic cleavage of inactive zymogens such as trypsinogen or the clotting factors.",
+    "A worked clinical example is methanol or ethylene glycol poisoning. Alcohol dehydrogenase converts these into toxic products (formic acid or glycolic and oxalic acids). Ethanol, which is a preferred substrate, and fomepizole, an inhibitor of the enzyme, slow production of the toxic metabolites so that the parent compound can be excreted or removed by dialysis. A common trap is to say that a competitive inhibitor lowers Vmax; it only appears to when substrate is not raised high enough to outcompete it."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l02",
+   "title": "Glycolysis, the TCA Cycle and Oxidative Phosphorylation",
+   "body": [
+    "Glycolysis converts one glucose into two pyruvate in the cytosol, with a net gain of 2 ATP and 2 NADH under anaerobic or aerobic conditions. Its irreversible, regulated steps are hexokinase or glucokinase (glucose to glucose-6-phosphate), phosphofructokinase-1 (fructose-6-phosphate to fructose-1,6-bisphosphate) and pyruvate kinase. PFK-1 is the rate-limiting step: it is activated by AMP and by fructose-2,6-bisphosphate and inhibited by ATP and citrate. Hexokinase has a low Km and is inhibited by its product, whereas hepatic glucokinase has a high Km and is induced by insulin, so the liver takes up glucose mainly when blood levels are high. Red cells have no mitochondria and depend wholly on glycolysis. Pyruvate kinase deficiency therefore causes haemolytic anaemia, because the cells cannot make enough ATP to maintain their membranes.",
+    "Without oxygen, pyruvate is reduced to lactate by lactate dehydrogenase, regenerating the NAD+ that glycolysis needs. With oxygen, pyruvate enters mitochondria and is decarboxylated by the pyruvate dehydrogenase complex to acetyl-CoA. This complex needs five cofactors derived from vitamins: thiamine pyrophosphate, lipoic acid, CoA (pantothenate), FAD (riboflavin) and NAD+ (niacin). Deficiency of the complex, or thiamine deficiency, causes pyruvate and lactate to accumulate, with lactic acidosis and neurologic injury. Arsenic inhibits lipoic acid and produces a similar picture.",
+    "The tricarboxylic acid cycle oxidises acetyl-CoA to two CO2 per turn and produces 3 NADH, 1 FADH2 and 1 GTP (or ATP). Its key regulated enzymes are citrate synthase, isocitrate dehydrogenase (the main control point, activated by ADP and inhibited by ATP and NADH) and alpha-ketoglutarate dehydrogenase, which resembles the pyruvate dehydrogenase complex in its cofactors.",
+    "Electrons from NADH and FADH2 pass down the electron transport chain (complexes I to IV), pumping protons that return through ATP synthase (complex V) to make ATP. Inhibitors act at defined sites: rotenone at complex I, antimycin A at complex III, cyanide and carbon monoxide at complex IV, and oligomycin at ATP synthase. Uncouplers such as 2,4-dinitrophenol and the thermogenin of brown fat dissipate the proton gradient, so oxygen consumption continues while ATP synthesis falls and heat is released.",
+    "Worked example: a patient with poisoning by cyanide has high oxygen content in venous blood because tissues cannot use it, shifts to anaerobic metabolism and develops lactic acidosis. A frequent confusion is to treat an inhibitor of ATP synthase as an uncoupler. Oligomycin stops respiration because the gradient cannot be discharged; an uncoupler increases respiration while ATP production falls."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l03",
+   "title": "Gluconeogenesis, Glycogen and Glycogen Storage Diseases",
+   "body": [
+    "Gluconeogenesis makes glucose from non-carbohydrate precursors (lactate, glycerol, glucogenic amino acids, and propionyl-CoA-derived carbons) in the liver and, in prolonged fasting, the kidney. It bypasses the three irreversible glycolytic steps with four enzymes. Pyruvate carboxylase, a biotin-requiring mitochondrial enzyme activated by acetyl-CoA, converts pyruvate to oxaloacetate. PEP carboxykinase converts oxaloacetate to phosphoenolpyruvate. Fructose-1,6-bisphosphatase converts fructose-1,6-bisphosphate to fructose-6-phosphate and is inhibited by fructose-2,6-bisphosphate and AMP. Glucose-6-phosphatase, found in the endoplasmic reticulum of liver and kidney, releases free glucose. Muscle lacks glucose-6-phosphatase, so it cannot export glucose to the blood. Fatty acids cannot be converted to net glucose in humans, because acetyl-CoA carbons are lost as CO2 in the cycle.",
+    "Glycogen is a branched glucose polymer stored mainly in liver (to maintain blood glucose) and muscle (for local energy). Glycogen synthase adds glucose from UDP-glucose onto a primer built by glycogenin, with branching enzyme creating alpha-1,6 branches. Glycogen phosphorylase, with pyridoxal phosphate as a cofactor, removes glucose-1-phosphate from non-reducing ends, and the debranching enzyme handles branch points. Hormones act through covalent modification: glucagon (liver) and epinephrine raise cAMP and activate protein kinase A, which phosphorylates and activates phosphorylase kinase and phosphorylase while inactivating glycogen synthase. Insulin favours the dephosphorylated state, which activates synthase. In muscle, calcium and AMP also activate breakdown during contraction.",
+    "Glycogen storage diseases are inherited enzyme defects, mostly autosomal recessive. Type I (von Gierke) is glucose-6-phosphatase deficiency: severe fasting hypoglycaemia, hepatomegaly, lactic acidosis, hyperuricaemia, hypertriglyceridaemia and growth failure, with a doll-like face. Because gluconeogenesis cannot finish, lactate, uric acid and lipids rise, and the liver stores normal glycogen. Type II (Pompe) is acid alpha-glucosidase deficiency in lysosomes: cardiomegaly, hypotonia and early death in the infantile form, with no hypoglycaemia. Type III (Cori or Forbes) is debranching enzyme deficiency with hypoglycaemia and hepatomegaly but a normal lactate and uric acid, and abnormal short-branched glycogen. Type V (McArdle) is muscle phosphorylase deficiency: exercise intolerance, cramps, myoglobinuria and no rise in lactate with ischaemic exercise, while blood glucose stays normal.",
+    "Worked example: a 6-month-old has hepatomegaly, a seizure after a missed feed, and raised lactate and uric acid. Glucagon given while fasting fails to raise glucose because the liver cannot release free glucose from glucose-6-phosphate. Do not confuse type I with type III: the debranching defect still permits gluconeogenesis, so lactate stays normal."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l04",
+   "title": "Pentose Phosphate Pathway, Fructose and Galactose",
+   "body": [
+    "The pentose phosphate pathway runs in the cytosol of liver, adipose tissue, adrenal cortex, lactating mammary gland and red cells. Its oxidative phase converts glucose-6-phosphate to ribulose-5-phosphate, producing two NADPH per glucose; its rate-limiting enzyme is glucose-6-phosphate dehydrogenase (G6PD), induced by insulin and inhibited by NADPH. The non-oxidative phase, using transketolase (which needs thiamine) and transaldolase, interconverts sugars and supplies ribose-5-phosphate for nucleotides. NADPH is the reducing power for fatty acid and steroid synthesis, for the respiratory burst of phagocytes via NADPH oxidase, and for keeping glutathione reduced, which protects red cells from oxidant damage.",
+    "G6PD deficiency is X-linked recessive and the most common enzyme deficiency causing haemolysis. Without NADPH, glutathione cannot be regenerated, so haemoglobin oxidises and precipitates as Heinz bodies; splenic macrophages then remove cells with 'bite' defects. Haemolysis is episodic, triggered by oxidant stress: infection, fava beans, and drugs such as primaquine, dapsone and nitrofurantoin. G6PD deficiency in the African-American form is milder than the Mediterranean form, and carrier status of the deficiency is thought to offer some protection against malaria. Defects in NADPH oxidase cause chronic granulomatous disease: recurrent infections with catalase-positive organisms such as Staphylococcus aureus, and a negative dihydrorhodamine or nitroblue tetrazolium test.",
+    "Fructose is metabolised mainly in the liver, bypassing the PFK-1 control point. Fructokinase converts it to fructose-1-phosphate, and aldolase B cleaves this to dihydroxyacetone phosphate and glyceraldehyde. Essential fructosuria, a benign fructokinase deficiency, causes only fructose in the urine. Hereditary fructose intolerance is aldolase B deficiency: after the first exposure to fructose, sucrose or sorbitol (typically at weaning), infants develop vomiting, hypoglycaemia and liver injury, because fructose-1-phosphate accumulates and traps phosphate, which inhibits glycogenolysis and gluconeogenesis. Treatment is strict avoidance of the sugars.",
+    "Galactose is converted to glucose-1-phosphate. Galactokinase deficiency causes mostly cataracts, because galactitol forms in the lens through aldose reductase. Classic galactosemia is galactose-1-phosphate uridyltransferase (GALT) deficiency: after milk feeds an infant develops jaundice, hepatomegaly, hypoglycaemia, cataracts and E. coli sepsis risk, with intellectual disability if untreated. Management is removal of galactose from the diet. Sorbitol, formed from glucose by aldose reductase, explains why tissues with this enzyme but little sorbitol dehydrogenase (lens, retina, Schwann cells) are damaged when sugar alcohols accumulate, a mechanism shared with diabetic cataract and neuropathy. A worked contrast: a neonate with jaundice and cataracts who has vomiting after breast milk needs GALT testing, but one with only cataracts and no systemic signs suggests galactokinase deficiency."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l05",
+   "title": "Fatty Acid Synthesis, Oxidation and Ketone Bodies",
+   "body": [
+    "Fatty acid synthesis occurs in the cytosol, mainly in liver, adipose tissue and lactating breast, in the fed state. Acetyl-CoA made in mitochondria cannot cross the inner membrane, so it leaves as citrate, which is cleaved by ATP citrate lyase in the cytosol. The rate-limiting enzyme is acetyl-CoA carboxylase, which needs biotin, is activated by insulin and citrate, and is inhibited by glucagon, epinephrine (through phosphorylation) and long-chain fatty acyl-CoA. Fatty acid synthase then builds palmitate, using NADPH from the pentose phosphate pathway and malic enzyme. Humans cannot insert double bonds beyond carbon 9, so linoleic and alpha-linolenic acids are essential.",
+    "Fatty acid oxidation occurs in mitochondria in the fasting state and in tissues such as muscle and heart. Long-chain fatty acids are activated to acyl-CoA in the cytosol and carried inward by the carnitine shuttle. Carnitine palmitoyltransferase I (CPT-I) on the outer membrane is the rate-limiting step and is inhibited by malonyl-CoA, the first intermediate of synthesis, which prevents futile cycling. Each round of beta-oxidation removes two carbons as acetyl-CoA and generates FADH2 and NADH. Short- to medium-chain fatty acids need no carnitine. Very-long-chain fatty acids are first shortened in peroxisomes, and defects cause conditions such as Zellweger syndrome and X-linked adrenoleukodystrophy.",
+    "In prolonged fasting the liver cannot oxidise all acetyl-CoA through the TCA cycle, because oxaloacetate is diverted to gluconeogenesis. Acetyl-CoA is instead condensed by HMG-CoA synthase (the rate-limiting step of ketogenesis in the mitochondria) into acetoacetate and 3-hydroxybutyrate, which the brain, muscle and heart oxidise. The liver cannot use ketones because it lacks the thiophorase (succinyl-CoA:acetoacetate CoA transferase). In diabetic ketoacidosis, ketone production rises with insulin deficiency; the nitroprusside reaction detects acetoacetate but not 3-hydroxybutyrate.",
+    "Medium-chain acyl-CoA dehydrogenase (MCAD) deficiency is the most common fatty acid oxidation defect and is autosomal recessive. A child who fasts through an illness develops vomiting, lethargy and hypoglycaemia with low ketones (hypoketotic hypoglycaemia), because glucose is consumed while fat cannot be oxidised for fuel; urine shows dicarboxylic and medium-chain acylglycines. Management is avoiding fasting and giving carbohydrate. Primary carnitine deficiency causes hypoketotic hypoglycaemia, cardiomyopathy and weakness, and treatment is carnitine supplementation.",
+    "Odd-chain fatty acids and some amino acids form propionyl-CoA, which is converted to succinyl-CoA by propionyl-CoA carboxylase (biotin) and methylmalonyl-CoA mutase (adenosylcobalamin). Methylmalonic acidaemia from a mutase defect or from vitamin B12 deficiency leads to metabolic acidosis and neurologic injury. A common trap is to expect high ketones with every fasting hypoglycaemia; a fatty acid oxidation defect, or hyperinsulinism, gives low ketones."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l06",
+   "title": "Lipoproteins, Cholesterol and Lysosomal Storage Diseases",
+   "body": [
+    "Lipids travel in plasma inside lipoproteins whose protein components, the apolipoproteins, direct their fate. Chylomicrons carry dietary triglyceride from the intestine, built on apoB-48. After release into lymph they acquire apoC-II and apoE from HDL; apoC-II activates lipoprotein lipase on capillary endothelium, which hydrolyses triglyceride, and the remnants are cleared by the liver through apoE. VLDL carries endogenous triglyceride from the liver on apoB-100 and becomes IDL and then LDL as lipase removes triglyceride. LDL delivers cholesterol to cells through the LDL receptor, which recognises apoB-100 and apoE. HDL is made by the liver and intestine from apoA-I, picks up cholesterol from tissues, and uses lecithin-cholesterol acyltransferase (LCAT, activated by apoA-I) to esterify it.",
+    "The rate-limiting step of cholesterol synthesis is HMG-CoA reductase, which statins inhibit. Statins lower intracellular cholesterol, which increases LDL receptor expression and clears LDL. Familial hypercholesterolaemia (type IIa) is most often a defect in the LDL receptor, an autosomal dominant condition causing elevated LDL, tendon xanthomas (Achilles tendon), corneal arcus and premature coronary disease. Lipoprotein lipase or apoC-II deficiency (type I) causes chylomicronaemia with milky plasma, eruptive xanthomas, lipaemia retinalis and pancreatitis; treatment is a very low fat diet. Abetalipoproteinaemia, a defect in microsomal triglyceride transfer protein, prevents apoB-containing lipoprotein assembly and produces fat malabsorption, acanthocytes and deficiency of fat-soluble vitamins.",
+    "Lysosomal storage diseases result from deficient acid hydrolases, so the substrate accumulates inside lysosomes. Most are autosomal recessive; Fabry and Hunter are X-linked recessive. Tay-Sachs disease (hexosaminidase A, GM2 ganglioside) causes neurodegeneration, a cherry-red macular spot, and a startle response, but no hepatosplenomegaly. Niemann-Pick disease (sphingomyelinase) shows foamy macrophages, a cherry-red spot and hepatosplenomegaly. Gaucher disease (glucocerebrosidase) produces macrophages with a crumpled-tissue appearance, hepatosplenomegaly, anaemia and bone pain, and can be treated with enzyme replacement. Fabry disease (alpha-galactosidase A) causes burning pain in the extremities, angiokeratomas and renal and cardiac disease. Krabbe disease (galactocerebrosidase) produces globoid cells and demyelination. Metachromatic leukodystrophy is arylsulfatase A deficiency. The mucopolysaccharidoses: Hurler (alpha-L-iduronidase) features corneal clouding, while Hunter (iduronate sulfatase) has none and is X-linked. In I-cell disease, a failure to add mannose-6-phosphate to lysosomal enzymes causes them to be secreted, leaving lysosomes empty.",
+    "Worked example: an infant who stops smiling, startles to sound, and has a cherry-red spot with no enlarged liver is much more likely to have Tay-Sachs disease than Niemann-Pick disease. The organomegaly is the discriminating feature."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l07",
+   "title": "Amino Acid Metabolism and Its Inborn Errors",
+   "body": [
+    "Amino acid nitrogen is collected by transamination: aminotransferases (ALT and AST, with pyridoxal phosphate) move amino groups onto alpha-ketoglutarate to form glutamate. Glutamate is deaminated by glutamate dehydrogenase in the liver, releasing ammonia. Ammonia is toxic to the brain, and is carried in blood as glutamine (from muscle, via glutamine synthetase) and as alanine (the glucose-alanine cycle). The liver converts ammonia to urea through the urea cycle. Carbamoyl phosphate synthetase I (mitochondrial; activated by N-acetylglutamate) makes carbamoyl phosphate, ornithine transcarbamylase (OTC) combines it with ornithine to give citrulline, then argininosuccinate synthetase and lyase and arginase complete the cycle in the cytosol.",
+    "Urea cycle defects cause hyperammonaemia, with vomiting, lethargy, seizures and cerebral oedema soon after protein feeding begins. OTC deficiency is the most common and is X-linked recessive; the others are autosomal recessive. Because carbamoyl phosphate accumulates in OTC deficiency and spills into the pyrimidine pathway, urinary orotic acid is high, whereas in CPS-I deficiency orotic acid is low. Acute therapy includes stopping protein intake, giving nitrogen scavengers (sodium benzoate and phenylacetate) and arginine, and dialysis in severe cases. Liver disease also raises ammonia, and lactulose lowers it by trapping ammonium in the gut.",
+    "Phenylketonuria (PKU) is usually phenylalanine hydroxylase deficiency (autosomal recessive), more rarely a defect in the tetrahydrobiopterin cofactor. Tyrosine becomes essential, and phenylalanine builds up and is shunted to phenylketones, giving a mousy odour, intellectual disability, seizures, fair skin and eczema if untreated. Newborn screening allows a low-phenylalanine diet that prevents the harm. Pregnant women with PKU must restrict phenylalanine to protect the fetus (maternal PKU causes microcephaly and congenital heart disease). Tetrahydrobiopterin defects also impair dopamine and serotonin synthesis and are not fully corrected by diet alone.",
+    "Maple syrup urine disease is a defect in branched-chain alpha-ketoacid dehydrogenase (which needs the same cofactors as pyruvate dehydrogenase, including thiamine); leucine, isoleucine and valine accumulate, causing a sweet-smelling urine, poor feeding, encephalopathy and acidosis. Alkaptonuria is homogentisate oxidase deficiency: dark urine on standing, ochronosis of cartilage and arthropathy. Homocystinuria is most often cystathionine synthase deficiency (pyridoxine responsive in some), with ectopia lentis (down and in), thrombosis, intellectual disability and a marfanoid habitus. Cystinuria is a defect of the renal transporter for cystine, ornithine, lysine and arginine (COLA) causing cystine stones, and the urine cyanide-nitroprusside test is positive. Albinism involves tyrosinase deficiency or defective melanin transport, and Hartnup disease a neutral amino acid transporter defect with pellagra-like features, because tryptophan is poorly absorbed.",
+    "Worked example: a newborn that is healthy for two days, then lethargic and tachypnoeic with ammonia 800 micromol/L and normal blood glucose most likely has a urea cycle defect. A key distinction is orotic acid: high suggests OTC deficiency, low suggests CPS-I deficiency."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l08",
+   "title": "Nucleotide Metabolism, Gout and Immunodeficiency",
+   "body": [
+    "Purines (adenine, guanine) are built de novo on a ribose-phosphate scaffold starting from phosphoribosyl pyrophosphate (PRPP), made by PRPP synthetase. The committed step is glutamine-PRPP amidotransferase, which is inhibited by the end products IMP, AMP and GMP. Glycine, aspartate, glutamine, tetrahydrofolate-carried one-carbon units and CO2 supply the atoms. Pyrimidines (cytosine, thymine, uracil) are built differently: the ring is assembled first from carbamoyl phosphate, made in the cytosol by carbamoyl phosphate synthetase II (activated by PRPP and inhibited by UTP), and aspartate, then attached to ribose. Ribonucleotide reductase converts ribonucleotides to deoxyribonucleotides and is inhibited by hydroxyurea. Thymidylate synthase makes dTMP from dUMP using methylene-tetrahydrofolate, and it is inhibited by 5-fluorouracil; dihydrofolate reductase is inhibited by methotrexate and trimethoprim.",
+    "Salvage pathways recycle preformed bases. Hypoxanthine-guanine phosphoribosyltransferase (HGPRT) returns hypoxanthine and guanine to IMP and GMP using PRPP. Purine degradation ends at uric acid by the action of xanthine oxidase, which converts hypoxanthine to xanthine and xanthine to uric acid. Gout results from hyperuricaemia, either from overproduction or (more often) underexcretion, and from monosodium urate crystal deposition in joints, producing acute, very painful arthritis (often the first metatarsophalangeal joint) with needle-shaped, negatively birefringent crystals under polarised light. Allopurinol and febuxostat inhibit xanthine oxidase; colchicine and NSAIDs treat attacks. Pegloticase degrades uric acid. Low-dose aspirin, diuretics and lactic acid compete for tubular secretion and can promote gout.",
+    "Lesch-Nyhan syndrome is X-linked recessive HGPRT deficiency. Without salvage, PRPP is abundant, de novo synthesis runs unchecked and uric acid is overproduced. Boys develop hyperuricaemia, gouty arthritis and nephrolithiasis, dystonia, intellectual disability and self-mutilating behaviour. Adenosine deaminase (ADA) deficiency, autosomal recessive, causes a form of severe combined immunodeficiency because accumulating deoxyadenosine is toxic to lymphocytes through ribonucleotide reductase inhibition; treatments include enzyme replacement and gene therapy. Purine nucleoside phosphorylase deficiency has a milder T-cell predominance. Orotic aciduria is a defect in UMP synthase (the bifunctional enzyme that makes UMP from orotic acid): megaloblastic anaemia unresponsive to folate or B12, with growth delay and orotic acid crystals in urine, and no hyperammonaemia; treatment is uridine.",
+    "Worked example: a 4-year-old boy with dystonia who bites his lips and has uric acid crystals in the diaper has Lesch-Nyhan syndrome. Allopurinol corrects the urate but not the neurologic features. A frequent trap is to confuse orotic aciduria with OTC deficiency. Both raise urinary orotic acid, but the OTC patient has hyperammonaemia and no megaloblastosis."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l09",
+   "title": "The Fed State, Fasting and Starvation",
+   "body": [
+    "In the fed state, rising blood glucose triggers insulin secretion from pancreatic beta cells, which sense glucose through GLUT2 and glucokinase. Insulin activates a receptor tyrosine kinase and promotes anabolism: glucose uptake into muscle and adipose tissue through GLUT4 (which is recruited to the membrane by insulin), glycogen synthesis, glycolysis, fatty acid and triglyceride synthesis, and protein synthesis, while inhibiting lipolysis, glycogenolysis, gluconeogenesis and ketogenesis. The other transporters are insulin-independent: GLUT1 in red cells and the blood-brain barrier, GLUT3 in neurons, GLUT2 in liver, kidney and beta cells (a high-capacity, low-affinity carrier), and GLUT5 for fructose in the intestine. SGLT1 and SGLT2 are sodium-linked transporters in gut and kidney.",
+    "In the fasting state insulin falls and glucagon (from alpha cells) rises, along with epinephrine, cortisol and growth hormone. In the first several hours the liver releases glucose from glycogenolysis. After roughly 12 to 24 hours liver glycogen is largely depleted and gluconeogenesis becomes the main source of glucose, using lactate (the Cori cycle), glycerol from adipose triglyceride, and amino acids from muscle protein, notably alanine. Adipose tissue releases fatty acids via hormone-sensitive lipase (activated by catecholamines and inhibited by insulin), and the liver oxidises them to supply energy for gluconeogenesis and begins ketogenesis.",
+    "In prolonged starvation (days to weeks), ketone bodies rise to meaningful concentrations, and the brain, which cannot use fatty acids directly, adapts to take up ketones for a large part of its energy. This reduces the demand for glucose and so spares muscle protein from degradation. Eventually fat stores are exhausted, protein breakdown accelerates, and death results from loss of essential function. Blood glucose is defended within a narrow range through all of this, with ketone bodies at higher levels accompanied by a mild metabolic acidosis.",
+    "Worked example: a person who has fasted for 3 days will have low insulin, high glucagon, high free fatty acids and ketones, and a glucose near the lower normal limit. In contrast, a person with type 1 diabetes and no insulin has similarly raised ketones but hyperglycaemia, because the liver continues gluconeogenesis and tissues cannot take up glucose. A frequent trap is to say that the brain stops using glucose in starvation; its glucose use falls, but it does not reach zero. Red cells always require glucose, because they have no mitochondria."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l10",
+   "title": "Ethanol Metabolism and Diabetic Metabolic Crises",
+   "body": [
+    "Ethanol is oxidised in the liver mainly by cytosolic alcohol dehydrogenase (ADH) to acetaldehyde, and then by mitochondrial aldehyde dehydrogenase (ALDH2) to acetate. Each step reduces NAD+ to NADH. ADH has zero-order kinetics at usual intakes, because it is saturated, so ethanol is cleared at a roughly constant rate. A second route, the microsomal ethanol oxidising system (CYP2E1), is induced by chronic drinking and consumes NADPH, which is why chronic drinkers metabolise ethanol and some drugs faster.",
+    "The central consequence is a high NADH to NAD+ ratio in the liver, which pushes several reactions the wrong way. Pyruvate is converted to lactate, which causes lactic acidosis and also reduces its availability for gluconeogenesis. Oxaloacetate is reduced to malate and cannot support the TCA cycle or gluconeogenesis. Dihydroxyacetone phosphate is reduced to glycerol-3-phosphate, which supports triglyceride synthesis, and the NADH slows fatty acid oxidation, so triglyceride builds up as fatty liver (steatosis). The combined block on gluconeogenesis in a person with depleted glycogen leads to fasting hypoglycaemia, typically in a malnourished drinker. Excess acetyl-CoA can also drive ketone production, producing alcoholic ketoacidosis. Some East Asian populations carry an inactive ALDH2 variant, so acetaldehyde accumulates and causes flushing, tachycardia and nausea after drinking. Disulfiram inhibits ALDH to produce the same reaction as a deterrent.",
+    "Diabetic ketoacidosis arises with absolute or severe insulin lack, usually type 1 diabetes, often at presentation or with infection. Without insulin, adipose lipolysis runs unchecked, the liver oxidises the fatty acids and generates large amounts of acetoacetate and 3-hydroxybutyrate (an anion-gap metabolic acidosis), and gluconeogenesis pushes glucose high, with osmotic diuresis, dehydration and potassium shifts out of cells; total body potassium is depleted even when serum potassium appears high. Hyperosmolar hyperglycaemic state occurs mostly in type 2 diabetes, where residual insulin suppresses ketogenesis but not hyperglycaemia. Insulin excess, by contrast, produces hypoglycaemia with high insulin and, from an insulinoma, high C-peptide; exogenous insulin raises insulin but suppresses C-peptide.",
+    "Methanol and ethylene glycol compete for the same enzyme, which is why ethanol and fomepizole are used as antidotes, and why the ensuing acidosis in these poisonings has an elevated anion gap (and, for ethylene glycol, calcium oxalate crystals in the urine). Worked example: a malnourished man after a binge presents with confusion, glucose 40 mg/dL, lactate elevated and high anion gap. NADH excess blocks gluconeogenesis and creates the lactate. Giving thiamine before glucose protects him from precipitating Wernicke encephalopathy."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l11",
+   "title": "Water-Soluble Vitamins",
+   "body": [
+    "Thiamine (B1) is converted to thiamine pyrophosphate, the coenzyme of pyruvate dehydrogenase, alpha-ketoglutarate dehydrogenase, branched-chain ketoacid dehydrogenase and transketolase. Deficiency produces beriberi (dry, with peripheral neuropathy; wet, with high-output heart failure) and Wernicke-Korsakoff syndrome in alcohol use disorder (confusion, ataxia, ophthalmoplegia, then confabulation and amnesia). A raised red cell transketolase activity response to added TPP confirms it. Riboflavin (B2) forms FAD and FMN, and deficiency causes cheilosis, angular stomatitis and glossitis. Niacin (B3) forms NAD+ and NADP+, and can be made from tryptophan with the help of B6. Deficiency causes pellagra: dermatitis (sun-exposed skin), diarrhoea and dementia, and also occurs in Hartnup disease and carcinoid syndrome (tryptophan diverted to serotonin) and with isoniazid. Pantothenate (B5) is part of coenzyme A.",
+    "Pyridoxine (B6) as pyridoxal phosphate is the coenzyme for transamination, decarboxylation (including synthesis of neurotransmitters such as dopamine and GABA), glycogen phosphorylase, cystathionine synthase and heme synthesis (ALA synthase). Deficiency, classically from isoniazid, causes peripheral neuropathy, seizures and sideroblastic anaemia. Biotin (B7) is the carboxylase cofactor for pyruvate carboxylase, acetyl-CoA carboxylase and propionyl-CoA carboxylase; deficiency is rare but follows long intake of raw egg whites, which contain avidin, and causes dermatitis and alopecia.",
+    "Folate (B9) as tetrahydrofolate carries one-carbon units for purine synthesis and for dTMP, and for conversion of homocysteine to methionine. Deficiency causes megaloblastic anaemia with macro-ovalocytes and hypersegmented neutrophils, with elevated homocysteine but normal methylmalonic acid, and in pregnancy it raises the risk of neural tube defects. Cobalamin (B12) is needed for methionine synthase (which uses methyl-THF, so B12 lack traps folate as the methyl form, the 'methyl trap') and for methylmalonyl-CoA mutase. It is absorbed bound to intrinsic factor from parietal cells in the terminal ileum. Deficiency (pernicious anaemia, an autoimmune loss of intrinsic factor; ileal resection; Diphyllobothrium latum; strict vegan diet) also causes megaloblastic anaemia but adds subacute combined degeneration of the dorsal columns and lateral corticospinal tracts, and both homocysteine and methylmalonic acid are raised. Giving folate alone corrects the anaemia but not the neurologic damage, so the two deficiencies must be told apart.",
+    "Vitamin C (ascorbate) is a cofactor for prolyl and lysyl hydroxylases in collagen synthesis and for dopamine beta-hydroxylase, and it aids iron absorption by reducing Fe3+. Deficiency causes scurvy: bleeding gums, perifollicular haemorrhage, corkscrew hairs, poor wound healing and subperiosteal bleeding in children. Worked example: an older man living alone on tea and toast has swollen bleeding gums and perifollicular petechiae; the cause is a defect in collagen cross-linking from lack of hydroxylation, not a defect in platelets or clotting factors."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l12",
+   "title": "Fat-Soluble Vitamins, Minerals and Malnutrition",
+   "body": [
+    "The fat-soluble vitamins A, D, E and K are absorbed with dietary fat in micelles, so fat malabsorption (cystic fibrosis, cholestasis, abetalipoproteinaemia, orlistat) can deplete all four. Vitamin A (retinol) is converted to retinal, the chromophore of rhodopsin, and to retinoic acid, which regulates gene transcription for epithelial differentiation. Deficiency causes night blindness (nyctalopia), xerophthalmia with Bitot spots and keratomalacia, immune impairment and follicular hyperkeratosis; it is a leading cause of preventable childhood blindness worldwide. Excess causes headache, hepatotoxicity and, importantly, teratogenicity, so high-dose retinoids such as isotretinoin are contraindicated in pregnancy.",
+    "Vitamin D from skin (cholecalciferol after UVB light) or diet is hydroxylated in the liver to 25-hydroxyvitamin D, the storage form measured clinically, and in the kidney by 1-alpha-hydroxylase (stimulated by parathyroid hormone and low phosphate) to calcitriol. Calcitriol raises intestinal absorption of calcium and phosphate and supports bone mineralisation. Deficiency causes rickets in children (bowed legs, widened growth plates, rachitic rosary) and osteomalacia in adults. In chronic kidney disease loss of 1-alpha-hydroxylase produces secondary hyperparathyroidism. Granulomas (sarcoidosis) can overproduce calcitriol and cause hypercalcaemia.",
+    "Vitamin E (tocopherol) is a lipid-soluble antioxidant that protects membranes from lipid peroxidation. Deficiency causes haemolytic anaemia (especially in premature infants), and spinocerebellar degeneration with posterior column loss, ataxia and areflexia, as seen in abetalipoproteinaemia. Vitamin K carboxylates glutamate residues of clotting factors II, VII, IX and X and of proteins C and S, so that they can bind calcium and phospholipid. Deficiency produces a bleeding tendency with prolonged prothrombin time (and later partial thromboplastin time). Newborns are at risk of haemorrhagic disease because the gut is sterile and breast milk is low in K, so prophylaxis is given at birth. Warfarin blocks vitamin K epoxide reductase, which is why its effect can be reversed by vitamin K or by factor concentrates.",
+    "Zinc deficiency causes poor wound healing, hypogeusia, diarrhoea and a perioral and acral dermatitis (acrodermatitis enteropathica). Iodine deficiency causes goitre and, in utero, cretinism. Protein-energy malnutrition has two classical forms. Kwashiorkor is protein deficiency with adequate or near-adequate calories: low albumin leads to oedema, with a protuberant abdomen from ascites and a fatty liver because apolipoprotein synthesis is impaired, along with skin lesions and hair changes. Marasmus is overall calorie deficiency with wasting of muscle and fat and no oedema. Worked example: a 2-year-old from a household where the diet is mainly cassava, with pitting oedema, a swollen abdomen and hepatomegaly, has kwashiorkor."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l13",
+   "title": "DNA Replication and Repair",
+   "body": [
+    "DNA replication is semiconservative: each daughter duplex contains one parental and one new strand. It starts at origins of replication (a single origin in bacteria, many in eukaryotes, in S phase). Helicase unwinds the duplex, single-strand binding proteins keep the strands apart, and topoisomerases relieve the torsional strain ahead of the fork (topoisomerase II in bacteria is DNA gyrase, the target of fluoroquinolones; human topoisomerases are targeted by etoposide and irinotecan). Primase makes a short RNA primer, because DNA polymerases cannot begin a chain de novo. DNA polymerases add nucleotides only to a 3'-OH, so synthesis proceeds 5' to 3'. The leading strand is made continuously and the lagging strand in discontinuous Okazaki fragments, which are joined by DNA ligase after the RNA primers are replaced. In bacteria, DNA polymerase III is the main replicative enzyme, with 3' to 5' exonuclease proofreading, and DNA polymerase I removes primers by its 5' to 3' exonuclease activity and fills the gap. In eukaryotes, polymerase alpha-primase starts the chains while delta and epsilon extend the lagging and leading strands.",
+    "Because the lagging strand cannot be primed at the very end, chromosome ends would shorten with each division. Telomerase, a ribonucleoprotein reverse transcriptase that carries its own RNA template, adds TTAGGG repeats. It is active in germ cells, stem cells and most cancer cells, and absent in most somatic cells, which therefore undergo replicative senescence.",
+    "Repair systems match the type of damage. Nucleotide excision repair removes bulky lesions such as UV-induced pyrimidine dimers by excising a short stretch of one strand; its defect causes xeroderma pigmentosum, with extreme UV sensitivity and skin cancers. Base excision repair uses a glycosylase to remove a damaged base (for example deaminated cytosine becoming uracil), then AP endonuclease, polymerase and ligase to restore the site. Mismatch repair corrects errors that escape proofreading, using the new strand as the template; its defect (mutations of MSH2, MLH1, MSH6, PMS2) causes Lynch syndrome (hereditary nonpolyposis colorectal cancer) with microsatellite instability. Double-strand breaks are repaired by homologous recombination (which needs BRCA1 and BRCA2, and is high fidelity) or by non-homologous end joining (error-prone). Ataxia-telangiectasia (ATM, a checkpoint kinase) and Fanconi anaemia (interstrand crosslink repair) are further instability syndromes.",
+    "Worked example: a child who develops severe sunburn after minimal exposure and early skin tumours has a defect in excising pyrimidine dimers. A frequent trap is to pair Lynch syndrome with polyposis; Lynch lacks hundreds of polyps, and the defect is in correcting replication errors, which generates instability at microsatellites."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l14",
+   "title": "Transcription and RNA Processing",
+   "body": [
+    "Transcription copies one strand of DNA into RNA. RNA polymerase reads the template strand 3' to 5' and builds the RNA 5' to 3', with no need for a primer and little proofreading. In prokaryotes a single polymerase uses a sigma factor to find the promoter; rifampin blocks the bacterial polymerase. In eukaryotes there are three: RNA polymerase I makes most ribosomal RNA, RNA polymerase II makes mRNA and some small nuclear RNAs and microRNAs, and RNA polymerase III makes tRNA and 5S rRNA. Alpha-amanitin, the toxin of Amanita phalloides (death cap mushroom), inhibits polymerase II, causing severe hepatocellular injury.",
+    "Polymerase II is directed by promoter elements, such as the TATA box about 25 bases upstream of the start site, and by enhancers and silencers that can lie far away. General transcription factors assemble a pre-initiation complex, and specific transcription factors bind enhancers. Mutations in promoters, for instance in the beta-globin promoter, lower expression and are a mechanism of some beta-thalassaemias.",
+    "The primary transcript (hnRNA) is processed in the nucleus. A 7-methylguanosine cap is added at the 5' end, which is needed for ribosome binding and stability. A poly-A tail of about 200 residues is added at the 3' end after cleavage at the AAUAAA signal. Introns are removed and exons joined by the spliceosome, a complex of small nuclear ribonucleoproteins (snRNPs) which recognise a GU at the 5' splice site and an AG at the 3' splice site, and a branch-point adenine. Antibodies against snRNP proteins (anti-Smith) are specific for systemic lupus erythematosus, and anti-U1 RNP antibodies are found in mixed connective tissue disease. Alternative splicing allows a single gene to give several proteins, which is a major reason the human proteome is larger than the gene count. Splice-site mutations may cause exon skipping or retention of an intron, and are a common cause of beta-thalassaemia. Prokaryotic mRNA is polycistronic and translated as it is transcribed, whereas eukaryotic mRNA is monocistronic and exported after processing.",
+    "Mature mRNA also contains untranslated regions with regulatory sequences, and RNA stability is influenced by deadenylation and by microRNAs. Worked example: a patient with beta-thalassaemia intermedia who carries a mutation that creates a new cryptic splice site in an intron produces abnormal mRNA with retained intronic sequence, so little functional beta-globin is made even though the coding exons are intact. A common trap is to put the cap and tail on the DNA; both are added to the RNA after transcription begins and at its end."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l15",
+   "title": "The Genetic Code, Translation and Mutations",
+   "body": [
+    "The genetic code is triplet, nonoverlapping, degenerate (most amino acids have more than one codon, with variation usually at the third position, the wobble position), unambiguous (each codon specifies one amino acid) and nearly universal. AUG codes for methionine and is the start codon; UAA, UAG and UGA are stop codons that are recognised by release factors, not by tRNA. Each tRNA is charged with its amino acid by an aminoacyl-tRNA synthetase, which is the step that ensures fidelity, since the ribosome checks only codon-anticodon pairing and not the amino acid carried.",
+    "In eukaryotes initiation begins when the 40S subunit with initiator methionyl-tRNA scans the mRNA from the 5' cap to the first AUG and the 60S subunit joins to form the 80S ribosome. The ribosome has three tRNA sites: A (aminoacyl, accepts the incoming tRNA), P (peptidyl, holds the growing chain) and E (exit). Elongation cycles through codon recognition at the A site (with elongation factors using GTP), peptide bond formation by the peptidyl transferase activity of the large subunit rRNA (a ribozyme), and translocation. Termination occurs when a stop codon enters the A site. Prokaryotic ribosomes are 70S (30S plus 50S), which is why many antibiotics are selective: aminoglycosides and tetracyclines act on the 30S subunit (aminoglycosides cause misreading and need oxygen for uptake, so they are ineffective against anaerobes), while macrolides, clindamycin, chloramphenicol and linezolid act on the 50S subunit. Chloramphenicol blocks peptidyl transferase, and macrolides block translocation. Diphtheria toxin and Pseudomonas exotoxin A inactivate eukaryotic elongation factor 2.",
+    "Point mutations alter one base. A silent mutation changes a codon to a synonymous codon and the protein is unchanged. A missense mutation changes the amino acid, as in sickle cell disease, where a GAG to GTG change replaces glutamate with valine at position 6 of beta-globin; a conservative missense replaces a similar amino acid and may be harmless. A nonsense mutation creates a premature stop codon, truncating the protein. Frameshift mutations (insertions or deletions that are not a multiple of three) alter every downstream codon, usually leading to premature termination. Mutations in splice sites, promoters and untranslated regions can also be pathogenic. Nonsense-mediated decay degrades mRNAs with premature stop codons, so the truncated protein is often absent altogether.",
+    "After translation, proteins are folded with the help of chaperones, may be cleaved, glycosylated, phosphorylated or hydroxylated, and are directed by signal sequences (secretory proteins enter the rough endoplasmic reticulum). Misfolded proteins are tagged by ubiquitin for the proteasome. Worked example: a patient with a mutation changing a glutamine codon CAG to UAG at codon 200 makes a truncated protein, which indicates a nonsense mutation, while the same patient with CAA would have a silent change."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l16",
+   "title": "Regulation of Gene Expression and Epigenetics",
+   "body": [
+    "In bacteria, genes with related function are grouped in operons under one promoter. The lac operon encodes the enzymes for lactose use. Its repressor binds the operator and blocks transcription. Allolactose, an isomer of lactose, binds the repressor and releases it, allowing transcription. The operon also needs positive control: when glucose is low, cyclic AMP rises and the catabolite activator protein (CAP) binds and strongly stimulates transcription. Thus the operon is maximally expressed only when lactose is present and glucose is absent. A repressor that cannot bind the operator (an operator or repressor mutation) leads to constitutive expression, while a repressor that cannot bind allolactose gives permanent repression.",
+    "Eukaryotic regulation is more elaborate. DNA is wrapped around histone octamers (two each of H2A, H2B, H3 and H4) to form nucleosomes, linked by H1. Tightly packed heterochromatin is transcriptionally silent, and loosely packed euchromatin is active. Histone acetylation by acetyltransferases neutralises positive charge and opens chromatin, and histone deacetylases (inhibited by drugs such as vorinostat) reverse this. Methylation of cytosine in CpG dinucleotides, carried out by DNA methyltransferases, silences promoters and is inherited through cell division; CpG islands are frequently near gene promoters, and abnormal hypermethylation of tumour suppressor promoters (for instance MLH1) is a common event in cancer. Transcription factors bind enhancers and promoters through domains such as zinc fingers, leucine zippers and helix-turn-helix motifs, and steroid hormone receptors act as ligand-activated transcription factors.",
+    "Some silencing is chromosome-wide. In X inactivation, one X chromosome in each female somatic cell is randomly inactivated early in embryogenesis by the long non-coding RNA XIST, forming a Barr body; because the choice is random and then clonally inherited, females heterozygous for X-linked mutations are mosaics. Genomic imprinting silences one parental allele through methylation, so only the maternal or the paternal copy is expressed, with consequences for disorders such as Prader-Willi and Angelman syndromes covered later in the course. Non-coding RNAs also regulate expression: microRNAs and small interfering RNAs are loaded onto the RISC complex and bind complementary mRNA to block translation or trigger degradation (RNA interference).",
+    "Worked example: a colon tumour in which the MLH1 promoter is hypermethylated has no mutation in the gene, but still shows loss of mismatch repair and microsatellite instability, because epigenetic silencing removes the protein just as a mutation would. A common trap is to treat epigenetic marks as changes in the DNA sequence; they alter expression without changing the sequence, though they can be heritable through cell division and sometimes between generations."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l17",
+   "title": "Molecular Techniques in the Clinical Laboratory",
+   "body": [
+    "The polymerase chain reaction (PCR) amplifies a chosen DNA segment exponentially through repeated cycles of denaturation (heating to separate strands), annealing of primers that flank the target, and extension by a heat-stable polymerase (Taq). It needs prior sequence knowledge to design primers, and very small amounts of template. Reverse transcriptase PCR first converts RNA to cDNA and so measures expression; quantitative (real-time) PCR monitors amplification as it happens and is used to count viral load (for example HIV and hepatitis C) and to detect minimal residual disease.",
+    "Blotting techniques separate molecules by gel electrophoresis, transfer them to a membrane and detect them with a labelled probe. A mnemonic is that Southern detects DNA, Northern detects RNA and Western detects protein with antibodies; the Southern is named after its inventor, and the others are puns on it. Southern blotting detects large deletions, rearrangements and, historically, repeat expansions. ELISA uses antibodies linked to an enzyme and colour change to detect antigen or antibody in solution. Restriction enzymes cut DNA at specific palindromic sequences, and variation in fragment lengths (RFLP) was used for linkage and fingerprinting before sequencing became cheap.",
+    "Sanger sequencing uses chain-terminating dideoxynucleotides to read one segment at a time with high accuracy. Next-generation sequencing reads millions of fragments in parallel, enabling gene panels, whole-exome and whole-genome sequencing, and detecting mutations in tumour DNA; it can find single-nucleotide changes and small insertions or deletions, but short reads are poor at large repeats and structural variants. Fluorescence in situ hybridisation (FISH) uses fluorescent probes to find a specific sequence on chromosomes in metaphase or interphase cells, so it can detect microdeletions (such as 22q11 for DiGeorge syndrome), translocations (BCR-ABL in chronic myeloid leukaemia) and gene amplification (HER2). Chromosomal microarray (array comparative genomic hybridisation) detects copy-number gains and losses across the genome at a resolution much higher than a karyotype but cannot detect balanced translocations or inversions. Karyotyping shows whole-chromosome number and large structural change.",
+    "CRISPR-Cas9 uses a guide RNA to direct the Cas9 nuclease to a matching DNA sequence, where it makes a double-strand break that the cell repairs, enabling targeted gene disruption or editing. Gene therapy and editing have been approved for some conditions, for example some haemoglobinopathies, as of this writing. Recombinant DNA technology inserts genes into vectors such as plasmids so that bacteria or other cells make a protein, as is done for insulin.",
+    "Worked example: a clinician suspecting Down syndrome from a newborn exam orders a karyotype (or rapid FISH for chromosome 21), while a child with a suspected tiny 22q11 deletion and a normal karyotype needs FISH or microarray, since a standard karyotype cannot see so small a loss."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l18",
+   "title": "Mendelian Inheritance and Pedigrees",
+   "body": [
+    "Mendelian disorders follow the transmission of a single gene. In autosomal dominant (AD) inheritance, an affected person has one mutant allele, the trait appears in every generation (vertical transmission), each child of an affected heterozygote has a 50 percent chance of inheriting it, and male-to-male transmission occurs. Examples include Huntington disease, Marfan syndrome, neurofibromatosis type 1 and familial hypercholesterolaemia. Many AD disease proteins are structural or regulatory, whereas recessive disease more often involves enzymes. In autosomal recessive (AR) inheritance, both alleles are mutant, parents are usually unaffected carriers, and each pregnancy has a 25 percent risk; the trait often appears in one sibship but not in earlier generations, and consanguinity raises the chance that two carriers meet. Cystic fibrosis (CFTR, with the common F508del variant) is the classic example. An unaffected sibling of a person with an AR disease has a two-thirds chance of being a carrier, since the affected-genotype outcome is excluded from the four equally likely outcomes.",
+    "X-linked recessive (XLR) disorders affect mainly males, who are hemizygous, and are passed by carrier mothers; an affected father passes the allele to all daughters (who become carriers) and to no sons, so there is no male-to-male transmission. A carrier mother has a 50 percent chance of an affected son and 50 percent chance of a carrier daughter with each pregnancy. Examples are Duchenne muscular dystrophy (a dystrophin defect, with calf pseudohypertrophy and Gowers sign), haemophilia A and B, and G6PD deficiency. X-linked dominant disorders affect both sexes, with fathers transmitting to all daughters and no sons; hypophosphataemic rickets is the standard example. Because of random X inactivation, heterozygous females may be mildly or variably affected.",
+    "Several terms explain why pedigrees do not follow textbook ratios. Penetrance is the proportion of people with the genotype who show any phenotype, so reduced penetrance accounts for apparently skipped generations in an AD trait (as in BRCA1 mutation carriers). Variable expressivity is the variation in severity among those who do show the trait, as in neurofibromatosis. Pleiotropy is one gene affecting multiple organ systems, as with Marfan syndrome. Locus heterogeneity means mutations at different genes cause the same phenotype, whereas allelic heterogeneity means different mutations at one gene (as in cystic fibrosis) do. New (de novo) mutations account for many cases of a severe AD condition, such as achondroplasia, where most children are born to unaffected parents; advanced paternal age increases the risk. Germline mosaicism, where a parent carries the mutation in some gametes but not in blood, explains rare recurrences in a family with two affected children and apparently unaffected parents (osteogenesis imperfecta, Duchenne).",
+    "Worked example: a woman whose brother had Duchenne muscular dystrophy and whose maternal uncle did too is at high risk of being a carrier, and her sons each have a 50 percent chance of being affected. A trap is to treat an absence of a family history as proof of an AR trait; a new dominant mutation is just as consistent with an unaffected family."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l19",
+   "title": "Non-Mendelian Inheritance",
+   "body": [
+    "Mitochondrial DNA is a small circular genome inherited almost entirely from the mother, because the egg contributes the cytoplasm and sperm mitochondria are lost. An affected mother can pass the condition to all offspring, whereas an affected father transmits to none. Cells carry many mitochondrial genomes, so a mutation may be present in only a proportion (heteroplasmy); the disease appears when the mutant fraction crosses a threshold, and the proportion in each child varies, so severity differs in a family and tissues with high energy demand (brain, muscle, heart) are most affected. Examples are Leber hereditary optic neuropathy (subacute central vision loss in young adults, more often male), MELAS (mitochondrial encephalopathy, lactic acidosis and stroke-like episodes) and MERRF (myoclonic epilepsy with ragged-red fibres on muscle biopsy).",
+    "Genomic imprinting silences a gene according to the parent from whom it came, usually by methylation. Prader-Willi syndrome results from loss of the paternally derived 15q11-q13 region (a paternal deletion in most cases, or maternal uniparental disomy) and causes neonatal hypotonia, then hyperphagia, obesity, hypogonadism and intellectual disability. Angelman syndrome results from loss of the maternal copy of the same region, because the UBE3A gene is expressed from the maternal allele in neurons, and causes severe intellectual disability, seizures, ataxia and inappropriate laughter ('happy puppet'). A maternal deletion causes Angelman, a paternal deletion causes Prader-Willi. Uniparental disomy is inheriting both copies of a chromosome from one parent; it can arise by 'trisomy rescue' and is suspected when a recessive disorder occurs with only one carrier parent. Isodisomy (two identical copies) can unmask a recessive allele, while heterodisomy (both parental homologs) is associated with errors in meiosis I.",
+    "Trinucleotide repeat expansion disorders show anticipation, the earlier onset or greater severity in successive generations, because the repeats lengthen during meiosis. Fragile X syndrome is an X-linked disorder with CGG repeats in FMR1; a full mutation (over about 200 repeats) triggers methylation and silencing of the gene, giving intellectual disability, a long face with large ears, macroorchidism after puberty and autism features. Premutation carriers (about 55 to 200 repeats) risk fragile X-associated tremor/ataxia syndrome and primary ovarian insufficiency. Expansion occurs mainly during maternal transmission. Huntington disease has CAG repeats in HTT (a polyglutamine disease, with expansion tending to occur through the father). Myotonic dystrophy type 1 is a CTG expansion in DMPK, and Friedreich ataxia is a GAA expansion in an intron of frataxin, autosomal recessive.",
+    "Mosaicism is the presence of two or more genetically distinct cell lines in one person, as in mosaic Turner or Down syndrome, or the post-zygotic mutation of McCune-Albright syndrome (GNAS, which causes polyostotic fibrous dysplasia, café-au-lait spots and precocious puberty and would be lethal if present in every cell). Worked example: a child with infant hypotonia, later obesity and hyperphagia whose methylation testing at 15q11-q13 shows only the maternal pattern (no paternal contribution) has Prader-Willi syndrome. Deletion is the usual cause, and maternal uniparental disomy is the next most common."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l20",
+   "title": "Population Genetics and Hardy-Weinberg",
+   "body": [
+    "The Hardy-Weinberg principle describes the relationship between allele frequencies and genotype frequencies in a population that is not evolving. For a gene with two alleles at frequencies p and q, so that p + q = 1, the expected genotype frequencies are p squared for the homozygous dominant, 2pq for heterozygotes and q squared for the homozygous recessive, which also sum to 1. The assumptions are a large population, random mating, no selection, no new mutation, and no migration (gene flow). A population that departs from these assumptions, for example by inbreeding or assortative mating, shows a change in genotype frequencies, with an excess of homozygotes under inbreeding.",
+    "The standard medical use is to estimate carrier frequency of an autosomal recessive disease from its incidence. If the disease incidence is q squared, then q is its square root, p is nearly 1, and the carrier frequency 2pq is about 2q. For cystic fibrosis in a population with an incidence of about 1 in 2500, q is 1/50, so the carrier frequency is about 2/50, or 1 in 25. Only the affected group is known directly from phenotype, so carriers must be calculated and cannot be counted. If the disease is X-linked recessive, affected males occur at a frequency equal to q (males have one X), and affected females at q squared, so the male incidence is far higher than the female incidence. For an AD disease with a rare allele, affected people are nearly all heterozygotes, with frequency about 2q.",
+    "Several forces change allele frequency. Natural selection favours alleles that raise reproductive success. Heterozygote advantage maintains a harmful recessive allele in a population when the carrier is protected against something: sickle cell trait confers relative protection against severe malaria caused by Plasmodium falciparum. Genetic drift is random change, strongest in small populations; the founder effect occurs when a small group establishes a new population (for example certain disease alleles at high frequency in isolated communities), and a bottleneck occurs when a population is drastically reduced and then recovers. Migration brings new alleles, and mutation introduces them slowly. Linkage disequilibrium is the nonrandom association of alleles at nearby loci, used to map disease genes. Inbreeding does not change allele frequencies but increases the frequency of homozygotes, hence AR disease, in the offspring of related parents.",
+    "Worked example: an AR disease affects 1 in 10,000 people. Then q is 0.01, p is 0.99, and carriers are 2 x 0.99 x 0.01 which is about 0.02, or 1 in 50. If an unaffected woman's brother has the disease and her partner is from the general population, her carrier probability is 2/3 and his is about 1/50, so the chance of an affected child is 2/3 x 1/50 x 1/4, about 1 in 300. A frequent trap is to use q squared as the carrier frequency; it is the frequency of affected people."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l21",
+   "title": "Cytogenetics and Chromosomal Disorders",
+   "body": [
+    "Chromosomal disorders arise from abnormal number or structure. Aneuploidy (an extra or missing chromosome) most often results from nondisjunction, a failure of chromosomes to separate in meiosis I or II or in mitosis; its likelihood in oocytes rises with maternal age. Mitotic nondisjunction after fertilisation produces mosaicism. Most autosomal monosomies and many trisomies are lethal in utero, and sex chromosome aneuploidies are better tolerated.",
+    "Down syndrome (trisomy 21) is the most common live-born autosomal trisomy, found in about 1 in 700 births. About 95 percent of cases come from meiotic nondisjunction (usually maternal), about 4 percent from a Robertsonian translocation (often 14;21), where the long arms of two acrocentric chromosomes fuse and the short arms are lost, and about 1 percent from mosaicism. A parent carrying a balanced translocation has a normal phenotype but a higher chance of an affected child, and the recurrence risk is higher than for nondisjunction, so a karyotype of the child matters for counselling. Features are intellectual disability, hypotonia, flat facies, upslanting palpebral fissures, a single palmar crease, duodenal atresia, atrioventricular septal defects, increased risk of leukaemia, and early Alzheimer-type changes because APP lies on chromosome 21. Edwards syndrome (trisomy 18) features clenched hands with overlapping fingers, rocker-bottom feet and a small jaw, and Patau syndrome (trisomy 13) features holoprosencephaly, cleft lip and palate, polydactyly and cutis aplasia; both cause death in early infancy in most cases.",
+    "Turner syndrome (45,X) is monosomy X: short stature, webbed neck, a broad chest with widely spaced nipples, streak ovaries with primary amenorrhoea, bicuspid aortic valve and coarctation of the aorta, horseshoe kidney, and lymphoedema of hands and feet in infancy. Intelligence is typically normal and the condition may be missed until puberty. Klinefelter syndrome (47,XXY) is a tall man with small firm testes, gynaecomastia, hypogonadism and infertility; a Barr body is present, and testosterone is low with high FSH and LH. Multiple X (47,XXX) often has few features, and 47,XYY men are tall with normal fertility.",
+    "Structural abnormalities include deletions and microdeletions: cri-du-chat (5p deletion, cat-like cry), Williams syndrome (7q11.23 deletion including elastin, with supravalvular aortic stenosis, 'elfin' face and very social personality) and 22q11.2 deletion (DiGeorge syndrome, with conotruncal cardiac defects, hypocalcaemia and thymic hypoplasia). Reciprocal translocations exchange segments between two chromosomes, and balanced forms carry a risk of miscarriage and unbalanced offspring. Prenatal screening estimates risk, and does not diagnose it: first-trimester combined screening uses nuchal translucency, PAPP-A and free beta-hCG, and cell-free fetal DNA screening has high sensitivity for trisomy 21. Diagnosis requires chorionic villus sampling (usually 10 to 13 weeks) or amniocentesis (usually after 15 weeks) with a karyotype or microarray. Worked example: a woman of 41 with a positive cell-free DNA screen for trisomy 21 is offered amniocentesis to confirm before decisions are made."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l22",
+   "title": "Cancer Genetics",
+   "body": [
+    "Cancer is a genetic disease of somatic cells, arising from accumulated mutations in genes controlling growth, survival and genome integrity. Proto-oncogenes encode normal growth-promoting proteins; mutation, amplification or translocation converts them to oncogenes with gain of function, so one mutated allele is enough at the cellular level. Examples are RAS (a GTPase mutated in many tumours), MYC (transcription factor, translocated in Burkitt lymphoma and amplified in neuroblastoma as N-MYC), HER2 (amplified in some breast cancers, a target of trastuzumab), and BCR-ABL, the fusion tyrosine kinase of chronic myeloid leukaemia from the Philadelphia chromosome t(9;22), which imatinib inhibits. Other translocations are t(8;14) in Burkitt lymphoma, t(14;18) with BCL2 overexpression in follicular lymphoma and t(15;17) in acute promyelocytic leukaemia (PML-RARA), which is treated with all-trans retinoic acid.",
+    "Tumour suppressor genes restrain growth, so their loss of function promotes cancer, and both alleles usually need to be lost. Knudson's two-hit hypothesis explains why hereditary forms appear earlier and more often multifocal and bilateral than sporadic forms: the person inherits one mutated allele (the first hit) in every cell and only needs a second somatic hit, whereas in sporadic disease two independent hits must occur in the same cell. Retinoblastoma (RB1) illustrates this; RB protein restrains the G1 to S transition by binding E2F, and heritable cases are often bilateral and carry a risk of osteosarcoma later. TP53, the 'guardian of the genome', arrests the cell cycle or triggers apoptosis after DNA damage, and a germline mutation causes Li-Fraumeni syndrome with sarcomas, breast cancer, brain tumours and adrenocortical carcinoma. APC mutation causes familial adenomatous polyposis, with hundreds of colonic polyps and nearly certain colon cancer if not treated by colectomy. In the adenoma-carcinoma sequence, APC loss comes early, then KRAS activation, then TP53 loss. NF1 (neurofibromatosis type 1), NF2, VHL (haemangioblastomas and clear cell renal carcinoma), and WT1 (Wilms tumour) are additional tumour suppressors. Loss of heterozygosity is the mechanism by which the second allele is lost.",
+    "BRCA1 and BRCA2 encode proteins that repair double-strand breaks by homologous recombination. Germline pathogenic variants (autosomal dominant with incomplete penetrance) confer high lifetime risks of breast and ovarian cancer, and BRCA2 also raises risks of prostate, pancreatic cancer and male breast cancer. Tumours with BRCA deficiency are sensitive to PARP inhibitors, an example of synthetic lethality: loss of two repair pathways is lethal while loss of one is tolerated. Lynch syndrome (mismatch repair) predisposes to colorectal and endometrial cancers. Multiple endocrine neoplasia types 2A and 2B result from activating mutations in the RET proto-oncogene and cause medullary thyroid carcinoma, and prophylactic thyroidectomy is offered to carriers.",
+    "Worked example: a woman with bilateral breast cancer at 38, an ovarian cancer in her mother and a sister with breast cancer has a high pretest probability of a BRCA1 or BRCA2 variant, and testing the affected relative first is the most informative way to start. A common trap is to assume that all tumour suppressor mutations are recessive in the family; the predisposition is dominant even though the tumour cell mechanism is recessive."
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l23",
+   "title": "Genetic Testing, Counseling and Ethics",
+   "body": [
+    "Genetic testing serves different purposes. Diagnostic testing confirms or rules out a suspected condition in a symptomatic person. Carrier screening finds heterozygotes for recessive disease before or during pregnancy (for example cystic fibrosis or spinal muscular atrophy, with expanded panels now common). Newborn screening tests all infants soon after birth for treatable conditions such as PKU, galactosemia, congenital hypothyroidism and MCAD deficiency, using dried blood spots, and positive screens need confirmatory testing. Predictive or presymptomatic testing identifies a healthy person who will almost certainly develop a disease later (Huntington disease), and counselling before testing is especially important because there is no cure and the result cannot be undone. Prenatal testing includes screening (cell-free DNA and ultrasound) and diagnostic procedures (chorionic villus sampling and amniocentesis).",
+    "Interpreting a result requires understanding test performance. A screening test with high sensitivity but a low prevalence of the condition has a positive predictive value that may be modest, which is why a positive screen does not establish disease. Variants are classified, following the American College of Medical Genetics and Genomics and the Association for Molecular Pathology, as pathogenic, likely pathogenic, of uncertain significance, likely benign or benign. A variant of uncertain significance should not by itself guide clinical decisions, and it may be reclassified as evidence accumulates. Whole-exome and genome sequencing may reveal secondary or incidental findings in genes unrelated to the question asked, and the practice for disclosing them depends on consent and policy.",
+    "Pharmacogenomics links genotype to drug response. HLA-B*57:01 predicts abacavir hypersensitivity, HLA-B*15:02 predicts severe cutaneous reactions with carbamazepine in people of some Asian ancestries, TPMT variants raise the risk of marrow toxicity with thiopurines, CYP2C19 loss-of-function alleles reduce activation of the prodrug clopidogrel, and DPYD variants raise the risk of severe toxicity with fluoropyrimidines. These are mechanisms of variation in activation, clearance or immune reaction, and not instructions for dosing.",
+    "Genetic counselling is traditionally non-directive and centred on patient autonomy: counsellors explain the condition, recurrence risk and options, support decision-making and respect the family's values, and avoid steering the choice. Core ethical issues include informed consent, confidentiality (and when, rarely, the interest of relatives at risk may justify a disclosure approach set by policy and law), the rights of minors (testing children for adult-onset conditions with no childhood intervention is generally discouraged until they can decide), and the risk of discrimination. In the United States, the Genetic Information Nondiscrimination Act of 2008 (GINA) prohibits health insurers and employers from discriminating on the basis of genetic information, but it does not cover life, disability or long-term care insurance. Worked example: a healthy 30-year-old whose mother has Huntington disease asks for predictive testing; the counsellor explores why she wants to know, the effect on family and insurance decisions, and the availability of support before and after the result is given, and she decides."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-biochem-genetics.l01.q1",
+   "lessonId": "med-biochem-genetics.l01",
+   "kind": "mcq",
+   "prompt": "In the Michaelis-Menten model, what does the Km represent?",
+   "choices": [
+    "The free energy released when the substrate is converted into product at physiologic conditions",
+    "The substrate concentration at which the reaction velocity is half of Vmax, an inverse index of apparent affinity",
+    "The maximum reaction velocity reached when every enzyme molecule is saturated with substrate",
+    "The total concentration of enzyme present in the reaction mixture at the time of measurement"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l01.q2",
+   "lessonId": "med-biochem-genetics.l01",
+   "kind": "mcq",
+   "prompt": "A drug raises the apparent Km of an enzyme but leaves Vmax unchanged. Which kind of inhibition does this describe?",
+   "choices": [
+    "Competitive inhibition, which can be overcome by increasing the substrate concentration",
+    "Noncompetitive inhibition, which reduces the amount of functional enzyme and cannot be surmounted",
+    "Uncompetitive inhibition, which binds only the enzyme-substrate complex and reduces both parameters",
+    "Irreversible inhibition, which permanently removes active enzyme from the available pool"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l01.q3",
+   "lessonId": "med-biochem-genetics.l01",
+   "kind": "mcq",
+   "prompt": "Which of the following is true of enzymes as catalysts?",
+   "choices": [
+    "They shift the equilibrium of a reaction toward products by making the overall free energy change more negative",
+    "They are consumed in stoichiometric amounts as the reaction proceeds and must be resynthesised",
+    "They increase the rate of the forward reaction only, with no effect on the reverse reaction at all",
+    "They lower the activation energy without altering the equilibrium constant of the reaction they catalyse"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l01.q4",
+   "lessonId": "med-biochem-genetics.l01",
+   "kind": "mcq",
+   "prompt": "A child is brought in after drinking antifreeze containing ethylene glycol and is started on an infusion of fomepizole. On a double-reciprocal plot of alcohol dehydrogenase activity, what would the addition of this competitive inhibitor produce compared with the untreated enzyme?",
+   "choices": [
+    "A line parallel to the untreated line and shifted upward, because both Km and Vmax are reduced to the same degree",
+    "A line identical to the untreated line, because a competitive inhibitor affects only the rate of product release",
+    "A line with a steeper slope that crosses the untreated line on the y-axis, because Vmax is unchanged and apparent Km is higher",
+    "A line with a steeper slope that crosses the untreated line on the x-axis, because Km is unchanged and Vmax is lower"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l01.q5",
+   "lessonId": "med-biochem-genetics.l01",
+   "kind": "mcq",
+   "prompt": "An experimenter adds an inhibitor to a purified enzyme and observes that Vmax falls to half of the control value while Km is unchanged. Doubling the substrate concentration does not restore activity. Which conclusion best fits these data?",
+   "choices": [
+    "The inhibitor has increased the enzyme's affinity for substrate, so the Km should appear lower than the control",
+    "The inhibitor binds a site distinct from the active site and effectively lowers the quantity of functional enzyme",
+    "The inhibitor competes with the substrate at the active site, and a much higher substrate level would eventually overcome it",
+    "The inhibitor binds only to the enzyme-substrate complex, which would also be expected to lower the Km"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l02.q1",
+   "lessonId": "med-biochem-genetics.l02",
+   "kind": "mcq",
+   "prompt": "Which enzyme catalyses the rate-limiting step of glycolysis?",
+   "choices": [
+    "Fructose-1,6-bisphosphatase, activated by citrate and inhibited by fructose-2,6-bisphosphate",
+    "Glucose-6-phosphatase, activated by insulin and inhibited by high concentrations of glucagon",
+    "Phosphofructokinase-1, activated by AMP and fructose-2,6-bisphosphate and inhibited by ATP and citrate",
+    "Pyruvate carboxylase, activated by acetyl-CoA and inhibited by high concentrations of ADP"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l02.q2",
+   "lessonId": "med-biochem-genetics.l02",
+   "kind": "mcq",
+   "prompt": "Which cofactor is NOT required by the pyruvate dehydrogenase complex?",
+   "choices": [
+    "Thiamine pyrophosphate, the decarboxylation cofactor derived from vitamin B1",
+    "Lipoic acid, the swinging arm that transfers the acyl group between active sites",
+    "FAD, the flavin that reoxidises the lipoamide before NADH is formed at the end",
+    "Biotin, the carrier for carboxylation reactions such as that of pyruvate carboxylase"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l02.q3",
+   "lessonId": "med-biochem-genetics.l02",
+   "kind": "mcq",
+   "prompt": "Which electron transport chain inhibitor acts at complex IV (cytochrome c oxidase)?",
+   "choices": [
+    "Cyanide, which binds the ferric heme of the terminal oxidase and halts electron transfer to oxygen",
+    "Rotenone, which blocks transfer of electrons from the iron-sulfur centres of NADH dehydrogenase",
+    "Antimycin A, which blocks electron flow between cytochrome b and cytochrome c1 in the third complex",
+    "Oligomycin, which blocks the proton channel of ATP synthase and so halts ATP formation directly"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l02.q4",
+   "lessonId": "med-biochem-genetics.l02",
+   "kind": "mcq",
+   "prompt": "A 3-year-old with recurrent haemolytic anaemia has splenomegaly. Red cells show no spherocytes or Heinz bodies, and a screen for G6PD is normal. A defect in which of the following is the most likely underlying cause?",
+   "choices": [
+    "Isocitrate dehydrogenase, impairing the oxidative decarboxylation step that powers the mitochondrial cycle",
+    "Pyruvate kinase, impairing ATP production in cells that have no mitochondria and rely on glycolysis",
+    "Hexokinase in the liver, impairing the first trapping step of glucose after meals in hepatocytes",
+    "Lactate dehydrogenase, impairing regeneration of NAD+ so that glycolysis stops at glyceraldehyde-3-phosphate"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l02.q5",
+   "lessonId": "med-biochem-genetics.l02",
+   "kind": "mcq",
+   "prompt": "A malnourished man with chronic alcohol use is given intravenous glucose and soon develops confusion, ophthalmoplegia, and a serum lactate rise with metabolic acidosis. Impaired activity of which enzyme complex best explains the acidosis?",
+   "choices": [
+    "Glycogen phosphorylase, because deficient pyridoxal phosphate leaves glycogen unable to be mobilised in the liver",
+    "Lactate dehydrogenase, because deficient niacin leaves lactate unable to be converted back into pyruvate in muscle",
+    "Pyruvate dehydrogenase, because deficient thiamine leaves pyruvate unable to enter the cycle and shunted to lactate",
+    "Pyruvate carboxylase, because deficient biotin leaves pyruvate unable to form oxaloacetate for gluconeogenesis"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l03.q1",
+   "lessonId": "med-biochem-genetics.l03",
+   "kind": "mcq",
+   "prompt": "Which enzyme is deficient in von Gierke disease (glycogen storage disease type I)?",
+   "choices": [
+    "Acid alpha-glucosidase, the lysosomal enzyme that degrades glycogen taken up into vacuoles",
+    "Muscle glycogen phosphorylase, the enzyme that releases glucose-1-phosphate during exercise",
+    "Glycogen debranching enzyme, the enzyme that removes the alpha-1,6 linked branch points",
+    "Glucose-6-phosphatase, the final enzyme that releases free glucose from the liver and kidney"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l03.q2",
+   "lessonId": "med-biochem-genetics.l03",
+   "kind": "mcq",
+   "prompt": "Why is muscle unable to raise blood glucose during fasting?",
+   "choices": [
+    "It lacks the debranching enzyme, so only the outer chains of glycogen can ever be shortened there",
+    "It lacks hexokinase, so glucose cannot be trapped inside cells after it enters from the blood",
+    "It lacks glucose-6-phosphatase, so glucose-6-phosphate cannot be converted to free glucose for export",
+    "It lacks glycogen phosphorylase, so stored glycogen cannot be broken down even during exercise"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l03.q3",
+   "lessonId": "med-biochem-genetics.l03",
+   "kind": "mcq",
+   "prompt": "Which statement about the regulation of glycogen metabolism in the liver is correct?",
+   "choices": [
+    "Insulin phosphorylates glycogen phosphorylase, promoting glycogen breakdown to supply glucose after eating",
+    "Glucagon raises cAMP, activating phosphorylase and inactivating glycogen synthase through phosphorylation",
+    "Insulin activates protein kinase A, which phosphorylates and activates glycogen synthase after meals",
+    "Glucagon activates a phosphatase that dephosphorylates phosphorylase, switching it into the active form"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l03.q4",
+   "lessonId": "med-biochem-genetics.l03",
+   "kind": "mcq",
+   "prompt": "A 9-month-old has hepatomegaly, a fasting seizure, and a distended abdomen with a round face. Labs show glucose 30 mg/dL, elevated lactate, uric acid and triglycerides. Glucagon administered during fasting does not raise glucose. Which of the following best explains the failure of glucagon?",
+   "choices": [
+    "Glucose-6-phosphate cannot be converted to free glucose, so both glycogenolysis and gluconeogenesis end in the same blocked step",
+    "Glycogen phosphorylase is inactive, so no glucose-1-phosphate can be liberated from the stored polymer in hepatocytes",
+    "Debranching enzyme is absent, so only the outer chains of glycogen can be shortened and the response is partial",
+    "Acid alpha-glucosidase is absent, so lysosomes are engorged and the glucagon receptor cannot signal in hepatocytes"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l03.q5",
+   "lessonId": "med-biochem-genetics.l03",
+   "kind": "mcq",
+   "prompt": "A 14-year-old develops painful cramps, weakness and dark urine each time he sprints. During an ischaemic forearm exercise test, lactate does not rise, but ammonia does. Fasting glucose is normal. Which enzyme is most likely deficient?",
+   "choices": [
+    "Liver glucose-6-phosphatase, so the muscle cannot form free glucose during sustained effort",
+    "Lysosomal acid alpha-glucosidase, so glycogen accumulates in vacuoles and impairs the heart",
+    "Branching enzyme, so abnormal long unbranched glycogen accumulates and causes cirrhosis in childhood",
+    "Muscle glycogen phosphorylase, so glycogen cannot supply glucose to glycolysis during exertion"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l04.q1",
+   "lessonId": "med-biochem-genetics.l04",
+   "kind": "mcq",
+   "prompt": "What is the principal role of the oxidative phase of the pentose phosphate pathway?",
+   "choices": [
+    "Production of NADPH for reductive biosynthesis and the protection of cells from oxidative damage",
+    "Production of ATP by substrate-level phosphorylation in cells that have no mitochondria",
+    "Production of acetyl-CoA from glucose for the beginning of the citric acid cycle in mitochondria",
+    "Production of glucose from lactate during prolonged fasting in the liver and the renal cortex"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l04.q2",
+   "lessonId": "med-biochem-genetics.l04",
+   "kind": "mcq",
+   "prompt": "Which of the following is the inheritance pattern and key finding of G6PD deficiency?",
+   "choices": [
+    "X-linked dominant, with continuous haemolysis and basophilic stippling after exposure to lead",
+    "X-linked recessive, with episodic haemolysis and Heinz bodies following oxidant stress",
+    "Autosomal recessive, with continuous haemolysis and spherocytes unaffected by drug exposure",
+    "Autosomal dominant, with episodic haemolysis and target cells after exposure to cold temperature"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l04.q3",
+   "lessonId": "med-biochem-genetics.l04",
+   "kind": "mcq",
+   "prompt": "Which enzyme is deficient in hereditary fructose intolerance?",
+   "choices": [
+    "Galactose-1-phosphate uridyltransferase, so galactose-1-phosphate accumulates after milk feeds in infants",
+    "Aldose reductase, so sorbitol is not generated and the lens is spared from cataract formation",
+    "Aldolase B, so fructose-1-phosphate accumulates and depletes intracellular phosphate in the liver",
+    "Fructokinase, so fructose is excreted in the urine in an otherwise entirely asymptomatic person"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l04.q4",
+   "lessonId": "med-biochem-genetics.l04",
+   "kind": "mcq",
+   "prompt": "A 7-month-old begins vomiting and becomes lethargic and jaundiced after parents start fruit purees and a formula containing sucrose. Glucose is low and the liver is enlarged. Urine reducing substances are positive. Which mechanism most directly explains the hypoglycaemia?",
+   "choices": [
+    "Absent galactitol formation in the lens leads to an osmotic failure of glucose uptake by the brain",
+    "Excess NADPH production by the pentose phosphate pathway suppresses the release of glucose from glycogen",
+    "Inhibition of glucose-6-phosphatase by lactate prevents free glucose release from hepatocytes",
+    "Trapped phosphate in fructose-1-phosphate inhibits glycogenolysis and gluconeogenesis in the liver"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l04.q5",
+   "lessonId": "med-biochem-genetics.l04",
+   "kind": "mcq",
+   "prompt": "A 10-day-old breastfed infant has jaundice, hepatomegaly, vomiting, and lens opacities. Sepsis from Escherichia coli is diagnosed. Which pair best describes the defect and the correct management?",
+   "choices": [
+    "Galactose-1-phosphate uridyltransferase deficiency, treated by eliminating galactose from the diet",
+    "Aldolase B deficiency, treated by eliminating sucrose and fructose from the diet",
+    "Glucose-6-phosphatase deficiency, treated by frequent feeds and uncooked cornstarch overnight",
+    "Fructokinase deficiency, treated by giving supplementary pyridoxine alongside normal feeds"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l05.q1",
+   "lessonId": "med-biochem-genetics.l05",
+   "kind": "mcq",
+   "prompt": "Which enzyme controls the entry of long-chain fatty acids into mitochondria and is inhibited by malonyl-CoA?",
+   "choices": [
+    "ATP citrate lyase, the cytosolic enzyme that regenerates acetyl-CoA from citrate leaving mitochondria",
+    "Carnitine palmitoyltransferase I, the outer-membrane enzyme that is the rate-limiting step of oxidation",
+    "Acetyl-CoA carboxylase, the cytosolic biotin-dependent enzyme that makes malonyl-CoA from acetyl-CoA",
+    "HMG-CoA synthase, the mitochondrial enzyme that condenses acetyl-CoA during ketone body formation"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l05.q2",
+   "lessonId": "med-biochem-genetics.l05",
+   "kind": "mcq",
+   "prompt": "Which statement about ketone bodies is correct?",
+   "choices": [
+    "The liver produces them but cannot use them because it lacks the thiophorase enzyme required for activation",
+    "The liver both produces and oxidises them as its preferred fuel during an overnight fast of ten hours",
+    "Red blood cells oxidise them in their mitochondria when glucose is limiting in prolonged starvation",
+    "The brain is unable to use them even in prolonged fasting because they cannot cross the blood-brain barrier"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l05.q3",
+   "lessonId": "med-biochem-genetics.l05",
+   "kind": "mcq",
+   "prompt": "Which cofactor pair is required to convert propionyl-CoA to succinyl-CoA?",
+   "choices": [
+    "Thiamine for propionyl-CoA carboxylase and pyridoxal phosphate for methylmalonyl-CoA mutase",
+    "Lipoic acid for propionyl-CoA carboxylase and tetrahydrofolate for methylmalonyl-CoA mutase",
+    "Riboflavin for propionyl-CoA carboxylase and niacin for methylmalonyl-CoA mutase in hepatocytes",
+    "Biotin for propionyl-CoA carboxylase and adenosylcobalamin for methylmalonyl-CoA mutase"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l05.q4",
+   "lessonId": "med-biochem-genetics.l05",
+   "kind": "mcq",
+   "prompt": "An 18-month-old is found lethargic after a diarrhoeal illness with poor intake. Glucose is 28 mg/dL; urine ketones are minimal and urine organic acid analysis shows dicarboxylic acids. Which of the following best explains the metabolic findings?",
+   "choices": [
+    "Failure of insulin secretion, so lipolysis is unrestrained and ketone production reaches very high levels in the blood",
+    "Failure of aldolase B, so fructose-1-phosphate accumulates after the introduction of fruit juices in the diet",
+    "Failure of beta-oxidation of medium-chain fatty acids, so fat cannot supply energy or ketones while glucose is consumed",
+    "Failure of glucose-6-phosphatase, so glucose is not released from the liver while ketone production proceeds normally"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l05.q5",
+   "lessonId": "med-biochem-genetics.l05",
+   "kind": "mcq",
+   "prompt": "A woman with type 1 diabetes who missed insulin for two days presents with rapid deep breathing and abdominal pain. Which mechanism most directly drives her ketone body production?",
+   "choices": [
+    "High insulin inhibits pyruvate carboxylase, so oxaloacetate is spared and acetyl-CoA is oxidised completely through the TCA cycle",
+    "Low insulin releases hormone-sensitive lipase, and the fatty acid flux to the liver exceeds the capacity of the TCA cycle, so acetyl-CoA enters ketogenesis",
+    "High insulin activates acetyl-CoA carboxylase, raising malonyl-CoA and driving fatty acids into ketone formation in the liver",
+    "Low glucagon increases the activity of CPT-I by removing malonyl-CoA, so acetyl-CoA is no longer produced from glucose"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l06.q1",
+   "lessonId": "med-biochem-genetics.l06",
+   "kind": "mcq",
+   "prompt": "Which apolipoprotein activates lipoprotein lipase on capillary endothelium?",
+   "choices": [
+    "ApoA-I, the structural protein of HDL that also activates the enzyme LCAT in plasma",
+    "ApoB-100, the ligand of the LDL receptor that is made by hepatocytes for VLDL assembly",
+    "ApoC-II, acquired by chylomicrons and VLDL from HDL in the circulation",
+    "ApoB-48, the structural protein of chylomicrons made by enterocytes in the intestine"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l06.q2",
+   "lessonId": "med-biochem-genetics.l06",
+   "kind": "mcq",
+   "prompt": "Which of the following is the rate-limiting enzyme of cholesterol synthesis and the target of statins?",
+   "choices": [
+    "HMG-CoA synthase, which condenses acetoacetyl-CoA and acetyl-CoA in the mitochondria",
+    "Lipoprotein lipase, which hydrolyses triglyceride in chylomicrons and very low density particles",
+    "Acyl-CoA cholesterol acyltransferase, which esterifies free cholesterol for storage inside cells",
+    "HMG-CoA reductase, which converts HMG-CoA to mevalonate in the endoplasmic reticulum"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l06.q3",
+   "lessonId": "med-biochem-genetics.l06",
+   "kind": "mcq",
+   "prompt": "Which lysosomal storage disease is X-linked recessive and presents with burning limb pain and angiokeratomas?",
+   "choices": [
+    "Fabry disease, caused by alpha-galactosidase A deficiency with ceramide trihexoside accumulation",
+    "Gaucher disease, caused by glucocerebrosidase deficiency with glucocerebroside accumulation",
+    "Krabbe disease, caused by galactocerebrosidase deficiency with galactocerebroside accumulation",
+    "Tay-Sachs disease, caused by hexosaminidase A deficiency with GM2 ganglioside accumulation"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l06.q4",
+   "lessonId": "med-biochem-genetics.l06",
+   "kind": "mcq",
+   "prompt": "A 6-month-old has loss of developmental milestones, an exaggerated startle response and hypotonia. Fundoscopy shows a cherry-red spot at the macula. The liver and spleen are not enlarged. Which enzyme is most likely deficient?",
+   "choices": [
+    "Alpha-L-iduronidase, which degrades heparan and dermatan sulfate in connective tissue",
+    "Hexosaminidase A, which degrades GM2 ganglioside in neuronal lysosomes",
+    "Sphingomyelinase, which degrades sphingomyelin in macrophages and neurons together",
+    "Glucocerebrosidase, which degrades glucocerebroside in macrophages of the marrow"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l06.q5",
+   "lessonId": "med-biochem-genetics.l06",
+   "kind": "mcq",
+   "prompt": "A 25-year-old man has Achilles tendon xanthomas, corneal arcus and an LDL cholesterol more than three times normal. His father had a myocardial infarction at age 42. Which defect best explains his condition, and what is the effect of a statin?",
+   "choices": [
+    "Defective microsomal triglyceride transfer protein; statins restore chylomicron assembly in enterocytes",
+    "Defective LCAT activity; statins increase esterification of cholesterol on the surface of HDL particles",
+    "Defective LDL receptor function; statins upregulate remaining receptors by lowering intracellular cholesterol",
+    "Defective lipoprotein lipase function; statins increase triglyceride hydrolysis in capillary endothelium"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l07.q1",
+   "lessonId": "med-biochem-genetics.l07",
+   "kind": "mcq",
+   "prompt": "Which amino acid becomes conditionally essential in phenylketonuria?",
+   "choices": [
+    "Tryptophan, because it can no longer be made from phenylalanine through hydroxylation in the liver",
+    "Cysteine, because it can no longer be made from methionine through the transsulfuration pathway",
+    "Arginine, because it can no longer be made from citrulline through the arginosuccinate enzymes",
+    "Tyrosine, because it can no longer be made from phenylalanine through hydroxylation in the liver"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l07.q2",
+   "lessonId": "med-biochem-genetics.l07",
+   "kind": "mcq",
+   "prompt": "In which condition are urinary orotic acid levels elevated together with hyperammonaemia?",
+   "choices": [
+    "UMP synthase deficiency, in which orotic acid cannot be converted to a nucleotide in the cytosol",
+    "Phenylalanine hydroxylase deficiency, in which phenylketones accumulate in blood and are excreted",
+    "Ornithine transcarbamylase deficiency, in which carbamoyl phosphate spills into pyrimidine synthesis",
+    "Carbamoyl phosphate synthetase I deficiency, in which carbamoyl phosphate is not formed in mitochondria"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l07.q3",
+   "lessonId": "med-biochem-genetics.l07",
+   "kind": "mcq",
+   "prompt": "Which of the following conditions causes dark urine on standing and ochronotic pigmentation of cartilage?",
+   "choices": [
+    "Maple syrup urine disease, a deficiency of branched-chain ketoacid dehydrogenase in tissues",
+    "Alkaptonuria, a deficiency of homogentisate oxidase in the tyrosine degradation pathway",
+    "Phenylketonuria, a deficiency of phenylalanine hydroxylase in the liver",
+    "Cystinuria, a defect of the renal transporter for dibasic amino acids in the proximal tubule"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l07.q4",
+   "lessonId": "med-biochem-genetics.l07",
+   "kind": "mcq",
+   "prompt": "A 5-day-old term infant, healthy at discharge, is brought in with poor feeding, vomiting and lethargy that progress to seizures. Ammonia is markedly elevated, glucose and pH are near normal, and urine orotic acid is undetectable. Which of the following is the most likely diagnosis?",
+   "choices": [
+    "Carbamoyl phosphate synthetase I deficiency, a mitochondrial urea cycle defect",
+    "Ornithine transcarbamylase deficiency, a defect that characteristically raises urinary orotic acid",
+    "Maple syrup urine disease, a defect that characteristically produces sweet-smelling urine and acidosis",
+    "Hereditary fructose intolerance, a defect that follows exposure to fructose-containing foods"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l07.q5",
+   "lessonId": "med-biochem-genetics.l07",
+   "kind": "mcq",
+   "prompt": "A tall 12-year-old with long limbs has downward-displaced lenses, a history of a deep venous thrombosis, and intellectual disability. A urine cyanide-nitroprusside test is positive and plasma homocysteine and methionine are elevated. Which enzyme is most likely deficient?",
+   "choices": [
+    "Fibrillin-1 processing enzyme, which assembles elastic microfibrils in the lens zonule",
+    "Phenylalanine hydroxylase, which converts phenylalanine to tyrosine in the liver",
+    "Homogentisate oxidase, which degrades homogentisic acid in the tyrosine degradation pathway",
+    "Cystathionine beta-synthase, which condenses homocysteine with serine to form cystathionine"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l08.q1",
+   "lessonId": "med-biochem-genetics.l08",
+   "kind": "mcq",
+   "prompt": "Which enzyme is deficient in Lesch-Nyhan syndrome?",
+   "choices": [
+    "Hypoxanthine-guanine phosphoribosyltransferase, a purine salvage enzyme that uses PRPP",
+    "Adenosine deaminase, an enzyme that converts adenosine to inosine in lymphocytes",
+    "Xanthine oxidase, the enzyme that converts hypoxanthine and xanthine to uric acid",
+    "UMP synthase, the bifunctional enzyme that converts orotic acid to uridine monophosphate"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l08.q2",
+   "lessonId": "med-biochem-genetics.l08",
+   "kind": "mcq",
+   "prompt": "Which statement describes the mechanism of allopurinol in chronic gout?",
+   "choices": [
+    "It inhibits microtubule polymerisation in neutrophils, reducing the inflammatory response to crystals",
+    "It inhibits xanthine oxidase, reducing the conversion of hypoxanthine and xanthine to uric acid",
+    "It inhibits renal urate reabsorption in the proximal tubule, increasing urinary uric acid excretion",
+    "It converts uric acid to the soluble compound allantoin, which is excreted freely in the urine"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l08.q3",
+   "lessonId": "med-biochem-genetics.l08",
+   "kind": "mcq",
+   "prompt": "Which of the following drugs inhibits dihydrofolate reductase and so interferes with thymidine and purine synthesis?",
+   "choices": [
+    "Hydroxyurea, which blocks conversion of ribonucleotides to deoxyribonucleotides in S-phase cells",
+    "Mycophenolate, which blocks inosine monophosphate dehydrogenase in the lymphocyte guanine pathway",
+    "Methotrexate, which blocks reduction of dihydrofolate to tetrahydrofolate in dividing cells",
+    "5-Fluorouracil, which blocks thymidylate synthase through a fluorinated deoxyuridine nucleotide"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l08.q4",
+   "lessonId": "med-biochem-genetics.l08",
+   "kind": "mcq",
+   "prompt": "A 3-year-old boy has poor growth, megaloblastic anaemia that does not respond to folate or vitamin B12, and crystals in the urine. Ammonia is normal. Which treatment targets the underlying defect?",
+   "choices": [
+    "Allopurinol, which blocks xanthine oxidase and lowers the plasma uric acid concentration",
+    "Sodium benzoate, which conjugates glycine and removes nitrogen as hippurate in the urine",
+    "Enzyme replacement with adenosine deaminase, which removes toxic deoxyadenosine from lymphocytes",
+    "Uridine, which bypasses the deficient UMP synthase activity and supplies pyrimidine nucleotides"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l08.q5",
+   "lessonId": "med-biochem-genetics.l08",
+   "kind": "mcq",
+   "prompt": "A 6-year-old boy has dystonia, intellectual disability and a habit of biting his lips and fingers. Serum uric acid is markedly elevated. What best explains the overproduction of uric acid?",
+   "choices": [
+    "Failure of purine salvage leaves PRPP unused, which stimulates de novo purine synthesis",
+    "Excess activity of xanthine oxidase, which converts too much pyrimidine into uric acid",
+    "Failure of renal tubular secretion of urate, which raises the plasma urate without increased production",
+    "Failure of adenosine deaminase, which leaves deoxyadenosine to inhibit lymphocyte proliferation"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l09.q1",
+   "lessonId": "med-biochem-genetics.l09",
+   "kind": "mcq",
+   "prompt": "Which glucose transporter is recruited to the cell membrane in response to insulin in skeletal muscle and adipose tissue?",
+   "choices": [
+    "GLUT5, which transports fructose across the brush border of the small intestine and the testis",
+    "GLUT4, whose translocation from intracellular vesicles to the membrane is stimulated by insulin",
+    "GLUT1, which provides basal glucose uptake to red cells and the endothelium of the brain",
+    "GLUT2, which allows bidirectional glucose transport in hepatocytes and sensing by beta cells"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l09.q2",
+   "lessonId": "med-biochem-genetics.l09",
+   "kind": "mcq",
+   "prompt": "Which process is the main source of blood glucose after liver glycogen has been depleted during a prolonged fast?",
+   "choices": [
+    "Gluconeogenesis from lactate, glycerol and glucogenic amino acids in the liver",
+    "Glycogenolysis of muscle glycogen, with free glucose released directly into the blood",
+    "Conversion of fatty acids to glucose through acetyl-CoA in the citric acid cycle",
+    "Direct absorption of glucose from stored fat by the adipocytes into the circulation"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l09.q3",
+   "lessonId": "med-biochem-genetics.l09",
+   "kind": "mcq",
+   "prompt": "Which hormone and enzyme pairing correctly describes the mobilisation of fat from adipose tissue in fasting?",
+   "choices": [
+    "Insulin activates hormone-sensitive lipase through dephosphorylation after the meal is eaten",
+    "Epinephrine activates lipoprotein lipase on the adipocyte surface to take up circulating triglyceride",
+    "Glucagon activates acetyl-CoA carboxylase in the adipocyte to raise malonyl-CoA and synthesise fatty acids",
+    "Epinephrine and glucagon activate hormone-sensitive lipase through cAMP-dependent phosphorylation"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l09.q4",
+   "lessonId": "med-biochem-genetics.l09",
+   "kind": "mcq",
+   "prompt": "A healthy volunteer fasts for 72 hours. Compared with the fed state, which pattern is expected?",
+   "choices": [
+    "Low insulin, high glucagon, suppressed ketone bodies, high free fatty acids, and a markedly high glucose",
+    "High insulin, high glucagon, elevated ketone bodies and free fatty acids, and a glucose that is low-normal",
+    "Low insulin, high glucagon, elevated ketone bodies and free fatty acids, and glucose that is low-normal",
+    "High insulin, low glucagon, suppressed ketone bodies and free fatty acids, and glucose that is high"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l09.q5",
+   "lessonId": "med-biochem-genetics.l09",
+   "kind": "mcq",
+   "prompt": "A previously well 6-year-old has a seizure after a gastroenteritis illness with 18 hours of fasting. Glucose is 30 mg/dL, ketones are strongly positive, and insulin is suppressed. Lactate and uric acid are normal. Which of the following most likely explains the reduced glucose in a child of this age?",
+   "choices": [
+    "Excess insulin secretion from an insulinoma, which suppresses lipolysis and ketone body production in fasting",
+    "Small body muscle mass and limited glycogen stores provide less alanine for gluconeogenesis and less glycogen reserve",
+    "Absence of glucagon receptors on hepatocytes of children, which prevents the activation of glycogen phosphorylase",
+    "Failure of ketone production, which leaves the brain wholly dependent on a much smaller supply of glucose"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l10.q1",
+   "lessonId": "med-biochem-genetics.l10",
+   "kind": "mcq",
+   "prompt": "Which enzyme converts acetaldehyde to acetate and is inhibited by disulfiram?",
+   "choices": [
+    "Alcohol dehydrogenase, a cytosolic enzyme that uses NAD+ to oxidise ethanol at the first step",
+    "Catalase, a peroxisomal enzyme that decomposes hydrogen peroxide into water and oxygen",
+    "Xanthine oxidase, a cytosolic enzyme that oxidises hypoxanthine and xanthine in purine degradation",
+    "Aldehyde dehydrogenase, a mitochondrial enzyme that uses NAD+ as the oxidising cofactor"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l10.q2",
+   "lessonId": "med-biochem-genetics.l10",
+   "kind": "mcq",
+   "prompt": "Which change in the liver results from the high NADH/NAD+ ratio produced by ethanol metabolism?",
+   "choices": [
+    "Fatty acid oxidation increases, reducing the triglyceride content of hepatocytes",
+    "Malate is converted to oxaloacetate, which accelerates the activity of the TCA cycle",
+    "Pyruvate is converted to lactate, reducing its availability for gluconeogenesis",
+    "Lactate is converted to pyruvate, which increases the gluconeogenic flux in the liver"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l10.q3",
+   "lessonId": "med-biochem-genetics.l10",
+   "kind": "mcq",
+   "prompt": "Which finding best distinguishes diabetic ketoacidosis from hyperosmolar hyperglycaemic state?",
+   "choices": [
+    "Hypoglycaemia, because hepatic glycogenolysis is impaired by dehydration of the hepatocytes",
+    "Prominent ketone body production and an anion-gap acidosis, because insulin is severely lacking",
+    "Absent ketone body production and a normal anion gap, because insulin is entirely absent",
+    "Mild hyperglycaemia, because gluconeogenesis is suppressed by high glucagon concentrations"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l10.q4",
+   "lessonId": "med-biochem-genetics.l10",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man with chronic alcohol use is found confused after three days of binge drinking and no food. Glucose is 38 mg/dL, lactate is elevated, and there is a high anion gap with positive ketones. Which is the best explanation for the hypoglycaemia?",
+   "choices": [
+    "Excess NADH from ethanol oxidation diverts pyruvate and oxaloacetate away from gluconeogenesis in a patient with depleted glycogen",
+    "Excess insulin release from the pancreas by ethanol, which drives glucose into muscle and adipose tissue",
+    "Deficiency of hepatic glucose-6-phosphatase, which prevents the release of free glucose from glycogen",
+    "Acetaldehyde inhibition of the muscle glycogen phosphorylase, which stops the release of glucose into the blood"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l10.q5",
+   "lessonId": "med-biochem-genetics.l10",
+   "kind": "mcq",
+   "prompt": "A 19-year-old with type 1 diabetes presents with nausea, deep rapid breathing, glucose 520 mg/dL, pH 7.1 and serum potassium 5.6 mEq/L. After insulin therapy begins, which complication is most important to anticipate?",
+   "choices": [
+    "Hyperkalaemia, since insulin shifts potassium out of cells and slows urinary potassium excretion",
+    "Hypernatraemia, since insulin stimulates sodium reabsorption and water retention in the collecting duct",
+    "Hypercalcaemia, since insulin mobilises calcium from the bone and raises ionised calcium in the plasma",
+    "Hypokalaemia, since insulin drives potassium into cells and total body potassium is depleted"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l11.q1",
+   "lessonId": "med-biochem-genetics.l11",
+   "kind": "mcq",
+   "prompt": "Which vitamin deficiency causes pellagra, with the triad of dermatitis, diarrhoea and dementia?",
+   "choices": [
+    "Riboflavin, the precursor of FAD and FMN used by many oxidoreductase enzymes",
+    "Pyridoxine, the precursor of the phosphate coenzyme used for transamination reactions",
+    "Niacin, the precursor of NAD+ and NADP+ that can also be made from tryptophan",
+    "Thiamine, the precursor of the pyrophosphate coenzyme used by pyruvate dehydrogenase"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l11.q2",
+   "lessonId": "med-biochem-genetics.l11",
+   "kind": "mcq",
+   "prompt": "Which finding distinguishes vitamin B12 deficiency from folate deficiency?",
+   "choices": [
+    "Elevated homocysteine with megaloblastic anaemia and hypersegmented neutrophils",
+    "Normal methylmalonic acid with elevated homocysteine and an isolated neural tube defect",
+    "Macrocytic red cells and a low reticulocyte count with a normal neurologic examination",
+    "Elevated methylmalonic acid and neurologic signs such as dorsal column loss"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l11.q3",
+   "lessonId": "med-biochem-genetics.l11",
+   "kind": "mcq",
+   "prompt": "A patient receiving isoniazid for tuberculosis develops numbness and tingling in the feet. Which vitamin supplementation prevents this complication?",
+   "choices": [
+    "Pyridoxine, because the drug depletes pyridoxal phosphate by forming a hydrazone",
+    "Cobalamin, because the drug blocks intrinsic factor secretion from gastric parietal cells",
+    "Biotin, because the drug inhibits carboxylase enzymes in the mitochondria of neurons",
+    "Ascorbate, because the drug impairs hydroxylation of proline residues in the myelin sheath"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l11.q4",
+   "lessonId": "med-biochem-genetics.l11",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman has fatigue, a glossitis with a smooth red tongue, and paraesthesias in her feet with reduced vibration sense. MCV is 112 fL, and smear shows hypersegmented neutrophils. She is treated with folic acid, and her anaemia improves. Which statement best describes the expected outcome?",
+   "choices": [
+    "Neurologic damage will resolve because folate lowers methylmalonic acid by activating the mutase",
+    "Neurologic damage may progress because folate does not correct the methylmalonyl-CoA mutase deficiency of B12 lack",
+    "Neurologic damage will resolve fully because folate bypasses the methionine synthase step entirely",
+    "Neurologic damage will remain stable because only the red cell precursors depend on vitamin B12"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l11.q5",
+   "lessonId": "med-biochem-genetics.l11",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man living alone has bleeding gums, perifollicular haemorrhages and corkscrew hairs. Prothrombin time, platelet count and bleeding time are normal. Which biochemical defect is most likely?",
+   "choices": [
+    "Impaired conversion of homocysteine to methionine, which raises homocysteine and damages endothelium",
+    "Impaired conversion of tryptophan to niacin, which lowers NAD+ in rapidly dividing epithelial cells",
+    "Impaired hydroxylation of proline and lysine residues, which weakens collagen cross-linking",
+    "Impaired gamma-carboxylation of glutamate residues, which prevents calcium binding by clotting factors"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l12.q1",
+   "lessonId": "med-biochem-genetics.l12",
+   "kind": "mcq",
+   "prompt": "Which clotting factors require vitamin K-dependent gamma-carboxylation?",
+   "choices": [
+    "Factors VIII, IX, XI and XIII, together with protein C and von Willebrand factor",
+    "Factors II, VII, IX and X, together with proteins C and S",
+    "Factors V, VIII, XI and XII, together with fibrinogen and thrombomodulin",
+    "Factors I, III, IV and XIII, together with antithrombin and plasminogen"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l12.q2",
+   "lessonId": "med-biochem-genetics.l12",
+   "kind": "mcq",
+   "prompt": "In which organ is 25-hydroxyvitamin D converted to the active hormone calcitriol?",
+   "choices": [
+    "The kidney, by 1-alpha-hydroxylase stimulated by parathyroid hormone",
+    "The liver, by 25-hydroxylase stimulated by fibroblast growth factor 23",
+    "The skin, by 7-dehydrocholesterol reductase stimulated by ultraviolet light",
+    "The intestine, by 24-hydroxylase stimulated by dietary calcium and phosphate"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l12.q3",
+   "lessonId": "med-biochem-genetics.l12",
+   "kind": "mcq",
+   "prompt": "Which finding is characteristic of kwashiorkor rather than marasmus?",
+   "choices": [
+    "Severe wasting of muscle and subcutaneous fat with preserved albumin and no oedema",
+    "Hypercalcaemia with bone pain, caused by excessive retinol intake in infancy",
+    "Night blindness and Bitot spots, caused by a deficiency of retinol-dependent rhodopsin",
+    "Pitting oedema with a fatty liver, caused by low albumin and reduced lipoprotein export"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l12.q4",
+   "lessonId": "med-biochem-genetics.l12",
+   "kind": "mcq",
+   "prompt": "A 6-year-old with cystic fibrosis and pancreatic insufficiency who has not taken enzyme supplements develops night blindness and, separately, easy bruising with a prolonged prothrombin time. Which mechanism links these findings?",
+   "choices": [
+    "Excessive vitamin intake from supplements causes toxicity of vitamins A and K, which accumulate in the liver",
+    "Impaired intrinsic factor secretion causes combined deficiency of vitamins A and K in the terminal ileum",
+    "Fat malabsorption causes combined deficiency of vitamins A and K, which are absorbed with dietary fat in micelles",
+    "Protein malabsorption causes combined deficiency of vitamins B1 and B12, which need pancreatic proteases"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l12.q5",
+   "lessonId": "med-biochem-genetics.l12",
+   "kind": "mcq",
+   "prompt": "A 3-week-old exclusively breastfed infant who did not receive prophylaxis at birth presents with bruising and bleeding from the umbilical stump. Prothrombin time is prolonged, partial thromboplastin time is prolonged, and platelets and fibrinogen are normal. Which of the following is the best explanation?",
+   "choices": [
+    "Deficient conversion of fibrinogen to fibrin, because thrombin generation is blocked by maternal heparin",
+    "Deficient gamma-carboxylation of factors II, VII, IX and X, because the neonatal gut is not yet colonised and milk contains little vitamin K",
+    "Deficient synthesis of factor VIII, because the neonatal liver cannot produce the protein in adequate quantity",
+    "Deficient platelet adhesion to subendothelium, because the von Willebrand factor level is low in newborns"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l13.q1",
+   "lessonId": "med-biochem-genetics.l13",
+   "kind": "mcq",
+   "prompt": "Which enzyme removes RNA primers and fills the gap during replication in bacteria?",
+   "choices": [
+    "DNA polymerase I, which uses its 5' to 3' exonuclease activity before synthesising new DNA",
+    "DNA polymerase III, which has the highest processivity at the replication fork of the genome",
+    "DNA gyrase, which relieves the supercoiling that builds ahead of the advancing helicase",
+    "Primase, which synthesises the short RNA segments needed to begin each new DNA fragment"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l13.q2",
+   "lessonId": "med-biochem-genetics.l13",
+   "kind": "mcq",
+   "prompt": "Which statement about telomerase is correct?",
+   "choices": [
+    "It is a topoisomerase that relieves supercoiling at the chromosome ends during mitosis",
+    "It is a reverse transcriptase that uses an intrinsic RNA template to add repeats to chromosome ends",
+    "It is a DNA ligase that joins the Okazaki fragments of the lagging strand after primer removal",
+    "It is a helicase that unwinds the telomeric DNA to allow access by replication machinery"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l13.q3",
+   "lessonId": "med-biochem-genetics.l13",
+   "kind": "mcq",
+   "prompt": "Which DNA repair pathway removes UV-induced pyrimidine dimers?",
+   "choices": [
+    "Mismatch repair, which removes replication errors from the newly synthesised strand",
+    "Non-homologous end joining, which ligates the ends of broken double-stranded DNA",
+    "Nucleotide excision repair, which cuts out a short oligonucleotide containing the lesion",
+    "Base excision repair, which uses a glycosylase to remove a single damaged base"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l13.q4",
+   "lessonId": "med-biochem-genetics.l13",
+   "kind": "mcq",
+   "prompt": "A 38-year-old woman has colon cancer. Her father had colon cancer at 45 and her paternal aunt had endometrial cancer at 50. The tumour shows microsatellite instability, and she has no history of numerous polyps. Which process is most likely defective in this family?",
+   "choices": [
+    "Repair of double-strand breaks by homologous recombination, as in BRCA1 mutation carriers",
+    "Excision of bulky ultraviolet photoproducts, as in xeroderma pigmentosum",
+    "Loss of the APC protein that regulates beta-catenin, as in familial adenomatous polyposis",
+    "Repair of replication errors by the mismatch repair system, as in Lynch syndrome"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l13.q5",
+   "lessonId": "med-biochem-genetics.l13",
+   "kind": "mcq",
+   "prompt": "A young boy has unsteady gait, dilated blood vessels on the conjunctiva, and recurrent sinopulmonary infections. Serum alpha-fetoprotein is elevated and he shows sensitivity to ionising radiation. A defect in which process best explains this disorder?",
+   "choices": [
+    "Recognition of double-strand DNA breaks through the ATM checkpoint kinase",
+    "Excision of thymine dimers produced by ultraviolet light in sun-exposed skin",
+    "Removal of deaminated cytosine bases by uracil DNA glycosylase in the nucleus",
+    "Correction of single nucleotide mismatches by the MutS and MutL protein homologues"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l14.q1",
+   "lessonId": "med-biochem-genetics.l14",
+   "kind": "mcq",
+   "prompt": "Which RNA polymerase transcribes mRNA in eukaryotes?",
+   "choices": [
+    "RNA polymerase I, which makes the large ribosomal RNA precursor in the nucleolus",
+    "RNA polymerase III, which makes tRNA and the small 5S ribosomal RNA in the nucleus",
+    "RNA-dependent RNA polymerase, which makes complementary strands of messenger RNA in the cytosol",
+    "RNA polymerase II, which is inhibited by alpha-amanitin from the death cap mushroom"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l14.q2",
+   "lessonId": "med-biochem-genetics.l14",
+   "kind": "mcq",
+   "prompt": "Which processing event adds a poly-A tail to eukaryotic mRNA?",
+   "choices": [
+    "Addition of a 7-methylguanosine residue through a 5' to 5' linkage during transcription",
+    "Excision of introns by the spliceosome at GU and AG sequences with a branch-point adenine",
+    "Cleavage downstream of an AAUAAA signal followed by addition of adenines by poly-A polymerase",
+    "Template-directed copying of a string of thymines found at the end of the gene in DNA"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l14.q3",
+   "lessonId": "med-biochem-genetics.l14",
+   "kind": "mcq",
+   "prompt": "Which autoantibody is highly specific for systemic lupus erythematosus and targets a component of the spliceosome?",
+   "choices": [
+    "Anti-Scl-70 antibody, directed against topoisomerase I in diffuse systemic sclerosis",
+    "Anti-Smith antibody, directed against small nuclear ribonucleoproteins",
+    "Anti-centromere antibody, directed against kinetochore proteins in chromosomes",
+    "Anti-histone antibody, directed against nucleosome proteins in drug-induced disease"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l14.q4",
+   "lessonId": "med-biochem-genetics.l14",
+   "kind": "mcq",
+   "prompt": "A 25-year-old woman has a family history of severe anaemia and a hepatocellular injury after eating wild mushrooms collected in a forest. Which molecular process is most directly inhibited by the toxin ingested?",
+   "choices": [
+    "Synthesis of mRNA by RNA polymerase II, impairing protein production in hepatocytes",
+    "Synthesis of rRNA by RNA polymerase I, impairing ribosome production in the nucleolus",
+    "Elongation of polypeptides by the 60S ribosomal subunit, impairing peptide bond formation",
+    "Initiation of DNA synthesis by the replicative polymerases, impairing S-phase entry"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l14.q5",
+   "lessonId": "med-biochem-genetics.l14",
+   "kind": "mcq",
+   "prompt": "A patient with beta-thalassaemia is found to have a G-to-A substitution in an intron that creates a new splice acceptor site. The mutant gene produces an mRNA with an additional segment of intron inserted between exons. Which statement best explains the consequence?",
+   "choices": [
+    "The abnormal mRNA is translated normally because introns are removed by the ribosome during translation",
+    "The abnormal mRNA lacks its 5' cap, so it is made but is unable to leave the nucleus",
+    "The abnormal mRNA causes a gain of enhancer activity, so beta-globin is overproduced in erythroid cells",
+    "The abnormal mRNA encodes a nonfunctional beta-globin or is degraded, so little normal beta-globin is made"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l15.q1",
+   "lessonId": "med-biochem-genetics.l15",
+   "kind": "mcq",
+   "prompt": "A mutation changes a codon so that it specifies a stop signal, producing a truncated protein. What is this mutation called?",
+   "choices": [
+    "A silent mutation, which changes the codon but still specifies the original amino acid",
+    "A frameshift mutation, which changes the reading frame by inserting a single base",
+    "A nonsense mutation, which creates a premature termination codon in the mRNA",
+    "A missense mutation, which substitutes one amino acid for a different amino acid"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l15.q2",
+   "lessonId": "med-biochem-genetics.l15",
+   "kind": "mcq",
+   "prompt": "Which antibiotic class inhibits the 30S ribosomal subunit and requires oxygen-dependent uptake into bacteria?",
+   "choices": [
+    "Macrolides, which block translocation by binding the 23S rRNA of the 50S subunit",
+    "Chloramphenicol, which inhibits the peptidyl transferase activity of the 50S subunit",
+    "Linezolid, which prevents formation of the initiation complex at the 50S subunit",
+    "Aminoglycosides, which cause misreading of the mRNA and are ineffective against anaerobes"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l15.q3",
+   "lessonId": "med-biochem-genetics.l15",
+   "kind": "mcq",
+   "prompt": "Which enzyme is responsible for the accuracy of matching each amino acid to its tRNA?",
+   "choices": [
+    "Aminoacyl-tRNA synthetase, which charges tRNA and checks that the correct amino acid is attached",
+    "Peptidyl transferase, which forms peptide bonds between amino acids on adjacent tRNA molecules",
+    "Elongation factor Tu, which delivers charged tRNA molecules to the A site of the ribosome",
+    "Release factor, which recognises stop codons and triggers hydrolysis of the peptidyl-tRNA bond"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l15.q4",
+   "lessonId": "med-biochem-genetics.l15",
+   "kind": "mcq",
+   "prompt": "A 10-year-old with sickle cell disease is found to have the substitution of valine for glutamate at position 6 of beta-globin, the result of a single base change. Which classification of this mutation is most accurate?",
+   "choices": [
+    "A silent mutation, since the substitution of valine for glutamate has no effect on the protein",
+    "A missense point mutation, since a different amino acid is substituted without altering the reading frame",
+    "A nonsense point mutation, since the substitution results in a truncated beta-globin chain",
+    "A frameshift mutation, since a single base change shifts the reading of all downstream codons"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l15.q5",
+   "lessonId": "med-biochem-genetics.l15",
+   "kind": "mcq",
+   "prompt": "A 6-year-old with a pharyngeal membrane and a swollen neck from diphtheria is treated. The exotoxin responsible acts on the human host by which mechanism?",
+   "choices": [
+    "Inhibition of RNA polymerase II, which prevents production of mRNA in the host nucleus",
+    "Activation of adenylyl cyclase, which raises cAMP and causes secretion of chloride by cells",
+    "ADP-ribosylation of elongation factor 2, which halts translocation of the ribosome on mRNA",
+    "Cleavage of the 28S ribosomal RNA, which prevents binding of aminoacyl-tRNA to the A site"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l16.q1",
+   "lessonId": "med-biochem-genetics.l16",
+   "kind": "mcq",
+   "prompt": "In the lac operon, what does allolactose do?",
+   "choices": [
+    "It binds RNA polymerase and enables recognition of the promoter by the sigma factor",
+    "It binds the repressor and releases it from the operator, allowing transcription",
+    "It binds the operator directly and blocks RNA polymerase from reaching the promoter",
+    "It binds the catabolite activator protein and stimulates transcription when glucose is low"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l16.q2",
+   "lessonId": "med-biochem-genetics.l16",
+   "kind": "mcq",
+   "prompt": "Which epigenetic change is most typically associated with silencing of a gene promoter?",
+   "choices": [
+    "Methylation of cytosine in CpG dinucleotides, together with histone deacetylation",
+    "Acetylation of histone tails, which neutralises their charge and loosens chromatin",
+    "Binding of a transcriptional activator to a distant enhancer sequence upstream",
+    "Removal of methyl groups from CpG islands near the transcriptional start site"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l16.q3",
+   "lessonId": "med-biochem-genetics.l16",
+   "kind": "mcq",
+   "prompt": "What is the role of XIST in X chromosome inactivation?",
+   "choices": [
+    "A methyltransferase that adds methyl groups to the histones of the active X chromosome",
+    "A transcription factor that increases expression of genes on the single X chromosome of males",
+    "A microRNA that degrades the mRNA of X-linked genes in the cytoplasm of embryonic cells",
+    "A long non-coding RNA that coats one X chromosome and initiates its silencing in each female cell"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l16.q4",
+   "lessonId": "med-biochem-genetics.l16",
+   "kind": "mcq",
+   "prompt": "A colon tumour shows loss of MLH1 protein and microsatellite instability, yet sequencing of the MLH1 gene and germline testing find no mutation. Which mechanism most likely explains the loss of expression?",
+   "choices": [
+    "Acetylation of histones near the MLH1 gene, which prevents RNA polymerase from binding",
+    "Loss of the XIST transcript, which allows overexpression of the X-linked MLH1 gene",
+    "Hypermethylation of CpG sites in the MLH1 promoter, which silences transcription",
+    "Hypomethylation of the MLH1 promoter, which creates a premature stop codon in the gene"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l16.q5",
+   "lessonId": "med-biochem-genetics.l16",
+   "kind": "mcq",
+   "prompt": "A bacterial strain is found to express the lac operon enzymes even in the absence of lactose, and expression is not increased further by lactose. Which mutation best explains this?",
+   "choices": [
+    "A mutation in the promoter that prevents RNA polymerase from binding at the start site",
+    "A mutation in the operator that prevents the repressor from binding, causing constitutive expression",
+    "A mutation in the repressor that prevents allolactose from binding, causing permanent repression",
+    "A mutation in the CAP binding site that prevents the cAMP complex from activating transcription"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l17.q1",
+   "lessonId": "med-biochem-genetics.l17",
+   "kind": "mcq",
+   "prompt": "Which technique detects specific proteins in a sample using labelled antibodies after gel electrophoresis?",
+   "choices": [
+    "Western blot, in which proteins are transferred to a membrane and detected by antibody",
+    "Southern blot, in which DNA fragments are transferred to a membrane and detected by a probe",
+    "Northern blot, in which RNA is transferred to a membrane and detected by a labelled probe",
+    "Polymerase chain reaction, in which a DNA segment is amplified by repeated thermal cycling"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l17.q2",
+   "lessonId": "med-biochem-genetics.l17",
+   "kind": "mcq",
+   "prompt": "Which step of PCR allows the primers to bind to their complementary sequences?",
+   "choices": [
+    "Ligation, performed by a DNA ligase that joins the primers to the template backbone",
+    "Annealing, performed at a lower temperature after the DNA strands have been separated",
+    "Denaturation, performed at a high temperature to separate the two DNA strands",
+    "Extension, performed by a heat-stable polymerase that adds nucleotides to the primers"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l17.q3",
+   "lessonId": "med-biochem-genetics.l17",
+   "kind": "mcq",
+   "prompt": "Which method would best detect a gene amplification such as HER2 in a breast tumour cell?",
+   "choices": [
+    "Sanger sequencing of a single exon to detect a point mutation in the coding region",
+    "Western blot using an antibody against a loading control protein such as actin",
+    "Fluorescence in situ hybridisation using a fluorescent probe against the gene",
+    "Karyotyping of metaphase chromosomes using G-banding to identify the chromosome"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l17.q4",
+   "lessonId": "med-biochem-genetics.l17",
+   "kind": "mcq",
+   "prompt": "A newborn has a cleft palate, a conotruncal heart defect and hypocalcaemia from absent parathyroid tissue. Karyotype shows 46,XY with no visible abnormality. Which test is the most appropriate next step to confirm the suspected diagnosis?",
+   "choices": [
+    "Repeat karyotype using a higher-resolution banding method on stimulated lymphocytes",
+    "Southern blot for trinucleotide repeat expansion in the FMR1 gene on the X chromosome",
+    "Western blot for dystrophin protein in a skeletal muscle biopsy of the thigh",
+    "Fluorescence in situ hybridisation or microarray for deletion of 22q11.2"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l17.q5",
+   "lessonId": "med-biochem-genetics.l17",
+   "kind": "mcq",
+   "prompt": "A laboratory reports that a child with developmental delay has a normal karyotype and a chromosomal microarray that finds no copy-number changes. Which type of genetic abnormality could still be present and would NOT be excluded by these two tests?",
+   "choices": [
+    "A single nucleotide substitution within one gene, or a small intragenic insertion of a few bases",
+    "A 3-megabase deletion of a chromosome arm affecting many contiguous genes at one locus",
+    "An extra copy of chromosome 21 in all cells, as in trisomy 21 present throughout the body",
+    "A large duplication of a segment of a chromosome that includes several genes lying in tandem"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l18.q1",
+   "lessonId": "med-biochem-genetics.l18",
+   "kind": "mcq",
+   "prompt": "Which feature best distinguishes X-linked recessive inheritance from autosomal dominant inheritance in a pedigree?",
+   "choices": [
+    "The trait appears in every generation and either sex may transmit it to either sex",
+    "Both parents of an affected child are usually unaffected, and consanguinity is common",
+    "All daughters of an affected male are affected, but none of his sons show the condition",
+    "There is no male-to-male transmission, and affected males are born to carrier mothers"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l18.q2",
+   "lessonId": "med-biochem-genetics.l18",
+   "kind": "mcq",
+   "prompt": "A healthy man has a sister with cystic fibrosis (autosomal recessive). His parents are both unaffected. What is the probability that he is a carrier?",
+   "choices": [
+    "1/4, because only one of four equally likely outcomes is a carrier child",
+    "1/3, because only one of the three unaffected outcomes would be a carrier child",
+    "2/3, because the unaffected outcome excludes only the homozygous-affected possibility",
+    "1/2, because each parent transmits the mutant allele to half of their children"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l18.q3",
+   "lessonId": "med-biochem-genetics.l18",
+   "kind": "mcq",
+   "prompt": "Which term describes the proportion of individuals with a disease-causing genotype who express any phenotype at all?",
+   "choices": [
+    "Anticipation, which is present when onset becomes earlier in successive generations",
+    "Penetrance, which is reduced when a mutation carrier remains entirely unaffected",
+    "Expressivity, which is greater when a carrier has more severe features than relatives",
+    "Pleiotropy, which is present when a single gene affects multiple organ systems"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l18.q4",
+   "lessonId": "med-biochem-genetics.l18",
+   "kind": "mcq",
+   "prompt": "A 4-year-old boy has difficulty climbing stairs, uses his hands to push up from the floor, and has enlarged calves. His mother is healthy and his maternal uncle died of a similar illness in adolescence. What is the risk that this boy's future brother will be affected, assuming the mother is a carrier?",
+   "choices": [
+    "50 percent, since each son of a carrier mother inherits the mutant X with equal probability",
+    "25 percent, since the mother must transmit the mutant allele and the father must also contribute one",
+    "100 percent, since the mutant X chromosome is always transmitted by a carrier woman to her sons",
+    "0 percent, since the disorder is recessive and the mother has no manifestations of the disease"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l18.q5",
+   "lessonId": "med-biochem-genetics.l18",
+   "kind": "mcq",
+   "prompt": "A newborn with short limbs and a large head has achondroplasia. Both parents have normal stature and there is no family history. What is the most likely explanation for the occurrence of an autosomal dominant disease in this family?",
+   "choices": [
+    "Reduced penetrance in both parents, who each carry the mutation without any physical features",
+    "Autosomal recessive inheritance, with both parents being heterozygous carriers of one mutant allele",
+    "Maternal mitochondrial inheritance, with heteroplasmy in the egg leading to the affected child",
+    "A de novo mutation, whose frequency increases with advancing paternal age"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l19.q1",
+   "lessonId": "med-biochem-genetics.l19",
+   "kind": "mcq",
+   "prompt": "Which statement describes mitochondrial inheritance?",
+   "choices": [
+    "Both affected parents are required for the offspring to be affected by the mitochondrial disease",
+    "Affected individuals transmit the trait to half of their offspring regardless of the sex of the parent",
+    "Affected mothers transmit the trait to all offspring, and affected fathers transmit it to none",
+    "Affected fathers transmit the trait to all daughters, and affected mothers transmit it to half"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l19.q2",
+   "lessonId": "med-biochem-genetics.l19",
+   "kind": "mcq",
+   "prompt": "Which genetic finding is most associated with Angelman syndrome?",
+   "choices": [
+    "Loss of the paternally inherited 15q11-q13 region, affecting multiple imprinted genes",
+    "A CGG trinucleotide repeat expansion of the FMR1 gene on the long arm of the X chromosome",
+    "A CTG trinucleotide repeat expansion in the DMPK gene on the long arm of chromosome 19",
+    "Loss of the maternally inherited 15q11-q13 region, affecting UBE3A expression in neurons"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l19.q3",
+   "lessonId": "med-biochem-genetics.l19",
+   "kind": "mcq",
+   "prompt": "Which phenomenon explains the earlier age of onset and greater severity of Huntington disease in successive generations?",
+   "choices": [
+    "Anticipation from expansion of the CAG repeat during transmission",
+    "Heteroplasmy from variation in the mutant mitochondrial fraction between children",
+    "Imprinting from the silencing of the paternal allele by methylation of promoter DNA",
+    "Mosaicism from a post-zygotic mutation in a subset of cells in the developing embryo"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l19.q4",
+   "lessonId": "med-biochem-genetics.l19",
+   "kind": "mcq",
+   "prompt": "A 3-year-old boy has intellectual disability, a long face with prominent ears, and autistic features. His maternal grandfather has a tremor and ataxia that began in his sixties. Which of the following best explains the family's findings?",
+   "choices": [
+    "A mitochondrial tRNA point mutation, with the heteroplasmic fraction rising in each generation of the family",
+    "CGG repeat expansion in FMR1, with a premutation in the grandfather and a full mutation in the boy",
+    "CAG repeat expansion in HTT, with the grandfather affected later than the boy through anticipation",
+    "A deletion of the paternally derived 15q11-q13, with the grandfather having a mild form of the same condition"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l19.q5",
+   "lessonId": "med-biochem-genetics.l19",
+   "kind": "mcq",
+   "prompt": "A 6-month-old girl has marked hypotonia and feeding difficulty. Methylation testing shows only the maternal pattern at 15q11-q13, and FISH shows no deletion. Both parents have normal chromosomes. Which mechanism is the most likely cause?",
+   "choices": [
+    "A de novo deletion of the maternal 15q11-q13 region that FISH failed to detect in the sample tested",
+    "Trinucleotide repeat expansion at the FMR1 locus, which silences gene expression through methylation",
+    "Maternal uniparental disomy of chromosome 15, giving two maternal copies and no paternal contribution",
+    "Paternal uniparental disomy of chromosome 15, giving two paternal copies and no maternal contribution"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l20.q1",
+   "lessonId": "med-biochem-genetics.l20",
+   "kind": "mcq",
+   "prompt": "In a population in Hardy-Weinberg equilibrium with allele frequencies p and q, which expression gives the frequency of heterozygotes?",
+   "choices": [
+    "q squared, since both alleles inherited must be the recessive allele in this case",
+    "p plus q, since the sum of the two allele frequencies describes the heterozygous state",
+    "2pq, since either allele can come from either parent in the two possible orders",
+    "p squared, since both alleles inherited must be the dominant allele in this case"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l20.q2",
+   "lessonId": "med-biochem-genetics.l20",
+   "kind": "mcq",
+   "prompt": "An autosomal recessive disease affects 1 in 10,000 people in a population in Hardy-Weinberg equilibrium. Approximately what is the carrier frequency?",
+   "choices": [
+    "1 in 100, since q is 1/100 and carriers are equal to q",
+    "1 in 5,000, since carriers are twice as common as affected people",
+    "1 in 10,000, since carriers occur at the same frequency as affected people",
+    "1 in 50, since q is 1/100 and carriers are approximately 2q"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l20.q3",
+   "lessonId": "med-biochem-genetics.l20",
+   "kind": "mcq",
+   "prompt": "Which statement about an X-linked recessive disease in a population in Hardy-Weinberg equilibrium is correct?",
+   "choices": [
+    "The incidence in males equals the allele frequency q, and the incidence in females is q squared",
+    "The incidence in males equals q squared, and the incidence in females equals the frequency of 2pq",
+    "The incidence is the same in males and females, because both sexes inherit an X from their mother",
+    "The incidence in males is half of that in females, because females carry two copies of the allele"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l20.q4",
+   "lessonId": "med-biochem-genetics.l20",
+   "kind": "mcq",
+   "prompt": "In a particular region where malaria is endemic, the frequency of the sickle cell allele remains high despite the severe disease in homozygotes. Which population genetic mechanism best explains the persistence of the allele?",
+   "choices": [
+    "Inbreeding, since consanguineous marriages increase the frequency of heterozygous carriers",
+    "Heterozygote advantage, since carriers have relative protection from severe falciparum malaria",
+    "Genetic drift, since the allele has become fixed by chance in a very small population",
+    "Founder effect, since the allele was introduced by a small group of migrants of one lineage"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l20.q5",
+   "lessonId": "med-biochem-genetics.l20",
+   "kind": "mcq",
+   "prompt": "A woman's brother has an autosomal recessive disease with a population incidence of 1 in 10,000. She and her unaffected partner, who has no family history, plan a pregnancy. What is the approximate risk that their child will be affected?",
+   "choices": [
+    "About 1 in 2,500, equal to the incidence of the disease in the general population",
+    "About 1 in 4, because one of her parents must have carried and transmitted the mutation",
+    "About 1 in 300, calculated as 2/3 x 1/50 x 1/4",
+    "About 1 in 100, calculated as 1/2 x 1/50 x 1/2"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l21.q1",
+   "lessonId": "med-biochem-genetics.l21",
+   "kind": "mcq",
+   "prompt": "What is the karyotype of Turner syndrome in the most common form?",
+   "choices": [
+    "47,XXY, with an additional X chromosome in a phenotypic male in every cell",
+    "47,XXX, with an additional X chromosome in a phenotypic female in every cell",
+    "46,XY, with a deletion of the short arm of the Y chromosome in a phenotypic female",
+    "45,X, with a single X chromosome in each cell and no second sex chromosome"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l21.q2",
+   "lessonId": "med-biochem-genetics.l21",
+   "kind": "mcq",
+   "prompt": "Which finding is most characteristic of Klinefelter syndrome?",
+   "choices": [
+    "Elfin facies with supravalvular aortic stenosis and a very sociable personality",
+    "Intellectual disability with a high-pitched cat-like cry in infancy and microcephaly",
+    "Tall stature with small firm testes, gynaecomastia and elevated FSH and LH",
+    "Short stature with webbed neck, streak ovaries and coarctation of the aorta"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l21.q3",
+   "lessonId": "med-biochem-genetics.l21",
+   "kind": "mcq",
+   "prompt": "Which mechanism accounts for the majority of cases of Down syndrome?",
+   "choices": [
+    "A paternal deletion of the long arm of chromosome 21, with loss of genes for development",
+    "Meiotic nondisjunction of chromosome 21, which increases in frequency with maternal age",
+    "A Robertsonian translocation between chromosomes 14 and 21 inherited from a carrier parent",
+    "Mitotic nondisjunction after fertilisation, which produces mosaicism of normal and trisomic cells"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l21.q4",
+   "lessonId": "med-biochem-genetics.l21",
+   "kind": "mcq",
+   "prompt": "A 26-year-old woman has had two miscarriages and now has a child with Down syndrome. Her karyotype shows 45 chromosomes with a fusion of the long arms of chromosomes 14 and 21. Which statement about her situation is correct?",
+   "choices": [
+    "She carries a balanced Robertsonian translocation and has a higher recurrence risk than for ordinary nondisjunction",
+    "She has a mosaic trisomy 21 and the recurrence risk is the same as the general population risk",
+    "She has monosomy 21 in all cells and would be expected to have severe intellectual disability",
+    "She has a reciprocal translocation that is unbalanced and should show features of Down syndrome"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l21.q5",
+   "lessonId": "med-biochem-genetics.l21",
+   "kind": "mcq",
+   "prompt": "A 16-year-old girl has short stature and primary amenorrhoea. Examination shows a webbed neck and widely spaced nipples. Blood pressure is higher in the arms than in the legs, and femoral pulses are weak. Which cardiac lesion best explains the blood pressure findings, and with which karyotype is it associated?",
+   "choices": [
+    "Atrioventricular septal defect, associated with trisomy 21",
+    "Supravalvular aortic stenosis, associated with a 7q11.23 deletion",
+    "Tetralogy of Fallot, associated with a 22q11.2 deletion in the patient",
+    "Coarctation of the aorta, associated with 45,X"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l22.q1",
+   "lessonId": "med-biochem-genetics.l22",
+   "kind": "mcq",
+   "prompt": "Which gene is the target of imatinib in chronic myeloid leukaemia?",
+   "choices": [
+    "BCR-ABL, a fusion tyrosine kinase formed by the t(9;22) translocation",
+    "BCL2, an anti-apoptotic protein overexpressed by the t(14;18) translocation",
+    "MYC, a transcription factor activated by the t(8;14) translocation",
+    "PML-RARA, a fusion protein formed by the t(15;17) translocation"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l22.q2",
+   "lessonId": "med-biochem-genetics.l22",
+   "kind": "mcq",
+   "prompt": "According to Knudson's two-hit hypothesis, why do hereditary retinoblastoma cases tend to be bilateral and earlier in onset than sporadic cases?",
+   "choices": [
+    "The RB1 protein is overexpressed, which accelerates the transition from G1 to S phase",
+    "Every cell already carries one mutated RB1 allele, so only one further somatic hit is needed",
+    "Both mutated alleles are inherited, so no further somatic event is needed in any cell",
+    "A single oncogene is activated in every cell of the retina by a gain of function mutation"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l22.q3",
+   "lessonId": "med-biochem-genetics.l22",
+   "kind": "mcq",
+   "prompt": "Which germline mutation causes a syndrome of sarcomas, early breast cancer, brain tumours and adrenocortical carcinoma?",
+   "choices": [
+    "RET, causing multiple endocrine neoplasia type 2 through constitutive kinase activation",
+    "VHL, causing von Hippel-Lindau disease through stabilisation of hypoxia-inducible factors",
+    "TP53, causing Li-Fraumeni syndrome through loss of cell cycle arrest and apoptosis",
+    "APC, causing familial adenomatous polyposis through loss of beta-catenin regulation"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l22.q4",
+   "lessonId": "med-biochem-genetics.l22",
+   "kind": "mcq",
+   "prompt": "A 34-year-old woman has breast cancer, her mother had ovarian cancer at 52, and her sister had breast cancer at 40. A pathogenic BRCA1 variant is found. Why might a PARP inhibitor be effective for her tumour?",
+   "choices": [
+    "The tumour cells overexpress HER2, so blocking PARP produces a direct and selective inhibition of the receptor",
+    "The tumour cells carry a BCR-ABL fusion, so blocking PARP removes the constitutive tyrosine kinase signal",
+    "The tumour cells lack mismatch repair, so blocking PARP leads to accumulation of frameshift mutations in microsatellites",
+    "The tumour cells cannot repair double-strand breaks by homologous recombination, so blocking base excision repair is lethal"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l22.q5",
+   "lessonId": "med-biochem-genetics.l22",
+   "kind": "mcq",
+   "prompt": "A 5-year-old boy is found to have bilateral renal Wilms tumours, aniridia and developmental delay. Which statement best describes the genetic basis of his tumours?",
+   "choices": [
+    "Loss of function of a tumour suppressor gene (WT1) on chromosome 11p, with both alleles inactivated in tumour cells",
+    "Gain of function of an oncogene on chromosome 11p, with a single activated allele sufficient in tumour cells",
+    "Amplification of N-MYC on chromosome 2p, which is characteristically seen in neuroblastoma and not in renal tumours",
+    "A BCR-ABL translocation on chromosomes 9 and 22, which produces a constitutively active tyrosine kinase"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l23.q1",
+   "lessonId": "med-biochem-genetics.l23",
+   "kind": "mcq",
+   "prompt": "Which US law prohibits health insurers and employers from discriminating on the basis of genetic information?",
+   "choices": [
+    "The Affordable Care Act of 2010, which protects genetic information in life insurance policies",
+    "The Genetic Information Nondiscrimination Act of 2008, which does not cover life or disability insurance",
+    "The Americans with Disabilities Act of 1990, which explicitly covers all types of private insurance",
+    "The Health Insurance Portability and Accountability Act of 1996, which prohibits any testing"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l23.q2",
+   "lessonId": "med-biochem-genetics.l23",
+   "kind": "mcq",
+   "prompt": "Which category should be assigned to a sequence variant for which the evidence is insufficient or conflicting?",
+   "choices": [
+    "Variant of uncertain significance, which should not by itself direct medical management",
+    "Likely pathogenic, which should be treated as a confirmed cause of the patient's disease",
+    "Benign, which means the variant has been shown to have no effect on protein function",
+    "Pathogenic, which should prompt cascade testing of every relative in the extended family"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l23.q3",
+   "lessonId": "med-biochem-genetics.l23",
+   "kind": "mcq",
+   "prompt": "A genetic variant in which gene predicts hypersensitivity to abacavir?",
+   "choices": [
+    "TPMT, a metabolic gene whose variants predict thiopurine marrow toxicity",
+    "CYP2C19, a metabolic gene whose variants predict reduced activation of clopidogrel",
+    "DPYD, a metabolic gene whose variants predict fluoropyrimidine toxicity in cancer treatment",
+    "HLA-B*57:01, an immune gene whose presence predicts a hypersensitivity reaction"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l23.q4",
+   "lessonId": "med-biochem-genetics.l23",
+   "kind": "mcq",
+   "prompt": "A healthy 28-year-old woman whose father died of Huntington disease requests predictive testing. She is not pregnant and is not planning a pregnancy. Which approach by the genetic counsellor is most appropriate?",
+   "choices": [
+    "Test her immediately without discussion, because early knowledge always improves the outcome of the disease",
+    "Test her siblings first without their knowledge, so that her result can be predicted in advance",
+    "Explore her reasons, discuss implications and insurance issues, and support her autonomous decision with follow-up",
+    "Refuse testing, because predictive testing may only be performed in people who already show symptoms"
+   ]
+  },
+  {
+   "id": "med-biochem-genetics.l23.q5",
+   "lessonId": "med-biochem-genetics.l23",
+   "kind": "mcq",
+   "prompt": "A first-trimester cell-free DNA screen is positive for trisomy 21 in a 24-year-old woman with a low prior risk. Which statement best describes the next step and why?",
+   "choices": [
+    "Do nothing further, because cell-free DNA screening is a diagnostic test that rules in the condition in the fetus",
+    "Offer diagnostic testing by amniocentesis or chorionic villus sampling, because at a low prior risk the positive predictive value of screening is limited",
+    "Report the diagnosis of Down syndrome to the family, because cell-free DNA has a sensitivity of 100 percent for chromosomal conditions",
+    "Repeat the screening at the second trimester, because only a repeated positive result can confirm the diagnosis"
+   ]
+  }
+ ]
+}

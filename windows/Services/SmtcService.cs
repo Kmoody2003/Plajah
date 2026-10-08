@@ -100,7 +100,6 @@ public class SmtcService : IDisposable
         {
             SystemMediaTransportControlsButton.Play       => """{"type":"MEDIA_PLAY"}""",
             SystemMediaTransportControlsButton.Pause      => """{"type":"MEDIA_PAUSE"}""",
-            SystemMediaTransportControlsButton.PlayPause  => """{"type":"MEDIA_PLAY_PAUSE"}""",
             SystemMediaTransportControlsButton.Next       => """{"type":"MEDIA_NEXT"}""",
             SystemMediaTransportControlsButton.Previous   => """{"type":"MEDIA_PREV"}""",
             SystemMediaTransportControlsButton.Stop       => """{"type":"MEDIA_STOP"}""",

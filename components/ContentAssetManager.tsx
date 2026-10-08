@@ -636,8 +636,27 @@ const AssetDetail: React.FC<{
             </div>
           )}
 
-          <div className="flex gap-2">
-            {asset.editable && <button onClick={onEdit} className="flex-1 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/15"><Pencil size={13} /> {asset.product ? 'Edit in Store Manager' : 'Open in studio'}</button>}
+          <div className="flex flex-wrap gap-2">
+            {(asset.video || asset.album?.type === 'VIDEO' || isClip) && (
+              <button
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('OPEN_UNIVERSAL_VIDEO_PLAYER', {
+                    detail: {
+                      video: asset.video,
+                      album: asset.album,
+                      title: asset.title,
+                      context: 'ASSET_HQ',
+                    }
+                  }));
+                }}
+                className="flex-1 min-w-[170px] py-3 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-sm"
+                title="Review with frame-accurate timecode, Pixels shaders, and linked review notes"
+              >
+                <Sparkles size={13} className="text-amber-400" />
+                QC in Universal Player
+              </button>
+            )}
+            {asset.editable && <button onClick={onEdit} className="flex-1 min-w-[140px] py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/15"><Pencil size={13} /> {asset.product ? 'Edit in Store Manager' : 'Open in studio'}</button>}
             {(asset.album?.tracks?.[0]?.url || asset.video?.url) && (
               <a href={asset.album?.tracks?.[0]?.url || asset.video?.url} target="_blank" rel="noreferrer" download className="px-4 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" title="Download source"><Download size={13} /></a>
             )}

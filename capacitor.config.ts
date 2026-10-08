@@ -1,9 +1,24 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
+// LIVE-SITE SHELL (default) vs BUNDLED BUILD.
+//
+// The APK is a thin shell over https://plajah.com: every deploy reaches the app with no APK rebuild,
+// and — critically — the page's origin is plajah.com, so the ~60 places that call a relative `/api/...`
+// (Aria, Chora transcode manifests + HLS media, Stripe, uploads...) reach the real backend, whose CORS
+// allow-list only knows plajah.com. On 2026-10-03 `server.url` was dropped in a bulk checkpoint, which
+// made the APK serve its own bundled copy of dist/ from https://plajah.app: there `/api/*` hit the
+// app's local asset server (404) and the HLS playlists for every transcoded Chora track were dead, so
+// tracks stalled ~10s before falling back to the raw WAV. Restored below.
+//
+// Live-site mode does not need dist/ inside the APK, so webDir is a tiny placeholder (cap-shell/) — that
+// alone took ~410MB out of the APK. For a self-contained OFFLINE build run `CAP_BUNDLED=1 npx cap sync
+// android` (webDir=dist, no server.url); note the backend must then allow the plajah.app origin.
+const bundled = process.env.CAP_BUNDLED === '1';
+
 const config: CapacitorConfig = {
   appId: 'com.plajah.app',
   appName: 'Plajah',
-  webDir: 'dist',
+  webDir: bundled ? 'dist' : 'cap-shell',
 
   // Android-specific settings
   android: {
@@ -49,14 +64,10 @@ const config: CapacitorConfig = {
   },
 
   server: {
-    // The native app is a thin shell that loads the LIVE deployed site, so every
-    // deploy to master reaches the app immediately with no APK rebuild (only
-    // native changes — plugins, config, icon — need a new APK). The Capacitor
-    // native bridge is still injected into this remote origin, so isNativePlatform()
-    // is true and the native plugins (Google sign-in, etc.) work. Requires network
-    // to launch (no offline shell). To go back to a self-contained bundled build,
-    // remove `url` and it loads from dist/ (webDir).
-    url: 'https://plajah.com',
+    // Live site (see the note at the top). The native bridge is still injected into this remote
+    // origin, so isNativePlatform() is true and the native plugins (Google sign-in, NativeAudio, ...)
+    // work. Needs network to launch; errorPath shows a local retry page instead of Chrome's error.
+    ...(bundled ? {} : { url: 'https://plajah.com', errorPath: 'offline.html' }),
     cleartext: false,
     androidScheme: 'https',
     hostname: 'plajah.app',

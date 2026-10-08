@@ -1,0 +1,1377 @@
+{
+ "courseId": "lighting-design",
+ "label": "Lighting Design",
+ "lessons": [
+  {
+   "id": "lighting-design.l01",
+   "title": "The Physics of Light and the Inverse Square Law",
+   "body": [
+    "Light is a form of electromagnetic radiation, the same family as radio waves and X-rays. Our eyes respond to only a narrow band of it, with wavelengths of roughly 380 to 750 nanometres. In everyday lighting work, light can be treated as travelling in straight lines from its source until it meets something. At a surface it can be reflected, absorbed or transmitted, and often all three at once. A white wall reflects most of the light that lands on it, a black cloth absorbs most, and a window transmits most.",
+    "Brightness on a surface is called illuminance. It is measured in lux (lumens per square metre) or in foot-candles, the older unit still common in the United States. A lighting designer mostly cares about how illuminance changes as a lamp moves.",
+    "Here is the key rule. Light spreads outward from a small source, so the same amount of light covers a larger and larger area as it travels. The area grows with the square of the distance, so the illuminance falls with the square of the distance. This is the inverse square law. It holds closely for a small source in open space.",
+    "Worked example: a small lamp lights a table at 1 metre and gives 400 lux. At 2 metres the light covers four times the area, so the table receives about 100 lux. At 4 metres it receives about 25 lux. Moving the lamp closer has the opposite, dramatic effect.",
+    "Photographers count brightness in stops, where one stop is a doubling or halving of light. Doubling the distance costs two stops."
+   ]
+  },
+  {
+   "id": "lighting-design.l02",
+   "title": "Quality of Light: Hard and Soft",
+   "body": [
+    "Lighting people talk about the quality of light, meaning how its shadows look. Hard light makes dark shadows with sharp edges. Soft light makes shadows with gradual, feathered edges, and often barely visible ones. Neither is better. Hard light shows texture and drama; soft light is gentle and forgiving on skin.",
+    "What decides the quality is the apparent size of the source as seen from the subject. A small source, such as a bare bulb or a small spotlight, lights each point on the subject from nearly the same direction, so shadow edges are crisp. A large source, such as a big window or a softbox, lights each point from many directions at once. The edge of a shadow is then partly lit and partly dark, which looks soft.",
+    "The word that matters is apparent. The sun is enormously large, but it appears as a small disc in the sky, so on a clear day it casts hard shadows. On an overcast day, the clouds scatter the sunlight and the whole sky acts as one huge source, which is why shadows nearly disappear.",
+    "Two practical levers follow. Moving a source closer to the subject makes it appear larger, so it gets softer. Placing diffusion material, such as a white sheet or a frosted panel, in front of a small lamp makes a bigger glowing surface, which also softens it.",
+    "Worked example: a portrait with a small lamp three metres away shows a sharp nose shadow. Replacing it with a softbox half a metre away turns that shadow into a soft gradient."
+   ]
+  },
+  {
+   "id": "lighting-design.l03",
+   "title": "Direction: Where the Light Comes From",
+   "body": [
+    "Direction is where the light comes from relative to the subject and to the camera. Because shadows fall away from the source, direction controls what the viewer sees: the shape of a face, the roughness of a wall, the depth in a scene.",
+    "Front light comes from near the camera. It fills in shadows that the camera can see, so a face looks even and flat, with little sense of depth. Side light comes from ninety degrees to the camera axis. It lights one half and leaves the other dark, and it rakes across surfaces, revealing texture such as skin pores, fabric weave or brick. Top light comes from overhead and shadows the eye sockets and under the nose and chin. Back light comes from behind the subject toward the camera and traces an outline of bright edge, helping to separate the subject from the background. Under light, from below, is rare in nature, and because we are used to being lit from above it can look eerie, which is why it appears in horror stories.",
+    "A common starting point for a person is a key light about 45 degrees to one side and somewhat above eye level. This produces a small triangle of light on the cheek on the shadow side, a look often called Rembrandt lighting after the painter's portraits.",
+    "Worked example: photograph a stone wall with the light head-on and it looks flat. Move the same lamp to the side, close to the wall, and every bump casts a shadow, and the surface comes alive."
+   ]
+  },
+  {
+   "id": "lighting-design.l04",
+   "title": "Colour Temperature (Kelvin) and CRI",
+   "body": [
+    "Not all white light is the same white. Candle flames and old incandescent bulbs look orange-ish, while an overcast sky looks bluish. Lighting people describe this with colour temperature, measured in kelvins (K). The scale is based on the colour of an idealised glowing object heated to that temperature. The surprise for beginners is that lower numbers look warmer and higher numbers look cooler, which is the reverse of how we use hot and cold.",
+    "Typical reference values: household warm bulbs are about 2700 K; film and studio tungsten lamps are usually rated at 3200 K; daylight-balanced film and photographic lights are rated around 5600 K; a hazy or shaded sky can be 7000 K or more. Real daylight changes through the day and with the weather, so these are conventions, not constants.",
+    "A camera or the human brain adapts to one white. If two different colour temperatures appear in the same scene, the mismatch shows. Set a camera to daylight, and tungsten lamps in the same frame glow orange. Designers either match sources to one value or mix them on purpose, for example a warm lamp against cool window light.",
+    "A second measure is the colour rendering index, or CRI. It is a scale up to 100 that compares how naturally a light shows a set of test colours against a reference source. A low-CRI light can make skin and clothing look dull or oddly tinted even if its Kelvin value looks right. For skin tones and products, higher CRI is generally better."
+   ]
+  },
+  {
+   "id": "lighting-design.l05",
+   "title": "Fresnel and Ellipsoidal Instruments",
+   "body": [
+    "Two classic fixtures appear in nearly every theatre, film set and studio. They are named for how they are built, and the build decides how the light behaves.",
+    "The Fresnel has a lens made of concentric stepped rings instead of a thick curve. That design is named for Augustin-Jean Fresnel, the French physicist who developed it in the 1820s for lighthouses. Inside the housing, the lamp and a curved reflector slide together as one unit toward or away from the lens. Moving them close to the lens gives a wide, flooded beam; moving them back gives a narrower, brighter spot. The beam has a soft edge that blends easily with neighbouring lights, and metal flaps called barn doors can be added to trim it. Fresnels are common for washes of light and for key and fill on film sets.",
+    "The ellipsoidal reflector spotlight, often called a profile or by the brand name Leko, uses an elliptical reflector that gathers light and focuses it through a gate, where adjustable metal shutters cut the beam to a sharp shape, then through lenses in a barrel. Slide a metal or glass pattern called a gobo into the gate and the fixture projects that pattern, such as window panes or leaves. Focusing the lens can sharpen or soften the edge.",
+    "Worked example: to light a stage floor with a crisp square pool of light, use an ellipsoidal and shutter it. To wash an actor with a gentle blend of light, use a Fresnel."
+   ]
+  },
+  {
+   "id": "lighting-design.l06",
+   "title": "LEDs, Softboxes and Practicals",
+   "body": [
+    "Modern lighting uses many more fixture types than the two classics. Three are worth knowing early.",
+    "LED fixtures make light with light-emitting diodes. Compared with tungsten lamps, they typically produce much more light for the electricity they draw, run cooler, and can often change colour at the touch of a control. Many can mix red, green and blue, or additional colours, to create nearly any hue and a range of white. They are not all equal, though. Cheaper units may have a lower CRI, a green or magenta tint, or flicker on camera when they are dimmed. Checking the specifications and doing a test shot are good habits.",
+    "A softbox is a fabric-sided enclosure that fits around a lamp, with a white diffusion panel across the front. The glowing panel becomes the source, so a small lamp is turned into a larger, softer one. Photographers use softboxes for portraits and products, and they can often be fitted with an internal grid that limits spill.",
+    "A practical is a working light that appears in the shot, such as a table lamp, a street light or a neon sign. Practicals add realism because the audience sees where the light comes from. But a household bulb is usually too dim to expose a scene properly, so crews often fit a stronger bulb or add a hidden light that matches the practical's position and colour.",
+    "Worked example: a bedroom scene lit by a bedside lamp might use a small hidden LED near the lamp to supply the glow the viewer expects."
+   ]
+  },
+  {
+   "id": "lighting-design.l07",
+   "title": "Control Basics: Dimmers and DMX",
+   "body": [
+    "A single switch gives you only on or off. Lighting design needs gradual change, so fixtures are controlled through dimmers. A dimmer adjusts the power delivered to a lamp, making it brighter or dimmer. A tungsten lamp also becomes warmer in colour as it dims, which is natural and often welcome. Many LED fixtures have built-in dimming electronics instead, and these generally keep their colour as they dim.",
+    "To control dozens of fixtures from one place, designers use a lighting console and a data signal. The most widely used standard is DMX512, developed in the 1980s. A single DMX line, called a universe, carries 512 channels. Each channel holds a number from 0 to 255 that the receiving device reads as an instruction. For a simple dimmer, 0 means off and 255 means full. A moving light or colour-mixing LED needs several channels for each fixture: one for brightness, others for colour, position, gobo and so on.",
+    "The console is where lighting states are built and stored. Each stored state is a cue, and the console can fade between them over a chosen time. This is how a theatre show can repeat the same lighting changes at every performance. Large systems may use more than one universe, and the same ideas carry over to networked versions of the signal.",
+    "Worked example: a small show has twelve dimmers, each on one channel. The operator sets channels 1 to 6 to full and 7 to 12 to half, stores that as cue 1, and the console recreates it exactly each night."
+   ]
+  },
+  {
+   "id": "lighting-design.l08",
+   "title": "Working with Gels and Diffusion",
+   "body": [
+    "Filters let you reshape the light from any fixture. Two families do most of the work: gels and diffusion.",
+    "A gel is a thin sheet of coloured, heat-resistant polymer placed in front of a lamp. Colour-effect gels create colours such as deep blue or amber for mood. Colour-correction gels shift the colour temperature of a source. Colour temperature orange, or CTO, warms a daylight-balanced light so it matches tungsten lamps. Colour temperature blue, or CTB, does the opposite. Colour-correction gels are sold in strengths, such as full, half and quarter. A third type, neutral density or ND, reduces brightness without changing colour.",
+    "Every gel works by absorbing the wavelengths it does not pass, so it always costs light. A deep saturated colour absorbs a lot, while a pale tint absorbs little. The absorbed energy turns into heat, which is why you should use gels made for the fixture's heat and keep them clear of hot lamps unless they are rated for it.",
+    "Diffusion materials, such as frosted sheets and fabrics, scatter the light. Because the diffusing sheet becomes a larger glowing surface, the light becomes softer, as you saw in the lesson on quality. Diffusion also lowers brightness. Heavier diffusion softens more and absorbs more.",
+    "Worked example: a window lets in cool daylight while the room has tungsten lamps. Covering the window with CTO makes both sources look the same colour, so the camera needs only one white setting."
+   ]
+  },
+  {
+   "id": "lighting-design.l09",
+   "title": "Three-Point Lighting",
+   "body": [
+    "Three-point lighting is the standard starting recipe for lighting a person on camera. It uses three roles, not necessarily three identical lamps.",
+    "The key light is the main source. It establishes the direction of the light and most of the exposure. It is usually placed to one side of the camera and above eye level, often around 45 degrees to the camera-subject line. Because it comes from the side, it models the face with light and shadow.",
+    "The fill light is placed on the opposite side, usually near the camera. Its job is to lift the shadows the key creates so detail is not lost. It is generally softer and dimmer than the key. The brighter the fill is relative to the key, the lower the contrast. Turn it off and the shadow side becomes dark; set it close to the key's level and the picture looks flat.",
+    "The back light, also called a hair light or rim light, sits behind the subject, usually above and pointing toward the camera. It draws a thin bright edge around the head and shoulders. That edge separates the subject from the background and adds a sense of depth.",
+    "Worked example: for an interview, set the key to the left of the camera, a soft fill to the right at lower power, and a small lamp behind and above, aimed at the shoulders. Then adjust the fill until the shadows on the face show detail but still keep some shape.",
+    "Three-point is a foundation. Real scenes often need more or fewer lights."
+   ]
+  },
+  {
+   "id": "lighting-design.l10",
+   "title": "Beyond Three-Point: Ratios, Negative Fill and Key Styles",
+   "body": [
+    "Once a basic setup works, designers control contrast with a lighting ratio, which compares the light on the brightest side of a subject to the light on the shadow side. Conventions for writing it vary, so always check which one is meant. A common reading is that a ratio of 2:1 means the lit side receives twice the light of the shadow side, one stop of difference, and 4:1 means two stops. A larger ratio looks more dramatic.",
+    "Raising contrast does not always mean more lights. Negative fill does it by subtraction: a large black flag or fabric is placed beside the subject on the shadow side, so it absorbs light that would otherwise bounce back from walls and fill the shadow. The shadow side then goes deeper without any change to the key.",
+    "Extra lights each have a job. A background light brightens or shapes the backdrop so the subject does not vanish into it. A kicker is a back-side light that catches the cheek or shoulder. An eye light adds a small sparkle to the eyes.",
+    "Designers also speak of key styles. High-key lighting is bright, with low ratios and few deep shadows, and it feels open and cheerful, common in comedies and commercials. Low-key lighting has a high ratio and large dark areas, and it is used to feel tense, serious or mysterious.",
+    "Worked example: a crime-drama interview needs more shadow. Rather than dimming the fill, you place a black flag to the fill side of the subject and the ratio rises."
+   ]
+  },
+  {
+   "id": "lighting-design.l11",
+   "title": "Motivated Lighting",
+   "body": [
+    "Motivated lighting means that the light in a scene seems to come from something the audience can believe in: a window, a lamp, a fire, a screen, the sun. The word motivation here is borrowed from acting. A light has a reason to be there.",
+    "The motivating source does not need to be visible. A character may sit in a dim room, lit softly from the left with a cool glow. The audience assumes a window just out of frame. What matters is that the direction, quality and colour of the light agree with the source we believe in. A hard, warm beam falling diagonally suggests low sunshine; a soft, blue-white glow from below suggests a screen.",
+    "Crews usually do not use the real source to light the scene, because a lamp or a window is rarely strong or controllable enough. Instead they place stronger fixtures outside the window or beside the practical, aimed to match its direction. A big light outside a window can imitate sun and be adjusted when clouds move.",
+    "Motivated does not mean plain or documentary. A designer can stylise the motivation, pushing colours to a more vivid blue or amber. The test is consistency, not realism. Lighting that has no apparent source, such as a hard light from below in a sunny kitchen, can feel odd, unless oddness is the goal.",
+    "Worked example: a scene has a character reading at a desk with a lamp. The key is a soft light placed just above the lamp's position and gelled warm, so it matches the lamp's glow."
+   ]
+  },
+  {
+   "id": "lighting-design.l12",
+   "title": "Studio Portraits",
+   "body": [
+    "Portrait photographers use a handful of named patterns, each defined by where the key sits and where the shadows fall.",
+    "Loop lighting places the key slightly above eye level and about 30 to 45 degrees off to one side, creating a small shadow of the nose that loops toward the cheek without touching it. Rembrandt lighting moves the key a little further around and higher, so the shadow of the nose and cheek joins, leaving a small triangle of light on the shadow-side cheek. Butterfly lighting, or Paramount, places the key high and straight in front, above the lens axis, giving a butterfly-shaped shadow under the nose. Clamshell uses a key above and a reflector or low fill below, framing the face like the two halves of a shell. It gives smooth, even light often used for beauty work.",
+    "Subject orientation matters as well. In short lighting, the key lights the side of the face turned away from the camera, which tends to slim the face. In broad lighting, the key lights the side turned toward the camera.",
+    "A large soft source close to the subject, such as a softbox, gives smooth skin transitions. A small hard source emphasises skin texture. Catchlights, the small bright reflections of the source in the eyes, add life; their shape shows the source's shape.",
+    "Worked example: to flatter a round face, turn the face slightly from the camera, use short lighting with a softbox close to the key position, and add a low reflector for gentle fill."
+   ]
+  },
+  {
+   "id": "lighting-design.l13",
+   "title": "Lighting Products",
+   "body": [
+    "With a person, you light the skin. With a product, you often light the reflections. Shiny objects, such as glass, metal, and glossy plastic, mirror their surroundings, so the viewer sees reflected light sources more than the object's own surface. The basic rule is the law of reflection: light bounces off a smooth surface at the same angle at which it arrived, measured from the surface's perpendicular. If the reflected path goes into the lens, you see the source.",
+    "For a glossy item, the solution is usually a large, soft source. Its reflection becomes a smooth gradient of brightness along the surface, which describes the shape. A small source would create a hard, distracting hot spot. Designers also use black cards to define edges: a dark reflection along the side of a bottle makes the outline look crisp. White cards add soft highlights, and the angle of the item can be changed to move a reflection out of the camera's view.",
+    "For matte or textured products such as fabric, wood or food, the aim is different. Light from the side or just behind, or in a raking direction, brings out texture. A light tent, a translucent cube around the product, wraps it in diffused light and helps with small shiny items.",
+    "Worked example: photographing a steel water bottle, you place a large softbox to one side and a black card on the other. The bottle shows one long bright band and one dark edge. It looks rounded and clean, without a mirror image of the studio."
+   ]
+  },
+  {
+   "id": "lighting-design.l14",
+   "title": "Safety: Electrical, Heat and Rigging at Overview",
+   "body": [
+    "Lighting equipment uses real power, creates real heat and is often hung overhead, so safety is part of the craft. This lesson is an overview. Real jobs require training, supervision and the rules of the venue and the local authorities.",
+    "Electrical safety starts with arithmetic. Power in watts equals volts times amps. In North America, a lamp of 1200 watts on a 120-volt supply draws about 10 amps. A typical household circuit is often rated for 15 amps, and designers generally avoid loading a circuit near its limit. Always add up the load before plugging in, use cables that are in good condition and rated for the job, and keep connections out of water. Outdoors or in damp locations, use equipment suited to those conditions, such as outlets with ground-fault protection.",
+    "Heat is the next hazard. Tungsten and halogen lamps get very hot. Keep them away from fabric, paper and people, and allow fixtures to cool before handling or storing them. Never touch a halogen bulb with bare fingers, since skin oils can cause it to fail. Use heat-resistant gloves when adjusting hot fixtures.",
+    "Rigging means hanging or supporting equipment. Stands should be on stable ground and weighted with sandbags. Hung fixtures need clamps in good condition and a secondary safety cable. Never exceed the rated load of a stand, a clamp or a structure. Working at height requires training and fall protection.",
+    "Flashing or strobing effects can affect people with photosensitive conditions, so audiences are normally warned."
+   ]
+  },
+  {
+   "id": "lighting-design.l15",
+   "title": "A Short History: From Flame to LED",
+   "body": [
+    "Before electricity, performances relied on candles and oil lamps. Early theatres were lit with them, and light was mostly general: you lit the whole room and the stage together. Flame brings real dangers, and theatre fires were an ongoing problem.",
+    "In the early nineteenth century, gas lighting arrived in theatres. A central gas table could raise and lower the flames, which gave stage lighting its first practical way to dim. Gas was brighter than candles, but it still produced heat and fire risk, and it used up air in the building.",
+    "Another device was limelight, often credited to Thomas Drummond in the 1820s. A flame fed with oxygen and hydrogen heated a block of lime until it glowed intensely white. The beam could be focused and followed a performer, which is why the phrase in the limelight survives. Limelight was used in theatres from around the 1830s.",
+    "Electric arc lamps and then incandescent bulbs, developed around 1879 by inventors including Thomas Edison and Joseph Swan, changed everything. The Savoy Theatre in London is widely cited as one of the first theatres lit entirely by electricity, in 1881. Electricity could be switched and dimmed from a distance and was far safer than open flame.",
+    "In the early twentieth century, designers such as Adolphe Appia and Edward Gordon Craig argued that light should shape the stage as an expressive element. Later decades brought tungsten-halogen lamps, computerised control and, in this century, LEDs.",
+    "Worked example: a gas table to a modern console is the same idea, central control of many lights, made precise."
+   ]
+  },
+  {
+   "id": "lighting-design.l16",
+   "title": "The Theatre Lighting Design Process",
+   "body": [
+    "A theatre lighting design is built step by step, and the early steps happen long before any lamp is turned on.",
+    "It starts with script analysis. The designer reads the play for its time of day, places, mood and emotional shape, noting when the story shifts. Next come conversations with the director and the other designers for set, costume and sound, so the light supports one shared concept. Research and sketches help, such as paintings, photographs or colour palettes.",
+    "Next comes the light plot, a scaled drawing of the theatre showing where each instrument will hang, what type it is, and where it points. It is accompanied by paperwork: an instrument schedule that lists each fixture with its channel, dimmer, colour and purpose, and sometimes a magic sheet, a simple diagram for the console operator. The plot has to fit the venue's equipment and budget.",
+    "A common approach for lighting actors is to divide the stage into acting areas and light each from two directions, often about 45 degrees to either side, so faces stay modelled and visible. This approach is commonly associated with Stanley McCandless's 1932 book on stage lighting.",
+    "After the crew hangs and focuses the instruments, the designer writes cues. A cue is a stored lighting state and the instruction to change to it, with fade times. Technical rehearsals, including a cue-to-cue that jumps through the show's lighting changes, let the designer refine timing with the actors and stage manager.",
+    "Worked example: a scene set at dusk becomes three cues, warm daylight, a slow fade to amber, then a cool blue night state."
+   ]
+  },
+  {
+   "id": "lighting-design.l17",
+   "title": "Concerts and Live Events",
+   "body": [
+    "Concerts and live events differ from theatre in scale and rhythm. The lighting often supports music, and the audience expects energy, movement and spectacle. The designer still has to keep the performer visible.",
+    "Moving lights, also called automated or intelligent fixtures, can be controlled remotely to change position, colour, brightness, beam size and projected patterns. A few fixtures can create many looks, and one rig can serve several songs. They hang from trusses, which are lightweight structural frames, and are driven by a console over DMX or networked data.",
+    "Beams only show in the air if something is there to scatter the light. Haze, a fine mist from a machine, makes beams visible as lines and shafts. Designers balance it, because too much washes out the picture and may bother some audience members or affect cameras.",
+    "Most designers use a limited palette for each song or section, with one or two main colours and a contrast colour, rather than every colour at once. Strong back light and side light create the silhouettes and halos typical of concerts, but face light is needed so that the audience, and any video cameras, can see the performer. Follow spots, operated by people, track a performer and give a bright, clear face.",
+    "Cues are often programmed to match the tempo and structure of the music, and sometimes triggered by timecode, a running clock, so that repeat performances match. A busker's one-lamp setup and a stadium rig use the same ideas.",
+    "Worked example: for a ballad, the designer drops to a warm single colour, keeps a soft face light, and brings in slow haze-lit beams from behind on the chorus."
+   ]
+  },
+  {
+   "id": "lighting-design.l18",
+   "title": "Architectural Lighting Basics",
+   "body": [
+    "Architectural lighting is designed for spaces people live and work in, so the aim is comfort and function as well as beauty. Designers commonly think in three layers.",
+    "Ambient light is the general illumination that makes a space safe and navigable. Task light is stronger and focused where an activity needs it, such as a reading lamp, a kitchen counter or a drafting desk. Accent light draws attention to features such as a painting, a plant or a textured wall. Good spaces usually combine all three, rather than relying on a single ceiling fixture.",
+    "Technique matters too. Grazing, placing a fixture very close to a surface and aiming along it, reveals texture, such as brick or stone. Wall washing lights a wall evenly from top to bottom. Indirect light bounces off a ceiling or wall to create a soft glow with fewer harsh shadows.",
+    "Designers pay close attention to glare, the discomfort caused by a bright source in the field of view, and to the colour of the light. Warm white around 2700 K is typical for living rooms and restaurants, while cooler whites, about 3500 to 5000 K, are typical for offices and workplaces. Recommended light levels, measured in lux, vary by task and standard, so designers consult the relevant guidance. Lighting controls such as dimmers and presets let a room shift between uses.",
+    "Worked example: in a home study, a soft ceiling glow provides ambient light, a desk lamp provides task light and a small spotlight on a bookshelf adds accent."
+   ]
+  },
+  {
+   "id": "lighting-design.l19",
+   "title": "Mood and Storytelling with Light",
+   "body": [
+    "Everything covered so far becomes storytelling when you choose it for a reason. Each quality of light, whether contrast, softness, direction, colour or movement, can signal something to an audience.",
+    "Contrast is the strongest mood tool. High-key, bright and low-contrast lighting tends to feel open and safe. Low-key, with deep shadows, tends to feel tense, intimate or secretive. A tradition in painting called chiaroscuro, the strong contrast of light and dark seen in the work of Caravaggio and Rembrandt, deeply influenced later photography and film.",
+    "Softness carries emotion too. Soft light tends to suggest gentleness, memory or calm, and hard light often suggests tension, harshness or clarity. Direction does as well: light from below can make a figure threatening, and light from behind can make a figure mysterious or heroic.",
+    "Colour is powerful, but its meanings are conventions, not laws. In many Western stories, warm amber suggests comfort or sunset and cool blue suggests night, distance or sadness. Other cultures link colours to different ideas, so a designer thinks about the audience. Using warm and cool light together in one frame can show conflict or two worlds.",
+    "Light can also change over time. A slow fade from bright to dim can show a day passing, a mood sinking or an idea fading. A sudden snap does the opposite.",
+    "Worked example: in a scene where a character receives bad news, the lighting might start soft and warm, then cool and lose its fill as the news lands, pushing the room into shadow."
+   ]
+  },
+  {
+   "id": "lighting-design.l20",
+   "title": "Putting It Together: Designing from a Brief",
+   "body": [
+    "A professional lighting plan follows a sequence, whether the job is a film scene, a portrait or a stage. Following it keeps technical choices tied to the purpose.",
+    "First, define the story. What should the viewer feel, and what must be seen? Second, decide the motivation: where would the light believably come from? Third, choose the quality and direction of the key light. Large and soft for tenderness, small and hard for drama. Fourth, set the ratio by balancing fill, bounce or negative fill. Fifth, add separation, such as a back light or a lit background. Sixth, choose colour and colour temperature, with gels or LED settings, and make sure the sources agree or contrast on purpose.",
+    "Then comes the practical check. Add up the electrical load against the circuits you have. Think about heat, cable paths and how every stand or hanging fixture is secured. Check that the equipment you chose can be controlled the way the plan needs, with dimmers or a console. Finally, test: look through the camera or from the audience position, or at a monitor, since the eye adjusts and can be fooled. Adjust the lights, not just the camera settings.",
+    "Worked example: the brief is a quiet morning in a kitchen. Motivation is a large window. A soft source outside, gelled slightly warm, is the key; a white card provides gentle fill for low contrast; a small back light separates the subject from the cabinets. Power is totalled, stands are weighted, and the result is checked on camera."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lighting-design.l01.q1",
+   "lessonId": "lighting-design.l01",
+   "kind": "tf",
+   "prompt": "If a small lamp is moved twice as far from a wall, the light reaching the wall becomes about one quarter as strong.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l01.q2",
+   "lessonId": "lighting-design.l01",
+   "kind": "mcq",
+   "prompt": "A small lamp gives 400 lux on a table at 1 metre. About how much does it give at 2 metres?",
+   "choices": [
+    "300 lux",
+    "100 lux",
+    "200 lux",
+    "50 lux"
+   ]
+  },
+  {
+   "id": "lighting-design.l01.q3",
+   "lessonId": "lighting-design.l01",
+   "kind": "mcq",
+   "prompt": "When light strikes a matte black cloth, what mostly happens to it?",
+   "choices": [
+    "It is transmitted",
+    "It is refracted into colours",
+    "It is absorbed",
+    "It is reflected"
+   ]
+  },
+  {
+   "id": "lighting-design.l01.q4",
+   "lessonId": "lighting-design.l01",
+   "kind": "mcq",
+   "prompt": "A photographer moves a small lamp from 4 metres to 2 metres away from the subject. By how much does the light on the subject change?",
+   "choices": [
+    "It becomes twice as bright, or one stop",
+    "It becomes four stops brighter",
+    "It stays about the same",
+    "It becomes four times brighter, or two stops"
+   ]
+  },
+  {
+   "id": "lighting-design.l01.q5",
+   "lessonId": "lighting-design.l01",
+   "kind": "tf",
+   "prompt": "The inverse square law says that doubling the distance to a small source cuts the light on a surface in half.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l02.q1",
+   "lessonId": "lighting-design.l02",
+   "kind": "mcq",
+   "prompt": "Which of these gives the softest light?",
+   "choices": [
+    "Clear midday sun",
+    "A bare bulb across the room",
+    "A small spotlight far away",
+    "A heavily overcast sky"
+   ]
+  },
+  {
+   "id": "lighting-design.l02.q2",
+   "lessonId": "lighting-design.l02",
+   "kind": "tf",
+   "prompt": "Moving a softbox closer to a subject makes the light on the subject softer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l02.q3",
+   "lessonId": "lighting-design.l02",
+   "kind": "mcq",
+   "prompt": "What mainly decides whether a shadow edge looks crisp or feathered?",
+   "choices": [
+    "What colour the lamp is",
+    "How large the source appears from the subject",
+    "How expensive the lamp is",
+    "How many watts the lamp uses"
+   ]
+  },
+  {
+   "id": "lighting-design.l02.q4",
+   "lessonId": "lighting-design.l02",
+   "kind": "mcq",
+   "prompt": "Why does placing a sheet of diffusion in front of a small lamp soften its light?",
+   "choices": [
+    "The sheet changes the lamp to a cooler colour",
+    "The sheet removes all the shadows by blocking light",
+    "The glowing sheet becomes a larger source",
+    "The sheet makes the light travel faster"
+   ]
+  },
+  {
+   "id": "lighting-design.l02.q5",
+   "lessonId": "lighting-design.l02",
+   "kind": "tf",
+   "prompt": "Because the sun is enormously large, it always gives soft light on a clear day.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l03.q1",
+   "lessonId": "lighting-design.l03",
+   "kind": "mcq",
+   "prompt": "Which light direction is best at revealing the texture of a brick wall?",
+   "choices": [
+    "From directly behind the camera",
+    "From far away and head-on",
+    "From the side, close to the wall",
+    "From the front, near the camera"
+   ]
+  },
+  {
+   "id": "lighting-design.l03.q2",
+   "lessonId": "lighting-design.l03",
+   "kind": "tf",
+   "prompt": "Light coming from near the camera tends to make a face look flatter.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l03.q3",
+   "lessonId": "lighting-design.l03",
+   "kind": "mcq",
+   "prompt": "Why does light from below a face, like a flashlight under the chin, often look eerie?",
+   "choices": [
+    "We are used to being lit from above",
+    "It is always the brightest direction",
+    "It is the hardest direction for cameras to record",
+    "It makes the eyes look too small"
+   ]
+  },
+  {
+   "id": "lighting-design.l03.q4",
+   "lessonId": "lighting-design.l03",
+   "kind": "mcq",
+   "prompt": "What does a light placed behind the subject and aimed toward the camera most often add?",
+   "choices": [
+    "A warmer skin tone",
+    "A bright edge that separates the subject from the background",
+    "Even lighting across the face",
+    "Fill light in the shadows"
+   ]
+  },
+  {
+   "id": "lighting-design.l03.q5",
+   "lessonId": "lighting-design.l03",
+   "kind": "mcq",
+   "prompt": "Which feature identifies Rembrandt lighting on a portrait?",
+   "choices": [
+    "No shadows at all on the face",
+    "Only the outline of the head lit",
+    "A small triangle of light on the cheek on the shadow side",
+    "A shadow beneath the nose shaped like a butterfly"
+   ]
+  },
+  {
+   "id": "lighting-design.l04.q1",
+   "lessonId": "lighting-design.l04",
+   "kind": "mcq",
+   "prompt": "Which colour temperature looks the warmest, most orange?",
+   "choices": [
+    "7000 K",
+    "2700 K",
+    "3200 K",
+    "5600 K"
+   ]
+  },
+  {
+   "id": "lighting-design.l04.q2",
+   "lessonId": "lighting-design.l04",
+   "kind": "tf",
+   "prompt": "A higher Kelvin value means the light looks warmer and more orange.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l04.q3",
+   "lessonId": "lighting-design.l04",
+   "kind": "mcq",
+   "prompt": "Studio tungsten lights are typically rated at about which colour temperature?",
+   "choices": [
+    "5600 K",
+    "9000 K",
+    "1000 K",
+    "3200 K"
+   ]
+  },
+  {
+   "id": "lighting-design.l04.q4",
+   "lessonId": "lighting-design.l04",
+   "kind": "mcq",
+   "prompt": "What does the colour rendering index, CRI, tell you about a light?",
+   "choices": [
+    "How faithfully it shows colours compared with a reference",
+    "How warm or cool it looks",
+    "How much electricity it uses",
+    "How far its beam reaches"
+   ]
+  },
+  {
+   "id": "lighting-design.l04.q5",
+   "lessonId": "lighting-design.l04",
+   "kind": "mcq",
+   "prompt": "A camera is set for daylight and a tungsten lamp appears in the frame. How does the lamp look?",
+   "choices": [
+    "Green",
+    "Orange",
+    "Blue",
+    "Perfectly white"
+   ]
+  },
+  {
+   "id": "lighting-design.l05.q1",
+   "lessonId": "lighting-design.l05",
+   "kind": "mcq",
+   "prompt": "Which instrument has a lens built from concentric stepped rings?",
+   "choices": [
+    "The Fresnel",
+    "The ellipsoidal",
+    "The softbox",
+    "The practical lamp"
+   ]
+  },
+  {
+   "id": "lighting-design.l05.q2",
+   "lessonId": "lighting-design.l05",
+   "kind": "tf",
+   "prompt": "An ellipsoidal spotlight can project a pattern, called a gobo, by placing it in the gate.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l05.q3",
+   "lessonId": "lighting-design.l05",
+   "kind": "mcq",
+   "prompt": "A designer needs a crisp-edged square pool of light on a stage floor. Which tool is the best choice?",
+   "choices": [
+    "A bare practical bulb",
+    "A softbox",
+    "An ellipsoidal with its shutters",
+    "A Fresnel with barn doors"
+   ]
+  },
+  {
+   "id": "lighting-design.l05.q4",
+   "lessonId": "lighting-design.l05",
+   "kind": "mcq",
+   "prompt": "How is a Fresnel adjusted from a wide flood to a narrow spot?",
+   "choices": [
+    "By changing the lamp colour",
+    "By adding a gobo",
+    "By turning the shutters",
+    "By sliding the lamp and reflector toward or away from the lens"
+   ]
+  },
+  {
+   "id": "lighting-design.l05.q5",
+   "lessonId": "lighting-design.l05",
+   "kind": "tf",
+   "prompt": "The beam of a Fresnel has a soft edge that blends easily with neighbouring lights.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l06.q1",
+   "lessonId": "lighting-design.l06",
+   "kind": "mcq",
+   "prompt": "What does a softbox do to a small lamp inside it?",
+   "choices": [
+    "Makes it hotter and harder",
+    "Changes it to 5600 K",
+    "Lets it project patterns",
+    "Turns it into a larger, softer source"
+   ]
+  },
+  {
+   "id": "lighting-design.l06.q2",
+   "lessonId": "lighting-design.l06",
+   "kind": "tf",
+   "prompt": "A practical is a working lamp that is visible in the shot.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l06.q3",
+   "lessonId": "lighting-design.l06",
+   "kind": "mcq",
+   "prompt": "Compared with tungsten lamps, what do LED fixtures typically offer?",
+   "choices": [
+    "No need for any testing",
+    "More light for the electricity they use and less heat",
+    "Always higher CRI",
+    "A fixed colour that cannot change"
+   ]
+  },
+  {
+   "id": "lighting-design.l06.q4",
+   "lessonId": "lighting-design.l06",
+   "kind": "mcq",
+   "prompt": "Why is it wise to check an LED fixture specification and test it before filming skin tones?",
+   "choices": [
+    "LEDs always flicker",
+    "LEDs cannot be gelled",
+    "Some LEDs have lower CRI or a colour tint",
+    "LEDs can never be dimmed"
+   ]
+  },
+  {
+   "id": "lighting-design.l06.q5",
+   "lessonId": "lighting-design.l06",
+   "kind": "mcq",
+   "prompt": "Why might a crew add a hidden light near a bedside lamp that appears in the shot?",
+   "choices": [
+    "To make the lamp look cooler",
+    "Because practicals cannot be seen on camera",
+    "To replace the lamp with a window",
+    "The lamp alone is usually too dim to expose the scene"
+   ]
+  },
+  {
+   "id": "lighting-design.l07.q1",
+   "lessonId": "lighting-design.l07",
+   "kind": "mcq",
+   "prompt": "What does a dimmer do?",
+   "choices": [
+    "Moves the lamp",
+    "Makes the light harder",
+    "Adjusts the power to a lamp to change its brightness",
+    "Changes the lamp from tungsten to LED"
+   ]
+  },
+  {
+   "id": "lighting-design.l07.q2",
+   "lessonId": "lighting-design.l07",
+   "kind": "tf",
+   "prompt": "A single DMX512 line, called a universe, carries 512 channels of control data.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l07.q3",
+   "lessonId": "lighting-design.l07",
+   "kind": "mcq",
+   "prompt": "On a simple dimmer channel, what does a DMX value of 255 usually mean?",
+   "choices": [
+    "Full brightness",
+    "Off",
+    "Half brightness",
+    "An error"
+   ]
+  },
+  {
+   "id": "lighting-design.l07.q4",
+   "lessonId": "lighting-design.l07",
+   "kind": "mcq",
+   "prompt": "Which job does a lighting console do?",
+   "choices": [
+    "Measures colour temperature",
+    "Builds, stores and plays back lighting states called cues",
+    "Produces the light itself",
+    "Cools the lamps"
+   ]
+  },
+  {
+   "id": "lighting-design.l07.q5",
+   "lessonId": "lighting-design.l07",
+   "kind": "tf",
+   "prompt": "A tungsten lamp becomes warmer in colour as it is dimmed.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l08.q1",
+   "lessonId": "lighting-design.l08",
+   "kind": "mcq",
+   "prompt": "What is a CTO gel typically used for?",
+   "choices": [
+    "Projecting patterns",
+    "Warming daylight-balanced light to match tungsten",
+    "Making tungsten look like daylight",
+    "Making a light harder"
+   ]
+  },
+  {
+   "id": "lighting-design.l08.q2",
+   "lessonId": "lighting-design.l08",
+   "kind": "tf",
+   "prompt": "A gel adds extra light to the fixture it is placed on.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l08.q3",
+   "lessonId": "lighting-design.l08",
+   "kind": "mcq",
+   "prompt": "Why does a deep saturated gel usually reduce brightness more than a pale one?",
+   "choices": [
+    "It reflects light to the camera",
+    "It makes the lamp cooler",
+    "It changes the voltage",
+    "It absorbs more of the light"
+   ]
+  },
+  {
+   "id": "lighting-design.l08.q4",
+   "lessonId": "lighting-design.l08",
+   "kind": "mcq",
+   "prompt": "What is a neutral density gel used for?",
+   "choices": [
+    "Reducing brightness without changing colour",
+    "Warming the light",
+    "Softening shadows",
+    "Making a beam narrower"
+   ]
+  },
+  {
+   "id": "lighting-design.l08.q5",
+   "lessonId": "lighting-design.l08",
+   "kind": "mcq",
+   "prompt": "You want to soften harsh light from a small lamp without changing its colour. What is the best addition?",
+   "choices": [
+    "A narrower shutter",
+    "Diffusion in front of the lamp",
+    "A deep red gel",
+    "A gobo"
+   ]
+  },
+  {
+   "id": "lighting-design.l09.q1",
+   "lessonId": "lighting-design.l09",
+   "kind": "mcq",
+   "prompt": "In three-point lighting, which light is the main source?",
+   "choices": [
+    "The key light",
+    "The fill light",
+    "The back light",
+    "The background light"
+   ]
+  },
+  {
+   "id": "lighting-design.l09.q2",
+   "lessonId": "lighting-design.l09",
+   "kind": "tf",
+   "prompt": "The fill light is generally softer and dimmer than the key.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l09.q3",
+   "lessonId": "lighting-design.l09",
+   "kind": "mcq",
+   "prompt": "What is the main purpose of the back light?",
+   "choices": [
+    "To warm the skin",
+    "To replace the key",
+    "To separate the subject from the background",
+    "To light the face evenly"
+   ]
+  },
+  {
+   "id": "lighting-design.l09.q4",
+   "lessonId": "lighting-design.l09",
+   "kind": "mcq",
+   "prompt": "How can you deepen shadows in a three-point setup?",
+   "choices": [
+    "Raise the fill to match the key",
+    "Move the back light to the front",
+    "Add more diffusion to the key",
+    "Lower the fill light level"
+   ]
+  },
+  {
+   "id": "lighting-design.l09.q5",
+   "lessonId": "lighting-design.l09",
+   "kind": "mcq",
+   "prompt": "If the fill light is turned off and nothing else changes, what is the result?",
+   "choices": [
+    "Higher contrast and darker shadows",
+    "A flatter picture",
+    "A warmer picture",
+    "A softer key"
+   ]
+  },
+  {
+   "id": "lighting-design.l10.q1",
+   "lessonId": "lighting-design.l10",
+   "kind": "mcq",
+   "prompt": "What does negative fill do?",
+   "choices": [
+    "Adds light to the shadow side",
+    "Makes the key softer",
+    "Changes the colour of the key",
+    "Deepens shadows by absorbing light on the shadow side"
+   ]
+  },
+  {
+   "id": "lighting-design.l10.q2",
+   "lessonId": "lighting-design.l10",
+   "kind": "tf",
+   "prompt": "A 4:1 lighting ratio is more contrasty than a 2:1 ratio.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l10.q3",
+   "lessonId": "lighting-design.l10",
+   "kind": "mcq",
+   "prompt": "In the common convention, a 4:1 ratio corresponds to how many stops of difference?",
+   "choices": [
+    "Three stops",
+    "Two stops",
+    "One stop",
+    "Four stops"
+   ]
+  },
+  {
+   "id": "lighting-design.l10.q4",
+   "lessonId": "lighting-design.l10",
+   "kind": "mcq",
+   "prompt": "Which description fits high-key lighting?",
+   "choices": [
+    "Lit only from behind",
+    "Lit only with practicals",
+    "Bright with low contrast and few deep shadows",
+    "Dark with large shadows"
+   ]
+  },
+  {
+   "id": "lighting-design.l10.q5",
+   "lessonId": "lighting-design.l10",
+   "kind": "mcq",
+   "prompt": "What is the job of a background light?",
+   "choices": [
+    "To act as the key",
+    "To produce the catchlight",
+    "To remove all shadows",
+    "To shape or brighten the backdrop so the subject does not vanish into it"
+   ]
+  },
+  {
+   "id": "lighting-design.l11.q1",
+   "lessonId": "lighting-design.l11",
+   "kind": "mcq",
+   "prompt": "What does motivated lighting mean?",
+   "choices": [
+    "All lights must be visible on screen",
+    "The light has no shadows",
+    "The light appears to come from a believable source in the scene",
+    "The light must always be warm"
+   ]
+  },
+  {
+   "id": "lighting-design.l11.q2",
+   "lessonId": "lighting-design.l11",
+   "kind": "tf",
+   "prompt": "A motivating source must always be visible in the frame.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l11.q3",
+   "lessonId": "lighting-design.l11",
+   "kind": "mcq",
+   "prompt": "Why do crews often place a stronger light outside a window instead of relying on real daylight?",
+   "choices": [
+    "It is more controllable and can match the direction of the sun",
+    "Daylight cannot be seen on camera",
+    "Windows block all light",
+    "It keeps the lamp cool"
+   ]
+  },
+  {
+   "id": "lighting-design.l11.q4",
+   "lessonId": "lighting-design.l11",
+   "kind": "mcq",
+   "prompt": "Which is the best example of lighting without an apparent motivation?",
+   "choices": [
+    "Golden light through a window at sunset",
+    "A hard light from below on a person in a sunny kitchen",
+    "A warm glow near a table lamp",
+    "Cool light coming from a screen"
+   ]
+  },
+  {
+   "id": "lighting-design.l11.q5",
+   "lessonId": "lighting-design.l11",
+   "kind": "tf",
+   "prompt": "Motivated lighting must look plain and cannot be stylised.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l12.q1",
+   "lessonId": "lighting-design.l12",
+   "kind": "mcq",
+   "prompt": "What is a catchlight?",
+   "choices": [
+    "A type of gel",
+    "A small reflection of the light source in the eyes",
+    "A light that catches the background",
+    "The shadow under the nose"
+   ]
+  },
+  {
+   "id": "lighting-design.l12.q2",
+   "lessonId": "lighting-design.l12",
+   "kind": "tf",
+   "prompt": "In butterfly lighting the key sits high and in front, above the lens axis.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l12.q3",
+   "lessonId": "lighting-design.l12",
+   "kind": "mcq",
+   "prompt": "What setup defines clamshell lighting?",
+   "choices": [
+    "A key at the side and nothing else",
+    "Only back light",
+    "Two lights behind the subject",
+    "A key above and a reflector or fill below"
+   ]
+  },
+  {
+   "id": "lighting-design.l12.q4",
+   "lessonId": "lighting-design.l12",
+   "kind": "mcq",
+   "prompt": "In short lighting, which side of the face does the key light?",
+   "choices": [
+    "The side turned away from the camera",
+    "The side turned toward the camera",
+    "Both sides equally",
+    "Only the forehead"
+   ]
+  },
+  {
+   "id": "lighting-design.l12.q5",
+   "lessonId": "lighting-design.l12",
+   "kind": "mcq",
+   "prompt": "Which source gives smooth skin transitions in a portrait?",
+   "choices": [
+    "A source behind the subject only",
+    "A large soft source close to the subject",
+    "A small hard source far away",
+    "A bare bulb"
+   ]
+  },
+  {
+   "id": "lighting-design.l13.q1",
+   "lessonId": "lighting-design.l13",
+   "kind": "mcq",
+   "prompt": "Which rule explains why you see a lamp reflected in a glossy product?",
+   "choices": [
+    "Light bounces off a smooth surface at the same angle it arrived",
+    "Light always bends toward the camera",
+    "Light slows down on shiny surfaces",
+    "Light reflects only from dark surfaces"
+   ]
+  },
+  {
+   "id": "lighting-design.l13.q2",
+   "lessonId": "lighting-design.l13",
+   "kind": "tf",
+   "prompt": "A large soft source can make a smooth gradient highlight on a glossy product.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l13.q3",
+   "lessonId": "lighting-design.l13",
+   "kind": "mcq",
+   "prompt": "What does a light tent do for small shiny products?",
+   "choices": [
+    "Projects a pattern",
+    "Blocks all light",
+    "Wraps them in diffused light to reduce harsh reflections",
+    "Makes the light harder"
+   ]
+  },
+  {
+   "id": "lighting-design.l13.q4",
+   "lessonId": "lighting-design.l13",
+   "kind": "mcq",
+   "prompt": "How do you bring out the texture of a matte fabric product?",
+   "choices": [
+    "Light directly from the camera position",
+    "A very large source behind the camera",
+    "No light at all",
+    "Light from the side or at a raking angle"
+   ]
+  },
+  {
+   "id": "lighting-design.l13.q5",
+   "lessonId": "lighting-design.l13",
+   "kind": "mcq",
+   "prompt": "What can you do if a lamp reflection in a glossy item runs straight into the lens?",
+   "choices": [
+    "Change the angle of the item or source so the reflection leaves the lens view",
+    "Move the camera closer without changing anything",
+    "Increase the lamp power",
+    "Add a deeper gel"
+   ]
+  },
+  {
+   "id": "lighting-design.l14.q1",
+   "lessonId": "lighting-design.l14",
+   "kind": "mcq",
+   "prompt": "What is a risk of overloading a circuit?",
+   "choices": [
+    "Making lamps cooler",
+    "Changing the colour of light",
+    "Improving brightness safely",
+    "Overheating or tripping the breaker"
+   ]
+  },
+  {
+   "id": "lighting-design.l14.q2",
+   "lessonId": "lighting-design.l14",
+   "kind": "tf",
+   "prompt": "It is fine to handle a halogen bulb with bare fingers.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l14.q3",
+   "lessonId": "lighting-design.l14",
+   "kind": "mcq",
+   "prompt": "A 1200 watt lamp runs on 120 volts. About how many amps does it draw?",
+   "choices": [
+    "0.1 amp",
+    "10 amps",
+    "1 amp",
+    "100 amps"
+   ]
+  },
+  {
+   "id": "lighting-design.l14.q4",
+   "lessonId": "lighting-design.l14",
+   "kind": "mcq",
+   "prompt": "Why is a secondary safety cable used on a hung fixture?",
+   "choices": [
+    "To cool the fixture",
+    "To change its colour",
+    "To catch the fixture if the clamp fails",
+    "To power the fixture"
+   ]
+  },
+  {
+   "id": "lighting-design.l14.q5",
+   "lessonId": "lighting-design.l14",
+   "kind": "mcq",
+   "prompt": "What are sandbags used for on a light stand?",
+   "choices": [
+    "Warming the lamp",
+    "Diffusing the light",
+    "Measuring the load",
+    "Stabilising it so it does not tip"
+   ]
+  },
+  {
+   "id": "lighting-design.l15.q1",
+   "lessonId": "lighting-design.l15",
+   "kind": "mcq",
+   "prompt": "How was limelight produced?",
+   "choices": [
+    "By a tungsten filament",
+    "By an LED",
+    "By heating a block of lime with an oxygen and hydrogen flame",
+    "By an electric arc"
+   ]
+  },
+  {
+   "id": "lighting-design.l15.q2",
+   "lessonId": "lighting-design.l15",
+   "kind": "tf",
+   "prompt": "Gas lighting was used in theatres before electric lighting.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l15.q3",
+   "lessonId": "lighting-design.l15",
+   "kind": "mcq",
+   "prompt": "What was a major hazard of gas and limelight in theatres?",
+   "choices": [
+    "Fire",
+    "Flicker on camera",
+    "Radio interference",
+    "Poor colour rendering of LEDs"
+   ]
+  },
+  {
+   "id": "lighting-design.l15.q4",
+   "lessonId": "lighting-design.l15",
+   "kind": "mcq",
+   "prompt": "Which came first in theatres?",
+   "choices": [
+    "Moving lights, then gas lighting",
+    "Gas lighting, then incandescent electric lighting",
+    "LED lighting, then gas lighting",
+    "Incandescent electric lighting, then candles"
+   ]
+  },
+  {
+   "id": "lighting-design.l15.q5",
+   "lessonId": "lighting-design.l15",
+   "kind": "mcq",
+   "prompt": "What did designers such as Adolphe Appia argue about light on stage?",
+   "choices": [
+    "That light should be avoided",
+    "That light should be only candles",
+    "That light should shape the stage as an expressive element",
+    "That light should stay general and flat"
+   ]
+  },
+  {
+   "id": "lighting-design.l16.q1",
+   "lessonId": "lighting-design.l16",
+   "kind": "mcq",
+   "prompt": "What is the first step of a theatre lighting design?",
+   "choices": [
+    "Buying gels",
+    "Analysing the script",
+    "Hanging the instruments",
+    "Writing cues"
+   ]
+  },
+  {
+   "id": "lighting-design.l16.q2",
+   "lessonId": "lighting-design.l16",
+   "kind": "tf",
+   "prompt": "A light plot is a scaled drawing showing where each instrument hangs and where it points.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l16.q3",
+   "lessonId": "lighting-design.l16",
+   "kind": "mcq",
+   "prompt": "What is a cue?",
+   "choices": [
+    "A type of gel",
+    "A kind of lens",
+    "A dimmer rating",
+    "A stored lighting state and the instruction to change to it"
+   ]
+  },
+  {
+   "id": "lighting-design.l16.q4",
+   "lessonId": "lighting-design.l16",
+   "kind": "mcq",
+   "prompt": "What is the purpose of a cue-to-cue rehearsal?",
+   "choices": [
+    "To work through the lighting changes without playing every scene",
+    "To hang the lights",
+    "To teach actors their lines",
+    "To test the audience"
+   ]
+  },
+  {
+   "id": "lighting-design.l16.q5",
+   "lessonId": "lighting-design.l16",
+   "kind": "mcq",
+   "prompt": "Why are acting areas often lit from two directions about 45 degrees to each side?",
+   "choices": [
+    "To hide the actors",
+    "To keep faces modelled and visible",
+    "To save power",
+    "To make light harder"
+   ]
+  },
+  {
+   "id": "lighting-design.l17.q1",
+   "lessonId": "lighting-design.l17",
+   "kind": "mcq",
+   "prompt": "Why is haze used at concerts?",
+   "choices": [
+    "It scatters light so beams become visible",
+    "It cools the fixtures",
+    "It changes colour temperature",
+    "It dims the lights"
+   ]
+  },
+  {
+   "id": "lighting-design.l17.q2",
+   "lessonId": "lighting-design.l17",
+   "kind": "tf",
+   "prompt": "A follow spot is operated by a person who tracks a performer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l17.q3",
+   "lessonId": "lighting-design.l17",
+   "kind": "mcq",
+   "prompt": "What can a moving light do remotely?",
+   "choices": [
+    "Only change brightness",
+    "Nothing without a person present",
+    "Change position, colour and beam",
+    "Only turn on and off"
+   ]
+  },
+  {
+   "id": "lighting-design.l17.q4",
+   "lessonId": "lighting-design.l17",
+   "kind": "mcq",
+   "prompt": "Why might cues be triggered by timecode?",
+   "choices": [
+    "To save power",
+    "To keep haze visible",
+    "To avoid using a console",
+    "So lighting stays in sync with the music on every performance"
+   ]
+  },
+  {
+   "id": "lighting-design.l17.q5",
+   "lessonId": "lighting-design.l17",
+   "kind": "mcq",
+   "prompt": "Why does even a moody concert design still need face light?",
+   "choices": [
+    "So the audience and cameras can see the performer",
+    "To cool the stage",
+    "To reduce haze",
+    "To keep the trusses visible"
+   ]
+  },
+  {
+   "id": "lighting-design.l18.q1",
+   "lessonId": "lighting-design.l18",
+   "kind": "mcq",
+   "prompt": "Which three layers do architectural designers commonly use?",
+   "choices": [
+    "Key, fill and back",
+    "Soft, hard and neutral",
+    "Warm, cool and neutral",
+    "Ambient, task and accent"
+   ]
+  },
+  {
+   "id": "lighting-design.l18.q2",
+   "lessonId": "lighting-design.l18",
+   "kind": "tf",
+   "prompt": "Grazing light close to a textured wall emphasises the texture.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l18.q3",
+   "lessonId": "lighting-design.l18",
+   "kind": "mcq",
+   "prompt": "Which layer is a reading lamp?",
+   "choices": [
+    "Back light",
+    "Task light",
+    "Ambient light",
+    "Accent light"
+   ]
+  },
+  {
+   "id": "lighting-design.l18.q4",
+   "lessonId": "lighting-design.l18",
+   "kind": "mcq",
+   "prompt": "What is glare?",
+   "choices": [
+    "A soft shadow edge",
+    "A gobo pattern",
+    "Discomfort from a bright source in the field of view",
+    "A warm colour tint"
+   ]
+  },
+  {
+   "id": "lighting-design.l18.q5",
+   "lessonId": "lighting-design.l18",
+   "kind": "mcq",
+   "prompt": "Which colour temperature is typical for a cosy living room?",
+   "choices": [
+    "About 6500 K",
+    "About 9000 K",
+    "About 12000 K",
+    "About 2700 K"
+   ]
+  },
+  {
+   "id": "lighting-design.l19.q1",
+   "lessonId": "lighting-design.l19",
+   "kind": "mcq",
+   "prompt": "Which lighting style tends to feel tense or secretive?",
+   "choices": [
+    "Flat even front light",
+    "A bright white room",
+    "Low-key with deep shadows",
+    "High-key and bright"
+   ]
+  },
+  {
+   "id": "lighting-design.l19.q2",
+   "lessonId": "lighting-design.l19",
+   "kind": "tf",
+   "prompt": "The emotional meanings of colours are the same in every culture.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l19.q3",
+   "lessonId": "lighting-design.l19",
+   "kind": "mcq",
+   "prompt": "What can a slow fade from bright to dim show?",
+   "choices": [
+    "The passing of time or a mood sinking",
+    "A change in lens",
+    "A power problem",
+    "A change of key"
+   ]
+  },
+  {
+   "id": "lighting-design.l19.q4",
+   "lessonId": "lighting-design.l19",
+   "kind": "mcq",
+   "prompt": "What is chiaroscuro?",
+   "choices": [
+    "A shade of orange",
+    "Strong contrast of light and dark, as in the work of Caravaggio and Rembrandt",
+    "A kind of gel",
+    "A theatre lamp"
+   ]
+  },
+  {
+   "id": "lighting-design.l19.q5",
+   "lessonId": "lighting-design.l19",
+   "kind": "mcq",
+   "prompt": "Which choice would most likely suggest gentleness or calm?",
+   "choices": [
+    "Deep shadows with a strong ratio",
+    "Flashing light",
+    "Soft, low-contrast light",
+    "Hard light from below"
+   ]
+  },
+  {
+   "id": "lighting-design.l20.q1",
+   "lessonId": "lighting-design.l20",
+   "kind": "mcq",
+   "prompt": "What is the first step in the design method?",
+   "choices": [
+    "Pick a gel colour",
+    "Define the story and what the viewer should feel",
+    "Buy equipment",
+    "Set the dimmers"
+   ]
+  },
+  {
+   "id": "lighting-design.l20.q2",
+   "lessonId": "lighting-design.l20",
+   "kind": "tf",
+   "prompt": "You should add up the electrical load against the circuits before you wire the lights.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lighting-design.l20.q3",
+   "lessonId": "lighting-design.l20",
+   "kind": "mcq",
+   "prompt": "Which setup best suits a quiet morning in a kitchen?",
+   "choices": [
+    "A small hard light from below",
+    "A strobe effect",
+    "Only a back light with no fill",
+    "A large soft window-like key with gentle fill"
+   ]
+  },
+  {
+   "id": "lighting-design.l20.q4",
+   "lessonId": "lighting-design.l20",
+   "kind": "mcq",
+   "prompt": "After setting the key, what is the sensible next step?",
+   "choices": [
+    "Set the ratio with fill or negative fill",
+    "Remove the key",
+    "Turn off all other lights",
+    "Change the camera lens"
+   ]
+  },
+  {
+   "id": "lighting-design.l20.q5",
+   "lessonId": "lighting-design.l20",
+   "kind": "mcq",
+   "prompt": "Why test by looking at the camera or monitor?",
+   "choices": [
+    "It saves power",
+    "The eye adjusts and can be fooled",
+    "Cameras never need adjustment",
+    "Monitors change the lights"
+   ]
+  }
+ ]
+}

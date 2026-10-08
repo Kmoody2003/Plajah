@@ -1,0 +1,1139 @@
+{
+ "courseId": "med-g912",
+ "verifier": "B",
+ "note": "AHA pages (cpr.heart.org, professional.heart.org) returned 403 to WebFetch and curl; NCBI Bookshelf returned a captcha. Used OpenStax, MedlinePlus, Cleveland Clinic, AHA newsroom, PMC and others instead.",
+ "fetched": 58,
+ "questions": [
+  {
+   "id": "med-g912.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://my.clevelandclinic.org/health/diagnostics/23344-cardiac-output"
+   ]
+  },
+  {
+   "id": "med-g912.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://diabetes.org/about-diabetes/diagnosis"
+   ]
+  },
+  {
+   "id": "med-g912.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://medlineplus.gov/druginfo/meds/a682145.html"
+   ]
+  },
+  {
+   "id": "med-g912.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://medlineplus.gov/lab-tests/troponin-test/"
+   ]
+  },
+  {
+   "id": "med-g912.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://historyofvaccines.org/vaccines-101/what-do-vaccines-do/how-herd-immunity-works/"
+   ]
+  },
+  {
+   "id": "med-g912.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://litfl.com/risk-and-numbers-needed-to-treat/"
+   ]
+  },
+  {
+   "id": "med-g912.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://health.ucdavis.edu/media-resources/cppn/documents/pdfs/ucdh-cpr-guidelines.pdf"
+   ]
+  },
+  {
+   "id": "med-g912.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Answer matches AHA hands-only approach for untrained bystanders."
+  },
+  {
+   "id": "med-g912.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-g912.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-g912.l01",
+   "claim": "Homeostatic loop = sensor, control center comparing to set point, effector; negative feedback opposes the change",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/1-5-homeostasis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l01",
+   "claim": "Labor: cervical stretch triggers oxytocin release which strengthens contractions (positive feedback); clotting also positive feedback",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/1-5-homeostasis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l01",
+   "claim": "In fever the hypothalamic set point is raised, so the person feels cold and shivers until reaching the new temperature",
+   "verdict": "supported",
+   "sources": [
+    "https://med.libretexts.org/Courses/James_Madison_University/A_and_P_for_STEM_Educators/17:_Immune_System/17.01:_Innate_Immunity/17.1F:_Fever"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l02",
+   "claim": "Left ventricle wall is much thicker than the right because it pumps through the systemic circuit; four valves tricuspid, mitral, pulmonary, aortic",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/19-1-heart-anatomy"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l02",
+   "claim": "Sinoatrial node is the natural pacemaker; impulse passes through AV node; ECG records this activity",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/19-2-cardiac-muscle-and-electrical-activity"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l02",
+   "claim": "Cardiac output = heart rate x stroke volume, roughly 5 L/min at rest in an adult",
+   "verdict": "supported",
+   "sources": [
+    "https://my.clevelandclinic.org/health/diagnostics/23344-cardiac-output"
+   ],
+   "note": "Cleveland Clinic gives 5-6 L/min at rest."
+  },
+  {
+   "lessonId": "med-g912.l03",
+   "claim": "Inspiration: diaphragm contracts and flattens, intra-alveolar pressure falls below atmospheric; brainstem drives breathing mainly by CO2/pH rather than oxygen",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-3-the-process-of-breathing"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l03",
+   "claim": "ADH makes the collecting duct reabsorb more water; aldosterone makes it retain sodium",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-6-tubular-reabsorption"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l03",
+   "claim": "Lungs adjust CO2 within minutes, kidneys adjust bicarbonate/acid over hours to days; faster breathing lowers CO2 and makes blood less acidic",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/26-4-acid-base-balance"
+   ],
+   "note": "'About a million nephrons' per kidney not checked against an opened page."
+  },
+  {
+   "lessonId": "med-g912.l04",
+   "claim": "Thyroid hormone feeds back to lower TSH; low thyroid hormone raises TSH",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-4-the-thyroid-gland"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l04",
+   "claim": "In hypothyroidism from gland failure TSH is high while thyroid hormone is low",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/lab-tests/tsh-thyroid-stimulating-hormone-test/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l04",
+   "claim": "Adrenaline released rapidly from adrenal medulla via sympathetic system; cortisol from adrenal cortex acts over longer periods",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/17-6-the-adrenal-glands"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l05",
+   "claim": "Necrosis provokes inflammation; apoptosis is programmed, tidy cell death",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/4-6-tissue-injury-and-aging"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l05",
+   "claim": "Histamine dilates vessels (redness, heat) and increases permeability (swelling); neutrophils arrive first, macrophages later",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/21-2-barrier-defenses-and-the-innate-immune-response"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l05",
+   "claim": "Heart muscle heals mainly with collagen scar, while skin surface and liver regenerate; NSAIDs act by blocking prostaglandin synthesis",
+   "verdict": "supported",
+   "sources": [
+    "https://openstax.org/books/anatomy-and-physiology-2e/pages/4-6-tissue-injury-and-aging"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l06",
+   "claim": "Antibiotics do nothing against viruses such as colds, and every antibiotic use adds side effects and resistance risk",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/antibiotic-use/about/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l06",
+   "claim": "A newborn carries antibodies from the mother that give temporary protection",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/vaccines/basics/explaining-how-vaccines-work.html"
+   ],
+   "note": "CDC: passive maternal immunity fades within weeks or months."
+  },
+  {
+   "lessonId": "med-g912.l06",
+   "claim": "Vaccines create memory so later exposure triggers a faster, stronger secondary response",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/vaccines/basics/explaining-how-vaccines-work.html"
+   ],
+   "note": "CDC page describes residual 'watch' white cells rather than using the term memory cells; consistent."
+  },
+  {
+   "lessonId": "med-g912.l07",
+   "claim": "TP53 is a tumor suppressor that halts damaged cells or triggers their death",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/genetics/gene/tp53/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l07",
+   "claim": "Human papillomavirus causes cervical cancer; screening by cytology or HPV testing",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cancer.gov/about-cancer/causes-prevention/risk/infectious-agents/hpv-and-cancer"
+   ],
+   "note": "NCI: virtually all cervical cancer is caused by HPV."
+  },
+  {
+   "lessonId": "med-g912.l07",
+   "claim": "Metastasis is spread through blood or lymph to distant organs and is the main reason cancer kills",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.cancer.gov/types/metastatic-cancer"
+   ],
+   "note": "NCI page confirms spread via blood/lymph; the 'main reason cancer kills' part was not stated on the opened page."
+  },
+  {
+   "lessonId": "med-g912.l08",
+   "claim": "Cystic fibrosis is autosomal recessive, caused by CFTR variants; CFTR encodes a chloride channel; thick mucus in lungs and pancreas",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/genetics/condition/cystic-fibrosis/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l08",
+   "claim": "Sickle cell: one amino acid change in beta-globin; sickled cells block vessels (pain) and break down early (anemia)",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/genetics/condition/sickle-cell-disease/"
+   ],
+   "note": "Malaria-protection statement not checked on an opened page."
+  },
+  {
+   "lessonId": "med-g912.l08",
+   "claim": "Hemophilia A is X-linked recessive; males more often affected because they have one X chromosome",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/genetics/condition/hemophilia/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l09",
+   "claim": "Diabetes diagnostic thresholds: fasting plasma glucose >=126 mg/dL or A1c >=6.5%, confirmation needed without clear symptoms",
+   "verdict": "supported",
+   "sources": [
+    "https://diabetes.org/about-diabetes/diagnosis"
+   ],
+   "note": "ADA current."
+  },
+  {
+   "lessonId": "med-g912.l09",
+   "claim": "A1c reflects average glucose over roughly the past two to three months",
+   "verdict": "supported",
+   "sources": [
+    "https://diabetes.org/about-diabetes/diagnosis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l09",
+   "claim": "Without insulin the body burns fat producing ketones; DKA is an emergency with nausea, rapid deep breathing, abdominal pain",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/diabetes/about/diabetic-ketoacidosis.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l10",
+   "claim": "In the United States, the 2017 ACC/AHA guideline defines hypertension as 130/80 mm Hg or higher",
+   "verdict": "contradicted",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC12425457/"
+   ],
+   "note": "Stale citation: the current US guideline is the 2025 AHA/ACC multisociety High Blood Pressure guideline (Aug 2025), which keeps the 2017 categories and the >=130/80 threshold. Text should cite the 2025 guideline; the number itself is still correct."
+  },
+  {
+   "lessonId": "med-g912.l10",
+   "claim": "Plaque rupture leads to rapid clot formation that blocks the coronary artery, causing myocardial infarction",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nhlbi.nih.gov/health/heart-attack/causes"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l10",
+   "claim": "Statins such as atorvastatin inhibit HMG-CoA reductase and reduce heart attack risk",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2024/020702s081lbl.pdf"
+   ],
+   "note": "FDA Lipitor label: HMG-CoA reductase inhibitor indicated to reduce risk of MI and stroke."
+  },
+  {
+   "lessonId": "med-g912.l11",
+   "claim": "Current international guidance emphasizes that relying on a reliever alone is not enough for persistent asthma (albuterol framed as the reliever)",
+   "verdict": "contradicted",
+   "sources": [
+    "https://ipu.ie/ipu-review-article/asthma-update-gina-2025-guidelines-2/"
+   ],
+   "note": "Out of date/understated: GINA 2025 says SABA-only treatment is not recommended at any step (adults/adolescents), not just persistent asthma, and the preferred reliever is as-needed low-dose ICS-formoterol, so 'reliever alone' with ICS-formoterol is actually a recommended mild-asthma option. Lesson should say SABA-only rather than reliever-only."
+  },
+  {
+   "lessonId": "med-g912.l11",
+   "claim": "Albuterol is a bronchodilator that relaxes and opens the airways within minutes",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/druginfo/meds/a682145.html"
+   ],
+   "note": "MedlinePlus confirms bronchodilator action; beta-2 mechanism not explicitly stated there."
+  },
+  {
+   "lessonId": "med-g912.l11",
+   "claim": "COPD is mainly caused by smoking",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nhlbi.nih.gov/health/copd/causes"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l12",
+   "claim": "Swallowed drugs pass via the portal vein to the liver and undergo first-pass metabolism; IV drugs avoid this",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wikilectures.eu/w/Routes_of_drug_administration,_first-pass_effect"
+   ],
+   "note": "Secondary educational source."
+  },
+  {
+   "lessonId": "med-g912.l12",
+   "claim": "A drug that inhibits a liver (CYP) enzyme raises levels of drugs it clears; an inducer lowers them",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-interactions-labeling/drug-development-and-drug-interactions-table-substrates-inhibitors-and-inducers"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l12",
+   "claim": "Warfarin needs careful monitoring because small changes matter; bleeding is a predictable adverse effect; interactions with supplements",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/druginfo/meds/a682277.html"
+   ],
+   "note": "MedlinePlus: regular INR testing, serious bleeding risk, many interactions."
+  },
+  {
+   "lessonId": "med-g912.l13",
+   "claim": "Typical resting adult values: heart rate 60-100, respiratory rate about 12-20, oral temperature about 36.5-37.5 C",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/ency/article/002341.htm",
+    "https://my.clevelandclinic.org/health/articles/10881-vital-signs"
+   ],
+   "note": "HR matches exactly. MedlinePlus and Cleveland Clinic give RR 12-18 and temp 36.5-37.3 C; lesson's 12-20 and 37.5 are commonly used approximations, labelled approximate. SpO2 >=95% not checked."
+  },
+  {
+   "lessonId": "med-g912.l13",
+   "claim": "Troponin, a protein in heart muscle cells, rises in blood when they are damaged and is central to diagnosing heart attack",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/lab-tests/troponin-test/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l13",
+   "claim": "Creatinine is a muscle waste product cleared by the kidneys; a rise suggests reduced kidney filtration",
+   "verdict": "supported",
+   "sources": [
+    "https://medlineplus.gov/lab-tests/creatinine-test/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l14",
+   "claim": "MRI uses magnetic fields and radio waves, no ionizing radiation; metal implants/devices require screening",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/radiation-emitting-products/medical-imaging/mri-magnetic-resonance-imaging"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l14",
+   "claim": "CT uses ionizing radiation; medical imaging radiation adds a small lifetime cancer risk; ordered when benefit justifies it",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/radiation-emitting-products/medical-x-ray-imaging/computed-tomography-ct"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l14",
+   "claim": "Ultrasound is radiation-free, standard for fetal imaging, and struggles with air and bone",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nibib.nih.gov/science-education/science-topics/ultrasound"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l15",
+   "claim": "Herd immunity threshold is roughly 1 - 1/R0; measles R0 often cited ~12 (12-18), needing ~92% or more",
+   "verdict": "supported",
+   "sources": [
+    "https://historyofvaccines.org/vaccines-101/what-do-vaccines-do/how-herd-immunity-works/"
+   ],
+   "note": "Source uses R0 15 giving ~93%, target 95%; lesson's R0 12 -> 92% is the low end of the commonly cited 12-18 range."
+  },
+  {
+   "lessonId": "med-g912.l15",
+   "claim": "Measles is extremely contagious",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/measles/hcp/clinical-overview/index.html"
+   ],
+   "note": "CDC: up to 9 of 10 susceptible close contacts infected."
+  },
+  {
+   "lessonId": "med-g912.l15",
+   "claim": "Incidence = new cases over a period; prevalence = existing cases at a point in time",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard definition; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-g912.l16",
+   "claim": "Number needed to treat = 1 / absolute risk reduction; 2% -> 1% is 50% RRR, 1-point ARR, NNT about 100",
+   "verdict": "supported",
+   "sources": [
+    "https://litfl.com/risk-and-numbers-needed-to-treat/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l16",
+   "claim": "Statistical significance is not the same as importance; a tiny effect can be significant in a huge trial",
+   "verdict": "supported",
+   "sources": [
+    "https://featuredcontent.psychonomic.org/the-american-statistical-association-statement-on-p-values/"
+   ],
+   "note": "ASA 2016 principle 5."
+  },
+  {
+   "lessonId": "med-g912.l16",
+   "claim": "Randomization spreads known and unknown confounders by chance; meta-analysis usually tops the evidence hierarchy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard teaching; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-g912.l17",
+   "claim": "Beauchamp and Childress set out four principles: autonomy, beneficence, nonmaleficence, justice",
+   "verdict": "supported",
+   "sources": [
+    "https://1000wordphilosophy.com/2021/02/16/principlism-in-biomedical-ethics/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l17",
+   "claim": "Valid consent needs capacity and information on nature, risks, benefits and alternatives; emergency exception when patient cannot decide",
+   "verdict": "supported",
+   "sources": [
+    "https://code-medical-ethics.ama-assn.org/ethics-opinions/informed-consent"
+   ],
+   "note": "AMA Code of Medical Ethics 2.1.1."
+  },
+  {
+   "lessonId": "med-g912.l17",
+   "claim": "HIPAA privacy rules limit sharing of health information, with permitted disclosures such as required public health reporting",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/phlp/php/resources/health-insurance-portability-and-accountability-act-of-1996-hipaa.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l18",
+   "claim": "Adult compressions at 100-120/min, depth about 5-6 cm (2-2.4 in), full recoil; trained rescuers 30:2",
+   "verdict": "supported",
+   "sources": [
+    "https://health.ucdavis.edu/media-resources/cppn/documents/pdfs/ucdh-cpr-guidelines.pdf"
+   ],
+   "note": "UC Davis guide based on 2025 AHA guidelines: at least 2 in, not over 2.4 in, 100-120/min, 30:2. Unchanged in the Oct 2025 AHA update."
+  },
+  {
+   "lessonId": "med-g912.l18",
+   "claim": "Current first-aid guidance for choking adults includes back blows and abdominal thrusts",
+   "verdict": "supported",
+   "sources": [
+    "https://newsroom.heart.org/news/updated-cpr-guidelines-tackle-choking-response-opioid-related-emergencies-and-a-revised-chain-of-survival"
+   ],
+   "note": "2025 AHA guidelines (22 Oct 2025) newly recommend alternating 5 back blows and 5 abdominal thrusts for conscious adults; lesson is current."
+  },
+  {
+   "lessonId": "med-g912.l18",
+   "claim": "For each minute of delay in defibrillation the chance of survival drops substantially",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC7043313/"
+   ],
+   "note": "About 7-10% per minute without CPR."
+  },
+  {
+   "lessonId": "med-g912.l18",
+   "claim": "Severe bleeding: firm direct pressure; tourniquet for life-threatening limb bleeding",
+   "verdict": "supported",
+   "sources": [
+    "https://www.stopthebleed.org/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l18",
+   "claim": "Face drooping, arm weakness and speech trouble suggest stroke; call emergency services immediately",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/stroke/signs-symptoms/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l19",
+   "claim": "Physician path: bachelor's degree, 4-year medical school (MD or DO, DO adds musculoskeletal emphasis), residency (~3 years primary care, longer for others), state licensure",
+   "verdict": "supported",
+   "sources": [
+    "https://www.bls.gov/ooh/healthcare/physicians-and-surgeons.htm"
+   ],
+   "note": "BLS: 4 years medical school, 3-9 years residency, all states require licensure."
+  },
+  {
+   "lessonId": "med-g912.l19",
+   "claim": "Nurse practitioners hold a graduate degree; scope of practice set by each state",
+   "verdict": "supported",
+   "sources": [
+    "https://www.bls.gov/ooh/healthcare/nurse-anesthetists-nurse-midwives-and-nurse-practitioners.htm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l19",
+   "claim": "Physician assistants complete a master's-level program; pharmacists hold a Doctor of Pharmacy",
+   "verdict": "supported",
+   "sources": [
+    "https://www.bls.gov/ooh/healthcare/physician-assistants.htm",
+    "https://www.bls.gov/ooh/healthcare/pharmacists.htm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l20",
+   "claim": "Supplements in the United States are not required to prove effectiveness before sale",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/food/information-consumers-using-dietary-supplements/questions-and-answers-dietary-supplements"
+   ],
+   "note": "FDA lacks authority to approve supplements before marketing."
+  },
+  {
+   "lessonId": "med-g912.l20",
+   "claim": "A relative change such as doubling a very small risk can sound large while the absolute change is tiny",
+   "verdict": "supported",
+   "sources": [
+    "https://litfl.com/risk-and-numbers-needed-to-treat/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-g912.l20",
+   "claim": "No good evidence shows juice cleanses/detoxes add benefit; liver and kidneys clear waste",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  }
+ ]
+}

@@ -1,0 +1,1304 @@
+{
+ "courseId": "law-crimpro",
+ "verifier": "B",
+ "fetched": 63,
+ "note": "WebFetch returned 403 for Justia; pages were fetched with curl (browser UA) and checked by text search. Recent-case scan: Chatrie v. United States (June 29, 2026, geofence/Location History acquisition is a search) makes lesson l01 out of date; Case v. Montana (Jan 2026) and Villarreal v. Texas (Feb 2026) are consistent with the lessons. All 100 questions have type undefined in the claims file; treated as multiple choice. No option text found cut off mid-sentence.",
+ "questions": [
+  {
+   "id": "law-crimpro.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l02.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "\"Open to challenge\" is the best of the four; Gates totality could still sustain the warrant given the informant track record, so the keyed outcome is hedged."
+  },
+  {
+   "id": "law-crimpro.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l10.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Preponderance standard for flight risk comes from circuit case law, not the text of 18 U.S.C. 3142(f), which states clear and convincing only for dangerousness."
+  },
+  {
+   "id": "law-crimpro.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l15.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Barker balancing; option 0 is the only non-absolute choice."
+  },
+  {
+   "id": "law-crimpro.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l16.q5",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 3 is awkwardly worded (reads as if a minor participant without intent to kill is \"required\"); the intended Enmund/Tison culpability rule is still identifiable."
+  },
+  {
+   "id": "law-crimpro.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l17.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Montoya de Hernandez (1985) reserved the suspicion level for strip and body-cavity searches; reasonable suspicion is the lower-court consensus."
+  },
+  {
+   "id": "law-crimpro.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l19.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Overwhelming evidence defeats the substantial-rights prong; option 3 is best."
+  },
+  {
+   "id": "law-crimpro.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimpro.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Kimmelman v. Morrison (1986) permits the IAC claim despite Stone."
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-crimpro.l01",
+   "claim": "United States v. Jones (2012): attaching a GPS tracker to a car was a search under the property-based (physical intrusion) test",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/565/400/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l01",
+   "claim": "Kyllo v. United States (2001): thermal imaging of a home with technology not in general public use is a search",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/533/27/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l01",
+   "claim": "Carpenter (2018) held acquiring historical CSLI (seven days) is a search, called its holding narrow, and lower courts continue to sort out tower dumps, real-time location and similar data",
+   "verdict": "contradicted",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/585/16-402/",
+    "https://supreme.justia.com/cases/federal/us/609/25-112/"
+   ],
+   "note": "Carpenter itself is accurately described (it held accessing seven days of CSLI is a search and reserved shorter periods), but the lesson is now out of date: Chatrie v. United States (decided June 29, 2026) held that acquiring a person's Google Location History via a geofence warrant is a Fourth Amendment search, even for a limited time and from a third-party tech company, and remanded on particularity/probable cause. Add Chatrie and stop implying seven days is a threshold."
+  },
+  {
+   "lessonId": "law-crimpro.l01",
+   "claim": "Florida v. Jardines (2013): bringing a drug dog onto the front porch (curtilage) is a search",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/569/1/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l02",
+   "claim": "Illinois v. Gates (1983) replaced the Aguilar-Spinelli two-pronged test with totality of the circumstances; fair probability; substantial-basis review",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/462/213/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l02",
+   "claim": "Franks v. Delaware (1978): hearing on a substantial preliminary showing of knowing/intentional or reckless falsity necessary to probable cause; negligence insufficient",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/438/154/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l02",
+   "claim": "Hudson v. Michigan (2006): knock-and-announce violation does not require suppression",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/547/586/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l02",
+   "claim": "Coolidge v. New Hampshire (1971): warrant issued by the state attorney general leading the investigation was invalid",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/403/443/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l03",
+   "claim": "Payton v. New York (1980): arrest warrant plus reason to believe the suspect is inside permits home entry",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/445/573/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l03",
+   "claim": "Riley v. California (2014): police generally need a warrant to search digital contents of an arrestee's phone; data poses no physical danger",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/573/373/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l03",
+   "claim": "Arizona v. Gant (2009): vehicle search incident to arrest only if arrestee can access the vehicle or it is reasonable to believe evidence of the offense of arrest is inside",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/556/332/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l03",
+   "claim": "Collins v. Virginia (2018): automobile exception does not permit entering curtilage to search a vehicle",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/584/16-1027/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l04",
+   "claim": "Georgia v. Randolph (2006): physically present co-occupant's express refusal makes the search invalid as to him",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/547/103/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l04",
+   "claim": "Horton v. California (1990): plain-view discovery need not be inadvertent",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/496/128/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l04",
+   "claim": "Lange v. California (2021) rejected a categorical rule for misdemeanor pursuit; Caniglia v. Strom (2021) rejected a community-caretaking exception for homes",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/594/20-18/",
+    "https://supreme.justia.com/cases/federal/us/593/20-157/"
+   ],
+   "note": "Consider adding Case v. Montana (Jan. 14, 2026): emergency-aid entry needs an objectively reasonable basis (Brigham City), not probable cause; consistent with the lesson."
+  },
+  {
+   "lessonId": "law-crimpro.l05",
+   "claim": "Torres v. Madrid (2021): application of physical force with intent to restrain is a seizure even if the person escapes",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/592/19-292/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l05",
+   "claim": "Rodriguez v. United States (2015): extending a traffic stop for a dog sniff without reasonable suspicion is unlawful",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/575/348/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l05",
+   "claim": "County of Riverside v. McLaughlin (1991): probable cause determination presumptively within 48 hours; Atwater (2001) arrest for fine-only offense",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/500/44/",
+    "https://supreme.justia.com/cases/federal/us/532/318/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l06",
+   "claim": "Utah v. Strieff (2016): discovery of a valid preexisting warrant attenuated the taint of an unlawful stop",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/579/14-1373/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l06",
+   "claim": "Herring v. United States (2009): isolated police negligence in recordkeeping does not trigger exclusion",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/555/135/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l06",
+   "claim": "Byrd v. United States (2018): unauthorized rental driver not automatically without a privacy expectation",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/584/16-1371/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l07",
+   "claim": "Maryland v. Shatzer (2010): 14-day break in custody ends Edwards protection",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/559/98/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l07",
+   "claim": "Vega v. Tekoh (2022): a Miranda violation does not support a section 1983 damages claim",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/597/21-499/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l07",
+   "claim": "Dickerson (2000) Miranda is a constitutional rule; Berghuis v. Thompkins (2010) implied waiver",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/530/428/",
+    "https://supreme.justia.com/cases/federal/us/560/370/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l08",
+   "claim": "Rothgery v. Gillespie County (2008): right to counsel attaches at initial appearance before a magistrate",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/554/191/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l08",
+   "claim": "Colorado v. Connelly (1986): coercive police activity is a necessary predicate to involuntariness",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/479/157/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l08",
+   "claim": "Arizona v. Fulminante (1991): admission of a coerced confession is subject to harmless-error analysis; Texas v. Cobb (2001) Sixth Amendment right is offense-specific",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/499/279/",
+    "https://supreme.justia.com/cases/federal/us/532/162/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l09",
+   "claim": "Crist v. Bretz (1978): jeopardy attaches when the jury is empaneled and sworn",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/437/28/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l09",
+   "claim": "Gamble v. United States (2019) reaffirmed dual sovereignty; Evans v. Michigan (2013) judicial acquittal final even if based on legal error",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/587/17-646/",
+    "https://supreme.justia.com/cases/federal/us/568/313/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l09",
+   "claim": "Tibbs v. Florida (1982): reversal on weight of the evidence permits retrial",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/457/31/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l10",
+   "claim": "Federal grand jury has 16 to 23 members",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcrmp/rule_6"
+   ],
+   "note": "FRCrP 6(a)(1)."
+  },
+  {
+   "lessonId": "law-crimpro.l10",
+   "claim": "United States v. Salerno (1987): Bail Reform Act detention on clear and convincing evidence of dangerousness after adversary hearing; regulatory, not punitive",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/481/739/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l10",
+   "claim": "United States v. Williams (1992): no duty to present exculpatory evidence to the grand jury; Hurtado (1884) grand jury not required of states",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/504/36/",
+    "https://supreme.justia.com/cases/federal/us/110/516/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l11",
+   "claim": "Strickler v. Greene (1999): three components of a Brady violation",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/527/263/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l11",
+   "claim": "United States v. Ruiz (2002): no constitutional duty to disclose impeachment material before a plea",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/536/622/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l11",
+   "claim": "Connick v. Thompson (2011) no municipal liability for single Brady violation; Arizona v. Youngblood (1988) bad faith required for failure to preserve potentially useful evidence",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/563/51/",
+    "https://supreme.justia.com/cases/federal/us/488/51/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l12",
+   "claim": "Boykin v. Alabama (1969): guilty plea waives privilege against self-incrimination, jury trial, and confrontation",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/395/238/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l12",
+   "claim": "Bordenkircher v. Hayes (1978): threat of habitual-offender indictment carrying life did not violate due process",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/434/357/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l12",
+   "claim": "Class v. United States (2018): guilty plea does not by itself bar a claim that the statute of conviction is unconstitutional; Rule 11 bars judicial participation in plea talks",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/583/16-424/",
+    "https://www.law.cornell.edu/rules/frcrmp/rule_11"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l13",
+   "claim": "Alabama v. Shelton (2002): suspended sentence that may lead to imprisonment requires counsel",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/535/654/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l13",
+   "claim": "McCoy v. Louisiana (2018): counsel may not concede guilt over client's objection; Indiana v. Edwards (2008) states may insist on counsel for impaired defendants",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/584/16-8255/",
+    "https://supreme.justia.com/cases/federal/us/554/164/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l13",
+   "claim": "United States v. Gonzalez-Lopez (2006): erroneous denial of counsel of choice is structural error",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/548/140/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l14",
+   "claim": "Smith v. Arizona (2024): absent analyst's statements conveyed as basis for expert opinion are offered for their truth",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/602/22-899/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l14",
+   "claim": "Giles v. California (2008): forfeiture requires intent to prevent testimony",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/554/353/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l14",
+   "claim": "Bullcoming (2011) surrogate analyst insufficient; Ohio v. Clark (2015) child's statements to teachers nontestimonial",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/564/647/",
+    "https://supreme.justia.com/cases/federal/us/576/237/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l15",
+   "claim": "Ramos v. Louisiana (2020) unanimity; Edwards v. Vannoy (2021) not retroactive on federal collateral review",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/590/18-5924/",
+    "https://supreme.justia.com/cases/federal/us/593/19-5807/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l15",
+   "claim": "Erlinger v. United States (2024): separate-occasions ACCA question requires a unanimous jury beyond a reasonable doubt",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/602/23-370/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l15",
+   "claim": "Doggett (1992) eight-and-a-half-year delay; Speedy Trial Act 30 days to indictment and 70 days to trial",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/505/647/",
+    "https://www.law.cornell.edu/uscode/text/18/3161"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l16",
+   "claim": "Solem v. Helm (1983) struck down life without parole for a seventh nonviolent felony",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/463/277/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l16",
+   "claim": "Bucklew (2019) feasible alternative requirement; Hall v. Florida (2014); Jones v. Mississippi (2021) no separate incorrigibility finding; Timbs (2019) incorporated Excessive Fines Clause",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/587/17-8151/",
+    "https://supreme.justia.com/cases/federal/us/572/701/",
+    "https://supreme.justia.com/cases/federal/us/593/18-1259/",
+    "https://supreme.justia.com/cases/federal/us/586/17-1091/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l16",
+   "claim": "A majority of states retain capital punishment by statute",
+   "verdict": "supported",
+   "sources": [
+    "https://deathpenaltyinfo.org/states-landing"
+   ],
+   "note": "DPIC lists 27 states with the death penalty (checked Oct 2026)."
+  },
+  {
+   "lessonId": "law-crimpro.l17",
+   "claim": "United States v. Flores-Montano (2004): suspicionless disassembly of a gas tank at the border upheld",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/541/149/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l17",
+   "claim": "Samson v. California (2006): suspicionless parolee search upheld",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/547/843/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l17",
+   "claim": "Illinois v. Lidster (2004) information-seeking checkpoint; Board of Education v. Earls (2002) extracurricular drug testing",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/540/419/",
+    "https://supreme.justia.com/cases/federal/us/536/822/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l18",
+   "claim": "Weaver v. Massachusetts (2017): some structural claims, \"when raised on direct review through a claim of ineffective assistance,\" still require prejudice",
+   "verdict": "contradicted",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/582/16-240/"
+   ],
+   "note": "Weaver concerns a public-trial error that was neither preserved nor raised on direct review but raised later (new-trial/collateral motion) via an ineffective-assistance claim; if objected to and raised on direct appeal, reversal is generally automatic. \"On direct review\" should read \"not on direct review but later, through an ineffective-assistance claim\"."
+  },
+  {
+   "lessonId": "law-crimpro.l18",
+   "claim": "Cooper v. Oklahoma (1996): state may not require defendant to prove incompetence by clear and convincing evidence; Deck v. Missouri (2005) visible shackles",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/517/348/",
+    "https://supreme.justia.com/cases/federal/us/544/622/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l18",
+   "claim": "Perry v. New Hampshire (2012): due process screening applies only when police arranged the suggestive circumstances",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/565/228/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l19",
+   "claim": "Federal defendant must file notice of appeal within 14 days (FRAP 4(b))",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frap/rule_4"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l19",
+   "claim": "United States v. Olano (1993) plain-error elements including fairness, integrity, or public reputation",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/507/725/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l19",
+   "claim": "Kotteakos (1946) substantial-influence standard; Anders v. California (1967) brief referring to anything arguably supporting appeal",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/328/750/",
+    "https://supreme.justia.com/cases/federal/us/386/738/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l20",
+   "claim": "Harrington v. Richter (2011): fairminded-jurists standard applies even to summary denials without explanation",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/562/86/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l20",
+   "claim": "Cullen v. Pinholster (2011): 2254(d)(1) review limited to state-court record",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/563/170/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimpro.l20",
+   "claim": "Shinn v. Ramirez (2022) limited new evidence based on postconviction counsel ineffectiveness; Herrera (1993) assumed without deciding for capital cases",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/596/20-1009/",
+    "https://supreme.justia.com/cases/federal/us/506/390/"
+   ],
+   "note": ""
+  }
+ ]
+}

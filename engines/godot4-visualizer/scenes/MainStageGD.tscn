@@ -1,0 +1,75 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Environment" path="res://default_env.tres" id="1_env"]
+[ext_resource type="Script" path="res://scripts/plajah_audio_bridge.gd" id="2_audio"]
+[ext_resource type="Script" path="res://scripts/obsidian_ripple_scene.gd" id="3_ripple"]
+[ext_resource type="Shader" path="res://shaders/obsidian_ripple.gdshader" id="4_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lake"]
+render_priority = 0
+shader = ExtResource("4_shader")
+shader_parameter/deep_obsidian_color = Color(0.024, 0.016, 0.035, 1)
+shader_parameter/crest_crimson_color = Color(0.831, 0, 0.333, 1)
+shader_parameter/rim_amber_color = Color(1, 0.549, 0, 1)
+shader_parameter/ripple_speed = 2.8
+shader_parameter/ripple_frequency = 2.6
+shader_parameter/ripple_amplitude = 0.25
+shader_parameter/kick_punch = 0.0
+shader_parameter/voice_energy = 0.0
+shader_parameter/clearcoat_strength = 1.0
+shader_parameter/roughness_val = 0.06
+shader_parameter/metallic_val = 0.18
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_lake"]
+size = Vector2(36, 36)
+subdivide_width = 160
+subdivide_depth = 160
+
+[node name="MainStage" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("1_env")
+
+[node name="PlajahAudioBridge" type="Node" parent="."]
+script = ExtResource("2_audio")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 15, 0)
+light_color = Color(0.98, 0.96, 1, 1)
+light_energy = 1.5
+shadow_enabled = true
+shadow_bias = 0.002
+directional_shadow_mode = 1
+directional_shadow_split_1 = 0.15
+directional_shadow_blend_splits = true
+
+[node name="CrimsonSpotLight" type="SpotLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.258819, 0.965926, 0, -0.965926, 0.258819, 0, 10, 0)
+light_color = Color(0.831, 0, 0.333, 1)
+light_energy = 5.0
+spot_range = 35.0
+spot_angle = 45.0
+shadow_enabled = true
+
+[node name="AmberPointLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+light_color = Color(1, 0.549, 0, 1)
+light_energy = 2.5
+omni_range = 14.0
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 3.8, 8.5)
+current = true
+fov = 50.0
+
+[node name="ObsidianRippleScene" type="Node3D" parent="." node_paths=PackedStringArray("audio_bridge", "lake_mesh", "crimson_spot_light", "amber_point_light", "main_camera")]
+script = ExtResource("3_ripple")
+audio_bridge = NodePath("../PlajahAudioBridge")
+lake_mesh = NodePath("LakeMesh")
+crimson_spot_light = NodePath("../CrimsonSpotLight")
+amber_point_light = NodePath("../AmberPointLight")
+main_camera = NodePath("../Camera3D")
+
+[node name="LakeMesh" type="MeshInstance3D" parent="ObsidianRippleScene"]
+material_override = SubResource("ShaderMaterial_lake")
+mesh = SubResource("PlaneMesh_lake")

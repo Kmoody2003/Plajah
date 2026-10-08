@@ -16,6 +16,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import LayerStack from './LayerStack';
+import GLCompositorView from './GLCompositorView';
 import ShaderLayer from './ShaderLayer';
 import { getSilentAnalyser } from '../engine/silentAnalyser';
 import ButterchurnLayer from './ButterchurnLayer';
@@ -149,37 +150,38 @@ const ProgramOutView: React.FC = () => {
       style={{ width: '100vw', height: '100dvh', background: '#000', position: 'relative', overflow: 'hidden', cursor: 'none', transformOrigin: 'center center', willChange: 'transform' }}
       onDoubleClick={onDoubleClick}
     >
-      {/* Stage "Mirror slicing" effect surface, mirrored from the studio. */}
-      {config.enableSlicing && bgMedia1 && (
-        <BackgroundLayer mediaList1={bgMedia1} mediaList2={bgMedia2 || []} config={config} analyser={analyser} isPlaying={isPlaying} id="po-bg-slice" />
-      )}
-      {/* The real composite — every active layer of the live column, stacked. */}
-      <LayerStack layers={layers} analyser={analyser} config={config} isPlaying={isPlaying} />
-
-      {/* Explicit global override modes, mirrored from the studio.
-          The shader must render even before the opener's analyser can be pulled — a look animates
-          on iTime, not on audio — so it falls back to a silent analyser. This was the same gate
-          that kept picked shaders off the program output: no analyser, no shader. */}
-      {three3d ? (
-        <ThreeScene analyser={poAnalyser} config={three3d} palette={config.colorPalette} />
-      ) : poAnalyser && (
-        <>
-          {shaderSrc && <ShaderLayer analyser={poAnalyser} source={shaderSrc} startTimeMs={shaderStart} onError={() => {}} />}
-          {libraryGeneratorMode && (
-            isFluxMode(libraryGeneratorMode)
-              ? <FluxStage analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} />
-              : isStudioMode(libraryGeneratorMode)
-                ? <StudioStage analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} />
-                : <AudioVisualizer analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} hasBackground={false} />
-          )}
-          {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
-          {milkdrop && (
-            <ButterchurnLayer analyser={poAnalyser} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} />
-          )}
-        </>
-      )}
-
-      <TextOverlay config={config} analyser={analyser} isPlaying={isPlaying} />
+      {/* Step 7: Single-surface GPU Compositor — mirrors the studio composite 1:1 on the external display */}
+      <GLCompositorView
+        layers={layers}
+        analyser={poAnalyser}
+        config={config}
+        isPlaying={isPlaying}
+        bgSlice={config.enableSlicing && bgMedia1 ? { mediaList1: bgMedia1, mediaList2: bgMedia2 || [] } : null}
+        gpuGenerators={config.gpuGenerators}
+        overlays={
+          <>
+            {three3d ? (
+              <ThreeScene analyser={poAnalyser} config={three3d} palette={config.colorPalette} />
+            ) : poAnalyser && (
+              <>
+                {shaderSrc && <ShaderLayer analyser={poAnalyser} source={shaderSrc} startTimeMs={shaderStart} onError={() => {}} />}
+                {libraryGeneratorMode && (
+                  isFluxMode(libraryGeneratorMode)
+                    ? <FluxStage analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} />
+                    : isStudioMode(libraryGeneratorMode)
+                      ? <StudioStage analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} />
+                      : <AudioVisualizer analyser={poAnalyser} config={{ ...config, mode: libraryGeneratorMode }} isPlaying={isPlaying} hasBackground={false} />
+                )}
+                {midiNotes && <MidiNotesScene palette={config.colorPalette} />}
+                {milkdrop && (
+                  <ButterchurnLayer analyser={poAnalyser} presetIndex={milkdropIdx} blendMode={milkdropBlendMode} layerOpacity={milkdropLayerOpacity} />
+                )}
+              </>
+            )}
+            <TextOverlay config={config} analyser={analyser} isPlaying={isPlaying} />
+          </>
+        }
+      />
     </div>
   );
 };

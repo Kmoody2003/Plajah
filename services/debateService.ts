@@ -22,8 +22,19 @@ const ACCEPT_WINDOW_MS      = 6 * 60 * 60 * 1000;    // 6 hours to accept
 const POINTS_CHALLENGE_ISSUED  = 10;
 const POINTS_DEBATE_ACCEPTED   = 20;
 const POINTS_DEBATE_POSTED     = 5;   // per post in debate
-const POINTS_DEBATE_WIN        = 100;
-const POINTS_DEBATE_DRAW       = 40;
+// Win/draw points are awarded server-side (routes/socialServer.ts) from the same constants.
+export { POINTS_DEBATE_WIN, POINTS_DEBATE_DRAW } from './socialServerCore';
+
+/** Firestore THROWS on `undefined` field values (the DB has no ignoreUndefinedProperties) — drop them. */
+export function stripUndefinedDeep<T>(v: T): T {
+  if (Array.isArray(v)) return v.map(stripUndefinedDeep) as unknown as T;
+  if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (x !== undefined) out[k] = stripUndefinedDeep(x);
+    return out as T;
+  }
+  return v;
+}
 
 // ── Content moderation ────────────────────────────────────────────────────────
 
@@ -136,7 +147,7 @@ export async function issuePostDebateChallenge(payload: PostChallengePayload): P
     status:       'PENDING',
   };
 
-  await setDoc(ref, debate);
+  await setDoc(ref, stripUndefinedDeep(debate));
   await updateDoc(doc(db, 'users', uid), { totalPoints: increment(POINTS_CHALLENGE_ISSUED) });
 
   await addDoc(collection(db, 'notifications'), {
@@ -199,7 +210,7 @@ export async function issueDebateChallenge(payload: ChallengePayload): Promise<s
     heroImageUrl: payload.heroImageUrl,
     status: 'PENDING',
   };
-  await setDoc(ref, debate);
+  await setDoc(ref, stripUndefinedDeep(debate));
 
   // Award points for issuing challenge
   await updateDoc(doc(db, 'users', uid), { totalPoints: increment(POINTS_CHALLENGE_ISSUED) });
@@ -306,7 +317,7 @@ export async function postToDebate(
     reactions: {},
   };
 
-  await addDoc(collection(db, 'debates', debateId, 'posts'), post);
+  await addDoc(collection(db, 'debates', debateId, 'posts'), stripUndefinedDeep(post));
   await updateDoc(doc(db, 'debates', debateId), { postCount: increment(1) });
 
   // Award points for participating
@@ -407,7 +418,11 @@ export async function triggerAriaJudgment(debateId: string): Promise<void> {
   const debateSnap = await getDoc(doc(db, 'debates', debateId));
   if (!debateSnap.exists()) return;
   const debate = debateSnap.data() as Debate;
-  if (debate.status === 'JUDGED') return;
+  if (debate.status === 'JUDGED') {
+    // Retry a payout that failed the first time (server is idempotent on debates/{id}.pointsAwarded).
+    if (!(debate as any).pointsAwarded) void requestDebatePoints(debateId);
+    return;
+  }
   if (Date.now() < debate.endsAt) return;
 
   await updateDoc(doc(db, 'debates', debateId), { status: 'ENDED' });
@@ -475,7 +490,7 @@ export async function triggerAriaJudgment(debateId: string): Promise<void> {
 
   await updateDoc(doc(db, 'debates', debateId), {
     status: 'JUDGED',
-    verdict: preliminaryVerdict,
+    verdict: stripUndefinedDeep(preliminaryVerdict),
   });
 
   // Fire the AI analysis in the background via the agentService
@@ -486,10 +501,23 @@ export async function triggerAriaJudgment(debateId: string): Promise<void> {
     // AI judgment is best-effort — verdict is already stored
   }
 
-  // Award winner points
-  if (winnerUid) {
-    await updateDoc(doc(db, 'users', winnerUid), { totalPoints: increment(POINTS_DEBATE_WIN) });
-  }
+  // Award winner points — a cross-user write the users rules deny, so the server does it
+  // (POST /api/debates/award-points: re-derives the winner, idempotent via debates/{id}.pointsAwarded).
+  await requestDebatePoints(debateId);
+}
+
+/** Ask the server to credit the winner/participants of a JUDGED debate. Idempotent; never throws. */
+export async function requestDebatePoints(debateId: string): Promise<boolean> {
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return false;
+    const res = await fetch('/api/debates/award-points', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ debateId }),
+    });
+    return res.ok;
+  } catch { return false; }
 }
 
 // ── Demo debate seeder ────────────────────────────────────────────────────────

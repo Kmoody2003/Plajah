@@ -10,9 +10,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChatRoom, UserProfile } from '../types';
 import {
   listenToChatRooms, auth, createChatRoom,
-  fetchUserProfiles, renameChatRoom, searchUserProfiles, deleteChatRoom,
+  fetchUserProfiles, renameChatRoom, deleteChatRoom,
   updateRoomIntimate,
 } from '../services/backendService';
+import { searchUserProfilesSafe as searchUserProfiles } from '../services/searchUsersSafe';
 import {
   isPrivateDM, isBlockedMinor, isIntimateEligible, ineligibilityReason,
   beginIntimate, pauseIntimate, reconcileStalePartner, type IntimateProfile,
@@ -24,6 +25,7 @@ import ChatWindow from './ChatWindow';
 import CollaboBoard from './CollaboBoard';
 import PostmanSystem from './PostmanSystem';
 import ChatSpaces from './chat/ChatSpaces';
+import RoomMessagePreview from './chat/RoomMessagePreview';
 import { useShellNext } from '../hooks/useShellNext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -157,7 +159,7 @@ const RoomRow: React.FC<{
               ? <span className="text-green-400">typing…</span>
               : room.id.startsWith('live_chat_') && room.mediaArtist
                 ? <span className="text-orange-400/70">{room.mediaArtist}</span>
-                : room.lastMessage || 'No messages yet'}
+                : <RoomMessagePreview roomId={room.id} text={room.lastMessage} />}
           </p>
         </div>
       </button>

@@ -10,7 +10,8 @@ import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import { formatDistanceToNow } from 'date-fns';
-import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost, searchUsers } from '../services/backendService';
+import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost } from '../services/backendService';
+import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import { db } from '../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Trash2, Zap } from 'lucide-react';
@@ -29,11 +30,41 @@ import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
 import { TYPE } from '../src/lib/designSystem';
 import { isActiveToday, formatTodayCountdown, todayProgress } from '../services/todayPosts';
+import UserSafetyMenu from './safety/UserSafetyMenu';
+import { SafetyToastHost } from './safety/SafetyToast';
+import { useSocialSafety, useViewerFollows } from '../hooks/useSocialSafety';
+// Social supercharge — posting power (bookmark, repost/quote, insights, edit history, impressions, reply gating)
+import { getDoc } from 'firebase/firestore';
+import BookmarkButton from './feed/posting/BookmarkButton';
+import RepostButton from './feed/posting/RepostButton';
+import QuotedPostEmbed from './feed/posting/QuotedPostEmbed';
+import EditedBadge from './feed/posting/EditedBadge';
+import { PostInsightsButton } from './feed/posting/PostInsightsSheet';
+import { useImpressionTracker } from './feed/posting/useImpressionTracker';
+import { canReply, replyRestrictionLabel, extractMentionUids } from '../services/postingLogic';
+import { editPostText } from '../services/postingService';
+import { togglePrivatePostLike } from '../services/privatePostsService';
+import { recordPostStat } from '../services/postAnalyticsService';
 
 interface PostCardProps {
   post: Post;
   onVisitUser?: (uid: string) => void;
   presentation?: 'default' | 'signal';
+  /**
+   * Fired when the viewer picks "Show less like this" in the post's ... menu. Intentionally
+   * unwired: the host (FeedView) should forward it to services/feedPreferencesService.
+   * The menu item is only shown when this prop is provided.
+   */
+  onShowLess?: (post: Post) => void;
+  /**
+   * Skip the block/mute hiding (e.g. on that person's own profile page, or in the Blocked
+   * accounts view). Block hiding still applies unless this is true.
+   */
+  ignoreHidden?: boolean;
+  /** Repost button's Quote action: the host opens its composer in quote mode with `quoteOf={post}`. Omit to hide Quote. */
+  onQuote?: (post: Post) => void;
+  /** Where the viewer found this card, for the author's post insights (default FEED). */
+  referrer?: 'FEED' | 'PROFILE' | 'SEARCH' | 'HASHTAG' | 'SHARE' | 'OTHER';
 }
 
 // Mentions, scripture references and plain text — see src/lib/richText.tsx.
@@ -111,7 +142,11 @@ const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
   );
 };
 
-const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = 'default' }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp, presentation = 'default', onShowLess, ignoreHidden = false, onQuote, referrer = 'FEED' }) => {
+  // Opening the author's profile from a card counts toward that post's "profile visits" insight.
+  const onVisitUser = onVisitUserProp
+    ? (uid: string) => { if (uid === post.authorId) void recordPostStat(post.id, post.authorId, 'profileVisits'); onVisitUserProp(uid); }
+    : undefined;
   const [isLiked, setIsLiked] = useState(() => !!(auth.currentUser && post.likedBy?.includes(auth.currentUser.uid)));
   const [likes, setLikes] = useState(post.likesCount);
   const [isEditing, setIsEditing] = useState(false);
@@ -224,6 +259,36 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
 
   const isAuthor = auth.currentUser?.uid === post.authorId;
 
+  // Social safety: hide posts from people the viewer blocked / was blocked by / muted, and
+  // soft-gate followers-only posts of private accounts (rules cannot enforce this — see
+  // services/socialSafetyService.ts). `authorIsPrivate` is stamped on the post by the composer.
+  const { hidden: hiddenUids } = useSocialSafety();
+  const authorIsPrivate = !!post.authorIsPrivate;
+  const viewerFollowsAuthor = useViewerFollows(post.authorId, authorIsPrivate && !isAuthor);
+
+  // Impressions + dwell for the author's insights (no-op for own posts / signed-out viewers).
+  const impressionRef = useImpressionTracker({ postId: post.id, authorId: post.authorId, referrer });
+
+  // Reply gating (UI-level, see postingLogic.canReply). The only audience that needs a lookup is
+  // 'following' (does the AUTHOR follow the viewer?) — fetched lazily, one getDoc, only for such posts.
+  const viewerUid = auth.currentUser?.uid;
+  const needsAuthorFollowCheck = post.replyAudience === 'following' && !!viewerUid && viewerUid !== post.authorId;
+  const [authorFollowsViewer, setAuthorFollowsViewer] = useState(false);
+  useEffect(() => {
+    if (!needsAuthorFollowCheck || !viewerUid) return;
+    let alive = true;
+    getDoc(doc(db, 'follows', `${post.authorId}_${viewerUid}`))
+      .then(s => { if (alive) setAuthorFollowsViewer(s.exists()); })
+      .catch(() => { /* unknown -> stays restricted */ });
+    return () => { alive = false; };
+  }, [needsAuthorFollowCheck, viewerUid, post.authorId]);
+  const mentionedUids = useMemo(
+    () => (post.replyAudience === 'mentioned' ? extractMentionUids(post.text || '') : []),
+    [post.replyAudience, post.text],
+  );
+  const replyAllowed = canReply(post, viewerUid, authorFollowsViewer, mentionedUids);
+  const replyRestricted = !!viewerUid && !replyAllowed;
+
   // "Today" (Blueprint 1B.4) — a 24h ephemeral post. Ticks once a minute so the
   // countdown chip stays honest, and self-removes the card the moment it expires.
   // The interval only ever runs on Today posts; every other post pays nothing.
@@ -295,7 +360,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
     const optimisticLiked = !isLiked;
     setIsLiked(optimisticLiked);
     setLikes(prev => optimisticLiked ? prev + 1 : prev - 1);
-    const result = await togglePostLike(post.id);
+    const result = post.sourceCollection === 'private_posts'
+      ? await togglePrivatePostLike(post.id).then(r => r ? { liked: r.liked, likesCount: Math.max(0, likes + (r.liked === optimisticLiked ? (optimisticLiked ? 1 : -1) : 0)) } : undefined)
+      : await togglePostLike(post.id);
     if (result) {
       setIsLiked(result.liked);
       setLikes(result.likesCount);
@@ -306,7 +373,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
     if (!editedText.trim()) return;
     setIsSaving(true);
     try {
-      await updatePost(post.id, { text: editedText });
+      // editPostText keeps the last 5 revisions + re-derives #hashtags; private_posts docs fall back to a plain update.
+      if (post.sourceCollection === 'private_posts') await updatePost(post.id, { text: editedText }, 'private_posts');
+      else await editPostText(post, editedText);
       setIsEditing(false);
     } catch (error) {
       console.error("Failed to update post:", error);
@@ -319,7 +388,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
     if (!window.confirm("Are you sure you want to delete this post?")) return;
     setIsDeleting(true);
     try {
-      await deletePost(post.id);
+      await deletePost(post.id, post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts');
       // The feed should update automatically via onSnapshot
     } catch (error) {
       console.error("Failed to delete post:", error);
@@ -518,11 +587,22 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
   // realtime snapshot or a surface that hasn't adopted the filter must not leak one —
   // this is the last-line guard. Placed after every hook so hook order stays stable.
   if (todayExpired) return null;
+  if (!isAuthor && (!ignoreHidden && hiddenUids.has(post.authorId))) {
+    return <SafetyToastHost />; // keeps the undo toast alive after the card disappears
+  }
+  if (authorIsPrivate && !isAuthor && viewerFollowsAuthor !== true) {
+    return (
+      <div className="px-4 py-4 text-[11px] text-white/40 flex items-center gap-2">
+        <span className="font-black uppercase tracking-widest">{post.authorName}</span>
+        <span>has a private account. Follow them to see this post.</span>
+      </div>
+    );
+  }
 
   return (
     <>
     {/* Edge-to-edge on phones (fills the device width, tighter), rounded card on desktop. */}
-    <div className={`${presentation === 'signal' ? 'pj-signal-post' : ''} relative group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform`}>
+    <div ref={impressionRef} className={`${presentation === 'signal' ? 'pj-signal-post' : ''} relative group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform`}>
       <div className="flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
         {/* Avatar col */}
         <div className="relative flex-shrink-0 group/profile">
@@ -595,15 +675,26 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
                   </span>
                 </span>
               )}
-              {post.modifiedAt && (
-                <span className="flex items-center gap-1 text-small-orange text-[11px]">
-                  <span className="w-1.5 h-1.5 bg-small-orange rounded-full animate-pulse" />
-                  <span>edited</span>
-                </span>
+              <EditedBadge post={post} />
+              {post.repostOf && (
+                <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest">Reposted</span>
               )}
             </div>
 
-            {/* Options menu — visible on hover */}
+            {/* Safety menu for other people's posts (report / mute / block / show less / copy link) */}
+            {!isAuthor && auth.currentUser && (
+              <UserSafetyMenu
+                targetUid={post.authorId}
+                targetName={post.authorName}
+                contentRef={{ type: 'post', id: post.id, snapshot: post.text }}
+                linkUrl={typeof window !== 'undefined' ? `${window.location.origin}/share?type=feed&id=${post.id}` : undefined}
+                onShowLess={onShowLess ? () => onShowLess(post) : undefined}
+                triggerClassName="p-1 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all md:opacity-0 md:group-hover/card:opacity-100 focus:opacity-100"
+              />
+            )}
+
+            {/* Options menu — visible on hover (author only) */}
+            {isAuthor && (
             <div className="relative flex-shrink-0">
               <button
                 onClick={() => setShowOptions(!showOptions)}
@@ -660,6 +751,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
                 )}
               </AnimatePresence>
             </div>
+            )}
           </div>
 
           {/* Post text / edit */}
@@ -795,6 +887,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
           {/* Rich Media */}
           {renderMedia()}
 
+          {/* Quote post / repost: embedded snapshot of the source post */}
+          {(post.quotedPost || post.quotedPostId || post.repostOf) && (
+            <div className="mt-3">
+              <QuotedPostEmbed
+                post={post}
+                isHidden={hiddenUids.has.bind(hiddenUids)}
+                onVisitUser={onVisitUser}
+                onOpenPost={(id) => { try { window.location.assign(`${window.location.origin}/share?type=feed&id=${id}`); } catch { /* */ } }}
+              />
+            </div>
+          )}
+
           {/* Learn chip — education as a discovery surface (only renders on a real match) */}
           <LearnChip tags={post.tags} text={post.text} className="mt-3" compact />
 
@@ -878,6 +982,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
               )}
             </motion.button>
 
+            {/* Repost / Quote */}
+            {auth.currentUser && <RepostButton post={post} onQuote={onQuote} />}
+
             {/* Gift — non-author only */}
             {!isAuthor && (
               <motion.button
@@ -921,11 +1028,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
             )}
 
             {/* Share */}
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-0.5">
+              <PostInsightsButton post={post} />
+              <BookmarkButton post={post} />
               <ShareButton
-                title={`Post by ${post.authorName}`}
-                text={post.text || 'Check out this post on Plajah'}
-                url={`${window.location.origin}/post/${post.id}`}
+                title={(post as any).poll?.question ? `Poll: ${(post as any).poll.question}` : `Post by ${post.authorName}`}
+                text={(post as any).poll?.question || post.text || 'Check out this on Plajah'}
+                url={typeof window !== 'undefined' ? `${window.location.origin}/share?type=feed&id=${post.id}` : ''}
+                contentType={(post as any).poll?.question ? 'poll' : 'post'}
+                pollData={(post as any).poll}
+                postText={post.text}
+                authorName={post.authorName}
+                authorPhoto={post.authorPhoto}
+                imageUrl={post.media?.find(m => m.url)?.url}
+                ctaText={(post as any).poll?.question ? '⚡ CAST YOUR VOTE ON PLAJAH' : '💬 JOIN THE CONVERSATION ON PLAJAH'}
               />
             </div>
           </div>
@@ -1005,10 +1121,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-4 py-3 border-b border-white/[0.06]">
+            <div className={`px-4 py-3 border-b border-white/[0.06] ${replyRestricted ? '[&_form]:hidden' : ''}`}>
+              {replyRestricted && (
+                <p className="mb-2 text-[11px] text-white/45">{replyRestrictionLabel(post.replyAudience)}</p>
+              )}
               <CommentSection
                 postId={post.id}
                 postAuthorId={post.authorId}
+                postCollection={post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}
                 onVisitUser={onVisitUser}
                 onClose={() => setShowComments(false)}
               />
@@ -1025,12 +1145,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
           items={waterfallItems}
           onClose={() => setShowWaterfall(false)}
           commentNode={
-            <CommentSection
-              postId={post.id}
-              postAuthorId={post.authorId}
-              onVisitUser={onVisitUser}
-              layout="inline"
-            />
+            <div className={replyRestricted ? '[&_form]:hidden' : undefined}>
+              <CommentSection
+                postId={post.id}
+                postAuthorId={post.authorId}
+                postCollection={post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}
+                onVisitUser={onVisitUser}
+                layout="inline"
+              />
+            </div>
           }
         />
       )}

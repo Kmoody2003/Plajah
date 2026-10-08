@@ -1,0 +1,1097 @@
+{
+ "courseId": "color-theory",
+ "verifier": "B",
+ "note": "Fetched Wikipedia and W3C pages with WebFetch. Zorn palette, Interaction of Color and Technicolor/other pages failed or were not opened, so those claims are unverifiable. Questions answered from knowledge.",
+ "fetched": 31,
+ "questions": [
+  {
+   "id": "color-theory.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l04.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Wider-range is a simplification; other choices are clearly wrong."
+  },
+  {
+   "id": "color-theory.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l13.q1",
+   "answer": 0,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Key is the standard account but the etymology is sometimes disputed."
+  },
+  {
+   "id": "color-theory.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "color-theory.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "color-theory.l01",
+   "claim": "Visible light is roughly 400-700 nm",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Visible_spectrum"
+   ],
+   "note": "Source gives about 380-750 nm; roughly 400-700 is acceptable."
+  },
+  {
+   "lessonId": "color-theory.l01",
+   "claim": "Newton used a prism to split white light into a spectrum",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Visible_spectrum"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l01",
+   "claim": "Typical color vision has three cone types; rods work in dim light without color",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cone_cell"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l02",
+   "claim": "CMY are subtractive primaries; K added for black",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/CMYK_color_model"
+   ],
+   "note": "Page gives precision/cost/consistency reasons; muddy-brown wording not stated but not contradicted."
+  },
+  {
+   "lessonId": "color-theory.l02",
+   "claim": "Red plus green light looks yellow; all three additive primaries make white",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "color-theory.l02",
+   "claim": "Cyan absorbs mostly red, magenta green, yellow blue",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "color-theory.l03",
+   "claim": "Munsell system by Albert Munsell in early 1900s uses hue, value, chroma",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Munsell_color_system"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l03",
+   "claim": "Tint = white added, shade = black, tone = gray",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l03",
+   "claim": "Saturation/chroma definition; HSV and HSL",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l04",
+   "claim": "Newton arranged colors in a circle",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l04",
+   "claim": "RGB wheel opposites: red-cyan, green-magenta, blue-yellow",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l04",
+   "claim": "Printing uses CMY rather than RYB because it mixes a wider range",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l05",
+   "claim": "Blue and orange complementary on the traditional wheel",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l05",
+   "claim": "Unequal complementary mixes make muted neutrals",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l05",
+   "claim": "Equal strong complements can seem to vibrate",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l06",
+   "claim": "Triadic: three hues evenly spaced; red-yellow-blue",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l06",
+   "claim": "Split-complementary uses the two hues either side of the complement",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l06",
+   "claim": "Tetradic uses two complementary pairs",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l07",
+   "claim": "Overcast daylight about 6500 K; higher kelvin looks cooler",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Color_temperature"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l07",
+   "claim": "Tungsten about 3000 K looks warm; candle flame warm",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Color_temperature"
+   ],
+   "note": "Page lists incandescent 2400-2700 K, studio tungsten 3200 K, candle about 1850 K; roughly 3000 K acceptable."
+  },
+  {
+   "lessonId": "color-theory.l07",
+   "claim": "Warm lights with cooler shadows common in painting",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l08",
+   "claim": "Gray square looks lighter on a dark background than on white",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Contrast_effect"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l08",
+   "claim": "Gray patch on saturated red looks greenish",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l08",
+   "claim": "Afterimage is a successive effect, distinct from simultaneous contrast",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Contrast_effect"
+   ],
+   "note": "Receptor-fatigue explanation not checked."
+  },
+  {
+   "lessonId": "color-theory.l09",
+   "claim": "Chevreul directed dyeing at Gobelins in the 1820s after dye complaints",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Michel_Eug%C3%A8ne_Chevreul"
+   ],
+   "note": "Appointed 1824."
+  },
+  {
+   "lessonId": "color-theory.l09",
+   "claim": "Published his contrast book in 1839",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Michel_Eug%C3%A8ne_Chevreul"
+   ],
+   "note": "De la loi du contraste simultane des couleurs, 1839."
+  },
+  {
+   "lessonId": "color-theory.l09",
+   "claim": "Seurat La Grande Jatte used dots of color, linked to Chevreul",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/A_Sunday_Afternoon_on_the_Island_of_La_Grande_Jatte"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l10",
+   "claim": "Itten taught the Bauhaus preliminary course from 1919 to early 1920s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Johannes_Itten"
+   ],
+   "note": "Page says 1919-1922."
+  },
+  {
+   "lessonId": "color-theory.l10",
+   "claim": "Itten seven contrasts list",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Johannes_Itten"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l10",
+   "claim": "Interaction of Color published by Yale University Press in 1963",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page fetch returned 404; not verified."
+  },
+  {
+   "lessonId": "color-theory.l11",
+   "claim": "Color psychology effects small, context-dependent, hard to replicate",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Color_psychology"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l11",
+   "claim": "Berlin and Kay 1969: basic color terms added in similar order, two to eleven",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Basic_color_term"
+   ],
+   "note": "Page says languages range 2 to 12 basic terms; original 1969 sample was 2 to 11. Minor."
+  },
+  {
+   "lessonId": "color-theory.l11",
+   "claim": "East Asian markets traditionally show red for gains, green for losses",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page opened did not state this."
+  },
+  {
+   "lessonId": "color-theory.l12",
+   "claim": "WCAG AA 4.5:1 normal, 3:1 large; range 1:1 to 21:1; large = 18pt or 14pt bold",
+   "verdict": "supported",
+   "sources": [
+    "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l12",
+   "claim": "About 8 percent of men of Northern European ancestry have color vision deficiency",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Color_blindness"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l12",
+   "claim": "#767676 on white is about 4.5:1",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against a page."
+  },
+  {
+   "lessonId": "color-theory.l13",
+   "claim": "K in CMYK stands for key (black plate)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/CMYK_color_model"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l13",
+   "claim": "Pantone spot colors give consistent color matching across printers",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pantone"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l13",
+   "claim": "CMYK gamut cannot reach some vivid screen colors",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pantone"
+   ],
+   "note": "Page says about 30 percent of Pantone spot colors cannot be reproduced in CMYK; indirect support."
+  },
+  {
+   "lessonId": "color-theory.l14",
+   "claim": "sRGB created in the 1990s as common standard",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/SRGB"
+   ],
+   "note": "HP and Microsoft, 1996."
+  },
+  {
+   "lessonId": "color-theory.l14",
+   "claim": "Display P3 from cinema primaries and wider than sRGB",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/DCI-P3"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l14",
+   "claim": "Rec. 709 for HDTV, Rec. 2020 for UHD/HDR",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l15",
+   "claim": "Egyptian blue among earliest synthetic pigments",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Egyptian_blue"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l15",
+   "claim": "Tyrian purple from Murex snails, very expensive",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tyrian_purple"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l15",
+   "claim": "Artificial ultramarine 1820s; Prussian blue Berlin 1700s; mauveine 1856; Rand tube 1840s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ultramarine",
+    "https://en.wikipedia.org/wiki/Prussian_blue",
+    "https://en.wikipedia.org/wiki/William_Henry_Perkin",
+    "https://en.wikipedia.org/wiki/Paint_tube"
+   ],
+   "note": "1826 Guimet; about 1706; 1856; tube 1841. Patent-year wording not separately checked."
+  },
+  {
+   "lessonId": "color-theory.l16",
+   "claim": "Impression, Sunrise (1872) sun and sky nearly equal luminance",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Impression,_Sunrise"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l16",
+   "claim": "Picasso Blue Period roughly 1901-1904",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Picasso%27s_Blue_Period"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l16",
+   "claim": "Atmospheric perspective: Leonardo; distant objects lighter and bluer",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Atmospheric_perspective"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l17",
+   "claim": "O Brother, Where Art Thou? (2000) first feature entirely digitally color corrected",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/O_Brother,_Where_Art_Thou%3F"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "color-theory.l17",
+   "claim": "Lift, gamma, gain control shadows, midtones, highlights",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l17",
+   "claim": "Technicolor popular from the 1930s",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l18",
+   "claim": "60-30-10 rule of thumb",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l18",
+   "claim": "Design tokens as named values",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l18",
+   "claim": "Do not convey state by color alone",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "WCAG 1.4.1 not opened."
+  },
+  {
+   "lessonId": "color-theory.l19",
+   "claim": "Colored gels filter light for color",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Gel_(lighting)"
+   ],
+   "note": "Page describes filtering; subtractive wording not explicit."
+  },
+  {
+   "lessonId": "color-theory.l19",
+   "claim": "Overlapping red, green, blue beams approach white",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l19",
+   "claim": "Red dress under blue light looks very dark",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l20",
+   "claim": "Palette-building steps",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Process advice, not checkable."
+  },
+  {
+   "lessonId": "color-theory.l20",
+   "claim": "Sampling swatches from photo or painting",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "color-theory.l20",
+   "claim": "Test in context and record named values",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  }
+ ]
+}

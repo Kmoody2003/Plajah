@@ -11,7 +11,11 @@ import { useEffect, useState } from 'react';
 
 export type ChoraNextMode = 'auto' | 'day' | 'night';
 
-const K_ON = 'chora_next_ui';
+// v2: Chora Next is ON by default. The Gatefold album viewer (art / slideshow / orrery / FX stage that
+// cycles) lives in this skin, and with it opt-in a fresh install, new browser profile or new device had
+// no album viewer at all. Key is versioned so a device that never chose anything gets it; the
+// "Switch back" control still works and is remembered under the new key.
+const K_ON = 'chora_next_ui_v2';
 const K_MODE = 'chora_next_mode';
 
 export const isNightNow = () => {
@@ -21,7 +25,7 @@ export const isNightNow = () => {
 
 export function useChoraNext() {
   const [enabled, setEnabledState] = useState(() => {
-    try { return localStorage.getItem(K_ON) === '1'; } catch { return false; }
+    try { return localStorage.getItem(K_ON) !== '0'; } catch { return true; }
   });
   const [mode, setModeState] = useState<ChoraNextMode>(() => {
     try { return (localStorage.getItem(K_MODE) as ChoraNextMode) || 'auto'; } catch { return 'auto'; }

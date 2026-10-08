@@ -1,0 +1,1352 @@
+{
+ "courseId": "music-theory-secondary",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "music-theory-secondary.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l22.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l22.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l22.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l23.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l23.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l24.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l24.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l24.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-theory-secondary.l24.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "music-theory-secondary.l01",
+   "claim": "Order of sharps is F C G D A E B, flats reverse",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l01",
+   "claim": "Four sharps ending on D-sharp = E major",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l01",
+   "claim": "Three flats = E-flat major via second-to-last flat rule",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l02",
+   "claim": "Relative minor a minor third below major tonic (E-flat major -> C minor)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l02",
+   "claim": "A harmonic minor: A B C D E F G-sharp, augmented second F to G-sharp",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l02",
+   "claim": "Ascending melodic minor raises 6th and 7th; descending is natural minor",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l03",
+   "claim": "B major (5 sharps) enharmonic with C-flat major (7 flats)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l03",
+   "claim": "D minor one flat, G minor two, C minor three",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l03",
+   "claim": "Neighboring keys on the circle differ by one accidental",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l04",
+   "claim": "White-key modes: Ionian C, Dorian D, Phrygian E, Lydian F, Mixolydian G, Aeolian A, Locrian B",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l04",
+   "claim": "Dorian = natural minor with raised sixth; Phrygian lowered second",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l04",
+   "claim": "C Lydian = C D E F# G A B; C Mixolydian has B-flat",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l05",
+   "claim": "Semitone counts m2=1 ... P5=7 ... M7=11",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l05",
+   "claim": "Inverted interval numbers sum to nine; major<->minor, aug<->dim",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l05",
+   "claim": "Tritone is aug 4th (C-F#) or dim 5th (C-Gb), six semitones",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l06",
+   "claim": "Diminished triad = two minor thirds; augmented = two major thirds",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l06",
+   "claim": "Major-scale triad qualities I ii iii IV V vi vii-dim",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l06",
+   "claim": "Harmonic minor triads i ii-dim III+ iv V VI vii-dim",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l07",
+   "claim": "Half-diminished = dim triad + minor 7th; fully diminished has B-double-flat",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l07",
+   "claim": "Seventh chords on major degrees: Imaj7 ii7 iii7 IVmaj7 V7 vi7 viiø7",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l07",
+   "claim": "Dominant seventh is the only seventh chord on V in major",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l08",
+   "claim": "Figured bass: 6 first inversion, 6/4 second; 7, 6/5, 4/3, 4/2 for sevenths",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l08",
+   "claim": "Uppercase major, lowercase minor, degree sign diminished, plus augmented",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l08",
+   "claim": "V4/2 is G B D F with F in bass",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l09",
+   "claim": "6/8 compound duple with dotted-quarter beat; 9/8 triple; 12/8 quadruple",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l09",
+   "claim": "Simple meter beats divide into two; compound into three",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l09",
+   "claim": "3/4 groups 2+2+2 vs 6/8 groups 3+3",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l10",
+   "claim": "Hemiola: two measures of 3/4 felt as three groups of two (3/2)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l10",
+   "claim": "Triplet three in time of two; duplet two in time of three",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l10",
+   "claim": "Hemiola often used before cadences in Baroque/Classical music",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l11",
+   "claim": "Period: antecedent (half cadence) + consequent (PAC); parallel vs contrasting",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l11",
+   "claim": "Sentence: presentation then continuation, 2+2+4 bars",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l11",
+   "claim": "Conjunct = stepwise, disjunct = leaps",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l12",
+   "claim": "Movable-do: tonic always do; fixed-do tied to pitches",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l12",
+   "claim": "Many AP-level courses use movable-do",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "AP Music Theory permits either system; many is vague."
+  },
+  {
+   "lessonId": "music-theory-secondary.l12",
+   "claim": "Leading tone tends to rise to tonic; fa tends to fall to mi",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l13",
+   "claim": "Tonic/predominant/dominant functions; vi and iii substitute for I; vii-dim is dominant function",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l13",
+   "claim": "V7 to I: tritone B-F resolves to C-E",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l13",
+   "claim": "Retrogression (V to IV) avoided in common-practice style",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l14",
+   "claim": "PAC requires V-I root position and tonic in soprano",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l14",
+   "claim": "Phrygian half cadence is iv6 to V in minor",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l14",
+   "claim": "Deceptive V to vi; plagal IV to I (Amen)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l15",
+   "claim": "Suspension types 4-3, 7-6, 9-8 (2-3 bass); retardation resolves upward",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l15",
+   "claim": "Appoggiatura approached by leap, resolved by step, on strong beat",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l15",
+   "claim": "Escape tone approached by step, left by leap in opposite direction",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l16",
+   "claim": "Adjacent upper voices within an octave; tenor-bass may exceed",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l16",
+   "claim": "Parallel perfect fifths and octaves forbidden",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l16",
+   "claim": "Do not double leading tone or chordal seventh",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l17",
+   "claim": "V7/V in C major = D F# A C",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l17",
+   "claim": "V7/iii in C = B D# F# A; V7/ii = A C# E G; V7/vi = E G# B D",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l17",
+   "claim": "V/vii not used because the diminished triad cannot be tonicized",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l18",
+   "claim": "Closely related keys differ by at most one accidental: ii iii IV V vi from major",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l18",
+   "claim": "From minor: III, v, iv, VI, VII",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l18",
+   "claim": "Pivot chord: Am is vi in C and ii in G",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l19",
+   "claim": "Baroque binary: A ends in dominant (major) or relative major (minor); B returns to tonic",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l19",
+   "claim": "Rounded binary A B A-prime vs ternary with closed first section",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l19",
+   "claim": "Five-part rondo ABACA; seven-part ABACABA",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l20",
+   "claim": "Exposition second theme in dominant (major) or relative major (minor)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l20",
+   "claim": "Development passes through several keys, ends on dominant",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l20",
+   "claim": "Recapitulation: second theme returns in tonic",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l21",
+   "claim": "Cmaj7 C E G B; C7 C E G Bb; C9 adds D",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l21",
+   "claim": "ii-V-I guide tones move by half step: C to B, F to E",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l21",
+   "claim": "Db7 substitutes for G7: shares F and Cb (=B)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l22",
+   "claim": "I-V-vi-IV in C = C G Am F; I-vi-IV-V is the 50s progression",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l22",
+   "claim": "12-bar blues layout I(4) IV(2) I(2) V(1) IV(1) I(2)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Lesson says final V in bar 12 turnaround after saying bars 11-12 are I; common variant, minor internal looseness."
+  },
+  {
+   "lessonId": "music-theory-secondary.l22",
+   "claim": "C blues scale: C Eb F Gb G Bb",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l23",
+   "claim": "Slash chord C/E = C major with E in bass",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l23",
+   "claim": "D.C. al Fine and D.S. al Coda meanings",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l23",
+   "claim": "Nashville number system works like Roman numerals",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l24",
+   "claim": "Bb clarinet/trumpet major second lower; A clarinet minor third; F horn perfect fifth",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l24",
+   "claim": "Eb alto sax major sixth lower; Bb tenor sax major ninth lower",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  },
+  {
+   "lessonId": "music-theory-secondary.l24",
+   "claim": "Piccolo octave higher; double bass and guitar octave lower",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against standard music-theory references from knowledge; page not fetched this session."
+  }
+ ]
+}

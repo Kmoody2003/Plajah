@@ -6,6 +6,10 @@
 // thumbnail). The Presets shelf is assembled from the registries the apps already
 // ship; Personal / Organization / Business come from the orgAssets DAM. Community
 // and Stock are deferred (a future update).
+//
+// Ambo's slide templates + scripture looks join the Presets shelf as kind
+// 'motion' (services/universalLibrary/amboItems.ts); the user's saved/shared
+// templates fill 'mine', and public ones fill 'community'.
 import { FX_EFFECTS } from '../../components/plajahPixels/engine/fx/effects';
 import { SIGNATURE_WORKS, signatureSource } from '../../components/plajahPixels/engine/presets/signatureShaders';
 import { SCENE_CATALOG } from '../../components/plajahPixels/engine/sceneCatalog';
@@ -14,13 +18,15 @@ import { FORGE_TRANSITIONS } from '../fabula/forgeTransitions';
 import { TELA_TEMPLATE_GALLERY } from '../tela/telaTemplateRegistry';
 import { GENRE_PRESETS } from '../melos/beats/genrePresets';
 import { BASSLINES } from '../melos/beats/bassLines';
+import type { TelaMotionTemplateSpec } from '../../types';
+import { amboPresetItems } from './amboItems';
 
-export type LibrarySourceId = 'personal' | 'org' | 'business' | 'presets' | 'community' | 'stock';
-export type LibraryKind = 'fx' | 'shader' | 'gen' | 'look' | 'trans' | 'template' | 'groove' | 'bassline' | 'media';
+export type LibrarySourceId = 'personal' | 'org' | 'business' | 'presets' | 'mine' | 'community' | 'stock';
+export type LibraryKind = 'fx' | 'shader' | 'gen' | 'look' | 'trans' | 'template' | 'motion' | 'groove' | 'bassline' | 'media';
 export type LibraryFilter = 'all' | 'media' | 'audio' | 'footage' | 'presets' | 'templates' | 'fx' | 'shaders' | 'grooves';
 
 export interface LibraryPreview {
-  mode: 'fx' | 'shader' | 'gen' | 'trans' | 'look' | 'groove' | 'bassline' | 'tela' | 'image' | 'video' | 'swatch';
+  mode: 'fx' | 'shader' | 'gen' | 'trans' | 'look' | 'groove' | 'bassline' | 'tela' | 'motion' | 'image' | 'video' | 'swatch';
   effectId?: string; params?: number[];
   genMode?: string;
   shaderSrc?: string;
@@ -30,6 +36,8 @@ export interface LibraryPreview {
   telaTemplateId?: string;
   url?: string;
   swatch?: string;
+  /** 'motion': the Ambo slide template / scripture look spec (drawn by renderMotionTemplateAt). */
+  motion?: TelaMotionTemplateSpec;
 }
 
 export interface LibraryItem {
@@ -42,6 +50,8 @@ export interface LibraryItem {
   tags?: string[];
   typeLabel: string;
   preview: LibraryPreview;
+  /** Motion-template facets (kind / theme set) for the Ambo filters. */
+  facets?: { motionKind?: 'slide' | 'scripture'; themeSet?: 'classic' | 'modern' | 'urban'; media?: string; saved?: boolean };
 }
 
 const paramsForEffect = (e: any): number[] => (e.params || []).map((p: any) => p.default ?? 0);
@@ -93,6 +103,9 @@ export function presetShelf(): LibraryItem[] {
   for (const b of BASSLINES as any[])
     out.push({ id: 'bass:' + b.id, name: b.name, source: 'presets', kind: 'bassline', category: b.genre, author: 'Plajah', typeLabel: 'BASSLINE', preview: { mode: 'bassline', notes: b.notes, bpm: b.bpm } });
 
+  // Ambo — slide templates (theme is a facet) + scripture looks, drawn live from code.
+  out.push(...amboPresetItems());
+
   _presets = out;
   return out;
 }
@@ -107,7 +120,7 @@ const FILTER_KINDS: Record<LibraryFilter, LibraryKind[] | null> = {
   // Generator scenes are reusable visualizer templates. Keeping their internal
   // `gen` kind means Pixels can run them directly while this filter makes them
   // discoverable alongside layout templates.
-  templates: ['template', 'gen'],
+  templates: ['template', 'gen', 'motion'],
   fx: ['fx', 'gen', 'look', 'trans'],
   shaders: ['shader'],
   grooves: ['groove', 'bassline'],
@@ -128,7 +141,8 @@ export const LIBRARY_SOURCES: { id: LibrarySourceId; label: string; icon: string
   { id: 'org', label: 'Organization', icon: '🏢', accent: '#D0BCFF' },
   { id: 'business', label: 'Business', icon: '🛍', accent: '#FF8C00' },
   { id: 'presets', label: 'Presets', icon: '✦', accent: '#8B5CFF' },
-  { id: 'community', label: 'Community', icon: '🌐', accent: '#D40055', later: true },
+  { id: 'mine', label: 'My templates', icon: '★', accent: '#FFB86B' },
+  { id: 'community', label: 'Community', icon: '🌐', accent: '#D40055' },
   { id: 'stock', label: 'Stock', icon: '🎞', accent: '#06D6A0', later: true },
 ];
 

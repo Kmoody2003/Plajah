@@ -1,4 +1,6 @@
+import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -6,6 +8,19 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// The boot splash shows the app version. One source of truth: the Windows package manifest (so the
+// splash always matches the installed MSIX), overridable with PJ_VERSION, plus the git short sha.
+function pjBootVersion(): string {
+  try {
+    if (process.env.PJ_VERSION) return process.env.PJ_VERSION;
+    const m = fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'windows-native/Plajah.WinUI/Package.appxmanifest'), 'utf8');
+    const v = /<Identity[^>]*\sVersion="(\d+\.\d+\.\d+)(?:\.\d+)?"/.exec(m)?.[1];
+    let sha = '';
+    try { sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { /* not a git checkout */ }
+    return v ? `${v}${sha ? ` · ${sha}` : ''}` : (sha || 'dev');
+  } catch { return 'dev'; }
+}
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -20,6 +35,7 @@ export default defineConfig(({ mode }) => {
         hmr: false
       },
       plugins: [
+        { name: 'pj-boot-version', transformIndexHtml: (html: string) => html.replace('__PJ_VERSION__', pjBootVersion()) },
         react(), 
         tailwindcss(),
         VitePWA({
@@ -93,6 +109,13 @@ export default defineConfig(({ mode }) => {
             ],
             runtimeCaching: [
               {
+                // Preserve bundled edition files after first access so all chapters
+                // remain readable offline, alongside the section-level IndexedDB cache.
+                urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/sacred/'),
+                handler: 'StaleWhileRevalidate' as const,
+                options: { cacheName: 'plajah-sacred-editions', expiration: { maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+              },
+              {
                 // Lazy ML/engraving assets (tfjs, Basic Pitch, Verovio, ONNX Runtime): cache on first use.
                 urlPattern: ({ url }: { url: URL }) =>
                   url.pathname.startsWith('/models/') ||
@@ -135,6 +158,8 @@ export default defineConfig(({ mode }) => {
         })
       ],
       define: {
+        // App version for in-app display (launcher header). Same source as the boot splash.
+        __PJ_VERSION__: JSON.stringify(pjBootVersion()),
         // SECURITY: never inject real keys here — anything defined is baked into the
         // public bundle. A Gemini key shipped this way was reported leaked and revoked
         // by Google (2026-08-28). Browser code must call the server proxies instead.

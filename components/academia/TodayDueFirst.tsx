@@ -189,7 +189,7 @@ const TodayDueFirst: React.FC<{
   return (
     <Shell accent={T.cyan} onClick={() => onNavigate('PLAJAH_LABS')}>
       {allDone && (
-        <p style={{ margin: '0 0 9px', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: T.success }}>
+        <p style={{ margin: '0 0 9px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: T.success }}>
           <Check size={13} /> {role === 'teacher' ? 'Nothing waiting on you.' : 'Nothing due. You’re clear.'}
         </p>
       )}

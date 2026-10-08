@@ -1,0 +1,889 @@
+import type { CourseModule } from '../courseModule';
+import { mcq } from '../courseKit';
+
+const ID = 'law-property';
+const lid = (n: number) => `${ID}.l${String(n).padStart(2, '0')}`;
+const m = (l: number, n: number, lv: 1 | 2 | 3, p: string, c: [string, string, string, string], a: 0 | 1 | 2 | 3, h: string, e: string) =>
+  mcq(lid(l), n, lv, p, c, a, h, e);
+const cs = (ref: string) => ({ kind: 'case' as const, ref });
+const st = (ref: string) => ({ kind: 'statute' as const, ref });
+const cn = (ref: string) => ({ kind: 'concept' as const, ref });
+
+export const COURSE_MODULE: CourseModule = {
+  curriculum: {
+    id: ID,
+    label: 'Property',
+    blurb: 'A first-year law course in property: how ownership begins, how estates and future interests are carved up, how land is shared, leased, burdened, sold, recorded, regulated and taken, and how intangible property fits in.',
+    accent: '#C9A227',
+    framework: 'plajah-law',
+    tracks: [
+      {
+        id: `${ID}.t1`,
+        title: 'Acquiring Property',
+        blurb: 'How ownership starts: capture, long possession, gifts and finding.',
+        level: 'FOUNDATION',
+        lessons: [
+          {
+            id: lid(1),
+            title: 'What Property Is and First Possession',
+            blurb: 'The bundle of rights, and why the first person to capture a thing may own it.',
+            minutes: 12,
+            body:
+`Property law is less about things than about relationships among people regarding things. A common way to picture ownership is as a bundle of rights: the right to possess, to use, to exclude others, to transfer, and to destroy. The bundle can be divided. A landlord keeps title while a tenant holds possession; a neighbor may hold an easement to cross the land; a lender may hold a lien. Of these sticks, the right to exclude is often treated as the most characteristic, because without it the others have little meaning. Courts and scholars still argue about whether property is best justified by labor (a person who mixes effort with an unowned thing earns it), by utility (ownership creates incentives to invest and avoids a tragedy of the commons), or by personality (people become themselves partly through things).
+
+Most original acquisition in the common law follows a rule of first possession: the first person to reduce an unowned thing to possession owns it. The hard question is what counts as possession. In Pierson v. Post (N.Y. 1805), Post and his hounds were chasing a fox across a beach when Pierson, who knew of the pursuit, killed the fox and carried it off. The court held for Pierson. Mere pursuit, even with a reasonable chance of success, did not give Post a property right. Wild animals become property when they are actually captured, mortally wounded, or caught in a trap or net so that escape is no longer practical. The majority reasoned that a clear rule serves certainty and avoids litigation over who was close enough; the dissent would have favored custom among hunters and the social value of ridding the land of foxes.
+
+Courts sometimes defer to custom where a trade has settled expectations. In Ghen v. Rich (D. Mass. 1881), a whaler killed a whale with a bomb lance, the carcass sank and later washed ashore, and a stranger took it and sold the oil. The court enforced the local whalers' custom that the first killer owns the whale, even though the rule differs from Pierson. The lesson is that default rules yield to well-established, reasonable industry practice.
+
+Related rules fill out the picture. Under the rule of capture, a landowner who drills a well may own the oil, gas or groundwater he draws out, even if it migrated from beneath a neighbor's land; modern regulation of correlative rights and spacing has softened this. Accession gives title to a thing that has been materially improved by someone who acted in good faith in many jurisdictions, and creation of a new thing by a person's labor generally vests title in the creator.
+
+Worked example. Two surfers see a kayak adrift offshore. A paddles hard toward it and is ten yards away; B, who arrives later by jet ski, ties a line to it. Under the first-possession logic of Pierson, B, who obtained actual control, is the better claimant than A, whose pursuit alone gave no right. A court could instead consider a custom of the local boating community, if one were proved. Note the trap: pursuit is not possession, but actual control is, and parties who interfere with an established pursuit by malicious means may face separate tort claims.`,
+            asOf: '2026-10',
+            anchors: [cs('Pierson v. Post|1805|N.Y.'), cs('Ghen v. Rich|1881|D. Mass.'), cn('Bundle of rights and first possession')],
+          },
+          {
+            id: lid(2),
+            title: 'Adverse Possession',
+            blurb: 'How long, open, hostile possession can ripen into title.',
+            minutes: 13,
+            body:
+`Adverse possession lets a person who occupies land for long enough, in the right way, acquire title even though the paper owner never consented. The usual justifications are that it quiets old disputes, rewards productive use, punishes owners who sleep on their rights, and protects settled expectations. It is not theft in the eyes of the law; it is the operation of a statute of limitations. Once the period for the true owner to sue for ejectment has run, the owner's remedy is barred, and title in the possessor is recognized.
+
+The claimant must show possession that is actual, open and notorious, exclusive, hostile (also called adverse), and continuous for the statutory period. Actual means the claimant physically uses the land as an average owner of that kind of land would, so occasional walking over a woodlot differs from farming a field. Open and notorious means the use is visible enough that a reasonably attentive owner would learn of it; secret use fails. Exclusive means not shared with the true owner or the public at large. Continuous does not require every day of presence but the pattern of use typical for that land, such as seasonal use of a vacation property. Hostile in the majority view is objective: it means without the owner's permission, regardless of the possessor's state of mind, so a good-faith boundary mistake and a deliberate trespass both qualify. A minority of states require good faith or a claim of right, and a few look at whether the possessor intended to claim the land only if it was theirs; name that split when it matters. Permission defeats hostility, which is why landlord and tenant, or co-tenants without ouster, do not ordinarily produce adverse possession.
+
+The statutory period varies widely by state, commonly from about five to twenty or more years, and is shorter where the claimant has color of title (a deed that looks valid but is defective) and pays taxes. Time can be tacked: successive possessors may add their periods if they are in privity, meaning a voluntary transfer or inheritance connects them. In Howard v. Kunto (Wash. 1970), successive owners occupied houses that, because of a mistaken description, sat on a neighbor's lot; the court allowed tacking even though the deeds did not literally describe the disputed strip, treating the transfer of the occupied land as enough connection.
+
+Limits and traps. The period does not begin against a holder of a future interest until that interest becomes possessory, so a possessor against a life tenant gains only the life estate rights. Disabilities such as minority or insanity of the owner at the time the claim accrues may toll the clock in many states, and a later disability does not. Land owned by the government is generally immune. The title that results is originative: it does not arise from the old owner, so existing easements may or may not survive depending on state law, and a court judgment quieting title is the practical proof.
+
+Worked example. Pat mistakenly believes a fence marks his line and mows and gardens a ten-foot strip of Dana's lot for the full local period. Pat's possession is likely actual, open, exclusive and continuous, and in the majority view hostile despite his mistake, so he acquires the strip.`,
+            asOf: '2026-10',
+            anchors: [cs('Howard v. Kunto|1970|Wash. Ct. App.'), cn('Adverse possession elements and statutory periods'), cn('Tacking and privity')],
+          },
+          {
+            id: lid(3),
+            title: 'Gifts, Finders and Bailments',
+            blurb: 'Donative transfers and the rights of those who find things.',
+            minutes: 13,
+            body:
+`A gift is a voluntary transfer of property without consideration, and because nothing is bargained for, the common law requires clear proof of three elements: donative intent, delivery, and acceptance. Donative intent means the donor intends to make a present transfer of ownership (or of a present interest, such as a remainder), not merely to promise a future gift. Delivery is the act that proves it. It may be actual, constructive (handing over the key to a safe that holds the item), or symbolic (a writing that stands in for an object that cannot practically be handed over). Acceptance is presumed when the gift is beneficial. A mere promise to give is unenforceable because there is no consideration.
+
+A gift causa mortis is made in contemplation of imminent death from a present peril. It is revocable by the donor, and it fails if the donor survives the peril or dies of an unrelated cause, or if the donee dies first. A testamentary transfer that is meant to take effect only at death must instead satisfy the formalities for wills. In Gruen v. Gruen (N.Y. 1986), a father wrote to his son giving him a painting but retaining possession and enjoyment for life. The court held that the son received a present gift of a remainder interest, and that physical delivery of the painting was not required for the future interest to pass, because the donor had expressed present intent and the letter was the delivery. The case shows how future interests work for personal property as well as land.
+
+Finders cases turn on who has the better claim. A finder generally has rights superior to everyone except the true owner. Armory v. Delamirie (K.B. 1722) involved a chimney sweep's boy who found a jewel and took it to a goldsmith, whose apprentice removed the stones. The court held that the finder had enough title to sue the goldsmith. Where the finder is a trespasser, or an employee finding something within the scope of employment, courts may prefer the landowner or employer. Hannah v. Peel (K.B. 1945) gave a brooch found by a soldier to the finder, not the owner of a house that he had never occupied, because the owner had no prior possession of the brooch and no knowledge of it.
+
+Classification matters. Lost property was unintentionally left; mislaid property was intentionally placed and then forgotten, and the owner of the premises is custodian for the true owner. Abandoned property was relinquished and goes to the first taker. Treasure trove (gold or silver hidden, with the owner unknown) has its own rules in a few states. Many states have lost-property statutes that require reporting the find and give the finder title after a period if no owner appears.
+
+A bailment occurs when one person temporarily delivers personal property to another for a purpose, with the bailor retaining title. The bailee owes a duty of care, and a bailment for mutual benefit usually demands ordinary care.
+
+Worked example. Lee, a patron in a restaurant, finds a ring on the floor of the dining room. The ring is probably lost or mislaid; if mislaid, the restaurant owner keeps it for the owner.`,
+            asOf: '2026-10',
+            anchors: [cs('Armory v. Delamirie|1722|K.B.'), cs('Gruen v. Gruen|1986|N.Y.'), cs('Hannah v. Peel|1945|K.B.'), cn('Gifts: intent, delivery, acceptance')],
+          },
+        ],
+      },
+      {
+        id: `${ID}.t2`,
+        title: 'Estates and Future Interests',
+        blurb: 'Slicing ownership across time, and the rule that limits the dead hand.',
+        level: 'INTERMEDIATE',
+        lessons: [
+          {
+            id: lid(4),
+            title: 'Freehold Estates',
+            blurb: 'Fee simple, defeasible fees and life estates.',
+            minutes: 14,
+            body:
+`An estate is a measure of ownership defined by how long it may last. The freehold estates are the fee simple, the life estate, and the nearly extinct fee tail. The fee simple absolute is the largest: it is potentially infinite in duration, freely transferable, devisable and inheritable. At common law the words of limitation needed to create it were to A and his heirs; today most states presume that a conveyance to A, without limiting words, passes whatever the grantor owned, which is ordinarily a fee simple absolute. The words and his heirs are words of limitation describing the estate, not a gift to the heirs, who take nothing while A is alive.
+
+A fee simple can be made defeasible, meaning it may end on a stated event. There are three types, and the label turns on the language and on who holds the following interest. A fee simple determinable uses durational words such as so long as, while, during or until, for example to School Board so long as the land is used for a school. When the event happens the estate ends automatically and the land reverts to the grantor, who holds a possibility of reverter. A fee simple subject to a condition subsequent uses conditional words such as but if, provided that, or on condition that: to School Board, but if the land ceases to be used for a school, the grantor may re-enter. Here the estate does not end automatically; the grantor holds a right of entry (power of termination) and must act to cut it off. A fee simple subject to an executory limitation is like the second, except that the land goes to a third party, not back to the grantor: to School Board, but if the land ceases to be used for a school, then to the Town. The third party holds an executory interest. Courts disfavor forfeitures, so when language is ambiguous they tend to construe the estate as a condition subsequent rather than a determinable, and statutes in many states limit how long a possibility of reverter or right of entry may last.
+
+The life estate lasts for the measuring life of the holder. A life estate pur autre vie is measured by someone else's life, as when A conveys to B for the life of C. Life tenants may use and enjoy the property, but they cannot commit waste, meaning damage that reduces the value of the future interest. Voluntary (affirmative) waste is harmful action, permissive waste is neglect such as failing to pay taxes or repair, and ameliorative waste is a change that improves value but alters character, often allowed where conditions have changed substantially. The life tenant owes ordinary maintenance and payment of carrying charges up to the income from the property.
+
+The fee tail restricted inheritance to the grantee's lineal descendants. Most states abolished it, usually by treating a purported fee tail as a fee simple, and a few convert it to a life estate with a remainder.
+
+Worked example. O conveys Blackacre to Church so long as the premises are used for worship. If the congregation stops worship, Church's estate ends automatically and O (or O's successors) can reclaim possession without any act of re-entry. If instead the deed said but if the premises cease to be used for worship, O may re-enter, the church remains owner until O acts, and a statute of limitations may begin to run.`,
+            asOf: '2026-10',
+            anchors: [cn('Fee simple determinable and condition subsequent'), cn('Life estates and waste'), cn('Words of limitation')],
+          },
+          {
+            id: lid(5),
+            title: 'Future Interests',
+            blurb: 'Reversions, remainders and executory interests.',
+            minutes: 15,
+            body:
+`A future interest is a present right to take possession later. Every future interest is created at the same moment as a present estate, and the basic skill is to classify both. Two families exist. Interests retained by the transferor are the reversion, the possibility of reverter, and the right of entry (power of termination). Interests created in transferees are remainders and executory interests.
+
+A reversion is what the grantor keeps when she carves out an estate shorter than her own and does not give the rest to anyone else: to A for life leaves a reversion in the grantor, because the fee simple will come back. The possibility of reverter follows a fee simple determinable, and the right of entry follows a fee simple subject to a condition subsequent, as the preceding lesson explained.
+
+A remainder is a future interest in a transferee that can become possessory only on the natural expiration of a prior estate, and that does not cut it short. In O to A for life, then to B, B holds a remainder. Remainders are classified by how certain they are. A vested remainder is created in an ascertained person and is not subject to a condition precedent. It can be indefeasibly vested (certain to become possessory, such as B above), vested subject to open (class gifts, such as to A for life, then to A's children, when at least one child exists and others may be born), or vested subject to complete divestment (created in an ascertained person but liable to be defeated by a later event, such as then to B, but if B fails to graduate, to C). A contingent remainder is either created in an unascertained person (for example, to A for life, then to A's heirs, since heirs cannot be identified until A dies) or subject to a condition precedent (to A for life, then to B if B reaches thirty). A person or condition that is uncertain at creation makes the interest contingent. If the remainder is contingent, the grantor holds a reversion in the meantime.
+
+An executory interest is a future interest in a transferee that is not a remainder. It either shifts, cutting off an interest in another transferee, or springs, cutting off the grantor's estate in the future. To A for life, then to B and her heirs one year after A's death leaves a gap, so B's interest is a springing executory interest, with a reversion in the grantor in the interim. O to A so long as liquor is not sold, then to B shifts from A to B and is a shifting executory interest.
+
+Some old rules are mostly abolished or narrowed but still turn up on exams. The Rule in Shelley's Case treated a remainder to the heirs of the life tenant as a remainder to the life tenant himself; the doctrine of worthier title treated a remainder to the grantor's heirs as a reversion in the grantor; the destructibility of contingent remainders rule let a contingent remainder fail if it had not vested by the time the prior estate ended. Most states have abolished all three. The rule of convenience closes a class of grantees when any member is entitled to distribution, unless the instrument says otherwise.
+
+Worked example. O conveys to A for life, then to B if B survives A. A has a life estate, B has an alternative contingent remainder (survival is a condition precedent), and O has a reversion, because if B dies first the land returns to O.`,
+            asOf: '2026-10',
+            anchors: [cn('Classification of future interests'), cn('Vested and contingent remainders'), cn('Executory interests'), cn('Rule in Shelley\'s Case and doctrine of worthier title')],
+          },
+          {
+            id: lid(6),
+            title: 'The Rule Against Perpetuities (Conceptual)',
+            blurb: 'Why some future interests are void, and how modern law softens the rule.',
+            minutes: 15,
+            body:
+`The Rule Against Perpetuities limits how long a donor can control property by creating contingent future interests. The classic common law statement, attributed to John Chipman Gray, is that no interest is good unless it must vest, if at all, not later than twenty-one years after some life in being at the creation of the interest. Its ancestor is the Duke of Norfolk's Case (Ch. 1682), where the court allowed an interest that was to vest within lives then in being; the rule grew from there into a limit on dead-hand control that balances a donor's freedom against a society's interest in keeping land and capital marketable.
+
+To use the rule, first decide whether it applies. At common law it applies to contingent remainders, executory interests, and vested remainders subject to open (class gifts), and to some options and rights of first refusal in gross. It does not apply to reversions, possibilities of reverter and rights of entry held by the transferor, nor to vested remainders and to charitable-to-charitable gifts. Then ask: is there a measuring life, someone alive at creation, such that I can be certain the interest vests or fails within that life plus twenty-one years? Under the traditional what-might-happen test, validity is judged at creation, and an interest is void if there is any possible chain of events, however unlikely, that could make it vest too late. The measuring lives need not be named in the document; they are people whose lives are connected to the contingency.
+
+Classic traps show why the rule's reputation is mixed. The fertile octogenarian assumes a person of any age can have a child, so a gift to a person's future children can fail. The unborn widow assumes that a spouse of a person who is alive may be someone not yet born when the gift is made, so a gift to the widow's children is void. The administrative contingency (for example, upon the settling of the estate) was held void where there was no assurance it would occur within the period. Gifts to a class are all-or-nothing: if the interest of one potential member could vest too late, the entire class gift fails.
+
+Reform has been extensive. Cy pres or equitable reformation lets a court rewrite a violating gift to approximate the settlor's plan. The wait-and-see approach asks what actually happens, not what might. The Uniform Statutory Rule Against Perpetuities (1986) validates an interest that either satisfies the common law test or actually vests within ninety years of creation. A number of jurisdictions have abolished the rule for interests in trust, which allows long-lasting dynasty trusts, while many others keep it. Commercial transactions raise a different set of statutory limits, such as limits on the duration of options.
+
+Worked example. O conveys to A for life, then to A's children for their lives, then to the grandchildren of A. A's children may include children born after the conveyance. The remainder in the grandchildren cannot be certain to vest within lives in being plus twenty-one years, because a child of A not yet born could have a child whose interest vests later. Under the traditional rule the grandchildren's interest is void, but under wait-and-see it might be saved.`,
+            asOf: '2026-10',
+            anchors: [cs('Duke of Norfolk\'s Case|1682|Ch.'), st('Uniform Statutory Rule Against Perpetuities'), cn('Rule Against Perpetuities and wait-and-see')],
+          },
+          {
+            id: lid(7),
+            title: 'Concurrent Ownership',
+            blurb: 'Joint tenancy, tenancy in common, entireties and partition.',
+            minutes: 14,
+            body:
+`When two or more people hold present interests in the same property at the same time, the law describes the co-ownership by one of three main forms. A tenancy in common gives each cotenant an undivided share, which may be equal or unequal, that can be sold, mortgaged, or left by will, with no right of survivorship. A joint tenancy gives equal undivided interests with a right of survivorship: when one joint tenant dies, the survivors take the whole, and the deceased joint tenant's interest does not pass by will or intestacy. A tenancy by the entirety is available in some states to married couples, and in a few to couples in other recognized relationships. It has survivorship, and neither spouse can convey or encumber their interest alone, which protects the entireties property from the creditors of only one spouse. Several states also have community property systems, a different model for spouses.
+
+Creating a joint tenancy at common law requires the four unities: time (interests vest at the same moment), title (acquired by the same instrument), interest (equal shares and duration), and possession (each has the right to possess the whole). It also requires clear language expressing survivorship, such as to A and B as joint tenants with right of survivorship. In many states an ambiguous deed to A and B is presumed to create a tenancy in common, because survivorship is a harsh outcome. A joint tenancy may be severed, and severance converts it into a tenancy in common, when a joint tenant conveys her interest during life, because the unities of time and title are broken; this works even if done secretly. If three joint tenants exist and one sells to a stranger, the stranger and the other two hold as tenants in common as to the one-third, while the other two remain joint tenants between themselves. A will cannot sever, because the right of survivorship takes effect at the moment of death. Whether a mortgage by one joint tenant severs depends on the theory of the state: in title theory states it may, while in lien theory states, as in Harms v. Sprague (Ill. 1984), a lien does not sever, and the lien generally fails when the borrower dies first.
+
+Cotenants each have a right to possess the whole, so one cotenant cannot exclude another without an ouster, and in the absence of ouster a cotenant in possession owes no rent to those out of possession. Rents received from third parties must usually be shared after deducting expenses. A cotenant who pays more than a fair share of taxes, mortgage principal and interest, or necessary repairs may seek contribution; improvements do not generate contribution but may be accounted for at partition.
+
+Any cotenant can seek partition. Partition in kind divides the land physically and is preferred by many courts; partition by sale is ordered if division would greatly prejudice the owners. Many states have adopted the Uniform Partition of Heirs Property Act (2010) to give family members the right to buy out a cotenant who requests partition, which responds to the loss of land held informally among heirs.
+
+Worked example. A and B hold as joint tenants. A secretly deeds her interest to C and then dies. C and B are tenants in common in equal shares, and A's heirs take nothing.`,
+            asOf: '2026-10',
+            anchors: [cs('Harms v. Sprague|1984|Ill.'), st('Uniform Partition of Heirs Property Act'), cn('Four unities and severance')],
+          },
+        ],
+      },
+      {
+        id: `${ID}.t3`,
+        title: 'Landlord, Tenant and Land Burdens',
+        blurb: 'Leases, easements, covenants and nuisance: who may do what on whose land.',
+        level: 'INTERMEDIATE',
+        lessons: [
+          {
+            id: lid(8),
+            title: 'Landlord and Tenant',
+            blurb: 'Leasehold estates, habitability and the end of the lease.',
+            minutes: 15,
+            body:
+`A lease is both a conveyance of a nonfreehold estate and a contract. The estates are the term of years (fixed duration, ends automatically; a writing is required when it exceeds the statute of frauds period, commonly one year), the periodic tenancy (renews for successive periods until notice is given, usually of one period), the tenancy at will (ends at either party's wish), and the tenancy at sufferance (a holdover who stays without consent). A tenant who holds over after a lease may be treated by the landlord either as a trespasser, subject to eviction, or as a new periodic tenancy.
+
+At delivery, the American rule requires the landlord to deliver actual possession, so that a prior tenant who holds over is the landlord's problem; the minority English rule requires only the legal right to possession. The tenant has a right to quiet enjoyment, breached by actual eviction, partial eviction, or constructive eviction. Constructive eviction requires that the landlord substantially interfered with the use of the premises or breached a duty, that the landlord was given notice and a chance to fix it, and that the tenant moved out within a reasonable time. A tenant who stays has waived the claim.
+
+Modern law treats residential leases as more than a conveyance of land. Most states recognize an implied warranty of habitability, as in Javins v. First National Realty Corp. (D.C. Cir. 1970), which found a warranty in housing code standards and treated the tenant's duty to pay rent as dependent on the landlord's performance. The warranty cannot usually be waived in a residential lease. Remedies vary by state and may include withholding or paying rent into court, repair and deduct, damages, and termination. Retaliatory eviction against a tenant who complains to authorities is prohibited by statute or case law in most states. Landlords may not use self-help to evict in most states; they must use summary court proceedings. Federal and state fair housing law, including the Fair Housing Act of 1968, bars discrimination in renting based on listed protected characteristics.
+
+Transfers. A tenant who assigns transfers the entire remaining term and becomes secondarily liable on the contract but is no longer in privity of estate; a tenant who subleases keeps a reversion, so the sublessee has no privity with the landlord. Leases often restrict assignment and sublease; in many states a clause requiring the landlord's consent is enforced, and some courts imply a duty not to refuse unreasonably.
+
+When a tenant abandons, the landlord in the majority modern view has a duty to mitigate by making reasonable efforts to relet, as in Sommer v. Kridel (N.J. 1977), though a few states still allow the landlord to leave the premises vacant and sue for rent. Tenants also owe a duty not to commit waste.
+
+Worked example. Maria rents an apartment where the heat fails in winter. She promptly notifies the landlord, who does nothing for months. She moves out after a reasonable period. She can claim constructive eviction and also a breach of the warranty of habitability, which may excuse rent for the period.`,
+            asOf: '2026-10',
+            anchors: [cs('Javins v. First National Realty Corp.|1970|D.C. Cir.'), cs('Sommer v. Kridel|1977|N.J.'), st('Fair Housing Act of 1968'), cn('Constructive eviction')],
+          },
+          {
+            id: lid(9),
+            title: 'Easements and Licenses',
+            blurb: 'Non-possessory rights to use another\'s land.',
+            minutes: 14,
+            body:
+`An easement is a nonpossessory right to use land owned by another for a limited purpose. An affirmative easement lets the holder do something on the burdened land, such as cross it; a negative easement lets the holder stop the owner from doing something, and the common law recognized only a handful (light, air, lateral support, and flow of an artificial stream), though modern conservation and solar easements are created by statute. An easement appurtenant benefits the owner of a particular parcel (the dominant estate), burdens another parcel (the servient estate), and passes automatically with the land. An easement in gross benefits a person regardless of any land, as with a utility line, and is transferable in many states mostly for commercial uses. A profit à prendre is a right to take something from land, such as timber.
+
+Easements are created in four ways. An express easement requires a writing that satisfies the statute of frauds. An easement by implication from prior use arises when an owner divides land and, before division, was using part of it for the benefit of another part; the use must have been apparent, continuous, and reasonably necessary to the enjoyment of the benefited parcel. An easement by necessity arises when the division leaves a parcel landlocked; it needs strict necessity at the time of division and ends when the necessity ends. An easement by prescription arises from use that is open, notorious, continuous and adverse for the period of limitations, which is parallel to adverse possession except that the use need not be exclusive. Some states also recognize easements by estoppel when a landowner permits another to rely on the right in reasonable detrimental reliance.
+
+The scope of an easement is set by its terms or, when created by implication, by the purpose and circumstances. The holder may do what is reasonably necessary, but cannot use the easement for the benefit of other land not covered by it, and cannot materially overburden it. Servient owners may use the land in ways that do not unreasonably interfere. Maintenance duties generally fall on the holder, who may enter to repair.
+
+A license is permission to enter land. It is personal, revocable at will, not an interest in land, and not transferable. A license may become irrevocable by estoppel if the licensee spent substantial money in reliance, which in effect acts like an easement. A license coupled with an interest, such as the right to enter to remove personal property, is also not freely revocable.
+
+Termination occurs through release in writing, merger when the dominant and servient parcels come into one owner, abandonment (nonuse plus intent to abandon, with nonuse alone not enough), estoppel, expiration by its own terms, condemnation, prescription by adverse use by the servient owner, or end of necessity for an easement by necessity.
+
+Worked example. O owns two lots; a driveway on the front lot has served the back lot for years. O sells the back lot to B. Because the use was apparent, continuous, and reasonably necessary, B gets an easement by implication over the driveway even though the deed is silent.`,
+            asOf: '2026-10',
+            anchors: [cn('Easements: creation, scope and termination'), cn('Easement by necessity and implication'), cn('Licenses and estoppel')],
+          },
+          {
+            id: lid(10),
+            title: 'Covenants and Equitable Servitudes',
+            blurb: 'Promises about land that bind later owners.',
+            minutes: 15,
+            body:
+`Promises about the use of land can bind successors in two ways. A real covenant (a covenant running at law) is enforced by damages. An equitable servitude is enforced by an injunction. The distinction matters in the law school classroom because the elements differ, although the modern trend, expressed in the Restatement (Third) of Property: Servitudes, is to merge them into a single body of law.
+
+For a covenant to run at law, five elements are needed. There must be a writing satisfying the statute of frauds; the original parties must intend the covenant to run; it must touch and concern the land, meaning it affects the use or value of land and not merely personal matters; there must be privity of estate, both horizontal (a relationship between the original parties, such as landlord and tenant, or grantor and grantee, in the strict view) and vertical (the successor takes the whole estate of the original party); and for the burden to run, the successor must have notice in most states. The benefit runs more easily, usually requiring only vertical privity. Spencer's Case (K.B. 1583) is the foundational source of the privity doctrines for leasehold covenants.
+
+An equitable servitude is easier to establish. It requires a writing (or an implied reciprocal servitude), intent that it run, touch and concern, and notice to the successor (actual, record or inquiry notice); privity is not required. Tulk v. Moxhay (Ch. 1848) enforced a promise to keep Leicester Square as an open garden against a later buyer with notice, even though the covenant could not run at law, because it would be unconscionable for the buyer to take advantage of the land free of the burden. Neighboring lots in a subdivision may be bound by an implied reciprocal servitude where a developer follows a common scheme of restrictions, as in Sanborn v. McLean (Mich. 1925), where a lot sold without restriction was held to be burdened by the general plan because the owner had notice from the neighborhood.
+
+Servitudes end through release or merger, abandonment, expiry, condemnation, estoppel or laches, or changed conditions that make the restriction worthless in a way that means enforcement would serve no purpose. Courts enforce homeowners association restrictions recorded in a declaration, generally with a presumption of validity for those in the original declaration, as in Nahrstedt v. Lakeside Village Condominium Ass'n (Cal. 1994), though restraints that violate public policy, constitutional rights or are arbitrary will not be enforced. Covenants that discriminate by race are void and unenforceable: Shelley v. Kraemer (1948) held that a state court's enforcement of a racially restrictive covenant was state action violating the Equal Protection Clause, and the Fair Housing Act bars such terms.
+
+Worked example. A subdivider sells forty lots and puts a no-commercial-use covenant in thirty-nine deeds. Lot 40's buyer has notice from the neighborhood's uniform residential character and from the recorded plat. Neighbors may be able to enjoin a gas station on lot 40 under an implied reciprocal servitude.`,
+            asOf: '2026-10',
+            anchors: [cs('Tulk v. Moxhay|1848|Ch.'), cs('Shelley v. Kraemer|1948|US'), cs('Sanborn v. McLean|1925|Mich.'), cs('Nahrstedt v. Lakeside Village Condominium Association|1994|Cal.')],
+          },
+          {
+            id: lid(11),
+            title: 'Nuisance and Trespass',
+            blurb: 'Unreasonable interference with a neighbor\'s use, and how courts choose remedies.',
+            minutes: 13,
+            body:
+`A private nuisance is a substantial and unreasonable interference with another person's use and enjoyment of land. Substantial means more than trivial and judged by the standard of a normal person in the community; hypersensitivity does not count. Unreasonable is usually decided by weighing the gravity of the harm against the utility of the defendant's conduct, considering the character of the area, the social value of each use, and whether the harm could be avoided. Some states hold that a defendant whose harm is significant must pay even if the activity is useful. Nuisance is about interference with use and enjoyment, such as noise, smoke, odors, vibrations and blocked views, while trespass is a physical invasion of the land, so an intangible intrusion like light or noise is usually nuisance and a thrown object is trespass.
+
+A public nuisance is an unreasonable interference with a right common to the general public. A private person may sue only if she suffered harm different in kind from the public. Public authorities can enforce abatement.
+
+Remedies raise the real conceptual question. Courts may issue an injunction, award damages, or both. In Boomer v. Atlantic Cement Co. (N.Y. 1970), neighbors sued over dust, vibration and noise from a cement plant that represented a very large investment. The court found a nuisance but granted an injunction only conditionally, unless the company paid permanent damages that reflected the loss in property value, in effect letting the defendant purchase the right to continue. In Spur Industries v. Del E. Webb Development Co. (Ariz. 1972), a feedlot had existed first, and a retirement community built nearby, so the feedlot was enjoined only if the developer compensated the feedlot for the cost of moving, since the developer had come to the nuisance but the public interest in protecting residents was strong. The two cases are often paired with the framework of Calabresi and Melamed: an entitlement can be protected by a property rule (injunction, the owner can refuse to sell), a liability rule (damages, the taker can force a sale at court-set value), or an inalienability rule.
+
+Defenses and limits. Coming to the nuisance is not a complete defense in most states but is a factor. Compliance with zoning or a permit is evidence but not conclusive. Right-to-farm statutes in many states protect established agricultural operations. Rules for related disputes differ: a landowner has no natural right to unobstructed light and air across a neighbor's land under the traditional American rule, and Fontainebleau Hotel Corp. v. Forty-Five Twenty-Five, Inc. (Fla. Dist. Ct. App. 1959) refused to enjoin a hotel addition that shaded its neighbor's pool deck. A minority of courts have recognized solar access claims through nuisance, as in Prah v. Maretti (Wis. 1982), which held that unreasonable blocking of sunlight could be a nuisance. Lateral support gives a landowner a right to support for land in its natural state against excavation by a neighbor, and water law divides into riparian systems in wetter states and prior appropriation in drier ones.
+
+Worked example. A rock quarry running for decades is operating lawfully. A new subdivision is built next door and residents complain of dust. A court may weigh the quarry's utility, the plaintiffs' coming to the nuisance, and damages versus injunction, and may decide the developer or residents should bear part of the cost.`,
+            asOf: '2026-10',
+            anchors: [cs('Boomer v. Atlantic Cement Co.|1970|N.Y.'), cs('Spur Industries, Inc. v. Del E. Webb Development Co.|1972|Ariz.'), cs('Prah v. Maretti|1982|Wis.'), cs('Fontainebleau Hotel Corp. v. Forty-Five Twenty-Five, Inc.|1959|Fla. Dist. Ct. App.')],
+          },
+        ],
+      },
+      {
+        id: `${ID}.t4`,
+        title: 'Transactions and Title',
+        blurb: 'Contracts of sale, deeds, and the recording system.',
+        level: 'ADVANCED',
+        lessons: [
+          {
+            id: lid(12),
+            title: 'The Real Estate Sales Contract',
+            blurb: 'Statute of frauds, equitable conversion, marketable title and condition of the property.',
+            minutes: 15,
+            body:
+`A sale of land normally unfolds in two stages: a contract of sale, then a closing at which the seller delivers a deed and the buyer pays. The period between them is where many exam questions live. The contract must satisfy the statute of frauds: a writing, signed by the party to be charged, that identifies the parties, describes the land, and states the price or a method to determine it. An oral contract may be enforced in some states under the doctrine of part performance, which in most places requires acts such as taking possession plus either payment or substantial improvements, and under estoppel where reliance would make denial unjust. Part performance is a matter of state law, and the precise acts needed vary.
+
+Equitable conversion treats the buyer as the equitable owner of the land and the seller as holding bare legal title as security for the price, from the moment the contract is signed. Two consequences matter. If the land is damaged without fault of either party before closing, the majority rule puts the risk of loss on the buyer, who must still pay the price, unless the contract says otherwise; the minority rule, and the Uniform Vendor and Purchaser Risk Act in states that adopted it, places the risk on the seller until legal title or possession passes. Buyers therefore commonly insure the property from contract. Second, if a party dies before closing, the interest passes according to the character of the party's rights: the buyer's rights are treated as real property rights and the seller's as personal property.
+
+Every contract of sale carries an implied covenant that the seller will deliver marketable title at closing, meaning title free from reasonable doubt, which a reasonable buyer would be willing to accept. Marketable title is lacking when there are liens, encumbrances such as easements or restrictive covenants not disclosed, zoning violations in some states, a significant gap in the chain of title, or a substantial adverse possession risk. Title need only be marketable at closing, not at signing, so the seller may use proceeds to clear a lien. The buyer who objects must give notice, and a seller may be allowed time to cure.
+
+Condition of the property. The traditional rule was caveat emptor for the buyer, but there are exceptions: the seller must not actively conceal defects or commit fraud or misrepresentation; many states require disclosure of known latent, material defects that the buyer cannot discover by reasonable inspection, as illustrated by Johnson v. Davis (Fla. 1985); and statutes in most states require seller disclosure forms. Builders and developers who sell new homes are generally held in most states to an implied warranty of quality or habitability, and in many states it runs to later purchasers. Buyers also usually negotiate inspection and financing contingencies.
+
+The merger doctrine provides that the contract merges into the deed when the deed is accepted, so the buyer can sue only on the deed's covenants, not on contract promises such as a promise about the condition or acreage, with exceptions for collateral promises, fraud, and certain terms like the title contract. Remedies for breach include specific performance, damages for the difference between contract price and market price, and forfeiture of the earnest money deposit if it is a reasonable liquidated amount.
+
+Worked example. Buyer signs a contract to buy a house, and before closing lightning burns the garage. In a majority-rule state with no contrary clause, Buyer still must close at the full price and may claim on insurance.`,
+            asOf: '2026-10',
+            anchors: [cs('Johnson v. Davis|1985|Fla.'), cn('Statute of frauds for land contracts'), cn('Equitable conversion and risk of loss'), cn('Marketable title and merger doctrine')],
+          },
+          {
+            id: lid(13),
+            title: 'Deeds and Covenants for Title',
+            blurb: 'What a valid deed needs and what the seller promises.',
+            minutes: 14,
+            body:
+`A deed is the instrument that conveys title to land. To be valid it needs a writing, signed by the grantor, who must have capacity; an identifiable grantee; words of conveyance showing present intent to transfer; and a description of the land that identifies it with reasonable certainty. Most states do not require consideration for a deed to be effective, and a deed does not need to be recorded to be valid between the parties, though recording protects the buyer against later claimants. The deed must be delivered with intent that it be presently operative, meaning the grantor intends to give up control. Delivery is a question of intent; physical handing over is neither necessary nor sufficient. A deed placed in the hands of a third party to be delivered on the grantor's death is a classic problem: if the grantor keeps the right to retrieve it, there is no delivery, but if the grantor irrevocably gave it up, a present future interest passes and the arrangement is valid. Acceptance is presumed when the deed benefits the grantee. A recorded deed raises a presumption of delivery, and a forged deed is void and conveys nothing even to a bona fide purchaser.
+
+Land descriptions use three main systems. Metes and bounds describe boundaries by distances and directions from a starting point; the government survey (rectangular) system uses townships, ranges and sections; lot-and-block descriptions refer to a recorded plat. Where a description conflicts, the usual hierarchy of interpretation gives priority to natural monuments, then artificial monuments, then courses and distances, then names and area. An ambiguous description may be clarified by parol evidence, but a description that is too vague fails.
+
+The covenants in a deed describe what the grantor promises. A general warranty deed includes the six covenants of title. The three present covenants are seisin (the grantor owns the estate), right to convey, and against encumbrances; these are breached, if at all, at the moment of delivery, and do not run to remote grantees in most states. The three future covenants are quiet enjoyment, warranty, and further assurances; they are breached on eviction by a superior title holder, and they run with the land to successors. A special warranty deed covers only defects arising during the grantor's own ownership. A quitclaim deed makes no covenants at all and merely passes whatever interest the grantor has, if any. The estoppel by deed doctrine prevents a grantor who deeds property he does not own, with warranties, from claiming against the grantee after he later acquires title, so the new title passes automatically to the grantee.
+
+A mortgage is an interest in land securing payment of a debt. States follow the lien theory (the borrower keeps title; the lender holds a lien), which is the majority, or the title theory. Foreclosure may be judicial or by power of sale, depending on state law, and the borrower has an equity of redemption to pay and keep the property before the sale; some states give a statutory right of redemption after it.
+
+Worked example. Seller gives Buyer a warranty deed but a utility easement already burdens the land, unknown to Buyer. The covenant against encumbrances was breached on delivery, so Buyer may sue Seller, although damages are limited generally to the diminished value or purchase price.`,
+            asOf: '2026-10',
+            anchors: [cn('Deed delivery and acceptance'), cn('Covenants for title in warranty deeds'), cn('Land descriptions and monuments'), cn('Mortgage theories and foreclosure')],
+          },
+          {
+            id: lid(14),
+            title: 'Recording Acts and Title Assurance',
+            blurb: 'Race, notice and race-notice, and what a title search can and cannot do.',
+            minutes: 15,
+            body:
+`Without a recording system, a seller could sell the same land twice, and the common law rule of first in time would give the land to the first buyer, even though the second buyer paid in good faith and could not have known. Recording acts change that outcome by protecting certain subsequent purchasers from earlier unrecorded interests. Every state has a recording statute, with three basic types, and the answer to a typical problem depends on which one applies and on facts about notice and timing.
+
+A pure race statute protects the first buyer to record, regardless of notice. A pure notice statute protects a subsequent bona fide purchaser (BFP) who took without notice of the earlier conveyance, whether or not the BFP recorded first, though failing to record leaves the BFP exposed to a later buyer. A race-notice statute protects a subsequent BFP who took without notice and who also recorded before the earlier buyer did. Statutes in most states are notice or race-notice.
+
+A bona fide purchaser must give valuable consideration (a donee or heir does not qualify, although a creditor taking a mortgage for value does), and must take without notice of the prior interest. Notice is of three kinds. Actual notice means the buyer knows. Record (constructive) notice means the buyer is charged with knowledge of what the records disclose in the chain of title. Inquiry notice means that facts a reasonable buyer would see, such as someone else in possession of the land, would prompt investigation that would reveal the interest. A buyer who fails to record is not protected from a later purchaser who is protected by the statute. The shelter rule lets a person who takes from a BFP step into the BFP's shoes, even with notice, so that the protection is not lost on resale; a BFP's ability to sell is thus preserved.
+
+Chain of title and indexes. Most counties index deeds by grantor and grantee names, and a searcher must follow the chain from the root of title to the present owner, looking for each conveyance, mortgage, lien and lis pendens. A wild deed (one that is recorded but not connected to the chain of title) generally gives no constructive notice. Some states use tract indexes. A few places use the Torrens system, in which a court registers title and a certificate is the conclusive evidence. Many states have marketable title acts that extinguish stale interests after a long period, often thirty to forty years, unless re-recorded.
+
+Recording does not cure all defects. A forged deed, a deed without delivery, or a deed from someone with no title is void, and a BFP gets nothing. Title insurance is an indemnity contract that protects against losses from covered defects, but it excludes matters listed in the policy exceptions, such as the survey-based rights of adverse claimants, and the insurer typically pays the loss and defends, not guaranteeing the title.
+
+Worked example. O conveys to A, who does not record. O then conveys to B, who pays value and has no notice of A. B records. In a notice or race-notice state B wins over A, since B is a BFP without notice and, in race-notice, recorded first. If B had known about A, B loses.`,
+            asOf: '2026-10',
+            anchors: [cn('Recording acts: race, notice and race-notice'), cn('Bona fide purchaser and shelter rule'), cn('Title insurance and chain of title')],
+          },
+        ],
+      },
+      {
+        id: `${ID}.t5`,
+        title: 'Government Power and Intangible Property',
+        blurb: 'Zoning, takings, and property in ideas.',
+        level: 'ADVANCED',
+        lessons: [
+          {
+            id: lid(15),
+            title: 'Zoning and Land Use Regulation',
+            blurb: 'The police power, Euclid, variances and exclusionary zoning.',
+            minutes: 15,
+            body:
+`Zoning is the division of a municipality into districts, each with rules about use, height, bulk and density. Its legal basis is the police power of the state to regulate for public health, safety, morals and general welfare, which states delegate to local governments through zoning enabling acts, many of them modeled on a 1920s standard act. In Village of Euclid v. Ambler Realty Co. (1926), the Supreme Court upheld comprehensive zoning against a due process challenge, reasoning that separating incompatible uses, such as industrial plants from homes, is a legitimate exercise of the police power, and that an ordinance would be struck down only if its provisions were clearly arbitrary and unreasonable, having no substantial relation to public welfare. The ruling opened the door to Euclidean zoning, with cumulative zones from single-family homes upward.
+
+The vocabulary of zoning relief is a staple. A nonconforming use is a lawful use that predates a new restriction and is generally allowed to continue, though many jurisdictions limit expansion, rebuilding after destruction, or allow amortization (a period after which the use must end). A variance permits a departure from the ordinance when strict compliance would cause unnecessary hardship because of unique features of the property, and not self-created. Use variances are harder to obtain than area variances. A special (conditional) use permit allows a use that is listed as allowed but subject to conditions and administrative discretion. Rezoning is a legislative amendment; spot zoning, a rezoning of a single parcel for the benefit of its owner that is inconsistent with the comprehensive plan, is vulnerable to challenge. Zoning must be consistent with a comprehensive plan in many states, and procedural requirements such as notice and hearings apply.
+
+Zoning also raises constitutional questions beyond due process. Village of Belle Terre v. Boraas (1974) upheld an ordinance limiting occupancy of single-family homes by unrelated persons, treating it as an economic and social regulation reviewed deferentially. Moore v. City of East Cleveland (1977) struck down an ordinance defining family so narrowly that a grandmother could not live with grandchildren who were cousins, because it intruded on the choice of extended family. City of Cleburne v. Cleburne Living Center (1985) invalidated a permit requirement for a group home for people with intellectual disabilities under rational basis review, finding it rested on irrational prejudice. The Fair Housing Act reaches disparate impact claims, as the Supreme Court confirmed in Texas Department of Housing and Community Affairs v. Inclusive Communities Project (2015), though with limits designed to protect legitimate policy choices. The Religious Land Use and Institutionalized Persons Act of 2000 protects religious land uses from substantial burdens without compelling justification.
+
+Exclusionary zoning, such as large minimum lot sizes, bans on multifamily housing, or restrictions that increase costs, prompted Southern Burlington County NAACP v. Township of Mount Laurel (N.J. 1975), which held that developing municipalities have an obligation under the state constitution to provide a realistic opportunity for their fair share of regional low- and moderate-income housing. Most states have not gone as far. Reform efforts in various states now preempt some local restrictions on accessory dwellings and density, and the policy debate over housing supply, local control and neighborhood character continues.
+
+Worked example. A town rezones a street from commercial to residential. A hardware store there that opened before the change is a nonconforming use and may continue, but if the owner wants to double the building size, the town can generally refuse.`,
+            asOf: '2026-10',
+            anchors: [cs('Village of Euclid v. Ambler Realty Co.|1926|US'), cs('Village of Belle Terre v. Boraas|1974|US'), cs('Moore v. City of East Cleveland|1977|US'), cs('Southern Burlington County NAACP v. Township of Mount Laurel|1975|N.J.'), cs('City of Cleburne v. Cleburne Living Center|1985|US')],
+          },
+          {
+            id: lid(16),
+            title: 'Eminent Domain and Regulatory Takings',
+            blurb: 'The Fifth Amendment limit on government power over property.',
+            minutes: 16,
+            body:
+`The Takings Clause of the Fifth Amendment says private property shall not be taken for public use without just compensation. It applies to the states through the Fourteenth Amendment. Any takings problem asks three questions: is the thing property, was it taken, and was the taking for public use? If so, compensation is due, measured generally by the fair market value at the time of the taking.
+
+Public use is read broadly. Berman v. Parker (1954) and Hawaii Housing Authority v. Midkiff (1984) deferred to legislative judgments that redevelopment or breaking up land oligopolies served public purposes. Kelo v. City of New London (2005) held, five to four, that taking homes under a comprehensive economic development plan satisfied the public use requirement; the opinion also noted that states could impose stricter limits, and many states then did so by statute or constitutional change. The case remains controversial, and the fair way to teach it is to present both the argument for deference to local planning and the argument that the clause protects individuals from transfers to private parties.
+
+Physical invasions are takings per se. Loretto v. Teleprompter Manhattan CATV Corp. (1982) held that a minor but permanent physical occupation, a cable box on a roof, required compensation. Horne v. Department of Agriculture (2015) applied the rule to personal property. Cedar Point Nursery v. Hassid (2021) held that a state regulation giving union organizers a right to enter agricultural employers' land for limited periods is a physical taking, although temporary government-authorized invasions that are isolated, as with inspections, may be treated differently.
+
+Regulations can also take property if they go too far, the famous phrase from Pennsylvania Coal Co. v. Mahon (1922), which concerned a statute that restricted coal mining under homes. Modern doctrine uses a few categories. A regulation that deprives land of all economically beneficial use is a taking unless the restriction is rooted in background principles of property or nuisance law, as Lucas v. South Carolina Coastal Council (1992) held. Otherwise, the multi-factor test of Penn Central Transportation Co. v. New York City (1978) governs: the economic impact on the claimant, the extent of interference with distinct investment-backed expectations, and the character of the government action. Penn Central itself upheld a landmark designation of Grand Central Terminal. Tahoe-Sierra Preservation Council v. Tahoe Regional Planning Agency (2002) treated a temporary moratorium under Penn Central rather than as a per se taking, and Murr v. Wisconsin (2017) addressed how to define the parcel as a whole when adjacent lots are under common ownership.
+
+Exactions are conditions on permits. Nollan v. California Coastal Commission (1987) requires an essential nexus between the condition and the government's legitimate interest, and Dolan v. City of Tigard (1994) requires rough proportionality. Koontz v. St. Johns River Water Management District (2013) extended the rules to demands for money and to denials of permits when the owner refuses an improper demand, and Sheetz v. County of El Dorado (2024) held that the test does not exempt conditions imposed by legislation rather than an administrative act.
+
+Procedure and remedy. Knick v. Township of Scott (2019) allows a property owner to bring a takings claim in federal court without first seeking compensation in state court. Tyler v. Hennepin County (2023) held that a county could not keep the surplus proceeds beyond the tax debt when it sold foreclosed property.
+
+Worked example. A town passes an ordinance requiring landlords to allow a permanent cable box on every roof. Under Loretto, that is a per se taking even if the box takes little space, so compensation is due.`,
+            asOf: '2026-10',
+            anchors: [cs('Kelo v. City of New London|2005|US'), cs('Penn Central Transportation Co. v. New York City|1978|US'), cs('Lucas v. South Carolina Coastal Council|1992|US'), cs('Cedar Point Nursery v. Hassid|2021|US'), cs('Sheetz v. County of El Dorado|2024|US'), cs('Tyler v. Hennepin County|2023|US')],
+          },
+          {
+            id: lid(17),
+            title: 'Intellectual Property as Property',
+            blurb: 'Copyright, patent, trademark and trade secret at a high level.',
+            minutes: 14,
+            body:
+`Intellectual property (IP) is property in intangible things such as expressions, inventions, brands and information. Unlike a field, an idea is non-rivalrous: one person's use does not use it up. That fact is the central justification for temporary, limited rights. The incentive theory says creators will underproduce if copying is free, while the limit on duration and scope keeps later creators and the public from being locked out. Natural-rights and personality theories describe IP as the fruit of labor or the expression of the self. Each branch of IP has its own subject matter, source of law and term.
+
+Copyright protects original works of authorship fixed in a tangible medium, such as books, music, films, software and photographs. It arises automatically on fixation under the Copyright Act of 1976, although registration is required before suing for infringement of a US work and affects remedies. The originality standard is low but real: Feist Publications, Inc. v. Rural Telephone Service Co. (1991) held that an alphabetical telephone directory's facts were not protectable and rejected the sweat-of-the-brow theory, since copyright requires at least minimal creativity. Copyright protects expression, not ideas, facts, or methods. The owner holds exclusive rights to reproduce, adapt, distribute, perform and display, subject to limits such as fair use. Fair use is a four-factor, fact-specific defense that weighs purpose and character of the use, nature of the work, amount used and effect on the market. Campbell v. Acuff-Rose Music, Inc. (1994) treated parody as potentially transformative, and Andy Warhol Foundation v. Goldsmith (2023) held that the first factor does not favor a use that shares the original's purpose when a commercial licensing market exists. For works by an individual author, the term is generally life of the author plus seventy years. The first sale doctrine lets the owner of a lawful copy sell it, though not copy it.
+
+Patent law grants a right to exclude others from making, using or selling an invention for a limited term, generally twenty years from filing for utility patents. The invention must be patent-eligible subject matter (processes, machines, manufactures and compositions of matter, but not laws of nature, natural phenomena or abstract ideas), useful, novel and nonobvious, and adequately described. Diamond v. Chakrabarty (1980) held that a human-made living organism could be patented, while Association for Molecular Pathology v. Myriad Genetics, Inc. (2013) held that naturally occurring isolated DNA is not eligible, and Alice Corp. v. CLS Bank International (2014) set a two-step framework for abstract ideas, particularly for software. Patents are granted by the federal Patent and Trademark Office after examination.
+
+Trademark protects a symbol that identifies the source of goods or services and prevents consumer confusion, governed in the federal system by the Lanham Act. Distinctiveness matters: marks that are fanciful, arbitrary or suggestive are strong, descriptive marks need secondary meaning, and generic terms cannot be owned. Rights come from use in commerce, and unlike copyright and patent a mark can last indefinitely as long as it is used and not abandoned.
+
+Trade secrets protect valuable information kept secret through reasonable measures, under state law influenced by the Uniform Trade Secrets Act and the federal Defend Trade Secrets Act of 2016. They last as long as secrecy and lose protection if the information is independently discovered or reverse-engineered by lawful means.
+
+Property questions arise at the edges. International News Service v. Associated Press (1918) recognized a quasi-property right in hot news against a competitor that copied it for rival use, though later law narrowed it. Moore v. Regents of the University of California (Cal. 1990) held that a patient had no conversion claim over cells taken in surgery and used to develop a cell line, but could sue for breach of fiduciary duty and lack of informed consent. The law is also a living area where courts and legislatures are working out how to treat works made with artificial intelligence, an area that remains unsettled as of this writing.
+
+Worked example. A novelist publishes a book. A stranger who writes a new story about a young wizard school with different characters and plot has copied an idea, not expression, and does not infringe, but one who copies paragraphs does.`,
+            asOf: '2026-10',
+            anchors: [cs('Feist Publications, Inc. v. Rural Telephone Service Co.|1991|US'), cs('Diamond v. Chakrabarty|1980|US'), cs('Moore v. Regents of the University of California|1990|Cal.'), st('Copyright Act of 1976'), st('Lanham Act')],
+          },
+        ],
+      },
+    ],
+  },
+  bank: {
+    curriculumId: ID,
+    questions: [
+      m(1, 1, 1, 'In Pierson v. Post, what did the court hold about a hunter who is pursuing a wild fox with hounds?',
+        ['Pursuit alone, even with a good chance of success, gives no property right; actual capture, mortal wounding or trapping is required',
+         'Pursuit with trained hounds gives a provisional property right that lasts only as long as the hunter keeps up the chase without any interruption',
+         'The first person to see the animal and announce the intent to hunt it acquires title that cannot be defeated by a later taker',
+         'Pursuit gives a property right only when the land is owned by the hunter, since landowners own all wild animals on their land'], 0,
+        'Think about what the majority wanted: a bright-line rule.', 'The court required actual possession, defined to include capture, mortal wounding or trapping. Pursuit that gives only a hope of capture is not enough, which is why the chase did not protect Post.'),
+      m(1, 2, 1, 'Which description best captures the bundle-of-rights picture of property?',
+        ['Ownership is a collection of separable rights such as possession, use, exclusion and transfer, which can be held and transferred separately by different people',
+         'Ownership is a single indivisible power over a thing that cannot be shared or split among different holders without being destroyed entirely',
+         'Ownership is a government-granted privilege that exists only while the owner puts the thing to a productive use each year',
+         'Ownership is a contract between the owner and the community, enforceable only against parties who signed the original grant'], 0,
+        'Think of a landlord, a tenant and a lender with respect to one building.', 'The metaphor treats ownership as divisible: a landlord, tenant, easement holder and lender may each hold different sticks. It is not a single indivisible power or a mere privilege.'),
+      m(1, 3, 2, 'Whalers in a port have a long-standing custom that the first person to strike and kill a whale owns it even if it sinks and later washes ashore. Ames kills a whale with a lance, and it sinks. Bell, a stranger who knows nothing of the custom, finds the carcass on the beach and sells the oil. Who has the stronger claim?',
+        ['Ames, because courts may give effect to a reasonable, established trade custom even though it differs from the ordinary rule of actual capture',
+         'Bell, because the carcass was unowned once it sank and Bell was first to take physical control of it',
+         'Neither, because wild animals that sink become abandoned property that the government of the nearest shore owns by default',
+         'Bell, because a custom cannot alter the common law rule of capture unless the finder had actual knowledge of the custom at the time'], 0,
+        'Consider Ghen v. Rich.', 'In Ghen v. Rich the court enforced the whalers\' custom in favor of the killer. Bell\'s argument fails because the custom is a reasonable trade rule that does not depend on the later finder\'s knowledge.'),
+      m(1, 4, 3, 'Orr and Pike both want a rare orchid growing wild on unfarmed land owned by Dunn. Orr spends a week locating it, marks it with tape, and tells Pike he plans to dig it up the next morning. That night Pike digs it up and leaves with it, while Dunn is away. Orr sues Pike for the orchid. Which analysis is most consistent with the first-possession logic of Pierson v. Post?',
+        ['Orr loses on a first-possession theory because location and marking are like pursuit and do not amount to actual control; Dunn, as landowner, may have a claim against Pike for trespass',
+         'Orr wins, because a full week of searching and labor, together with marking the orchid and announcing his plan to Pike, gave him a vested right against any later taker with notice',
+         'Pike keeps the orchid free of any claim, because the wild orchid was unowned when he dug it up, and Dunn, the absent landowner, has no remedy against someone who merely removed a wild plant',
+         'Orr wins because taping the plant made it his property as the first finder, and Pike committed conversion by taking it, though Dunn, who owned the land, keeps no claim against either man'], 0,
+        'Ask who actually possessed the plant, and whose land it was.', 'Under Pierson, intention and pursuit do not create ownership; actual control does. Pike, who took it, may still be liable to Dunn for trespass. Orr\'s announced plan, even with labor, is not possession.'),
+      m(1, 5, 3, 'A well driller on Lot A pumps oil from a reservoir that extends under Lot B and drains Lot B\'s owner of some oil. No statute or regulation applies, and the driller did not trespass underground at the wellbore. Under the traditional rule of capture, what is the outcome of a claim by Lot B\'s owner?',
+        ['The driller owns the oil produced from the well on Lot A, so Lot B\'s owner has no claim for the drained oil absent a regulatory scheme or other violation',
+         'Lot B\'s owner owns a proportional share of all the oil in the common pool, so the driller must account to that owner for his share of every barrel produced from the reservoir',
+         'The oil belongs to whichever neighbor first obtained a drilling permit for the reservoir, regardless of where the oil was physically captured and whose land it was drained from',
+         'The driller is liable in trespass for every barrel because the oil beneath Lot B remains that owner\'s exclusive property until it reaches the surface at a well on Lot B'], 0,
+        'Think of the fox: who actually captured it?', 'The rule of capture awards the oil to the one who reduces it to possession through a well on his own land. Modern correlative-rights and spacing regulation limits it, but absent such rules, Lot B\'s owner has no claim.'),
+
+      m(2, 1, 1, 'Under the majority view, what does the hostility element of adverse possession require?',
+        ['Possession without the true owner\'s permission, judged objectively, regardless of the possessor\'s state of mind',
+         'Possession accompanied by a subjective belief that the land is lawfully owned by the possessor under a valid deed',
+         'Possession that the possessor has defended against the owner by threats or physical force within the statutory period',
+         'Possession that the possessor announced in writing to the true owner, with a stated intention to claim title by limitation'], 0,
+        'Hostile does not mean angry.', 'The majority treats hostility as lack of permission. A good-faith mistake and a knowing trespass can both qualify, although a minority of states require good faith or a claim of right.'),
+      m(2, 2, 1, 'Which statement about the effect of adverse possession is correct?',
+        ['When the statutory period has run, the owner\'s right to recover is barred and the possessor\'s title is recognized, usually confirmed by a quiet title judgment',
+         'The possessor acquires title only when the owner voluntarily records a deed to the possessor after the period has run, because the statute merely gives the owner a duty to convey',
+         'The possessor acquires only a revocable license that lasts until the owner demands the land back, which the owner may do at any time within a year after the period has run',
+         'The possessor must pay the owner the fair market value of the land at the end of the period, and only that payment completes the transfer of title to the possessor'], 0,
+        'It operates like a statute of limitations.', 'The statute bars the owner\'s ejectment action and the possessor\'s title ripens. The owner need not consent and no payment is required in the traditional rule.'),
+      m(2, 3, 2, 'For eleven years Rosa mowed and planted a garden on a strip that she mistakenly believed to be hers; the strip belonged to Quinn, who knew of the use and never objected. The statutory period is ten years. In a state following the majority view on hostility, who owns the strip?',
+        ['Rosa, because her use was actual, open, exclusive and continuous for the period and, being without permission, was hostile despite her good-faith mistake',
+         'Quinn, because Rosa believed the strip was hers and so lacked the intent to claim against the true owner that the hostility element requires, making her use innocent rather than hostile',
+         'Quinn, because his awareness of the use without any objection created an implied license from him, and permissive use can never satisfy the hostility element of the claim',
+         'Rosa only as to the garden use, because adverse possession of a boundary strip can ripen into an easement over the strip but never into fee simple title to it'], 0,
+        'The majority test for hostility is objective.', 'Under the majority view the possessor\'s state of mind is irrelevant. Knowledge and failure to object is not permission; the owner must grant it. Mere silence does not defeat hostility.'),
+      m(2, 4, 3, 'Gil adversely possessed part of Hart\'s land for six years. Gil then sold his house and the disputed strip to Ines, who occupied for another five years; the statutory period is ten years. Gil\'s deed to Ines described only the house lot, not the strip. Ines sues to quiet title in the strip. Which argument is strongest for Ines?',
+        ['Tacking is allowed because Gil and Ines are in privity through the voluntary transfer of the land Gil occupied, so the periods combine to eleven years',
+         'Tacking is barred because Gil\'s deed did not describe the disputed strip, so Ines starts a fresh ten-year period of her own that has not yet run',
+         'Gil\'s possession is irrelevant, because under every rule only the current occupant\'s own time counts, so Ines has held for five years and loses to Hart',
+         'Ines fails because tacking is available only to heirs who take by intestacy or devise, never to buyers who pay value for the land the prior possessor occupied'], 0,
+        'Think about Howard v. Kunto.', 'Courts permit tacking where successive possessors are in privity, and a transfer of the occupied land satisfies it even when the deed omits the strip, as Howard v. Kunto held. The periods combine to eleven years.'),
+      m(2, 5, 3, 'Farmer holds a life estate in Greenacre, with a remainder to Niece. Neighbor enters and adversely possesses the whole of Greenacre for the full statutory period, which expires in the year Farmer is still alive. What does Neighbor most likely acquire?',
+        ['Title to the life estate only, since the clock does not run against the remainderman until the remainder becomes possessory on Farmer\'s death',
+         'A fee simple absolute in all of Greenacre, since the statute extinguishes every owner\'s claim once the period has run against the possessor in possession',
+         'Nothing, because adverse possession cannot run against land held by a life tenant, since only a fee simple owner can be dispossessed under the statute',
+         'A fee simple determinable that ends automatically when Farmer dies, after which Niece takes full possession of Greenacre by virtue of her remainder'], 0,
+        'When may the holder of a future interest sue?', 'The limitation period does not run against Niece until her interest is possessory. Neighbor can acquire only what the life tenant could have lost, which is the life estate, measured by Farmer\'s life.'),
+
+      m(3, 1, 1, 'Which set lists the three elements generally required for a valid inter vivos gift?',
+        ['Donative intent, delivery, and acceptance',
+         'Consideration, written agreement, and recording',
+         'Offer, acceptance, and a fair exchange of value',
+         'Witnessed signature, notarization, and registration'], 0,
+        'A gift involves no bargain.', 'A gift requires present donative intent, delivery, and acceptance, which is presumed for beneficial gifts. Consideration is not needed.'),
+      m(3, 2, 1, 'What happened to the gift in a gift causa mortis if the donor recovers from the illness that prompted it?',
+        ['The gift is revoked by operation of law and the donor may reclaim the property',
+         'The gift becomes final and irrevocable once the donee has held the property for a year',
+         'The gift converts into a loan that the donee must repay with interest over time',
+         'The gift remains valid but is held in constructive trust until the donor\'s eventual death'], 0,
+        'It is conditioned on imminent death.', 'A causa mortis gift is made in contemplation of imminent death and is revocable. If the donor survives the peril, it fails.'),
+      m(3, 3, 2, 'Farah hands her nephew a sealed envelope containing a letter that says, "I give you my painting now, but I will keep it hanging in my home as long as I live." Farah keeps the painting until she dies. The nephew claims it from her estate. What is the likely result?',
+        ['The nephew prevails because the letter showed present intent to give a remainder in the painting, which passed without physical delivery, subject to Farah\'s life interest',
+         'The estate prevails because an inter vivos gift fails unless the donor physically hands over the property to the donee at the time of the gift',
+         'The estate prevails because a gift reserving a life interest is automatically a testamentary gift that needed a will with formalities',
+         'The nephew prevails only for half the value, since a gift with a retained interest is split between donor and donee in equity'], 0,
+        'Recall Gruen v. Gruen.', 'Gruen v. Gruen treated such a letter as a present gift of a remainder, with delivery satisfied by the letter. The retained life interest did not make it testamentary because the donor expressed present intent.'),
+      m(3, 4, 3, 'Dev finds a gold bracelet in the public area of a store, behind a display, apparently placed there and then forgotten. He hands it to the manager and later asks that, if nobody claims it, it be given to him. The store refuses. In most states, what is the strongest argument for the store?',
+        ['The bracelet is mislaid, not lost, so the owner of the premises is the custodian for the true owner and keeps it against the finder',
+         'The store prevails over any finder, because the owner of the land always holds superior title to everything found on the premises however it came to be there',
+         'The bracelet is abandoned property that belongs to the first person to take possession, which is the store because the manager now holds the bracelet in hand',
+         'Dev has no claim to it only because he handed it to the manager, which waived his rights as a finder under the common law of finders in every state'], 0,
+        'Consider how the item came to be placed.', 'Mislaid property is intentionally placed and forgotten, and the premises owner is the likely custodian for the owner. The rule depends on classification; if the bracelet were lost, Dev would likely prevail against the store.'),
+      m(3, 5, 3, 'A boy finds a jewel on the street and takes it to a jeweler for appraisal; the jeweler\'s apprentice removes the stones and returns the empty setting. No true owner appears. Under Armory v. Delamirie, what is the best statement of the finder\'s rights?',
+        ['The finder has title good against everyone except the true owner, so he may recover the value of the stones from the jeweler',
+         'The finder has no rights in the jewel, because only the true owner may sue anyone who took the jewel or its stones from the finder\'s hands',
+         'The finder\'s rights turn on his age, so a minor cannot sue a merchant for property that he found in a public place and left for appraisal',
+         'The finder holds the jewel in trust for the town and may sue the jeweler only after the town has refused to claim it following public notice'], 0,
+        'A finder is superior to everyone but the owner.', 'The case held that the finder\'s possession gave him title adequate to sue the goldsmith. The true owner would prevail, but a wrongdoer cannot defend by pointing to a stranger.'),
+
+      m(4, 1, 1, 'Which language most likely creates a fee simple determinable?',
+        ['"To the School Board so long as the land is used for a school"',
+         '"To the School Board, but if the land ceases to be used for a school, the grantor may re-enter"',
+         '"To the School Board for life, then to the grantor\'s niece"',
+         '"To the School Board, provided that, if the land ceases to be used for a school, then to the Town"'], 0,
+        'Durational words end the estate automatically.', 'So long as is durational language, and the estate ends automatically with a possibility of reverter in the grantor. The second is a condition subsequent, the fourth an executory limitation.'),
+      m(4, 2, 1, 'What is the main difference between a possibility of reverter and a right of entry?',
+        ['The possibility of reverter takes effect automatically when the event occurs; the right of entry requires the holder to act to terminate the estate by asserting the right',
+         'The possibility of reverter can be held by any transferee, but the right of entry belongs only to the original grantor and cannot be transferred at all',
+         'The possibility of reverter follows only a life estate, while the right of entry follows only a fee tail and ends upon the first conveyance of the land',
+         'The possibility of reverter is subject to the Rule Against Perpetuities in every state, while the right of entry is never limited in time under any rule'], 0,
+        'One is automatic, one is not.', 'A determinable fee ends automatically leaving a possibility of reverter; a fee subject to condition subsequent continues until the holder of the right of entry acts. Neither is generally subject to the common law RAP.'),
+      m(4, 3, 2, 'O conveys Blackacre "to Library, but if alcohol is ever served on the premises, then to the Garden Society." Library serves wine at a fundraiser. What interest does Garden Society hold, and what happens?',
+        ['It holds an executory interest, and its interest becomes possessory automatically on the event, cutting short Library\'s estate',
+         'It holds a right of entry, so it must act to re-enter before the estate changes hands to it, as with any condition subsequent in a conveyance',
+         'It holds a possibility of reverter, because the estate ends automatically on the event and the land goes back to O rather than to a third party',
+         'It holds a vested remainder that takes the property after Library\'s estate expires naturally at the end of its fixed term, with no divestment before then'], 0,
+        'The gift over goes to a third party, not the grantor.', 'When an estate is cut short in favor of a third party, the third party\'s interest is an executory interest. Possibility of reverter and right of entry belong only to the grantor.'),
+      m(4, 4, 3, 'O conveys "to Alma for life." Alma, a life tenant, stops paying the property taxes, though the land produces rent income that exceeds the tax bill, and neglects the roof. Brin holds a vested remainder. Which claim by Brin is most likely to succeed?',
+        ['Brin can seek relief for permissive waste for the neglect and unpaid taxes, since the life tenant must pay carrying charges up to the income from the property',
+         'Brin has no claim until Alma dies, because a remainderman cannot sue the life tenant over the condition of the property',
+         'Brin can seek only money damages measured by the original price of the land, and cannot ask the court for an injunction against a life tenant\'s neglect of it',
+         'Brin can claim fee simple title immediately, because a failure to pay property taxes forfeits the life estate as a matter of law in every jurisdiction'], 0,
+        'Think about what a life tenant owes the future interest holder.', 'A life tenant who allows the property to deteriorate or does not pay taxes within the income commits permissive waste. Brin may sue for relief during the life estate to protect the value of the remainder.'),
+      m(4, 5, 3, 'O conveys "to Dara and her heirs, but if the land is ever used for a tavern, O may re-enter and retake the estate." Years later Dara opens a tavern, and O does nothing for several years while Dara continues. How should the interests be classified?',
+        ['Dara holds a fee simple subject to a condition subsequent; the estate did not end automatically, and O\'s right of entry requires O to act',
+         'Dara holds a fee simple determinable, so the estate ended automatically the day the tavern opened and O has owned the land outright ever since that day',
+         'Dara holds a life estate pur autre vie, with O holding a reversion that became possessory the moment the tavern opened on the land and ended her estate',
+         'Dara holds a fee tail, since the words and her heirs limit the estate to her lineal descendants, who alone can carry on any use of the land after her'], 0,
+        'Look at the words but if and may re-enter.', 'But if with a power to re-enter is a condition subsequent. The estate continues until O exercises the power; the words and her heirs are words of limitation creating the fee simple.'),
+
+      m(5, 1, 1, 'What does a grantor hold after conveying "to A for life" with no further disposition?',
+        ['A reversion', 'A vested remainder', 'A possibility of reverter', 'A springing executory interest'], 0,
+        'The fee comes back to the grantor.', 'The grantor carves a shorter estate from a larger one and keeps the rest, which is a reversion. It is not an interest in a transferee and does not require a condition.'),
+      m(5, 2, 1, 'What makes a remainder contingent?',
+        ['It is created in an unascertained person or is subject to a condition precedent',
+         'It follows a life estate, since all remainders after life estates are uncertain',
+         'It is held by a minor, whose capacity to take possession is uncertain at creation',
+         'It is subject to the possibility that the holder will sell the interest before it vests'], 0,
+        'Who is to take, and on what condition?', 'A remainder is contingent if the taker is unascertained or if a condition precedent must be satisfied. It is not contingent merely because it is a remainder after a life estate.'),
+      m(5, 3, 2, 'O conveys "to A for life, then to B if B survives A." Immediately after the conveyance, who holds which interests?',
+        ['A has a life estate, B has a contingent remainder, and O has a reversion',
+         'A has a life estate, B has a vested remainder, and O has nothing',
+         'A has a life estate, B has an executory interest, and O has a right of entry',
+         'A has a fee simple, B has a springing interest, and O has a possibility of reverter'], 0,
+        'Survival is a condition precedent.', 'B\'s remainder depends on surviving A, so it is a contingent remainder. Because it may fail, O keeps a reversion. A shifting or springing executory interest would require cutting short another estate.'),
+      m(5, 4, 3, 'O conveys "to A for life, then to A\'s children." At the time of the conveyance A has one child, Ben, and may have more. Which classification is best for the children\'s interest, and what is the effect of Ben\'s birth?',
+        ['A vested remainder subject to open: Ben holds a vested interest that will be shared with after-born children of A',
+         'A contingent remainder, because the class of children is unascertained until A dies',
+         'An indefeasibly vested remainder in Ben alone, because after-born children can never share in a class gift',
+         'A shifting executory interest in Ben that is cut off if A has any further child, with the land going back to O'], 0,
+        'At least one member of the class is ascertained.', 'When at least one class member exists and others may be added, the remainder is vested subject to open. The unborn members do not make it contingent, and the interest is not an executory interest because it takes only on the natural end of A\'s estate.'),
+      m(5, 5, 3, 'O conveys "to A for life, then to B and her heirs one year after A\'s death." No one is given the land during the gap. After the conveyance, which interest does B hold?',
+        ['A springing executory interest, with O holding a reversion during the gap',
+         'A vested remainder in fee simple, because B is ascertained and no condition precedent is stated',
+         'A shifting executory interest that takes from A, with no reversion in O at any time',
+         'A contingent remainder that fails if A dies before the one-year period, with the land returning to A\'s heirs'], 0,
+        'Is there a gap between the end of the life estate and B\'s possession?', 'A remainder must take immediately on the natural end of the prior estate. A gap means the interest cuts short the grantor\'s retained fee, so it is a springing executory interest.'),
+
+      m(6, 1, 1, 'Which formulation states the classic common law Rule Against Perpetuities?',
+        ['No interest is good unless it must vest, if at all, not later than twenty-one years after some life in being at the creation of the interest',
+         'No interest is good unless it vests within twenty-one years after the death of the grantor, regardless of whether any other life in being measures the period',
+         'No interest is good unless its holder is alive when the conveyance is made and survives the grantor by at least twenty-one years after the transfer',
+         'No interest is good unless it becomes possessory within ninety years after its creation, whether or not any life in being is used to measure that time'], 0,
+        'Lives in being plus twenty-one years.', 'This is the Gray formulation. The ninety-year period belongs to the Uniform Statutory Rule\'s wait-and-see alternative, and the rule concerns vesting, not possession.'),
+      m(6, 2, 1, 'Which of these interests is NOT subject to the common law Rule Against Perpetuities?',
+        ['A reversion retained by the grantor', 'A contingent remainder in an unborn person', 'A shifting executory interest in a stranger', 'A vested remainder subject to open in a class'], 0,
+        'Interests retained by the transferor are exempt at common law.', 'Reversions, possibilities of reverter and rights of entry are generally exempt. The other three can vest too late.'),
+      m(6, 3, 2, 'What approach does a wait-and-see statute take?',
+        ['It judges validity by what actually happens over a statutory period, not by what might happen at creation',
+         'It voids every contingent interest until a court has confirmed that all beneficiaries are alive and adults',
+         'It waits for the grantor to die before deciding whether any future interest was validly created by the instrument',
+         'It allows any interest to vest at any time so long as the grantor intended it, abolishing limits on duration'], 0,
+        'Hindsight replaces speculation.', 'Wait-and-see looks at actual events during the period; for example, the Uniform Statutory Rule allows ninety years. It does not abolish duration limits, but it prevents interests from failing on remote possibilities.'),
+      m(6, 4, 3, 'O conveys land "to my son Sam for life, then to Sam\'s widow for her life, then to Sam\'s children who are then living." Under the traditional common law rule, which interest is most vulnerable?',
+        ['The gift to Sam\'s children who are living at the widow\'s death, because Sam could marry someone not yet born and the widow may outlive all lives in being by more than twenty-one years',
+         'The life estate in Sam, because it is measured by his own life, and the Rule invalidates any estate whose duration is measured by the life of a person who is already alive when it is created',
+         'The reversion in O, because every future interest retained by the grantor must be tested under the Rule, and O\'s reversion might not become possessory within the period the Rule allows',
+         'The gift to Sam\'s widow, because she may be someone not yet born when O makes the conveyance, so her interest could vest after the period has expired and she would take too late'], 0,
+        'The unborn widow trap.', 'At creation Sam\'s eventual spouse is not a life in being if Sam marries a person not yet born, and her life may extend beyond all lives in being plus twenty-one years. The gift to the children is therefore void under the what-might-happen test.'),
+      m(6, 5, 3, 'O conveys land "to A for life, then to such of A\'s grandchildren as reach age 25." At O\'s death A has two children and no grandchildren, and A is alive. Under the traditional rule applied at creation, what is the best analysis of the grandchildren\'s interest?',
+        ['It is void, because A could have another child after the conveyance, and that child could have a child who reaches 25 more than 21 years after all lives in being are gone',
+         'It is valid, because the class of grandchildren closes at the death of A\'s children, who are lives in being, so every member must reach 25 within the permitted period',
+         'It is valid, because A is a life in being and every grandchild will be ascertained when A dies, which is within the period measured by that life',
+         'It is void, but only because remainders following a life estate are invalid unless the remainder is given to a person who is already alive when O makes the conveyance'], 0,
+        'Can A have an after-born child?', 'A\'s unborn child is not a life in being. That child\'s children could reach twenty-five too late, so the class gift cannot be guaranteed to vest in time. Wait-and-see or reform could save it.'),
+
+      m(7, 1, 1, 'What is the key feature that distinguishes a joint tenancy from a tenancy in common?',
+        ['Right of survivorship', 'Unequal shares among the co-owners', 'The right to partition the property', 'A requirement that all owners be related'], 0,
+        'What happens when one owner dies?', 'Joint tenants have survivorship, so the survivors take the deceased\'s interest. Tenants in common may leave their shares by will. Both can generally seek partition.'),
+      m(7, 2, 1, 'Which of the four unities is destroyed when a joint tenant conveys her interest to a stranger?',
+        ['The unities of time and title as to the conveyed interest', 'The unity of possession as to the remaining tenants', 'The unity of interest as to the whole property', 'No unity is affected since every cotenant has a right to possess the whole'], 0,
+        'The buyer acquires at a different time and by a different instrument.', 'The stranger takes at a different time and by a different deed, so that share is held as a tenancy in common. The remaining joint tenants stay joint between themselves.'),
+      m(7, 3, 2, 'A, B and C hold as joint tenants. A conveys her interest to D. Later B dies, leaving everything to his spouse by will. Who owns Blackacre?',
+        ['C owns two-thirds and D owns one-third, as tenants in common',
+         'C owns the entire property by survivorship, with D having no interest at all',
+         'B\'s spouse owns one-third, D owns one-third, and C owns one-third as tenants in common',
+         'C and D own equally, since the remaining joint tenants and the stranger share what A held'], 0,
+        'Remember what severance preserves.', 'A\'s conveyance severed as to her third only, so D is a tenant in common of that third. B and C remained joint tenants, so B\'s death gives B\'s third to C, who holds two-thirds. The will does not affect joint tenancy property.'),
+      m(7, 4, 3, 'Two siblings, Kai and Lena, own a house as tenants in common. Kai lives in it and refuses to let Lena move in but does not change the locks. Lena sues Kai for half the fair rental value. Another cotenant, Mia, has rented the garage to a stranger and collected rent. What is the most likely result in the majority view?',
+        ['Lena cannot recover rent from Kai for mere occupancy absent ouster, but can claim a share of the rent that Mia collected from the stranger',
+         'Lena recovers half the rental value from Kai for his occupancy and also shares Mia\'s rent, since a cotenant\'s possession must always be paid for',
+         'Lena recovers nothing from either, since a cotenant may keep all income that comes from his own use or management of the shared property',
+         'Lena may evict Kai at once, because a cotenant in sole possession who refuses to share the home commits a continuing trespass against the other cotenant'], 0,
+        'Distinguish exclusion from mere occupancy.', 'A cotenant in possession owes no rent absent ouster, but rents collected from third parties must be shared after expenses. Merely refusing to let a cotenant in, without exclusion, does not amount to ouster.'),
+      m(7, 5, 3, 'Husband and Wife hold land as tenants by the entirety in a state that recognizes it. Husband alone borrows money, and his creditor obtains a judgment against him only. Which statement is most accurate?',
+        ['The creditor generally cannot reach the entireties property while both spouses are alive, because neither spouse can convey or encumber it alone',
+         'The creditor may force a sale of the land and take half of the proceeds, since Husband owns an undivided half interest that is attachable by any creditor',
+         'The creditor may reach the land, but only after the spouses divorce, which converts the entireties interest into a joint tenancy that the creditor can attach',
+         'The creditor may reach the land, because the tenancy by the entirety protects only against claims of third parties and not a spouse\'s own individual debts'], 0,
+        'Each spouse owns the whole.', 'The entireties form protects against the separate creditors of one spouse in states that retain it. Its protection ends on divorce, but the creditor cannot reach it while the marriage continues and both are alive.'),
+
+      m(8, 1, 1, 'Which leasehold estate ends automatically at a fixed date without notice?',
+        ['A term of years', 'A periodic tenancy', 'A tenancy at will', 'A tenancy at sufferance'], 0,
+        'It has a stated end date.', 'A term of years has a definite beginning and end and ends without notice. The periodic tenancy renews and the others depend on either party or on the tenant\'s wrongful holding.'),
+      m(8, 2, 1, 'In most states, what is the tenant\'s remedy when a landlord leaves the heat out for months in winter and the tenant moves out after a reasonable period?',
+        ['Claim constructive eviction and possibly damages for breach of the implied warranty of habitability',
+         'Claim adverse possession of the unit based on the landlord\'s failure to repair',
+         'Keep the leased unit but stop paying any rent, with no need for notice or court action',
+         'Sue only for return of the security deposit, as no other remedy exists after moving out'], 0,
+        'Substantial interference plus leaving within a reasonable time.', 'Constructive eviction requires a substantial interference attributable to the landlord, notice, and vacating within a reasonable time. The warranty of habitability also supports damages or rent relief.'),
+      m(8, 3, 2, 'Tess leases an apartment for two years. After a year she leaves and moves away without notice, and the landlord makes no effort to relet. The jurisdiction follows the majority modern rule. What is the likely outcome of the landlord\'s suit for the remaining rent?',
+        ['The landlord can recover only the rent less what could reasonably have been obtained by reletting, because the landlord must mitigate',
+         'The landlord recovers all remaining rent, because a lease is a conveyance of an estate and the tenant\'s duty to pay survives her abandonment of it',
+         'The landlord recovers nothing, because abandonment ends the lease automatically and releases the tenant from the remaining term of rent owed',
+         'The landlord recovers the security deposit only, because the tenant\'s abandonment is treated as a surrender of the premises accepted by the landlord'], 0,
+        'Think of Sommer v. Kridel.', 'In the modern majority, a landlord must make reasonable efforts to relet. Some states, treating a lease as a conveyance, still let the landlord leave the unit vacant and sue.'),
+      m(8, 4, 3, 'Lessee leases a store to Subtenant for the last six months of Lessee\'s five-year term, which still has two years to run. Subtenant stops paying rent. The landlord sues Subtenant directly for rent. What is the most likely result?',
+        ['The landlord loses against Subtenant because a sublease creates privity of neither estate nor contract between landlord and subtenant, so the landlord must sue Lessee',
+         'The landlord wins because Subtenant is in privity of estate with the landlord whenever he occupies any part of the premises, so he is liable directly to the landlord for the rent owed',
+         'The landlord wins because every subtenant who occupies the premises with the landlord\'s consent is automatically treated as an assignee of the whole remaining term of the lease',
+         'The landlord loses and has no remedy against anyone, because once the tenant has transferred possession to a subtenant the lease obligations to the landlord come to an end'], 0,
+        'Compare an assignment with a sublease.', 'Lessee kept a reversion by subleasing for less than the entire remaining term, so this is a sublease. The sublessee owes rent to Lessee, and the landlord looks to Lessee.'),
+      m(8, 5, 3, 'A tenant complains to the city housing inspector about severe code violations in her apartment. Two weeks later the landlord serves a notice to quit for no stated reason. Month-to-month tenancies are normally terminable by notice. Which argument is strongest for the tenant?',
+        ['The eviction is retaliatory and barred by statute or case law in most states, which gives the tenant a defense even though notice would otherwise suffice',
+         'A tenant who complains to the authorities becomes a tenant for a term of years, so the landlord cannot end the term without cause',
+         'The landlord may not evict at all for any reason once the property has failed an inspection by the city, until every code violation has been repaired',
+         'The notice is void because only a court may declare a month-to-month tenancy ended, whatever the landlord\'s reason for wanting the tenant to leave'], 0,
+        'Think about public policy and protected complaints.', 'Retaliatory eviction doctrines protect tenants who report violations. The landlord\'s usual power to end a periodic tenancy does not extend to retaliation.'),
+
+      m(9, 1, 1, 'What is the difference between an easement appurtenant and an easement in gross?',
+        ['An appurtenant easement benefits the owner of a particular parcel and passes with it; an easement in gross benefits a person regardless of land ownership',
+         'An appurtenant easement lasts only for the life of its first holder; an easement in gross is always perpetual and freely transferable by its holder',
+         'An appurtenant easement must be in writing to satisfy the statute of frauds; an easement in gross can arise by implication alone, without any writing',
+         'An appurtenant easement burdens only a public road or highway; an easement in gross burdens only a private tract owned by an individual landowner'], 0,
+        'Is there a dominant parcel?', 'An appurtenant easement attaches to the dominant estate and runs with it. An easement in gross serves a person or entity, like a utility, without a dominant parcel.'),
+      m(9, 2, 1, 'Which of the following is a license and not an easement?',
+        ['Permission given orally to a neighbor to park a car on a lot, revocable at will',
+         'A written grant of a right of way across land recorded in the deed',
+         'A right to cross land that arose from open and continuous adverse use for the statutory period',
+         'A right to use a path that arises because the parcel would otherwise be landlocked'], 0,
+        'Which one is personal and revocable?', 'A license is permission, revocable at will and not an interest in land. The others are easements by express grant, prescription, and necessity.'),
+      m(9, 3, 2, 'Orla owns two lots. For years a visible gravel driveway across Lot 1 has been the only convenient access to Lot 2. She sells Lot 2 to Pim; the deed says nothing about the driveway. Orla later blocks it. What is Pim\'s best theory?',
+        ['Easement implied from prior use, because the use was apparent, continuous and reasonably necessary when the lots were divided',
+         'Easement by prescription, because Pim has used the driveway openly and continuously during the entire statutory period before Orla blocked it',
+         'Easement by estoppel, because Orla made an oral statement that she would never block the driveway at any time and Pim relied on it',
+         'Easement by necessity, because the lot would be landlocked if the existing driveway were not available and no other access to a road exists'], 0,
+        'Look at use before the severance.', 'Apparent, continuous and reasonably necessary use before the split supports an implied easement. Pim\'s own use has not run the period, and necessity requires strict necessity, which is less clear when other access might exist.'),
+      m(9, 4, 3, 'A landowner conveys the back half of his land to Quinn, which has no road access, and keeps the front. Years later a new public road is built along the back boundary of Quinn\'s lot, giving direct access. The landowner then blocks the old path across the front lot. What is the best result?',
+        ['The easement by necessity ended when the necessity ended, so the landowner may block the path',
+         'The easement continues forever because easements by necessity are perpetual once created at division',
+         'The easement ended because the road is an act of abandonment by Quinn, even though Quinn never intended to give it up',
+         'The easement continues because the landowner cannot obstruct a route that has been used without objection'], 0,
+        'Necessity is the basis of the right.', 'An easement by necessity lasts only as long as the necessity. Once Quinn has other access, the easement ends. Nonuse alone is not abandonment, but here the basis disappeared.'),
+      m(9, 5, 3, 'Parcel A holds an express appurtenant easement to cross Parcel B to reach a road. The owner of Parcel A purchases adjoining Parcel C, which has no easement, and begins using the crossing to serve a shopping center on both parcels, tripling the traffic. Parcel B\'s owner sues. What is the most likely result?',
+        ['The owner of B may enjoin the use to serve Parcel C, since an easement appurtenant to one parcel cannot be used for the benefit of other land',
+         'The owner of B has no remedy, because an express easement may be used for any purpose its holder later chooses, including serving other nearby land',
+         'The easement is terminated entirely, because any overuse of an appurtenant easement by its holder automatically ends the right to use it for any purpose',
+         'The owner of B may recover only nominal damages, because a use of the right of way to serve a shop does not reduce the value of Parcel B'], 0,
+        'Scope limits the use to the dominant parcel.', 'The holder may not extend the easement to non-dominant land. A court may enjoin the excess use, but it will not usually terminate the easement itself.'),
+
+      m(10, 1, 1, 'What is the usual remedy for breach of a real covenant, as compared with an equitable servitude?',
+        ['A real covenant is enforced by a damages judgment; an equitable servitude is enforced by an injunction against the burdened owner',
+         'A real covenant is enforced by an injunction; an equitable servitude is enforced only by damages',
+         'Both are enforced only by forfeiture of the burdened estate to the benefited owner',
+         'Both are enforced only by specific performance of the original agreement between the first parties'], 0,
+        'Law versus equity.', 'Covenants at law yield damages, while servitudes were developed in equity and are enforced by injunction.'),
+      m(10, 2, 1, 'Which element is required for a covenant to run at law but NOT for an equitable servitude?',
+        ['Privity of estate', 'Intent that the covenant run', 'A writing in the usual case', 'Touch and concern'], 0,
+        'Equity dispensed with a particular relationship requirement.', 'Real covenants require horizontal and vertical privity, while equitable servitudes need not. Intent, touch and concern, and a writing apply to both.'),
+      m(10, 3, 2, 'A subdivider sells thirty lots, each with a deed that restricts the land to residential use. The subdivider sells the last lot by a deed with no restriction. The buyer of the last lot has notice from the neighborhood\'s uniform plan. When the buyer plans a gas station, which doctrine do the neighbors invoke?',
+        ['Implied reciprocal servitude based on a common scheme of development',
+         'Easement by prescription based on the neighbors\' long use of the lot',
+         'Adverse possession of the restriction by the neighboring owners as a group',
+         'Merger, since the subdivider owned both benefited and burdened lots at one time'], 0,
+        'Think of Sanborn v. McLean.', 'Where a developer follows a general plan, lots sold without restriction may be burdened by an implied reciprocal servitude if the buyer had notice. The other options do not describe a restriction on use.'),
+      m(10, 4, 3, 'A restrictive covenant bars the owners of Lots in a subdivision from selling to members of a named racial group. A seller wishes to sell to a buyer in that group, and a neighbor sues in state court to enforce the covenant. How should the court rule, and why?',
+        ['It should refuse enforcement, because judicial enforcement of a racially restrictive covenant is state action that violates the Equal Protection Clause under Shelley v. Kraemer',
+         'It should enforce it, because private covenants in a recorded deed are never subject to constitutional limits so long as no government official signed the agreement itself',
+         'It should enforce it, awarding only damages to the complaining neighbor and withholding any injunction that would block the sale, because money relief alone does not involve state action',
+         'It should refuse only if the covenant was created after the Fair Housing Act was passed in 1968, since covenants created earlier remain fully enforceable in court'], 0,
+        'The state\'s judicial enforcement is the key.', 'Shelley v. Kraemer held that judicial enforcement is state action and violates equal protection. The covenant\'s private origin does not matter, and the holding is not limited to injunctions.'),
+      m(10, 5, 3, 'A condominium declaration recorded before any unit was sold bans all pets. An owner, who bought later, keeps a cat and argues the ban is unreasonable as applied to a quiet indoor cat. The jurisdiction follows the approach of Nahrstedt v. Lakeside Village. What is the likely result?',
+        ['The restriction is presumed valid and enforced unless it is arbitrary, violates public policy, or burdens a fundamental constitutional right',
+         'The restriction is void because any ban on keeping animals in a person\'s own home is contrary to public policy in every state and cannot be adopted by declaration',
+         'The restriction is enforceable only if the owners vote every year to renew it, which is a condition of its continued validity as a covenant in the declaration',
+         'The restriction is unenforceable against owners who did not personally sign the declaration, because covenants never bind later purchasers of a condominium unit'], 0,
+        'Recorded restrictions get deference.', 'Under the Nahrstedt approach, restrictions in a recorded declaration are presumptively valid, and the challenger bears the burden. They bind subsequent buyers with notice.'),
+
+      m(11, 1, 1, 'What is the usual standard for a private nuisance?',
+        ['A substantial and unreasonable interference with the private use and enjoyment of the plaintiff\'s land',
+         'Any physical intrusion onto land, however slight and whether or not it causes harm',
+         'Any noise that is audible on the neighbor\'s land at any hour of the day or night',
+         'Any use of land that is not permitted by the applicable local zoning ordinance'], 0,
+        'Two adjectives qualify the interference.', 'Private nuisance requires an interference that is both substantial and unreasonable. A physical intrusion is trespass; zoning violation is evidence but not the test.'),
+      m(11, 2, 1, 'In Boomer v. Atlantic Cement Co., what remedy did the court select?',
+        ['An injunction conditioned on the defendant\'s failure to pay permanent damages to the neighbors for the loss in value of their land',
+         'An immediate unconditional injunction that closed the plant despite the cost of the investment',
+         'Denial of any relief because the plant employed local workers and its use was lawful',
+         'Transfer of the plant to the neighbors as compensation for the loss of enjoyment of their land'], 0,
+        'Damages in lieu of closing the plant.', 'The court allowed the plant to continue if it paid permanent damages, treating the neighbors\' entitlement as protected by a liability rule.'),
+      m(11, 3, 2, 'A feedlot has operated for years in a rural area. A developer builds a retirement community nearby, and the residents sue to stop the odors. In Spur Industries v. Del E. Webb, what was the approach to coming to the nuisance?',
+        ['The feedlot was enjoined, but the developer who brought residents to the area had to indemnify the feedlot for relocation costs',
+         'The feedlot was never enjoined, because coming to the nuisance is a complete defense to the residents\' claim in every state that recognizes nuisance',
+         'The residents were barred from any relief, because they purchased homes in the retirement community knowing that the feedlot was operating nearby',
+         'The developer was permitted to keep the community and pay nothing, while the feedlot was required to close down without any compensation for the move'], 0,
+        'The court protected the public but compensated the first user.', 'Spur held the feedlot a nuisance to the residents but required the developer to pay the cost of moving because the developer came to the nuisance.'),
+      m(11, 4, 3, 'Homeowner Cho has an unusually sensitive condition and can sleep only in absolute silence. A neighbor plays an ordinary, moderate-volume radio during normal evening hours, which a normal person would not find disturbing. Cho sues for private nuisance. What is the most likely result?',
+        ['Cho loses, because the interference is judged by the standard of a normal person in the community and not by the plaintiff\'s particular sensitivity',
+         'Cho wins, because any noise that interferes with the use and enjoyment of the plaintiff\'s own home is an actionable nuisance whenever it is actually felt',
+         'Cho wins in trespass, because sound waves entering the property are a physical invasion of the land that the neighbor is liable for regardless of harm',
+         'Cho loses only because the neighbor was there first, since coming to the nuisance bars any relief regardless of how serious the harm to the plaintiff is'], 0,
+        'Substantial means to a normal person.', 'The substantial-interference element is objective. Hypersensitivity does not make ordinary conduct a nuisance, and the neighbor\'s priority is not the point.'),
+      m(11, 5, 3, 'A hotel adds a tall wing that casts shade on a neighbor\'s swimming deck for much of the day, and the neighbor sues to enjoin it, claiming a right to sunlight. No statute or easement applies. What is the most likely outcome under the traditional American rule?',
+        ['The neighbor loses, because there is no common law right to light and air across another\'s land, and the addition is not a nuisance merely because it casts shade',
+         'The neighbor wins, because every landowner has a natural right to unobstructed sunlight from every direction, which a neighboring building may not take away from the deck',
+         'The neighbor wins, because casting shade onto the deck is a trespass against the sunlit airspace above the neighbor\'s land, which the neighbor owns outright',
+         'The neighbor loses only because the hotel obtained a zoning variance for the wing, and a variance is a complete defense to every nuisance claim brought against it'], 0,
+        'Think of Fontainebleau Hotel.', 'The traditional rule gives no right to light and air without an express easement. A few courts, as in Prah v. Maretti, may recognize a nuisance claim for unreasonable blocking of sunlight, but that is a minority position.'),
+
+      m(12, 1, 1, 'Under the doctrine of equitable conversion, who bears the risk of loss between contract and closing in the majority view?',
+        ['The buyer, who is treated as the equitable owner', 'The seller, who retains legal title', 'The broker, who arranged the sale', 'Both parties equally, regardless of the contract terms'], 0,
+        'The buyer is the equitable owner.', 'In the majority rule the buyer bears the risk and must still pay, absent contrary agreement. A minority rule and some statutes put it on the seller until closing.'),
+      m(12, 2, 1, 'What does the implied covenant of marketable title require at closing?',
+        ['Title free from reasonable doubt as to its validity, such that a reasonable buyer would accept it',
+         'Title traced to the original sovereign grant without a single gap in the chain',
+         'Title insured by a policy of title insurance for the full amount of the price',
+         'Title free from every easement, covenant and restriction shown in the land records'], 0,
+        'Reasonable doubt, not perfection.', 'Marketable title is title a reasonable buyer would accept, free from reasonable doubt. It need not be perfect, and disclosed easements may be accepted by the contract.'),
+      m(12, 3, 2, 'Bree signs a contract to buy a house from Sol. Both are silent about risk of loss. Before closing, a flood destroys the house through no fault of either party. The jurisdiction follows the majority rule. What is the most likely result?',
+        ['Bree must pay the price, though she may recover under any insurance she bought on the property',
+         'Sol must refund the deposit and the contract ends because the subject matter has been destroyed',
+         'The price is reduced by one half, since both parties are equally innocent of the loss',
+         'Bree may demand the house in its destroyed condition at no cost because equitable conversion made it hers'], 0,
+        'Equitable owners bear the loss.', 'The buyer bears the risk of loss in the majority rule. Her right to insurance proceeds is a consequence of her equitable ownership. A contract term or statute could change this.'),
+      m(12, 4, 3, 'Seller tells Buyer that the basement is dry, knowing it floods every spring and having hidden the stains with paint. Buyer inspects, closes, and finds the flooding. The contract was silent on condition, and the home is old, not new. What is Buyer\'s best claim?',
+        ['Fraudulent misrepresentation or active concealment, which is an exception to caveat emptor that survives the merger of the contract into the deed',
+         'Breach of the implied warranty of habitability, which applies to every sale of a used home by a private seller and cannot be disclaimed in the contract',
+         'Failure of marketable title, because water in a basement is a defect in the chain of title that makes the record owner\'s title doubtful to a buyer',
+         'No claim, because caveat emptor bars all recovery whenever the buyer had a chance to inspect the premises, even where the seller lied about what was there'], 0,
+        'Concealment overrides the traditional rule.', 'Active concealment and misrepresentation fall outside caveat emptor and are not barred by merger. The implied warranty applies mainly to new homes from builders, and marketable title concerns title, not physical condition.'),
+      m(12, 5, 3, 'Buyer and Seller sign a written contract, with a signed memo of the price and a legal description, for land. Before closing Seller refuses to proceed and claims the contract is unenforceable because it was not notarized. Buyer sues. What is the best response?',
+        ['The statute of frauds requires a signed writing with the essential terms, not notarization, so the contract is enforceable and Buyer may seek specific performance',
+         'The contract is unenforceable because land contracts must be recorded in the county land records before the closing date to be valid between buyer and seller',
+         'The contract is unenforceable because a deed, and not a contract of sale, is the only writing that can satisfy the statute of frauds for a land transfer',
+         'The contract is enforceable only for damages, because specific performance is never available to a buyer of land and a seller may not be compelled to convey'], 0,
+        'What the statute of frauds requires.', 'The statute requires a writing signed by the party to be charged with the parties, description, and price. Notarization and recording are not requirements, and specific performance is the traditional remedy for land.'),
+
+      m(13, 1, 1, 'Which deed covenant is a future covenant that runs with the land?',
+        ['Quiet enjoyment', 'Seisin', 'Right to convey', 'Against encumbrances'], 0,
+        'Future covenants are breached on eviction.', 'The future covenants (quiet enjoyment, warranty, further assurances) run to successors. The other three are present covenants breached, if at all, at delivery.'),
+      m(13, 2, 1, 'Which deed makes no covenants about title?',
+        ['A quitclaim deed', 'A general warranty deed', 'A special warranty deed', 'A deed of trust'], 0,
+        'It transfers only whatever interest the grantor has.', 'A quitclaim conveys any interest the grantor holds without warranty. A special warranty deed covers only the grantor\'s own period of ownership.'),
+      m(13, 3, 2, 'Which is the usual hierarchy when a land description is internally inconsistent?',
+        ['Natural monuments, then artificial monuments, then courses and distances, then area',
+         'Area, then courses and distances, then artificial monuments, then natural monuments',
+         'Courses and distances, then area, then natural monuments, then artificial monuments',
+         'Artificial monuments, then area, then natural monuments, then courses and distances'], 0,
+        'A river is more reliable than a measurement.', 'Courts prefer physical features that are hard to mistake over measured distances and total area, which are more likely to contain errors.'),
+      m(13, 4, 3, 'Grantor handed a deed to a friend with instructions to give it to Grantee when Grantor dies, and kept the right to call it back at any time. Grantor died, and the friend delivered the deed to Grantee. A competing devisee under Grantor\'s will challenges the deed. What is the most likely result?',
+        ['The deed fails for lack of present delivery because Grantor retained control and a testamentary transfer needed will formalities',
+         'The deed is valid because delivery to a third party always completes the conveyance, whatever instructions the grantor gave while retaining control',
+         'The deed is valid because Grantee later received the deed, and her acceptance relates back to the date on which Grantor signed it',
+         'The deed fails because deeds transfer title only when recorded in the county records before the death of the grantor who signed the deed'], 0,
+        'The question is whether the grantor gave up control.', 'Where the grantor reserves the power to recall the deed there is no present delivery, and an attempted transfer at death is testamentary and must meet the requirements for wills. If the grantor had irrevocably parted with control, the result would differ.'),
+      m(13, 5, 3, 'Sam deeds Blackacre to Tess by a general warranty deed, though Sam owns nothing. A year later Sam inherits Blackacre from his aunt. Tess then sues to establish title in Blackacre. What doctrine best supports Tess?',
+        ['Estoppel by deed, which gives Tess title automatically when Sam later acquires the interest he warranted',
+         'Adverse possession, which vests title in a grantee who has held a deed for one year in good faith under color of title',
+         'Equitable conversion, which treats Tess as the owner of anything Sam later receives from any source after delivery of the deed',
+         'Merger, which combines the interests of grantor and grantee into one when the grantor later acquires the title that he deeded'], 0,
+        'A grantor cannot deny what he warranted.', 'Under estoppel by deed, after-acquired title passes to a grantee under a deed with warranties. Merger and conversion address other situations, and one year is not adverse possession.'),
+
+      m(14, 1, 1, 'Which type of recording act protects a subsequent bona fide purchaser who takes without notice, regardless of whether the purchaser records first?',
+        ['Pure notice', 'Pure race', 'Race-notice', 'Torrens registration'], 0,
+        'Notice is the only question.', 'A notice statute protects a subsequent BFP without notice. A race-notice statute also requires first recording, and a pure race statute looks only at recording order.'),
+      m(14, 2, 1, 'What is the main effect of the shelter rule?',
+        ['A person who takes from a BFP gets the BFP\'s protection even if she has notice of the prior interest',
+         'A person who takes from a donee loses all rights if the donee had notice of the prior interest',
+         'A person who records first always shelters from the claims of earlier unrecorded buyers regardless of notice',
+         'A person who takes by adverse possession is sheltered from the claims of recorded mortgagees'], 0,
+        'Protection travels with the property.', 'The shelter rule preserves the value of the BFP\'s ability to resell. Otherwise a BFP could not sell to a buyer who knew of the old interest.'),
+      m(14, 3, 2, 'O conveys to A, who does not record. O conveys to B, who pays value and has no notice of A, and B does not record. B then conveys to C, who has actual notice of A, and C records. The state is a notice jurisdiction. Who prevails between A and C?',
+        ['C, because C takes the protection of B, who was a BFP without notice, under the shelter rule',
+         'A, because C had actual notice of A\'s earlier conveyance when C took title',
+         'A, because B never recorded, so B and C are barred from claiming under the recording act',
+         'C, because C was the first to record in a notice jurisdiction'], 0,
+        'Does C take from a BFP?', 'B was a BFP without notice, and C steps into B\'s shoes under the shelter rule. Recording order is irrelevant in a pure notice state, and C\'s notice does not defeat protection derived from B.'),
+      m(14, 4, 3, 'O conveys to A for value. A does not record. O then conveys to B, who pays value, knows nothing of A, and records immediately. The state is a race-notice state. Later A sues B. What is the outcome, and what is the best explanation?',
+        ['B prevails, because B was a bona fide purchaser without notice who recorded first, satisfying both parts of a race-notice statute',
+         'A prevails, because A took first in time and a prior grantee defeats later grantees',
+         'A prevails, because B\'s immediate recording shows B was on inquiry notice that someone else might have a claim',
+         'B prevails only if B also took possession of the land, since recording alone cannot satisfy a race-notice statute'], 0,
+        'Both notice and recording order matter.', 'A race-notice statute protects a subsequent BFP who takes without notice and records first. B satisfied both. Recording promptly is not evidence of notice.'),
+      m(14, 5, 3, 'Forger signs O\'s name on a deed to Ana, who pays full value in good faith and records. O later learns of it. Ana relies on the recording act against O. What is the likely result?',
+        ['O prevails, because a forged deed is void and conveys nothing, and recording acts do not turn void deeds into valid ones',
+         'Ana prevails, because she is a bona fide purchaser for value who recorded',
+         'Ana prevails only if O waited more than a year to object, since a delay in the true owner\'s claim bars recovery',
+         'O prevails only if O can prove that the forger was convicted of a crime in connection with the forged deed'], 0,
+        'Void is different from voidable or unrecorded.', 'Recording acts protect against competing unrecorded conveyances from the same owner. A forged deed is void and a BFP takes nothing from it, though title insurance may protect Ana.'),
+
+      m(15, 1, 1, 'What did Village of Euclid v. Ambler Realty Co. hold?',
+        ['Comprehensive zoning that separates land uses is a valid exercise of the police power unless clearly arbitrary and unreasonable',
+         'Zoning that reduces the value of a landowner\'s property is always a taking that requires the municipality to pay just compensation to the owner',
+         'Local governments may regulate land use only when a statute explicitly names each permitted district and each use allowed in it',
+         'Zoning that excludes industrial uses from residential districts violates due process in every case unless a nuisance is first proven'], 0,
+        'The 1926 foundation of modern zoning.', 'Euclid upheld comprehensive zoning under the police power with deferential review. It did not find that diminution of value is automatically a taking.'),
+      m(15, 2, 1, 'What is a nonconforming use?',
+        ['A lawful use that predates a new zoning restriction and is generally allowed to continue',
+         'A use approved by a special permit because it does not fit within any zoning district\'s list',
+         'An unlawful use that the town has failed to stop for a long period and so must now tolerate',
+         'A use granted an exception by the board because the owner showed financial hardship'], 0,
+        'Think grandfathering.', 'A nonconforming use is lawful when begun and protected from the later restriction, subject to limits on expansion and amortization.'),
+      m(15, 3, 2, 'A landowner seeks a variance to build a house closer to the street than the setback rule allows. The lot is oddly shaped and the only compliant footprint would be unusable. The hardship was not caused by the owner. Which variance standard best fits this request?',
+        ['An area variance based on unnecessary hardship from unique features of the property',
+         'A use variance, since any departure from a dimensional requirement changes the permitted use',
+         'A special exception, since it is always available when the lot is irregular in shape',
+         'A legislative rezoning, since only the town council may modify a setback requirement'], 0,
+        'Dimensional departure, unique property feature.', 'A setback is a dimensional standard, so this is an area variance justified by hardship from unique property features and not self-created. Use variances face a tougher standard.'),
+      m(15, 4, 3, 'A city ordinance defines family to include only parents and their children, so that a grandmother cannot live with two grandsons who are cousins. Owner is cited. Which precedent best supports Owner\'s constitutional challenge?',
+        ['Moore v. City of East Cleveland, which struck down an ordinance that narrowly defined family and intruded on extended family living arrangements',
+         'Village of Belle Terre v. Boraas, which held that no ordinance may limit the kinds of persons who live together in a single-family home',
+         'Euclid v. Ambler Realty, which held that residential zoning must be neutral among all possible household types and family arrangements',
+         'Texas Department of Housing v. Inclusive Communities Project, which struck down every occupancy limit that touches the makeup of a household'], 0,
+        'Extended family was at stake.', 'Moore invalidated a narrow definition that barred a grandmother from living with grandsons who were cousins. Belle Terre upheld a limit on unrelated residents and distinguishes the family-based claim.'),
+      m(15, 5, 3, 'A suburban town bans all multifamily housing and requires a minimum lot size that makes new homes unaffordable to low-income families. A civil rights group sues under the state constitution in a state that follows Mount Laurel. What is the strongest argument?',
+        ['A developing municipality must provide a realistic opportunity for its fair share of the regional need for low- and moderate-income housing',
+         'A municipality may exclude any use it chooses if its ordinance was adopted by the procedures that the state zoning enabling act requires',
+         'A municipality is bound only to refrain from intentional discrimination and has no affirmative duty to enable any affordable housing to be built',
+         'A municipality must accept every multifamily project that a developer proposes, regardless of its fair share of regional need or any environmental impact'], 0,
+        'The New Jersey doctrine.', 'Mount Laurel held that developing municipalities must make realistic provision for their fair share of regional housing needs. It does not require every project, and many states have not adopted it.'),
+
+      m(16, 1, 1, 'What did Kelo v. City of New London decide?',
+        ['Taking property under a comprehensive economic development plan can satisfy the public use requirement',
+         'A government may never transfer taken property to a private party, because the Takings Clause forbids every private transfer',
+         'Public use requires that the taken property be opened to use by the general public as of right after the taking',
+         'Just compensation for a taking is measured by the owner\'s subjective value of the home, including sentimental attachment'], 0,
+        'Five to four, deferential to local planning.', 'Kelo upheld the taking under an economic development plan and noted that states may impose stricter limits, as many did afterward.'),
+      m(16, 2, 1, 'Which test governs most regulatory takings claims that fall short of a total wipeout or physical occupation?',
+        ['The Penn Central factors: economic impact, interference with investment-backed expectations, and character of the action',
+         'The essential nexus and rough proportionality test, applied to every restriction on land use whether or not it is conditioned on a permit',
+         'The Lucas rule, under which every reduction in the value of a parcel, of any amount at all, requires the payment of full compensation',
+         'The Euclid test, which asks only whether the ordinance is arbitrary and unreasonable, with no weight given to the owner\'s expectations'], 0,
+        'Three factors from the Grand Central case.', 'Penn Central supplies the default ad hoc test. Lucas applies to total deprivation, and Nollan/Dolan apply to exactions.'),
+      m(16, 3, 2, 'A city requires every owner of a rental building to allow the installation of a small permanent device on the roof for a public utility, with no payment. Under Loretto, what is the result?',
+        ['It is a per se taking, however small the space, because it is a permanent physical occupation of the owner\'s property authorized by law',
+         'It is not a taking, because the space occupied is minor and the economic impact is small',
+         'It is a taking only if the device lowers the building\'s value by more than half',
+         'It is not a taking, because the device is installed by the utility and not by the government itself'], 0,
+        'Permanent physical occupation.', 'Loretto held that a permanent physical occupation is a taking regardless of the public interest or size. The Penn Central balancing is not used.'),
+      m(16, 4, 3, 'A county conditions a building permit for a larger home on the owner\'s paying a large fee for roadway improvements. The fee is set by a general schedule adopted by the legislature, not by case-by-case negotiation, and bears no relationship to the traffic the home will generate. After Sheetz, which argument is strongest for the owner?',
+        ['The Nollan/Dolan nexus and proportionality requirements apply to legislatively imposed conditions as well as administrative ones, including a fee demanded as a permit condition',
+         'The Takings Clause never applies to money exactions, which are taxes that the legislature may impose freely',
+         'The condition is automatically valid because it comes from a general legislative schedule rather than an administrative decision',
+         'The owner must first lose in state court, because federal courts will not hear a takings claim until the state has denied compensation'], 0,
+        'Does the legislative source of the condition exempt it?', 'Sheetz held that the legislative origin of an exaction does not exempt it from Nollan and Dolan; whether the fee meets the standard is for remand. Knick removed any state-litigation requirement.'),
+      m(16, 5, 3, 'A county forecloses on a home for $15,000 in unpaid taxes, sells it for $200,000 under a statute allowing it to keep all proceeds, and the former owner sues. What does Tyler v. Hennepin County indicate about the claim?',
+        ['The owner states a takings claim for the surplus beyond the tax debt, because the government may not keep proceeds above what is owed',
+         'The owner has no claim, because foreclosure for unpaid taxes is not a taking of any property interest and the county may keep all sale proceeds',
+         'The owner is entitled to the full $200,000 sale price, since a tax sale of the home wipes out the debt entirely and the county keeps nothing',
+         'The owner has a due process claim only, because the Takings Clause does not apply to sales of property carried out by the government itself'], 0,
+        'Who is entitled to the surplus?', 'Tyler held that a county may take what the tax debt requires but not the surplus value, which remains the owner\'s property. The full proceeds are not due, because the debt is real.'),
+
+      m(17, 1, 1, 'What did Feist Publications v. Rural Telephone Service decide?',
+        ['Facts in a telephone directory are not copyrightable, because copyright requires originality and rejects sweat of the brow',
+         'A telephone directory is protected by copyright in every part, as a reward for the labor and expense of compiling the listings',
+         'A compiler of facts has the exclusive right to the information it gathers for the entire length of the copyright term of the compilation',
+         'Copyright protects ideas and facts whenever they are expensive to collect and valuable in commerce, apart from how they are arranged'], 0,
+        'Originality, not labor.', 'Feist held that copyright requires originality, which the white pages lacked. Effort alone does not create protection for facts.'),
+      m(17, 2, 1, 'How long can a trademark last?',
+        ['Indefinitely, as long as it is used in commerce and not abandoned, with periodic maintenance filings',
+         'Twenty years from filing, as with a utility patent',
+         'Life of the owner plus seventy years, as with many copyrights',
+         'Five years unless the owner proves secondary meaning in each renewal'], 0,
+        'Rights come from use.', 'Trademark rights depend on continued use and are not limited to a fixed term. The other durations belong to patent and copyright.'),
+      m(17, 3, 2, 'A rival learns the secret formula of a beverage because an employee of the maker leaves a copy in a public cafe, which the owner had taken no steps to protect. Which statement about trade secret law is most accurate?',
+        ['Protection requires reasonable measures to keep the information secret, and the lack of any measures weakens the claim',
+         'Trade secret protection is automatic for any valuable information, whatever efforts were taken to protect it',
+         'Trade secret protection lasts for twenty years from first use and cannot be lost earlier through disclosure',
+         'Trade secret protection forbids all lawful reverse engineering by a competitor who buys the product on the market'], 0,
+        'What must the owner have done?', 'Trade secrets require reasonable efforts to maintain secrecy. Independent discovery and lawful reverse engineering are permitted, and protection ends if secrecy is lost.'),
+      m(17, 4, 3, 'A patient\'s cells, taken during treatment, are used without his knowledge to create a valuable cell line. Under Moore v. Regents of the University of California, which claim is most likely to succeed?',
+        ['Breach of fiduciary duty or lack of informed consent, because the physician failed to disclose a research and economic interest',
+         'Conversion of the patient\'s cells, because a person has an ownership interest in all tissue that was removed from the body during treatment',
+         'Patent infringement, because the cell line is the patient\'s own invention by virtue of the cells that were the source of the line',
+         'Copyright infringement, because the cell line is a compilation of the patient\'s genetic information that he is entitled to claim as its author'], 0,
+        'Not property, but duty.', 'Moore refused a conversion claim over the cells but allowed claims based on failure to disclose research and economic interests. The other theories misapply IP categories.'),
+      m(17, 5, 3, 'A novelist publishes a story about a boy who attends a school for magic. A second author writes a new story with different characters, plot and text, which also features a boy at a school for magic. Under copyright law, what is the most likely result of an infringement suit?',
+        ['No infringement, because copyright protects expression and not ideas or general themes',
+         'Infringement, because the second author borrowed the central idea that gives the first story its commercial value',
+         'Infringement, because any story with a similar premise copies the structure of the first work as a whole',
+         'No infringement only if the second author gets a license from the author of the first story before publication'], 0,
+        'Idea versus expression.', 'Copyright does not protect ideas, premises or themes. It protects the particular expression, such as the text, characters and plot details, so copying paragraphs would differ.'),
+    ],
+  },
+};

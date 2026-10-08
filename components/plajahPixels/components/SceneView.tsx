@@ -18,6 +18,24 @@ import { AudioTexture } from '../engine/core/audioTexture';
 import { getTextCanvas } from '../engine/core/textLayer';
 import { getTitleCanvas } from '../engine/core/titleLayer';
 import type { SceneSnapshot } from '../engine/timeline/sceneTimeline';
+import { MODE_TO_FLUX_SCENE } from '../types';
+import { renderFluxLatest } from '../engine/core/flux';
+import { FluxMusicSampler } from '../../../services/fabula/fluxMusic';
+import { SILENT_AUDIO } from '../../../services/fabula/fluxNode';
+import { TypoScriptureBackground } from '../../../services/ambo/typoScriptureBackground';
+
+const TYPO_PREFIX = 'TYPO:';
+
+/** Wraps a stored-analysis frequency array in the slice of AnalyserNode the typo engine reads. */
+function makeFrameAnalyser() {
+  let freq = new Uint8Array(1024), sr = 48000;
+  const node = {
+    get frequencyBinCount() { return freq.length; },
+    context: { get sampleRate() { return sr; } },
+    getByteFrequencyData(d: Uint8Array) { d.set(freq.subarray(0, d.length)); },
+  } as unknown as AnalyserNode;
+  return { node, set(f: Uint8Array, rate: number) { freq = f; sr = rate; } };
+}
 
 interface Props {
   snapshot: SceneSnapshot;
@@ -52,6 +70,9 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, p
   const milkLoading = useRef<Set<string>>(new Set());
   const milkPreset = useRef<Map<string, string | number>>(new Map());
   const bcCtx = useRef<AudioContext | null>(null);
+  const fluxMusic=useRef(new Map<string,FluxMusicSampler>());
+  const fluxFreq=useRef(new Uint8Array(0));
+  const typo = useRef<Map<string, { key: string; bg: TypoScriptureBackground; shim: ReturnType<typeof makeFrameAnalyser> }>>(new Map());
 
   const snapRef = useRef(snapshot);   snapRef.current = snapshot;
   const analyserRef = useRef(analyser); analyserRef.current = analyser ?? null;
@@ -104,6 +125,33 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, p
           if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
             const tex = gen.render(layer.id, clip.sceneMode, w, h, { time: t, audio: audioTex, colors, params: clip.params || [] });
             inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
+          } else if (clip.type === 'generator' && clip.sceneMode?.startsWith(TYPO_PREFIX)) {
+            // Chora kinetic typography (instanced 3D type), driven by the live analyser or the
+            // stored-analysis frame (wrapped as an analyser-shaped shim).
+            const key = clip.sceneMode.slice(TYPO_PREFIX.length) || 'SPHERE';
+            let tb = typo.current.get(layer.id);
+            if (!tb || tb.key !== key) {
+              tb?.bg.dispose();
+              tb = { key, bg: new TypoScriptureBackground(w, h, key, (clip as any).text || 'PLAJAH AMBO CHORA FABULA'), shim: makeFrameAnalyser() };
+              typo.current.set(layer.id, tb);
+            }
+            if (af) { tb.shim.set(af.freq, analyserRef.current?.context.sampleRate || 48000); tb.bg.analyser = tb.shim.node; }
+            else tb.bg.analyser = analyserRef.current;
+            const tc = tb.bg.frame();
+            if (tc) inputs.push({ element: tc, opacity, blendMode: layer.blendMode });
+          } else if ((clip.type==='generator'&&MODE_TO_FLUX_SCENE[clip.sceneMode||''])||(clip.type==='flux'&&(clip.flux?.scene||clip.fluxScene))) {
+            const scene=clip.type==='generator'?MODE_TO_FLUX_SCENE[clip.sceneMode!]:clip.flux?.scene||clip.fluxScene;
+            let music=fluxMusic.current.get(layer.id);if(!music){music=new FluxMusicSampler();fluxMusic.current.set(layer.id,music);}
+            const analyser=analyserRef.current;
+            let bands=SILENT_AUDIO;
+            if(af)bands=music.sample(af.freq,t,analyser?.context.sampleRate||48000);
+            else if(analyser){
+              if(fluxFreq.current.length!==analyser.frequencyBinCount)fluxFreq.current=new Uint8Array(analyser.frequencyBinCount);
+              analyser.getByteFrequencyData(fluxFreq.current as Uint8Array<ArrayBuffer>);
+              bands=music.sample(fluxFreq.current,t,analyser.context.sampleRate);
+            }
+            const canvas=renderFluxLatest({...clip.flux,scene:scene as any},w,h,t,bands);
+            if(canvas)inputs.push({element:canvas,opacity,blendMode:layer.blendMode});
           } else if (clip.type === 'media' && clip.mediaUrl) {
             active.add(clip.mediaUrl);
             const el = warm(clip.mediaUrl, clip.mediaType);
@@ -165,6 +213,7 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, p
       pool.current.clear();
       milk.current.forEach(d => { try { d.dispose(); } catch { /* */ } });
       milk.current.clear(); milkLoading.current.clear(); milkPreset.current.clear();
+      typo.current.forEach(t => { try { t.bg.dispose(); } catch { /* */ } }); typo.current.clear();
       try { bcCtx.current?.close(); } catch { /* */ } bcCtx.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

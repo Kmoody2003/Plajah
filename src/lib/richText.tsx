@@ -13,6 +13,19 @@ import React from 'react';
 import { findRefs, type DetectedRef } from '../../services/scriptureRef';
 import ScriptureRefChip from '../../components/scripture/ScriptureRefChip';
 import { CleanText } from '../../components/safety/SafetyGates';
+import { findHashtagSpans } from '../../services/postingLogic';
+
+/**
+ * Hashtag taps. Mirrors how mentions reach their handler, but via context so a
+ * single provider near the app/feed root serves every RichText below it:
+ *   <HashtagClickProvider onHashtagClick={(tag) => openHashtagFeed(tag)}>...
+ * A per-instance `onHashtagClick` prop overrides the context. With neither,
+ * hashtags render as plain (non-clickable) styled chips.
+ */
+export const HashtagClickContext = React.createContext<((tag: string) => void) | undefined>(undefined);
+export const HashtagClickProvider: React.FC<{ onHashtagClick: (tag: string) => void; children?: React.ReactNode }> = ({ onHashtagClick, children }) => (
+  <HashtagClickContext.Provider value={onHashtagClick}>{children}</HashtagClickContext.Provider>
+);
 
 const MENTION_RE = /@\[([^\]]+)\]\(([^)]+)\)/g;
 const URL_RE = /https?:\/\/[^\s<>"]+/g;
@@ -24,11 +37,16 @@ type Segment =
   | { kind: 'text'; start: number; end: number }
   | { kind: 'mention'; start: number; end: number; name: string; uid: string }
   | { kind: 'url'; start: number; end: number; href: string }
-  | { kind: 'ref'; start: number; end: number; ref: DetectedRef };
+  | { kind: 'ref'; start: number; end: number; ref: DetectedRef }
+  | { kind: 'hashtag'; start: number; end: number; tag: string; raw: string };
 
 export interface RichTextProps {
   text: string;
   onVisitUser?: (uid: string) => void;
+  /** Called with the normalised tag (no #, lowercase) when a hashtag chip is tapped. Falls back to HashtagClickContext. */
+  onHashtagClick?: (tag: string) => void;
+  /** Render #tags as chips. Default true. */
+  hashtags?: boolean;
   /** Turn "Romans 8:28" into a chip. Default true. */
   scripture?: boolean;
   /** Preview the verse on hover. Off in dense lists. Default true. */
@@ -62,6 +80,13 @@ function collect(text: string, opts: RichTextProps): Segment[] {
     }
   }
 
+  if (opts.hashtags !== false) {
+    // Pushed after mentions/URLs, so those win any overlap (a URL fragment is never a tag).
+    for (const h of findHashtagSpans(text)) {
+      found.push({ kind: 'hashtag', start: h.start, end: h.end, tag: h.tag, raw: h.raw });
+    }
+  }
+
   if (opts.scripture !== false) {
     for (const ref of findRefs(text, { prose: true, minConfidence: MIN_REF_CONFIDENCE })) {
       found.push({ kind: 'ref', start: ref.start, end: ref.end, ref });
@@ -88,6 +113,8 @@ function collect(text: string, opts: RichTextProps): Segment[] {
  */
 export const RichText: React.FC<RichTextProps> = (props) => {
   const { text, onVisitUser, clean = true, scripturePreview = true, className } = props;
+  const ctxHashtagClick = React.useContext(HashtagClickContext);
+  const onHashtagClick = props.onHashtagClick ?? ctxHashtagClick;
   if (!text) return null;
 
   const segs = collect(text, props);
@@ -117,6 +144,18 @@ export const RichText: React.FC<RichTextProps> = (props) => {
             onClick={(e) => { e.stopPropagation(); onVisitUser?.(seg.uid); }}
           >
             @{seg.name}
+          </span>,
+        );
+        break;
+      case 'hashtag':
+        nodes.push(
+          <span
+            key={`h${i}`}
+            role={onHashtagClick ? 'link' : undefined}
+            className={`text-small-orange font-bold inline-block ${onHashtagClick ? 'hover:underline cursor-pointer' : ''}`}
+            onClick={onHashtagClick ? (e) => { e.stopPropagation(); onHashtagClick(seg.tag); } : undefined}
+          >
+            {seg.raw}
           </span>,
         );
         break;

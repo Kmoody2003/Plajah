@@ -29,6 +29,7 @@ import { resolveInstanceForFrame } from './fabula/forgeBindings';
 import { expandStack, customLookup } from './fabula/customEffects';
 import { dynamicText } from './fabula/titleDynamic';
 import { getEffect } from '../components/plajahPixels/engine/fx/effects';
+import { setStudioTaskbarProgress, showNotification } from './windowsBridgeService';
 
 interface RenderFabulaOpts {
   clips: any[];                 // Fabula clips on the active timeline
@@ -40,6 +41,7 @@ interface RenderFabulaOpts {
   onProgress?: (p: number, stage: string) => void;
   signal?: AbortSignal;
   cubeLut?: CubeLutData | null;
+  stereoMode?: 'mono' | 'sbs-full' | 'sbs-half';
 }
 
 function itemToSnapshot(item: any, label: string): SceneSnapshot {
@@ -445,7 +447,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
     for (const c of titleClips) {
       if (!(t >= c.start && t < c.start + c.duration)) continue;
       // titler overrides (font/color/size/position) ride along so the export matches the monitor
-      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: dynamicText(c.text, t - c.start, c.tDynamic, c.duration), subtitle: c.subtitle, titleStyle: c.titleStyle, tFont: c.tFont, tColor: c.tColor, tSubColor: c.tSubColor, tSize: c.tSize, tx: c.tx, ty: c.ty, tAnim: c.tAnim, tDur: c.duration, tGraphic: c.tGraphic, bGraphic: c.bGraphic, tag: c.tag, rawText: c.text } as any, blendMode: (c.tGraphic || c.bGraphic) ? 'normal' : 'screen', opacity: 1, time: t - c.start });
+      out.push({ id: `title:${c.id}`, clip: { type: 'title', text: dynamicText(c.text, t - c.start, c.tDynamic, c.duration), subtitle: c.subtitle, titleStyle: c.titleStyle, tFont: c.tFont, tColor: c.tColor, tSubColor: c.tSubColor, tSize: c.tSize, tx: c.tx, ty: c.ty, tAnim: c.tAnim, tDur: c.duration, tGraphic: c.tGraphic, bGraphic: c.bGraphic, mGraphic: (c as any).mGraphic, tag: c.tag, rawText: c.text } as any, blendMode: (c.tGraphic || c.bGraphic || (c as any).mGraphic) ? 'normal' : 'screen', opacity: 1, time: t - c.start });
     }
     return out;
   };
@@ -495,9 +497,28 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
     enableBassShake: false,
   };
 
-  return renderTimeline({
-    resolveLayers, duration, audioBuffer, config,
-    width: format.w || 1920, height: format.h || 1080, fps: renderFps,
-    onProgress, signal, cubeLut,
-  });
+  const wrappedProgress = (p: number, stage: string) => {
+    onProgress?.(p, stage);
+    setStudioTaskbarProgress(p, 'normal');
+  };
+
+  try {
+    const renderW = opts.stereoMode === 'sbs-full' ? (format.w || 1920) * 2 : (format.w || 1920);
+    const blob = await renderTimeline({
+      resolveLayers, duration, audioBuffer, config,
+      width: renderW, height: format.h || 1080, fps: renderFps,
+      onProgress: wrappedProgress, signal, cubeLut,
+    });
+
+    if (blob) {
+      setStudioTaskbarProgress(1.0, 'none');
+      showNotification('Fabula Render Complete', `Exported "${opts.title || 'Timeline'}" successfully.`);
+    } else {
+      setStudioTaskbarProgress(0, 'none');
+    }
+    return blob;
+  } catch (err) {
+    setStudioTaskbarProgress(1.0, 'error');
+    throw err;
+  }
 }

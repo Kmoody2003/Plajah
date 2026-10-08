@@ -21,12 +21,19 @@ export interface AlignState {
   words: VWord[]; i: number; level: number;
   noise: number; tokens: number;
   startedAt: number | null; endedAt: number | null;
+  /** Minimum ms between two counted wrong attempts on a word (UI sets ~3 s so one stumble is never counted twice). 0 = off. */
+  attemptGapMs: number;
+  lastAttemptAt: number;
+  /** Forgiving ears (UI): after one try, a near-identical sound (1 letter off) counts, for soft / hoarse / unsure voices. */
+  gentle: boolean;
+  /** Re-reading from an earlier word: where the child is now, so a restart of the sentence is never marked wrong. */
+  reread: { pos: number; at: number } | null;
 }
 export type AlignEvent =
   | { type: 'good'; index: number; comeback: boolean }
   | { type: 'skip'; index: number; inferred: boolean }
   | { type: 'attempt'; index: number; attempt: number }
-  | { type: 'reread' }
+  | { type: 'reread'; index?: number }
   | { type: 'noise' }
   | { type: 'done' };
 
@@ -90,6 +97,22 @@ export function wordsMatch(expected: string, heard: string, level: number): bool
   return false;
 }
 
+/** One letter off on a word of 5+ letters — close enough to credit on a second try. */
+export function nearMiss(expected: string, heard: string): boolean {
+  return expected.length >= 5 && heard.length >= 4 && lev(expected, heard) <= 1;
+}
+
+/** Index of the first word of the sentence containing word `idx` (sentences end . ! ? or a closing quote after them). */
+export function sentenceStart(s: AlignState, idx: number): number {
+  let k = Math.min(idx, s.words.length - 1);
+  if (k > 0 && /[.!?]["'”’)]*$/.test(s.words[k - 1]?.display ?? '')) return k;
+  while (k > 0 && !/[.!?]["'”’)]*$/.test(s.words[k - 1].display)) k--;
+  return k;
+}
+
+/** Is word `idx` the last word of its sentence? */
+export const endsSentence = (s: AlignState, idx: number) => /[.!?]["'”’)]*$/.test(s.words[idx]?.display ?? '');
+
 /** Is this heard word a plausible attempt at the expected word (vs. noise / another speaker)? */
 export function plausibleAttempt(expected: string, heard: string): boolean {
   if (!heard || FILLERS.has(heard)) return false;
@@ -98,12 +121,23 @@ export function plausibleAttempt(expected: string, heard: string): boolean {
   return d / L <= 0.6;
 }
 
+/**
+ * How forgiving the ears are. New readers (few sessions, low levels) get the most patience and the most
+ * forgiving matching; as they level up AND get comfortable with the routine, it tightens toward exact reads.
+ * Comfort needs both: level alone doesn't tighten a child who just jumped up, and sessions alone don't.
+ */
+export function leniencyFor(level: number, sessions: number): { gentle: boolean; attemptGapMs: number; tier: 0 | 1 | 2 } {
+  if (level <= 3 || sessions < 5) return { gentle: true, attemptGapMs: 3200, tier: 0 };
+  if (level <= 6 || sessions < 12) return { gentle: true, attemptGapMs: 2200, tier: 1 };
+  return { gentle: false, attemptGapMs: 1500, tier: 2 };
+}
+
 export function createAlign(text: string, level: number): AlignState {
   const words = splitPassage(text).map(display => {
     const norm = normalize(display);
     return { display, norm, status: 'pending' as WordStatus, attempts: 0, helped: false, comeback: false, inferred: false, isFunction: FUNCTION_WORDS.has(norm) };
   });
-  return { words, i: 0, level, noise: 0, tokens: 0, startedAt: null, endedAt: null };
+  return { words, i: 0, level, noise: 0, tokens: 0, startedAt: null, endedAt: null, attemptGapMs: 0, lastAttemptAt: 0, gentle: false, reread: null };
 }
 
 function finish(s: AlignState, now: number, ev: AlignEvent[]) {
@@ -128,8 +162,18 @@ export function feedWord(s: AlignState, heardRaw: string, alts: string[] = [], n
   const L = s.level, cur = s.i;
   const hits = (idx: number) => idx >= 0 && idx < s.words.length && cands.some(c => wordsMatch(s.words[idx].norm, c, L));
 
+  // 0) mid re-read: the child went back to an earlier word and is reading forward to where they were
+  const rr = s.reread;
+  if (rr) {
+    if (hits(cur)) { s.reread = null; }                                   // caught up: fall through and mark the word
+    else if (rr.pos < cur && hits(rr.pos)) { rr.pos++; rr.at = now; if (rr.pos >= cur) s.reread = null; ev.push({ type: 'reread', index: rr.pos - 1 }); return ev; }
+    else if (now - rr.at < 12000) { rr.at = now; return ev; }              // a stumble or pause inside a re-read is not a miss
+    else s.reread = null;
+  }
   // 1) the current word
   if (hits(cur)) { markGood(s, cur, now, ev); s.i = cur + 1; finish(s, now, ev); return ev; }
+  // 1b) forgiving ears: a second try that is one letter off is credited (hoarse / soft voices, noisy recognisers)
+  if (s.gentle && s.words[cur].attempts >= 1 && cands.some(c => nearMiss(s.words[cur].norm, c))) { markGood(s, cur, now, ev); s.i = cur + 1; finish(s, now, ev); return ev; }
   // 2) look-ahead: the reader moved on (or the recogniser dropped short words)
   for (let k = 1; k <= 3; k++) {
     if (!hits(cur + k)) continue;
@@ -140,11 +184,21 @@ export function feedWord(s: AlignState, heardRaw: string, alts: string[] = [], n
     }
     markGood(s, cur + k, now, ev); s.i = cur + k + 1; finish(s, now, ev); return ev;
   }
-  // 3) look-back: re-reading for meaning or a running start — never penalised
-  for (let k = 1; k <= 3; k++) if (hits(cur - k)) { ev.push({ type: 'reread' }); return ev; }
+  // 3) look-back: re-reading for meaning or a running start — never penalised. Reaches back to the start of
+  //    the sentence (a child often restarts the whole line after a long pause) and follows them forward.
+  const from = sentenceStart(s, cur);
+  for (let j = cur - 1; j >= Math.max(0, Math.min(from, cur - 3)); j--) {
+    if (!hits(j)) continue;
+    if (cur - j > 3 && j !== from && s.words[j].isFunction) continue;      // far back only counts for the line's opening or a real word
+    s.reread = j + 1 < cur ? { pos: j + 1, at: now } : null;
+    ev.push({ type: 'reread', index: j }); return ev;
+  }
   // 4) a plausible try at the current word climbs the coaching ladder; anything else is noise
   const w = s.words[cur];
   if (cands.some(c => plausibleAttempt(w.norm, c))) {
+    // patience: a second guess a moment after the first is the same stumble, not a second miss
+    if (s.attemptGapMs && w.attempts > 0 && now - s.lastAttemptAt < s.attemptGapMs) return ev;
+    s.lastAttemptAt = now;
     w.attempts++;
     ev.push({ type: 'attempt', index: cur, attempt: w.attempts });
     if (w.attempts >= MAX_ATTEMPTS) { w.status = 'coached'; s.i = cur + 1; finish(s, now, ev); }
@@ -161,7 +215,7 @@ export function markHelped(s: AlignState) { const w = s.words[s.i]; if (w) w.hel
 /** Move past the current word without a correct read (skip button / long silence after modelling). */
 export function moveOn(s: AlignState, now = Date.now()): AlignEvent[] {
   const ev: AlignEvent[] = []; const w = s.words[s.i]; if (!w) return ev;
-  w.status = 'coached'; w.attempts = Math.max(w.attempts, 1); s.i++; finish(s, now, ev); return ev;
+  w.status = 'coached'; w.attempts = Math.max(w.attempts, 1); s.i++; s.reread = null; finish(s, now, ev); return ev;
 }
 
 /** Listener mode: an adult judges the current word. */

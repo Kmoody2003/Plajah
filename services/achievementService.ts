@@ -14,7 +14,7 @@ import {
   Timestamp,
   QueryConstraint,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import {
   Achievement,
   UserAchievementProgress,
@@ -428,21 +428,19 @@ export async function unlockAchievement(
     const existing = await fetchUserAchievementProgress(userId, achievementId);
     if (existing?.unlockedAt) return existing; // Already unlocked
 
-    const now = Date.now();
-    const progress: UserAchievementProgress = {
-      id: '', // Will be set by Firestore
-      userId,
-      achievementId,
-      unlockedAt: now,
-      isNew: true,
-      timestamp: now,
-    };
-
-    const docRef = await addDoc(
-      collection(db, USER_ACHIEVEMENTS_COLLECTION),
-      progress
-    );
-    return { ...progress, id: docRef.id };
+    // `userAchievements` is server-write-only (firestore.rules: create/update isAdmin), so the unlock goes through
+    // POST /api/achievements/unlock, which validates the catalog id, mints the deterministic `${uid}_${id}` doc
+    // and publishes the opt-in public showcase copy (honours users/{uid}.shareAchievements / private accounts).
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken || auth.currentUser?.uid !== userId) return null;
+    const res = await fetch('/api/achievements/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ achievementId }),
+    });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return (j?.progress ?? null) as UserAchievementProgress | null;
   } catch (error) {
     console.error('Error unlocking achievement:', error);
     return null;

@@ -1,0 +1,1292 @@
+{
+ "courseId": "film-genres",
+ "verifier": "B",
+ "note": "WebFetch of Wikipedia pages used for the supported claims; remaining claims were not checked against an opened page and are marked unverifiable. Lesson l03.q4 prompt says 1992 while the lesson says 1987 article/1992 book.",
+ "fetched": 28,
+ "questions": [
+  {
+   "id": "film-genres.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l03.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "sources": [],
+   "ambiguous": true,
+   "note": "Clover introduced the term in a 1987 article and developed it in her 1992 book; prompt says 1992. Final girl is the only sensible choice."
+  },
+  {
+   "id": "film-genres.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l20.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l21.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l22.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l22.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l23.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l23.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l23.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l23.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l24.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l24.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l24.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l24.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-genres.l24.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "film-genres.l01",
+   "claim": "Stagecoach (1939) was filmed in Monument Valley",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l01",
+   "claim": "The Great Train Robbery (1903) is an early narrative film with Western elements",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l01",
+   "claim": "A Fistful of Dollars (1964) was Sergio Leone Italian-made Western",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l02",
+   "claim": "Nino Frank applied the term film noir in 1946",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Film_noir"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l02",
+   "claim": "Roots in German Expressionism and hard-boiled fiction (Hammett, Cain)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Film_noir"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l02",
+   "claim": "Double Indemnity (1944) directed by Billy Wilder",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l03",
+   "claim": "Carol Clover introduced \"final girl\" in a 1987 article, developed in 1992 book",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Final_girl"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l03",
+   "claim": "Nosferatu (1922) directed by F. W. Murnau",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nosferatu"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l03",
+   "claim": "Night of the Living Dead (1968) directed by George A. Romero",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l04",
+   "claim": "A Trip to the Moon (1902) by Georges Melies",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l04",
+   "claim": "The Day the Earth Stood Still (1951) directed by Robert Wise",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l04",
+   "claim": "Metropolis (1927) by Fritz Lang",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l05",
+   "claim": "The Jazz Singer (1927) brought synchronized song",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l05",
+   "claim": "Singin in the Rain (1952) co-directed by Gene Kelly and Stanley Donen",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l05",
+   "claim": "Oklahoma! (1943) pioneered the integrated musical",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l06",
+   "claim": "It Happened One Night won the top five Academy Awards",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/It_Happened_One_Night"
+   ],
+   "note": "Won Best Picture, Director, Actor, Actress, Adapted Screenplay."
+  },
+  {
+   "lessonId": "film-genres.l06",
+   "claim": "Production Code enforced from 1934",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Motion_Picture_Production_Code"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l06",
+   "claim": "Bringing Up Baby (1938) was not a hit at first",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l07",
+   "claim": "Douglas Sirk directed All That Heaven Allows (1955) with Jane Wyman and Rock Hudson",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l07",
+   "claim": "Stella Dallas (1937)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l07",
+   "claim": "Ali: Fear Eats the Soul (1974) by Fassbinder",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l08",
+   "claim": "All Quiet on the Western Front (1930) directed by Lewis Milestone, based on Remarque",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l08",
+   "claim": "Paths of Glory (1957) by Kubrick",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l08",
+   "claim": "Come and See (1985) directed by Elem Klimov",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l09",
+   "claim": "Little Caesar and The Public Enemy (1931), Scarface (1932) by Hawks",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l09",
+   "claim": "Rififi (1955) directed by Jules Dassin",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l09",
+   "claim": "Infernal Affairs (2002) remade by Scorsese as The Departed (2006)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l10",
+   "claim": "Z (1969) directed by Costa-Gavras",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l10",
+   "claim": "The Conversation (1974) directed by Coppola",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l10",
+   "claim": "M (1931) by Fritz Lang",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l11",
+   "claim": "The Thief of Bagdad (1924) with Douglas Fairbanks",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l11",
+   "claim": "Jason and the Argonauts (1963) effects by Ray Harryhausen",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l11",
+   "claim": "Lord of the Rings trilogy 2001 to 2003",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l12",
+   "claim": "Spirited Away (Studio Ghibli) won Best Animated Feature at the 2003 Oscars (75th ceremony)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Spirited_Away"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l12",
+   "claim": "Toy Story (1995) was the first entirely computer-animated feature",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Toy_Story"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l12",
+   "claim": "Snow White (1937) first full-length cel-animated feature produced in the US",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Snow_White_and_the_Seven_Dwarfs_(1937_film)"
+   ],
+   "note": "Source says first animated feature produced in the US and first cel-animated feature; lesson wording is consistent."
+  },
+  {
+   "lessonId": "film-genres.l13",
+   "claim": "John Grierson described documentary as the creative treatment of actuality",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l13",
+   "claim": "Flaherty staged parts of Nanook of the North (1922)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nanook_of_the_North"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l13",
+   "claim": "Bill Nichols documentary modes (poetic, expository, observational, participatory, reflexive, performative)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Opened the Wikipedia page for Nichols but it does not list the modes."
+  },
+  {
+   "lessonId": "film-genres.l14",
+   "claim": "Chaplin debuted the Little Tramp in 1914",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Charlie_Chaplin"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l14",
+   "claim": "Safety Last! (1923) Harold Lloyd clock scene",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l14",
+   "claim": "Sherlock Jr. (1924) and The General (1926) by Keaton",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l15",
+   "claim": "United States v. Paramount Pictures decided 1948, studios divested theaters",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/United_States_v._Paramount_Pictures,_Inc."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l15",
+   "claim": "Production Code adopted 1930, enforced from 1934 under Joseph Breen",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Motion_Picture_Production_Code"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l15",
+   "claim": "Casablanca (1942) directed by Michael Curtiz for Warner Bros.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l16",
+   "claim": "Rome, Open City (1945) by Rossellini; Bicycle Thieves (1948) by De Sica",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l16",
+   "claim": "Truffaut The 400 Blows (1959); Godard Breathless (1960)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l16",
+   "claim": "New Wave critics wrote for Cahiers du Cinema",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l17",
+   "claim": "Tokyo Story (1953) by Ozu",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l17",
+   "claim": "Yojimbo (1961) reworked as A Fistful of Dollars (1964); Seven Samurai inspired The Magnificent Seven",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l17",
+   "claim": "Studio Ghibli founded 1985",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Studio_Ghibli"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l18",
+   "claim": "Raja Harishchandra (1913) widely recognized as first Indian feature",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Raja_Harishchandra"
+   ],
+   "note": "Page notes some historians favour Shree Pundalik (1912); lesson says widely recognized, which is fair."
+  },
+  {
+   "lessonId": "film-genres.l18",
+   "claim": "Alam Ara (1931) first Indian sound film",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page only lists it as first Indian sound film without a date."
+  },
+  {
+   "lessonId": "film-genres.l18",
+   "claim": "RRR (2022) is a Telugu film by S. S. Rajamouli",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l19",
+   "claim": "A Touch of Zen honored at Cannes",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/A_Touch_of_Zen"
+   ],
+   "note": "Technical Grand Prize at Cannes 1975; first wuxia to win at an international festival."
+  },
+  {
+   "lessonId": "film-genres.l19",
+   "claim": "Enter the Dragon (1973) a Hong Kong/American co-production",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l19",
+   "claim": "Yuen Woo-ping choreographed The Matrix (1999)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l20",
+   "claim": "FESPACO began in 1969 in Ouagadougou",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/FESPACO"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l20",
+   "claim": "Nollywood boom traced to Living in Bondage (1992), produced by Kenneth Nnebue, sold on video",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Living_in_Bondage"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l20",
+   "claim": "Black Girl (1966) by Sembene is among first major sub-Saharan features",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l21",
+   "claim": "Maria Candelaria won a major prize at Cannes in 1946",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mar%C3%ADa_Candelaria"
+   ],
+   "note": "Grand Prix, now Palme d Or."
+  },
+  {
+   "lessonId": "film-genres.l21",
+   "claim": "Cuban film institute (ICAIC) created in 1959",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cuban_Institute_of_Cinematographic_Art_and_Industry"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l21",
+   "claim": "The Official Story won the Oscar for foreign-language film",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/The_Official_Story"
+   ],
+   "note": "58th Academy Awards, 1986 ceremony, for 1985 film."
+  },
+  {
+   "lessonId": "film-genres.l22",
+   "claim": "Production Code replaced by ratings system in 1968",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Motion_Picture_Production_Code"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l22",
+   "claim": "Marvel Cinematic Universe began with Iron Man (2008)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Iron_Man_(2008_film)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l22",
+   "claim": "Jaws (1975) wide release with heavy TV advertising",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "film-genres.l23",
+   "claim": "sex, lies, and videotape won Palme d Or at Cannes 1989",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sex,_Lies,_and_Videotape"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l23",
+   "claim": "A24 founded 2012",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/A24"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l23",
+   "claim": "Moonlight (2016) and Everything Everywhere All at Once (2022) won Best Picture",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/A24"
+   ],
+   "note": "Page confirms both won Best Picture; EEAAO at the 2023 ceremony."
+  },
+  {
+   "lessonId": "film-genres.l24",
+   "claim": "Netflix: DVD by mail 1998, streaming 2007, House of Cards 2013",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Netflix"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l24",
+   "claim": "Parasite first non-English-language Best Picture winner",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Parasite_(2019_film)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-genres.l24",
+   "claim": "Roma (2018) prompted debate about streamed films at awards",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  }
+ ]
+}

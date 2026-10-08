@@ -42,7 +42,15 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
     if (!file) return;
     setUploading(true);
     try {
-      const url = await uploadFile(`sanctuaries/${sanctuaryId}/posts/${Date.now()}_${file.name}`, file);
+      let uploadPayload = file;
+      if (!file.type.startsWith('video')) {
+        try {
+          const { compressSocialImage } = await import('../../services/socialImageOptimizer');
+          const opt = await compressSocialImage(file);
+          if (opt.file) uploadPayload = opt.file;
+        } catch { /* fallback */ }
+      }
+      const url = await uploadFile(`sanctuaries/${sanctuaryId}/posts/${Date.now()}_${uploadPayload.name}`, uploadPayload);
       setMedia({ url, type: file.type.startsWith('video') ? 'VIDEO' : 'PHOTO' });
     } finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
   };

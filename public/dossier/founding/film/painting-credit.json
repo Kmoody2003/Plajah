@@ -1,0 +1,25 @@
+{
+  "file": "bunker-hill-trumbull-1786.jpg",
+  "work": "The Battle of Bunker’s Hill, June 17, 1775",
+  "painter": "John Trumbull (1756–1843)",
+  "painted": "1786",
+  "collection": "Yale University Art Gallery, accession 1832.1",
+  "commonsFile": "File:John Trumbull - The Battle of Bunker’s Hill, June 17, 1775 - 1832.1 - Yale University Art Gallery.jpg",
+  "commonsUrl": "https://commons.wikimedia.org/wiki/File:John_Trumbull_-_The_Battle_of_Bunker%E2%80%99s_Hill,_June_17,_1775_-_1832.1_-_Yale_University_Art_Gallery.jpg",
+  "commonsSource": "https://artgallery.yale.edu/collections/objects/41",
+  "licenceTag": "Public domain (Commons: PD-old-100-expired, PD-Art (PD-old-auto-expired), CC-PD-Mark)",
+  "licenceVerified": "2026-10-07 via the Commons API (extmetadata License=pd, UsageTerms=Public domain)",
+  "fetched": "2026-10-07",
+  "userAgent": "PlajahDossier/1.0 (kmoody2003@gmail.com)",
+  "pixels": "1920 x 1278, the Commons file as published: no resampling, sharpening or colour change",
+  "notUsed": {
+    "file": "File:The Battle of Bunker's Hill Bridgeman Images.jpg (8183 x 5388)",
+    "tag": "Public domain (Commons), uploaded from a newspaper-site copy (thesun.co.uk) of a Bridgeman Images file",
+    "reason": "Colours differ strongly from the museum photograph (flags blue-grey where the painting’s are red, burning town nearly absent) and the provenance is a scraped agency copy. The ‘no colour change’ rule made the Yale/Commons plain version the right choice even though it is smaller."
+  },
+  "layers": {
+    "bunker-depth.png": "Depth Anything V2 (small) via transformers.js, dilated 3 px and blurred; scripts/dossier/buildPaintingLayers.ts",
+    "bunker-masks.png": "R far plane (from depth, eroded and feathered), G flag regions (hand polygons), B fire (colour key)",
+    "bunker-fx.png": "R fire glow, G smoke envelope (the painter’s own smoke banks), B face protection (hand-marked circles)"
+  }
+}

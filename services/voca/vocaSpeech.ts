@@ -59,6 +59,9 @@ export class WebSpeechRecognizer implements Recognizer {
   private lastResultAt = 0;
   private listeningSince = 0;
   private lastVoiceAt = 0;
+  /** Boosted, filtered mic track from MicMeter. Chrome versions that accept an audio track in start() listen to this
+   *  (soft / hoarse voices become clearly audible); older engines ignore the argument and use the raw mic. */
+  inputTrack: MediaStreamTrack | null = null;
   private watchdog: ReturnType<typeof setInterval> | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -95,7 +98,7 @@ export class WebSpeechRecognizer implements Recognizer {
     this.kill();
     const SR = getSR(); if (!SR) return;
     const r = new SR();
-    r.lang = this.lang; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
+    r.lang = this.lang; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;
     const seq = ++this.seq;
     this.emitted.clear(); this.lastInterim.clear();
     r.onstart = () => { this.listeningSince = Date.now(); this.lastResultAt = Date.now(); this.set('listening'); };
@@ -104,7 +107,9 @@ export class WebSpeechRecognizer implements Recognizer {
     r.onend = () => { if (this.rec === r) this.rec = null; this.scheduleRestart(); };
     this.rec = r;
     this.set('starting');
-    try { r.start(); } catch { this.scheduleRestart(); }
+    try {
+      if (this.inputTrack && this.inputTrack.readyState === 'live') { try { r.start(this.inputTrack); } catch { r.start(); } } else r.start();
+    } catch { this.scheduleRestart(); }
   }
 
   private scheduleRestart() {
@@ -157,8 +162,9 @@ export class WebSpeechRecognizer implements Recognizer {
   private checkWatchdog() {
     if (!this.active || this.suspended || this.state !== 'listening') return;
     const now = Date.now();
-    // voice heard recently, nothing recognised for 7 s, and we have been listening for a while → restart
-    if (now - this.lastVoiceAt < 1500 && now - this.lastResultAt > 7000 && now - this.listeningSince > 7000) {
+    // voice heard recently, nothing recognised for 4 s, and we have been listening for a while → restart
+    // (a child who says a word again clearly should never be left talking to a deaf engine)
+    if (now - this.lastVoiceAt < 2500 && now - this.lastResultAt > 4000 && now - this.listeningSince > 4000) {
       this.lastResultAt = now; this.kill(); this.scheduleRestart();
     }
   }
@@ -167,6 +173,10 @@ export class WebSpeechRecognizer implements Recognizer {
 // ------------------------------------------------------------------ mic level meter
 export class MicMeter {
   level = 0; floor = 0.01; speaking = false;
+  /** Boosted + filtered copy of the mic (high-pass, presence lift, compressor, adaptive make-up gain) for recognisers that accept a track. */
+  boostedTrack: MediaStreamTrack | null = null;
+  /** Current make-up gain, 1 = untouched. Grows for quiet readers so a whisper-soft child is still heard. */
+  gain = 1;
   onLevel?: (level: number, speaking: boolean) => void;
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
@@ -174,7 +184,8 @@ export class MicMeter {
 
   async start(): Promise<RecError | null> {
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false, channelCount: 1 } });
+      // auto-gain ON: children read softly out of shyness, and a hoarse voice is quieter still
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
     } catch (e: any) {
       const name = e?.name || '';
       if (name === 'NotAllowedError' || name === 'SecurityError') return { code: 'not-allowed', message: 'Microphone permission is blocked. Allow the microphone for this site, then try again.' };
@@ -184,9 +195,23 @@ export class MicMeter {
     const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
     this.ctx = new AC();
     if (this.ctx!.state === 'suspended') { try { await this.ctx!.resume(); } catch { /* resumes on next gesture */ } }
-    const src = this.ctx!.createMediaStreamSource(this.stream!);
-    const an = this.ctx!.createAnalyser(); an.fftSize = 1024; src.connect(an);
+    const c = this.ctx!;
+    const src = c.createMediaStreamSource(this.stream!);
+    const an = c.createAnalyser(); an.fftSize = 1024; src.connect(an);
+    // DSP chain for the recogniser: cut rumble, lift the consonant band, even out loud/soft, then make-up gain
+    let gainNode: GainNode | null = null;
+    try {
+      const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
+      const presence = c.createBiquadFilter(); presence.type = 'peaking'; presence.frequency.value = 2800; presence.Q.value = 0.8; presence.gain.value = 4;
+      const comp = c.createDynamicsCompressor(); comp.threshold.value = -48; comp.knee.value = 24; comp.ratio.value = 5; comp.attack.value = 0.004; comp.release.value = 0.2;
+      gainNode = c.createGain(); gainNode.gain.value = 1;
+      const limiter = c.createDynamicsCompressor(); limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.05;
+      const dest = c.createMediaStreamDestination();
+      src.connect(hp); hp.connect(presence); presence.connect(comp); comp.connect(gainNode); gainNode.connect(limiter); limiter.connect(dest);
+      this.boostedTrack = dest.stream.getAudioTracks()[0] ?? null;
+    } catch { this.boostedTrack = null; gainNode = null; }
     const buf = new Float32Array(an.fftSize);
+    let speechPeak = 0;
     // setInterval (not rAF) so metering keeps working when the tab repaints slowly
     this.timer = setInterval(() => {
       an.getFloatTimeDomainData(buf);
@@ -195,7 +220,14 @@ export class MicMeter {
       this.level = this.level * 0.6 + rms * 0.4;
       // adaptive noise floor: falls quickly, rises slowly
       this.floor = rms < this.floor ? this.floor * 0.9 + rms * 0.1 : this.floor * 0.998 + rms * 0.002;
-      this.speaking = this.level > Math.max(0.012, this.floor * 2.8);
+      // sensitive gate: a soft or raspy voice only has to clear ~2.2x the room, down to a very low absolute level
+      this.speaking = this.level > Math.max(0.005, this.floor * 2.2);
+      if (this.speaking) speechPeak = Math.max(speechPeak * 0.999, this.level); else speechPeak *= 0.9995;
+      if (gainNode && speechPeak > 0.002) {
+        const target = Math.min(8, Math.max(1, 0.09 / speechPeak));
+        this.gain = this.gain * 0.9 + target * 0.1;
+        gainNode.gain.setTargetAtTime(this.gain, c.currentTime, 0.25);
+      }
       this.onLevel?.(this.level, this.speaking);
     }, 50);
     return null;
@@ -204,7 +236,7 @@ export class MicMeter {
   stop() {
     if (this.timer) clearInterval(this.timer); this.timer = null;
     this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
-    try { this.ctx?.close(); } catch { /* closed */ } this.ctx = null;
+    try { this.ctx?.close(); } catch { /* closed */ } this.ctx = null; this.boostedTrack = null;
   }
 }
 

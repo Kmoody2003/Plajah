@@ -1,0 +1,704 @@
+{
+ "courseId": "lab-neuroscience",
+ "label": "Neuroscience",
+ "lessons": [
+  {
+   "id": "lab-neuroscience.l01",
+   "title": "The Neuron Doctrine",
+   "body": [
+    "In the late 1800s scientists argued about what the brain is made of. Camillo Golgi, who invented a silver stain that darkens a few whole neurons against a clear background, believed the nervous system was one continuous net. Santiago Ramon y Cajal used Golgi's own stain and drew detailed pictures showing that neurons are separate cells that touch but do not fuse. This is the neuron doctrine, and Cajal turned out to be right. Electron microscopes in the 1950s finally resolved the tiny gap between neurons and settled the argument.",
+    "A typical neuron has dendrites that receive signals, a cell body (soma) that integrates them, and an axon that sends the signal onward. Cajal's law of dynamic polarisation says information flows in one direction: dendrite, then soma, then axon. Charles Sherrington later named the junction between two neurons the synapse.",
+    "Think of a relay race. Each runner (neuron) is a separate person who hands the baton across a gap to the next runner, rather than all runners being one long body. Golgi and Cajal shared the 1906 Nobel Prize even though they never agreed on this question."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l02",
+   "title": "The Resting Potential",
+   "body": [
+    "Even when it is doing nothing, a neuron is electrically charged. The inside of the cell sits at roughly -70 millivolts relative to the outside. This resting membrane potential comes from two things: uneven ion concentrations and a membrane that lets some ions through more easily than others.",
+    "Potassium is concentrated inside the cell and sodium outside, and the sodium-potassium pump (the Na+/K+-ATPase, found by Jens Skou) spends energy to maintain those gradients. At rest the membrane is far more permeable to potassium than to sodium, so potassium leaks out and leaves the inside negative.",
+    "Each ion has an equilibrium or Nernst potential, the voltage at which the electrical push exactly balances the diffusion push for that ion. The Nernst equation is E = (RT / zF) ln([X]out / [X]in). When several ions can cross, the Goldman-Hodgkin-Katz equation blends their Nernst potentials, weighting each by its permeability. The resting potential therefore sits close to the potassium potential, because potassium dominates the permeability.",
+    "In everyday terms, a resting neuron is like a charged phone battery: stored energy waiting to be used. Every action potential discharges a little of it."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l03",
+   "title": "The Action Potential",
+   "body": [
+    "An action potential is a brief, self-regenerating wave of voltage. When input depolarises the membrane past a threshold, voltage-gated sodium channels snap open. Sodium rushes in and the inside of the cell swings sharply positive. A fraction of a millisecond later the sodium channels inactivate and potassium channels open, so potassium flows out and the membrane repolarises.",
+    "The spike is all-or-nothing: below threshold nothing happens, and above threshold the spike has the same size no matter how strong the stimulus. Because each patch of membrane regenerates the spike for the next patch, the signal travels the whole length of an axon without fading.",
+    "Alan Hodgkin and Andrew Huxley worked this out in the 1950s using the giant axon of the squid and a technique called the voltage clamp, which holds voltage steady so the ionic currents can be measured. Their model adds up a capacitive current plus potassium, sodium and leak currents. Each ionic current follows Ohm's law: I = g x (Vm - E), conductance times the driving force.",
+    "A useful comparison is a row of dominoes: a small push does nothing, a big enough push topples the first domino, and each falling domino fully topples the next, so the wave arrives undiminished."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l04",
+   "title": "The Synapse",
+   "body": [
+    "At a chemical synapse, the electrical signal is briefly converted into a chemical one. When an action potential reaches the axon terminal, voltage-gated calcium channels open. The incoming calcium makes synaptic vesicles fuse with the membrane and dump neurotransmitter into the narrow synaptic cleft, a gap of roughly 20 nanometres. The transmitter binds to receptors on the next cell and changes its voltage.",
+    "Bernard Katz showed that release is quantal: neurotransmitter comes in discrete packets, one vesicle at a time. Otto Loewi gave the first proof that transmission is chemical in 1921, when fluid washed from a stimulated frog heart nerve slowed a second heart. Sherrington named the synapse decades before electron microscopy (Palade and Palay, 1954) let anyone see it.",
+    "The key point is that the signal is delayed and one-way at the synapse: the sending side releases, the receiving side listens. That makes synapses places where signals can be amplified, weakened or blocked, which is why they matter so much for learning and for drugs.",
+    "Imagine passing a note across a gap by throwing a ball with a message tied on: the ball (neurotransmitter) leaves one side and is caught by receptors on the other."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l05",
+   "title": "Neurotransmitters",
+   "body": [
+    "Neurotransmitters are the molecules that carry signals across synapses. Glutamate is the brain's main excitatory signal, which makes the next neuron more likely to fire, and GABA is the main inhibitory signal, which makes it less likely. Other transmitters, including dopamine, serotonin, noradrenaline and acetylcholine, act as modulators that tune whole circuits for reward, mood, arousal and attention.",
+    "A surprising fact is that a transmitter is not excitatory or inhibitory by itself. What matters is the receptor it binds, so the same molecule can have different effects in different places. Most psychiatric drugs work by nudging these systems, for example by changing how long a transmitter stays in the cleft.",
+    "The history is concrete. Otto Loewi identified acetylcholine, which he called Vagusstoff, in 1921 as the first known neurotransmitter. Ulf von Euler discovered noradrenaline in 1946, and Arvid Carlsson showed in 1957 that dopamine is a signalling molecule in its own right rather than just a precursor.",
+    "An everyday analogy is a radio: the same broadcast (transmitter) can be a song or static depending on the radio (receptor) that receives it."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l06",
+   "title": "Passive Spread: Time and Length Constants",
+   "body": [
+    "Not every signal in a neuron is an all-or-nothing spike. Small voltage changes in dendrites spread passively, like heat along a metal rod, and they fade with time and distance. Cable theory, developed by Wilfrid Rall, describes this.",
+    "Two numbers summarise it. The membrane time constant is tau = Rm x Cm, the product of membrane resistance and capacitance. It is the time for the voltage to rise (or decay) to about 63 percent of its final value, and it controls how much inputs arriving at slightly different times can add together. The length constant is lambda = sqrt(rm / ri), the square root of membrane resistance over axial resistance per unit length. It is the distance over which a passive signal falls to about 37 percent of its starting size.",
+    "Example: with Rm = 20,000 ohm cm2 and Cm = 1 microfarad per cm2, tau = 20,000 x 0.000001 s = 0.02 s, or 20 milliseconds. A leakier membrane (smaller Rm) has a shorter tau and a shorter lambda, so signals fade faster and shorter.",
+    "This is why neurons need action potentials for long distances: passive spread alone would fade to nothing, but a regenerated spike restores the full signal at every step."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l07",
+   "title": "Hebb and Long-Term Potentiation",
+   "body": [
+    "In 1949 Donald Hebb proposed that a synapse strengthens when the cell before it and the cell after it are active at the same time. Summed up as cells that fire together wire together, it can be written as a rule: change in weight = eta x (activity i) x (activity j), where eta is the learning rate. For example, with eta = 0.1 and activities 2 and 3, the weight rises by 0.1 x 2 x 3 = 0.6.",
+    "The cellular version is long-term potentiation (LTP), discovered by Bliss and Lomo in 1973 in the rabbit hippocampus. Strong, repeated stimulation of a synapse makes its response larger for hours, days or longer. The key molecule is the NMDA receptor, which opens only when the sending cell has released glutamate and the receiving cell is already depolarised. That makes it a coincidence detector, exactly what Hebb's rule needs.",
+    "The link to behaviour is direct: in the Morris water-maze experiment, blocking NMDA receptors with the drug APV impaired spatial memory.",
+    "Think of a path through grass. Walk it often (correlated activity) and it becomes a clear, easy trail (a stronger synapse); a path nobody uses grows over."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l08",
+   "title": "Neuroplasticity",
+   "body": [
+    "The adult brain is not fixed wiring. Synapses strengthen and weaken with use, new dendritic spines grow, and whole cortical maps can reorganise after injury or intense practice. This lifelong ability to change is called neuroplasticity, and it is the cellular basis of learning and of recovery from conditions such as stroke.",
+    "Plasticity is strongest in early critical periods. David Hubel and Torsten Wiesel closed one eye of a young kitten and found that the visual cortex permanently rewired so that the open eye took over; the same closure in an adult cat had far less effect. Plasticity never closes completely, though. Michael Merzenich showed that sensory maps in the cortex reorganise when input changes, and Eleanor Maguire found in 2000 that licensed London taxi drivers had an enlarged posterior hippocampus, reflecting years of navigating the city.",
+    "So experience literally reshapes brain structure. Learning a language, juggling or a musical instrument all leave physical traces.",
+    "An everyday picture is a muscle: use a particular one heavily and it grows, neglect one and it weakens. Brain circuits behave in a similar use-it-or-lose-it way, though through changes in connections rather than bulk."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l09",
+   "title": "Memory Systems and Patient H.M.",
+   "body": [
+    "Memory is not one thing. The clearest evidence came from a patient known as H.M., who had parts of his medial temporal lobes, including the hippocampus, removed to treat epilepsy. Afterwards he could no longer form new lasting memories of facts and events, though he remembered his earlier life and could still learn new motor skills. Brenda Milner studied him and used this to distinguish declarative memory (facts and events you can state) from procedural memory (skills such as mirror drawing), which depend on different brain systems.",
+    "The hippocampus is central to turning new experiences into lasting memories. At the cellular level, long-term potentiation gives it a way to store them, and Eric Kandel's work on the sea slug Aplysia showed how short-term and long-term memory change synaptic strength, with long-term memory involving new molecular changes in the synapse.",
+    "A practical example: someone with this kind of damage might practise a puzzle daily and get faster at it, yet each day insist they have never seen the puzzle before. The skill is stored; the memory of the practice sessions is not.",
+    "This is the value of case studies in neuroscience: a lesion that removes one ability while sparing others reveals how the brain divides up its work."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l10",
+   "title": "Functional Localisation",
+   "body": [
+    "Functional localisation is the idea that different parts of the cortex specialise in different tasks. In 1861 Paul Broca studied a patient who could understand speech but could barely produce it, and found damage in the left inferior frontal gyrus. This region is now called Broca's area and was the first strong evidence for localisation. In 1874 Carl Wernicke described a different pattern: patients who spoke fluently but could not understand language, with damage in the temporal lobe. Wernicke's area supports comprehension, so production and comprehension can fail separately.",
+    "Later, neurosurgeon Wilder Penfield stimulated the exposed cortex of awake patients with small electrical currents and mapped body representations in the sensory and motor cortex. His map is the cortical homunculus, a distorted little person in which hands and lips take up far more cortex than the trunk. Roger Sperry's split-brain studies added that the two hemispheres specialise too.",
+    "Localisation does not mean one spot does everything. Complex tasks use networks, but the maps tell us which regions are necessary for which functions.",
+    "An analogy is a city: a hospital district and a harbour district have different jobs, yet everyday life needs roads connecting all of them."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l11",
+   "title": "Neural Coding and Spike Statistics",
+   "body": [
+    "Because every action potential is the same size, information must be carried by the pattern of spikes: how many occur in a window (rate coding) and exactly when they occur (temporal coding). Hubel and Wiesel found that visual cortex neurons fire most for edges at a preferred orientation, so a cell's firing rate signals how well the stimulus matches its preference.",
+    "Spike counts from many cortical neurons are noisy, and a good first model is the Poisson distribution: P(n) = (lambda t)^n e^(-lambda t) / n!, where lambda is the mean firing rate and t is the time window. The expected number of spikes is simply lambda x t. A neuron firing at 20 Hz observed for 0.5 s is expected to give 20 x 0.5 = 10 spikes, although any single trial will vary.",
+    "Simple models help too. In the leaky integrate-and-fire neuron the membrane integrates its input, leaks back toward rest, and fires a spike when it crosses threshold. A sigmoid function, f(x) = 1 / (1 + e^-x), is often used to turn net input into a smooth firing rate, and is a building block of artificial neural networks.",
+    "Psychophysics adds that perception is not linear: the Weber-Fechner law says perceived intensity grows with the logarithm of stimulus strength."
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l12",
+   "title": "Imaging, Connectomes and Computation",
+   "body": [
+    "Since about 1990, tools have made the working brain visible. Functional MRI measures blood-flow changes that follow neural activity, and the first fMRI studies of human cognition appeared in 1991 and 1992. PET and MEG add other views, and optogenetics (2005) lets researchers switch specific neurons on or off with light, which tests cause and effect rather than just correlation.",
+    "Connectomics tries to map every neuron and connection. The connectome of the roundworm C. elegans has 302 neurons, while the human brain has around 86 billion. Large datasets such as the Allen Brain Atlas, OpenNeuro and the Human Connectome Project are open, and simulators such as NEURON and Brian2 let students model neurons themselves.",
+    "Each method has trade-offs. fMRI sees the whole brain but follows blood flow, which is slower and less direct than spikes. Recording single neurons is precise but sees only a few cells at a time.",
+    "A good rule of thumb for any study is to ask what is actually being measured. A bright patch on a scan means blood flow rose there during the task, which is evidence about brain activity but not proof that the region alone performs the task.",
+    "This closes a long path: from the ancient heart-versus-brain debate to computational models that aim at the origins of the mind."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-neuroscience.l01.q1",
+   "lessonId": "lab-neuroscience.l01",
+   "kind": "mcq",
+   "prompt": "What does the neuron doctrine state?",
+   "choices": [
+    "Neurons are made only of glial cells",
+    "Signals travel from axon to dendrite",
+    "The nervous system is one continuous net of fused fibres",
+    "The nervous system is made of discrete individual cells"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l01.q2",
+   "lessonId": "lab-neuroscience.l01",
+   "kind": "mcq",
+   "prompt": "Which scientist coined the term \"synapse\"?",
+   "choices": [
+    "Otto Loewi",
+    "Charles Sherrington",
+    "Paul Broca",
+    "Camillo Golgi"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l01.q3",
+   "lessonId": "lab-neuroscience.l01",
+   "kind": "mcq",
+   "prompt": "A neuron's signal is described by the law of dynamic polarisation. Which path does the information follow?",
+   "choices": [
+    "Axon, then soma, then dendrite",
+    "Soma, then dendrite, then axon",
+    "Dendrite, then soma, then axon",
+    "Dendrite, then axon, then soma"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l01.q4",
+   "lessonId": "lab-neuroscience.l01",
+   "kind": "mcq",
+   "prompt": "Why was Golgi's silver stain so important for settling the debate, even though Golgi himself held the opposing view?",
+   "choices": [
+    "It showed the synapse directly with an electron beam",
+    "It stained a few whole neurons completely, letting Cajal see each cell as separate",
+    "It made all tissue transparent so a continuous net could be seen",
+    "It measured electrical activity in single cells"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l02.q1",
+   "lessonId": "lab-neuroscience.l02",
+   "kind": "mcq",
+   "prompt": "Roughly what is the resting membrane potential of a typical neuron?",
+   "choices": [
+    "0 mV",
+    "-70 mV",
+    "-700 mV",
+    "+70 mV"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l02.q2",
+   "lessonId": "lab-neuroscience.l02",
+   "kind": "mcq",
+   "prompt": "Which ion is the membrane most permeable to at rest?",
+   "choices": [
+    "Sodium",
+    "Potassium",
+    "Calcium",
+    "Hydrogen"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l02.q3",
+   "lessonId": "lab-neuroscience.l02",
+   "kind": "mcq",
+   "prompt": "If a membrane's permeability to sodium were suddenly increased greatly, in which direction would the membrane potential move?",
+   "choices": [
+    "It would go to exactly zero",
+    "Toward the sodium equilibrium potential, which is positive",
+    "Toward the potassium equilibrium potential, which is more negative",
+    "It would not change"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l02.q4",
+   "lessonId": "lab-neuroscience.l02",
+   "kind": "mcq",
+   "prompt": "What would happen to the resting potential over time if the sodium-potassium pump stopped working?",
+   "choices": [
+    "Nothing, because the pump only controls temperature",
+    "The cell would fire a single permanent spike",
+    "It would become more negative forever",
+    "The ion gradients would slowly run down and the resting potential would decay"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l03.q1",
+   "lessonId": "lab-neuroscience.l03",
+   "kind": "mcq",
+   "prompt": "Which channels open first when the membrane depolarises past threshold?",
+   "choices": [
+    "Voltage-gated sodium channels",
+    "Voltage-gated potassium channels",
+    "Calcium-activated chloride channels",
+    "NMDA receptors"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l03.q2",
+   "lessonId": "lab-neuroscience.l03",
+   "kind": "mcq",
+   "prompt": "What does \"all-or-nothing\" mean for an action potential?",
+   "choices": [
+    "It never travels along axons",
+    "It only occurs in a few neurons",
+    "Its size does not depend on the strength of a suprathreshold stimulus",
+    "It is larger for stronger stimuli"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l03.q3",
+   "lessonId": "lab-neuroscience.l03",
+   "kind": "mcq",
+   "prompt": "A potassium channel has conductance g = 2 nS and the membrane is at -70 mV while the potassium reversal potential is -90 mV. Using I = g x (Vm - E), what is the current?",
+   "choices": [
+    "140 pA",
+    "4 pA",
+    "40 pA",
+    "-40 pA"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l03.q4",
+   "lessonId": "lab-neuroscience.l03",
+   "kind": "mcq",
+   "prompt": "Why can an action potential travel a long axon without fading, whereas a passive voltage change does not?",
+   "choices": [
+    "The spike is actively regenerated by voltage-gated channels at each patch of membrane",
+    "Axons contain a battery in the soma that pushes the signal",
+    "The signal is amplified at the synapse only",
+    "Axons have no resistance"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l04.q1",
+   "lessonId": "lab-neuroscience.l04",
+   "kind": "mcq",
+   "prompt": "What triggers synaptic vesicles to release neurotransmitter at the axon terminal?",
+   "choices": [
+    "Arrival of a new neuron",
+    "Entry of calcium through voltage-gated channels",
+    "Exit of potassium",
+    "Closing of sodium channels"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l04.q2",
+   "lessonId": "lab-neuroscience.l04",
+   "kind": "mcq",
+   "prompt": "Which experiment gave early proof of chemical transmission?",
+   "choices": [
+    "Hubel and Wiesel's kitten study",
+    "Broca's patient",
+    "Katz's patch clamp",
+    "Loewi's frog-heart experiment"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l04.q3",
+   "lessonId": "lab-neuroscience.l04",
+   "kind": "mcq",
+   "prompt": "Katz showed that neurotransmitter is released in \"quantal\" packets. What does this mean for a single vesicle?",
+   "choices": [
+    "Release happens in whole-vesicle units, not in arbitrary amounts",
+    "Vesicles only release when the cell is silent",
+    "Neurotransmitter diffuses out of the whole cell at once",
+    "Each vesicle releases a variable amount depending on stimulus"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l04.q4",
+   "lessonId": "lab-neuroscience.l04",
+   "kind": "mcq",
+   "prompt": "Why is the synapse a useful place for the nervous system to regulate and change signals?",
+   "choices": [
+    "It is the only place electricity can flow",
+    "The chemical step can be strengthened, weakened or blocked, unlike a continuous fibre",
+    "It is much faster than any other part of the neuron",
+    "It contains the cell nucleus"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l05.q1",
+   "lessonId": "lab-neuroscience.l05",
+   "kind": "mcq",
+   "prompt": "Which neurotransmitter is the brain's main inhibitory signal?",
+   "choices": [
+    "Acetylcholine",
+    "Noradrenaline",
+    "Glutamate",
+    "GABA"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l05.q2",
+   "lessonId": "lab-neuroscience.l05",
+   "kind": "mcq",
+   "prompt": "Which was the first neurotransmitter identified, by Otto Loewi in 1921?",
+   "choices": [
+    "Serotonin",
+    "Acetylcholine",
+    "GABA",
+    "Dopamine"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l05.q3",
+   "lessonId": "lab-neuroscience.l05",
+   "kind": "mcq",
+   "prompt": "The same neurotransmitter excites one cell type and inhibits another. What is the most likely explanation?",
+   "choices": [
+    "The two cells have different receptors for it",
+    "The transmitter changes its chemical formula",
+    "One cell has no membrane",
+    "The transmitter is only active at night"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l05.q4",
+   "lessonId": "lab-neuroscience.l05",
+   "kind": "mcq",
+   "prompt": "A drug blocks the re-uptake of a transmitter so that it stays longer in the cleft. What is the most likely effect on signalling through that transmitter?",
+   "choices": [
+    "It has no effect on receptors",
+    "It is strengthened or prolonged",
+    "It stops completely",
+    "It switches from excitatory to inhibitory"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l06.q1",
+   "lessonId": "lab-neuroscience.l06",
+   "kind": "mcq",
+   "prompt": "What is the formula for the membrane time constant?",
+   "choices": [
+    "tau = Rm / Cm",
+    "tau = Rm + Cm",
+    "tau = sqrt(Rm x Cm)",
+    "tau = Rm x Cm"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l06.q2",
+   "lessonId": "lab-neuroscience.l06",
+   "kind": "mcq",
+   "prompt": "Over one length constant, a passive signal falls to about what fraction of its original size?",
+   "choices": [
+    "63 percent",
+    "50 percent",
+    "37 percent",
+    "10 percent"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l06.q3",
+   "lessonId": "lab-neuroscience.l06",
+   "kind": "mcq",
+   "prompt": "A membrane has Rm = 20,000 ohm cm2 and Cm = 1 microfarad per cm2. What is its time constant?",
+   "choices": [
+    "2 s",
+    "2 ms",
+    "20 ms",
+    "200 ms"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l06.q4",
+   "lessonId": "lab-neuroscience.l06",
+   "kind": "mcq",
+   "prompt": "A dendrite's membrane becomes much leakier, lowering membrane resistance. How does this change passive signal spread?",
+   "choices": [
+    "Signals become all-or-nothing",
+    "There is no change",
+    "Signals travel farther",
+    "Signals fade over a shorter distance"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l07.q1",
+   "lessonId": "lab-neuroscience.l07",
+   "kind": "mcq",
+   "prompt": "Which receptor acts as the coincidence detector for LTP?",
+   "choices": [
+    "NMDA receptor",
+    "GABA receptor",
+    "Dopamine transporter",
+    "Acetylcholinesterase"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l07.q2",
+   "lessonId": "lab-neuroscience.l07",
+   "kind": "mcq",
+   "prompt": "Who discovered LTP in the rabbit hippocampus in 1973?",
+   "choices": [
+    "Cajal and Golgi",
+    "Hubel and Wiesel",
+    "Bliss and Lomo",
+    "Hodgkin and Huxley"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l07.q3",
+   "lessonId": "lab-neuroscience.l07",
+   "kind": "mcq",
+   "prompt": "Using the Hebbian rule change in weight = eta x xi x xj, with eta = 0.1, xi = 2 and xj = 3, what is the change in weight?",
+   "choices": [
+    "5",
+    "6",
+    "0.5",
+    "0.6"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l07.q4",
+   "lessonId": "lab-neuroscience.l07",
+   "kind": "mcq",
+   "prompt": "Why does blocking NMDA receptors in the Morris water maze experiment support a link between LTP and learning?",
+   "choices": [
+    "It blocks LTP and also impairs spatial learning",
+    "It increases the number of synapses",
+    "It removes the hippocampus",
+    "It makes animals swim faster"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l08.q1",
+   "lessonId": "lab-neuroscience.l08",
+   "kind": "mcq",
+   "prompt": "What is neuroplasticity?",
+   "choices": [
+    "The growth of new skull bone",
+    "The brain's ability to change its connections with experience",
+    "The hardening of brain tissue with age",
+    "A type of neurotransmitter"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l08.q2",
+   "lessonId": "lab-neuroscience.l08",
+   "kind": "mcq",
+   "prompt": "Which group showed enlarged posterior hippocampi after years of navigation work?",
+   "choices": [
+    "Chess players",
+    "Long-distance swimmers",
+    "Professional pianists",
+    "London taxi drivers"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l08.q3",
+   "lessonId": "lab-neuroscience.l08",
+   "kind": "mcq",
+   "prompt": "In Hubel and Wiesel's experiments, closing one eye of a kitten during early life led to what?",
+   "choices": [
+    "No change at all",
+    "Loss of hearing",
+    "Faster development of the closed eye",
+    "Permanent rewiring of visual cortex toward the open eye"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l08.q4",
+   "lessonId": "lab-neuroscience.l08",
+   "kind": "mcq",
+   "prompt": "Why does a critical period matter for how we think about learning and recovery?",
+   "choices": [
+    "Plasticity is highest early but never fully closes, so both timing and later practice matter",
+    "It proves adults cannot learn anything new",
+    "It shows that only children have neurons",
+    "It means plasticity stops at age 10"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l09.q1",
+   "lessonId": "lab-neuroscience.l09",
+   "kind": "mcq",
+   "prompt": "Which brain structure was crucial to patient H.M.'s inability to form new memories?",
+   "choices": [
+    "Cerebellum only",
+    "Motor cortex",
+    "Hippocampus and medial temporal lobe",
+    "Visual cortex"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l09.q2",
+   "lessonId": "lab-neuroscience.l09",
+   "kind": "mcq",
+   "prompt": "Who studied H.M. and distinguished declarative from procedural memory?",
+   "choices": [
+    "Rita Levi-Montalcini",
+    "Torsten Wiesel",
+    "Eleanor Maguire",
+    "Brenda Milner"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l09.q3",
+   "lessonId": "lab-neuroscience.l09",
+   "kind": "mcq",
+   "prompt": "A patient with hippocampal damage gets steadily faster at a mirror-drawing task over several days but says each day that they have never done it before. What does this show?",
+   "choices": [
+    "Skill memory can form without memory of the practice episodes",
+    "Skill learning requires conscious recall",
+    "The patient is guessing",
+    "Both memory types depend on exactly the same system"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l09.q4",
+   "lessonId": "lab-neuroscience.l09",
+   "kind": "mcq",
+   "prompt": "Why are lesion case studies like H.M. so informative about brain organisation?",
+   "choices": [
+    "They measure single-neuron spikes",
+    "Removing a region that disrupts one ability but spares others shows how functions are divided",
+    "They prove every function is in one place",
+    "They show the brain cannot be studied"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l10.q1",
+   "lessonId": "lab-neuroscience.l10",
+   "kind": "mcq",
+   "prompt": "Broca's area is associated with what function?",
+   "choices": [
+    "Balance",
+    "Speech production",
+    "Vision",
+    "Hearing"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l10.q2",
+   "lessonId": "lab-neuroscience.l10",
+   "kind": "mcq",
+   "prompt": "What did Wilder Penfield create by stimulating the cortex of awake patients?",
+   "choices": [
+    "The voltage clamp",
+    "The NMDA receptor",
+    "The cortical homunculus map",
+    "The Golgi stain"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l10.q3",
+   "lessonId": "lab-neuroscience.l10",
+   "kind": "mcq",
+   "prompt": "A patient speaks fluently but produces meaningless sentences and cannot understand what others say. Damage to which area is most consistent?",
+   "choices": [
+    "Broca's area",
+    "Primary motor cortex",
+    "The cerebellum",
+    "Wernicke's area"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l10.q4",
+   "lessonId": "lab-neuroscience.l10",
+   "kind": "mcq",
+   "prompt": "In the homunculus, hands and lips occupy a large share of the map. What is the best interpretation?",
+   "choices": [
+    "Cortical space reflects the density and importance of sensory or motor control, not body size",
+    "Hands and lips are the largest body parts",
+    "The map is drawn at random",
+    "These areas have no neurons"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l11.q1",
+   "lessonId": "lab-neuroscience.l11",
+   "kind": "mcq",
+   "prompt": "What does rate coding mean?",
+   "choices": [
+    "Information is carried by the colour of neurons",
+    "Neurons never change their firing",
+    "Information is carried by how many spikes occur in a time window",
+    "Information is carried only by spike size"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l11.q2",
+   "lessonId": "lab-neuroscience.l11",
+   "kind": "mcq",
+   "prompt": "Which distribution is a common first model for cortical spike counts?",
+   "choices": [
+    "Uniform",
+    "Cauchy",
+    "Binary",
+    "Poisson"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l11.q3",
+   "lessonId": "lab-neuroscience.l11",
+   "kind": "mcq",
+   "prompt": "A neuron fires at a mean rate of 20 Hz. How many spikes do you expect on average in a 0.5 s window?",
+   "choices": [
+    "4",
+    "10",
+    "20",
+    "40"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l11.q4",
+   "lessonId": "lab-neuroscience.l11",
+   "kind": "mcq",
+   "prompt": "Why is a single-trial spike count not a perfect measure of a stimulus?",
+   "choices": [
+    "The stimulus changes the species",
+    "Spike counts vary from trial to trial even for the same stimulus",
+    "Neurons only fire once",
+    "Spikes differ in size between trials"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l12.q1",
+   "lessonId": "lab-neuroscience.l12",
+   "kind": "mcq",
+   "prompt": "What does fMRI measure?",
+   "choices": [
+    "Individual ion channel currents",
+    "The sequence of DNA",
+    "Neurotransmitter concentration in the cleft",
+    "Blood-flow changes linked to neural activity"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l12.q2",
+   "lessonId": "lab-neuroscience.l12",
+   "kind": "mcq",
+   "prompt": "How many neurons are in the C. elegans connectome?",
+   "choices": [
+    "302",
+    "3,020",
+    "86 billion",
+    "1 million"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l12.q3",
+   "lessonId": "lab-neuroscience.l12",
+   "kind": "mcq",
+   "prompt": "Optogenetics lets researchers switch defined neurons on or off with light. What kind of conclusion does it allow beyond fMRI?",
+   "choices": [
+    "Mapping the skull",
+    "Tests of cause and effect for specific neurons",
+    "Only correlations between regions",
+    "Measurement of blood oxygen"
+   ]
+  },
+  {
+   "id": "lab-neuroscience.l12.q4",
+   "lessonId": "lab-neuroscience.l12",
+   "kind": "mcq",
+   "prompt": "A scan shows a bright patch in a region during a task. What is the most careful conclusion?",
+   "choices": [
+    "The region is damaged",
+    "Neurons there are not active",
+    "Blood flow rose there during the task, which suggests involvement but does not prove it alone performs the task",
+    "That region alone produces the behaviour"
+   ]
+  }
+ ]
+}

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, lazy, Suspense, useCallback, useRef } from 'react';
-import { Album, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
+import React, { useState, useEffect, lazy, Suspense, useCallback, useRef, useMemo } from 'react';
+import { Album, Track, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
 import { fetchGallery } from './services/galleryService';
 import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
@@ -54,17 +54,23 @@ const AlbumCreator = retryLazy(() => import('./components/AlbumCreator'));
 const EarthGlobe = retryLazy(() => import('./components/EarthGlobe')); // home hero globe
 const PlayerView = retryLazy(() => import('./components/PlayerView'));
 const MixPlayerView = retryLazy(() => import('./components/MixPlayerView')); // Chora Mixes player
+const ShowModeView = retryLazy(() => import('./components/ShowModeView')); // Share in Show Mode (fullscreen stage landing)
+const CellAtlasView = retryLazy(() => import('./components/anatomy/CellAtlasView')); // Cell + Brain Atlas (Human Body module)
+const ArtistSupportSheet = retryLazy(() => import('./components/ArtistSupportSheet')); // gift / buy / Plajah+ sheet
+const SupportReturnModal = retryLazy(() => import('./components/SupportReturnModal')); // thank-you after gift / purchase
 const SearchView = retryLazy(() => import('./components/SearchView'));
 const FeedView = retryLazy(() => import('./components/FeedView'));
 const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
 const MobileLiveHub = retryLazy(() => import('./components/MobileLiveHub'));
 const MyOrdersView = retryLazy(() => import('./components/MyOrdersView'));
+const MyGarageView = retryLazy(() => import('./components/MyGarageView'));
 const CharacterProfileView = retryLazy(() => import('./components/CharacterProfileView'));
 const CharacterChat = retryLazy(() => import('./components/CharacterChat'));
 const UserProfileView = retryLazy(() => import('./components/UserProfileView'));
 const RadioView = retryLazy(() => import('./components/RadioView'));
 const TVView = retryLazy(() => import('./components/TVView'));
 const GamesView = retryLazy(() => import('./components/GamesView'));
+const PlajahFseView = retryLazy(() => import('./components/experience/PlajahFseView'));
 const MusicView = retryLazy(() => import('./components/MusicView'));
 const ArtGalleryView = retryLazy(() => import('./components/ArtGalleryView'));
 const ChoraConservatory = retryLazy(() => import('./components/ChoraConservatory'));
@@ -112,12 +118,16 @@ const SkyRoute = retryLazy(() => import('./components/academia/SkyRoute'));
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
 // Health & Fitness hub
 const PlajahHealthFitnessView = retryLazy(() => import('./components/PlajahHealthFitnessView'));
+// Plajah Home — smart home controller, repurposed device hub, intercom & digital frames
+const PlajahHomeView = retryLazy(() => import('./components/PlajahHomeView'));
 // Plajah Research Manifesto
 const PlajahResearchPage = retryLazy(() => import('./components/PlajahResearchPage'));
 // TV Studio — browser production switcher
 const TVStudio = retryLazy(() => import('./components/TVStudio'));
 // Live Real-Time Audio FX Audition Lab
 const LiveAudioFxAuditionLab = retryLazy(() => import('./components/labs/LiveAudioFxAuditionLab'));
+// Universal Video Player (Reello, Taleo, Local Files, Asset HQ)
+const ReelloUniversalVideoPlayer = retryLazy(() => import('./components/reello/ReelloUniversalVideoPlayer'));
 
 import ExperiencePicker from './components/ExperiencePicker';
 import GlobalPlayer from './components/GlobalPlayer';
@@ -170,13 +180,30 @@ const BookTab = retryLazy(() => import('./components/BookTab'));
 const BookReader = retryLazy(() => import('./components/BookReader'));
 const UserDashboard = retryLazy(() => import('./components/UserDashboard'));
 const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView'));
+const NativePhotoViewer = retryLazy(() => import('./components/photo/NativePhotoViewer'));
+import { onMediaFileActivated, isWindowsApp, type WindowsPickedFile } from './services/windowsBridgeService';
+import { onLaunchMedia, onLaunchExperience } from './services/launchService';
+import { experienceView } from './src/lib/launchTarget';
+import { MediaPlajahPlayer } from './components/player/MediaPlajahPlayer';
+
+// Pre-warm viewer chunks on Windows for near-instant boot and viewer opening
+if (typeof window !== 'undefined' && isWindowsApp()) {
+  import('./components/photo/NativePhotoViewer');
+  import('./components/reello/ReelloUniversalVideoPlayer');
+  import('./components/player/MediaPlajahPlayer');
+}
 const GalleryView = retryLazy(() => import('./components/gallery/GalleryView'));
 const GalleryEditor = retryLazy(() => import('./components/gallery/GalleryEditor'));
 // Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
 const TelaView = retryLazy(() => import('./components/tela/TelaView'));
+// Machine Atlas — generic 3D mechanical models + simulations (pilot: brakes)
+const MachineAtlasView = retryLazy(() => import('./components/atlas/MachineAtlasView'));
 const CreatorHub = retryLazy(() => import('./components/CreatorHub'));
+const DesktopLauncherOverlay = retryLazy(() => import('./components/DesktopLauncherOverlay'));
 // Tela reference-embed demo (P2b — live/follow-latest/pinned, lock→propagate)
 const TelaEmbedDemo = retryLazy(() => import('./components/tela/TelaEmbedDemo'));
+const DossierHall = retryLazy(() => import('./components/dossier/DossierHall'));
+import { requestDossier } from './data/dossier/registry';
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
@@ -202,6 +229,11 @@ const PodcastListen = retryLazy(() => import('./components/PodcastListen'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView'));
 const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
+const AcademiaDirectory = retryLazy(() => import('./components/AcademiaDirectory'));
+const LearnMapView = retryLazy(() => import('./components/learn/LearnMapView'));
+const InvestigationStudio = retryLazy(() => import('./components/inquiry/InvestigationStudio'));
+const NotesStudio = retryLazy(() => import('./components/notes/NotesStudio'));
+const HomeschoolHub = retryLazy(() => import('./components/academia/HomeschoolHub'));
 const AcademiaLandingView = retryLazy(() => import('./components/AcademiaLandingView'));
 const MoneySchoolView = retryLazy(() => import('./components/MoneySchoolView'));
 const BusinessSchoolView = retryLazy(() => import('./components/BusinessSchoolView'));
@@ -232,6 +264,17 @@ const TeacherToolsView = retryLazy(() => import('./components/TeacherToolsView')
 const KidsLibraryView = retryLazy(() => import('./components/KidsLibraryView'));
 import KidsSessionGuard from './components/KidsSessionGuard';
 import KidsModeBar from './components/KidsModeBar';
+import RoleLensBar from './components/academia/RoleLensBar';
+import LearnBar, { LEARN_VIEW_TITLES } from './components/academia/LearnBar';
+import { getRoleLens, onRoleLensChange, applyRoleLens, isPlatformAdmin, type LensRole } from './services/roleLens';
+import PersonaSwitcherModal from './components/PersonaSwitcherModal';
+import {
+  getActivePersonaKey,
+  setActivePersonaKey,
+  type PersonaKey,
+  PERSONA_KEYS,
+  DEFAULT_PERSONAS,
+} from './services/personaService';
 
 // ── Mobile bottom nav tab sets ────────────────────────────────────────────────
 // Regular accounts get the media-first bar; SCHOOL accounts (student/teacher/child/
@@ -296,14 +339,27 @@ function isSchoolNavUser(p: any): boolean {
   if (p.isSchoolAdmin) return true;
   return false;
 }
+
+function getBottomTabsForPersona(personaKey: PersonaKey, userProfile: any) {
+  if (personaKey === 'academic') {
+    if (isSchoolNavUser(userProfile)) return eduTabsFor(userProfile);
+    return DEFAULT_PERSONAS.academic.tabs;
+  }
+  return DEFAULT_PERSONAS[personaKey]?.tabs || DEFAULT_BOTTOM_TABS;
+}
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
+const InviteRedeemView = retryLazy(() => import('./components/elevate/InviteRedeemView'));
+const EstimatePublicView = retryLazy(() => import('./components/billing/EstimatePublicView'));
+const ChmsClaimCard = retryLazy(() => import('./components/elevate/chms/PeopleMyProfileCard').then(m => ({ default: m.ClaimRecordCard })));
+const ChmsCheckinCard = retryLazy(() => import('./components/elevate/chms/PeopleMyProfileCard').then(m => ({ default: m.MyProfileCard })));
 const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
 const WelcomePackage = retryLazy(() => import('./components/WelcomePackage'));
 const Onboarding = retryLazy(() => import('./components/Onboarding'));
+const PeopleDiscoveryPage = retryLazy(() => import('./components/discovery/PeopleDiscoveryPage'));
 // Existing-user "Welcome Package is ready" nudge runs only until this date (~2 months from
 // the 2026-09-07 launch). After it, returning users are no longer notified.
 const WELCOME_PACKAGE_CAMPAIGN_END = Date.UTC(2026, 10, 7); // 2026-11-07 (month index 10 = Nov)
@@ -356,6 +412,7 @@ const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; tit
   CROSSOVER:       { feature: 'fileConversion', title: 'Crossover' },
   MEDIA_CONVERTER: { feature: 'fileConversion', title: 'Media Converter' },
   SPATIAL_MIXER:   { feature: 'creatorStudio', title: 'Spatial Mixer' },
+  CHORA_MIXER:     { feature: 'creatorStudio', title: 'Chora Studio Mixer' },
   LD_MODE:         { feature: 'creatorStudio', title: 'LD' },
   TELEPROMPTER:    { feature: 'documentEditing', title: 'Teleprompter' },
   ARTICLE_EDITOR:  { feature: 'documentEditing', title: 'The editor' },
@@ -369,6 +426,7 @@ const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView')
 const LightingDesigner = retryLazy(() => import('./components/LightingDesigner'));
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
+const ChoraStudioMixer = retryLazy(() => import('./components/chora/ChoraStudioMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
 const MelosBeatsRoom = retryLazy(() => import('./components/melos/beats/BeatsRoom'));
 const DJConsoleView = retryLazy(() => import('./components/DJModeView'));
@@ -385,8 +443,11 @@ const SacredLibraryHub = retryLazy(() => import('./components/SacredLibraryHub')
 const AmboPresenter = retryLazy(() => import('./components/scripture/AmboPresenter'));
 const AmboProPresenter = retryLazy(() => import('./components/scripture/AmboProPresenter'));
 const FollowAlongView = retryLazy(() => import('./components/scripture/FollowAlongView'));
-const VespersRecap = retryLazy(() => import('./components/scripture/VespersRecap'));
 const AmboOutputWindow = retryLazy(() => import('./components/scripture/AmboOutputWindow'));
+const AmboOperatorWindow = retryLazy(() => import('./components/scripture/AmboOperatorWindow'));
+const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
+const AmboPartyEventReceiver = retryLazy(() => import('./components/scripture/AmboPartyEventReceiver'));
+import { registerEventDevice } from './services/ambo/amboPartyEventService';
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   useEffect(() => {
@@ -408,6 +469,7 @@ import { fetchAudiusArtistById, fetchAudiusPlaylistTracks, audiusAlbumToNativeAl
 import { completeAudiusRedirect } from './services/audiusAuth';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
+const BusinessSimView = retryLazy(() => import('./components/bizsim/BusinessSimView'));
 const PraxisView = retryLazy(() => import('./components/praxis/PraxisView'));
 const TerraHub = retryLazy(() => import('./components/terra/TerraHub'));
 const TerraExplorer = retryLazy(() => import('./components/terra/TerraExplorer'));
@@ -419,6 +481,7 @@ const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
+const ChoraArtistManager = retryLazy(() => import('./components/ChoraArtistManager'));
 const ChoraArtistPage = retryLazy(() => import('./components/ChoraArtistPage'));
 const PersonalArtistPage = retryLazy(() => import('./components/PersonalArtistPage'));
 const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
@@ -498,6 +561,10 @@ const THEME_BG: Record<string, string> = {
     '#080200',
   ].join(','),
 };
+import { parseShowMode, type ShowMode } from './services/deepLinkService';
+import { loadOwnedMusic, MUSIC_LOCKED_EVENT } from './services/musicAccess';
+import { PENDING_GIFT_KEY } from './services/stripeService';
+import type { ReturnInfo } from './components/SupportReturnModal';
 import { auth, fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
 import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ClipboardList, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Library, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
@@ -562,6 +629,7 @@ import SmartGuide from './components/SmartGuide';
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 import { loadRoster, upsertAccount } from './services/accountRoster';
 import { buildShareUrl } from './services/deepLinkService';
+import { isWindowsApp } from './services/windowsBridgeService';
 import StartRoomModal from './components/StartRoomModal';
 import WalkieStandby from './components/WalkieStandby';
 import { initPodcastLibrarySync } from './services/podcastLibraryService';
@@ -576,8 +644,38 @@ import CommandSplitNav from './components/CommandSplitNav';
 import CommandSplitBar from './components/CommandSplitBar';
 import CommandPlayer from './components/CommandPlayer';
 import { ChoraNavBar, NavLayoutSwitcher, type NavPage } from './components/ChoraCompactNav';
+import DesktopGlobalToolbar from './components/DesktopGlobalToolbar';
+import { onNativeMessage, requestWindowState, toggleNativeFullscreen } from './services/windowsBridgeService';
 
 const App: React.FC = () => {
+  // Dedicated physical output window for secondary displays, video walls, and switcher feeds.
+  // When ?amboOut is present, bypass the main application shell entirely and render the output window borderless.
+  const amboOutId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('amboOut') : null;
+  // Extra operator console for the same Ambo project (?amboOp=1&role=lyrics|scripture|media|all).
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('amboOp')) {
+    return (
+      <Suspense fallback={<div className="fixed inset-0 bg-black" />}>
+        <AmboOperatorWindow />
+      </Suspense>
+    );
+  }
+  if (amboOutId) {
+    return (
+      <Suspense fallback={<div className="fixed inset-0 bg-black flex items-center justify-center text-white/40 font-mono text-sm">Initializing Output Window...</div>}>
+        <AmboOutputWindow outputId={amboOutId} />
+      </Suspense>
+    );
+  }
+
+  // Demo telehealth: the "patient" opens ?telehealth=<session> — a standalone join page, no app shell.
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('telehealth')) {
+    return (
+      <Suspense fallback={<div className="fixed inset-0 bg-[#07030d] flex items-center justify-center text-white/40 font-mono text-sm">Loading visit…</div>}>
+        <TelehealthJoinPage />
+      </Suspense>
+    );
+  }
+
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
   const pitchParam = new URLSearchParams(window.location.search).get('view');
   const roomParam = new URLSearchParams(window.location.search).get('room');
@@ -587,6 +685,7 @@ const App: React.FC = () => {
     callinParam                   ? 'PODCAST_CALLIN'     :
     listenParam                   ? 'PODCAST_LISTEN'     :
     roomParam                     ? 'ROOM'               :
+    (new URLSearchParams(window.location.search).get('atlas') !== null || pitchParam === 'atlas' || pitchParam === 'machine-atlas') ? 'MACHINE_ATLAS' :
     pitchParam === 'pitch-music'  ? 'PITCH_MUSIC'        :
     pitchParam === 'pitch-film'   ? 'PITCH_FILM'         :
     pitchParam === 'pitch-writer' ? 'PITCH_WRITER'       :
@@ -597,25 +696,29 @@ const App: React.FC = () => {
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
+    pitchParam === 'home'         ? 'PLAJAH_HOME'        :
     pitchParam === 'ora'          ? 'ORA'                :
     pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
     pitchParam === 'lesson'       ? 'STUDENT_LESSON'     :
     pitchParam === 'voca'         ? 'VOCA'               :
     pitchParam === 'homeroom'     ? 'STUDENT_HOME'       :
+    pitchParam === 'fse' || pitchParam === 'experience' || pitchParam === 'plajah-fse' ? 'PLAJAH_FSE' :
     pitchParam === 'live-fx-lab' || pitchParam === 'livefx' ? 'LIVE_FX_LAB' :
-    'LANDING';
+    // Per-experience launcher icons (Android activity-alias / Windows Start tiles): ?view=chora etc.
+    experienceView(pitchParam) ??
+    (isWindowsApp() ? 'DASHBOARD' : 'LANDING');
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
   // NOT be bounced to LANDING — the deep-link handler owns the initial view.
   const hasDeepLink = (() => {
     const sp = new URLSearchParams(window.location.search);
-    if (['id', 'type', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g'].some(k => sp.get(k))) return true;
+    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g', 'atlas'].some(k => sp.get(k))) return true;
     if (/^#g\//.test(window.location.hash)) return true;
     // /link (TV sign-in approval) must not bounce a signed-out visitor to LANDING — they may
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
     // means walking back to the television for a new one.
     if (window.location.pathname.startsWith('/link')) return true;
-    return /^\/(profile|release|event|clubs|athlete|book|artist)\//.test(window.location.pathname);
+    return /^\/(profile|release|event|clubs|athlete|book|artist|reello|video)\//.test(window.location.pathname);
   })();
 
   const [view, setViewInternal] = useState<AppView>(pitchInitialView);
@@ -632,6 +735,58 @@ const App: React.FC = () => {
   // Load platform feature flags (config/featureFlags) + live-update — without this,
   // isFeatureEnabled() always returns the built-in defaults (e.g. CONTENT_LICENSING off).
   useEffect(() => { const unsub = initFeatureFlagListener(); return () => unsub(); }, []);
+
+  // Desktop window & fullscreen mode management
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
+    if (typeof document !== 'undefined') return !!document.fullscreenElement;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isWindowsApp()) return;
+    const unsub = onNativeMessage((msg) => {
+      if (msg.type === 'WINDOW_STATE_CHANGED' && typeof (msg as any).isFullscreen === 'boolean') {
+        setIsFullscreen((msg as any).isFullscreen);
+      }
+    });
+    requestWindowState();
+    return () => { unsub(); };
+  }, []);
+
+  const handleToggleFullscreen = useCallback(() => {
+    if (isWindowsApp()) {
+      toggleNativeFullscreen();
+    } else if (typeof document !== 'undefined') {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        handleToggleFullscreen();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleToggleFullscreen]);
 
   // Time authority. Measures this device's clock skew against the server and re-checks periodically
   // and on resume, so FAST playout, the EPG and every other scheduled feature agree on "now" even on
@@ -763,6 +918,16 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:openFirstlight', h as EventListener);
   }, [setView]);
 
+  // ── Windows Native Media File Launch Activation ─────────────────────────────
+  const [activatedNativeFile, setActivatedNativeFile] = useState<WindowsPickedFile | null>(null);
+  const [activatedNativeFolderFiles, setActivatedNativeFolderFiles] = useState<WindowsPickedFile[]>([]);
+  const [photosInitialFile, setPhotosInitialFile] = useState<WindowsPickedFile | null>(null);
+  const [photosFolderFiles, setPhotosFolderFiles] = useState<WindowsPickedFile[]>([]);
+  // ── Dedicated Media Plajah Local Player Mode ────────────────────────────────
+  const [isMediaPlajahMode, setIsMediaPlajahMode] = useState<boolean>(false);
+  const [activeLocalMediaFile, setActiveLocalMediaFile] = useState<WindowsPickedFile | null>(null);
+  const [localMediaFolderFiles, setLocalMediaFolderFiles] = useState<WindowsPickedFile[]>([]);
+
   // "Learn more on Plajah" from the Tela template gallery → the Art Museum, with the
   // style remembered so the museum can focus its search on it.
   useEffect(() => {
@@ -773,6 +938,13 @@ const App: React.FC = () => {
     };
     window.addEventListener('plajah:openDesignHistory', h as EventListener);
     return () => window.removeEventListener('plajah:openDesignHistory', h as EventListener);
+  }, [setView]);
+
+  // Open a Dossier (museum/biography experience) from anywhere.
+  useEffect(() => {
+    const h = (e: Event) => { requestDossier((e as CustomEvent)?.detail?.id); setView('DOSSIER'); };
+    window.addEventListener('plajah:openDossier', h as EventListener);
+    return () => window.removeEventListener('plajah:openDossier', h as EventListener);
   }, [setView]);
 
   // Open the Tela reference-embed demo (P2b) from anywhere.
@@ -843,6 +1015,18 @@ const App: React.FC = () => {
       window.removeEventListener('plajah:open-live-fx-lab', open);
     };
   }, [setView]);
+
+  // Jump to Live Feed from alerts, drawer, or notifications
+  useEffect(() => {
+    const handleWatchLive = (e: Event) => {
+      const feed = (e as CustomEvent)?.detail;
+      if (feed) {
+        setActiveLiveFeed(feed as any);
+      }
+    };
+    window.addEventListener('plajah:watch-live', handleWatchLive);
+    return () => window.removeEventListener('plajah:watch-live', handleWatchLive);
+  }, []);
 
   // Platform-wide error capture (uncaught errors + unhandled rejections → errorReports).
   useEffect(() => { installGlobalErrorReporting(); installSessionTrace(); installHealthMonitor(); }, []);
@@ -924,9 +1108,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     else setArchiveTab(tab as any);
   };
   const [musicInitialTab, setMusicInitialTab] = useState<'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS'>('NEW');
+  // Declared before first use (lensProfile's dependency array reads it during render).
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   // The profile the app behaves as — the active child overrides the logged-in parent.
-  const effectiveProfile = activeChildProfile || userProfile;
+  // Admin-only "experience as teacher / student / parent" lens: same account + real data, different role.
+  const [roleLens, setRoleLensState] = useState<LensRole | null>(() => getRoleLens());
+  useEffect(() => onRoleLensChange(setRoleLensState), []);
+  const lensProfile = useMemo(() => applyRoleLens(userProfile, user, roleLens), [userProfile, user, roleLens]);
+  const effectiveProfile = activeChildProfile || lensProfile;
 
   // Universal back: return to the previous screen via real browser history (so back
   // never jumps to a hardcoded destination). Falls back to a sensible view only when
@@ -986,12 +1176,60 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isProjectTrayOpen, setIsProjectTrayOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [dashboardInitialTab, setDashboardInitialTab] = useState<string | undefined>(undefined);
+  // The phone's fixed bottom tab bar paints above every full-screen surface (z-150), so anything
+  // pinned to the bottom of the screen — Live TV+'s channel guide — ended up underneath it. Publish
+  // the bar's real height as --pj-mobile-nav-h so such surfaces can stop above it instead of
+  // guessing (safe-area inset, persona tab count and font scaling all change it).
+  const [mobileNavEl, setMobileNavEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!mobileNavEl) { root.style.removeProperty('--pj-mobile-nav-h'); return; }
+    const publish = () => root.style.setProperty('--pj-mobile-nav-h', `${Math.round(mobileNavEl.getBoundingClientRect().height)}px`);
+    publish();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+    ro?.observe(mobileNavEl);
+    window.addEventListener('resize', publish);
+    return () => { ro?.disconnect(); window.removeEventListener('resize', publish); root.style.removeProperty('--pj-mobile-nav-h'); };
+  }, [mobileNavEl]);
   const [isLoading, setIsLoading] = useState(true);
   const [wcMobileBannerDismissed, setWcMobileBannerDismissed] = useState(() => !!localStorage.getItem('wc26_mobile_banner_dismissed'));
   const [isPublicView, setIsPublicView] = useState(false);
+  const [showModeOpts, setShowModeOpts] = useState<{ mode: ShowMode; trackId?: string | null }>({ mode: 'DEFAULT' });
+  // Priced-release preview ended → offer the buy flow; Stripe return → thank-you / download.
+  const [lockedInfo, setLockedInfo] = useState<{ album: Album; track?: Track } | null>(null);
+  const [returnInfo, setReturnInfo] = useState<ReturnInfo | null>(null);
+  // Purchased-music ownership cache (drives the 30s preview gate in the player).
+  useEffect(() => { loadOwnedMusic(user?.uid).catch(() => {}); }, [user?.uid]);
+  useEffect(() => {
+    const onLocked = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      if (d.album) setLockedInfo({ album: d.album, track: d.track });
+    };
+    window.addEventListener(MUSIC_LOCKED_EVENT, onLocked);
+    return () => window.removeEventListener(MUSIC_LOCKED_EVENT, onLocked);
+  }, []);
+  // Returning from Stripe: ?gift=success (thank the artist) or ?content_purchased=album:<id> | track:<albumId>__<trackId>
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const strip = (...keys: string[]) => { keys.forEach(k => sp.delete(k)); const q = sp.toString(); window.history.replaceState({}, '', window.location.pathname + (q ? `?${q}` : '')); };
+    if (sp.get('gift') === 'success') {
+      let g: any = {};
+      try { g = JSON.parse(sessionStorage.getItem(PENDING_GIFT_KEY) || '{}'); sessionStorage.removeItem(PENDING_GIFT_KEY); } catch { /* none */ }
+      setReturnInfo({ mode: 'gift', artist: g.artist || '', title: g.title || '', amount: Number(g.amount) || 0 });
+      strip('gift', 'session_id');
+    } else if (sp.get('gift') === 'cancelled') {
+      strip('gift');
+    }
+    const cp = sp.get('content_purchased');
+    if (cp && /^(album|track):/.test(cp)) {
+      const [kind, rest] = [cp.split(':')[0] as 'album' | 'track', cp.slice(cp.indexOf(':') + 1)];
+      const [albumId, trackId] = rest.split('__');
+      strip('content_purchased', 'session_id');
+      fetchProjectFromCloud(albumId).then(album => { if (album) setReturnInfo({ mode: 'purchase', album, kind, trackId }); }).catch(() => {});
+    }
+  }, []);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
-  const [user, setUser] = useState<FirebaseUser | null>(null);
 
   // A production invite is a direct enrollment route: after sign-in, open Film Staffing
   // where the token is validated and accepted. This must live after the user state declaration;
@@ -1005,6 +1243,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Sync the followed-podcast library to Firestore so it's available on every device.
   useEffect(() => {
     if (user?.uid) return initPodcastLibrarySync(user.uid);
+  }, [user?.uid]);
+
+  // Register this browser/device into the user's active party/event mesh for Ambo Central Command
+  useEffect(() => {
+    if (user?.uid) {
+      const cleanup = registerEventDevice();
+      return () => cleanup();
+    }
   }, [user?.uid]);
   const [theme, setTheme] = useState<ThemeType>('PLAJAH');
   // Remember the user's desktop theme so we can restore it when the window is resized
@@ -1023,6 +1269,94 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [activeTheme, setActiveTheme] = useState<any>(null);
   const [themeAssetIndex, setThemeAssetIndex] = useState(0);
   const [themeAssetLoopCount, setThemeAssetLoopCount] = useState(0);
+
+  // Desktop Project Launcher overlay (Ctrl+O, Cmd+O, window event, or Windows desktop app launch)
+  const autoLauncherShownRef = useRef(false);
+  const [showDesktopLauncher, setShowDesktopLauncher] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const isDeepLink = !!(
+        sp.get('id') || sp.get('type') || sp.get('reello') || sp.get('video') || sp.get('v') ||
+        sp.get('party') || sp.get('club') || sp.get('debate') || sp.get('org') || sp.get('follow') ||
+        sp.get('livestream') || sp.get('recap') || sp.get('play') ||
+        window.location.pathname.startsWith('/share') ||
+        window.location.pathname.startsWith('/reello') ||
+        window.location.pathname.startsWith('/video') ||
+        window.location.pathname.startsWith('/link')
+      );
+      if (isDeepLink) return false;
+      const isWin = isWindowsApp();
+      if (isWin) autoLauncherShownRef.current = true;
+      return isWin;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleLauncherKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          return;
+        }
+        e.preventDefault();
+        setShowDesktopLauncher(prev => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          return;
+        }
+        e.preventDefault();
+        setShowDesktopLauncher(false);
+        setView('PLAJAH_HOME');
+      }
+    };
+    const handleOpenEvent = () => setShowDesktopLauncher(true);
+    const handleHomeNavigate = () => {
+      setShowDesktopLauncher(false);
+      setView('PLAJAH_HOME');
+    };
+    window.addEventListener('keydown', handleLauncherKey);
+    window.addEventListener('plajah:open-desktop-launcher', handleOpenEvent);
+    window.addEventListener('plajah:open-home', handleHomeNavigate);
+
+    // If launching inside Windows desktop shell and not already popped, open launcher automatically
+    let t1: any;
+    let t2: any;
+    if (!autoLauncherShownRef.current && typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const isDeepLink = !!(
+        sp.get('id') || sp.get('type') || sp.get('reello') || sp.get('video') || sp.get('v') ||
+        sp.get('party') || sp.get('club') || sp.get('debate') || sp.get('org') || sp.get('follow') ||
+        sp.get('livestream') || sp.get('recap') || sp.get('play') ||
+        window.location.pathname.startsWith('/share') ||
+        window.location.pathname.startsWith('/reello') ||
+        window.location.pathname.startsWith('/video') ||
+        window.location.pathname.startsWith('/link')
+      );
+      if (!isDeepLink) {
+        const checkWin = () => {
+          if (!autoLauncherShownRef.current && isWindowsApp()) {
+            autoLauncherShownRef.current = true;
+            setShowDesktopLauncher(true);
+          }
+        };
+        checkWin();
+        t1 = setTimeout(checkWin, 250);
+        t2 = setTimeout(checkWin, 800);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleLauncherKey);
+      window.removeEventListener('plajah:open-desktop-launcher', handleOpenEvent);
+      window.removeEventListener('plajah:open-home', handleHomeNavigate);
+      if (t1) clearTimeout(t1);
+      if (t2) clearTimeout(t2);
+    };
+  }, []);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [viewedUserId, setViewedUserId] = useState<string | null>(null);
@@ -1048,6 +1382,89 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     catch { return ['USER_PROFILE', 'DASHBOARD', 'MUSIC', 'VIDEOS', 'PLAJAH_SPORTS', 'FEED', 'LIVE_HUB', 'POSTMAN']; }
   });
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
+  const [activePersonaKey, setActivePersonaKeyLocal] = useState<PersonaKey>(() => getActivePersonaKey());
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handlePersonaChange = (e: any) => {
+      if (e?.detail?.personaKey) {
+        setActivePersonaKeyLocal(e.detail.personaKey);
+      }
+    };
+    window.addEventListener('PLAJAH_PERSONA_CHANGED', handlePersonaChange);
+    return () => window.removeEventListener('PLAJAH_PERSONA_CHANGED', handlePersonaChange);
+  }, []);
+
+  const handleSwitchPersona = (key: PersonaKey) => {
+    setActivePersonaKey(key);
+    setActivePersonaKeyLocal(key);
+    const cfg = DEFAULT_PERSONAS[key];
+    if (cfg?.defaultView) {
+      setView(cfg.defaultView as any);
+    }
+  };
+
+  // Hold gesture for Home and Profile tabs (400ms hold to open persona switcher)
+  const personaHoldTimerRef = useRef<any>(null);
+  const personaHoldStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const personaIgnoreClickRef = useRef<boolean>(false);
+
+  const startPersonaHoldTimer = (e: React.TouchEvent | React.MouseEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    personaHoldStartPos.current = { x: clientX, y: clientY };
+    personaIgnoreClickRef.current = false;
+    if (personaHoldTimerRef.current) clearTimeout(personaHoldTimerRef.current);
+    personaHoldTimerRef.current = setTimeout(() => {
+      personaIgnoreClickRef.current = true;
+      if ('vibrate' in navigator) {
+        try { navigator.vibrate(30); } catch {}
+      }
+      setIsPersonaModalOpen(true);
+    }, 400);
+  };
+
+  const cancelPersonaHoldTimer = (e?: React.TouchEvent) => {
+    if (e && 'touches' in e && e.touches.length > 0) {
+      const diffX = Math.abs(e.touches[0].clientX - personaHoldStartPos.current.x);
+      const diffY = Math.abs(e.touches[0].clientY - personaHoldStartPos.current.y);
+      if (diffX > 10 || diffY > 10) {
+        if (personaHoldTimerRef.current) {
+          clearTimeout(personaHoldTimerRef.current);
+          personaHoldTimerRef.current = null;
+        }
+      }
+      return;
+    }
+    if (personaHoldTimerRef.current) {
+      clearTimeout(personaHoldTimerRef.current);
+      personaHoldTimerRef.current = null;
+    }
+  };
+
+  // Horizontal swipe on bottom bar to flip personas
+  const navSwipeStartX = useRef<number>(0);
+  const navSwipeStartY = useRef<number>(0);
+
+  const onNavTouchStart = (e: React.TouchEvent) => {
+    navSwipeStartX.current = e.touches[0].clientX;
+    navSwipeStartY.current = e.touches[0].clientY;
+  };
+
+  const onNavTouchEnd = (e: React.TouchEvent) => {
+    const deltaX = e.changedTouches[0].clientX - navSwipeStartX.current;
+    const deltaY = e.changedTouches[0].clientY - navSwipeStartY.current;
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaY) < 40) {
+      const currentIdx = PERSONA_KEYS.indexOf(activePersonaKey);
+      if (deltaX < 0) {
+        const nextIdx = (currentIdx + 1) % PERSONA_KEYS.length;
+        handleSwitchPersona(PERSONA_KEYS[nextIdx]);
+      } else {
+        const prevIdx = (currentIdx - 1 + PERSONA_KEYS.length) % PERSONA_KEYS.length;
+        handleSwitchPersona(PERSONA_KEYS[prevIdx]);
+      }
+    }
+  };
   const [notifDrawerTrigger, setNotifDrawerTrigger] = useState<{ tab: string; ts: number } | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -1067,6 +1484,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
   const [showMyOrders, setShowMyOrders] = useState(false);
+  const [showMyGarage, setShowMyGarage] = useState(false);
   const [characterProfile, setCharacterProfile] = useState<any | null>(null);
   const [characterChat, setCharacterChat] = useState<any | null>(null);
   const [isMobile, setIsMobile] = useState(() => {
@@ -1142,7 +1560,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Smart Guide
   const [smartGuideEnabled, setSmartGuideEnabled] = useState(false);
   const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
-  const [orgHubInitial, setOrgHubInitial] = useState<{ orgId: string; give?: boolean; contentHq?: boolean } | null>(null);
+  const [orgHubInitial, setOrgHubInitial] = useState<{ orgId?: string; give?: boolean; contentHq?: boolean; create?: boolean; fromElevate?: boolean } | null>(null);
+  const [chmsLink, setChmsLink] = useState<{ claim?: string; checkinOrg?: string; eventKey?: string; eventLabel?: string } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const q = new URLSearchParams(window.location.search);
+    const claim = q.get('elevateClaim'); const checkinOrg = q.get('elevateCheckin');
+    return claim || checkinOrg ? { claim: claim || undefined, checkinOrg: checkinOrg || undefined, eventKey: q.get('event') || undefined, eventLabel: q.get('label') || undefined } : null;
+  });
+  // Public estimate link: /estimate/<token> — no sign-in required (the token is the credential).
+  const [estimateToken, setEstimateToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const m = window.location.pathname.match(/^\/estimate\/([a-f0-9]{48})\/?$/i);
+    return m ? m[1] : null;
+  });
+  const [elevateInviteToken, setElevateInviteToken] = useState<string | null>(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('elevateInvite') : null));
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
@@ -1159,10 +1590,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // First-login sequence: the Welcome Package letter → the 2-page Onboarding → the app.
   // (Named distinctly from the legacy `showOnboarding` OnboardingTour state, now retired.)
   const [showFirstRunOnboarding, setShowFirstRunOnboarding] = useState(false);
+  const [showNewMembersPage, setShowNewMembersPage] = useState(false); // Welcome Package -> 'Say hi to people who just joined'
   const [welcomeFirstRun, setWelcomeFirstRun] = useState(false);
   const [selectedDebateId, setSelectedDebateId] = useState<string | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [is3DDepthEnabled, setIs3DDepthEnabled] = useState(false);
+  // Universal Video Player Overlay (Reello, Taleo, Local Files, Asset HQ)
+  const [reelloUploadSeed, setReelloUploadSeed] = useState<File | null>(null);
+  const [activeUniversalVideo, setActiveUniversalVideo] = useState<{
+    file?: any;
+    folderFiles?: any[];
+    video?: any;
+    album?: any;
+    context?: 'REELLO' | 'TALEO' | 'LOCAL' | 'ASSET_HQ';
+    title?: string;
+  } | null>(null);
 
   const isFirstWeek = userProfile?.onboardingStartTimestamp 
     ? (Date.now() - userProfile.onboardingStartTimestamp) < (7 * 24 * 60 * 60 * 1000)
@@ -1232,6 +1674,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Persist transcribed scores exported from the Breakdown into Lorea.
   useEffect(() => initLoreaScoreListener(), []);
 
+  // Publish any of this user's scheduled posts that came due while the app was closed (once per sign-in).
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) return;
+    import('./services/scheduledPostService').then(m => m.publishDueScheduledPosts(uid)).catch(() => {});
+    // Finish an interrupted public<->private post migration, and sync public achievements (opt-out aware).
+    import('./services/privatePostsService').then(m => m.resumePendingMigration()).catch(() => {});
+    import('./services/publicAchievementsService').then(m => m.maybeSyncPublicAchievements(uid)).catch(() => {});
+  }, [user?.uid]);
+
   useEffect(() => {
     if (user) {
       const unsubscribe = listenToMyPayItForwardWins(setPifWins);
@@ -1285,6 +1737,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // Order tracking: open on demand, and auto-open after a store/kiosk checkout returns (?order=success).
     const handleOpenOrders = () => setShowMyOrders(true);
     window.addEventListener('OPEN_MY_ORDERS', handleOpenOrders);
+    const handleOpenGarage = () => setShowMyGarage(true);
+    window.addEventListener('OPEN_MY_GARAGE', handleOpenGarage);
     const handleOpenCharacter = (e: any) => { if (e.detail?.character) setCharacterProfile(e.detail.character); };
     window.addEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
     const handleCharacterChat = (e: any) => { if (e.detail?.character) setCharacterChat(e.detail.character); };
@@ -1320,6 +1774,38 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenLiveFxLab = () => setView('LIVE_FX_LAB');
     window.addEventListener('OPEN_LIVE_FX_LAB', handleOpenLiveFxLab);
     window.addEventListener('plajah:open-live-fx-lab', handleOpenLiveFxLab);
+
+    const handleOpenFabulaMedia = (e: any) => {
+      setView('FABULA');
+    };
+    window.addEventListener('OPEN_FABULA_MEDIA', handleOpenFabulaMedia);
+
+    const handleOpenCrossoverMedia = (e: any) => {
+      setView('CROSSOVER');
+    };
+    window.addEventListener('OPEN_CROSSOVER_MEDIA', handleOpenCrossoverMedia);
+
+    const handleOpenTelaMedia = (e: any) => {
+      setView('TELA');
+    };
+    window.addEventListener('OPEN_TELA_MEDIA', handleOpenTelaMedia);
+
+    const handleOpenMachineAtlas = () => { setView('MACHINE_ATLAS'); };
+    window.addEventListener('OPEN_MACHINE_ATLAS', handleOpenMachineAtlas);
+
+    const handleOpenUniversalVideo = (e: any) => {
+      if (e.detail) {
+        setActiveUniversalVideo({
+          file: e.detail.file,
+          folderFiles: e.detail.folderFiles,
+          video: e.detail.video,
+          album: e.detail.album,
+          context: e.detail.context,
+          title: e.detail.title,
+        });
+      }
+    };
+    window.addEventListener('OPEN_UNIVERSAL_VIDEO_PLAYER', handleOpenUniversalVideo);
 
     // A scripture chip anywhere on the platform opens the reader at its passage.
     const handleOpenBible = (e: Event) => {
@@ -1358,6 +1844,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenSpatialMixer = () => setView('SPATIAL_MIXER' as AppView);
     window.addEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
 
+    const handleOpenChoraMixer = () => setView('CHORA_MIXER' as AppView);
+    window.addEventListener('OPEN_CHORA_MIXER', handleOpenChoraMixer);
+
     const handleOpenMediaConverter = () => setView('MEDIA_CONVERTER' as AppView);
     window.addEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
 
@@ -1389,6 +1878,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (id) { setLabsDiscipline(id); setView('PLAJAH_LABS' as AppView); }
     };
     window.addEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
+
+    // Language Arts: open a classic in the Lorea reader, or a Chora Vault shelf. See services/loreaOpen.ts.
+    const handleOpenLoreaBook = (e: Event) => {
+      const album = (e as CustomEvent)?.detail?.album;
+      if (album) { setSelectedBook(album); setView('BOOK_READER' as AppView); }
+    };
+    const handleOpenChoraVault = () => { setMusicInitialTab('VAULT'); setView('MUSIC' as AppView); };
+    const handleOpenNotes = () => { setView('NOTES' as AppView); };
+    window.addEventListener('OPEN_NOTES', handleOpenNotes);
+    window.addEventListener('OPEN_LOREA_BOOK', handleOpenLoreaBook);
+    window.addEventListener('OPEN_CHORA_VAULT', handleOpenChoraVault);
 
     const handleOpenBrandActivation = () => { if (!user) { loginWithGoogle(); return; } setShowBrandActivation(true); };
     window.addEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
@@ -1520,6 +2020,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('NAVIGATE', handleNavigate);
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
       window.removeEventListener('OPEN_MY_ORDERS', handleOpenOrders);
+      window.removeEventListener('OPEN_MY_GARAGE', handleOpenGarage);
       window.removeEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
       window.removeEventListener('OPEN_CHARACTER_CHAT', handleCharacterChat);
       window.removeEventListener('OPEN_STORE', handleOpenStore);
@@ -1530,12 +2031,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_SACRED_LIBRARY', handleOpenSacredLibrary);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
+      window.removeEventListener('OPEN_CHORA_MIXER', handleOpenChoraMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
       window.removeEventListener('OPEN_DJ_CONSOLE', handleOpenDJConsole);
       window.removeEventListener('OPEN_MELOS_BEATS', handleOpenMelosBeats);
       window.removeEventListener('OPEN_POSTMAN', handleOpenPostman);
       window.removeEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
       window.removeEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
+      window.removeEventListener('OPEN_NOTES', handleOpenNotes);
+      window.removeEventListener('OPEN_LOREA_BOOK', handleOpenLoreaBook);
+      window.removeEventListener('OPEN_CHORA_VAULT', handleOpenChoraVault);
       window.removeEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
       window.removeEventListener('audius-artist', handleAudiusArtist);
       window.removeEventListener('OPEN_LIVESTREAM', handleOpenLivestream);
@@ -1706,6 +2211,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   };
 
   const handleSelectItem = (item: any) => {
+    setIsMediaPlajahMode(false);
     const subType = item.subType || '';
     const genre = item.genre || '';
     const TALEO_GENRES = ['Movie', 'Movies', 'Short Film', 'Short', 'Teaser', 'Trailer', 'Feature Film'];
@@ -1727,7 +2233,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (isMovie || isTV) {
       setSelectedMovieItem(item);
       setView('MOVIE_UX');
-    } else if (item.subType === 'MIX' && item.tracks) {
+    } else if (item.subType === 'MIX') {
       // Chora Mixes — long-form DJ set gets its own dedicated player (waveform + Pixels auto-show).
       setSelectedAlbum(item);
       setSelectedVideo(null);
@@ -1755,7 +2261,75 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   };
 
+  // ── Native Windows Media Routing (Chora Album View for Audio, Photos Experience for Visual Media, Universal Video Player for Video) ──
+  useEffect(() => {
+    const route = ({ activeFile, folderFiles, mediaKind }: { activeFile: WindowsPickedFile; folderFiles: WindowsPickedFile[]; mediaKind?: string }) => {
+      const ext = activeFile.name.toLowerCase();
+      const isVideo = mediaKind === 'VIDEO' || activeFile.kind === 'VIDEO' || activeFile.mediaKind === 'VIDEO' || /\.(mp4|mov|m4v|webm|mkv|avi|mpg|mpeg|wmv|flv|ts|m2ts|vob|ogv|3gp)$/i.test(ext);
+      const isAudio = mediaKind === 'AUDIO' || activeFile.kind === 'AUDIO' || activeFile.kind === 'audio' || activeFile.mediaKind === 'AUDIO' || /\.(mp3|wav|flac|aac|m4a|ogg|wma|aiff|opus|alac)$/i.test(ext);
+
+      if (isVideo && !isAudio) {
+        // Local video plays in the same unified player as Reello / Taleo, so local and online feel identical.
+        setIsMediaPlajahMode(false);
+        setActivatedNativeFile(null);
+        setActiveUniversalVideo({
+          file: activeFile,
+          folderFiles: folderFiles && folderFiles.length > 0 ? folderFiles : [activeFile],
+          context: 'LOCAL',
+          title: activeFile.name,
+        } as any);
+      } else if (isVideo || isAudio) {
+        setActiveUniversalVideo(null);
+        setActivatedNativeFile(null);
+        setActiveLocalMediaFile(activeFile);
+        setLocalMediaFolderFiles(folderFiles && folderFiles.length > 0 ? folderFiles : [activeFile]);
+        setIsMediaPlajahMode(true);
+      } else {
+        setIsMediaPlajahMode(false);
+        setActiveUniversalVideo(null);
+        setPhotosInitialFile(null);
+        setPhotosFolderFiles(folderFiles || [activeFile]);
+        setActivatedNativeFile(activeFile);
+        setActivatedNativeFolderFiles(folderFiles || [activeFile]);
+      }
+    };
+    // Windows: a file opened into this live window. Android: "Open with" while Plajah is running
+    // (cold "Open with" boots the LocalMediaLaunch shell instead — see index.tsx).
+    const offWin = onMediaFileActivated(route);
+    const offAndroid = onLaunchMedia(route);
+    return () => { offWin(); offAndroid(); };
+  }, [handleSelectItem, playTrack, setView]);
+
+  // An experience launcher icon (Chora, Reello, …) tapped while Plajah is already running.
+  useEffect(() => onLaunchExperience(slug => {
+    const target = experienceView(slug);
+    if (!target) return;
+    setIsMediaPlajahMode(false);
+    setActivatedNativeFile(null);
+    setView(target);
+  }), [setView]);
+
+  // A local video the user wants to share: sharing means uploading it to Reello, so open the upload flow
+  // with the file filled in (VideoManager shows the rights declaration before anything uploads).
+  const handleUploadLocalToReello = async (f: WindowsPickedFile) => {
+    if (!user) { loginWithGoogle(); return; }
+    try {
+      const blob = await (await fetch(f.url)).blob();
+      const file = new File([blob], f.name, { type: blob.type || 'video/mp4', lastModified: f.lastModified || Date.now() });
+      setActiveUniversalVideo(null);
+      setIsMediaPlajahMode(false);
+      setReelloUploadSeed(file);
+      setView('VIDEO_MANAGER');
+    } catch (e) {
+      console.error('[Reello upload] could not read the local file', e);
+      alert('Could not read that file. Try uploading it from Reello directly.');
+    }
+  };
+
   const handleGlobalNavigate = async (target: string, params?: any) => {
+    if (target !== 'PLAYER') {
+      setIsMediaPlajahMode(false);
+    }
     if (target === 'LIBRARY') {
       if (!user) {
         setView('DASHBOARD');
@@ -1880,10 +2454,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ACADEMIA_LANDING');
     } else if (target === 'ACADEMIA_COURSES') {
       setView('ACADEMIA_COURSES');
+    } else if (target === 'MACHINE_ATLAS') {
+      setView('MACHINE_ATLAS');
     } else if (target === 'SCHOOL_PACKAGE') {
       setView('SCHOOL_PACKAGE');
     } else if (target === 'PRAXIS') {
       setView('PRAXIS');
+    } else if (target === 'BIZ_SIM') {
+      setView('BIZ_SIM');
+    } else if (target === 'LEARN') {
+      setView('LEARN');
+    } else if (target === 'INQUIRY') {
+      setView('INQUIRY');
+    } else if (target === 'NOTES') {
+      setView('NOTES');
+    } else if (target === 'HOMESCHOOL') {
+      setView('HOMESCHOOL');
     } else if (target === 'MONEY_SCHOOL') {
       setView('MONEY_SCHOOL');
     } else if (target === 'CIVICS_HALL') {
@@ -1961,6 +2547,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'VIDEO_MANAGER') {
       setView('VIDEO_MANAGER');
     } else if (target === 'PLAYER') {
+      if (activeLocalMediaFile && (currentTrack?.id?.startsWith('local_') || params?.album?.id?.startsWith('local_album_'))) {
+        setIsMediaPlajahMode(true);
+        return;
+      }
+      setIsMediaPlajahMode(false);
       if (params?.album) {
         setSelectedAlbum(params.album);
         setSelectedVideo(null);
@@ -1978,7 +2569,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'CLUBS') {
       setView('CLUBS');
     } else if (target === 'LIVE_HUB') {
+      // A favorite (or any deep link) can name the exact channel to tune.
+      if (params?.focus) setLiveChannelFocus(params.focus);
       setView('LIVE_HUB');
+    } else if (target === 'MASTER_CONTROL') {
+      // Channel quick-settings → the account's Settings › Master Control (Broadcast) tab.
+      if (!user) { loginWithGoogle(); return; }
+      setDashboardInitialTab('BROADCAST');
+      setView('CREATOR');
     }
   };
 
@@ -2197,7 +2795,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setUserProfile(null);
         // Don't clobber a shared deep-link view (profile/video/album/etc.) for
         // signed-out visitors — that's how public share links reach the content.
-        if (!hasDeepLink) setViewInternal('LANDING');
+        if (!hasDeepLink) setViewInternal(isWindowsApp() ? 'DASHBOARD' : 'LANDING');
       }
     });
     return () => {
@@ -2208,13 +2806,61 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   useEffect(() => {
     const init = async () => {
-      // Run connectivity check
-      const isConnected = await checkCloudConnection();
-      setCloudStatus(isConnected ? 'CONNECTED' : 'OFFLINE');
+      // Connectivity check — reported, NOT awaited. It is a Firestore server round trip, and
+      // awaiting it held every launch behind the "Synchronizing" gate (indefinitely-feeling when
+      // offline, i.e. exactly when someone is using Plajah as a local media player).
+      checkCloudConnection().then(isConnected => setCloudStatus(isConnected ? 'CONNECTED' : 'OFFLINE'));
 
       const params = new URLSearchParams(window.location.search);
       const projectId = params.get('id');
       const shareType = params.get('type');
+      const reelloParam = params.get('reello') || (shareType === 'reello' ? projectId : null);
+      const videoParam = params.get('video') || params.get('v') || (shareType === 'video' ? projectId : null);
+
+      // Check pathname for /reello/:id or /video/:id
+      const pathnameSegments = window.location.pathname.split('/').filter(Boolean);
+      const pathReelloId = pathnameSegments[0] === 'reello' && pathnameSegments[1] ? pathnameSegments[1] : null;
+      const pathVideoId = pathnameSegments[0] === 'video' && pathnameSegments[1] ? pathnameSegments[1] : null;
+
+      const effectiveReelloId = pathReelloId || reelloParam;
+      if (effectiveReelloId) {
+        setRelloInitialVideoId(effectiveReelloId);
+        setIsPublicView(true);
+        setView('RELLO');
+        setIsLoading(false);
+        return;
+      }
+
+      const effectiveVideoId = pathVideoId || videoParam;
+      if (effectiveVideoId) {
+        import('./services/backendService').then(async (m) => {
+          try {
+            const video = await m.fetchVideoById(effectiveVideoId);
+            setIsPublicView(true);
+            if (video) {
+              document.title = `${video.title} | Plajah`;
+              const CINEMA_GENRES = ['Movie', 'TV Series', 'Feature Film'];
+              const isRello = video.isRello === true || (video.isRello == null && !video.isLiveRecording && !(video.genre && CINEMA_GENRES.includes(video.genre)));
+              if (isRello) {
+                setRelloInitialVideoId(video.id);
+                setView('RELLO');
+              } else {
+                setSelectedVideo(video);
+                setView('PLAYER');
+              }
+            } else {
+              setRelloInitialVideoId(effectiveVideoId);
+              setView('RELLO');
+            }
+          } catch {
+            setRelloInitialVideoId(effectiveVideoId);
+            setView('RELLO');
+          } finally {
+            setIsLoading(false);
+          }
+        });
+        return;
+      }
 
       // Deep-link: ?elevate=1 — open the Plajah Elevate directory (faith/culture/nonprofits)
       if (params.get('elevate')) {
@@ -2321,34 +2967,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       }
 
       if (projectId) {
-        if (shareType === 'video') {
-          import('./services/backendService').then(async (m) => {
-            try {
-               // Fetch the EXACT video by id (fetchAllVideos is only the recent-50).
-               const video = await m.fetchVideoById(projectId);
-               setIsPublicView(true);
-               if (video) {
-                 document.title = `${video.title} | Plajah`;
-                 // Reello (UGC) videos play in the Rello feed at that video; every
-                 // other video opens the full-screen single-video PLAYER (the VIDEOS
-                 // view is only the browse grid). Either way, land ON the asset.
-                 if (video.isRello) {
-                   setRelloInitialVideoId(video.id);
-                   setView('RELLO');
-                 } else {
-                   setSelectedVideo(video);
-                   setView('PLAYER');
-                 }
-               } else {
-                 // Unknown/removed — open Rello and let it try to fetch by id.
-                 setRelloInitialVideoId(projectId);
-                 setView('RELLO');
-               }
-            } catch(e) {}
-          });
-          setIsLoading(false);
-          return;
-        } else if (shareType === 'movie') {
+        if (shareType === 'movie') {
           // A shared Taleo film/TV title — always lands on the Taleo movie page
           // (MOVIE_UX). Reconstruct it from wherever it lives: creator film (album),
           // a movie-category video, or an archive title.
@@ -2439,23 +3058,49 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }
           setIsLoading(false);
           return;
+        } else if (shareType === 'mix') {
+          const remoteAlbum = await fetchProjectFromCloud(projectId);
+          if (remoteAlbum) {
+            document.title = `${remoteAlbum.title} | Plajah`;
+            setSelectedAlbum(remoteAlbum);
+            setSelectedVideo(null);
+            setSelectedGame(null);
+            setView('MIX_PLAYER');
+            setIsPublicView(true);
+          }
+          setIsLoading(false);
+          return;
         } else {
           // Defaults to album
           const remoteAlbum = await fetchProjectFromCloud(projectId);
           if (remoteAlbum) {
             document.title = `${remoteAlbum.title} | Plajah`;
-            const isUnreleased = remoteAlbum.isScheduled && remoteAlbum.releaseDate && remoteAlbum.releaseDate > Date.now();
-            if (isUnreleased) {
-              setCountdownInitialAlbum(remoteAlbum);
-              setCountdownAlbumId(remoteAlbum.id);
-            } else {
+            if (remoteAlbum.subType === 'MIX') {
               setSelectedAlbum(remoteAlbum);
-              setView('PLAYER');
+              setSelectedVideo(null);
+              setSelectedGame(null);
+              setView('MIX_PLAYER');
               setIsPublicView(true);
-              // Shared a specific track → show the 5s auto-play countdown for it.
-              const sharedTrackId = params.get('track');
-              const sharedTrack = sharedTrackId ? (remoteAlbum.tracks || []).find((t: any) => t.id === sharedTrackId) : null;
-              if (sharedTrack) setAutoPlayShare({ album: remoteAlbum, track: sharedTrack });
+            } else if (params.get('show') && !(remoteAlbum.isScheduled && remoteAlbum.releaseDate && remoteAlbum.releaseDate > Date.now())) {
+              // "Share in Show Mode": open the release on the fullscreen stage first.
+              setSelectedAlbum(remoteAlbum);
+              setShowModeOpts({ mode: parseShowMode(params.get('show')), trackId: params.get('track') });
+              setView('SHOW_MODE');
+              setIsPublicView(true);
+            } else {
+              const isUnreleased = remoteAlbum.isScheduled && remoteAlbum.releaseDate && remoteAlbum.releaseDate > Date.now();
+              if (isUnreleased) {
+                setCountdownInitialAlbum(remoteAlbum);
+                setCountdownAlbumId(remoteAlbum.id);
+              } else {
+                setSelectedAlbum(remoteAlbum);
+                setView('PLAYER');
+                setIsPublicView(true);
+                // Shared a specific track → show the 5s auto-play countdown for it.
+                const sharedTrackId = params.get('track');
+                const sharedTrack = sharedTrackId ? (remoteAlbum.tracks || []).find((t: any) => t.id === sharedTrackId) : null;
+                if (sharedTrack) setAutoPlayShare({ album: remoteAlbum, track: sharedTrack });
+              }
             }
             setIsLoading(false);
             return;
@@ -3163,6 +3808,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                player. Short-circuits above everything else so a projector can
                never show the app by mistake. */
             <Suspense fallback={null}><AmboOutputWindow /></Suspense>
+          ) : typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('partyDisplay') || new URLSearchParams(window.location.search).get('partyEvent')) ? (
+            /* Party / Event Mode Display Receiver: turns any connected browser into a visual & audio output destination */
+            <Suspense fallback={null}><AmboPartyEventReceiver /></Suspense>
           ) : typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('djOut') ? (
             /* The DJ Console pop-out: Program Out mirror (?djOut=1) or the Pixels
                controls (?djOut=controls). Output only — same reasoning as amboOut. */
@@ -3191,13 +3839,28 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               onSignedIn={() => setView(getTvHome() as AppView)}
             />
           </Suspense>
+        ) : view === 'LANDING' && isWindowsApp() ? (
+          <Suspense fallback={<div className="fixed inset-0 bg-[#07010f] grid place-items-center text-orange-400 font-mono z-50"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" /><span>Launching Front Row Experience...</span></div></div>}>
+            <PlajahFseView
+              userProfile={userProfile}
+              onExit={() => setView('DASHBOARD')}
+              onNavigateToService={(service) => {
+                const s = service.toLowerCase();
+                if (s.includes('music') || s.includes('chora')) setView('MUSIC');
+                else if (s.includes('cinema') || s.includes('taleo') || s.includes('theatre') || s.includes('film') || s.includes('movie')) setView('MOVIES_TV');
+                else if (s.includes('sports') || s.includes('arena')) setView('PLAJAH_SPORTS');
+                else if (s.includes('arcade') || s.includes('game')) setView('GAMES');
+                else setView('DASHBOARD');
+              }}
+            />
+          </Suspense>
         ) : view === 'LANDING' ? (
           <LandingPage 
             onEnter={handleEnterApp} 
             onVisitUser={handleVisitUser}
           />
         ) : (
-          <div className={`h-real-screen w-full flex flex-col lg:flex-row relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
+          <div className={`h-real-screen w-full flex flex-col relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
             {/* Universal Background Layer — inline styles bypass CSS/Tailwind layer conflicts */}
             <div
               id="universal-background"
@@ -3304,14 +3967,35 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 )}
               </>
             )}
+
+            {/* ── Persistent Universal Global Toolbar (Desktop) ── */}
+            {(!getPlatformInfo().isTV && !isMobile && theme !== 'PHONE' && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'PLAJAH_FSE') && (
+              <DesktopGlobalToolbar
+                view={view}
+                onNavigate={(v) => setView(v as any)}
+                user={user}
+                userProfile={userProfile}
+                activePersonaKey={activePersonaKey}
+                onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
+                onOpenSearch={() => setView('SEARCH')}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={handleToggleFullscreen}
+                isWindowsNative={isWindowsApp()}
+              />
+            )}
+
+            {/* ── Main Application Workspace (billboard + navigation rail + platform application viewport) ── */}
+            <div className="flex-1 flex flex-col lg:flex-row w-full overflow-hidden min-h-0 relative">
+
             {/* Ad Billboard — full-height canvas. Sits on the LEFT normally; Split (B) AND the
                 horizontal Bar (C) move it to the FAR RIGHT (order + left border); Bar makes it
                 narrower and drops it below the fixed top nav bar. */}
-          {/* ORA is excluded by policy, not by taste: it is the one surface holding
-              journals and mood, and an ad rail beside it both breaks the promise that
-              this data never touches advertising and destroys the quiet the room exists
-              for. See docs/PLAJAH_WELLBEING_SUITE_BLUEPRINT.md §6. */}
-          {(!isPublicView && !getPlatformInfo().isTV && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL' && view !== 'ORA') && (
+          {/* Creative tools suppress the far-left vertical ad billboard on Windows and Android
+              apps, while social feeds, Chora, Reello, Taleo, and Lorea always retain it. */}
+          {(!isPublicView && !getPlatformInfo().isTV && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL' && view !== 'ORA' && !(
+            (isWindowsApp() || getPlatformInfo().type === 'android' || (typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() === 'android')) &&
+            (view === 'AMBO' || view === 'AMBO_PRO' || view === 'PLAJAH_PIXELS' || view === 'TELA' || view === 'TELA_EMBED_DEMO' || view === 'MELOS' || view === 'MELOS_BEATS' || view === 'SPATIAL_MIXER' || view === 'CHORA_MIXER' || view === 'EVENT_PRODUCTION_STUDIO' || view === 'TICKET_DESIGNER' || view === 'PODCAST_STUDIO' || view === 'CROSSOVER' || view === 'MEDIA_ROUTER' || view === 'MEDIA_CONVERTER' || view === 'TERRA_STUDIO' || view === 'TELEPROMPTER' || view === 'SMART_DIRECTOR' || view === 'CREATOR')
+          )) && (
             <aside className={`hidden lg:block z-50 shrink-0 overflow-hidden border-white/[0.06] relative ${
               navLayout.isBar
                 ? 'lg:order-last border-l lg:w-56 sticky lg:top-14 h-[calc(100vh-3.5rem)]'
@@ -3319,7 +4003,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   ? 'lg:order-last border-l lg:w-80 sticky top-0 h-screen'
                   : 'lg:w-80 border-r sticky top-0 h-screen'
             }`}>
-              {isEducationAccount(userProfile) ? (
+              {isEducationAccount(effectiveProfile) ? (
                 /* Education accounts never see ads here — a rotating learning rail instead:
                    the Chora/Taleo "history of the day", real Met/Art-Institute open-access art,
                    and nano-lesson factoids across disciplines. */
@@ -3680,7 +4364,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               nav chrome changes. pointer-events-none so it never blocks the logo/nav beneath it. */}
           {!isPublicView && !getPlatformInfo().isTV && (
             <div className="fixed z-[400] pointer-events-none select-none"
-                 style={{ top: 'calc(env(safe-area-inset-top) + 6px)', left: 'calc(env(safe-area-inset-left) + 6px)' }}>
+                 style={{ top: 'calc(env(safe-area-inset-top) + 68px)', left: 'calc(env(safe-area-inset-left) + 8px)' }}>
               <span className="inline-block bg-small-orange text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg">
                 Early Access · Beta
               </span>
@@ -3800,6 +4484,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'BOOKS', order: 6, isVisible: true },
                     { id: 'SACRED_LIBRARY', order: 6.1, isVisible: true },
                     { id: 'PLAJAH_LABS', order: 6.5, isVisible: true },
+                    { id: 'PLAJAH_HOME', order: 6.6, isVisible: true },
                     { id: 'RADIO', order: 7, isVisible: true },
                     { id: 'APPS', order: 8.5, isVisible: true },
                     { id: 'CROSSOVER', order: 8.6, isVisible: crossoverSystemEnabled },
@@ -3862,6 +4547,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         SACRED_LIBRARY: { label: 'Sacred Library', icon: Library },
                         BIBLE: { label: 'Lectio', icon: Cross },
                         PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
+                        PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                         RADIO: { label: 'Radio', icon: Radio },
                         APPS: { label: 'Apps', icon: AppWindow },
                         CROSSOVER: { label: 'Crossover', icon: Repeat },
@@ -3892,7 +4578,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase },
                         TERRA: { label: 'Terra', icon: MapPin },
                         AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
-                        ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
+                        ARTIST_MANAGER: { label: 'Chora Artist Manager', icon: Music2 },
                         PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       };
                       const item = items[config.id as keyof typeof items];
@@ -3908,6 +4594,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         ARTICLES: "Read newsletters and articles from your favorite writers.",
                         BOOKS: "Browse and read digital books, comics, and graphic novels.",
                         PLAJAH_LABS: "Science, engineering, and academia hub — research tools, STEM classrooms, and peer discussion.",
+                        PLAJAH_HOME: 'Smart home, device automation, repurposed devices & ambient displays.',
                         RADIO: "Tune into live artist stations and curated broadcasts.",
                         APPS: "Install and run community web applications and tools.",
                         CROSSOVER: "Convert video, audio, and images into almost any format - hardware-accelerated, no paid encoders.",
@@ -4022,6 +4709,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
                       BOOKS: { label: 'Lorea', icon: BookOpen }, SACRED_LIBRARY: { label: 'Sacred Library', icon: Library }, BIBLE: { label: 'Lectio', icon: Cross },
                       PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
+                      PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
@@ -4033,7 +4721,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, AMBO_PRO: { label: 'Ambo', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
-                      ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
+                      ARTIST_MANAGER: { label: 'Chora Artist Manager', icon: Music2 },
                       PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
@@ -4064,7 +4752,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'SACRED_LIBRARY', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
                       { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
-                      { id: 'platform', label: 'Platform', ids: ['HELP_CENTER', 'BROWSER'] },
+                      { id: 'platform', label: 'Platform', ids: ['PLAJAH_HOME', 'HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
                       const expanded = expandedGroups.includes(group.id);
@@ -4117,6 +4805,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
                       BOOKS: { label: 'Lorea', icon: BookOpen }, SACRED_LIBRARY: { label: 'Sacred Library', icon: Library }, BIBLE: { label: 'Lectio', icon: Cross },
                       PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
+                      PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
@@ -4128,11 +4817,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, AMBO_PRO: { label: 'Ambo', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
-                      ARTIST_MANAGER: { label: 'Artist Manager', icon: Music2 },
+                      ARTIST_MANAGER: { label: 'Chora Artist Manager', icon: Music2 },
                       PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
-                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'PLAJAH_HOME', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
@@ -4621,7 +5310,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           {(isMobile || theme === 'PHONE') && (
             <>
               {/* Fixed bottom tab bar — 5 primary destinations + narrow More trigger */}
-              <nav className="fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu">
+              <nav
+                ref={setMobileNavEl}
+                onTouchStart={onNavTouchStart}
+                onTouchEnd={onNavTouchEnd}
+                className={`fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu transition-all duration-300 ${DEFAULT_PERSONAS[activePersonaKey]?.haloClass || ''}`}
+              >
                 {/* Brand-gradient paint server for the active tab's icon stroke (an SVG icon can't
                     take a CSS gradient — it needs a referenced <linearGradient>). Left→right
                     purple→magenta→orange, matching the label gradient below and the TV top tabs. */}
@@ -4635,13 +5329,36 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   </defs>
                 </svg>
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
-                  {(isSchoolNavUser(userProfile) ? eduTabsFor(userProfile) : DEFAULT_BOTTOM_TABS).map(tab => {
+                  {getBottomTabsForPersona(activePersonaKey, effectiveProfile).map((tab, idx, arr) => {
                     const Icon = tab.icon;
                     const isActive = view === tab.id;
+                    const isHoldable = tab.id === 'DASHBOARD' || tab.id === 'USER_PROFILE' || idx === 0 || idx === arr.length - 1;
                     return (
                       <button
                         key={tab.id}
+                        onTouchStart={(e) => {
+                          if (isHoldable) startPersonaHoldTimer(e);
+                        }}
+                        onTouchMove={(e) => {
+                          if (isHoldable) cancelPersonaHoldTimer(e);
+                        }}
+                        onTouchEnd={() => {
+                          if (isHoldable) cancelPersonaHoldTimer();
+                        }}
+                        onMouseDown={(e) => {
+                          if (isHoldable) startPersonaHoldTimer(e);
+                        }}
+                        onMouseUp={() => {
+                          if (isHoldable) cancelPersonaHoldTimer();
+                        }}
+                        onMouseLeave={() => {
+                          if (isHoldable) cancelPersonaHoldTimer();
+                        }}
                         onClick={() => {
+                          if (personaIgnoreClickRef.current) {
+                            personaIgnoreClickRef.current = false;
+                            return;
+                          }
                           // Chora (Music) tab: double-tap reveals the transport controls in
                           // place; a single tap navigates to Chora (delayed to detect the double).
                           if (tab.id === 'MUSIC') {
@@ -4663,11 +5380,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         }}
                         className="flex flex-col items-center gap-0.5 flex-1 py-1.5 android-press"
                         style={{ minHeight: 48 }}
+                        title={isHoldable ? `${tab.label} (Hold to switch persona)` : tab.label}
                       >
-                        <div className={`w-10 h-7 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-gradient-to-br from-[#6B0099]/25 via-[#D40055]/20 to-[#FF8C00]/25' : ''}`}>
+                        <div className={`w-9 h-7 rounded-2xl flex items-center justify-center transition-colors ${isActive ? 'bg-gradient-to-br from-[#6B0099]/25 via-[#D40055]/20 to-[#FF8C00]/25' : ''}`}>
                           {/* Selected tab wears the full brand gradient — icon stroke + label — so you
                               always know which experience you're in (matches the TV top tabs). */}
-                          <Icon size={20} className={isActive ? '' : 'text-white/50'} style={isActive ? { stroke: 'url(#plajah-nav-grad)' } : undefined} />
+                          <Icon size={17} className={isActive ? '' : 'text-white/50'} style={isActive ? { stroke: 'url(#plajah-nav-grad)' } : undefined} />
                         </div>
                         <span className={`text-[8px] font-black uppercase tracking-wider ${isActive ? 'bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] bg-clip-text text-transparent' : 'text-white/40'}`}>{tab.label}</span>
                       </button>
@@ -4688,18 +5406,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     </button>
                   )}
 
-                  {/* Narrow More button — chevron only, no label */}
+                  {/* Overflow More button — distinct Plajah logo gradient & clear touch target */}
                   <button
                     onClick={() => setIsBottomSectionExpanded(v => !v)}
-                    className="flex flex-col items-center justify-center py-1.5 android-press shrink-0"
-                    style={{ minHeight: 48, width: 32 }}
+                    className="flex flex-col items-center justify-center py-1.5 android-press shrink-0 px-1"
+                    style={{ minHeight: 48, width: 42 }}
+                    title={isBottomSectionExpanded ? 'Close menu' : 'More apps & sections'}
                   >
-                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${isBottomSectionExpanded ? 'bg-white/15' : 'hover:bg-white/8'}`}>
+                    <div className={`w-8 h-7 rounded-xl flex items-center justify-center transition-all border ${
+                      isBottomSectionExpanded 
+                        ? 'bg-gradient-to-r from-[#6B0099]/35 via-[#D40055]/30 to-[#FF8C00]/35 border-white/30 shadow-[0_0_12px_rgba(212,0,85,0.4)]' 
+                        : 'bg-white/5 hover:bg-white/10 border-white/10'
+                    }`}>
                       <ChevronUp
-                        size={14}
-                        className={`transition-transform duration-200 ${isBottomSectionExpanded ? 'rotate-180 text-white/70' : 'text-white/35'}`}
+                        size={16}
+                        style={{ stroke: 'url(#plajah-nav-grad)' }}
+                        className={`transition-transform duration-200 ${isBottomSectionExpanded ? 'rotate-180' : ''}`}
                       />
                     </div>
+                    <span className="text-[7.5px] font-black uppercase tracking-wider text-white/50 mt-0.5">More</span>
                   </button>
                 </div>
               </nav>
@@ -4769,6 +5494,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
                         { id: 'BOOKS', icon: BookOpen, label: 'Lorea' },
                         { id: 'PLAJAH_LABS', icon: FlaskConical, label: 'Labs' },
+                        { id: 'PLAJAH_HOME', icon: Home, label: 'Home' },
                         { id: 'ARTICLES', icon: Newspaper, label: 'Newsstand' },
                         { id: 'RADIO', icon: Radio, label: 'Radio' },
                         { id: 'LIVE_HUB', icon: Sparkles, label: 'Live' },
@@ -4815,6 +5541,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Mobile Persona & Organization Switcher Modal */}
+              <PersonaSwitcherModal
+                isOpen={isPersonaModalOpen}
+                onClose={() => setIsPersonaModalOpen(false)}
+                activePersonaKey={activePersonaKey}
+                onSelectPersona={handleSwitchPersona}
+                userProfile={userProfile}
+              />
             </>
           )}
 
@@ -4939,7 +5674,42 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ACADEMIA_HOME' && (
               <Suspense fallback={null}>
-                <AcademiaHomeView profile={userProfile} onNavigate={(v) => setView(v as AppView)} />
+                <AcademiaHomeView user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
+            )}
+
+            {LEARN_VIEW_TITLES[view as string] && (
+              <LearnBar view={view as string} onBack={() => goBack('LEARN')} onNavigate={(v) => setView(v as AppView)}
+                homeView={(isEducationAccount(effectiveProfile) || (effectiveProfile as any)?.accountType === 'PARENT') ? 'ACADEMIA_HOME' : 'ACADEMIA_LANDING'} />
+            )}
+
+            {view === 'NOTES' && (
+              <Suspense fallback={null}>
+                <NotesStudio user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} onBack={() => goBack('ACADEMIA_HOME')} />
+              </Suspense>
+            )}
+
+            {view === 'INQUIRY' && (
+              <Suspense fallback={null}>
+                <InvestigationStudio user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} onBack={() => goBack('LEARN')} />
+              </Suspense>
+            )}
+
+            {view === 'HOMESCHOOL' && (
+              <Suspense fallback={null}>
+                <HomeschoolHub user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
+            )}
+
+            {view === 'LEARN' && (
+              <Suspense fallback={null}>
+                <LearnMapView user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} onBack={() => goBack('ACADEMIA_LANDING')} />
+              </Suspense>
+            )}
+
+            {view === 'ACADEMIA_DIRECTORY' && (
+              <Suspense fallback={null}>
+                <AcademiaDirectory profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
               </Suspense>
             )}
 
@@ -4957,7 +5727,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'EDU_SOCIAL' && (
               <Suspense fallback={null}>
-                <EducationSocialView currentUser={user} profile={userProfile} onVisitUser={handleVisitUser} />
+                <EducationSocialView currentUser={user} profile={effectiveProfile || userProfile} eduRole={roleLens ? ({ teacher: 'TEACHER', student: 'STUDENT', parent: 'PARENT' } as const)[roleLens] : undefined} onVisitUser={handleVisitUser} />
               </Suspense>
             )}
 
@@ -5043,6 +5813,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {view === 'PLAJAH_HOME' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-[#D0BCFF]/30 border-t-[#D0BCFF] rounded-full animate-spin" /></div>}>
+                <PlajahHomeView currentUser={userProfile} onBack={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
+
             {view === 'ARTICLE_EDITOR' && userProfile && (
               <ArticleEditor 
                 article={editingArticle || undefined}
@@ -5070,9 +5846,43 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
 
+            {estimateToken && (
+              <Suspense fallback={null}>
+                <EstimatePublicView token={estimateToken} onClose={() => { setEstimateToken(null); try { window.history.replaceState({}, '', '/'); } catch {} }} />
+              </Suspense>
+            )}
+            {chmsLink && (
+              <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setChmsLink(null); }}>
+                <div className="w-full max-w-md bg-[#0c0c0f] border border-white/10 rounded-3xl p-6 relative">
+                  <button onClick={() => { setChmsLink(null); try { const u = new URL(window.location.href); ['elevateClaim', 'elevateCheckin', 'event', 'label'].forEach(k => u.searchParams.delete(k)); window.history.replaceState({}, '', u.toString()); } catch {} }} className="absolute top-3 right-4 text-white/40 hover:text-white text-xs font-black uppercase tracking-widest">Close</button>
+                  {!user ? (
+                    <div className="text-center py-6">
+                      <p className="text-white font-bold mb-4">Sign in to Plajah to continue.</p>
+                      <button onClick={() => loginWithGoogle()} className="px-6 py-3 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest">Sign in</button>
+                    </div>
+                  ) : (
+                    <Suspense fallback={null}>
+                      {chmsLink.claim && <ChmsClaimCard token={chmsLink.claim} onDone={(orgId) => { setChmsLink(null); setOrgHubInitial({ orgId }); setView('ORG_HUB'); }} />}
+                      {chmsLink.checkinOrg && <ChmsCheckinCard orgId={chmsLink.checkinOrg} uid={user.uid} eventKey={chmsLink.eventKey} eventLabel={chmsLink.eventLabel} />}
+                    </Suspense>
+                  )}
+                </div>
+              </div>
+            )}
+            {elevateInviteToken && (
+              <Suspense fallback={null}>
+                <InviteRedeemView
+                  token={elevateInviteToken}
+                  signedIn={!!user}
+                  onSignIn={() => loginWithGoogle()}
+                  onClose={() => { setElevateInviteToken(null); try { const u = new URL(window.location.href); u.searchParams.delete('elevateInvite'); window.history.replaceState({}, '', u.toString()); } catch {} }}
+                  onOpenOrg={(orgId) => { setElevateInviteToken(null); setOrgHubInitial({ orgId }); setView('ORG_HUB'); }}
+                />
+              </Suspense>
+            )}
             {view === 'ORG_HUB' && user && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <OrgHub user={user} onBack={() => { setOrgHubInitial(null); setView('CREATOR'); }} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} initialContentHq={orgHubInitial?.contentHq} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} />
+                <OrgHub user={user} onBack={() => { const fromElevate = !!orgHubInitial?.fromElevate; setOrgHubInitial(null); setView(fromElevate ? 'PLAJAH_ELEVATE' : 'CREATOR'); }} initialCreate={orgHubInitial?.create} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} initialContentHq={orgHubInitial?.contentHq} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} onOpenVideo={handleSelectItem} onOpenAlbum={handleSelectItem} onOpenLive={setActiveLiveFeed} onOpenChannel={(ownerId, sourceId) => { setLiveChannelFocus({ ownerId, sourceId }); setView('LIVE_HUB' as AppView); }} />
               </Suspense>
             )}
 
@@ -5081,8 +5891,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <PlajahElevate
                   isSignedIn={!!user}
                   isAdmin={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'}
-                  onOpenOrg={(orgId) => { if (user) { setOrgHubInitial({ orgId }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
-                  onCreate={() => { if (user) { setView('CREATOR'); } else { loginWithGoogle(); } }}
+                  onOpenOrg={(orgId) => { if (user) { setOrgHubInitial({ orgId, fromElevate: true }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
+                  onCreate={() => { if (user) { setOrgHubInitial({ create: true, fromElevate: true }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
                 />
               </Suspense>
             )}
@@ -5109,6 +5919,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onBack={() => handleBackToDashboard()}
                   onNavigate={(v) => handleGlobalNavigate(v)}
                   onContinue={welcomeFirstRun ? () => { setWelcomeFirstRun(false); setShowFirstRunOnboarding(true); } : undefined}
+                  onSayHiToNewMembers={user ? () => setShowNewMembersPage(true) : undefined}
                 />
               </Suspense>
             )}
@@ -5203,6 +6014,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {view === 'BIZ_SIM' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <BusinessSimView user={user} profile={userProfile} onBack={() => goBack('BUSINESS_SCHOOL')} onNavigate={handleGlobalNavigate} />
+              </Suspense>
+            )}
+
             {view === 'PRAXIS' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <PraxisView user={user} profile={userProfile} onBack={() => goBack('BUSINESS_SCHOOL')} onNavigate={handleGlobalNavigate} />
@@ -5225,6 +6042,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <VideoManager 
                 user={user}
                 onBack={() => goBack('CREATOR')}
+                seedFile={reelloUploadSeed}
+                onSeedConsumed={() => setReelloUploadSeed(null)}
               />
             )}
 
@@ -5513,7 +6332,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ARTIST_MANAGER' && user && userProfile && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <ArtistProjectManager currentUser={userProfile} />
+                <ChoraArtistManager
+                  currentUser={userProfile}
+                  onOpenChoraStudio={() => setView('MELOS')}
+                  onOpenFabulaFilm={() => setView('FABULA')}
+                  onOpenWritersDesk={() => setView('BOOKS')}
+                />
               </Suspense>
             )}
 
@@ -5662,7 +6486,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'FABULA' && user && !tvBlocked && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <Fabula />
+                {/* Fabula opens on the editor; Film Production is a tab inside it. */}
+                <Fabula
+                  currentUser={userProfile}
+                  onOpenChoraManager={() => setView('ARTIST_MANAGER')}
+                  onOpenWritersDesk={() => setView('BOOKS')}
+                />
               </Suspense>
             )}
 
@@ -5684,18 +6513,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'TICKET_DESIGNER' && user && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <TicketDesigner onBack={() => setView('EVENT_PRODUCTION_STUDIO')} />
+                <TicketDesigner onBack={() => setView('EVENT_DASHBOARD')} />
               </Suspense>
             )}
 
             {view === 'EVENTS' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <LiveEventsGallery />
+                <LiveEventsGallery
+                  onSelectEvent={id => {
+                    setSelectedEventId(id);
+                    setView('EVENT_DETAIL');
+                  }}
+                  onCreateEvent={() => setView('EVENT_CREATE')}
+                />
               </Suspense>
             )}
 
             {view === 'EVENT_DETAIL' && selectedEventId && (
-              <EventLandingPage eventId={selectedEventId} currentUser={userProfile} onBack={() => setView('EVENTS')} onSignIn={() => loginWithGoogle()} />
+              <EventLandingPage
+                eventId={selectedEventId}
+                currentUser={userProfile}
+                onBack={() => setView('EVENTS')}
+                onSignIn={() => loginWithGoogle()}
+                onOpenPhotoPool={poolId => {
+                  setSelectedPoolId(poolId);
+                  setView('EVENT_PHOTO_POOL');
+                }}
+              />
             )}
 
             {view === 'EVENT_CREATE' && userProfile && (
@@ -5710,11 +6554,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onViewEvent={id => { setSelectedEventId(id); setView('EVENT_DETAIL'); }}
                 onLaunchKiosk={id => { setKioskEventId(id); setView('EVENT_KIOSK'); }}
                 onLaunchScanner={id => { setScannerEventId(id); setView('EVENT_DASHBOARD'); }}
+                onOpenPhotoPool={poolId => {
+                  setSelectedPoolId(poolId);
+                  setView('EVENT_PHOTO_POOL');
+                }}
               />
             )}
 
             {view === 'MY_TICKETS' && selectedTicketId && userProfile && (
-              <TicketView ticketId={selectedTicketId} currentUser={userProfile} onBack={() => setView('MY_TICKETS')} />
+              <TicketView
+                ticketId={selectedTicketId}
+                currentUser={userProfile}
+                onBack={() => setView('DASHBOARD')}
+                onOpenPhotoPool={poolId => {
+                  setSelectedPoolId(poolId);
+                  setView('EVENT_PHOTO_POOL');
+                }}
+              />
             )}
 
             {view === 'EVENT_KIOSK' && kioskEventId && userProfile && (
@@ -5820,16 +6676,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <ChoraArtistPage
                   artistId={choraArtistId}
                   onBack={() => setView('MUSIC')}
-                  onSelectAlbum={(album) => {
-                    setSelectedVideo(null); setSelectedBook(null);
-                    setSelectedAlbum(album);
-                    setView('PLAYER');
-                  }}
+                  onSelectAlbum={handleSelectItem}
                   onVisitProfile={handleVisitUser}
-                  onPlayTrack={(track, album) => {
-                    setSelectedAlbum(album);
-                    setView('PLAYER');
-                  }}
+                  onPlayTrack={(track, album) => handleSelectItem(album)}
                 />
               </Suspense>
             )}
@@ -5951,7 +6800,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </ErrorBoundary>
               </div>
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
+            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onOpenOrg={(orgId) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); }} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {view === 'CREATOR_HUB' && (
               <CreatorHub
                 user={user}
@@ -5975,7 +6824,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'LIVE_HUB' && ((isMobile || theme === 'PHONE') ? (
               // Phones get the chat-first / vertical-FAST hub; rotate to landscape → full-screen video.
-              <MobileLiveHub onBack={() => setView('DASHBOARD')} uid={user?.uid} />
+              <MobileLiveHub
+                onBack={() => setView('DASHBOARD')}
+                uid={user?.uid}
+                initialChannelFocus={liveChannelFocus}
+                onChannelFocusConsumed={() => setLiveChannelFocus(null)}
+              />
             ) : (
               <LiveHubView
                 onBack={() => setView('DASHBOARD')}
@@ -6000,7 +6854,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </div>
             )}
             {view === 'MOVIES_TV' && !getPlatformInfo().isTV && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
-            {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} />}
+            {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} onLaunchFse={() => setView('PLAJAH_FSE')} />}
+            {view === 'PLAJAH_FSE' && (
+              <Suspense fallback={<div className="fixed inset-0 bg-[#07010f] grid place-items-center text-orange-400 font-mono z-50"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" /><span>Launching The Plajah FSE...</span></div></div>}>
+                <PlajahFseView
+                  userProfile={userProfile}
+                  onExit={() => setView('GAMES')}
+                  onNavigateToService={(service) => {
+                    const s = service.toLowerCase();
+                    if (s.includes('music') || s.includes('chora')) setView('MUSIC');
+                    else if (s.includes('cinema') || s.includes('taleo') || s.includes('theatre') || s.includes('film') || s.includes('movie')) setView('MOVIES_TV');
+                    else if (s.includes('sports') || s.includes('arena')) setView('PLAJAH_SPORTS');
+                    else if (s.includes('arcade') || s.includes('game')) setView('GAMES');
+                    else setView('DASHBOARD');
+                  }}
+                />
+              </Suspense>
+            )}
             {view === 'APPS' && <AppsView onBack={() => setView('DASHBOARD')} currentUser={userProfile} onNavigate={(v) => setView(v as any)} />}
             {view === 'CROSSOVER' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
@@ -6028,6 +6898,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'SPATIAL_MIXER' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <SpatialMixer onClose={() => setView('APPS')} />
+              </Suspense>
+            )}
+            {view === 'CHORA_MIXER' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <ChoraStudioMixer onClose={() => setView('MELOS')} />
               </Suspense>
             )}
             {view === 'MEDIA_CONVERTER' && (
@@ -6064,7 +6939,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
             {view === 'VESPERS' && vespersRecapId && <VespersRecap recapId={vespersRecapId} onBack={() => setView('APPS')} />}
             {view === 'CLASSROOMS' && (
-              (isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT')
+              (isEducationAccount(effectiveProfile) || (effectiveProfile as any)?.accountType === 'PARENT')
                 ? <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />
                 : (
                   <Suspense fallback={null}>
@@ -6209,7 +7084,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 />
               )
             )}
-            {view === 'GLOBAL_PHOTOS' && <GlobalPhotosView onVisitUser={handleVisitUser} initialMode="WATERFALL" onOpenArtMuseum={() => setView('ART_GALLERY')} />}
+            {(view === 'GLOBAL_PHOTOS' || view === 'PHOTOS') && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Developing Archive…</div>}>
+                <GlobalPhotosView
+                  onVisitUser={handleVisitUser}
+                  initialMode={photosInitialFile ? 'WINDOWS_PHOTOS' : 'WATERFALL'}
+                  initialActiveFile={photosInitialFile || undefined}
+                  initialFolderFiles={photosFolderFiles.length ? photosFolderFiles : undefined}
+                  onOpenArtMuseum={() => setView('ART_GALLERY')}
+                />
+              </Suspense>
+            )}
             {view === 'GALLERY' && activeGallery && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading gallery…</div>}>
                 <GalleryView
@@ -6242,6 +7127,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <TelaView initialDocId={telaRequestedDocId} onBack={() => goBack('CREATOR_HUB')} />
               </Suspense>
             )}
+            {view === 'MACHINE_ATLAS' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Machine Atlas…</div>}>
+                <MachineAtlasView onBack={() => goBack('DASHBOARD')} />
+              </Suspense>
+            )}
+            {view === 'DOSSIER' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening exhibit…</div>}>
+                <DossierHall onBack={() => goBack('CLASSROOMS')} />
+              </Suspense>
+            )}
             {view === 'TELA_EMBED_DEMO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening embed demo…</div>}>
                 <TelaEmbedDemo onBack={() => setView('TELA')} />
@@ -6250,7 +7145,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'EVENT_PHOTO_POOL' && selectedPoolId && (
               <EventPhotoPoolView 
                 poolId={selectedPoolId} 
-                onBack={() => setView('PPV_EVENTS')} 
+                onBack={() => selectedEventId ? setView('EVENT_DETAIL') : setView('EVENT_DASHBOARD')} 
               />
             )}
             {view === 'CHAT' && (
@@ -6272,6 +7167,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onSelectAlbum={handleSelectItem}
                   onSelectGame={handleSelectGame}
                   onVisitUser={handleVisitUser}
+                  onOpenOrg={(orgId) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); }}
                   onMessage={handleMessage}
                   onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); }}
                   initialTab={initialProfileTab as any}
@@ -6295,26 +7191,59 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
             {(view === 'PLAYER' || view === 'PREVIEW') && selectedAlbum && (
-              <PlayerView
+              selectedAlbum.subType === 'MIX' ? (
+                <MixPlayerView
+                  album={selectedAlbum}
+                  onBack={handleBackToChora}
+                  user={user}
+                  onOpenMix={handleSelectItem}
+                />
+              ) : (
+                <PlayerView
+                  album={selectedAlbum}
+                  onBack={handleBackToChora}
+                  onEdit={(alb) => {
+                    setEditingAlbum(alb);
+                    setShowCreator(true);
+                  }}
+                  onUpdate={(updatedAlbum) => {
+                    setSelectedAlbum(updatedAlbum);
+                    setAlbums(prev => prev.map(a => a.id === updatedAlbum.id ? updatedAlbum : a));
+                  }}
+                  onPurchase={handlePurchase}
+                  onVisitUser={(uid) => handleVisitArtist(uid)}
+                  onOpenItem={handleSelectItem}
+                  onNavigateToWorld={(worldId, characterId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
+                  isPublic={isPublicView}
+                  isPreview={view === 'PREVIEW'}
+                  user={user}
+                  partyId={partyIdForAlbum || undefined}
+                />
+              )
+            )}
+            {view === 'CELL_ATLAS' && (
+              <React.Suspense fallback={null}><CellAtlasView onBack={() => setView('LEARN')} /></React.Suspense>
+            )}
+            {view === 'SHOW_MODE' && selectedAlbum && (
+              <ShowModeView
                 album={selectedAlbum}
-                onBack={handleBackToChora}
-                onEdit={(alb) => {
-                  setEditingAlbum(alb);
-                  setShowCreator(true);
-                }}
-                onUpdate={(updatedAlbum) => {
-                  setSelectedAlbum(updatedAlbum);
-                  setAlbums(prev => prev.map(a => a.id === updatedAlbum.id ? updatedAlbum : a));
-                }}
-                onPurchase={handlePurchase}
-                onVisitUser={(uid) => handleVisitArtist(uid)}
-                onOpenItem={handleSelectItem}
-                onNavigateToWorld={(worldId, characterId) => { setViewedUserId(selectedAlbum.ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
-                isPublic={isPublicView}
-                isPreview={view === 'PREVIEW'}
+                mode={showModeOpts.mode}
+                trackId={showModeOpts.trackId}
                 user={user}
-                partyId={partyIdForAlbum || undefined}
+                onExit={() => setView('PLAYER')}
+                onSignUp={() => loginWithGoogle()}
               />
+            )}
+            {lockedInfo && (
+              <React.Suspense fallback={null}>
+                <ArtistSupportSheet album={lockedInfo.album} track={lockedInfo.track} user={user} initialTab="buy" previewEnded
+                  onClose={() => setLockedInfo(null)} onSignUp={() => loginWithGoogle()} />
+              </React.Suspense>
+            )}
+            {returnInfo && (
+              <React.Suspense fallback={null}>
+                <SupportReturnModal info={returnInfo} uid={user?.uid} onClose={() => setReturnInfo(null)} />
+              </React.Suspense>
             )}
             {view === 'MIX_PLAYER' && selectedAlbum && (
               <MixPlayerView
@@ -6443,7 +7372,25 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onBack={() => setView('TEAM_DETAIL')}
               />
             )}
-            {view === 'PLAYER' && selectedVideo && (
+            {view === 'PLAYER' && selectedVideo && !getPlatformInfo().isTV && (
+              <div className="fixed inset-0 z-[99999] bg-black">
+                <ReelloUniversalVideoPlayer
+                  key={selectedVideo.id}
+                  video={selectedVideo}
+                  context={(selectedVideo as any).category === 'MOVIE' ? 'TALEO' : 'REELLO'}
+                  currentUser={user}
+                  queue={videoQueue}
+                  partyId={partyIdForPlayer || undefined}
+                  onClose={() => {
+                    setSelectedVideo(null);
+                    setVideoQueue([]);
+                    setPartyIdForPlayer(null);
+                    setView('VIDEOS');
+                  }}
+                />
+              </div>
+            )}
+            {view === 'PLAYER' && selectedVideo && getPlatformInfo().isTV && (
               <VideoPlayer
                 video={selectedVideo}
                 onBack={() => {
@@ -6498,6 +7445,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
           </SpatialUIRoot>
+          </div>
           {showCreator && (
             <AlbumCreator
               onCreated={(alb, opts) => {
@@ -6552,12 +7500,30 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               then lands the user on their chosen home. */}
           {showFirstRunOnboarding && (
             <Suspense fallback={null}>
-              <Onboarding onDone={(home) => { setShowFirstRunOnboarding(false); handleGlobalNavigate(home); }} />
+              <Onboarding viewer={userProfile} onDone={(home) => { setShowFirstRunOnboarding(false); handleGlobalNavigate(home); }} />
+            </Suspense>
+          )}
+
+          {/* People discovery opened from the Welcome Package (tab 'New this week'). */}
+          {showNewMembersPage && user && (
+            <Suspense fallback={null}>
+              <div className="fixed inset-0 z-[600] overflow-y-auto bg-[#0a0a0a]">
+                <PeopleDiscoveryPage
+                  viewer={userProfile}
+                  initialTab="new"
+                  onBack={() => setShowNewMembersPage(false)}
+                  onOpenProfile={(uid) => { setShowNewMembersPage(false); handleVisitUser(uid); }}
+                  onOpenChat={(_roomId, otherUid) => { setShowNewMembersPage(false); window.dispatchEvent(new CustomEvent('START_CHAT', { detail: { userId: otherUid } })); }}
+                />
+              </div>
             </Suspense>
           )}
 
           <KidsSessionGuard profile={effectiveProfile} />
           {activeChildProfile && <KidsModeBar child={activeChildProfile} onExit={() => setActiveChildProfile(null)} />}
+          {!activeChildProfile && isPlatformAdmin(user, userProfile) && (roleLens || ['ACADEMIA_HOME', 'STUDENT_HOME', 'ACADEMIA_DIRECTORY', 'CLASSROOMS', 'TEACHER_TOOLS'].includes(view as string)) && (
+            <RoleLensBar lens={roleLens} onChange={(r) => { setRoleLensState(r); if (r) setView('ACADEMIA_HOME'); }} />
+          )}
           {shellNext.enabled && !isMobile && !getPlatformInfo().isTV && currentTrack && !isNanoView ? (
             <div className="fixed inset-x-0 bottom-0 z-[240]">
               <CommandPlayer
@@ -6690,6 +7656,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       {/* Someone you follow is live → stackable pop-up pill with a Watch jump (below the notification). */}
       {user && !getPlatformInfo().isTV && (
         <LiveFollowPills uid={user.uid} isMobile={isMobile || theme === 'PHONE'} onWatch={(feed) => setActiveLiveFeed(feed as any)} />
+      )}
+
+      {/* My Garage (Vehicle Passport v1) — opened on demand (OPEN_MY_GARAGE) from the account menu. */}
+      {showMyGarage && user && (
+        <Suspense fallback={null}>
+          <div className="fixed inset-0 z-[1250] bg-[#0a0a0a] overflow-y-auto pt-6">
+            <MyGarageView onBack={() => setShowMyGarage(false)} />
+          </div>
+        </Suspense>
       )}
 
       {/* Customer order tracking — opened on demand (OPEN_MY_ORDERS) or auto after a checkout returns. */}
@@ -6948,6 +7923,109 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       {/* Walkie-Talkie always-on standby HUD (renders only when Live Standby is enabled) */}
       <WalkieStandby selfUid={user?.uid} selfName={user?.displayName ?? undefined} />
+
+      {/* Windows Native Photo Viewer / Universal Media Player */}
+      {activatedNativeFile && (
+        <NativePhotoViewer
+          initialFile={activatedNativeFile}
+          files={activatedNativeFolderFiles.length ? activatedNativeFolderFiles : [activatedNativeFile]}
+          onClose={() => setActivatedNativeFile(null)}
+          onBackToCatalog={() => {
+            setActivatedNativeFile(null);
+            setView('GLOBAL_PHOTOS');
+          }}
+          onSendToFabula={(f) => {
+            setActivatedNativeFile(null);
+            setView('FABULA');
+          }}
+          onSendToPixels={(f) => {
+            setActivatedNativeFile(null);
+            setPixelsPayload({ mediaUrl: f.url, fileName: f.name } as any);
+            setView('PLAJAH_PIXELS');
+          }}
+          onSendToCrossover={(f) => {
+            setActivatedNativeFile(null);
+            setView('CROSSOVER');
+          }}
+          onSendToTela={(f) => {
+            setActivatedNativeFile(null);
+            setView('TELA');
+          }}
+        />
+      )}
+
+      {/* Desktop Project Launcher Overlay (Split Stage Cockpit) */}
+      {showDesktopLauncher && (
+        <DesktopLauncherOverlay
+          isOpen={showDesktopLauncher}
+          onClose={() => setShowDesktopLauncher(false)}
+          user={user}
+          userProfile={effectiveProfile}
+          onNavigate={(targetView: string, detail?: any) => {
+            setShowDesktopLauncher(false);
+            if (detail?.docId) {
+              try {
+                window.dispatchEvent(new CustomEvent('plajah:openTela', { detail }));
+              } catch {
+                setView('TELA' as any);
+              }
+              return;
+            }
+            setView(targetView as any);
+          }}
+        />
+      )}
+
+      {/* Reello Universal Video Player Overlay (Reello, Taleo, Local Files, Asset HQ) */}
+      {activeUniversalVideo && (
+        <div className="fixed inset-0 z-[99999] bg-black">
+          <ReelloUniversalVideoPlayer
+            file={activeUniversalVideo.file}
+            folderFiles={activeUniversalVideo.folderFiles}
+            video={activeUniversalVideo.video}
+            album={activeUniversalVideo.album}
+            context={activeUniversalVideo.context}
+            title={activeUniversalVideo.title}
+            currentUser={user}
+            onClose={() => setActiveUniversalVideo(null)}
+            onUploadToReello={handleUploadLocalToReello}
+          />
+        </div>
+      )}
+
+      {/* Media Plajah Player: Dedicated standalone-grade local player mode */}
+      {isMediaPlajahMode && activeLocalMediaFile && (
+        <MediaPlajahPlayer
+          file={activeLocalMediaFile}
+          folderFiles={localMediaFolderFiles}
+          onExitToFrontRow={(trackPayload, albumPayload, seekTime) => {
+            setIsMediaPlajahMode(false);
+            setView('DASHBOARD');
+            if (trackPayload && albumPayload) {
+              playTrack(trackPayload, albumPayload, 'LIBRARY');
+              if (seekTime && seekTime > 0) {
+                setTimeout(() => seek(seekTime), 120);
+              }
+            }
+          }}
+          onUploadToReello={() => {
+            setIsMediaPlajahMode(false);
+            setView('VIDEOS');
+          }}
+          onAddToFabula={() => {
+            setIsMediaPlajahMode(false);
+            setView('FABULA');
+          }}
+          onSendToPixels={() => {
+            setIsMediaPlajahMode(false);
+            setView('PLAJAH_PIXELS');
+          }}
+          onSendToMelos={() => {
+            setIsMediaPlajahMode(false);
+            setView('MELOS');
+          }}
+        />
+      )}
 
       </Suspense>
             </SpatialProvider>

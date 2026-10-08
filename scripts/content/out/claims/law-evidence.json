@@ -1,0 +1,1434 @@
+{
+ "courseId": "law-evidence",
+ "label": "Evidence",
+ "lessons": [
+  {
+   "id": "law-evidence.l01",
+   "title": "Relevance, Preliminary Questions and Limiting Instructions",
+   "body": [
+    "Evidence law begins with a gateway. Under Federal Rule of Evidence 401, evidence is relevant if it has any tendency to make a fact more or less probable than it would be without the evidence, and the fact is of consequence in determining the action. Rule 402 then says relevant evidence is admissible unless the Constitution, a federal statute, the Rules or other rules prescribed by the Supreme Court provide otherwise, and irrelevant evidence is not admissible. The test is deliberately generous. Relevance is not sufficiency: a single piece of proof need not establish a point, only nudge the probabilities. A fact \"of consequence\" is one that matters under the substantive law, so the elements of the claim and defenses define what counts, and facts bearing on a witness's credibility also qualify.",
+    "Relevance is often described as two linked ideas, probative value (the strength of the inference) and materiality (whether the fact matters under the governing law). Evidence that the defendant in a negligence suit owned a red car is immaterial if color has no bearing on any claim. Evidence that he was seen drinking an hour before the crash is both material and probative on breach.",
+    "Preliminary questions are handled by Rule 104. Under Rule 104(a), the judge decides questions of admissibility, such as whether a witness is qualified, a privilege exists or a hearsay exception applies. In making those findings the judge is not bound by the rules of evidence except those on privilege, and applies a preponderance standard (Bourjaily v. United States, 1987). Rule 104(b) is different. When relevance depends on whether another fact exists, the proponent must introduce evidence sufficient to support a finding of that fact, and the jury ultimately decides it. This is conditional relevance. A letter is relevant to show notice only if the defendant actually received it; the judge asks only whether a reasonable jury could find receipt, not whether she herself finds it so.",
+    "Rule 105 governs evidence admissible for one purpose or against one party but not another. On request, the court must restrict the evidence to its proper scope and instruct the jury accordingly. A limiting instruction is a cure many lawyers distrust, yet in most settings it is the law's answer, with the exception of a few situations, such as a nontestifying codefendant's confession naming the defendant, where the Supreme Court has found instructions inadequate (Bruton v. United States, 1968).",
+    "Worked example. In a contract suit, the plaintiff offers an email the defendant allegedly wrote. The email is plainly relevant if the defendant wrote it. The judge treats authorship as a 104(b) question: if the plaintiff offers enough proof that a jury could find the defendant wrote it (for example, the account, the signature block and a reply that references it), the email goes to the jury, and the defendant may argue it is a forgery. If the same email is admissible only against one of two co-defendants, the other defendant may ask for a limiting instruction."
+   ]
+  },
+  {
+   "id": "law-evidence.l02",
+   "title": "Rule 403 and Old Chief",
+   "body": [
+    "Rule 403 is the great safety valve. It states that the court may exclude relevant evidence if its probative value is substantially outweighed by a danger of unfair prejudice, confusing the issues, misleading the jury, undue delay, wasting time or needlessly presenting cumulative evidence. Several features matter. The rule is permissive (\"may exclude\"), the balance is tilted toward admission because probative value must be substantially outweighed, and the judge has wide discretion, which appellate courts review only for abuse.",
+    "The key word is unfair. All good evidence prejudices the opponent; that is what evidence does. Unfair prejudice means an undue tendency to suggest decision on an improper basis, commonly an emotional one, or to lead the jury to punish a party for something other than the charged conduct. Graphic photographs, for example, are routinely admitted when they help prove cause of death or intent, and excluded when they only inflame and the point is undisputed. Confusion and misleading the jury concern mini-trials on collateral matters. Delay and waste are efficiency concerns.",
+    "Probative value is not assessed in a vacuum. In Old Chief v. United States (1997), the defendant was charged with being a felon in possession of a firearm; the prior felony was an element of the crime, but the particular nature of the earlier offense (assault causing serious bodily injury) added to the risk of unfair prejudice because the jury might infer a violent disposition. He offered to stipulate that he had a qualifying conviction. The Supreme Court held that the district court abused its discretion in rejecting the stipulation, because the name and nature of the prior offense had little added probative value given the availability of a conclusive stipulation, and the risk of unfair prejudice was substantial. The Court stressed that this is a limited holding. As a general rule, the prosecution may prove its case by evidence of its own choosing, and a defendant cannot ordinarily force it to accept a stipulation in place of live proof, because a story told with narrative force is part of the government's legitimate case.",
+    "Trap: Old Chief does not mean a stipulation always defeats admission. It turns on an element the stipulation entirely satisfies, with an offense name that carries an independent prejudicial charge. It is also not a rule of exclusion of prior convictions generally; other rules (404, 609) address those.",
+    "Worked example. In a civil battery case, the plaintiff offers twenty-five nearly identical photographs of her bruising. The first two are probative; the remaining twenty-three are cumulative and some are graphic. The judge may admit a few and exclude the rest under 403 for needless presentation of cumulative evidence. A court that excludes all of them would be on weaker ground, because the injuries are a fact of consequence and the photographs are strong proof."
+   ]
+  },
+  {
+   "id": "law-evidence.l03",
+   "title": "Character Evidence: The Propensity Ban",
+   "body": [
+    "The character rule, Rule 404(a)(1), says evidence of a person's character or character trait is not admissible to prove that on a particular occasion the person acted in accordance with it. This is the propensity ban. The fear is that juries will overvalue a bad history and punish the person for who she is, or decide a case on the basis of a generalization that does not fit the occasion.",
+    "The ban has exceptions, and they are the core of exam questions. In a criminal case, the accused may offer evidence of a pertinent trait of character (such as honesty in a fraud case, or peacefulness in an assault case), which opens the door for the prosecutor to rebut it. The accused may also offer evidence of a pertinent trait of the alleged victim, and if he does, the prosecutor may offer evidence of the same trait of the accused. If the defendant in a homicide case says the victim was the first aggressor, the prosecutor may offer evidence of the victim's peacefulness. Only the accused starts this process; the prosecution may not initiate attacks on the accused's character in its case in chief. The third exception is witness character, governed by the impeachment rules (607 to 609). In civil cases there is no general door-opening exception, and character is usually inadmissible when offered as circumstantial proof of conduct.",
+    "Rule 405 governs the method of proof. When character evidence is allowed, it may be proved by testimony about reputation or by testimony in the form of an opinion. On cross-examination of the character witness, the court may allow inquiry into relevant specific instances of the person's conduct. In the classic Michelson v. United States (1948), a defendant charged with bribery called character witnesses to his good reputation; on cross, the prosecutor asked whether they had heard of his earlier arrest. The Supreme Court allowed the inquiry, reasoning that the question tests the witness's knowledge and standards, and the court gives a limiting instruction. Counsel must have a good faith basis for the question, and the form \"have you heard\" is traditionally used for reputation witnesses, while \"did you know\" is used for opinion witnesses.",
+    "When character is itself an essential element of a charge, claim or defense, such as defamation where truth of a character allegation is the defense, or negligent entrustment and child-custody cases, it can be proved by specific instances as well. Here character is not used to infer conduct; it is the thing being decided.",
+    "Worked example. D is charged with assault after a bar fight. D calls a friend who testifies that D is a peaceful person. The friend has just opened the door. On cross, the prosecutor may ask, \"Did you know that D was arrested for punching a coworker last year?\" The question is allowed to test the witness, not to prove D punched anyone. If D had said nothing about his own character, the prosecutor could not have introduced the arrest to prove D is violent."
+   ]
+  },
+  {
+   "id": "law-evidence.l04",
+   "title": "Other Acts, Habit and the Policy Exclusions",
+   "body": [
+    "Rule 404(b) has two halves. The first forbids using evidence of a crime, wrong or other act to prove a person's character in order to show action in accordance with it. The second permits that same evidence for another purpose, such as proving motive, opportunity, intent, preparation, plan, knowledge, identity, absence of mistake or lack of accident. The list is illustrative, not exclusive. The key is a chain of reasoning that does not pass through propensity. For example, a burglar's earlier use of a distinctive method may identify him (signature or modus operandi), and a prior similar act may rebut the claim that a fatal poisoning was an accident. In a criminal case the prosecutor must provide reasonable notice in writing before trial if the defendant asks for it. Under Huddleston v. United States (1988), the court need not find by a preponderance that the other act occurred; it is a 104(b) question, and the evidence is admissible if a jury could reasonably find the act occurred, though it remains subject to 403.",
+    "Rules 413 to 415 create a statutory exception: in sexual assault and child molestation cases, evidence of the defendant's other similar offenses may be admitted and considered for any relevant matter, including propensity, subject to 403.",
+    "Habit under Rule 406 differs from character. Evidence of a person's habit or an organization's routine practice may be admitted to prove that on a particular occasion the person or organization acted in accordance with it. Habit is a regular response to a repeated specific situation, such as always signaling at a particular intersection; a general disposition for carefulness is character, not habit. The rule does not require corroboration or an eyewitness.",
+    "The policy exclusions share one idea: the evidence may be relevant but is excluded in order to promote some social goal, and it is admissible for other purposes. Rule 407 bars evidence of subsequent remedial measures to prove negligence, culpable conduct, a defect or a need for a warning, in order to encourage safety repairs; it is admissible for another purpose such as ownership, control, impeachment, or feasibility of precautions if the defendant disputes feasibility. Rule 408 bars offers to compromise and statements in negotiations to prove or disprove the validity or amount of a disputed claim, with a dispute required. Rule 409 covers offers to pay medical expenses. Rule 410 protects withdrawn guilty pleas, nolo contendere pleas and statements made during plea discussions with a prosecuting attorney. Rule 411 bars liability insurance evidence on whether a person acted negligently, but permits it to show bias, agency, ownership or control. Rule 412 is the rape shield rule: in a sex offense case, evidence offered to prove a victim's other sexual behavior or sexual predisposition is generally inadmissible, subject to limited criminal exceptions for source of semen or injury, past consent with the accused, and evidence the Constitution requires.",
+    "Worked example. After a customer slips in a store, the store installs non-slip mats. The plaintiff cannot use the mats to prove the store was negligent. If the store claims it does not own the area, however, the mats may be admitted to show control."
+   ]
+  },
+  {
+   "id": "law-evidence.l05",
+   "title": "Defining Hearsay and Spotting Non-Hearsay Uses",
+   "body": [
+    "Hearsay is the most tested subject in evidence law, and the surest way to handle it is to work through the definition step by step. Under Rule 801(c), hearsay is a statement that the declarant does not make while testifying at the current trial or hearing, and that a party offers in evidence to prove the truth of the matter asserted in the statement. Rule 802 then says hearsay is not admissible unless a federal statute, the Rules or other rules prescribed by the Supreme Court provide otherwise. The rationale is that an out-of-court statement lacks the safeguards of the oath, the witness's presence before the factfinder, and cross-examination, which probes the four hearsay dangers: faulty perception, faulty memory, ambiguity and insincerity.",
+    "A statement under Rule 801(a) is a person's oral assertion, written assertion, or nonverbal conduct if the person intended it as an assertion. A nod in response to \"Did you see him?\" is a statement. Conduct that is not meant to communicate anything, such as a person opening an umbrella, is not a statement under the federal rules, which treat nonassertive conduct as outside the hearsay definition even if a jury would infer a belief from it. A declarant is the person who made the statement, and animals and machines are not declarants; a radar gun reading or a computer-generated timestamp raises authentication, not hearsay.",
+    "The key analytical move is to ask what the statement is offered to prove. If the proponent needs the statement to be true to make it relevant, it is hearsay. If the statement is relevant simply because it was made, it is not. Common non-hearsay uses include: the effect on the listener (a warning that the stairs were icy, offered to show the defendant was on notice); verbal acts or legally operative words (the words of a contract offer, a defamatory statement, a bribe offer); circumstantial evidence of the declarant's state of mind, where the statement is relevant whether true or false; and impeachment by a prior inconsistent statement, offered only to show that the witness said something different. Statements offered to show the speaker's knowledge of a fact, to show that the speaker was conscious, or to show a person's language skills, also do not depend on truth.",
+    "Trap: the same words can be hearsay for one purpose and non-hearsay for another, and the examiner will often change only the purpose. A declarant's own statement of a future intent (\"I'm going to Denver with Walt\") is offered under the state-of-mind exception 803(3) to prove the declarant's later conduct, which Mutual Life Insurance Co. v. Hillmon (1892) accepted, but it generally is not allowed to prove what another person did.",
+    "Worked example. In a premises-liability case, a witness testifies that a neighbor shouted, \"The railing is loose!\" two days before the plaintiff fell. If offered to show the railing was loose, it is hearsay. If offered to show the landlord, who overheard, knew about the danger, it is not hearsay because the point is notice, and the truth of the statement does not matter."
+   ]
+  },
+  {
+   "id": "law-evidence.l06",
+   "title": "Statements That Are Not Hearsay: Rule 801(d)",
+   "body": [
+    "Rule 801(d) lists statements that fit the definition of hearsay but are defined as not hearsay. They are called exemptions, and they differ from exceptions in that they are not hearsay by definition, so the declarant's availability and the exact trustworthiness rationale matter less. They fall into two families.",
+    "Rule 801(d)(1) covers certain prior statements of a testifying witness. The declarant must testify and be subject to cross-examination about the statement. Then three kinds are exempt. (A) A prior inconsistent statement, but only if given under penalty of perjury at a trial, hearing, other proceeding, or in a deposition. A casual out-of-court remark to a police officer usually does not qualify, though it may still impeach. (B) A prior consistent statement, if offered either to rebut an express or implied charge that the declarant recently fabricated it or acted from a recent improper influence or motive, or (since a 2014 amendment) to rehabilitate the declarant's credibility as a witness when attacked on another ground. Under Tome v. United States (1995), the common-law premotive requirement remains for the first type: the statement must predate the alleged motive to fabricate. (C) A statement of identification of a person made after perceiving the person, such as a witness picking out the defendant from a lineup.",
+    "Rule 801(d)(2) covers statements offered against an opposing party. These are admissions in the broad sense, and they need not have been against interest when made, nor be based on personal knowledge. The five categories are (A) the party's own statement in either an individual or representative capacity; (B) a statement the party manifested that it adopted or believed to be true, as by silence in circumstances where a reasonable person would deny it (an adoptive admission); (C) a statement by a person the party authorized to make a statement on the subject; (D) a statement by the party's agent or employee on a matter within the scope of that relationship and while it existed; and (E) a statement by a coconspirator of the party during and in furtherance of the conspiracy. The statement itself may be considered in deciding whether the declarant had the authority, the agency or the conspiracy, but it does not by itself establish them. In Bourjaily v. United States (1987), the Court held the preliminary facts are decided by a preponderance of the evidence under Rule 104(a). The rule applies only when the statement is offered against the party, so a party cannot offer her own out-of-court statement under it.",
+    "Traps. Statements by a coconspirator made after the conspiracy ended, or mere idle chatter, do not satisfy (E). The agent-statement rule (D) requires scope and timing; the statement of a former employee about past events does not qualify. A party's own statement can be admitted even if the party did not personally know the facts.",
+    "Worked example. Dale and Evan plot a burglary. After the plan is set, Evan tells a friend, \"Dale will handle the alarm,\" to recruit him. Offered against Dale, the statement can be used as a coconspirator statement made in furtherance, if the court finds the conspiracy and Dale's participation by a preponderance, using the statement along with other evidence. A statement Evan makes to police after his arrest, describing the plan, was not made in furtherance and is not within (E)."
+   ]
+  },
+  {
+   "id": "law-evidence.l07",
+   "title": "Rule 803: Exceptions That Ignore Availability",
+   "body": [
+    "Rule 803 lists exceptions that apply whether or not the declarant is available as a witness. The theory is that these categories of statements carry circumstantial guarantees of reliability, so the lack of cross-examination matters less. The most tested ones follow.",
+    "Present sense impression (803(1)): a statement describing or explaining an event or condition, made while or immediately after the declarant perceived it. Excited utterance (803(2)): a statement relating to a startling event or condition, made while the declarant was under the stress of excitement that it caused. The test for the excited utterance is the declarant's mental state, not strict timing, so it can reach statements made some time after the event, while the present sense impression requires near contemporaneity. Then-existing mental, emotional or physical condition (803(3)): a statement of the declarant's then-existing state of mind (such as motive, intent or plan) or emotional, sensory or physical condition (such as pain), but not a statement of memory or belief to prove the fact remembered or believed, unless it relates to the validity or terms of the declarant's will. \"I'm afraid of him\" qualifies; \"I'm afraid of him because he hit me last week\" does not qualify as to the past act.",
+    "Statements made for medical diagnosis or treatment (803(4)) cover statements describing medical history, symptoms or their cause, if reasonably pertinent to diagnosis or treatment. The rule applies to statements made to any medical provider and even to statements by a person seeking treatment for another, and not only to doctors. Recorded recollection (803(5)): a record on a matter the witness once knew about but now cannot recall well enough to testify fully and accurately, made or adopted when the matter was fresh, and accurately reflecting the witness's knowledge. It may be read into evidence but received as an exhibit only if offered by an adverse party. Refreshing recollection under Rule 612 is a different device, and the writing is not itself evidence.",
+    "Records of a regularly conducted activity (803(6)), the business records exception, require a record of an act, event, condition, opinion or diagnosis, made at or near the time by someone with knowledge, kept in the course of regularly conducted activity of a business, organization or occupation, and making the record was a regular practice of that activity, all shown by the testimony of a custodian or qualified witness or by a certification that complies with Rule 902(11) or (12). The opponent may defeat it by showing that the source of information or the method or circumstances of preparation indicate a lack of trustworthiness. Every layer must itself be within an exception or be non-hearsay: a police report recording a bystander's account has an outsider's statement inside it, and that statement needs its own basis (Rule 805).",
+    "Public records (803(8)) include a record or statement of a public office setting out the office's activities, or a matter observed while under a legal duty to report (but not, in a criminal case, a matter observed by law-enforcement personnel), or, in a civil case or against the government in a criminal case, factual findings from a legally authorized investigation, unless the opponent shows a lack of trustworthiness. Other exceptions include learned treatises (803(18)), which can be read into evidence but not received as exhibits and must be established as reliable authority by the expert's admission, another expert, or judicial notice; and judgments of a previous conviction (803(22)) for crimes punishable by death or imprisonment over one year.",
+    "Worked example. A hospital worker keys a patient's blood-alcohol result into the chart at the time of the test. A records custodian testifies to the hospital's routine. The chart is admissible under 803(6). A note in the chart, \"Patient's wife says he drank all day,\" is a double-hearsay problem, which the medical-treatment exception may or may not solve, depending on whether the wife's statement was reasonably pertinent to diagnosis."
+   ]
+  },
+  {
+   "id": "law-evidence.l08",
+   "title": "Rule 804, Rule 807, Double Hearsay and Credibility of Declarants",
+   "body": [
+    "Rule 804 contains exceptions that apply only when the declarant is unavailable. Under Rule 804(a), a declarant is unavailable if she is exempted by a ruling of privilege from testifying, refuses to testify despite a court order, testifies to not remembering the subject matter, cannot be present because of death or a then-existing infirmity, physical or mental illness, or cannot be produced by process or other reasonable means. A declarant is not unavailable if the statement's proponent procured or wrongfully caused the unavailability to prevent the testimony.",
+    "The main 804(b) exceptions are these. Former testimony (804(b)(1)): testimony given as a witness at a trial, hearing or deposition, if now offered against a party who had (or, in a civil case, whose predecessor in interest had) an opportunity and similar motive to develop it by direct, cross or redirect examination. Statement under the belief of imminent death (804(b)(2)), the dying declaration: in a civil case or a homicide prosecution, a statement the declarant made while believing death was imminent, about its cause or circumstances. Statement against interest (804(b)(3)): a statement that a reasonable person in the declarant's position would have made only if believing it true because it was so contrary to the declarant's proprietary or pecuniary interest or had so great a tendency to invalidate a claim or expose her to civil or criminal liability, and if offered in a criminal case as one tending to expose the declarant to criminal liability, supported by corroborating circumstances that clearly indicate its trustworthiness. In Williamson v. United States (1994), the Court read the predecessor rule to cover only the individual self-inculpatory remarks, not collateral parts of a narrative that shift blame or are neutral. Forfeiture by wrongdoing (804(b)(6)): a statement offered against a party who wrongfully caused, or acquiesced in wrongfully causing, the declarant's",
+    "unavailability, and did so intending that result. That intent requirement also appears in the constitutional rule from Giles v. California (2008).",
+    "The residual exception, Rule 807, allows a hearsay statement not covered by 803 or 804 if it is supported by sufficient guarantees of trustworthiness, after considering the totality of circumstances under which it was made and any corroborating evidence, and it is more probative on the point than any other evidence the proponent can obtain through reasonable efforts. Since 2019, the proponent must give the adverse party reasonable written notice before trial or hearing. Courts say it should be used sparingly.",
+    "Multiple hearsay is addressed in Rule 805: each part of the combined statements must conform with an exception or exemption. Rule 806 allows the credibility of a hearsay declarant to be attacked and supported as if the declarant had testified, including by inconsistent statements even if made after the statement, and without the need to give the declarant an opportunity to explain.",
+    "Trap: dying declarations apply only in civil cases and homicide prosecutions, so a victim's deathbed statement in a robbery case does not qualify, and the statement must be about the cause or circumstances of what the declarant believed was her impending death.",
+    "Worked example. At a homicide trial, a witness (Rita) refuses to answer despite a judge's order and is held in contempt. She is unavailable. The prosecutor offers her testimony from the preliminary hearing, at which the defendant's counsel cross-examined her. The testimony qualifies as former testimony because the defense had the opportunity and a similar motive to cross at the earlier hearing. If instead the defendant had threatened Rita to keep her quiet, the forfeiture exception could let in her earlier out-of-court accusation."
+   ]
+  },
+  {
+   "id": "law-evidence.l09",
+   "title": "Crawford and the Testimonial Hearsay Rule",
+   "body": [
+    "The Sixth Amendment guarantees a criminal defendant the right \"to be confronted with the witnesses against him.\" This is a constitutional rule that sits on top of the hearsay rules. A statement can satisfy a hearsay exception and still be barred by the Confrontation Clause, and the reverse is not usually true, because the Clause concerns a narrower set of statements. It applies only in criminal prosecutions and only against the prosecution's evidence; a defendant offering hearsay is not \"confronting\" anyone.",
+    "For decades, Ohio v. Roberts (1980) let hearsay in if it bore adequate indicia of reliability. Crawford v. Washington (2004) overruled that approach for testimonial statements. The Court held that testimonial out-of-court statements by a witness who does not appear at trial are barred unless the witness is unavailable and the defendant had a prior opportunity to cross-examine. The facts: police questioned Crawford's wife, Sylvia, after he stabbed a man; she gave a recorded statement that undercut his claim of self-defense. Because spousal privilege kept her off the stand, the prosecution played the recording. The Court held that admitting it violated confrontation, regardless of whether a judge found it reliable. Reliability is not the test for testimonial statements; the Clause demands cross-examination as the way the Constitution tests reliability. Crawford left \"testimonial\" without a full definition, but its core includes ex parte in-court testimony, affidavits, prior testimony at a preliminary hearing or grand jury, and statements made during police interrogations. If the declarant testifies at trial and is subject to cross-examination, the Clause does not bar admission of the earlier statement.",
+    "Two years later, Davis v. Washington (2006) supplied the primary purpose test. Statements made to police in the course of interrogation are nontestimonial when the circumstances objectively indicate that the primary purpose of the interrogation is to enable police assistance to meet an ongoing emergency. They are testimonial when the circumstances objectively indicate there is no such ongoing emergency, and the primary purpose is to establish or prove past events potentially relevant to later criminal prosecution. A 911 call in which the caller reports an assault in progress was nontestimonial; a detailed account to officers after the danger had passed, in the companion case Hammon, was testimonial. Michigan v. Bryant (2011) held that the inquiry is objective, takes into account both the declarant's and the interrogator's purposes, and may find an ongoing emergency even when a gunshot victim had fled and the shooter's whereabouts were unknown, because of the threat to police and the public. Ohio v. Clark (2015) held that a three-year-old's statements to preschool teachers identifying his abuser were nontestimonial, noting that statements to persons other than law enforcement are much less likely to be testimonial.",
+    "Forfeiture also applies. In Giles v. California (2008) the Court held that the common-law forfeiture-by-wrongdoing doctrine requires that the defendant have intended to prevent the witness from testifying. A statement that is not testimonial is governed only by the hearsay rules and due process, rather than the Clause.",
+    "Worked example. A caller tells a 911 operator, while an assailant is still in the house, \"He is breaking down my door; his name is Marcus.\" The primary purpose is to meet an emergency, so the statement is nontestimonial and the Clause does not bar it, even if the caller does not testify. A recorded station-house interview a day later is testimonial, and if the caller is unavailable and was never cross-examined, the statement cannot come in against the defendant."
+   ]
+  },
+  {
+   "id": "law-evidence.l10",
+   "title": "Forensic Reports, Experts and Joint Trials",
+   "body": [
+    "Forensic evidence raised the hardest Confrontation Clause questions after Crawford. In Melendez-Diaz v. Massachusetts (2009), the Court held that sworn certificates of analysis from a state laboratory, stating that a substance was cocaine, were testimonial statements and the analysts who prepared them were witnesses subject to confrontation. The Court rejected the idea that scientific results are neutral and immune from cross-examination, noting the risks of error, incompetence and fraud. Bullcoming v. New Mexico (2011) held that a surrogate analyst who did not perform or observe the blood-alcohol test cannot substitute for the analyst who signed the certificate, unless the defendant has had a chance to cross-examine that analyst. The prosecution cannot satisfy the Clause by putting another scientist on the stand who knows the lab's procedures.",
+    "What about an expert who relies on someone else's test results to form her own opinion? Federal Rule 703 lets an expert rely on inadmissible facts or data if experts in the field reasonably do, and the expert may disclose them to the jury only when their helpfulness in evaluating the opinion substantially outweighs their prejudicial effect. The fractured decision in Williams v. Illinois (2012) produced no majority rationale. In Smith v. Arizona (2024), the Court addressed a substitute expert who conveyed to the jury the statements of an absent analyst as the basis of her opinion. It held that when an expert conveys an absent analyst's statements in support of her opinion, and the statements provide that support only if true, then the statements come in for their truth. If those statements are testimonial, the Clause bars them. The Court rejected the idea that labeling the statements \"basis evidence\" avoids the problem, and remanded for the state court to decide whether the specific statements were testimonial. The upshot: an expert may testify to her own independent conclusions, but may not act as a conduit for another analyst's testimonial assertions offered for their truth.",
+    "Business and public records are generally treated as nontestimonial because they are created for administrative purposes, not to prove a fact at trial. Melendez-Diaz said as much about records kept in the regular course of business, though a record created for litigation, such as a lab report prepared for a prosecution, is another matter.",
+    "The other major Confrontation problem is the joint trial. In Bruton v. United States (1968), a codefendant's confession that implicated the defendant was admitted at their joint trial with a limiting instruction that it was admissible only against the confessor. The codefendant did not testify. The Court held that the instruction could not cure the harm and the defendant's confrontation right was violated. Richardson v. Marsh (1987) held that the Clause is not violated if the confession is redacted to remove any reference to the defendant and is accompanied by a limiting instruction, even if other evidence at trial links the defendant to it. Gray v. Maryland (1998) held that a redaction that is obvious, such as replacing the name with \"deleted\" or a blank, falls on the Bruton side. The Bruton rule applies to nontestifying codefendants' testimonial confessions; a codefendant who testifies and can be cross-examined presents no Bruton problem.",
+    "Worked example. At a drug trial, the prosecutor calls a chemist who did not run the test but reviewed the lab file, and asks her to read the original analyst's conclusion and say she agrees. If the original analyst's report is testimonial, the defense's objection under Bullcoming and Smith is strong; the prosecution must call the analyst, or the substitute may only offer her own independent opinion based on facts properly in evidence."
+   ]
+  },
+  {
+   "id": "law-evidence.l11",
+   "title": "Authentication and Self-Authenticating Evidence",
+   "body": [
+    "Authentication is the requirement that, before an item is admitted, the proponent must produce evidence sufficient to support a finding that the item is what the proponent claims it is (Rule 901(a)). The standard is low: it is a conditional-relevance question under Rule 104(b), so the judge asks whether a reasonable jury could find authenticity, and the jury ultimately decides. The opponent may still contest genuineness before the jury. Authentication is not an issue of hearsay and is a separate hurdle; a genuine letter can still be hearsay, and a perfectly admissible hearsay exception does not authenticate a forgery.",
+    "Rule 901(b) offers a non-exclusive list of methods. Testimony of a witness with knowledge that an item is what it is claimed to be (901(b)(1)) is the simplest: a photographer says the picture fairly and accurately depicts the scene. Nonexpert opinion about handwriting, based on familiarity not acquired for the litigation (901(b)(2)). Comparison by an expert or by the trier of fact with specimens already authenticated (901(b)(3)). Distinctive characteristics and the like, including appearance, contents, substance, internal patterns or other distinctive characteristics, taken together with all the circumstances (901(b)(4)), which is the workhorse for emails, text messages and social media posts, where a reply that references private facts or the use of a known account helps show authorship. Voice identification (901(b)(5)). Telephone conversations (901(b)(6)): evidence that a call was made to the number assigned at the time to a particular person or business, if, for a person, self-identification supports it, or for a business, the call reached the business and concerned business reasonably transacted over the phone. A process or system that produces an accurate result (901(b)(9)), common for computer-generated outputs and some video. Chain of custody for fungible items such as drugs or blood samples is a way of showing identity, and breaks in the chain usually go to weight, not admissibility, unless there is a substantial possibility of tampering.",
+    "Rule 902 lists items of evidence that are self-authenticating, so no extrinsic evidence of authenticity is needed as a precondition. Examples include domestic public documents under seal (902(1)); domestic public documents not under seal but signed and certified (902(2)); certified copies of public records (902(4)); official publications (902(5)); newspapers and periodicals (902(6)); trade inscriptions such as a label showing manufacturer (902(7)); acknowledged documents (902(8)); commercial paper and related documents (902(9)); and certified domestic records of a regularly conducted activity (902(11)), or foreign ones (902(12)), which let a custodian's declaration replace live testimony. The 2017 amendments added 902(13), for records generated by an electronic process or system, and 902(14), for data copied from an electronic device, storage medium or file, each authenticated by a certification of a qualified person, using process of digital identification for 902(14). Self-authentication of a record does not make it admissible: the hearsay, relevance and other objections remain. Notice requirements usually apply to certifications under 902(11) to (14).",
+    "Worked example. The plaintiff offers a printout of a text message in which the defendant says, \"I will pay on Friday.\" The plaintiff testifies that she received it on the number she had always used for the defendant, that it appeared under his name in her phone, and that he later came by with a partial payment on Friday. That supports a finding of authenticity under 901(b)(1) and (b)(4). The defendant may still testify his phone was stolen, a question for the jury. The message also has to clear hearsay, which it does as an opposing party's statement."
+   ]
+  },
+  {
+   "id": "law-evidence.l12",
+   "title": "The Best Evidence Rule and Summaries",
+   "body": [
+    "The best evidence rule is poorly named. Under Rule 1002, an original writing, recording or photograph is required in order to prove its content, unless the Rules or a federal statute provide otherwise. Two points to keep straight: the rule applies only when a party is trying to prove what a writing, recording or photograph says (its content), and it does not apply simply because a document exists. A witness may testify that she saw a contract signed, or that a person was paid, without producing the document, because she is proving the event, not the content. If the witness is asked what the contract says, the rule applies. The rule also reaches the case where a witness testifies from a document and her testimony essentially recites the document, and courts split on the edge cases such as testimony based on personal knowledge versus a recording of the same event.",
+    "Definitions come from Rule 1001. A writing consists of letters, words, numbers or their equivalent set down in any form; a recording is the same kind of material set down by any means; a photograph is a photographic image or its equivalent stored in any form. An original is the writing or recording itself or any counterpart intended to have the same effect by the person who executed or issued it; for electronically stored information, an original includes any printout or other output readable by sight if it accurately reflects the information. A duplicate is a counterpart produced by a mechanical, photographic, chemical, electronic or other process that accurately reproduces the original.",
+    "Rule 1003 makes a duplicate admissible to the same extent as the original unless a genuine question is raised about the original's authenticity or the circumstances make it unfair to admit the duplicate. Rule 1004 allows other evidence of content when the original is lost or destroyed (unless the proponent lost or destroyed it in bad faith), when the original cannot be obtained by any available judicial process, when the opponent had control of the original and was notified it would be a subject of proof but failed to produce it, or when the writing is not closely related to a controlling issue. Rule 1005 permits certified copies of public records. Rule 1006 allows a proponent to use a summary, chart or calculation to prove the content of voluminous writings, recordings or photographs that cannot be conveniently examined in court, provided the originals or duplicates are made available for examination or copying at a reasonable time and place; the court may order production. Rule 1007 allows content to be proved by the testimony or written statement of the party against whom it is offered, without accounting for the original. Rule 1008 splits roles between judge and jury: the court decides preliminary admissibility questions such as whether the original was lost, but when an issue is whether an asserted writing ever existed, whether another writing is the original, or whether other evidence of content accurately reflects it, the jury decides.",
+    "Distinguish Rule 1006 summaries from Rule 611(a) pedagogical aids, which illustrate evidence already admitted and are not themselves evidence.",
+    "Worked example. In a tax dispute, the government wants to prove the content of 40,000 bank transactions. A forensic accountant's spreadsheet summarizing them is admissible under 1006 if the underlying records are admissible and made available to the defense. A witness who says she saw the defendant sign a lease needs no original because she is testifying to the signing, not to the lease terms."
+   ]
+  },
+  {
+   "id": "law-evidence.l13",
+   "title": "Competency, Personal Knowledge and the Examination of Witnesses",
+   "body": [
+    "The Federal Rules adopt a liberal view of who may testify. Rule 601 says every person is competent to be a witness unless the Rules provide otherwise, and in a civil case, state law governs the witness's competence regarding a claim or defense for which state law supplies the rule of decision. Gone are the old disqualifications for felons, spouses, interested parties and the like; concerns of that kind go to credibility. A very young child or a person with a mental disability may testify if she can perceive, remember and relate, and understands the duty to tell the truth, and the judge decides this as a preliminary question.",
+    "Rule 602 requires personal knowledge: a witness may testify to a matter only if evidence is introduced sufficient to support a finding that she has personal knowledge of it. This does not apply to an expert's opinion testimony (Rule 703). Rule 603 requires an oath or affirmation to testify truthfully. Rule 604 governs interpreters, who must be qualified and give an oath to translate accurately.",
+    "Rule 605 provides that the presiding judge may not testify as a witness at the trial, and no objection is needed to preserve the point. Rule 606 addresses jurors. Under 606(a), a juror may not testify as a witness before the other jurors in the trial, and if a juror is called, the court must give the opposing party an opportunity to object outside the jury's presence. Under 606(b), during an inquiry into the validity of a verdict, a juror may not testify about statements made or incidents that occurred during deliberations, the effect of anything on a juror's or another juror's vote, or a juror's mental processes. There are three exceptions: a juror may testify about whether extraneous prejudicial information was improperly brought to the jury's attention, whether an outside influence was improperly brought to bear on any juror, or whether a mistake was made in entering the verdict on the verdict form. Tanner v. United States (1987) held that juror intoxication during trial is not an outside influence, so the rule barred testimony on it. In Pena-Rodriguez v. Colorado (2017), the Supreme Court recognized a constitutional exception: where a juror makes a clear statement that indicates he or she relied on racial stereotypes or animus to convict a criminal defendant, the no-impeachment rule gives way to permit the trial court to consider the evidence.",
+    "Rule 611 gives the court reasonable control over the mode and order of examining witnesses. Cross-examination should not go beyond the subject matter of direct and matters affecting credibility, though the court may allow inquiry into additional matters as if on direct (the federal approach; a number of states follow a wide-open cross rule). Leading questions should not be used on direct except as necessary to develop the testimony, and ordinarily are allowed on cross; the court may allow leading questions of a hostile witness, an adverse party, or a witness identified with an adverse party. Rule 612 lets a witness use a writing to refresh memory, and if she used it while testifying, the adverse party is entitled to have it produced, to inspect it, to cross-examine on it, and to introduce relevant portions in evidence; the court has discretion if she used it before testifying. Rule 615 lets the court, on request, exclude witnesses so that they cannot hear other witnesses' testimony, but not a party who is a natural person, an officer or employee designated as the entity's representative, a person whose presence is essential to the claim, or a person authorized by statute to be present.",
+    "Worked example. A witness cannot remember the license plate she saw. Counsel hands her a note she wrote at the scene and asks whether it refreshes her memory. The note is not offered as evidence; she then testifies from her renewed memory. Opposing counsel may inspect the note and cross-examine on it. If instead she cannot recall even after seeing the note, counsel may attempt to lay a foundation for recorded recollection under 803(5), so that it may be read to the jury."
+   ]
+  },
+  {
+   "id": "law-evidence.l14",
+   "title": "Impeachment: Prior Inconsistent Statements, Bias, Convictions and Truthfulness",
+   "body": [
+    "Impeachment is the attack on a witness's credibility. Under Rule 607, any party, including the one who called the witness, may attack credibility. A party may not use this to call a witness she knows will say nothing helpful merely to introduce otherwise inadmissible prior statements under the guise of impeachment, a limit courts apply to prevent subterfuge. The principal methods follow.",
+    "Prior inconsistent statements (Rule 613). Extrinsic evidence of a prior inconsistent statement is admissible only if the witness is given an opportunity to explain or deny the statement and an adverse party is given an opportunity to examine her about it, or if justice so requires. The rule does not require that the statement be shown to the witness before she is asked about it, though on request it must be disclosed to opposing counsel. The extrinsic-evidence requirement does not apply to an opposing party's statement under 801(d)(2). Unless the statement qualifies under 801(d)(1)(A), it is used only to impeach and not for its truth. Courts disallow impeachment on collateral matters by extrinsic evidence, so a witness's answer on a collateral point binds the examiner. Bias, interest and motive are never collateral. Under United States v. Abel (1984), a witness's membership in a secret prison gang with the defendant was properly used to show bias, and the Rules, though silent on bias, permit it.",
+    "Character for truthfulness (Rule 608). Under 608(a), a witness's credibility may be attacked or supported by reputation or opinion testimony about her character for truthfulness or untruthfulness, but evidence of truthful character is admissible only after her character for truthfulness has been attacked. Under 608(b), specific instances of conduct may be inquired into on cross-examination if probative of the character for truthfulness or untruthfulness of the witness or of another witness whose character she is testifying about, but extrinsic evidence is not admissible to prove them. By testifying on another matter, a witness does not waive her privilege against self-incrimination for testimony that relates only to her character for truthfulness. Convictions are governed by 609, not 608(b).",
+    "Criminal convictions (Rule 609). Under 609(a)(1), a crime punishable by death or imprisonment for more than one year must be admitted in a civil case or in a criminal case where the witness is not a defendant, subject to Rule 403, and in a criminal case where the witness is a defendant, only if the probative value outweighs the prejudicial effect to that defendant. Under 609(a)(2), any crime, regardless of punishment, must be admitted if the court can readily determine that establishing the elements required proving, or the witness admitting, a dishonest act or false statement; there is no balancing. Examples are perjury, fraud and false statement offenses, while theft crimes usually do not qualify absent proof of deceit. A conviction more than ten years old, counting from the conviction or release from confinement, whichever is later, is admissible only if its probative value substantially outweighs its prejudicial effect and the proponent gives reasonable written notice (609(b)). Pardons based on innocence and certain rehabilitation certificates can remove a conviction (609(c)), and juvenile adjudications are generally not admissible, with a narrow exception in criminal cases for witnesses other than the defendant (609(d)). Under Luce v. United States (1984), a defendant who does not testify cannot claim on appeal that an in limine ruling allowing impeachment by a prior",
+    "conviction was error, since the reviewing court cannot assess the harm, and Ohler v. United States (2000) held that a defendant who introduces her own conviction on direct cannot appeal the ruling either.",
+    "Other rules. Rule 610 bars evidence of religious beliefs or opinions to attack or support credibility on the ground that they affect it. Contradiction by other evidence, capacity impeachment (poor eyesight or intoxication at the time), and rehabilitation by prior consistent statements under 801(d)(1)(B) round out the toolbox.",
+    "Worked example. D testifies at his own trial for check fraud. The prosecutor asks about a conviction nine years ago for forging a check. It is a crimen falsi offense, so 609(a)(2) requires admission without balancing. If D had a conviction for aggravated assault, a felony, the court would balance under 609(a)(1)(B), asking whether probative value outweighs prejudice to D."
+   ]
+  },
+  {
+   "id": "law-evidence.l15",
+   "title": "Lay Opinion, Expert Testimony and the Bases of Opinion",
+   "body": [
+    "The Rules distinguish lay opinion from expert opinion. Under Rule 701, a lay witness's opinion testimony is limited to one that is (a) rationally based on the witness's perception, (b) helpful to clearly understanding the witness's testimony or to determining a fact in issue, and (c) not based on scientific, technical or other specialized knowledge within the scope of Rule 702. Familiar examples include a witness's estimate of speed or distance, that a person appeared intoxicated or angry, the identity of a voice, handwriting familiarity, and the value of one's own property. The third prong, added in 2000, prevents a party from sidestepping the reliability gate and the disclosure requirements of Rule 702 and the civil and criminal discovery rules by offering an expert's opinion through a lay witness. A police officer who saw a transaction can describe it, but opinions about drug-dealer codes that rest on training typically require expert qualification.",
+    "Rule 702 governs experts. A witness who is qualified as an expert by knowledge, skill, experience, training or education may testify in the form of an opinion or otherwise if the proponent demonstrates to the court that it is more likely than not that (a) the expert's scientific, technical or other specialized knowledge will help the trier of fact to understand the evidence or to determine a fact in issue; (b) the testimony is based on sufficient facts or data; (c) the testimony is the product of reliable principles and methods; and (d) the expert's opinion reflects a reliable application of the principles and methods to the facts of the case. The \"more likely than not\" language comes from a December 2023 amendment meant to correct decisions that treated sufficiency of basis and application as matters of weight for the jury; the court acts as gatekeeper on all of (a) to (d). An expert may be qualified by experience alone, and the question is qualification on the specific subject. Rule 706 lets the court appoint its own expert.",
+    "Rule 703 on the bases of an expert's opinion. An expert may base an opinion on facts or data in the case that the expert has been made aware of or personally observed. If experts in the field would reasonably rely on those kinds of facts or data in forming an opinion, they need not be admissible for the opinion to be admitted. But if the facts or data would otherwise be inadmissible, the proponent may disclose them to the jury only if their probative value in helping the jury evaluate the opinion substantially outweighs their prejudicial effect. This weighted test is the reverse of Rule 403, tilted against disclosure. A limiting instruction is typically given because the basis evidence is not admitted for its truth (and see the Confrontation Clause discussion in the earlier track). A physician may rely on a patient's history and test results by others.",
+    "Rule 704(a) says an opinion is not objectionable just because it embraces an ultimate issue, abolishing the old ultimate-issue rule. But opinions that merely tell the jury what result to reach or that state legal conclusions are excluded as unhelpful under Rules 701 and 702. Rule 704(b), in a criminal case, forbids an expert witness from stating an opinion about whether the defendant did or did not have a mental state or condition that constitutes an element of the crime charged or of a defense; those are for the trier of fact. An expert may describe a defendant's diagnosis and its characteristics, but may not say that the defendant did or did not \"intend to kill.\" Rule 705 allows an expert to state an opinion and give reasons without first testifying to the underlying facts or data, unless the court requires otherwise, and the expert may be required to disclose them on cross-examination.",
+    "Worked example. At a robbery trial, a bystander testifies that the robber \"was very nervous\" and \"ran about as fast as a car on a side street.\" Both are rationally based lay opinions. An officer who testifies that the chalk-like substance in the robber's bag was a certain drug, on the basis of training in drug identification, is giving expert testimony and must qualify under 702."
+   ]
+  },
+  {
+   "id": "law-evidence.l16",
+   "title": "The Daubert Gatekeeping Standard",
+   "body": [
+    "Before 1993, the leading test for admitting novel scientific evidence in many courts was Frye v. United States (D.C. Cir. 1923): the technique must have gained general acceptance in the relevant scientific community. In Daubert v. Merrell Dow Pharmaceuticals, Inc. (1993), the Supreme Court held that the Federal Rules of Evidence, particularly Rule 702, superseded Frye in federal courts. The trial judge must act as a gatekeeper, ensuring that expert testimony rests on a reliable foundation and is relevant to the task at hand. Daubert's case involved the drug Bendectin and claims of birth defects. The Court gave a flexible, non-exclusive list of factors: whether the theory or technique can be (and has been) tested; whether it has been subjected to peer review and publication; the known or potential rate of error and the existence of standards controlling its operation; and general acceptance, which remains a relevant factor though not a precondition. The inquiry focuses on principles and methodology, not on the conclusions they generate.",
+    "General Electric Co. v. Joiner (1997) held that appellate courts review a trial court's Daubert decision for abuse of discretion, including a decision to exclude. It also held that conclusions and methodology are not entirely distinct: a court may conclude there is simply too great an analytical gap between the data and the opinion proffered, and need not admit evidence connected to the data only by the ipse dixit of the expert. In Kumho Tire Co. v. Carmichael (1999), the Court held that the gatekeeping obligation applies to all expert testimony, including technical and other specialized knowledge such as the opinion of a tire-failure engineer, not only to \"scientific\" testimony. The Daubert factors may be applied where reasonable, but the judge has broad latitude in deciding how to test reliability, and may use other factors suited to the field.",
+    "Rule 702 was amended in 2000 to codify these cases, and again effective December 1, 2023, to make clear that the proponent must demonstrate to the court that it is more likely than not that the admissibility requirements are met, and that the expert's opinion must stay within the bounds of what can be concluded from a reliable application of the method. The Advisory Committee noted that many courts had wrongly held that questions of sufficiency of the basis and application of the method were for the jury; those questions are admissibility issues under Rule 104(a). As of this writing, courts are still applying the amendment, and decisions vary in how strictly they enforce it.",
+    "A number of states retain the Frye standard (a few of the large ones, including California, Illinois, New York and Pennsylvania, did when last checked), while many others follow Daubert or a variant; the split should be named, not assumed. Gatekeeping applies at a pretrial hearing or in limine; the court can decide on papers, and failure to hold a hearing is not necessarily error. Shaky but admissible evidence is attacked by vigorous cross-examination and contrary evidence, as Daubert noted.",
+    "Worked example. A plaintiff's expert testifies that a chemical caused her illness, relying on animal studies at very high doses and anecdotal case reports, and offers no epidemiological data or reasoning to bridge the gap. The defendant moves to exclude. Under Joiner, the court may find an analytical gap too wide between the data and the opinion, and exclude the testimony under Rule 702(b) to (d). The ruling will be reviewed only for abuse of discretion."
+   ]
+  },
+  {
+   "id": "law-evidence.l17",
+   "title": "Privilege Basics and the Attorney-Client Privilege",
+   "body": [
+    "A privilege lets a holder refuse to disclose, and prevent others from disclosing, certain information even though it is relevant and reliable. Privileges exclude otherwise good evidence to protect relationships or interests that society values, so courts construe them narrowly. Federal Rule of Evidence 501 does not codify privileges. It says that the common law, as interpreted by United States courts in the light of reason and experience, governs a claim of privilege unless the Constitution, a federal statute or rules prescribed by the Supreme Court provide otherwise; but in a civil case, state law governs privilege regarding a claim or defense for which state law supplies the rule of decision. Thus in a federal diversity case, state privilege law applies, while in a federal-question case or a federal criminal case, federal common law applies. The Rules also leave out the privilege rules the Advisory Committee originally proposed.",
+    "The attorney-client privilege protects confidential communications between client and lawyer made for the purpose of obtaining or providing legal advice. The classic elements are: a communication, made in confidence, between a client (or prospective client) and a lawyer or the lawyer's agent, for the purpose of seeking or giving legal advice. The privilege protects the communication, not the underlying facts: a client may not hide a fact (what she saw or did) by telling it to a lawyer, though she cannot be forced to reveal what she told the lawyer. Presence of a third party generally destroys confidentiality, except for those necessary to the consultation, such as a lawyer's assistant or an interpreter. The privilege belongs to the client, who can waive it.",
+    "Upjohn Co. v. United States (1981) rejected the narrow \"control group\" test for corporate clients. The Court held that communications from lower-level employees to corporate counsel, made at the direction of superiors to secure legal advice about matters within the employees' duties, are privileged. The privilege belongs to the corporation. In Swidler & Berlin v. United States (1998), the Court held that the privilege survives the client's death, at least in the criminal context, and may not be overridden by a prosecutor's showing of need. There are recognized exceptions to the privilege: the crime-fraud exception (communications made in furtherance of a continuing or future crime or fraud, not those regarding past wrongdoing), disputes between joint clients, a dispute between lawyer and client (such as fee disputes or malpractice), and certain testamentary disputes among persons claiming through the same deceased client.",
+    "Rule 502 addresses waiver. Under 502(a), a disclosure made in a federal proceeding or to a federal office or agency waives the privilege or work-product protection as to undisclosed material only if the waiver is intentional, the disclosed and undisclosed communications concern the same subject matter, and they ought in fairness to be considered together. Under 502(b), inadvertent disclosure does not waive if the holder took reasonable steps to prevent disclosure and promptly took reasonable steps to rectify the error. Under 502(d), a federal court may order that the privilege or protection is not waived by disclosure connected with the litigation pending before it, and the order binds other federal and state proceedings; this is the basis of \"clawback\" agreements.",
+    "The work-product doctrine, from Hickman v. Taylor (1947) and now Federal Rule of Civil Procedure 26(b)(3), is not a privilege in the strict sense but a qualified immunity from discovery for materials prepared in anticipation of litigation by or for a party or its representative. Ordinary work product can be discovered on a showing of substantial need and inability to obtain the equivalent without undue hardship, while opinion work product (the mental impressions, conclusions and legal theories of counsel) is nearly absolutely protected.",
+    "Worked example. A company's in-house lawyer interviews a mid-level manager about a possible regulatory violation, so as to advise the company. The conversation is privileged under Upjohn. If the manager tells a friend what she said to the lawyer, the friend may be compelled to testify, as the manager's disclosure is not the company's. If the company used the lawyer to plan a fraud, the crime-fraud exception defeats the privilege for those communications."
+   ]
+  },
+  {
+   "id": "law-evidence.l18",
+   "title": "Spousal, Psychotherapist, Self-Incrimination and Other Privileges",
+   "body": [
+    "Beyond attorney-client communications, the main privileges tested in evidence courses are the two spousal privileges, the psychotherapist-patient privilege, and the privilege against self-incrimination. Because Rule 501 leaves them to common-law development in federal court, and states differ, the examiner will usually say which law governs.",
+    "Spousal privileges come in two forms. The spousal testimonial privilege (spousal immunity) lets a witness-spouse decline to testify adversely against her spouse in a criminal case. In Trammel v. United States (1980), the Supreme Court held that under federal law the privilege belongs to the witness-spouse alone, who may choose to testify or not, and the defendant-spouse cannot block her testimony. The privilege generally lasts only during the marriage. The confidential marital communications privilege protects confidential communications made between spouses during a valid marriage. It covers communications, not acts or observations, and it survives the end of the marriage as to communications made during it. Under the usual federal approach, either spouse can assert the privilege to block disclosure of confidential communications, and it applies in civil and criminal cases. Common exceptions include proceedings in which the spouses are adverse, crimes against one another or against a child of either, and, in many courts, communications made in furtherance of joint criminal activity. Presence of a third party defeats confidentiality. State laws vary on both spousal privileges, so \"majority rule\" claims should be made cautiously.",
+    "In Jaffee v. Redmond (1996), the Supreme Court recognized under Rule 501 a federal psychotherapist-patient privilege covering confidential communications made to licensed psychotherapists, including licensed clinical social workers, during diagnosis or treatment. Balancing tests case by case were rejected, because a privilege that is uncertain in application does not serve its purpose. The Court left open the contours of exceptions, such as a patient's dangerousness to others, which some lower courts have recognized. There is no general federal physician-patient privilege, though many states have created one by statute. Statutory privileges for clergy-penitent communications exist in all states, with varying scopes, and a federal common-law privilege for confessions to clergy is generally accepted.",
+    "The Fifth Amendment privilege against self-incrimination protects a person from being compelled to be a witness against herself in a criminal case, and extends to testimony in any proceeding where the answers might incriminate her in a later one. It is personal, so a witness cannot assert it for another, and a corporation has no Fifth Amendment privilege. A criminal defendant has an absolute right not to testify, and the prosecution may not comment on silence at trial, as Griffin v. California (1965) held. A witness other than the accused must invoke the privilege question by question (a blanket assertion is generally not enough), and the judge decides whether the answer would have a tendency to incriminate. Testimony may be compelled if the government grants immunity that is at least as broad as the privilege (use and derivative-use immunity). The act-of-production doctrine can protect a person who would, by producing documents, authenticate or acknowledge their existence.",
+    "A privilege is generally waived by voluntary disclosure of a significant part of the communication, and the holder is the one who can waive it. Some privilege disputes arise over the \"at issue\" waiver: a party that puts a privileged communication at issue cannot use it as a sword while hiding it as a shield.",
+    "Worked example. Pat is charged with fraud. Pat's spouse Ana saw Pat count cash at home, and Pat told Ana privately that the cash came from the scheme. Under federal law, Ana alone decides whether to testify against Pat (Trammel). Pat's private statement to Ana is a confidential marital communication that Pat can block her from revealing, unless a recognized exception such as joint criminal activity applies; what Ana saw (the cash) is not a communication."
+   ]
+  },
+  {
+   "id": "law-evidence.l19",
+   "title": "Burdens of Proof and Presumptions",
+   "body": [
+    "Burdens have two parts. The burden of production (also called the burden of going forward) requires a party to produce enough evidence on an issue to avoid an adverse ruling such as a directed verdict or judgment as a matter of law. The burden of persuasion requires a party to convince the factfinder to the required degree. In most civil cases the standard is preponderance of the evidence, meaning more likely than not. Some civil issues require clear and convincing evidence (fraud, certain wills or termination of parental rights), which is a higher but not criminal level. In criminal cases, due process requires the prosecution to prove every element beyond a reasonable doubt (In re Winship, 1970). The allocation of burdens is substantive in nature, and the burden of persuasion generally rests on the party who asserts a claim or affirmative defense. The burden of production can shift back and forth during a trial, but the burden of persuasion generally does not.",
+    "Presumptions are devices that require the factfinder to find a presumed fact once a basic fact is established, unless rebutted. Rule 301 governs civil cases in federal court: unless a federal statute or the Rules provide otherwise, the party against whom a presumption is directed has the burden of producing evidence to rebut the presumption, but the rule does not shift the burden of persuasion, which remains on the party who had it originally. This is the Thayer or \"bursting bubble\" approach: once enough evidence to rebut is produced, the presumption has done its job and the factfinder decides the issue on the evidence. Many states follow the Morgan approach for some presumptions, where the presumption shifts the burden of persuasion to the opponent; this is a state-law split that should be named, not assumed. Rule 302 provides that in a civil case, state law governs the effect of a presumption regarding a claim or defense for which state law supplies the rule of decision. Familiar presumptions include the presumption that a properly mailed letter was received (the mailbox rule), the presumption of legitimacy of a child born to a married woman, and the presumption of death after seven years' unexplained absence in many jurisdictions. Some presumptions are conclusive, which is really a substantive rule of law rather than evidence law.",
+    "Presumptions against criminal defendants face constitutional limits. A mandatory presumption (the jury must find the elemental fact) that relieves the prosecution of its burden on an element violates due process. In Sandstrom v. Montana (1979), an instruction that \"the law presumes that a person intends the ordinary consequences of his voluntary acts\" was held unconstitutional because a jury could have read it as conclusive or as shifting the burden on intent. A permissive inference, one the jury may but need not draw, is permitted if there is a rational connection between the basic fact and the inferred fact, and as applied beyond a reasonable doubt where it is the sole basis for conviction, as County Court of Ulster County v. Allen (1979) held for a statutory inference from presence of a firearm in a car. Patterson v. New York (1977) held that a state may place on the defendant the burden of proving an affirmative defense such as extreme emotional disturbance, so long as the prosecution still proves each element of the offense beyond a reasonable doubt.",
+    "Worked example. A statute provides that a letter properly addressed and mailed is presumed received. The sender proves mailing; the recipient testifies that he never received it. Under Rule 301, the burden of production shifted to the recipient, who met it by testifying, so the presumption disappears and the jury decides receipt on all the evidence, though the jury may still draw the inference from the mailing evidence, and the sender keeps the burden of persuasion."
+   ]
+  },
+  {
+   "id": "law-evidence.l20",
+   "title": "Judicial Notice",
+   "body": [
+    "Judicial notice is the court's acceptance of a fact as true without requiring formal evidence. Rule 201 governs only adjudicative facts, which are the facts of the particular case, such as who did what, when and where. Legislative facts, the general facts a court uses in making law or policy, such as empirical premises behind a rule, are not governed by Rule 201, and judges use them freely, as they do the law itself, which the court knows or finds on its own (for foreign law, Federal Rule of Civil Procedure 44.1 applies).",
+    "Under Rule 201(b), a court may judicially notice a fact that is not subject to reasonable dispute because it (1) is generally known within the trial court's territorial jurisdiction, or (2) can be accurately and readily determined from sources whose accuracy cannot reasonably be questioned. Examples of the first type are that a major local street runs north-south or that a particular city is on a particular river. Examples of the second are the day of the week on which a calendar date fell, the distance between two cities from a standard atlas, a court's own records, and official government data such as weather reports from the National Weather Service. Courts take notice that a document was filed in another case but, usually, do not take notice of the truth of contested statements inside it, and noticing a fact such as a company's stock price on a given day is acceptable from a reliable source. A judge's personal knowledge gained outside the courtroom does not qualify by itself.",
+    "Procedure. The court may take judicial notice on its own, and must take it if a party requests and supplies the court with the necessary information (201(c)). On timely request, a party is entitled to be heard on the propriety of taking judicial notice and on the nature of the fact to be noticed; if the court takes notice before notifying a party, the party, on request, is still entitled to be heard afterward (201(e)). The court may take judicial notice at any stage of the proceeding (201(d)), including on appeal, though appellate courts do so cautiously.",
+    "Effect on the jury. In a civil case, the court must instruct the jury to accept the noticed fact as conclusive. In a criminal case, the court must instruct the jury that it may or may not accept the noticed fact as conclusive (201(f)). The criminal-case rule preserves the defendant's right to a jury determination of every element, which the Sixth Amendment protects; a directed finding on an element against the accused would violate it. Therefore noticed facts in a criminal case are, in effect, permissive.",
+    "Traps. A fact that is generally known but disputed is not appropriate for notice. Notice cannot be used to establish a fact that depends on the credibility of a source, such as a newspaper's account of an event. A court may notice that a website exists or what it said on a date through an archive, but not that its content is true. Courts differ on how far they go with information found by search engines, and the examiner will often add an adjective such as \"reputable\" to signal the answer.",
+    "Worked example. In a contract dispute, the plaintiff says the defendant's notice was sent on a Sunday, which would affect a deadline. The court may notice that the date fell on a Sunday from a calendar. In a criminal trial for a crime committed in a county, the court may notice that the county lies within the district, but will tell the jury that it may, rather than must, accept the fact."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-evidence.l01.q1",
+   "lessonId": "law-evidence.l01",
+   "kind": "mcq",
+   "prompt": "Under Federal Rule of Evidence 401, evidence is relevant if it:",
+   "choices": [
+    "is likely to change the outcome of the case in the opinion of the presiding judge",
+    "is reliable enough that it would be admitted under an established hearsay exception",
+    "has any tendency to make a fact of consequence more or less probable than it would be without the evidence",
+    "is sufficient on its own to prove an element of the claim or defense by a preponderance of the evidence presented at trial"
+   ]
+  },
+  {
+   "id": "law-evidence.l01.q2",
+   "lessonId": "law-evidence.l01",
+   "kind": "mcq",
+   "prompt": "In an injury suit, the plaintiff offers a letter the defendant allegedly received warning of a hazard. Receipt is disputed. Which description of the judge's role is most accurate?",
+   "choices": [
+    "Under Rule 105, the judge must instruct the jury to disregard the letter unless the defendant admits that it was received",
+    "Under Rule 403, the judge must exclude the letter whenever the defendant disputes receipt because the dispute creates unfair prejudice",
+    "Under Rule 104(a), the judge must find by clear and convincing evidence that the defendant received the letter before the jury may be allowed to hear it at all",
+    "Under Rule 104(b), the judge asks only whether a reasonable jury could find the defendant received the letter, and lets the jury decide receipt"
+   ]
+  },
+  {
+   "id": "law-evidence.l01.q3",
+   "lessonId": "law-evidence.l01",
+   "kind": "mcq",
+   "prompt": "In a joint trial, a statement is admissible against one defendant but not against the other, and the second defendant's lawyer wants to limit its use. What does Rule 105 provide?",
+   "choices": [
+    "On request, the court must restrict the evidence to its proper scope and instruct the jury accordingly",
+    "The court may give a limiting instruction only if both defendants consent to the instruction in advance",
+    "The court must sever the trial automatically whenever any evidence is admissible against only one party",
+    "The court must exclude the evidence entirely so that no party is exposed to a possible misuse by the jury"
+   ]
+  },
+  {
+   "id": "law-evidence.l01.q4",
+   "lessonId": "law-evidence.l01",
+   "kind": "mcq",
+   "prompt": "Paula sues Dan for a rear-end collision. Dan's defense is that his brakes failed without warning. Paula offers, through a mechanic, a repair invoice showing Dan's brakes had been flagged as worn six weeks earlier. Dan objects that the invoice is irrelevant because Paula cannot prove he read it. What is the best ruling?",
+   "choices": [
+    "Admit it for any purpose because relevant evidence is admissible without regard to whether any foundation has been laid for notice",
+    "Admit it if enough evidence exists for a jury to find Dan knew of the invoice, because notice depends on a fact the jury decides under Rule 104(b)",
+    "Exclude it unless the judge personally finds that Dan read the invoice, because the judge must resolve every fact on which relevance rests before the jury hears the item",
+    "Exclude it because a repair record is hearsay when offered to show that the brakes were worn at any time before the collision"
+   ]
+  },
+  {
+   "id": "law-evidence.l01.q5",
+   "lessonId": "law-evidence.l01",
+   "kind": "mcq",
+   "prompt": "At a joint trial, Ed's confession to police says \"Fay and I robbed the store.\" Ed does not testify. The judge admits it against Ed only and instructs the jury not to consider it against Fay. On appeal, Fay's best argument is:",
+   "choices": [
+    "The confession was inadmissible because Rule 403 requires exclusion whenever evidence is admissible against only one defendant",
+    "Rule 105 forbids any limiting instruction in a joint criminal trial because jurors cannot be presumed to follow it",
+    "The limiting instruction cannot cure the harm, and admission violated her Confrontation Clause rights under Bruton v. United States",
+    "The confession is inadmissible against Ed himself because a party's own statement is hearsay when the government offers it against him in a joint criminal trial"
+   ]
+  },
+  {
+   "id": "law-evidence.l02.q1",
+   "lessonId": "law-evidence.l02",
+   "kind": "mcq",
+   "prompt": "Under Rule 403, a court may exclude relevant evidence if its probative value is:",
+   "choices": [
+    "outweighed by the opposing party's need to rebut the evidence with testimony of its own",
+    "substantially outweighed by a danger of unfair prejudice, confusion of the issues, or similar listed dangers",
+    "less than the probative value of other available evidence that proves the same fact in a different, equally convincing way",
+    "merely equal to the danger of unfair prejudice that the evidence presents to the opposing party"
+   ]
+  },
+  {
+   "id": "law-evidence.l02.q2",
+   "lessonId": "law-evidence.l02",
+   "kind": "mcq",
+   "prompt": "In a murder trial, identity of the victim and cause of death are undisputed. The prosecution offers ten gruesome autopsy photographs that add nothing beyond the coroner's testimony. The defense objects. Which ruling best fits Rule 403?",
+   "choices": [
+    "Exclude most of them as cumulative and unfairly prejudicial while perhaps allowing one or two that illustrate the testimony",
+    "Admit all of them because relevant evidence cannot be excluded merely because it is gruesome or upsetting",
+    "Exclude all of them because photographs of a victim's body are inadmissible whenever the defendant does not contest the cause of death",
+    "Admit all of them because the prosecution has an absolute right to choose the form of its proof without any judicial limits"
+   ]
+  },
+  {
+   "id": "law-evidence.l02.q3",
+   "lessonId": "law-evidence.l02",
+   "kind": "mcq",
+   "prompt": "In Old Chief v. United States (1997), the Supreme Court held that the trial court abused its discretion when it:",
+   "choices": [
+    "allowed the government to prove the felony conviction at all, because prior convictions are always inadmissible in a felon-in-possession case",
+    "excluded the defendant's evidence of his peaceful character because the evidence had not been preceded by a prosecution attack",
+    "instructed the jury to consider the prior conviction as proof that the defendant had a propensity for possessing firearms",
+    "refused the defendant's offer to stipulate to his felon status and allowed the prosecution to prove the name and nature of the prior offense"
+   ]
+  },
+  {
+   "id": "law-evidence.l02.q4",
+   "lessonId": "law-evidence.l02",
+   "kind": "mcq",
+   "prompt": "Robbins is charged with possessing a firearm as a convicted felon. His prior conviction was for armed assault. He offers to stipulate that he has a prior felony conviction that bars possession. The prosecutor insists on reading the judgment, showing the offense name. How should the court rule, and why?",
+   "choices": [
+    "Accept the stipulation only if the prosecutor consents, since a stipulation cannot bind a party who does not agree to it in any circumstance",
+    "Reject the stipulation; a prior armed assault conviction is admissible to prove that Robbins had a propensity to possess firearms",
+    "Accept the stipulation; the offense name adds little probative value on the status element but significant risk of unfair prejudice under Rule 403",
+    "Reject the stipulation; the prosecution always has the right to prove every element with evidence of its own choosing, whatever the prejudice to the defendant"
+   ]
+  },
+  {
+   "id": "law-evidence.l02.q5",
+   "lessonId": "law-evidence.l02",
+   "kind": "mcq",
+   "prompt": "In a negligence suit, the defendant offers, over objection, evidence about a long-ago unrelated lawsuit against the plaintiff, to suggest that the plaintiff is litigious. The evidence has slight relevance and would require a half-day side trial. What is the strongest ground for exclusion?",
+   "choices": [
+    "Rule 105, because the court must give a limiting instruction that renders the evidence inadmissible for every purpose",
+    "Rule 403, because slight probative value is substantially outweighed by confusion of the issues, undue delay and waste of time",
+    "Rule 402, because evidence about other lawsuits is categorically irrelevant to every civil claim in federal court",
+    "Rule 104(a), because the court must exclude any evidence whose foundation cannot be established by a witness with personal knowledge"
+   ]
+  },
+  {
+   "id": "law-evidence.l03.q1",
+   "lessonId": "law-evidence.l03",
+   "kind": "mcq",
+   "prompt": "Rule 404(a)(1) generally prohibits evidence of a person's character:",
+   "choices": [
+    "when offered to prove that on a particular occasion the person acted in accordance with that character",
+    "when offered by a criminal defendant to prove his own good character through any witness",
+    "for any purpose, including impeachment of witnesses and proof of an essential element of a claim",
+    "unless the judge finds that the evidence is more probative than prejudicial on the issue of the actor's identity or motive"
+   ]
+  },
+  {
+   "id": "law-evidence.l03.q2",
+   "lessonId": "law-evidence.l03",
+   "kind": "mcq",
+   "prompt": "D is on trial for assault. He calls a neighbor who says D has a reputation as a peaceful person. May the prosecutor cross-examine the neighbor about D's earlier barroom fight?",
+   "choices": [
+    "Yes, and the prosecutor may then prove the earlier fight through extrinsic evidence as substantive proof of D's violent disposition",
+    "Yes, in a \"have you heard\" form, to test the witness's knowledge, with the court giving a limiting instruction on request",
+    "No, because the prosecution may not respond to character evidence unless it has first presented its own character evidence",
+    "No, because specific instances are never admissible when character is proved by a reputation witness"
+   ]
+  },
+  {
+   "id": "law-evidence.l03.q3",
+   "lessonId": "law-evidence.l03",
+   "kind": "mcq",
+   "prompt": "In a homicide trial, the defendant claims that the victim was the first aggressor. Under Rule 404(a)(2), which statement is correct?",
+   "choices": [
+    "The defendant may prove the victim's violent trait only through specific past acts and not through reputation or opinion",
+    "No rebuttal evidence about the victim is permitted because the victim cannot be cross-examined about the claim",
+    "The prosecutor may offer evidence of the victim's peacefulness to rebut the claim",
+    "The prosecutor may offer evidence of the defendant's violent past without waiting for any defense evidence"
+   ]
+  },
+  {
+   "id": "law-evidence.l03.q4",
+   "lessonId": "law-evidence.l03",
+   "kind": "mcq",
+   "prompt": "Carla is charged with embezzlement. Her friend testifies on direct that Carla is an honest person. On cross, the prosecutor asks, \"Did you know Carla was fired from her last job for taking cash from a till?\" Carla objects. Which ruling is best?",
+   "choices": [
+    "Overrule only if the prosecutor can prove the firing through documents introduced as substantive proof that Carla is dishonest",
+    "Sustain; Rule 405 limits cross-examination about specific instances to witnesses who testified to reputation rather than opinion",
+    "Sustain; a prosecutor may never mention uncharged conduct when cross-examining a defense character witness in a criminal trial, however pertinent the trait",
+    "Overrule; the friend gave an opinion of honesty, honesty is pertinent, and Rule 405(a) allows cross on specific instances if asked in good faith"
+   ]
+  },
+  {
+   "id": "law-evidence.l03.q5",
+   "lessonId": "law-evidence.l03",
+   "kind": "mcq",
+   "prompt": "Ned sues a newspaper for defamation; the paper pleads truth as its defense to an article calling him a swindler. Ned objects to evidence of three specific swindles he committed, citing Rule 404(a). Which response is best?",
+   "choices": [
+    "The objection fails because Ned's character is an essential element of the defense, so specific instances may be used under Rule 405(b)",
+    "The objection succeeds because a civil litigant's character is never provable by specific instances of conduct",
+    "The objection succeeds because the paper may prove character only through reputation testimony and never through specific acts of conduct, even when the trait is an element of the defense",
+    "The objection fails because Rule 404(a) applies only in criminal cases and has no application to civil actions"
+   ]
+  },
+  {
+   "id": "law-evidence.l04.q1",
+   "lessonId": "law-evidence.l04",
+   "kind": "mcq",
+   "prompt": "Which of the following is a purpose for which Rule 404(b)(2) permits evidence of another act?",
+   "choices": [
+    "Proving the defendant's reputation in the community for violence in a trial for a nonviolent crime",
+    "Proving that the defendant has a criminal disposition and probably acted in line with it",
+    "Proving that the defendant is a bad person so that the jury will give less weight to his denial",
+    "Proving the defendant's identity through a distinctive method used in both crimes"
+   ]
+  },
+  {
+   "id": "law-evidence.l04.q2",
+   "lessonId": "law-evidence.l04",
+   "kind": "mcq",
+   "prompt": "A store owner is sued over a customer's fall. A week later the owner repaired the loose tile. The plaintiff offers the repair to prove the owner was negligent. What is the likely ruling?",
+   "choices": [
+    "Inadmissible under Rule 408 because the repair was an offer to compromise the plaintiff's injury claim",
+    "Admissible because a repair is an admission by a party-opponent that the earlier condition was dangerous",
+    "Inadmissible under Rule 407 when offered to prove negligence or culpable conduct",
+    "Admissible because Rule 407 applies only to measures taken by someone other than the defendant"
+   ]
+  },
+  {
+   "id": "law-evidence.l04.q3",
+   "lessonId": "law-evidence.l04",
+   "kind": "mcq",
+   "prompt": "Which evidence is most likely to be \"habit\" under Rule 406 rather than character?",
+   "choices": [
+    "A witness's opinion that the defendant is the sort of person who obeys the law in most situations",
+    "A delivery driver who, for eleven years, stopped at the same stop sign and rolled through at the same speed on his route",
+    "A driver's general reputation among neighbors as a careful and responsible person on the road",
+    "A defendant's testimony that he is a calm person who avoids confrontation whenever it can be avoided, offered to show he was not the aggressor"
+   ]
+  },
+  {
+   "id": "law-evidence.l04.q4",
+   "lessonId": "law-evidence.l04",
+   "kind": "mcq",
+   "prompt": "Gina sues Hal Corp., her employer, for a workplace injury. Hal Corp. denies it owns the machine, saying a contractor does. After the accident Hal Corp. had its own crew install a guard on the machine. Gina offers evidence of the guard installation. Hal Corp. objects under Rule 407. How should the court rule?",
+   "choices": [
+    "Admit it for the limited purpose of showing ownership or control, since Hal Corp. disputed ownership, and give a limiting instruction on request",
+    "Admit it to prove negligence because the denial of ownership waives the Rule 407 protection for all purposes",
+    "Admit it to prove the machine was defective because a post-accident repair by the defendant itself is an admission by a party opponent under Rule 801(d)(2)",
+    "Exclude it entirely because Rule 407 bars subsequent measures for every purpose, including ownership"
+   ]
+  },
+  {
+   "id": "law-evidence.l04.q5",
+   "lessonId": "law-evidence.l04",
+   "kind": "mcq",
+   "prompt": "Ivan is charged with fraud. Before trial, in a plea discussion with the prosecutor, Ivan said he \"made a mistake with the forms.\" No plea was reached. At trial the prosecutor offers the statement in her case in chief. What is the best ruling?",
+   "choices": [
+    "Admissible under Rule 801(d)(2) because every statement made by a party to a prosecutor is an opposing party's statement and free of any other exclusionary rule",
+    "Admissible because Rule 410 protects only statements made to a judge in open court during a plea colloquy",
+    "Admissible because Rule 408 permits statements made in compromise negotiations in criminal cases to prove liability",
+    "Inadmissible under Rule 410 because the statement was made during plea discussions with a prosecuting attorney that did not result in a guilty plea"
+   ]
+  },
+  {
+   "id": "law-evidence.l05.q1",
+   "lessonId": "law-evidence.l05",
+   "kind": "mcq",
+   "prompt": "Under Rule 801(c), hearsay is a statement that the declarant does not make while testifying at the current trial or hearing and that a party offers:",
+   "choices": [
+    "to establish that the statement is consistent with the testimony of a witness",
+    "to prove that the declarant had a motive to speak the words that were spoken",
+    "to prove the truth of the matter asserted in the statement",
+    "to show that the statement was made by someone with personal knowledge"
+   ]
+  },
+  {
+   "id": "law-evidence.l05.q2",
+   "lessonId": "law-evidence.l05",
+   "kind": "mcq",
+   "prompt": "In a suit over a stairway fall, a witness testifies that two days before the fall she told the building manager, \"The third step is rotten.\" The plaintiff offers this to show the manager had notice of the defect. Is it hearsay?",
+   "choices": [
+    "Yes, because any out-of-court statement describing a physical condition is hearsay regardless of the purpose of the offer",
+    "Yes, because an out-of-court statement is hearsay unless the declarant is also present to testify at the same trial",
+    "No, because a statement made to a person with a duty to repair is automatically an adoptive admission of that person",
+    "No, because it is offered to show notice to the manager, a purpose for which the truth of the statement does not matter"
+   ]
+  },
+  {
+   "id": "law-evidence.l05.q3",
+   "lessonId": "law-evidence.l05",
+   "kind": "mcq",
+   "prompt": "Which of the following is a \"statement\" under Rule 801(a)?",
+   "choices": [
+    "A witness's nod in response to the question \"Was the car red?\" intended as an answer",
+    "A traffic camera's automated time stamp displayed on a printed photograph",
+    "A bystander who opens an umbrella with no intention to communicate that it is raining",
+    "A drug-sniffing dog's alert at a suitcase during a lawful search of luggage"
+   ]
+  },
+  {
+   "id": "law-evidence.l05.q4",
+   "lessonId": "law-evidence.l05",
+   "kind": "mcq",
+   "prompt": "Pia sues a landlord for failing to fix a gas leak. Her neighbor, who has since moved away, told her the day before the explosion, \"I called the landlord and told him about the leak.\" Pia testifies to what the neighbor told her and offers it to prove the landlord was warned. The landlord objects on hearsay grounds. What is the strongest analysis?",
+   "choices": [
+    "It is hearsay but admissible under Rule 803(2) because gas leaks are startling events that excite everyone who learns of them, even if the remark came a day later",
+    "It is hearsay as offered, because the neighbor's statement must be true for the landlord to have received the warning, and no exception clearly applies",
+    "It is not hearsay because the neighbor's statement is being offered only to show that Pia heard it and acted on it",
+    "It is not hearsay because any statement about a call made to a party is an opposing party's statement under Rule 801(d)(2)"
+   ]
+  },
+  {
+   "id": "law-evidence.l05.q5",
+   "lessonId": "law-evidence.l05",
+   "kind": "mcq",
+   "prompt": "Rob is charged with arson. A witness testifies that Rob's neighbor told her the night before the fire, \"Rob said he is going to burn that warehouse down.\" The prosecutor offers the neighbor's statement to prove that Rob started the fire. Which analysis is best?",
+   "choices": [
+    "The statement is admissible under Rule 803(3) because Rob's intent is a then-existing state of mind and the neighbor's report adds no new issue",
+    "The statement is inadmissible solely because the prosecution has not shown that the neighbor is unavailable to testify in person",
+    "The neighbor's statement is hearsay within hearsay; Rob's statement fits Rule 801(d)(2)(A), but the neighbor's repeating of it needs its own basis, and none is apparent",
+    "The statement is not hearsay at all because the neighbor merely repeated a statement by the defendant and a repetition adds no new assertion"
+   ]
+  },
+  {
+   "id": "law-evidence.l06.q1",
+   "lessonId": "law-evidence.l06",
+   "kind": "mcq",
+   "prompt": "Under Rule 801(d)(1)(A), a prior inconsistent statement of a testifying witness is exempt from hearsay only if it was:",
+   "choices": [
+    "made before a motive to fabricate arose and offered to rebut a charge of recent fabrication",
+    "given under penalty of perjury at a trial, hearing or other proceeding, or in a deposition",
+    "made in a signed writing that the witness acknowledged at any time in the presence of a police officer",
+    "recorded on audio or video within a reasonable time after the events that the statement describes"
+   ]
+  },
+  {
+   "id": "law-evidence.l06.q2",
+   "lessonId": "law-evidence.l06",
+   "kind": "mcq",
+   "prompt": "A defendant's employee, a delivery driver, says to a bystander moments after a collision, \"I was texting, I wasn't looking.\" The injured plaintiff sues the employer. The statement is offered against the employer. Which is correct?",
+   "choices": [
+    "It is likely admissible under Rule 801(d)(2)(D) as a statement by the party's employee on a matter within the scope of employment during the relationship",
+    "It is inadmissible because only statements by the party personally can be offered as an opposing party's statement",
+    "It is admissible under Rule 801(d)(2)(E) because the driver and employer had formed a conspiracy to deliver packages",
+    "It is inadmissible because the driver lacked personal knowledge of whether the employer authorized texting while driving on the facts as the problem presents them"
+   ]
+  },
+  {
+   "id": "law-evidence.l06.q3",
+   "lessonId": "law-evidence.l06",
+   "kind": "mcq",
+   "prompt": "At trial, Wes testifies that Dina did not commit the robbery. The prosecutor offers Wes's earlier statement to a detective, not under oath, that Dina did commit it. How may the statement be used?",
+   "choices": [
+    "For its truth, because any prior inconsistent statement by a testifying witness is exempt from hearsay under Rule 801(d)(1)",
+    "For its truth, since a statement made to law enforcement is a public record under Rule 803(8)",
+    "It may not be used for any purpose, since an unsworn statement cannot be used to impeach or prove anything",
+    "Only to impeach Wes's credibility, since an unsworn statement to a detective does not meet Rule 801(d)(1)(A)"
+   ]
+  },
+  {
+   "id": "law-evidence.l06.q4",
+   "lessonId": "law-evidence.l06",
+   "kind": "mcq",
+   "prompt": "Tess is charged with embezzlement. Her coworker, Ned, testifies against her on a plea deal. On cross, the defense suggests Ned invented his story after prosecutors offered him leniency in June. The prosecutor then offers Ned's email to a friend, written in March, giving the same account. Under Rule 801(d)(1)(B) and Tome v. United States, what is the best ruling?",
+   "choices": [
+    "Admit it only if it was made under oath, because prior consistent statements share the formality requirement for inconsistent ones",
+    "Exclude it because the charge of fabrication came from the defense, and only the government may rehabilitate under the rule",
+    "Admit it for its truth, because the email predates the alleged motive to fabricate that arose with the June leniency offer",
+    "Exclude it because a prior consistent statement can never be used for its truth if made out of court by a witness"
+   ]
+  },
+  {
+   "id": "law-evidence.l06.q5",
+   "lessonId": "law-evidence.l06",
+   "kind": "mcq",
+   "prompt": "Gus and Hank are charged with a bank robbery conspiracy. At their joint trial the government offers a statement that Gus made to his cousin a week after the robbery: \"Hank and I split the money.\" The cousin was not part of the plan. Against Hank, the statement is:",
+   "choices": [
+    "Admissible solely because the judge may consider the statement itself as the only proof that a conspiracy existed",
+    "Not within Rule 801(d)(2)(E), because it was a narrative of past events to a nonparticipant and was not made in furtherance of the conspiracy",
+    "Within Rule 801(d)(2)(E), because any statement by a coconspirator about the conspiracy is admissible so long as the trial is still pending against both",
+    "Within Rule 801(d)(2)(A), because Gus's statement is automatically attributable to every person that he names as a participant"
+   ]
+  },
+  {
+   "id": "law-evidence.l07.q1",
+   "lessonId": "law-evidence.l07",
+   "kind": "mcq",
+   "prompt": "What distinguishes an excited utterance under Rule 803(2) from a present sense impression under Rule 803(1)?",
+   "choices": [
+    "Excited utterances turn on the declarant being under the stress of a startling event, and may come later than a present sense impression",
+    "Excited utterances require that the declarant be unavailable at trial, while present sense impressions apply only to declarants who are available",
+    "Excited utterances apply only to statements about the declarant's own physical condition, such as pain or illness",
+    "Excited utterances require corroboration by an independent witness, while present sense impressions are self-proving"
+   ]
+  },
+  {
+   "id": "law-evidence.l07.q2",
+   "lessonId": "law-evidence.l07",
+   "kind": "mcq",
+   "prompt": "A patient tells an emergency nurse, \"My chest started hurting after I lifted the box.\" The statement is offered at the patient's later lawsuit over the lifting incident. Which exception is the best fit?",
+   "choices": [
+    "Rule 803(8), as a public record of the activities of a government hospital under a legal duty to report",
+    "Rule 803(4), as a statement made for medical diagnosis or treatment describing history, symptoms or their cause",
+    "Rule 803(5), as a recorded recollection of an event that the patient can no longer remember at trial",
+    "Rule 804(b)(2), as a dying declaration about the cause of the injury that the patient reported to the nurse at the hospital"
+   ]
+  },
+  {
+   "id": "law-evidence.l07.q3",
+   "lessonId": "law-evidence.l07",
+   "kind": "mcq",
+   "prompt": "Rule 803(6) permits admission of a business record when the proponent shows, through a custodian or a Rule 902(11) certification, that the record was:",
+   "choices": [
+    "created by a business employee after the events at issue, as part of a summary prepared for the purpose of the trial",
+    "signed by a senior officer who attests that the record is true, whether or not it was kept as a regular practice",
+    "made at or near the time by someone with knowledge and kept in the course of a regularly conducted activity as a regular practice",
+    "prepared in anticipation of litigation by a person who was available to testify and whose personal knowledge is later established at trial"
+   ]
+  },
+  {
+   "id": "law-evidence.l07.q4",
+   "lessonId": "law-evidence.l07",
+   "kind": "mcq",
+   "prompt": "In a negligence suit against a trucking company, the plaintiff offers a dispatcher's log showing the driver had been on duty 19 hours. A records custodian lays the 803(6) foundation. The log also has a handwritten note, \"Driver told me he took a nap at rest stop.\" The company objects to the note. Which ruling is best?",
+   "choices": [
+    "Admit the log and the note, because everything written inside a record kept in the regular course of business is automatically covered by Rule 803(6)",
+    "Exclude the entire log because a record that contains any outside statement loses its business-records status",
+    "Admit the note and exclude the rest of the log, because only statements of an employee are covered by the exception",
+    "Admit the log, but exclude the note unless the driver's own statement is independently admissible, such as under Rule 801(d)(2)(D), because it is another layer of hearsay"
+   ]
+  },
+  {
+   "id": "law-evidence.l07.q5",
+   "lessonId": "law-evidence.l07",
+   "kind": "mcq",
+   "prompt": "In a federal criminal drug case, the government offers, over objection, a police officer's report stating that he personally watched the defendant hand a package to a buyer. The officer is not called as a witness. The government cites Rule 803(8) (public records). What is the best response?",
+   "choices": [
+    "The report is not admissible under 803(8)(A)(ii) against the accused, because matters observed by law-enforcement personnel are excluded in criminal cases",
+    "The report is admissible because police reports are the most common example of public records routinely admitted in criminal trials against defendants without calling the officer",
+    "The report is admissible if the defense has a copy and had the chance to cross-examine the officer at an earlier hearing",
+    "The report is not admissible because Rule 803(8) applies only in civil actions, and has no application in criminal prosecutions"
+   ]
+  },
+  {
+   "id": "law-evidence.l08.q1",
+   "lessonId": "law-evidence.l08",
+   "kind": "mcq",
+   "prompt": "Which of the following makes a hearsay declarant \"unavailable\" under Rule 804(a)?",
+   "choices": [
+    "The declarant is living in another city but would testify if the party paid for a plane ticket",
+    "The declarant testifies at trial but contradicts her earlier statement on an important point",
+    "The declarant is a party to the case and has chosen not to appear at the trial in person",
+    "The declarant refuses to testify about the subject matter despite a court order to do so"
+   ]
+  },
+  {
+   "id": "law-evidence.l08.q2",
+   "lessonId": "law-evidence.l08",
+   "kind": "mcq",
+   "prompt": "A robbery victim, Lila, says to a paramedic, believing she is about to die, \"Marco shot me.\" She survives and is later unable to testify because of a persistent coma. Marco is tried for armed robbery. Is her statement admissible as a dying declaration?",
+   "choices": [
+    "Yes, because a declarant who survives is deemed unavailable and any statement made in the face of danger is automatically excited speech",
+    "No, because the dying-declaration exception requires that the declarant actually die before trial to be applicable",
+    "No, because the dying-declaration exception applies in civil cases and homicide prosecutions, and this is a robbery case",
+    "Yes, because Lila believed death was imminent and the statement concerned the cause of her injuries"
+   ]
+  },
+  {
+   "id": "law-evidence.l08.q3",
+   "lessonId": "law-evidence.l08",
+   "kind": "mcq",
+   "prompt": "Under Williamson v. United States, when a person under arrest makes a long narrative that partly confesses and partly blames others, how does Rule 804(b)(3) apply?",
+   "choices": [
+    "None of it is admissible, because statements made to police while in custody are never against interest",
+    "Only the individual self-inculpatory remarks are covered, while collateral statements that shift blame or are neutral are not",
+    "The entire narrative is admitted if any part of it is against the declarant's penal interest",
+    "The narrative is admitted only if the declarant is the defendant and has chosen to testify at the trial, subject to cross-examination"
+   ]
+  },
+  {
+   "id": "law-evidence.l08.q4",
+   "lessonId": "law-evidence.l08",
+   "kind": "mcq",
+   "prompt": "At Carter's trial for murder, the prosecution offers a statement by the key eyewitness, Dee, made to police, accusing Carter. Dee later disappeared. The prosecution proves that Carter paid someone to make Dee leave town so she could not testify. What is the best basis for admitting the statement?",
+   "choices": [
+    "Rule 804(b)(6), forfeiture by wrongdoing, because Carter wrongfully caused the unavailability intending to prevent her testimony",
+    "Rule 803(8), because statements to police are public records of matters observed under a legal duty",
+    "Rule 801(d)(1)(A), because Dee gave a prior inconsistent statement to the police that she is unwilling to repeat",
+    "Rule 804(b)(1), because police interviews are depositions at which the defendant had a similar motive and opportunity to cross-examine"
+   ]
+  },
+  {
+   "id": "law-evidence.l08.q5",
+   "lessonId": "law-evidence.l08",
+   "kind": "mcq",
+   "prompt": "In a civil case, a hearsay statement does not fit Rule 803 or 804, but a spreadsheet created by an independent auditor at the time of the events contains information that is highly corroborated by other records. The proponent offers it under Rule 807 and gave written notice before trial. What is the key question for the judge?",
+   "choices": [
+    "Whether the statement was made by a person who is unavailable to testify, as with every Rule 807 statement",
+    "Whether the statement is the product of an official government investigation authorized by law to resolve the point",
+    "Whether the opponent consents to its admission in light of the corroboration, since Rule 807 requires the written consent of both sides to the offer",
+    "Whether the statement has sufficient guarantees of trustworthiness and is more probative on the point than other evidence reasonably obtainable"
+   ]
+  },
+  {
+   "id": "law-evidence.l09.q1",
+   "lessonId": "law-evidence.l09",
+   "kind": "mcq",
+   "prompt": "Under Crawford v. Washington, testimonial out-of-court statements of a witness who does not testify at trial are admissible against a criminal defendant only if:",
+   "choices": [
+    "the statement fits a firmly rooted hearsay exception recognized in the Federal Rules of Evidence",
+    "the prosecution proves that the witness would likely have been truthful when making the statement",
+    "the witness is unavailable and the defendant had a prior opportunity to cross-examine the witness",
+    "the statement bears adequate indicia of reliability as determined by the trial judge after a hearing"
+   ]
+  },
+  {
+   "id": "law-evidence.l09.q2",
+   "lessonId": "law-evidence.l09",
+   "kind": "mcq",
+   "prompt": "A caller tells a 911 operator, while an attacker is still outside, \"He just stabbed my brother and is coming toward me with a knife!\" The caller does not testify at trial. Under Davis v. Washington, the statement is likely:",
+   "choices": [
+    "testimonial, because any statement made to a government agent is testimonial regardless of circumstances",
+    "testimonial, because it describes a past event, namely the stabbing that had already been completed",
+    "nontestimonial only if the operator formally asked whether the caller was prepared to testify later",
+    "nontestimonial, because its primary purpose is to enable police to meet an ongoing emergency"
+   ]
+  },
+  {
+   "id": "law-evidence.l09.q3",
+   "lessonId": "law-evidence.l09",
+   "kind": "mcq",
+   "prompt": "The Confrontation Clause generally does not bar admission of a prior statement by a declarant who:",
+   "choices": [
+    "testifies at trial and is subject to cross-examination about the prior statement",
+    "was unavailable because of a privilege and never faced cross-examination by the defendant",
+    "made the statement to police during a formal interrogation concerning a closed investigation",
+    "wrote the statement in a sworn affidavit prepared for use at a future criminal prosecution"
+   ]
+  },
+  {
+   "id": "law-evidence.l09.q4",
+   "lessonId": "law-evidence.l09",
+   "kind": "mcq",
+   "prompt": "Ana tells a police officer at the station, two hours after an assault and when the assailant has been arrested, that Ben beat her; the officer takes a detailed formal statement. Ana later refuses to testify at Ben's trial and is held unavailable. Ben did not cross-examine her before. The prosecution offers the statement under the excited-utterance exception, and the trial judge finds it satisfies that exception. What is the best argument on appeal?",
+   "choices": [
+    "The statement is inadmissible solely because excited utterances cannot be made to law enforcement officers",
+    "The statement is testimonial under Crawford and Davis, so its admission violates the Confrontation Clause even though it satisfies a hearsay exception",
+    "The statement is admissible because a finding that it satisfies a firmly rooted hearsay exception ends the confrontation inquiry in every case, whatever its primary purpose",
+    "The statement is admissible because the Clause applies only to statements made under oath before a judge"
+   ]
+  },
+  {
+   "id": "law-evidence.l09.q5",
+   "lessonId": "law-evidence.l09",
+   "kind": "mcq",
+   "prompt": "Dev is charged with murder. The prosecution proves that Dev killed a witness to prevent her from testifying against him in a different case, but not that the killing was intended to keep her from testifying at this trial. The prosecution offers her accusation to police in the prior case under the forfeiture doctrine. Under Giles v. California, what is the best analysis?",
+   "choices": [
+    "Forfeiture is unavailable because it applies only to hearsay objections and not to Confrontation Clause objections",
+    "Forfeiture applies only when the defendant has been convicted of the killing in a separate proceeding before the trial",
+    "Forfeiture requires proof that the defendant intended to prevent the witness from testifying, which must be shown by the proponent, so the outcome turns on that intent",
+    "Forfeiture applies automatically whenever a defendant is responsible for the death of a witness, regardless of motive"
+   ]
+  },
+  {
+   "id": "law-evidence.l10.q1",
+   "lessonId": "law-evidence.l10",
+   "kind": "mcq",
+   "prompt": "In Melendez-Diaz v. Massachusetts (2009), the Supreme Court held that sworn laboratory certificates stating a substance was cocaine were:",
+   "choices": [
+    "testimonial statements, so the analysts were witnesses subject to the defendant's confrontation right",
+    "nontestimonial business records that are admissible without any appearance by the analysts who prepared them",
+    "admissible only if the defendant failed to object before the start of the trial",
+    "inadmissible hearsay but not subject to the Confrontation Clause in any form"
+   ]
+  },
+  {
+   "id": "law-evidence.l10.q2",
+   "lessonId": "law-evidence.l10",
+   "kind": "mcq",
+   "prompt": "Under Bullcoming v. New Mexico, may the prosecution satisfy the Confrontation Clause by calling a different analyst who is familiar with the lab's procedures to testify about a blood-alcohol report prepared by an analyst who is not called?",
+   "choices": [
+    "No, because Rule 702 bars any expert from testifying about a test that the expert did not personally design",
+    "No, unless the defendant has had a prior opportunity to cross-examine the analyst who certified the report",
+    "Yes, because any qualified scientist from the same laboratory may take the stand in place of the original analyst",
+    "Yes, because the report is admissible as a business record and so no testimony is constitutionally required"
+   ]
+  },
+  {
+   "id": "law-evidence.l10.q3",
+   "lessonId": "law-evidence.l10",
+   "kind": "mcq",
+   "prompt": "Under Richardson v. Marsh and Gray v. Maryland, in a joint trial where a nontestifying codefendant's confession is offered, which approach most likely avoids a Bruton violation?",
+   "choices": [
+    "Replacing the defendant's name in the confession with the word \"deleted\" so that jurors see where a name had been removed from the statement before it was read to them",
+    "Admitting the confession and allowing the prosecutor to argue its contents against both defendants in closing",
+    "Redacting the confession to eliminate any reference to the defendant, with a limiting instruction, but not using obvious blanks or \"deleted\"",
+    "Admitting the entire confession and telling jurors to consider it only against the confessing codefendant"
+   ]
+  },
+  {
+   "id": "law-evidence.l10.q4",
+   "lessonId": "law-evidence.l10",
+   "kind": "mcq",
+   "prompt": "At a drug trial, the original lab analyst has left the state. The prosecution calls a supervising chemist who did not do the test but who reviewed the file. On direct, the prosecutor asks her to relate the original analyst's written conclusion that the substance was heroin, and she says her own opinion is the same. The defense objects under the Confrontation Clause. Under Smith v. Arizona (2024), what is the strongest defense argument?",
+   "choices": [
+    "The testimony is automatically admissible because Rule 703 allows experts to rely on inadmissible data without limit",
+    "The testimony is barred because the Confrontation Clause forbids any expert from relying on laboratory reports in any case",
+    "The testimony is admissible because the supervisor will be cross-examined and that satisfies the Clause for all statements she relays",
+    "The conclusion relayed by the supervisor is offered for its truth as the basis of her opinion, and if testimonial, it is barred without cross-examination of the analyst"
+   ]
+  },
+  {
+   "id": "law-evidence.l10.q5",
+   "lessonId": "law-evidence.l10",
+   "kind": "mcq",
+   "prompt": "Fran and Gil are tried together for assault. Gil gave police a statement saying, \"Fran and I jumped him.\" Gil does not testify. The judge admits the statement against Gil only, with a limiting instruction. Fran objects. What is the best ruling?",
+   "choices": [
+    "Sustain the objection; Bruton holds that a limiting instruction cannot cure the harm from a nontestifying codefendant's confession that directly names the defendant",
+    "Overrule the objection; jurors are presumed to follow instructions, and the Clause has no special rule for codefendants' statements",
+    "Overrule the objection; the confession is admissible against Fran as a statement by a coconspirator regardless of the timing of the statement",
+    "Sustain the objection only if Fran proves that the jury actually considered the confession against her in their deliberations"
+   ]
+  },
+  {
+   "id": "law-evidence.l11.q1",
+   "lessonId": "law-evidence.l11",
+   "kind": "mcq",
+   "prompt": "Under Rule 901(a), the proponent of an item must produce evidence sufficient to support a finding that:",
+   "choices": [
+    "the item is more probative than prejudicial under Rule 403",
+    "the item is what the proponent claims it is",
+    "the item is the best available evidence of the fact it is offered to prove",
+    "the item was created by a person who is available to testify at the trial"
+   ]
+  },
+  {
+   "id": "law-evidence.l11.q2",
+   "lessonId": "law-evidence.l11",
+   "kind": "mcq",
+   "prompt": "Which of the following items is self-authenticating under Rule 902 and needs no extrinsic evidence of authenticity?",
+   "choices": [
+    "A certified copy of a county land record, with a proper public-officer certification",
+    "A photograph of the accident scene taken by a bystander and offered by the plaintiff",
+    "A handwritten letter that the proponent says the defendant wrote to a friend",
+    "A voicemail recording that the proponent says contains the defendant's voice"
+   ]
+  },
+  {
+   "id": "law-evidence.l11.q3",
+   "lessonId": "law-evidence.l11",
+   "kind": "mcq",
+   "prompt": "To authenticate a text message as sent by the defendant, which evidence is most helpful under Rule 901(b)(4)?",
+   "choices": [
+    "The message was printed by a reliable laptop that the plaintiff's lawyer owns and maintains in her office for printing client documents",
+    "The message was shown to the defendant's lawyer, who did not deny that the defendant sent it",
+    "The message was forwarded by a third person who had read only part of the earlier conversation",
+    "The message was sent from the defendant's known number and referred to private facts that few other people knew"
+   ]
+  },
+  {
+   "id": "law-evidence.l11.q4",
+   "lessonId": "law-evidence.l11",
+   "kind": "mcq",
+   "prompt": "Hana sues Lyle for breach of an oral promise she says Lyle confirmed in an email. She offers a printout of the email, testifying that she received it at the address she had used with him, that it replied to her question and referred to a private account number, and that it was signed with his usual sign-off. Lyle says the account was hacked. What is the best ruling on authentication?",
+   "choices": [
+    "Exclude it because the judge must be personally convinced that Lyle wrote the email before the jury may see it",
+    "Admit it as self-authenticating because emails are among the items listed in Rule 902(6) as periodicals",
+    "Admit the evidence; Hana has offered enough for a jury to find authenticity under Rule 901, and Lyle's hacking claim goes to weight",
+    "Exclude it until Hana produces testimony from the email service provider, because emails can only be authenticated by a records custodian of the service provider"
+   ]
+  },
+  {
+   "id": "law-evidence.l11.q5",
+   "lessonId": "law-evidence.l11",
+   "kind": "mcq",
+   "prompt": "A company offers a printout of its server's automatically generated access log, supported by a written certification from a qualified person that a reliable process generated the records, with advance written notice to the other party. Which provision most directly authorizes admission without live foundation testimony?",
+   "choices": [
+    "Rule 901(b)(2), which permits a layperson to authenticate any machine output by comparing it to a specimen",
+    "Rule 902(13), which makes records generated by an electronic process or system self-authenticating on a qualified certification",
+    "Rule 1006, which permits the use of summaries of voluminous data in place of the originals in every case, even if the originals were never made available to the other side",
+    "Rule 803(8), which applies to records of regularly conducted activity by any business with a duty to keep them"
+   ]
+  },
+  {
+   "id": "law-evidence.l12.q1",
+   "lessonId": "law-evidence.l12",
+   "kind": "mcq",
+   "prompt": "Under Rule 1002, an original writing, recording or photograph is required:",
+   "choices": [
+    "only in criminal prosecutions where the document is a contested piece of physical evidence",
+    "only when the item is more than twenty years old and offered under the ancient documents exception",
+    "in order to prove its content, unless the Rules or a federal statute provide otherwise",
+    "whenever any party mentions that such an item exists, even if its content is not in dispute"
+   ]
+  },
+  {
+   "id": "law-evidence.l12.q2",
+   "lessonId": "law-evidence.l12",
+   "kind": "mcq",
+   "prompt": "A witness testifies that she watched the defendant sign a lease. She is not asked about the terms of the lease. The defense objects that the original lease was not produced. The best ruling is:",
+   "choices": [
+    "Sustain; any testimony about a signed document requires the original under the best evidence rule, even testimony about the act of signing",
+    "Overrule only if the original has been destroyed in a fire without the proponent's bad faith",
+    "Sustain; testimony about a contract is always hearsay if the contract itself is not in evidence",
+    "Overrule; she is proving the event of signing from personal knowledge, not the content of the lease"
+   ]
+  },
+  {
+   "id": "law-evidence.l12.q3",
+   "lessonId": "law-evidence.l12",
+   "kind": "mcq",
+   "prompt": "Under Rule 1003, a duplicate is admissible to the same extent as the original unless:",
+   "choices": [
+    "a genuine question is raised about the original's authenticity, or the circumstances make it unfair to admit the duplicate",
+    "the duplicate was made by a machine rather than by a person who was present when the original was executed, and no one can testify to how the copy was made",
+    "the original is in the possession of the party who offers the duplicate and was not recently inspected",
+    "the duplicate is offered in a case in which the opposing party is an individual rather than an organization"
+   ]
+  },
+  {
+   "id": "law-evidence.l12.q4",
+   "lessonId": "law-evidence.l12",
+   "kind": "mcq",
+   "prompt": "Ron sues Seth over a written agreement. Ron says the original was destroyed in a flood and offers a copy. Seth says the copy has an altered clause and that he kept the true original, which he declines to produce after receiving notice that its contents would be proved at trial. How should the court proceed on the original-writing issue?",
+   "choices": [
+    "Instruct the jury that the copy is the original as a matter of law because Seth failed to produce the document upon request",
+    "Allow other evidence of the contents under Rule 1004(c), since Seth had control of the original and was notified, and let the jury decide which writing is accurate under Rule 1008",
+    "Exclude all evidence of the agreement's contents because the original is unavailable and no exception applies to a party's refusal",
+    "Require Ron to prove the contents solely by Seth's testimony, since Seth is the only person with the original in his possession"
+   ]
+  },
+  {
+   "id": "law-evidence.l12.q5",
+   "lessonId": "law-evidence.l12",
+   "kind": "mcq",
+   "prompt": "In a fraud trial, the prosecution has 15,000 pages of bank records, admissible and made available to the defense, and offers an accountant's chart totaling the transfers. Another chart, shown to the jury during closing argument, illustrates the accountant's testimony but is not offered as evidence of the totals. Which statement is most accurate?",
+   "choices": [
+    "Neither chart is permitted because the originals of voluminous records must always be read aloud in court",
+    "The first chart is inadmissible under Rule 1006 because summaries may be used only when the underlying records are themselves inadmissible or unavailable to the defense",
+    "The first chart can be admitted as substantive evidence under Rule 1006, while the second is a pedagogical aid under Rule 611(a) that is not itself evidence",
+    "Both charts are substantive evidence because any chart prepared by a testifying expert is admissible under Rule 1006"
+   ]
+  },
+  {
+   "id": "law-evidence.l13.q1",
+   "lessonId": "law-evidence.l13",
+   "kind": "mcq",
+   "prompt": "Under Rule 606(b), during an inquiry into the validity of a verdict, a juror may testify about:",
+   "choices": [
+    "whether the juror's own vote was influenced by a statement made in deliberations",
+    "whether a fellow juror misunderstood the judge's instructions on the burden of proof",
+    "whether other jurors failed to give fair consideration to the evidence during deliberations",
+    "whether extraneous prejudicial information was improperly brought to the jury's attention"
+   ]
+  },
+  {
+   "id": "law-evidence.l13.q2",
+   "lessonId": "law-evidence.l13",
+   "kind": "mcq",
+   "prompt": "During a trial, counsel hands a witness a notebook she kept at the scene, and she says it refreshed her memory. She then testifies from memory. What rights does the opposing party have under Rule 612?",
+   "choices": [
+    "To have the notebook read to the jury as an exhibit by the proponent regardless of whether it is otherwise admissible",
+    "To have the notebook sealed, since a writing used to refresh memory is protected as work product in every circumstance",
+    "To have the notebook produced, inspect it, cross-examine her on it and introduce relevant portions, if she used it while testifying",
+    "To exclude her testimony entirely, because a witness may not use any writing to refresh her recollection at the time of trial"
+   ]
+  },
+  {
+   "id": "law-evidence.l13.q3",
+   "lessonId": "law-evidence.l13",
+   "kind": "mcq",
+   "prompt": "A civil defendant calls a witness who works for the plaintiff's competitor and is clearly hostile to the defendant. The defendant wants to ask leading questions on direct. Under Rule 611(c)?",
+   "choices": [
+    "The court may allow leading questions only if the witness is a child under the age of ten",
+    "The court may allow leading questions because the witness is hostile or identified with an adverse party",
+    "The court may never allow leading questions on direct examination under any circumstances",
+    "The court must allow leading questions because the witness was called by the defendant"
+   ]
+  },
+  {
+   "id": "law-evidence.l13.q4",
+   "lessonId": "law-evidence.l13",
+   "kind": "mcq",
+   "prompt": "After a criminal verdict, a juror submits an affidavit saying that during deliberations the foreperson read aloud a newspaper article about the defendant that was not in evidence, and another juror says she voted guilty mainly because she was worn down by the others. The defendant moves for a new trial. Under Rule 606(b), what may the court consider?",
+   "choices": [
+    "The article reading, an extraneous prejudicial information claim, but not the juror's account of why she voted as she did",
+    "Both statements, because a juror may testify about every event during deliberations if the verdict is challenged in good faith",
+    "Neither statement, because Rule 606(b) bars all testimony of jurors about deliberations in every circumstance without exception",
+    "Only the juror's account of being worn down, because mental processes are an exception to the rule for coercion claims"
+   ]
+  },
+  {
+   "id": "law-evidence.l13.q5",
+   "lessonId": "law-evidence.l13",
+   "kind": "mcq",
+   "prompt": "After a criminal trial, a juror reports that another juror said during deliberations that the defendant was guilty because he is of a particular ethnicity, expressing animus in clear terms. The defense moves for a new trial. What is the best analysis?",
+   "choices": [
+    "Rule 606(b) absolutely bars the evidence because racial bias is an internal mental process that no court may examine",
+    "The evidence is admissible only if the juror made the statement outside the jury room and before the deliberations began",
+    "The evidence is admissible only if the biased juror is willing to testify voluntarily about her own state of mind",
+    "Under Pena-Rodriguez v. Colorado, the no-impeachment rule yields when a juror made a clear statement showing reliance on racial animus to convict, so the court may consider the evidence"
+   ]
+  },
+  {
+   "id": "law-evidence.l14.q1",
+   "lessonId": "law-evidence.l14",
+   "kind": "mcq",
+   "prompt": "Under Rule 609(a)(2), a conviction must be admitted to impeach a witness if:",
+   "choices": [
+    "the court can readily determine that establishing the elements required proving, or the witness admitting, a dishonest act or false statement",
+    "the crime was a felony and the witness is a defendant whose testimony is central to the defense",
+    "the conviction is less than five years old and the crime was punishable by more than a month in jail",
+    "the witness lied about the conviction in an earlier deposition and the opposing party offers the deposition"
+   ]
+  },
+  {
+   "id": "law-evidence.l14.q2",
+   "lessonId": "law-evidence.l14",
+   "kind": "mcq",
+   "prompt": "On cross-examination, counsel asks a witness whether she once lied on a loan application, which is an uncharged act. The witness denies it. May counsel then prove the lie with a bank employee's testimony under Rule 608(b)?",
+   "choices": [
+    "No, because Rule 608(b) allows no inquiry about specific acts that did not result in a criminal conviction",
+    "No, because extrinsic evidence of specific instances is not admissible to prove untruthful character under Rule 608(b)",
+    "Yes, because any act of dishonesty can be proved by outside witnesses whenever the witness denies it on cross",
+    "Yes, but only if the bank employee is called by the court rather than by the opposing party"
+   ]
+  },
+  {
+   "id": "law-evidence.l14.q3",
+   "lessonId": "law-evidence.l14",
+   "kind": "mcq",
+   "prompt": "At a civil trial, a witness for the defendant says he saw the plaintiff run the red light. The plaintiff has evidence that the witness is the defendant's brother-in-law and stands to inherit if the defendant wins the suit. May the plaintiff offer this?",
+   "choices": [
+    "No, because the rule on specific instances of conduct forbids any reference to financial interest",
+    "Yes, but only if the witness first admits the relationship during preliminary questions by the judge",
+    "Yes, because bias and interest are never collateral and may be shown by extrinsic evidence",
+    "No, because only a party's own relatives may be impeached by questions about family ties"
+   ]
+  },
+  {
+   "id": "law-evidence.l14.q4",
+   "lessonId": "law-evidence.l14",
+   "kind": "mcq",
+   "prompt": "Mara is on trial for assault and testifies in her own defense. The prosecutor seeks to impeach her with an eight-year-old felony conviction for armed robbery, not involving dishonesty. Mara objects. Which approach does Rule 609 require?",
+   "choices": [
+    "Admit automatically, because every felony conviction within ten years of trial may be used to impeach any witness",
+    "Exclude automatically, because convictions for violent crimes never bear on a witness's truthfulness",
+    "Admit automatically under Rule 609(a)(2) because armed robbery is a crime of dishonesty by its nature",
+    "Balance under Rule 609(a)(1)(B): admit only if the probative value of the conviction outweighs its prejudicial effect to Mara"
+   ]
+  },
+  {
+   "id": "law-evidence.l14.q5",
+   "lessonId": "law-evidence.l14",
+   "kind": "mcq",
+   "prompt": "Tomas, a criminal defendant, has a prior felony conviction. The court rules in limine that it will admit it if he testifies. Tomas decides not to testify and is convicted. On appeal he argues that the ruling was error. Under Luce v. United States, what is the likely result?",
+   "choices": [
+    "The claim is not reviewable, because a defendant who does not testify cannot challenge an in limine ruling on impeachment by conviction",
+    "The claim succeeds automatically, because any in limine ruling admitting convictions is reversible when the defendant remains silent",
+    "The claim succeeds only if Tomas proves that his testimony would have changed the verdict",
+    "The claim is reviewable only if the prosecutor agrees that the ruling affected the defendant's decision"
+   ]
+  },
+  {
+   "id": "law-evidence.l15.q1",
+   "lessonId": "law-evidence.l15",
+   "kind": "mcq",
+   "prompt": "Which is a proper lay opinion under Rule 701?",
+   "choices": [
+    "A witness's testimony that a bullet wound is consistent with a particular weapon caliber, based on forensic training",
+    "A bystander's testimony that the driver seemed drunk based on how he walked and spoke",
+    "A witness's opinion that a company's accounting method violates professional standards after only a brief training course",
+    "A witness's statement that a pharmaceutical dose is safe, based on scientific literature he has reviewed"
+   ]
+  },
+  {
+   "id": "law-evidence.l15.q2",
+   "lessonId": "law-evidence.l15",
+   "kind": "mcq",
+   "prompt": "Under Rule 703, if facts or data on which an expert relies would be inadmissible, the proponent may disclose them to the jury only if:",
+   "choices": [
+    "their probative value in helping the jury evaluate the opinion substantially outweighs their prejudicial effect",
+    "the opposing party stipulates to their reliability before the expert begins to testify",
+    "they were obtained by a government agency through a legally authorized investigation",
+    "the expert personally generated the facts or data in the course of preparing the opinion"
+   ]
+  },
+  {
+   "id": "law-evidence.l15.q3",
+   "lessonId": "law-evidence.l15",
+   "kind": "mcq",
+   "prompt": "In a criminal prosecution in which the defendant pleads insanity, a psychiatrist testifies. Under Rule 704(b), which testimony is prohibited?",
+   "choices": [
+    "That the defendant suffers from a specific mental illness with characteristics described in diagnostic manuals",
+    "That the defendant's illness may affect perception and impulse control in people with similar diagnoses",
+    "That the defendant's medical records document treatment for the disorder before the offense",
+    "That the defendant did not have the mental state that constitutes an element of the crime or a defense"
+   ]
+  },
+  {
+   "id": "law-evidence.l15.q4",
+   "lessonId": "law-evidence.l15",
+   "kind": "mcq",
+   "prompt": "At a drug-distribution trial, the prosecutor calls the arresting officer, who did not qualify as an expert, to testify that, from his years of narcotics experience, the numbers and abbreviations in the defendant's notebook are code for amounts and prices. The defense objects. What is the best ruling?",
+   "choices": [
+    "Overrule; Rule 704(a) permits any opinion on an ultimate issue without regard to who offers it or how it was formed",
+    "Sustain; the officer is an agent of the government, and a government agent may never testify in a criminal trial as an expert",
+    "Sustain; the opinion rests on specialized knowledge within Rule 702, so it cannot be offered as lay opinion under Rule 701(c)",
+    "Overrule; any witness with personal experience in a field may give lay opinion about the meaning of documents"
+   ]
+  },
+  {
+   "id": "law-evidence.l15.q5",
+   "lessonId": "law-evidence.l15",
+   "kind": "mcq",
+   "prompt": "In a federal civil case, the defendant challenges an expert's opinion, arguing that the expert applied an accepted method to data that were incomplete. The trial judge says that the objection goes only to weight and lets the jury decide. Under Rule 702 as amended in 2023, what is the strongest criticism of the ruling?",
+   "choices": [
+    "The ruling is wrong because the judge cannot admit expert testimony unless the expert has published the methodology in a peer-reviewed journal",
+    "The proponent must demonstrate that it is more likely than not that sufficiency of basis and reliable application are met, so the court must decide them",
+    "The ruling is correct because questions of sufficiency of data are always for the jury under the plain terms of the rule",
+    "The ruling is wrong because only experts relying on novel methods are subject to the gatekeeping requirement of Rule 702"
+   ]
+  },
+  {
+   "id": "law-evidence.l16.q1",
+   "lessonId": "law-evidence.l16",
+   "kind": "mcq",
+   "prompt": "In Daubert v. Merrell Dow Pharmaceuticals, Inc. (1993), the Supreme Court held that:",
+   "choices": [
+    "scientific expert testimony is admissible only when its error rate is zero and has been verified by a government agency",
+    "a jury, not the judge, must decide whether an expert's methodology is sufficiently reliable to be considered",
+    "Rule 702 superseded the Frye general-acceptance test in federal courts and requires the judge to assess reliability and relevance",
+    "general acceptance in the scientific community is the sole requirement for admitting expert evidence in federal court"
+   ]
+  },
+  {
+   "id": "law-evidence.l16.q2",
+   "lessonId": "law-evidence.l16",
+   "kind": "mcq",
+   "prompt": "Kumho Tire Co. v. Carmichael (1999) addressed which question?",
+   "choices": [
+    "Whether a court must hold a full live evidentiary hearing before excluding any expert on reliability grounds",
+    "Whether the Frye test continues to apply in federal civil cases involving claims of manufacturing defects",
+    "Whether experts may state legal conclusions about whether a product was defective under state law",
+    "Whether the Daubert gatekeeping obligation applies to expert testimony based on technical or other specialized knowledge, not only scientific knowledge"
+   ]
+  },
+  {
+   "id": "law-evidence.l16.q3",
+   "lessonId": "law-evidence.l16",
+   "kind": "mcq",
+   "prompt": "What standard of appellate review applies to a trial court's decision to admit or exclude expert testimony under General Electric Co. v. Joiner?",
+   "choices": [
+    "Abuse of discretion, including for decisions to exclude the testimony",
+    "De novo review, because reliability of science is a pure question of law",
+    "Clear error review, because the trial court makes findings of fact on every Daubert factor",
+    "Review only when the jury, rather than the judge, made the reliability determination"
+   ]
+  },
+  {
+   "id": "law-evidence.l16.q4",
+   "lessonId": "law-evidence.l16",
+   "kind": "mcq",
+   "prompt": "In a toxic-tort case, a plaintiff's expert concludes that Chemical X caused the plaintiff's cancer. He relies on high-dose animal studies, plus the plaintiff's exposure and diagnosis, but cites no human studies and does not explain how the animal results translate to the plaintiff's exposure level. The court excludes the testimony. Which reasoning best supports the exclusion?",
+   "choices": [
+    "The expert must be excluded because general acceptance by all scientists is required before any causal opinion is allowed",
+    "There is too great an analytical gap between the data and the opinion, so the opinion rests only on the expert's say-so under Joiner",
+    "Animal studies are categorically inadmissible in federal court because they were not conducted on human subjects",
+    "The expert must be excluded because an expert may never rely on any evidence that is not independently admissible"
+   ]
+  },
+  {
+   "id": "law-evidence.l16.q5",
+   "lessonId": "law-evidence.l16",
+   "kind": "mcq",
+   "prompt": "A state court applies the Frye standard, and a party offers a novel technique for the first time. Which question would a Frye court ask that a Daubert court would treat as only one factor among several?",
+   "choices": [
+    "Whether the technique has been tested and subjected to peer review and publication",
+    "Whether the proponent has shown that it is more likely than not that the opinion reflects a reliable application of the method",
+    "Whether the technique has gained general acceptance in the relevant scientific community",
+    "Whether the technique has a known or potential error rate and controlling standards"
+   ]
+  },
+  {
+   "id": "law-evidence.l17.q1",
+   "lessonId": "law-evidence.l17",
+   "kind": "mcq",
+   "prompt": "Under Federal Rule of Evidence 501, in a federal civil case in which state law supplies the rule of decision, privilege is governed by:",
+   "choices": [
+    "federal common law in every instance, regardless of the source of the claim",
+    "a uniform code of privileges set by the Federal Rules of Evidence",
+    "the law of the forum state only if the parties have signed a choice-of-law agreement",
+    "state privilege law with respect to the claim or defense"
+   ]
+  },
+  {
+   "id": "law-evidence.l17.q2",
+   "lessonId": "law-evidence.l17",
+   "kind": "mcq",
+   "prompt": "Under Upjohn Co. v. United States, which of the following is most likely protected by the corporation's attorney-client privilege?",
+   "choices": [
+    "A conversation about a planned fraud between the company's president and its outside lawyer who is assisting the plan",
+    "A sales manager's casual comments to a colleague over lunch about a pending investigation of the company",
+    "A mid-level employee's answers to counsel's questions, given at management's direction, to enable counsel to give legal advice on matters within the employee's duties",
+    "Facts that an employee learned while on the job, which the corporation may withhold by delivering the facts to counsel in a memo"
+   ]
+  },
+  {
+   "id": "law-evidence.l17.q3",
+   "lessonId": "law-evidence.l17",
+   "kind": "mcq",
+   "prompt": "Which of the following correctly states how Rule 502(b) treats an inadvertent disclosure of privileged material in a federal proceeding?",
+   "choices": [
+    "It waives the privilege unless a state court has issued an order that protects it from waiver",
+    "It does not waive the privilege if the holder took reasonable steps to prevent disclosure and promptly took reasonable steps to rectify the error",
+    "It always waives the privilege as to all communications on the same subject matter, regardless of the care taken",
+    "It waives the privilege only if the receiving party proves that the disclosure was made in bad faith"
+   ]
+  },
+  {
+   "id": "law-evidence.l17.q4",
+   "lessonId": "law-evidence.l17",
+   "kind": "mcq",
+   "prompt": "During a federal criminal investigation, a company executive consults the company's lawyer, saying she plans to alter inventory records next month to hide a loss from auditors and asks how to avoid detection. The grand jury subpoenas the lawyer. Which statement is best?",
+   "choices": [
+    "The crime-fraud exception likely defeats the privilege for this communication, because it was made in furtherance of a future fraud",
+    "The privilege fully protects the communication because the executive sought a lawyer's advice in confidence",
+    "The privilege is defeated only if the executive is later convicted of the planned fraud by a jury",
+    "The privilege protects the communication, but the lawyer may waive it for the executive without her consent"
+   ]
+  },
+  {
+   "id": "law-evidence.l17.q5",
+   "lessonId": "law-evidence.l17",
+   "kind": "mcq",
+   "prompt": "A federal court enters an order under Rule 502(d) in a civil case, stating that production of privileged documents in the litigation is not a waiver. Later, a plaintiff in a separate state case demands the same documents on the theory that the privilege was waived by the production. What is the likely result?",
+   "choices": [
+    "The order binds only the parties to the federal case and has no effect in any other proceeding",
+    "The state court may disregard the order whenever it believes the disclosure was voluntary",
+    "The order is effective only if the parties agreed on it before any production had taken place",
+    "The order binds the state court, so the production is not a waiver in the other proceeding"
+   ]
+  },
+  {
+   "id": "law-evidence.l18.q1",
+   "lessonId": "law-evidence.l18",
+   "kind": "mcq",
+   "prompt": "Under Trammel v. United States, in federal court the spousal testimonial privilege belongs to:",
+   "choices": [
+    "the witness-spouse alone, who may choose whether to testify against the defendant-spouse",
+    "the defendant-spouse alone, who may bar the witness-spouse from testifying",
+    "both spouses together, so that both must consent before testimony is allowed",
+    "the government, which may decide whether the testimony outweighs the marriage"
+   ]
+  },
+  {
+   "id": "law-evidence.l18.q2",
+   "lessonId": "law-evidence.l18",
+   "kind": "mcq",
+   "prompt": "Which of the following is most likely protected by the confidential marital communications privilege?",
+   "choices": [
+    "A letter by one spouse to a friend describing what the other spouse had told her in confidence",
+    "A private statement from one spouse to the other, made at home during the marriage, saying where the stolen goods were hidden",
+    "The observation by one spouse of the other spouse hiding stolen goods in the garage while the spouse was unaware",
+    "A statement by one spouse to the other, in front of a neighbor, admitting that the goods were stolen"
+   ]
+  },
+  {
+   "id": "law-evidence.l18.q3",
+   "lessonId": "law-evidence.l18",
+   "kind": "mcq",
+   "prompt": "Under Jaffee v. Redmond, the federal psychotherapist-patient privilege covers confidential communications made to:",
+   "choices": [
+    "licensed psychiatrists only, and not to any other mental-health professional or social worker",
+    "any person to whom the patient confides a mental-health problem, if the patient reasonably expected secrecy",
+    "licensed psychotherapists, including licensed clinical social workers, during diagnosis or treatment",
+    "any physician who treats a patient for a physical condition during a medical examination"
+   ]
+  },
+  {
+   "id": "law-evidence.l18.q4",
+   "lessonId": "law-evidence.l18",
+   "kind": "mcq",
+   "prompt": "Orla is subpoenaed as a non-party witness in a civil case against her employer. When asked whether she took money from the cash drawer, she says, \"I refuse to answer any questions at all, on Fifth Amendment grounds.\" What is the best analysis?",
+   "choices": [
+    "A blanket assertion is enough, because the privilege prohibits any questioning of a person who fears being prosecuted",
+    "The privilege is unavailable because it applies only to defendants in criminal trials",
+    "The privilege is unavailable because Orla is a private person and the privilege protects only communications to government agents",
+    "The privilege must be invoked question by question, and the judge decides whether a particular answer has a real tendency to incriminate her"
+   ]
+  },
+  {
+   "id": "law-evidence.l18.q5",
+   "lessonId": "law-evidence.l18",
+   "kind": "mcq",
+   "prompt": "Rex and Sue are married. Rex is charged with arson. Sue is willing to testify for the prosecution about (1) a statement Rex made to her privately in their kitchen, saying he set the fire, and (2) the smell of gasoline she noticed on his clothes. Rex objects to both. Under federal law, what is the best ruling?",
+   "choices": [
+    "Sue may testify about the smell, but Rex can likely block testimony about his private statement under the marital communications privilege",
+    "Sue may testify about both, because under Trammel the witness-spouse alone controls all testimony between spouses",
+    "Sue may not testify about either, because Rex holds the spousal testimonial privilege and has invoked it",
+    "Sue may testify about the statement but not the smell, because the privilege covers only observations made at home"
+   ]
+  },
+  {
+   "id": "law-evidence.l19.q1",
+   "lessonId": "law-evidence.l19",
+   "kind": "mcq",
+   "prompt": "Under Federal Rule of Evidence 301, in a civil case, a presumption:",
+   "choices": [
+    "applies only if a state statute creates the presumption, and never to federal claims",
+    "imposes on the party against whom it is directed the burden of producing evidence to rebut it but does not shift the burden of persuasion",
+    "shifts the burden of persuasion to the opposing party on the presumed fact unless the court orders otherwise",
+    "is a conclusive finding that the jury cannot reject, however much contrary evidence is introduced"
+   ]
+  },
+  {
+   "id": "law-evidence.l19.q2",
+   "lessonId": "law-evidence.l19",
+   "kind": "mcq",
+   "prompt": "Under County Court of Ulster County v. Allen and Sandstrom v. Montana, which instruction to a jury in a criminal case is most clearly unconstitutional?",
+   "choices": [
+    "\"The law presumes that a person intends the ordinary consequences of his voluntary acts\" in a way a jury could read as binding on intent",
+    "\"You may infer that a person intends the natural results of his acts, but you are not required to do so\"",
+    "\"The prosecution must prove each element of the offense beyond a reasonable doubt, including intent\"",
+    "\"You may consider the defendant's possession of recently stolen goods along with all other evidence of guilt\""
+   ]
+  },
+  {
+   "id": "law-evidence.l19.q3",
+   "lessonId": "law-evidence.l19",
+   "kind": "mcq",
+   "prompt": "A sender proves she properly mailed a letter, triggering a presumption of receipt. The recipient testifies credibly that he never received it. Under the Thayer approach reflected in Rule 301, what happens?",
+   "choices": [
+    "The presumption shifts the burden of persuasion to the recipient, who must now prove non-receipt by a preponderance",
+    "The court must direct a verdict for the sender because the mailing evidence is unrebuttable",
+    "The presumption is conclusive in favor of the sender once mailing is shown, and the testimony is excluded",
+    "The presumption ceases to operate as a mandatory rule, and the jury decides receipt on all the evidence, though it may still infer receipt from mailing"
+   ]
+  },
+  {
+   "id": "law-evidence.l19.q4",
+   "lessonId": "law-evidence.l19",
+   "kind": "mcq",
+   "prompt": "A state criminal statute makes an affirmative defense of extreme emotional disturbance available to a murder defendant, who must prove it by a preponderance, while the prosecution must prove all elements of murder beyond a reasonable doubt. The defendant argues that this scheme violates due process under In re Winship. What is the best response?",
+   "choices": [
+    "The scheme is valid only if the defense is proved by clear and convincing evidence rather than a preponderance",
+    "The scheme is valid only if the jury is told that the defense is presumed true until the prosecution disproves it",
+    "Patterson v. New York upheld such an allocation because the prosecution still proves every element of the offense beyond a reasonable doubt",
+    "Winship forbids any burden on a criminal defendant, including the burden of proving an affirmative defense"
+   ]
+  },
+  {
+   "id": "law-evidence.l19.q5",
+   "lessonId": "law-evidence.l19",
+   "kind": "mcq",
+   "prompt": "In a federal diversity suit governed by state tort law, state law provides that proof of a certain basic fact creates a presumption that shifts the burden of persuasion to the defendant. A party relies on Rule 301 to argue the presumption only shifts the burden of production. Which provision resolves the conflict?",
+   "choices": [
+    "Rule 105, because the court must instruct the jury on the limited purpose of the presumption",
+    "Rule 302, under which state law governs the effect of a presumption regarding a claim or defense for which state law supplies the rule of decision",
+    "Rule 301, because federal procedural law always controls the effect of presumptions in federal court",
+    "Rule 104(b), because the effect of a presumption depends on a conditional-relevance finding by the jury"
+   ]
+  },
+  {
+   "id": "law-evidence.l20.q1",
+   "lessonId": "law-evidence.l20",
+   "kind": "mcq",
+   "prompt": "Under Rule 201(b), a court may judicially notice a fact that is not subject to reasonable dispute because it:",
+   "choices": [
+    "is asserted in a recent news article that the party offers as an exhibit to its motion",
+    "is generally known within the trial court's territorial jurisdiction or can be accurately and readily determined from reliable sources",
+    "is within the personal knowledge of the presiding judge from prior experience outside the courtroom",
+    "has been stated by a party in a pleading and has not been contested by the opposing party"
+   ]
+  },
+  {
+   "id": "law-evidence.l20.q2",
+   "lessonId": "law-evidence.l20",
+   "kind": "mcq",
+   "prompt": "In a civil jury trial, the court takes judicial notice that a certain date was a Sunday. What instruction does Rule 201(f) require?",
+   "choices": [
+    "That the jury must accept the noticed fact as conclusive",
+    "That the jury may or may not accept the noticed fact as conclusive",
+    "That the jury should disregard the noticed fact unless a witness confirms it",
+    "That the jury must treat the noticed fact as a rebuttable presumption in favor of the party that requested it"
+   ]
+  },
+  {
+   "id": "law-evidence.l20.q3",
+   "lessonId": "law-evidence.l20",
+   "kind": "mcq",
+   "prompt": "Which of the following is least likely to be proper for judicial notice?",
+   "choices": [
+    "That a specific calendar date fell on a certain day of the week",
+    "That a court's own docket shows a motion was filed on a particular day",
+    "That the distance between two named cities is approximately a given number of miles",
+    "That a defendant's alibi witness is the more credible of two witnesses on the same issue"
+   ]
+  },
+  {
+   "id": "law-evidence.l20.q4",
+   "lessonId": "law-evidence.l20",
+   "kind": "mcq",
+   "prompt": "In a federal criminal trial, an element of the offense is that the offense occurred within a specific federal district. The court takes judicial notice that the location is in that district. Which course is correct?",
+   "choices": [
+    "Decline to notice the fact, because a court may never notice any element of a criminal offense",
+    "Take notice but conceal the fact from the jury, because adjudicative facts in criminal cases are decided by the judge",
+    "Instruct the jury that it may, but need not, accept the noticed fact as conclusive, to preserve the defendant's jury-trial right",
+    "Instruct the jury that it must accept the fact as conclusive, because the location is not reasonably disputable"
+   ]
+  },
+  {
+   "id": "law-evidence.l20.q5",
+   "lessonId": "law-evidence.l20",
+   "kind": "mcq",
+   "prompt": "A plaintiff asks the court to take judicial notice of a newspaper article stating that a factory fire was caused by faulty wiring, to establish the cause of the fire. Which analysis is best?",
+   "choices": [
+    "The court may not notice anything about the article, since publication dates are never adjudicative facts",
+    "The court may notice that the article was published, but not the truth of its causal claim, which is subject to reasonable dispute",
+    "The court must notice the cause of the fire as stated, because a newspaper is a source whose accuracy cannot reasonably be questioned",
+    "The court may notice the cause of the fire because newspapers are self-authenticating, so any statement in them is conclusive"
+   ]
+  }
+ ]
+}

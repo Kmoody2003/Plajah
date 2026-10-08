@@ -22,6 +22,16 @@ export interface ReceiptData {
   pointsEarned?: number;
   customerName?: string;
   when?: number;
+  taxCents?: number;
+  tipCents?: number;
+  paidCents?: number;
+  changeCents?: number;
+  staffName?: string;
+  tenders?: { label: string; amountCents: number; reference?: string; balanceCents?: number }[];
+  /** EBT tenders - printed with approval reference and remaining benefit balance. */
+  ebtLines?: { label: string; amountCents: number; reference?: string; balanceCents?: number }[];
+  /** Gift cards sold on this ticket - the FULL code is printed once, here, and never stored. `qr` = optional data-URL image. */
+  giftCards?: { code: string; amountCents: number; qr?: string }[];
 }
 
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
@@ -70,9 +80,16 @@ function escposReceipt(r: ReceiptData): string {
   s += '--------------------------------' + nl;
   s += `Subtotal`.padEnd(22) + money(r.subtotalCents).padStart(10) + nl;
   if (r.discountCents) s += `Discount`.padEnd(22) + ('-' + money(r.discountCents)).padStart(10) + nl;
-  s += ESC + '!' + '\x10' + `TOTAL`.padEnd(18) + money(r.totalCents).padStart(9) + nl;
+  if (r.taxCents) s += `Tax`.padEnd(22) + money(r.taxCents).padStart(10) + nl;
+  if (r.tipCents) s += `Tip`.padEnd(22) + money(r.tipCents).padStart(10) + nl;
+  s += ESC + '!' + '\x10' + `TOTAL`.padEnd(18) + money(r.totalCents + (r.tipCents || 0)).padStart(9) + nl;
   s += ESC + '!' + '\x00';
-  s += `Paid: ${r.tender}` + nl;
+  for (const t of r.tenders || []) s += t.label.padEnd(22) + money(t.amountCents).padStart(10) + nl;
+  if (!(r.tenders || []).length) s += `Paid: ${r.tender}` + nl;
+  if (r.changeCents) s += `Change`.padEnd(22) + money(r.changeCents).padStart(10) + nl;
+  for (const e of r.ebtLines || []) { s += `${e.label} ref: ${e.reference || '-'}` + nl; if (typeof e.balanceCents === 'number') s += `${e.label} balance: ${money(e.balanceCents)}` + nl; }
+  for (const g of r.giftCards || []) s += nl + `GIFT CARD ${money(g.amountCents)}` + nl + g.code + nl;
+  if (r.staffName) s += `Served by ${r.staffName}` + nl;
   if (r.pointsEarned) s += `Points earned: ${r.pointsEarned}` + nl;
   s += nl + ESC + 'a' + '\x01' + 'Thank you!' + nl + nl + nl;
   s += GS + 'V' + '\x42' + '\x00';   // partial cut
@@ -92,8 +109,14 @@ function receiptHtml(r: ReceiptData): string {
     <hr/><table>${rows}</table><hr/>
     <div class="tot"><span>Subtotal</span><span>${money(r.subtotalCents)}</span></div>
     ${r.discountCents ? `<div class="tot" style="font-weight:400;color:#b00"><span>Discount</span><span>-${money(r.discountCents)}</span></div>` : ''}
-    <div class="tot"><span>TOTAL</span><span>${money(r.totalCents)}</span></div>
-    <div class="muted" style="margin-top:6px">Paid: ${r.tender}${r.pointsEarned ? ` · +${r.pointsEarned} pts` : ''}</div>
+    ${r.taxCents ? `<div class="tot" style="font-weight:400"><span>Tax</span><span>${money(r.taxCents)}</span></div>` : ''}
+    ${r.tipCents ? `<div class="tot" style="font-weight:400"><span>Tip</span><span>${money(r.tipCents)}</span></div>` : ''}
+    <div class="tot"><span>TOTAL</span><span>${money(r.totalCents + (r.tipCents || 0))}</span></div>
+    ${(r.tenders || []).map(t => `<div class="tot" style="font-weight:400;font-size:13px"><span>${t.label}</span><span>${money(t.amountCents)}</span></div>`).join('') || `<div class="muted">Paid: ${r.tender}</div>`}
+    ${r.changeCents ? `<div class="tot" style="font-weight:400;font-size:13px"><span>Change</span><span>${money(r.changeCents)}</span></div>` : ''}
+    ${(r.giftCards || []).map(g => `<div style="text-align:center;margin-top:10px;border:1px dashed #000;padding:8px"><div style="font-weight:700">GIFT CARD ${money(g.amountCents)}</div>${g.qr ? `<img src="${g.qr}" width="110" height="110" alt=""/>` : ''}<div style="font-family:monospace;font-size:14px;letter-spacing:1px">${g.code}</div><div class="muted">Keep this safe - it is the only copy.</div></div>`).join('')}
+    ${(r.ebtLines || []).map(e => `<div class="muted" style="text-align:left;margin-top:4px">${e.label} approval ref: ${e.reference || '-'}${typeof e.balanceCents === 'number' ? `<br/>Remaining ${e.label} balance: ${money(e.balanceCents)}` : ''}</div>`).join('')}
+    <div class="muted" style="margin-top:6px">${r.staffName ? 'Served by ' + r.staffName : ''}${r.pointsEarned ? ` · +${r.pointsEarned} pts` : ''}</div>
     <div class="thanks">Thank you!</div>
     <script>window.onload=function(){window.print();setTimeout(function(){window.close()},300)}</script>
     </body></html>`;
@@ -146,4 +169,23 @@ export async function canCollectCard(): Promise<boolean> {
     const mod = await import(/* @vite-ignore */ pkg).catch(() => null as any);
     return !!mod?.loadStripeTerminal;
   } catch { return false; }
+}
+
+/** Print a plain report (Z report etc.) as label/value rows. QZ raw printer if present, else a browser print window. */
+export async function printReport(title: string, rows: Array<[string, string] | string>): Promise<{ ok: boolean; via: 'qz' | 'browser' | 'none' }> {
+  const text = [title, '--------------------------------', ...rows.map(r => (typeof r === 'string' ? r : r[0].slice(0, 20).padEnd(20, ' ') + r[1].padStart(12, ' ')))].join('\n') + '\n\n\n';
+  if (isQzAvailable() && await ensureQzConnected()) {
+    try {
+      const q = qz(); const printer = await defaultPrinter();
+      if (printer) { await q.print(q.configs.create(printer), [{ type: 'raw', format: 'plain', data: text + String.fromCharCode(29) + 'V' + String.fromCharCode(66, 0) }]); return { ok: true, via: 'qz' }; }
+    } catch { /* fall through */ }
+  }
+  try {
+    const w = window.open('', '_blank', 'width=380,height=700');
+    if (!w) return { ok: false, via: 'none' };
+    const esc = (s: string) => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+    w.document.write(`<html><head><title>${esc(title)}</title><style>body{font-family:ui-monospace,Menlo,monospace;font-size:13px;padding:16px}pre{white-space:pre-wrap}</style></head><body><pre>${esc(text)}</pre><script>window.onload=function(){window.print()}</script></body></html>`);
+    w.document.close();
+    return { ok: true, via: 'browser' };
+  } catch { return { ok: false, via: 'none' }; }
 }

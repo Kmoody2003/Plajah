@@ -1,9 +1,8 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
-import { GlobalPlayerProvider } from './contexts/GlobalPlayerContext';
+import { isMediaLaunch } from './src/lib/launchTarget';
 import { CHANGELOG } from './data/changelog';
 import { isChunkLoadError, recoverFromStaleChunk } from './src/lib/staleChunk';
 // @ts-ignore
@@ -38,6 +37,13 @@ const PrompterScreen = React.lazy(() => import('./components/teleprompter/Prompt
 // lands straight on the review UI and never flashes the marketing/login screen.
 const HqReviewPublic = React.lazy(() => import('./components/HqReviewPublic'));
 const UniversalLibraryLab = React.lazy(() => import('./components/shared/UniversalLibrary/UniversalLibraryLab'));
+// The full platform (App + GlobalPlayerProvider) is code-split so the local-media fast path below
+// can boot without it. Normal launches start fetching it at once (see the final render branch).
+const loadFullApp = () => import('./src/FullApp');
+const FullApp = React.lazy(loadFullApp);
+// "Plajah opened a local file" (?open=media, set by the Windows/Android shells): a light viewer
+// shell — no App bundle, no Firebase, no auth/connectivity gates — so a photo opens immediately.
+const LocalMediaLaunch = React.lazy(() => import('./components/LocalMediaLaunch'));
 const reviewMatch = window.location.pathname.match(/^\/review\/([A-Za-z0-9_-]+)\/?$/);
 const reviewToken = new URLSearchParams(window.location.search).get('t') || '';
 
@@ -204,14 +210,32 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
       } catch { /* treat as desktop web */ }
 
       if (isTvOrNative) {
-        // Already backgrounded? Safe to apply now. Otherwise wait for the app to be hidden.
-        if (document.visibilityState === 'hidden') { updateSW(true); return; }
-        const applyWhenHidden = () => {
-          if (document.visibilityState === 'hidden') {
-            document.removeEventListener('visibilitychange', applyWhenHidden);
-            updateSW(true);
-          }
+        // "Backgrounded" is NOT "idle": locking the phone with Chora playing hides the page too, and a
+        // reload there kills the audio and drops the queue — music dying the moment the screen turns
+        // off after any deploy. So never apply the update while audio is playing; re-check while the
+        // app stays hidden and apply once playback has stopped (or the next time it is backgrounded
+        // with nothing playing).
+        const audioIsPlaying = () => {
+          try {
+            if ((window as any).__plajahAudioActive?.()) return true;
+            return Array.from(document.querySelectorAll('audio,video')).some(m => !(m as HTMLMediaElement).paused && !(m as HTMLMediaElement).ended);
+          } catch { return false; }
         };
+        let recheck: ReturnType<typeof setTimeout> | null = null;
+        const applyWhenHidden = () => {
+          if (document.visibilityState !== 'hidden') return;
+          if (audioIsPlaying()) {
+            if (!recheck) recheck = setTimeout(() => { recheck = null; applyWhenHidden(); }, 60_000);
+            return;
+          }
+          document.removeEventListener('visibilitychange', applyWhenHidden);
+          updateSW(true);
+        };
+        // Already backgrounded? Safe to apply now (unless music is playing). Otherwise wait for hidden.
+        if (document.visibilityState === 'hidden') {
+          if (!audioIsPlaying()) { updateSW(true); return; }
+          applyWhenHidden();
+        }
         document.addEventListener('visibilitychange', applyWhenHidden);
         return;
       }
@@ -295,20 +319,22 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement);
 
-// Retire the pre-mount splash (index.html #pj-boot) once React has actually painted.
-// Two rAFs: the first lands after the commit, the second after the browser has painted it, so
-// the splash is never pulled while the app's own first frame is still blank. The 4s failsafe
-// exists because rAF does not fire in a never-painting webview — the same starvation the guard
-// in index.html handles — and a splash that outlived the app would be worse than the flash.
+// Retire the pre-mount splash (index.html #pj-boot) immediately once React has mounted.
 function dismissBootSplash(): void {
   const el = document.getElementById('pj-boot');
   if (!el) return;
-  const done = () => { el.classList.add('pj-boot-done'); setTimeout(() => el.remove(), 320); };
-  requestAnimationFrame(() => requestAnimationFrame(done));
-  setTimeout(done, 4000);
+  const done = () => {
+    el.classList.add('pj-boot-done');
+    setTimeout(() => {
+      try { el.remove(); } catch { }
+    }, 180);
+  };
+  requestAnimationFrame(done);
+  setTimeout(done, 1200);
 }
 
 const search = new URLSearchParams(window.location.search);
+let deferBootSplash = false;
 const isProgramOut = search.get('programOut') === '1';
 const isUlLab = search.get('ullab') === '1';
 const isPrompterWindow = search.get('role') === 'prompter';
@@ -362,13 +388,42 @@ if (isProgramOut) {
   // double-mounts, so it was rock-solid there; removing StrictMode makes DEV behave like prod (this
   // is a no-op in production builds anyway). Re-add only once the watch-stream assertion is gone
   // (a firebase-js-sdk fix, or every listener routed through services/safeSnapshot).
-  root.render(
-    <ErrorBoundary>
-      <GlobalPlayerProvider>
-        <App />
-      </GlobalPlayerProvider>
-    </ErrorBoundary>
+  if (isMediaLaunch()) {
+    root.render(
+      <ErrorBoundary>
+        <MediaLaunchRoot />
+      </ErrorBoundary>
+    );
+  } else {
+    deferBootSplash = true;
+    root.render(
+      <ErrorBoundary>
+        <React.Suspense fallback={null}>
+          <FullApp />
+        </React.Suspense>
+      </ErrorBoundary>
+    );
+  }
+}
+
+/** Viewer first; swaps to the full platform in place when the viewer hands off (handOffToFullApp). */
+function MediaLaunchRoot() {
+  const [full, setFull] = React.useState(false);
+  React.useEffect(() => {
+    const go = () => setFull(true);
+    window.addEventListener('plajah:mount-full-app', go);
+    return () => window.removeEventListener('plajah:mount-full-app', go);
+  }, []);
+  return (
+    <React.Suspense fallback={<div style={{ position: 'fixed', inset: 0, background: '#07080b' }} />}>
+      {full ? <FullApp /> : <LocalMediaLaunch />}
+    </React.Suspense>
   );
 }
 
-dismissBootSplash();
+if (deferBootSplash) {
+  // Full app: hold #pj-boot until the App chunk has arrived so there is no blank frame between.
+  loadFullApp().finally(dismissBootSplash);
+} else {
+  dismissBootSplash();
+}

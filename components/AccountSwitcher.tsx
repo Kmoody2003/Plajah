@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Plus, LogOut, ChevronRight, Zap, X, Check, Keyboard } from 'lucide-react';
+import { User, Plus, LogOut, ChevronRight, Zap, X, Check, Keyboard, Car, Package } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 
 export interface LinkedAccount {
@@ -229,6 +229,30 @@ export default function AccountSwitcher({
                   <p className="text-[7px] text-white/20 mt-0.5 leading-relaxed">Hold <kbd className="px-1 py-0.5 rounded bg-white/10 text-white/40 font-mono text-[6px]">Insert</kbd> + <kbd className="px-1 py-0.5 rounded bg-white/10 text-white/40 font-mono text-[6px]">1–4</kbd> to instantly jump between linked slots. Credentials must be saved or linked.</p>
                 </div>
               </div>
+            </div>
+
+            {/* My Orders: customer order tracking. Opens via App's OPEN_MY_ORDERS listener. */}
+            <div className="px-5 pb-1">
+              <button
+                onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('OPEN_MY_ORDERS')); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all hover:bg-white/[0.05] border border-transparent hover:border-white/10"
+              >
+                <div className="w-7 h-7 rounded-xl bg-white/[0.06] flex items-center justify-center shrink-0"><Package size={12} className="text-white/60" /></div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/60">My Orders</p>
+                <ChevronRight size={12} className="text-white/20 ml-auto" />
+              </button>
+            </div>
+
+            {/* My Garage: customer-owned vehicle service history (Vehicle Passport v1). Opens via App's OPEN_MY_GARAGE listener. */}
+            <div className="px-5 pb-3">
+              <button
+                onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('OPEN_MY_GARAGE')); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all hover:bg-white/[0.05] border border-transparent hover:border-white/10"
+              >
+                <div className="w-7 h-7 rounded-xl bg-white/[0.06] flex items-center justify-center shrink-0"><Car size={12} className="text-white/60" /></div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/60">My Garage</p>
+                <ChevronRight size={12} className="text-white/20 ml-auto" />
+              </button>
             </div>
 
             {/* Sign out */}

@@ -3,10 +3,11 @@ import {resolveMediaSource} from '../../services/fabula/mediaSource';
 import {getBytes} from '../../services/fabula/mediaStore';
 import {mediaHealth,reportMediaHealth,subscribeMediaHealth} from '../../services/fabula/mediaHealth';
 
-export default function MediaRepair({assets,selected,onSelect,onRelink,onReconnect,onBuildProxies}:any) {
+export default function MediaRepair({assets,selected,onSelect,onRelink,onReconnect,onRelinkFolder,onBuildProxies}:any) {
  const [,refresh]=useState(0),[busy,setBusy]=useState(false),[proxies,setProxies]=useState<Record<string,boolean>>({});
  useEffect(()=>subscribeMediaHealth(()=>refresh(n=>n+1)),[]);
  useEffect(()=>{let alive=true;Promise.all(assets.map(async(a:any)=>[a.id,!!(await getBytes('studio:proxy:'+a.id))])).then(rows=>{if(alive)setProxies(Object.fromEntries(rows));});return()=>{alive=false;};},[assets]);
+ const offlineAssets = (assets || []).filter((a: any) => a.offline || !a.url);
  const check=async()=>{
   setBusy(true);
   try {for(const a of assets){
@@ -25,7 +26,20 @@ export default function MediaRepair({assets,selected,onSelect,onRelink,onReconne
  };
  return <section style={{flex:1,minHeight:0,overflow:'auto',padding:16}}>
   <h3>Media repair</h3><p>Original files and local proxies are separate. Playback problems from Edit, VFX and Color appear here.</p>
-  <div className="btnrow"><button className="minibtn" disabled={busy} onClick={check}>{busy?'Checking…':'Check availability and decoding'}</button><button className="minibtn" onClick={onReconnect}>Reconnect folders</button><button className="minibtn" onClick={onBuildProxies}>Build local proxies</button></div>
-  <table style={{width:'100%',fontSize:12}}><thead><tr><th>Asset</th><th>Remembered location</th><th>Status</th><th>Proxy</th><th>Repair</th></tr></thead><tbody>{assets.map((a:any)=><tr key={a.id} style={{background:selected.includes(a.id)?'#403049':undefined}} onClick={()=>onSelect(a)}><td>{a.name}</td><td>{a.diskPath?`${a.diskPath}/${a.diskName||a.name}`:a.session?'Browser local storage':a.cloudUrl||a.url?'Source linked':'No source'}</td><td>{mediaHealth(a.id)?.message||(a.offline?'Offline':'Not checked')}</td><td>{proxies[a.id]?'Cached on this device':'None cached'}</td><td><button className="minibtn" onClick={e=>{e.stopPropagation();onRelink(a.id);}}>Relink…</button></td></tr>)}</tbody></table>
+  <div className="btnrow">
+   <button className="minibtn" disabled={busy} onClick={check}>{busy?'Checking…':'Check availability and decoding'}</button>
+   <button className="minibtn" onClick={() => onRelinkFolder ? onRelinkFolder() : onReconnect()} title="Choose folder to relink media files to">Relink to folder…</button>
+   <button className="minibtn" onClick={onReconnect} title="Reconnect all watched project folders">Reconnect folders</button>
+   <button className="minibtn" onClick={onBuildProxies}>Build local proxies</button>
+  </div>
+  {offlineAssets.length > 0 && (
+   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'rgba(255,140,0,0.15)',border:'1px solid rgba(255,140,0,0.5)',borderRadius:6,padding:'8px 12px',margin:'10px 0'}}>
+    <span>⚠️ <strong>{offlineAssets.length} offline clip{offlineAssets.length > 1 ? 's' : ''}</strong> need relinking to their media folder.</span>
+    <button className="minibtn" style={{background:'#FF8C00',color:'#000',fontWeight:'bold'}} onClick={() => onRelinkFolder ? onRelinkFolder(offlineAssets.map((a: any) => a.id)) : onReconnect()}>
+     Choose folder to relink…
+    </button>
+   </div>
+  )}
+  <table style={{width:'100%',fontSize:12}}><thead><tr><th>Asset</th><th>Remembered location</th><th>Status</th><th>Proxy</th><th>Repair</th></tr></thead><tbody>{assets.map((a:any)=><tr key={a.id} style={{background:selected.includes(a.id)?'#403049':undefined}} onClick={()=>onSelect(a)}><td>{a.name}</td><td>{a.diskPath?`${a.diskPath}/${a.diskName||a.name}`:a.session?'Browser local storage':a.cloudUrl||a.url?'Source linked':'No source'}</td><td>{mediaHealth(a.id)?.message||(a.offline?'Offline':'Not checked')}</td><td>{proxies[a.id]?'Cached on this device':'None cached'}</td><td><button className="minibtn" onClick={e=>{e.stopPropagation();onRelink(a.id);}}>Relink…</button>{(a.diskPath || a.bin || a.folderId) && <button className="minibtn" style={{marginLeft:6}} title="Relink all assets from this folder" onClick={e=>{e.stopPropagation();if(onRelinkFolder)onRelinkFolder([a.id], a.diskPath || a.bin || a.folderId);else onRelink(a.id);}}>Relink folder…</button>}</td></tr>)}</tbody></table>
  </section>;
 }

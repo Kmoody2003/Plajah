@@ -40,7 +40,7 @@ self.onmessage = (event: MessageEvent) => {
       // Canvas adapter currently targets SDR. Never silently label that path HDR.
       if (color.transfer && !['bt709', 'iec61966-2-1', 'smpte170m'].includes(color.transfer)) throw new Error('Unsupported transfer function uses compatibility renderer until float output migration');
       firstTime = await track.getFirstTimestamp();
-      sink = new VideoSampleSink(track, { hardwareAcceleration: 'no-preference' });
+      sink = new VideoSampleSink(track, { hardwareAcceleration: 'prefer-hardware' });
       self.postMessage({ type: 'ready', color });
     } else if (message.type === 'frame') {
       const frame = await frameAt(message.time);

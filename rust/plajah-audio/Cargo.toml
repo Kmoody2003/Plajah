@@ -6,7 +6,7 @@ description = "Real-time DSP core for Melos instruments (ONDA / KERA / FONDO). C
 license = "UNLICENSED"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 # No wasm-bindgen, no wasm-pack: the worklet instantiates a bare module and calls a flat
 # extern "C" ABI. Nothing marshals, nothing allocates, nothing garbage-collects on the audio

@@ -1,0 +1,100 @@
+[
+ {
+  "lesson": "lab-cs.l05",
+  "id": "bigo-crossover",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-cs.l06",
+  "id": "halving-steps",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-cs.l07",
+  "id": "sort-lower-bound",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-neuroscience.l03",
+  "id": "ap-sequence",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-neuroscience.l04",
+  "id": "synapse-steps",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-neuroscience.l06",
+  "id": "time-constant",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-neuroscience.l06",
+  "id": "length-constant",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-networks.l03",
+  "id": "queue-delay",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-networks.l06",
+  "id": "encapsulation",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-networks.l10",
+  "id": "aimd-sawtooth",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-history.l12",
+  "id": "voyages-timeline",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lab-history.l13",
+  "id": "revolutions-timeline",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "history-north-america.l09",
+  "id": "revolution-road",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "history-north-america.l17",
+  "id": "civil-war-timeline",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ }
+]

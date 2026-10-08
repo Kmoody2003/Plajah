@@ -1,0 +1,20 @@
+# med-micro fixes (asOf 2026-10)
+
+## Changed
+1. l10 Lyme (t3.ts body + anchor). Was: doxycycline for "children above eight years". Now: doxycycline 10-14 days for adults and children of any age (CDC lists no age cutoff; short courses not a staining concern per AAP 2018), amoxicillin/cefuroxime alternatives. No question depended on it. Sources: https://www.cdc.gov/lyme/hcp/clinical-care/erythema-migrans-rash.html (opened) ; AAP statement via https://pmc.ncbi.nlm.nih.gov/articles/PMC11732018/ (search snippet only, not opened).
+2. l07 meningococcal vaccines (t2.ts body + anchor). Was: ACWY plus a separate B vaccine. Now: MenACWY, MenB, and combined MenABCWY (Penbraya, FDA 20 Oct 2023; Penmenvy, FDA Feb 2025; both ages 10-25), ACIP: only when both MenACWY and MenB are due at the same visit (ACIP voted Oct 2023 and Apr 2025). Sources: https://www.cdc.gov/meningococcal/hcp/vaccine-recommendations/index.html ; https://www.gsk.com/en-gb/media/press-releases/penmenvy-gsk-s-5-in-1-meningococcal-vaccine-approved-by-us-fda-to-help-protect-against-menabcwy/ (Penmenvy date given as 15 Feb, other outlets 14 Feb, so lesson says "February 2025") ; Penbraya date from search results (Pfizer press page 403). Note: US vaccine policy is in flux (see med-clin-peds.fixes.md); recheck.
+3. l04.q3 (t1.ts). Was: "overwhelming infection with encapsulated organisms such as S. pneumoniae"; terminal complement deficiency was arguably defensible. Now stem names pneumococcus and Haemophilus with poor clearance of opsonised bacteria; explanation says complement deficiency is mainly Neisseria. Key unchanged. Supported by https://www.cdc.gov/meningococcal/hcp/clinical/index.html (verifier B).
+4. l14.q4 (t4.ts). Stem now "which cell type accounts for most of these atypical lymphocytes", options and explanation clarify CD8 T cells vs infected B cells (a minority). Source: https://pmc.ncbi.nlm.nih.gov/articles/PMC4346501/ (search result text; CDC EBV page does not cover it).
+5. l19.q4 (t5.ts). Stem now says the lesions are T. solium cysticerci and asks which exposure most directly caused them; key (swallowing eggs from a carrier) clarified; explanation cites CDC "eating pork cannot give you cysticercosis". Source: https://www.cdc.gov/cysticercosis/about/index.html
+6. l16 HIV algorithm (t4.ts body + anchor). Was: differentiation immunoassay "and" NAT for confirmation. Now: Ag/Ab assay, differentiation immunoassay if reactive, HIV-1 NAT only if the differentiation result is nonreactive/indeterminate. Source: CDC 2014 recommendations PDF, https://stacks.cdc.gov/view/cdc/23447 (text read locally); 2018 quick guide https://stacks.cdc.gov/view/cdc/50872 (metadata only).
+7. l11 Chlamydia treatment (t3.ts). Was: "doxycycline or azithromycin are used". Now: doxycycline 7 days preferred, azithromycin alternative, less effective for rectal infection. Source: https://www.cdc.gov/std/treatment-guidelines/chlamydia.htm
+8. l15 SARS-CoV-2 (t4.ts). Added dated line: CDC outpatient guidance (nirmatrelvir-ritonavir preferred within 5 days; remdesivir within 7 days; molnupiravir if others unavailable). Vaccine recommendations deliberately not taught (changing). Mechanism details not added (not on opened page). Source: https://www.cdc.gov/covid/hcp/clinical-care/outpatient-treatment.html
+
+## Verified, unchanged
+- G6PD testing before primaquine/tafenoquine and hypnozoites of vivax/ovale: correct. https://www.cdc.gov/malaria/hcp/clinical-guidance/treatment-of-uncomplicated-malaria.html
+- Naegleria nasal entry, warm freshwater, PAM: https://www.cdc.gov/naegleria/about/index.html
+- C. difficile, RMSF, measles, strongyloides, isolation precautions: verifier A/B CDC pages supported.
+- MAC prophylaxis "in older practice": hedge kept.
+
+## Not independently opened (standard textbook, unchanged)
+Gram stain, lipid A/TLR4, toxin mechanisms, microbiology identification tests, anthropod-borne details, helminth biology, autoclave parameters, remaining unverifiable memory-only claims. No verifier marked these contradicted.

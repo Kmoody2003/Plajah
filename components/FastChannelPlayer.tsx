@@ -348,6 +348,12 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   // key and the dispatched hardware-back event now call onClose directly (mirrors TvLiveSourcePlayer).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      const isField = (el: HTMLElement | null) =>
+        !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || el.closest?.('input, textarea, select, [contenteditable="true"]')));
+      if (isField(target) || isField(active)) return;
+
       const kc = e.keyCode || e.which;
       if (kc === 4 || e.key === 'Backspace' || e.key === 'XF86Back' || e.key === 'GoBack') {
         e.preventDefault(); e.stopImmediatePropagation(); onClose();

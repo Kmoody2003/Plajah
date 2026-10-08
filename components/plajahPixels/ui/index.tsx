@@ -18,6 +18,7 @@ import { getShaderThumb, peekShaderThumb } from './shaderThumbs';
 import { ShaderPreviewTile } from '../components/ShaderPreviewTile';
 
 export { Button, IconButton, Surface, Actions, Eyebrow, Input, Chip } from '../../ui';
+export { PixelsInspector, type PixelsInspectorProps, PRESET_PALETTES } from './PixelsInspector';
 
 /* ── The six reactive channels ───────────────────────────────────────────────
    One source of truth for the band colours, ordered by frequency, matching the

@@ -6,15 +6,97 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
+import android.provider.OpenableColumns
 import com.plajah.app.ui.ShellPrefs
 import android.util.Log
 import android.view.KeyEvent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.CapConfig
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 
 class MainActivity : BridgeActivity() {
     private var televisionMode = false
+    /** The intent this activity was created with — BridgeActivity.load() replays it through
+     *  onNewIntent, and it has already been handled via the start path. */
+    private var launchIntent: Intent? = null
+
+    // ── Launch targets ────────────────────────────────────────────────────────────────────────
+    // Experience icons are <activity-alias> entries (AndroidManifest.xml) carrying a slug in
+    // meta-data; "Open with" arrives as ACTION_VIEW on a content:// or file:// URI. Both become a
+    // start-path hint the web layer reads synchronously (src/lib/launchTarget.ts).
+
+    private fun experienceFor(intent: Intent?): String? {
+        val component = intent?.component ?: return null
+        return try {
+            packageManager.getActivityInfo(component, PackageManager.GET_META_DATA)
+                .metaData?.getString(EXPERIENCE_META)
+                ?.takeIf { SLUG_RE.matches(it) }
+        } catch (_: Exception) { null }
+    }
+
+    /** OPEN_MEDIA_FILE payload (same shape the Windows shell posts) for a VIEW intent, else null. */
+    private fun mediaPayloadFor(intent: Intent?): String? {
+        if (intent?.action != Intent.ACTION_VIEW) return null
+        val uri = intent.data ?: return null
+        if (uri.scheme != "content" && uri.scheme != "file") return null
+        val mime = intent.type ?: (try { contentResolver.getType(uri) } catch (_: Exception) { null }) ?: ""
+        val kind = when {
+            mime.startsWith("image/") -> "IMAGE"
+            mime.startsWith("video/") -> "VIDEO"
+            mime.startsWith("audio/") -> "AUDIO"
+            else -> return null
+        }
+        var name = uri.lastPathSegment?.substringAfterLast('/') ?: "file"
+        var size = 0L
+        if (uri.scheme == "content") {
+            try {
+                contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        val ni = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (ni >= 0) c.getString(ni)?.let { name = it }
+                        val si = c.getColumnIndex(OpenableColumns.SIZE)
+                        if (si >= 0 && !c.isNull(si)) size = c.getLong(si)
+                    }
+                }
+            } catch (_: Exception) { /* name/size are cosmetic */ }
+        } else {
+            uri.path?.let { size = File(it).length() }
+        }
+        // Served by Capacitor's local server (what Capacitor.convertFileSrc produces), relative to
+        // the page origin; the VIEW intent's read grant covers it.
+        val url = if (uri.scheme == "content") "/_capacitor_content_" + uri.toString().removePrefix("content:/")
+                  else "/_capacitor_file_" + (uri.path ?: "")
+        val file = JSONObject()
+            .put("name", name)
+            .put("fullPath", uri.toString())
+            .put("size", size)
+            .put("url", url)
+            .put("mediaKind", kind)
+        return JSONObject()
+            .put("type", "OPEN_MEDIA_FILE")
+            .put("mediaKind", kind)
+            .put("activeFile", file)
+            .put("folderFiles", JSONArray().put(file))
+            .toString()
+    }
+
+    /** The bundled capacitor.config.json with server.appStartPath overridden, so the WebView's
+     *  FIRST load is the launch target — no second navigation after boot. */
+    private fun launchConfig(startPath: String): CapConfig? = try {
+        val json = JSONObject(assets.open("capacitor.config.json").bufferedReader().use { it.readText() })
+        val server = json.optJSONObject("server") ?: JSONObject().also { json.put("server", it) }
+        server.put("appStartPath", startPath)
+        val dir = File(filesDir, "launch-config").apply { mkdirs() }
+        File(dir, "capacitor.config.json").writeText(json.toString())
+        CapConfig.loadFromFile(this, dir.absolutePath)
+    } catch (e: Exception) {
+        Log.w(TAG, "Launch start path unavailable, booting default: ${e.message}")
+        null
+    }
 
     /**
      * Tell the web layer, authoritatively, that this is a television.
@@ -58,7 +140,11 @@ class MainActivity : BridgeActivity() {
         // NativeActivity before building the Capacitor bridge (phones/tablets/Android-laptop
         // windows only — TV keeps the web leanback UI, which is D-pad-tuned). The web app is
         // otherwise the default and stays fully intact; this is opt-in, like "Try New Nav" on web.
-        if (!isTelevision() && ShellPrefs.isNativeEnabled(this)) {
+        val launchExperience = experienceFor(intent)
+        val launchMedia = mediaPayloadFor(intent)
+        // A file or an experience icon always opens in the web shell — that's where the viewer
+        // and the experience routes live.
+        if (launchExperience == null && launchMedia == null && !isTelevision() && ShellPrefs.isNativeEnabled(this)) {
             super.onCreate(savedInstanceState)
             startActivity(Intent(this, NativeActivity::class.java)
                 .putExtra("platformContentUrl",intent.getStringExtra("platformContentUrl")))
@@ -76,8 +162,21 @@ class MainActivity : BridgeActivity() {
         registerPlugin(PlajahCameraPlugin::class.java)
         // PlajahShell: lets the web app's "Switch to Native" toggle hand off to the Compose shell.
         registerPlugin(PlajahShellPlugin::class.java)
+        // PlajahNativeAudio: connects web audio to native Media3 service for screen-off playback & car Bluetooth AVRCP
+        registerPlugin(PlajahNativeAudioPlugin::class.java)
         // PlajahSpeech: native (on-device first) speech recognition for Voca read-aloud — WebView has no Web Speech API
         registerPlugin(PlajahSpeechPlugin::class.java)
+        // PlajahLaunch: hands "Open with" files and experience-icon launches to the web layer.
+        registerPlugin(PlajahLaunchPlugin::class.java)
+
+        PlajahLaunchPlugin.pendingMediaJson = launchMedia
+        val startPath = when {
+            launchMedia != null -> "/?open=media"          // light LocalMediaLaunch viewer, not the full app
+            launchExperience != null -> "/?view=$launchExperience"
+            else -> null
+        }
+        startPath?.let { launchConfig(it) }?.let { config = it }
+        launchIntent = intent
 
         // Hold the native splash until the web layer has something on screen, then hand over.
         //
@@ -90,8 +189,11 @@ class MainActivity : BridgeActivity() {
         // (index.html #pj-boot, same mark and palette) carry on seamlessly from there.
         val splash = installSplashScreen()
         val splashStart = System.currentTimeMillis()
+        // The media viewer shell paints almost at once — an opened photo shouldn't wait out the
+        // full-app hold.
+        val splashHold = if (launchMedia != null) MEDIA_SPLASH_HOLD_MS else SPLASH_HOLD_MS
         splash.setKeepOnScreenCondition {
-            (System.currentTimeMillis() - splashStart) < SPLASH_HOLD_MS
+            (System.currentTimeMillis() - splashStart) < splashHold
         }
         super.onCreate(savedInstanceState)
         // Render edge-to-edge — Compose and the WebView both respect system bar insets
@@ -111,6 +213,7 @@ class MainActivity : BridgeActivity() {
         } catch (_: Throwable) { /* pre-bridge or unavailable — the theme background still covers */ }
 
         televisionMode = isTelevision()
+        if (!televisionMode && launchMedia != null) return  // no floating "Native UI" button over the viewer
         if (!televisionMode) {
             // Keep the entry point in the APK: the remote web deployment may predate Compose.
             val switch = android.widget.Button(this).apply {
@@ -183,6 +286,15 @@ class MainActivity : BridgeActivity() {
         }
     }
 
+    /** Warm re-entry (singleTask): a file opened, or an experience icon tapped, while running. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent === launchIntent) return  // the launch intent, replayed by BridgeActivity.load()
+        val plugin = bridge?.getPlugin("PlajahLaunch")?.instance as? PlajahLaunchPlugin ?: return
+        mediaPayloadFor(intent)?.let { plugin.emitMedia(it); return }
+        experienceFor(intent)?.let { plugin.emitExperience(it) }
+    }
+
     /** Normalize vendor D-pad delivery before Android focus search can swallow a direction. */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (televisionMode && event.action == KeyEvent.ACTION_DOWN) {
@@ -221,5 +333,9 @@ class MainActivity : BridgeActivity() {
          * there, so the handover is invisible even when the page is still loading.
          */
         private const val SPLASH_HOLD_MS = 900L
+        /** Splash hold when opened on a local file — the viewer shell needs only the blank frame covered. */
+        private const val MEDIA_SPLASH_HOLD_MS = 250L
+        private const val EXPERIENCE_META = "com.plajah.app.EXPERIENCE"
+        private val SLUG_RE = Regex("^[a-z_-]{1,32}$")
     }
 }

@@ -17,15 +17,23 @@ export interface WorkerFaceFrame {
   blendshapes: Record<string, number>;
   matrix: number[] | null;
   bbox: { x: number; y: number; w: number; h: number } | null;
+  /** Per-face eye geometry (lens engine). Always present; empty when no face. */
+  faces: FaceEyes[];
 }
+
+import { facesFromLandmarks, type FaceEyes } from './eyeGeometry';
 
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
 let fl: any = null;
+// The VTuber needs blendshapes + head matrix (and exactly one face). The lens engine needs only
+// landmarks, for several faces — and skipping the blendshape/matrix graph is a real saving on phones.
+let wantBlend = true;
 
-async function init(): Promise<boolean> {
+async function init(numFaces: number, blend: boolean): Promise<boolean> {
   if (fl) return true;
+  wantBlend = blend;
   try {
     const vision: any = await import(/* @vite-ignore */ CDN);
     const fileset = await vision.FilesetResolver.forVisionTasks(`${CDN}/wasm`);
@@ -36,9 +44,9 @@ async function init(): Promise<boolean> {
         fl = await vision.FaceLandmarker.createFromOptions(fileset, {
           baseOptions: { modelAssetPath: MODEL, delegate },
           runningMode: 'VIDEO',
-          numFaces: 1,
-          outputFaceBlendshapes: true,
-          outputFacialTransformationMatrixes: true,
+          numFaces,
+          outputFaceBlendshapes: blend,
+          outputFacialTransformationMatrixes: blend,
         });
         break;
       } catch { /* try the next delegate */ }
@@ -52,9 +60,9 @@ async function init(): Promise<boolean> {
 function run(bitmap: ImageBitmap, ts: number): WorkerFaceFrame | null {
   const res = fl.detectForVideo(bitmap, ts);
   const cats = res?.faceBlendshapes?.[0]?.categories;
-  if (!cats || !cats.length) return null;
+  if (wantBlend ? (!cats || !cats.length) : !res?.faceLandmarks?.[0]?.length) return null;
   const blendshapes: Record<string, number> = {};
-  for (const c of cats) blendshapes[c.categoryName] = c.score;
+  for (const c of cats ?? []) blendshapes[c.categoryName] = c.score;
 
   let bbox: WorkerFaceFrame['bbox'] = null;
   const lm = res?.faceLandmarks?.[0];
@@ -66,13 +74,14 @@ function run(bitmap: ImageBitmap, ts: number): WorkerFaceFrame | null {
   const m = res?.facialTransformationMatrixes?.[0]?.data;
   // Plain array, not Float32Array: structured clone handles both, and this keeps the message
   // shape identical whether it came from here or the synchronous fallback tracker.
-  return { blendshapes, matrix: m ? Array.from(m as ArrayLike<number>) : null, bbox };
+  const faces = facesFromLandmarks(res?.faceLandmarks, bitmap.width / Math.max(1, bitmap.height));
+  return { blendshapes, matrix: m ? Array.from(m as ArrayLike<number>) : null, bbox, faces };
 }
 
 self.onmessage = async (e: MessageEvent) => {
   const msg = e.data || {};
   if (msg.type === 'init') {
-    (self as any).postMessage({ type: 'ready', ok: await init() });
+    (self as any).postMessage({ type: 'ready', ok: await init(Math.max(1, msg.numFaces | 0 || 1), msg.blendshapes !== false) });
     return;
   }
   if (msg.type === 'frame') {

@@ -1,0 +1,312 @@
+{
+  "id": "review-evite-vow-copy-4e0b029f-86dc-4354-9a04-0dd18520b20f",
+  "ownerId": "local-review",
+  "title": "Modern Vow · review copy",
+  "createdAt": 1790719091241,
+  "updatedAt": 1790719091241,
+  "frames": [
+    {
+      "id": "review-evite-vow-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-vow-vector"
+      ],
+      "label": "Modern Vow"
+    }
+  ],
+  "devices": {
+    "review-evite-vow-vector": {
+      "id": "review-evite-vow-vector",
+      "type": "VECTOR",
+      "name": "Modern Vow",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-vow-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#f8f1e8",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-vow-arc-a",
+          "kind": "ELLIPSE",
+          "x": 106,
+          "y": 80,
+          "w": 248,
+          "h": 300,
+          "fill": "none",
+          "stroke": "#8d9768",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-vow-arc-b",
+          "kind": "ELLIPSE",
+          "x": 246,
+          "y": 80,
+          "w": 248,
+          "h": 300,
+          "fill": "none",
+          "stroke": "#d8beab",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-vow-arc-mask",
+          "kind": "RECT",
+          "x": 50,
+          "y": 261,
+          "w": 500,
+          "h": 140,
+          "fill": "#f8f1e8",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-vow-initials",
+          "kind": "TEXT",
+          "x": 187,
+          "y": 168,
+          "w": 500,
+          "h": 67.5,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "M & E",
+          "fontSize": 50,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-vow-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-vow-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#d8beab",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-vow-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Together, always",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-vow-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "A celebration of Mira & Ellis",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-vow-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-vow-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-vow-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-vow-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-vow-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#34372d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-vow",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-vow-arc-a",
+          "property": "rotation",
+          "from": 0,
+          "to": -3,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-vow-arc-b",
+          "property": "rotation",
+          "from": 0,
+          "to": 3,
+          "delay": 140,
+          "duration": 3060
+        },
+        {
+          "objectId": "review-evite-vow-arc-mask",
+          "property": "rotation",
+          "from": 0,
+          "to": -3,
+          "delay": 280,
+          "duration": 3320
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        48,
+        55,
+        60,
+        62
+      ],
+      "tempo": 68
+    }
+  }
+}

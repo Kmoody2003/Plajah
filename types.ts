@@ -582,6 +582,8 @@ export interface Album {
   genre?: string;
   price?: number; // Price for full album
   isPaywalled?: boolean;
+  /** Artist's deliberate choice: non-buyers get a 30s preview only. Default off — priced music still streams in full and buying means owning/downloading it. */
+  previewOnly?: boolean;
   /** Content license id (see services/licensingService ContentLicenseId).
    *  Defaults to All Rights Reserved when unset. Gated behind CONTENT_LICENSING. */
   license?: string;
@@ -1079,6 +1081,28 @@ export interface Video {
   /** Skip-intro / skip-recap timeline markers (seconds). */
   skipIntro?: { start: number; end: number };
   skipRecap?: { start: number; end: number };
+  /** Live Premiere support — like YouTube Live Premiere (with synchronized playback, countdown & pre-roll). */
+  isPremiere?: boolean;
+  premiereStartTime?: number;
+  premiereConfig?: PremiereConfig;
+}
+
+export type PremiereStatus = 'SCHEDULED' | 'COUNTDOWN' | 'PRE_ROLL' | 'LIVE' | 'ENDED';
+export type PremiereCountdownTheme = 'cinematic' | 'cyber' | 'classic' | 'space' | 'gold' | 'minimal';
+
+export interface PremiereConfig {
+  isPremiere: boolean;
+  premiereStartTime: number; // Unix timestamp in ms
+  countdownDurationSec?: number; // e.g. 10, 30, 60, 120 (default 120s)
+  countdownTheme?: PremiereCountdownTheme;
+  preRollUrl?: string; // Optional pre-roll teaser / trailer clip played during countdown or right before main video
+  preRollDurationSec?: number;
+  preRollTitle?: string;
+  chatEnabled?: boolean; // Live chat during countdown and premiere
+  allowSeekAhead?: boolean; // Prevent forward seeking ahead of current live offset (default false)
+  remindUserIds?: string[]; // UIDs of viewers who set a reminder
+  status?: PremiereStatus;
+  initialViewerCount?: number;
 }
 
 export interface VideoLike {
@@ -1099,6 +1123,8 @@ export interface VideoComment {
   parentId?: string; // For replies
   /** Creator reply-with-video — this comment is answered by a short, threading the two. */
   replyVideoId?: string;
+  gifUrl?: string;
+  mediaTimestamp?: number;
 }
 
 export interface VideoPlaylist {
@@ -1378,6 +1404,19 @@ export interface BroadcastDestination {
   createdAt: number;
 }
 
+/** A TV+ channel a viewer starred. `key` is stable across sessions (see services/fast/channelBranding.favoriteKey);
+    the rest is a snapshot so the profile row can render without loading the guide. */
+export interface FavoriteChannel {
+  key: string;
+  name: string;
+  number?: string;
+  logoUrl?: string;
+  ownerId?: string;
+  plajahId?: string;
+  sourceId?: string;
+  addedAt: number;
+}
+
 export interface RadioPreset {
   id: string;              // station id (e.g. 'plajah-fm', 'artist-<uid>', or Radio Browser uuid)
   name: string;            // station name
@@ -1393,10 +1432,19 @@ export interface RadioPreset {
 
 export interface UserProfile {
   uid: string;
+  /** Chora recent-listens history synced across devices (see services/listenHistoryService). */
+  choraRecents?: any[];
+  /** Private account: following requires approval (follow_requests). See services/socialSafetyService. */
+  isPrivate?: boolean;
   displayName: string;
   photoURL: string;
   email: string;
+  /** Org roles this person chose to show on their personal profile (no limit on how many orgs). */
+  orgAffiliations?: OrgAffiliation[];
+  /** For ORGANIZATION / BRAND accounts: the Organization this account IS. */
+  linkedOrgId?: string;
   radioPresets?: RadioPreset[];
+  favoriteChannels?: FavoriteChannel[];
   bio?: string;
   /** Public destinations shown in the profile's “Find me online” row. OAuth tokens
    *  never belong here; these are public profile, artist, channel, and storefront URLs. */
@@ -1417,7 +1465,22 @@ export interface UserProfile {
   };
   followerCount: number;
   followingCount: number;
+  /** @deprecated LEGACY + never written. The source of truth is the `follows` collection:
+   *  use `useFollowing(uid)` (hooks/useFollowing.ts) or `fetchFollowingIds(uid)`. */
   following?: string[];
+  // ─── People discovery (services/discoveryService, components/discovery/DiscoverySettings) ───
+  /** Opt OUT of being suggested to other people. Default false (suggestable). */
+  hideFromSuggestions?: boolean;
+  /** Opt IN (default false) to region matching. Used only when BOTH people opted in. */
+  discoverByRegion?: boolean;
+  /** Coarse, user-typed region such as 'Detroit, MI'. Never derived from weather/GPS. */
+  discoveryRegion?: string;
+  /** Normalised discoveryRegion (lowercase, no punctuation) — query key for 'Near me'. */
+  discoveryRegionKey?: string;
+  /** Recipient opt-OUT of "Say hi" greetings (default: allowed). */
+  sayHiOptOut?: boolean;
+  /** Volunteer "welcome committee" member: greets brand-new accounts. */
+  isWelcomeAmbassador?: boolean;
   friendsCount?: number;
   joinedAt?: number;
   // Weather location shown on the profile card — captured from the owner's device on their own
@@ -2007,6 +2070,10 @@ export interface Post {
   /** The author's education role, denormalized for the school feed's badges/filtering. */
   eduRole?: 'SCHOOL' | 'TEACHER' | 'STUDENT' | 'PARENT';
   authorOrgId?: string;
+  /** Elevate: who may comment. PUBLIC = open to everyone; MEMBERS = org members + followers only (readable by all). */
+  orgAudience?: 'PUBLIC' | 'MEMBERS' | 'DEPARTMENT';
+  /** Elevate: department/ministry thread this post belongs to. */
+  orgDepartmentId?: string;
   text: string;
   /** Creator-applied safety labels — viewer settings decide blur/consent gating */
   contentLabels?: ('GRAPHIC_VIOLENCE' | 'MATURE_18' | 'ARTISTIC_NUDITY' | 'SENSITIVE_OTHER')[];
@@ -2016,6 +2083,12 @@ export interface Post {
     id?: string; // For on-platform IDs
     title?: string;
     thumbnail?: string;
+    width?: number;
+    height?: number;
+    aspectRatio?: number;
+    originalUrl?: string;
+    /** Accessibility description (alt text) authored in the composer. */
+    alt?: string;
     /** Mux playback id — Plajah videos store an empty url + only this; the feed plays via HLS. */
     muxPlaybackId?: string;
     linkPreview?: {
@@ -2030,7 +2103,9 @@ export interface Post {
   commentsCount: number;
   timestamp: number;
   isPublic: boolean;
-  sourceCollection?: 'feed' | 'posts';
+  sourceCollection?: 'feed' | 'posts' | 'private_posts';
+  /** Stamped by the composer for private accounts so PostCard can soft-gate. */
+  authorIsPrivate?: boolean;
   albumEmbed?: Album; // For the mini player
   autoPlayEmbed?: boolean;
   modifiedAt?: number;
@@ -2050,6 +2125,25 @@ export interface Post {
   /** "Today" — a 24h ephemeral clip on the creator's channel ring. TTL, not a separate system. */
   isToday?: boolean;
   expiresAt?: number;
+  /** Live interactive poll */
+  poll?: import('./components/PollCard').PollData;
+  /** Embedded live data visualization */
+  dataViz?: any;
+  // ── Posting power (services/postingLogic.ts) ──
+  /** Quote post: id + immutable snapshot of the source (survives source deletion). */
+  quotedPostId?: string;
+  quotedPost?: { id: string; authorId: string; authorName: string; authorPhoto: string; text: string; mediaThumb?: string; mediaType?: string; timestamp: number };
+  /** Count of quote posts of this post (bounded +/-1 client increments). */
+  quoteCount?: number;
+  /** Plain repost: this doc (id repost_{uid}_{origId}) re-shares `repostOf`. */
+  repostOf?: string;
+  repostCount?: number;
+  /** Who may reply. UI-enforced (see canReply); absent === 'everyone'. */
+  replyAudience?: 'everyone' | 'following' | 'mentioned' | 'none';
+  /** Normalised lowercase tags parsed from text at create time. */
+  hashtags?: string[];
+  /** Previous text revisions, newest last, capped at 5. */
+  editHistory?: { text: string; editedAt: number }[];
 }
 
 export interface FeedPage {
@@ -2251,6 +2345,23 @@ export interface Ministry {
   leaderName?: string;
   meetingTime?: string;   // e.g. "Wednesdays 7:00 PM"
   iconEmoji?: string;
+  // ── Elevate overhaul: sub-ministries / departments ─────────────────────────
+  /** Template this department was seeded from (services/elevateTemplates.ts). Custom names are free. */
+  templateKey?: string;
+  /** 'MINISTRY' = member-facing group (Youth, Women's); 'DEPARTMENT' = operational (Finance, Media). */
+  kind?: 'MINISTRY' | 'DEPARTMENT';
+  /** Department heads / ministry leaders (uids). Heads get near-pastor operational privileges for THEIR department. */
+  headUids?: string[];
+  /** Nested sub-ministry: id of the parent ministry. */
+  parentId?: string;
+  /** Who can read + comment on this department's thread. Leaders can change it. */
+  threadAudience?: 'DEPARTMENT' | 'ORG' | 'PUBLIC';
+  /** Public ministry page: let non-members follow this ministry to join its feed. */
+  allowFollowers?: boolean;
+  /** Hidden from the public page (operations-only department like Finance). */
+  isInternal?: boolean;
+  order?: number;
+  coverUrl?: string;
 }
 
 export interface ServiceTime {
@@ -2267,6 +2378,57 @@ export interface GivingFund {
   description?: string;
   goal?: number;          // fundraising target ($), optional
   raised?: number;        // amount given so far ($)
+  // Elevate ChMS finance (additive)
+  restricted?: boolean;   // donor-restricted fund (vs unrestricted/general)
+  budget?: number;        // annual budget/target for budget-vs-actual
+  accountCode?: string;   // GL account / QuickBooks class for exports
+  inactive?: boolean;     // hidden from entry, kept for history
+}
+
+/** Org-level finance settings (Elevate ChMS Finance Hub). Stored on organizations/{id}.financeSettings. */
+export interface ChmsFinanceSettings {
+  /** Online giving: charge donors the processing fee on top so the church receives 100% of the gift (default ON; donors may untick). Set false to stop offering it. */
+  donorCoversFees?: boolean;
+  /** Voids and batch-balance overrides at/above this dollar amount need a second authorised approver. 0 = always, undefined = never. */
+  approvalThreshold?: number;
+  /** Anomaly detector: flag a gift this many times larger than the giver's median. */
+  anomalyMultiple?: number;
+  /** Lapsed = no gift in this many days (default 60). */
+  lapsedDays?: number;
+  fiscalYearStartMonth?: number; // 1-12, default 1
+  statementIntro?: string;
+  /** Default QuickBooks account names. */
+  qbDepositAccount?: string;
+  qbIncomeAccountPrefix?: string;
+  // ── Spending approvals (services/acctSpending.ts) — additive ──
+  /** Auto-approve any request at/under this amount unless the department has its own limit. */
+  autoApproveUnder?: number;
+  /** Per-department (ministry id) auto-approve limits; overrides autoApproveUnder. */
+  deptAutoApprove?: Record<string, number>;
+  /** Amounts at/above this need two different approvals (dept head/pastor + finance countersign). */
+  dualApprovalAbove?: number;
+  /** Recurring bills (rent, utilities…) that auto-draft as approved bills. */
+  recurringBills?: RecurringBill[];
+  /** ISO date the recurring sweep last ran (cheap guard). */
+  recurringSweptAt?: string;
+  // ── Budget Pulse (services/acctPulse.ts) — additive ──
+  /** Yellow "watch" once this % of a budget is used (default 80). */
+  budgetWatchPct?: number;
+  /** Orange "at risk" once spend pace exceeds this % of the time elapsed (default 115). */
+  budgetRiskPct?: number;
+  /** Alert when org cash runway drops below this many months (default 3). */
+  cashRunwayMonthsMin?: number;
+  /** Turn off proactive Budget Pulse alerts/notifications for this org. */
+  pulseAlertsOff?: boolean;
+}
+
+export interface RecurringBill {
+  id: string; vendorName: string; vendorId?: string; description: string; amount: number;
+  accountId: string; fundId?: string; deptId?: string;
+  frequency: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+  nextDate: string;          // YYYY-MM-DD — next bill date to draft
+  dueInDays?: number;        // due date offset from bill date (default 0)
+  active: boolean;
 }
 
 // A community prayer request on a church/org page.
@@ -2376,6 +2538,8 @@ export interface ProgramFeed {
 
 export type OrgType =
   | 'BRAND' | 'BUSINESS' | 'CHURCH' | 'NONPROFIT' | 'CULTURAL' | 'LABEL' | 'TEAM' | 'OTHER'
+  // Non-Christian faith institution (mosque, temple, synagogue…) — same operational stack as CHURCH.
+  | 'RELIGIOUS'
   // Business-page verticals (native templates)
   | 'STUDIO' | 'PUBLISHER' | 'REALTY' | 'RESTAURANT' | 'CLUB';
 export type OrgRole = 'OWNER' | 'ADMIN' | 'STAFF' | 'MODERATOR' | 'MEMBER';
@@ -2384,7 +2548,24 @@ export type OrgRole = 'OWNER' | 'ADMIN' | 'STAFF' | 'MODERATOR' | 'MEMBER';
  *  Role sets a default permission tier; a membership may override with its own set. */
 export type OrgPermission =
   | 'EDIT_PAGE' | 'MANAGE_EMPLOYEES' | 'MANAGE_ROLES' | 'POST_AS_ORG'
-  | 'MANAGE_MONEY' | 'MANAGE_CONTENT' | 'MANAGE_ORDERS' | 'VIEW_ANALYTICS';
+  | 'MANAGE_MONEY' | 'MANAGE_CONTENT' | 'MANAGE_ORDERS' | 'VIEW_ANALYTICS'
+  // ── Elevate (ministry / institution) permissions — see services/elevateRoles.ts ──
+  | 'MANAGE_GIVING'      // set up funds, payouts, giving config (finance + pastors)
+  | 'VIEW_GIVING'        // see donation totals / records
+  | 'VIEW_PRAYER'        // read the private prayer-request queue (pastors, ministers, prayer warriors)
+  | 'MANAGE_PRAYER'      // mark answered / assign / delete prayer requests
+  | 'MANAGE_SERMONS'     // Sermon Studio, transcribe → article/book, publish sermons
+  | 'MANAGE_MEDIA'       // Master Control, livestream, Content HQ writes
+  | 'MANAGE_MINISTRIES'  // create / edit sub-ministries & departments
+  | 'MANAGE_ROSTER'      // edit pastoral / leadership / staff rosters + about blurbs
+  | 'ASSIGN_ROLES'       // hand out roles (e.g. a pastor granting TRUSTEE)
+  | 'MANAGE_STORE'       // merch store setup
+  | 'MODERATE_THREADS'   // lock / pin / remove posts in org + department threads
+  | 'MANAGE_ACCOUNTING'  // chart of accounts, journals, bills, bank reconciliation, period close
+  | 'VIEW_ACCOUNTING'    // read-only books (trustees, external accountant / auditor)
+  | 'SUBMIT_EXPENSES'    // submit expenses, bills and reimbursement requests
+  | 'APPROVE_EXPENSES'   // approve / reject submitted expenses (dept heads: their own department)
+  | 'MANAGE_INVITES';    // create role-setup links / QR codes
 
 export interface OrgRosterMember {
   memberId: string;      // uid (or free id) of a person on the org's public roster
@@ -2452,6 +2633,30 @@ export interface Organization {
   /** Optional link to a BusinessPage commerce/ops extension doc (businessPages/{id}). */
   businessPageId?: string;
 
+  // ── Elevate overhaul ───────────────────────────────────────────────────────
+  /** Linked Plajah ACCOUNT that IS this organization (account type ORGANIZATION / BRAND). Org ⇄ account stay in sync. */
+  accountUid?: string;
+  /** Extra ACCOUNT uids whose public media (live, videos, releases, TV channel) the org page shows —
+   *  e.g. the media team's channel. Added by the owner via "Link a channel" (services/orgMedia). */
+  contentUids?: string[];
+  /** Free-form institution subtype, e.g. "Non-denominational", "Mosque", "Art museum". */
+  orgKindLabel?: string;
+  /** Denormalized role index — Firestore rules cannot query memberships, so these are derived by
+   *  elevateService.recomputeOrgRoleIndex. NEVER trust client edits: derived from orgMemberships. */
+  pastorUids?: string[];     // senior pastors, pastors, ministers
+  financeUids?: string[];    // finance / treasurer / trustees with MANAGE_GIVING
+  prayerUids?: string[];     // may read the private prayer queue (pastors + prayer warriors)
+  leaderUids?: string[];     // dept heads + ministry leaders
+  givingViewUids?: string[]; // trustees etc. - read-only access to giving records
+  accountingUids?: string[];     // MANAGE_ACCOUNTING
+  accountingViewUids?: string[]; // VIEW_ACCOUNTING (incl. external accountant)
+  /** Public page copy shown beside each roster ("Meet our pastors"). */
+  rosterIntro?: { pastoral?: string; leadership?: string; staff?: string };
+  /** Setup checklist progress so a new org knows what is wired. */
+  setupState?: { departmentsSeeded?: boolean; rolesInvited?: boolean; givingReady?: boolean; storeReady?: boolean; completedAt?: number; moneySetup?: Record<string, boolean>; moneySetupDismissed?: boolean };
+  /** Default audience for the org's own thread: members comment; everyone reads. */
+  threadAudience?: 'ORG' | 'PUBLIC';
+
   // Church vertical (orgType 'CHURCH')
   ministries?: Ministry[];
   serviceTimes?: ServiceTime[];
@@ -2460,6 +2665,11 @@ export interface Organization {
   denomination?: string;
   statementOfFaith?: string;
   givingUrl?: string;         // external giving link (fallback to native Stripe giving)
+  /** Legal entity name + EIN printed on giving statements (Finance Hub settings). */
+  legalName?: string;
+  ein?: string;
+  statementFooter?: string;
+  financeSettings?: ChmsFinanceSettings;
 
   // ── Org chat workspace (services/orgChatService) ───────────────────────────
   /** Set when the org's chat channels were last provisioned (mirrors productions). */
@@ -2468,6 +2678,389 @@ export interface Organization {
 
   createdAt: number;
   updatedAt: number;
+}
+
+// ── Elevate ChMS (church management) — people, finance, attendance ─────────────
+// Replaces the shallow `congregants` CSV import. Top-level collections keyed by `orgId`.
+// Finance collections are readable/writable ONLY by org.financeUids (MANAGE_GIVING) + pastors/admins;
+// trustees (VIEW_GIVING) via org.givingViewUids read-only. See firestore.rules (chms*).
+export type ChmsMemberStatus = 'VISITOR' | 'REGULAR' | 'MEMBER' | 'INACTIVE' | 'TRANSFERRED' | 'DECEASED';
+
+export interface ChmsSource { system: string; id: string; importId?: string }
+
+export interface ChmsPerson {
+  id: string;
+  orgId: string;
+  householdId?: string;
+  householdRole?: 'HEAD' | 'SPOUSE' | 'CHILD' | 'OTHER';
+  firstName: string;
+  lastName: string;
+  preferredName?: string;
+  email?: string;
+  phone?: string;
+  address?: { line1?: string; line2?: string; city?: string; region?: string; postal?: string };
+  birthDate?: string;           // YYYY-MM-DD
+  anniversary?: string;
+  gender?: string;
+  maritalStatus?: string;
+  status: ChmsMemberStatus;
+  memberSince?: string;
+  baptismDate?: string;
+  tags?: string[];
+  skills?: string[];            // volunteer skills / spiritual gifts
+  custom?: Record<string, string>;   // any unmapped source columns — nothing is dropped on import
+  /** Plajah account this record is linked to (person claims it via invite) — new vs Servant Keeper. */
+  linkedUid?: string;
+  /** Source system id, enables idempotent re-import. */
+  source?: ChmsSource;
+  photoUrl?: string;
+  /** Ministry/department membership: org.ministries[].id list (chosen over tags so rosters stay id-stable). */
+  ministryIds?: string[];
+  /** Status workflow audit trail (Visitor→Regular→Member→…). */
+  statusHistory?: { status: ChmsMemberStatus; at: number; by?: string; note?: string }[];
+  /** Soft-delete (people are archived, not deleted). */
+  archived?: boolean;
+  /** Set on the dropped record of a merge (mergePeople). */
+  mergedInto?: string;
+  /** Opt-in: person allows their contact info to show in the member directory. */
+  directoryVisible?: boolean;
+  /** Claim token used when a congregant links their Plajah account (rules verify it). */
+  claimToken?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ChmsHousehold {
+  id: string; orgId: string; name: string; headPersonId?: string;
+  address?: ChmsPerson['address']; source?: ChmsSource; createdAt: number;
+}
+
+export type ChmsGiftMethod = 'CASH' | 'CHECK' | 'CARD' | 'ACH' | 'ONLINE' | 'STOCK' | 'INKIND' | 'OTHER';
+
+export interface ChmsContribution {
+  id: string; orgId: string;
+  personId?: string; householdId?: string; giverName?: string;   // anonymous gifts have no personId
+  fundId: string; fundName: string;
+  amount: number;                // dollars, > 0; splits are separate rows sharing splitGroupId
+  splitGroupId?: string;
+  date: string;                  // YYYY-MM-DD gift date
+  method: ChmsGiftMethod;
+  checkNumber?: string;
+  batchId?: string;
+  pledgeId?: string;
+  memo?: string;
+  tributeNote?: string;          // in memory / in honor of
+  deductible: boolean;
+  stripePaymentId?: string;      // online gifts merged from native giving — dedupes against import
+  source?: ChmsSource;
+  /** Gifts are never deleted: VOID keeps the ledger intact with who/why. */
+  status: 'POSTED' | 'VOID';
+  voidedBy?: string; voidReason?: string; voidedAt?: number;
+  enteredBy: string; createdAt: number;
+  // Finance Hub additions (all optional)
+  /** Denormalized from ChmsPerson.linkedUid at write time — lets a member read ONLY their own gifts (rules). */
+  linkedUid?: string;
+  envelope?: string;
+  anonymous?: boolean;
+  /** Two-person integrity: a pending void awaiting a second approver. */
+  voidRequest?: { by: string; byName?: string; reason: string; at: number };
+  /** Tags a gift auto-created from a recurring schedule. */
+  recurringKey?: string;
+  // Stripe → ledger automation (server-written; see ChmsGiftStripeMeta)
+  fee?: number; net?: number; refunded?: number; disputed?: boolean; payoutId?: string;
+  /** Fee Stripe charged on the underlying charge, whoever bore it (see feePaidBy). */
+  stripeFee?: number; feePaidBy?: 'platform' | 'org' | 'donor';
+  /** Donor chose to cover the processing fee: fee they paid on top of `amount` (the church still received `amount` in full). */
+  feeCoveredByDonor?: number; grossCharged?: number;
+  stripeChargeId?: string; stripeSubscriptionId?: string; stripeInvoiceId?: string;
+  disputeStatus?: string; refundJournaled?: number;
+}
+
+export interface ChmsBatch {
+  id: string; orgId: string; name: string; date: string;
+  expectedTotal?: number; expectedCount?: number;   // deposit-slip control totals for balancing
+  status: 'OPEN' | 'BALANCED' | 'POSTED' | 'DEPOSITED';
+  openedBy: string; closedBy?: string; depositedAt?: number; createdAt: number;
+  // Finance Hub additions (all optional)
+  postedAt?: number;
+  /** Posted while out of balance — reason is mandatory; above threshold needs a second approver. */
+  overrideReason?: string; overrideVariance?: number;
+  overrideRequest?: { by: string; byName?: string; reason: string; variance: number; at: number };
+  approvedBy?: string;
+  depositRef?: string;
+}
+
+export interface ChmsPledge {
+  id: string; orgId: string; personId?: string; householdId?: string; giverName?: string;
+  fundId: string; fundName: string; amount: number; frequency: 'ONCE' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+  startDate: string; endDate?: string; status: 'ACTIVE' | 'FULFILLED' | 'CANCELLED';
+  source?: ChmsSource; createdAt: number;
+}
+
+export interface ChmsAttendance {
+  id: string; orgId: string; eventKey: string;     // e.g. "service:2026-10-04:10am" or "group:<ministryId>:<date>"
+  eventLabel: string; date: string; ministryId?: string;
+  personId?: string; guestName?: string; checkedInBy?: string; checkedInAt: number;
+  source?: ChmsSource;
+  /** Kiosk child-security code (printed on badge + pickup tag). */
+  securityCode?: string;
+  householdId?: string;
+  visitor?: { phone?: string; email?: string; note?: string };
+}
+
+export interface ChmsNote {
+  id: string; orgId: string; personId: string; authorUid: string; authorName: string;
+  text: string; kind: 'CARE' | 'VISIT' | 'COUNSEL' | 'GENERAL';
+  /** PASTORAL = pastors/ministers only; STAFF = staff. Finance can never read notes. */
+  visibility: 'PASTORAL' | 'STAFF'; createdAt: number;
+}
+
+/** Ledger of every import run — powers preview history + one-click rollback. */
+export interface ChmsImport {
+  id: string; orgId: string; sourceSystem: string; startedBy: string; startedAt: number;
+  counts: Record<string, { created: number; updated: number; skipped: number; failed: number }>;
+  status: 'RUNNING' | 'DONE' | 'ROLLED_BACK' | 'FAILED'; fileNames: string[];
+  warnings?: string[];
+  /** Import engine extras (services/chmsImport). */
+  rollbackAllowed?: boolean; rolledBackAt?: number; rolledBackBy?: string;
+  totals?: { gifts: number; amount: number };
+}
+
+// ── Elevate Accounting stack (double-entry, fund-aware) ─────────────────────────
+// Top-level collections keyed by orgId. Read: org.accountingViewUids (+ financeUids/pastorUids/admins).
+// Write: org.accountingUids (MANAGE_ACCOUNTING) + financeUids/admins. Journals are never deleted — reversed.
+// Pure posting logic lives in services/acctPosting.ts (no Firebase import) so server.ts can use it too.
+export type AcctAccountType = 'ASSET' | 'LIABILITY' | 'NET_ASSET' | 'REVENUE' | 'EXPENSE';
+
+/** Well-known accounts the automation posts to (resolved by systemKey, never by name). */
+export type AcctSystemKey =
+  | 'CASH_OPERATING' | 'STRIPE_CLEARING' | 'UNDEPOSITED_FUNDS' | 'ACCOUNTS_PAYABLE' | 'RECONCILIATION_DISCREPANCY'
+  | 'CONTRIBUTIONS' | 'ONLINE_GIVING_FEES' | 'REFUNDS_CHARGEBACKS' | 'STRIPE_DISPUTE_FEES' | 'NET_ASSETS_RELEASED' | 'OPENING_BALANCE'
+  | 'ACCOUNTS_RECEIVABLE' | 'INVOICE_REVENUE';   // Plajah Billing invoices
+
+export interface AcctAccount {
+  id: string; orgId: string; code: string; name: string;
+  type: AcctAccountType; subtype?: string;
+  /** Functional expense class for the 990 / functional-expense statement. */
+  functionalClass?: 'PROGRAM' | 'MANAGEMENT' | 'FUNDRAISING';
+  systemKey?: AcctSystemKey; parentId?: string; active: boolean; isSystem?: boolean;
+  createdAt: number;
+}
+
+export interface AcctJournalLine {
+  accountId: string; debit: number; credit: number;   // dollars, one of the two is 0
+  fundId?: string; deptId?: string; memo?: string;
+  /** Budget Pulse: tag a line to a project/campaign (AcctProject.id) — additive, optional. */
+  projectId?: string;
+}
+
+export interface AcctJournal {
+  id: string; orgId: string; date: string; period: string;   // period = 'YYYY-MM'
+  memo: string; lines: AcctJournalLine[];
+  source: { kind: 'CONTRIBUTION' | 'PAYOUT' | 'FEE' | 'REFUND' | 'DISPUTE' | 'EXPENSE' | 'BILL' | 'BILL_PAYMENT' | 'INVOICE' | 'INVOICE_PAYMENT' | 'BANK' | 'TRANSFER' | 'MANUAL' | 'OPENING' | 'REVERSAL'; id?: string };
+  /** Deterministic idempotency key (e.g. "contrib:<id>") — re-posting the same event is a no-op. */
+  key?: string;
+  status: 'POSTED' | 'REVERSED'; reversalOf?: string; reversedBy?: string;
+  createdBy: string; createdAt: number;
+}
+
+export interface AcctVendor {
+  id: string; orgId: string; name: string; email?: string; phone?: string;
+  address?: ChmsPerson['address']; taxId?: string; is1099?: boolean; w9Url?: string;
+  defaultAccountId?: string; defaultFundId?: string; active: boolean; createdAt: number;
+}
+
+export type AcctExpenseStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'PAID' | 'VOID';
+export interface AcctExpense {
+  id: string; orgId: string;
+  kind: 'EXPENSE' | 'BILL' | 'REIMBURSEMENT';            // BILL = pay later (AP); REIMBURSEMENT = staff paid out of pocket
+  vendorId?: string; vendorName?: string; description: string;
+  date: string; dueDate?: string; amount: number;
+  accountId: string; fundId?: string; deptId?: string;   // deptId = ministry/department id (budget owner)
+  receiptUrls?: string[]; invoiceNumber?: string;
+  status: AcctExpenseStatus;
+  submittedBy: string; submittedByName?: string; submittedAt?: number;
+  approvedBy?: string; approvedAt?: number; rejectedReason?: string;
+  paidAt?: number; paymentMethod?: 'CHECK' | 'ACH' | 'CARD' | 'CASH' | 'ONLINE'; checkNumber?: string; bankAccountId?: string;
+  journalId?: string; paymentJournalId?: string;
+  createdAt: number;
+  // ── Spending flow (services/acctSpending.ts) — additive ──
+  /** Purchase request (pre-approval): never payable itself; a later expense links via requestId. */
+  isRequest?: boolean; requestId?: string;
+  /** Approvals so far; `requiredApprovals` (default 1) is 2 above financeSettings.dualApprovalAbove. */
+  approvals?: { uid: string; name?: string; at: number; note?: string }[];
+  requiredApprovals?: number;
+  rejectedBy?: string; rejectedAt?: number;
+  voidReason?: string; voidedBy?: string; voidedAt?: number;
+  recurringId?: string; payBatchId?: string;
+  /** Reimbursements: who is owed the money (defaults to submitter). */
+  payee?: string;
+  deptName?: string; memo?: string;
+  /** Budget Pulse: project/campaign this spend belongs to (AcctProject.id) — additive, optional. */
+  projectId?: string;
+}
+
+export interface AcctBankAccount {
+  id: string; orgId: string; name: string; last4?: string; accountId: string;   // accountId = GL cash account
+  kind: 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'STRIPE'; openingBalance?: number; active: boolean; createdAt: number;
+  /** Set by the Books reconciliation screen when a statement is finished (locks the cleared lines). */
+  lastReconciled?: { date: string; balance: number; at: number; by: string };
+}
+
+export interface AcctBankTxn {
+  id: string; orgId: string; bankAccountId: string; date: string; amount: number;   // + deposit, - withdrawal
+  description: string; externalId?: string;
+  status: 'UNMATCHED' | 'MATCHED' | 'IGNORED'; matchedJournalId?: string; matchedPayoutId?: string;
+  importId?: string; createdAt: number;
+  /** Set when a reconciliation is finished — reconciled lines are locked. */
+  reconciledAt?: number;
+}
+
+export interface AcctBudget {
+  id: string; orgId: string; fiscalYear: number;
+  /** amounts[0..11] = Jan..Dec (or fiscal-year months). */
+  lines: { accountId: string; deptId?: string; fundId?: string; amounts: number[] }[];
+  updatedAt: number;
+}
+
+// ── Budget Pulse (services/acctPulse.ts) — projects/campaigns + proactive alerts ───────────────
+/** A budgeted project/campaign (building fund, mission trip, VBS). Spend is tagged via projectId (or fundId within dates). */
+export interface AcctProject {
+  id: string; orgId: string; name: string; deptId?: string; fundId?: string;
+  budget: number; startDate: string; endDate: string;       // YYYY-MM-DD
+  status: 'PLANNED' | 'ACTIVE' | 'DONE' | 'CANCELLED';
+  createdBy?: string; createdAt: number; updatedAt?: number;
+}
+export type AcctAlertSeverity = 'INFO' | 'WATCH' | 'RISK' | 'CRITICAL';
+/** Deduped alert (deterministic id = orgId_scope_kind_period) so each escalation level fires once. */
+export interface AcctAlert {
+  id: string; orgId: string;
+  scope: 'ORG' | 'DEPT' | 'FUND' | 'PROJECT'; scopeId: string; deptId?: string;
+  kind: string; severity: AcctAlertSeverity; period: string;
+  title: string; message: string; nextStep?: string;
+  amount?: number; daysLeft?: number | null;
+  createdAt: number; source: 'server' | 'client';
+  /** Who was notified; department heads read their alerts through this (see firestore.rules acctAlerts). */
+  audienceUids?: string[];
+  /** uid → timestamp. The only fields readers may update. */
+  acknowledgedBy?: Record<string, number>;
+  snoozedUntil?: Record<string, number>;
+}
+
+export interface AcctPeriod { id: string; orgId: string; period: string; status: 'OPEN' | 'CLOSED'; closedBy?: string; closedAt?: number; checklist?: Record<string, boolean>; }
+
+// ── Stripe → ledger flow (written by server.ts; read by Finance Hub) ───────────
+export interface ChmsPayout {
+  id: string; orgId: string; stripeAccountId: string; stripePayoutId: string;
+  amount: number; currency: string; arrivalDate: string; createdAt: number;
+  status: 'pending' | 'in_transit' | 'paid' | 'failed' | 'canceled';
+  method?: string; bankLast4?: string;
+  gross?: number; fees?: number; refunds?: number; adjustments?: number; net?: number; lineCount?: number;
+  reconciled: boolean; bankTxnId?: string; journalId?: string; syncedAt: number;
+  /** Itemisation results (server): gifts matched, lines with no gift, payout.amount − sum(line net), Stripe couldn't itemise (manual payout). */
+  matchedCount?: number; unmatchedCount?: number; difference?: number; unitemized?: boolean;
+}
+
+export interface ChmsPayoutLine {
+  id: string; orgId: string; payoutId: string; stripeId: string;   // balance transaction id
+  type: string; amount: number; fee: number; net: number; date: string; description?: string;
+  contributionId?: string; stripePaymentId?: string;
+}
+
+/** Stripe processing fee / refund / dispute facts for a gift, attached to the contribution. */
+export interface ChmsGiftStripeMeta { fee?: number; net?: number; refunded?: number; disputed?: boolean; payoutId?: string }
+
+// ── Plajah Billing (invoices, estimates, payment links, payouts) ──────────────────
+// ONE billing primitive for everyone doing business on Plajah: a personal profile (creator/freelancer),
+// an organization (church/nonprofit/cultural), a business page, or a film production. Money moves on the
+// ENTITY'S OWN Stripe account (direct charges via the Stripe-Account header) — Plajah never holds funds.
+// Every feature sits behind a billing flag (services/billingFlags.ts): OFF = "Coming soon", never half-working.
+export type BillingEntityKind = 'USER' | 'ORG' | 'BUSINESS' | 'PRODUCTION';
+
+/** Who is billing. `ownerUid` is the Plajah user allowed to administer it (verified server-side). */
+export interface BillingEntityRef { kind: BillingEntityKind; id: string }
+
+/** Stripe connection state of an entity (stored on the entity doc as stripeAccountId + mirrored status). */
+export interface BillingConnection {
+  entity: BillingEntityRef; stripeAccountId?: string;
+  chargesEnabled?: boolean; payoutsEnabled?: boolean; detailsSubmitted?: boolean;
+  requirementsDue?: string[]; checkedAt?: number;
+}
+
+export interface BillingCustomer {
+  id: string; entityKey: string;            // entityKey = `${kind}:${id}`
+  name: string; email?: string; phone?: string; company?: string;
+  address?: { line1?: string; line2?: string; city?: string; region?: string; postal?: string; country?: string };
+  plajahUid?: string;                       // when the customer is a Plajah user → in-app delivery
+  stripeCustomerId?: string;                // customer object on the ENTITY's Stripe account
+  taxExempt?: boolean; notes?: string; createdAt: number; archived?: boolean;
+}
+
+export interface BillingItem {              // price book: reusable products / services
+  id: string; entityKey: string; name: string; description?: string;
+  unitAmount: number;                       // dollars
+  unit?: string;                            // 'hour' | 'day' | 'each' …
+  taxable?: boolean; accountId?: string;    // org books: revenue account for auto-posting
+  active: boolean; createdAt: number;
+}
+
+export interface InvoiceLine { itemId?: string; description: string; quantity: number; unitAmount: number; taxable?: boolean }
+
+export type InvoiceStatus = 'DRAFT' | 'OPEN' | 'PARTIAL' | 'PAID' | 'VOID' | 'UNCOLLECTIBLE' | 'OVERDUE';
+export interface Invoice {
+  id: string; entityKey: string; entity: BillingEntityRef;
+  number: string; customerId: string; customerName: string; customerEmail?: string;
+  lines: InvoiceLine[];
+  subtotal: number; discount?: number; tax?: number; total: number; amountPaid: number; amountDue: number; // dollars
+  currency: string;                         // 'usd'
+  issueDate: string; dueDate: string;       // YYYY-MM-DD
+  memo?: string; footer?: string; poNumber?: string; projectRef?: string;
+  status: InvoiceStatus;
+  /** Deposits / milestones: each installment is paid separately via the same hosted invoice page. */
+  schedule?: { label: string; amount: number; dueDate: string; paid?: boolean }[];
+  recurring?: { interval: 'week' | 'month' | 'year'; every: number; endDate?: string; nextRun?: string; templateOf?: string };
+  stripeInvoiceId?: string; hostedUrl?: string; pdfUrl?: string;        // Stripe-hosted page + PDF on the entity's account
+  reminders?: { beforeDueDays?: number[]; afterDueDays?: number[]; lastSentAt?: number };
+  sentAt?: number; paidAt?: number; viewedAt?: number;
+  scheduledSendAt?: number; offlinePayment?: { reason: string; method?: string; at: number };
+  createdBy: string; createdAt: number; updatedAt: number;
+}
+
+export interface Estimate {                 // quote → accepted → converted to an Invoice
+  id: string; entityKey: string; entity: BillingEntityRef; number: string;
+  customerId: string; customerName: string; lines: InvoiceLine[]; total: number; validUntil?: string; memo?: string;
+  status: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'CONVERTED';
+  convertedInvoiceId?: string; acceptToken?: string; createdBy: string; createdAt: number;
+}
+
+export interface PaymentLink {              // reusable "pay me" link / QR (tip jar, deposits, retainers, tickets)
+  id: string; entityKey: string; entity: BillingEntityRef; title: string; description?: string;
+  amount?: number; allowCustomAmount?: boolean; active: boolean;
+  stripePaymentLinkId?: string; url?: string; createdBy: string; createdAt: number;
+}
+
+/** Keys for services/billingFlags.ts — every one defaults OFF (Coming soon). */
+export type BillingFlagKey =
+  | 'INVOICES' | 'ESTIMATES' | 'RECURRING_INVOICES' | 'INSTALLMENTS' | 'REMINDERS' | 'PAYMENT_LINKS'
+  | 'CUSTOMERS' | 'PRICE_BOOK' | 'BALANCE_DASHBOARD' | 'SALES_TAX' | 'ACCOUNTING_SYNC' | 'CREW_PAY' | 'PRODUCTION_FINANCE';
+
+/** Per-entity billing defaults — doc `billingSettings/{entityKey}` (client-writable by entity admins; server builder adds the rule). */
+export interface BillingSettings {
+  entityKey: string; entity: BillingEntityRef;
+  numberPrefix?: string;                    // e.g. "INV-"
+  defaultTermsDays?: number;                // 0 = on receipt
+  defaultMemo?: string; defaultFooter?: string;
+  acceptCard?: boolean; acceptAch?: boolean;
+  defaultReminders?: boolean;
+  businessName?: string; logoUrl?: string; replyToEmail?: string;
+  updatedAt: number;
+}
+
+/** Response of GET /api/billing/balance. Amounts in dollars. */
+export interface BillingBalance {
+  available: number; pending: number; currency?: string;
+  payouts: { id: string; amount: number; status: string; arrivalDate: string; method?: string }[];
+  last30: { gross: number; fees: number; refunds: number; net: number };
 }
 
 // ── Hiring / volunteers (ATS) — see docs/ATS_HIRING_VOLUNTEERS_PLAN.md ────────
@@ -2560,6 +3153,61 @@ export interface OrgMembership {
   acceptedAt?: number;
   /** Per-member permission override; when unset, defaults derive from `role`. */
   permissions?: OrgPermission[];
+
+  // ── Elevate roles + rosters ────────────────────────────────────────────────
+  /** Which public roster this person sits on. */
+  rosterGroup?: RosterGroup;
+  /** Display ordering inside the roster (lower first). */
+  rosterOrder?: number;
+  /** True for the Senior Pastor / lead of the institution (shown first, pastoral roster). */
+  isSenior?: boolean;
+  /** About blurb SPECIFIC to this organization (separate from their personal Plajah bio). */
+  aboutInOrg?: string;
+  /** Org-specific headshot override (falls back to photoUrl). */
+  orgPhotoUrl?: string;
+  /** When true, this org role is mirrored onto the person's personal Plajah profile. */
+  syncToProfile?: boolean;
+  /** Roles held inside specific sub-ministries (a person can lead several). */
+  ministryRoles?: { ministryId: string; roleKey: string; title?: string }[];
+  /** Invite token this membership was redeemed from (rules verify it on create). */
+  inviteToken?: string;
+}
+
+/** Which roster a role appears on. Org pages render PASTORAL → LEADERSHIP → STAFF; the rest are operational only. */
+export type RosterGroup = 'PASTORAL' | 'LEADERSHIP' | 'STAFF' | 'VOLUNTEER' | 'MEMBER';
+
+/** A role someone holds in an org, mirrored on their personal profile (users/{uid}.orgAffiliations). */
+export interface OrgAffiliation {
+  orgId: string;
+  orgName: string;
+  orgLogoUrl?: string;
+  roleKey: string;
+  title: string;          // "Senior Pastor", "Youth Leader"
+  ministryName?: string;
+  about?: string;         // the org-specific about blurb
+  since?: number;
+}
+
+/** A shareable role-setup invite (link / QR / email). Doc id IS the unguessable token. */
+export interface OrgInvite {
+  id: string;             // token
+  orgId: string;
+  orgName: string;
+  roleKey: string;
+  title?: string;
+  ministryId?: string;
+  rosterGroup?: RosterGroup;
+  /** Pre-fill for the invitee. */
+  inviteeName?: string;
+  inviteeEmail?: string;
+  /** If true the redeemed membership starts PENDING until an authorised member approves. */
+  requireApproval?: boolean;
+  maxUses: number;        // 1 = personal invite, N = a team link
+  uses: number;
+  expiresAt: number;
+  createdBy: string;
+  createdAt: number;
+  revoked?: boolean;
 }
 
 export interface ClubPost {
@@ -2899,9 +3547,11 @@ export interface ParentalControls {
   updatedBy?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB'
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_DIRECTORY' | 'LEARN' | 'HOMESCHOOL' | 'INQUIRY' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB' | 'MACHINE_ATLAS'
+  | 'PLAJAH_FSE'
   | 'LIVE_FX_LAB'
   | 'DJ_CONSOLE'
+  | 'CHORA_MIXER'
   | 'PROJECT_FIRSTLIGHT'
   | 'WELCOME_PACKAGE'
   | 'EVENTS' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'
@@ -2954,6 +3604,7 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'TEACHER_TOOLS'
   // Business School — entrepreneurship, venture stages, P&L, entity formation, GTM
   | 'BUSINESS_SCHOOL'
+  | 'BIZ_SIM'
   // Core Academic Disciplines
   | 'MATH_SCHOOL'
   | 'SCIENCE_SCHOOL'
@@ -3004,12 +3655,18 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'TELA'
   // Tela reference-embed demo (P2b — live/follow-latest/pinned side by side)
   | 'TELA_EMBED_DEMO'
+  // Dossier — museum/biography/documentary experiences (Douglass first)
+  | 'DOSSIER'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
   | 'MIX_PLAYER'
+  | 'CELL_ATLAS'
+  | 'SHOW_MODE'
   // Chora Artist Page — music-centric artist profile (Editorial Gallery layout)
   | 'CHORA_ARTIST'
   // Personal Artist Page — enriched external artist from music locker (Wikipedia + MusicBrainz)
   | 'PERSONAL_ARTIST'
+  // Plajah Home — Matter smart home controller, repurposed device hub, intercom & digital frames
+  | 'PLAJAH_HOME'
   // LD — Lighting Designer (top-level experience, peer to Chora/Pixels/Melos)
   | 'LD_MODE';
 
@@ -3371,9 +4028,11 @@ export interface AppNotification {
   senderId: string;
   senderName: string;
   senderPhoto: string;
-  type: 'MESSAGE' | 'COMMENT' | 'CONTENT' | 'SYSTEM' | 'LIKE' | 'FOLLOW';
+  type: 'MESSAGE' | 'COMMENT' | 'CONTENT' | 'SYSTEM' | 'LIKE' | 'FOLLOW' | 'HELLO';
   title: string;
   message: string;
+  /** Optional quick-action ids the notification UI may render, e.g. ['WAVE_BACK','FOLLOW_BACK']. */
+  actions?: string[];
   link?: string;
   targetId?: string;
   isRead: boolean;
@@ -3381,6 +4040,8 @@ export interface AppNotification {
 }
 
 export interface ChatMessage {
+  /** Room-encrypted native Tela snapshot; carries devices and bindings intact. */
+  telaDocument?: string;
   id: string;
   senderId: string;
   senderName: string;
@@ -3390,7 +4051,7 @@ export interface ChatMessage {
   imageUrl?: string;
   gifUrl?: string;
   mediaId?: string;
-  mediaType?: 'ALBUM' | 'TRACK' | 'VIDEO';
+  mediaType?: 'ALBUM' | 'TRACK' | 'VIDEO' | 'TELA';
   timestamp: number;
   type: 'TEXT' | 'VOICE' | 'SYSTEM' | 'MEDIA' | 'ACTION' | 'IMAGE' | 'VIDEO_NOTE';
   videoNoteUrl?: string;
@@ -3527,6 +4188,8 @@ export interface HqShareLink {
 }
 
 export interface ChatRoom {
+  /** Never published into live production, including isolated participant feeds. */
+  meetingModeratorIds?: string[];
   id: string;
   participants: string[]; // UIDs
   lastMessage?: string;
@@ -3566,7 +4229,9 @@ export interface ChatRoom {
   /** Marks a normal group room as a governed workspace channel: a Film/Business
    *  production channel, or a native org workspace channel (business pages,
    *  churches, labels — the Organization backbone). */
-  workspaceType?: 'PRODUCTION' | 'ORGANIZATION';
+  workspaceType?: 'PRODUCTION' | 'ORGANIZATION' | 'CLASSROOM_MEETING';
+  classroomId?: string;
+  liveClassSessionId?: string;
   productionId?: string;
   productionTitle?: string;
   productionChannelKey?: string;
@@ -3620,6 +4285,8 @@ export interface DiaryEntry {
 }
 
 export interface CollabProject {
+  telaDocument?: string;
+  telaRevision?: number;
   id: string;
   name: string;
   chatRoomId: string;
@@ -4262,6 +4929,11 @@ export interface FastChannel {
   id: string;            // === ownerId
   ownerId: string;
   name: string;
+  /** Per-sub-channel names the owner chose in the guide, keyed by the guide's sub-channel id
+   *  (`fast_<ownerId>`, `live_<feedId>`). Independent of `name`, so renaming N.1 never renames N.2. */
+  subNames?: Record<string, string>;
+  /** Per-sub-channel logo URLs, same keys as `subNames`. `logoUrl` is the account default; a profile photo and then the Plajah chevron sit behind it. */
+  subLogos?: Record<string, string>;
   number?: number;       // LCN — the channel number in a guide
   category?: FastChannelCategory;
   logoUrl?: string;
@@ -4512,7 +5184,10 @@ export interface StaffMember {
   name: string;
   email?: string;
   role: 'OWNER' | 'MANAGER' | 'STAFF';
-  pin?: string;             // 4-digit register/clock-in PIN (stored hashed server-side later)
+  /** True once a PIN exists. The PIN itself is NEVER stored on this doc: the salted hash lives in businesses/{b}/staffSecrets/{id} (server-only). */
+  hasPin?: boolean;
+  /** Explicit register permission override (RING_SALES|REFUND|DISCOUNT_OVERRIDE|CLOSE_DRAWER|VIEW_REPORTS); else role default. */
+  registerPermissions?: string[];
   payType?: 'HOURLY' | 'SALARY';
   payRate?: number;         // $/hr for HOURLY (used for the payroll estimate)
   active: boolean;
@@ -4545,6 +5220,17 @@ export interface TimeOffRequest {
   status: 'PENDING' | 'APPROVED' | 'DENIED';
   createdAt: number;
   respondedAt?: number;
+}
+
+/** Register-floor settings, stored on `businesses/{ownerUid}.registerSettings` (JSON string; the server reads it). Owner-entered — no live tax tables. */
+export interface RegisterSettings {
+  tax?: { defaultRateBps: number; inclusive?: boolean; rates?: Record<string, number>; label?: string };
+  /** Refunds at/above this need a manager PIN (cents). Default 5000. */
+  refundApprovalCents?: number;
+  /** Manual/percent discounts above this % of the ticket need DISCOUNT_OVERRIDE or a manager PIN. Default 10. Auto offers are not gated. */
+  discountLimitPct?: number;
+  /** Tip buttons shown at tender, in percent (default 15/18/20). */
+  tipPresets?: number[];
 }
 
 export interface BusinessPage {
@@ -4601,6 +5287,15 @@ export interface BusinessPage {
   events?: BusinessEvent[];
   promoBanner?: string;
   isDemo?: boolean;
+  // ── Vertical pack (services/verticalPacks) — all optional, zero-migration ──
+  /** Finer business type: a vertical pack id (e.g. 'salon_barbershop'). businessType stays the coarse vertical. */
+  subtype?: string;
+  packId?: string;
+  packVersion?: number;
+  packVocabulary?: Record<string, string>;
+  packRoles?: { key: string; label: string; baseRole: string; description: string }[];
+  /** Go-live checklist steps the owner ticked by hand. */
+  packManualDone?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -5012,6 +5707,7 @@ export interface StoreProductVariant {
   stock: number;
   priceModifier?: number; // + or - from base price
   imageUrl?: string;
+  barcode?: string;
 }
 
 export interface StoreProduct {
@@ -5028,6 +5724,23 @@ export interface StoreProduct {
   variants?: StoreProductVariant[];
   stock: number;            // total across all variants
   lowStockThreshold?: number; // inventory alert level; at/below this the item flags "low stock"
+  // ── Inventory (see services/inventoryCore.ts) ──
+  /** false = no countable stock (print-on-demand / digital / external): always sellable, no numbers shown. Default derives from isDigital + fulfillmentSource. */
+  trackInventory?: boolean;
+  /** Keep selling at 0 (made-to-order / pre-order). */
+  allowBackorder?: boolean;
+  /** LIVE per-variant on-hand, keyed by variant id — a map so the server can increment it atomically. Wins over variants[].stock. */
+  variantStock?: Record<string, number>;
+  costPrice?: number;         // what one unit costs you → margin + inventory value
+  sku?: string;
+  barcode?: string;
+  // ── Register floor (see services/taxCore.ts / ebtCore.ts) ──
+  /** Tax class → rate lookup in the business's RegisterSettings. 'STANDARD' | 'EXEMPT' | 'GROCERY_FOOD' | 'PREPARED_FOOD' | custom. Default STANDARD. */
+  taxClass?: string;
+  /** Eligible for SNAP/EBT (staple foods). Never taxed when paid with SNAP tender. */
+  snapEligible?: boolean;
+  /** Minimum buyer age (e.g. 18, 21). The register forces a "Verify ID" confirm before the sale. */
+  ageRestricted?: number;
   weight?: number;          // grams, for shipping calc
   isDigital: boolean;
   digitalFileUrl?: string;
@@ -5423,6 +6136,94 @@ export interface ItineraryItem {
   durationMins?: number;
 }
 
+export type AlbumArtTransform = 'VINYL_RECORD' | 'HOLOGRAPHIC_FOIL' | 'CASSETTE_TAPE' | 'NEON_CYBERPUNK' | 'GOLD_EMBOSSED' | 'CRT_GLITCH' | 'MATTE_EDITORIAL' | 'NONE';
+
+export interface TelaTicketDesign {
+  /** Native authored composition; review templates are not exposed in the live picker. */
+  templateId?: string;
+  eraId: string;
+  eraName: string;
+  palette: [string, string, string, string];
+  typography: string;
+  albumArtTransform: AlbumArtTransform;
+  videoUrl?: string;
+  videoLoopEnabled?: boolean;
+  audioTrackId?: string;
+  audioTrackTitle?: string;
+  audioPreviewUrl?: string;
+  customStampText?: string;
+  hologramIntensity?: number;
+  motionGrain?: boolean;
+}
+
+export interface EventEviteGuest {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  status: 'INVITED' | 'ATTENDING' | 'MAYBE' | 'DECLINED' | 'CHECKED_IN';
+  tierName?: string;
+  plusOnes: number;
+  dietaryOrNotes?: string;
+  invitedAt: number;
+  respondedAt?: number;
+  ticketId?: string;
+}
+
+// ── Event Package Add-ons & Beverage/Dining Pass Types ───────────────────────
+
+export type EventPackageCategory = 'ALCOHOL' | 'DRINK' | 'FOOD_AND_BEVERAGE' | 'CUSTOM';
+export type EventPackageType = 'UNLIMITED' | 'QUANTITY_CREDITS' | 'VALUE_ALLOWANCE';
+
+export interface EventPackageAddon {
+  id: string;
+  name: string;
+  category: EventPackageCategory;
+  type: EventPackageType;
+  description: string;
+  priceCents: number;
+  totalUnits: number; // e.g. 5 items/tokens, 5000 cents ($50 allowance), or -1 for unlimited
+  unitName: string; // 'Drinks', 'Entrees', 'Dollars', 'Tokens'
+  eligibleItems: string[];
+  eligibleItemsDescription: string;
+  stations: string[]; // ['Main Stage Bar', 'Patio Lounge', 'Food Truck Row']
+  cooldownMinutes?: number; // e.g. 5 minutes between drinks (anti-abuse anti-stacking rule)
+  souvenirCupIncluded?: boolean;
+  icon?: string;
+  badgeColor?: string;
+  isActive: boolean;
+}
+
+export interface PackageRedemptionRecord {
+  id: string;
+  timestamp: number;
+  unitsRedeemed: number;
+  itemName: string;
+  stationName: string;
+  staffUid?: string;
+  staffName?: string;
+  notes?: string;
+}
+
+export interface TicketPurchasedPackage {
+  id: string;
+  packageAddonId: string;
+  name: string;
+  category: EventPackageCategory;
+  type: EventPackageType;
+  totalUnits: number;
+  remainingUnits: number;
+  unitName: string;
+  eligibleItems: string[];
+  eligibleItemsDescription: string;
+  stations: string[];
+  cooldownMinutes?: number;
+  lastRedeemedAt?: number;
+  souvenirCupIncluded?: boolean;
+  badgeColor?: string;
+  redemptions: PackageRedemptionRecord[];
+}
+
 export interface PlajahEvent {
   id: string;
   creatorUid: string;
@@ -5474,13 +6275,24 @@ export interface PlajahEvent {
   plajahPlusDiscount?: number;
   linkedFastChannelId?: string;
   linkedLiveStreamId?: string;
-  // Kiosk
+  // Kiosk & Check-In
   kioskEnabled: boolean;
-  // Printing
+  geofenceRadiusMeters?: number;
+  autoCheckInEnabled?: boolean;
+  // Printing & Tela Ticket Design
   printingEnabled: boolean;
   printNodeApiKey?: string;
   printNodePrinterId?: string;
   customTicketDesignUrl?: string;
+  ticketDesign?: TelaTicketDesign;
+  // Live Photo Pool
+  photoPoolEnabled?: boolean;
+  photoPoolId?: string;
+  // Evites & Guestlist
+  evitesEnabled?: boolean;
+  guests?: EventEviteGuest[];
+  // Package Add-ons (Beverage & Food packages)
+  packages?: EventPackageAddon[];
   // Sharing / SEO
   slug?: string;
   metaTitle?: string;
@@ -5528,6 +6340,9 @@ export interface EventTicket {
   // Transfer
   transferredTo?: string;
   transferredAt?: number;
+  ticketDesign?: TelaTicketDesign;
+  // Package Add-ons (Active Beverage/Food package tracking & redemptions)
+  packages?: TicketPurchasedPackage[];
   createdAt: number;
 }
 
@@ -6102,6 +6917,8 @@ export interface TelaBlock {
   domainBlockId?: string;
   domainBlockKind?: string;
   domainBlockLocked?: boolean;
+  /** Lesson presentation roles: the Academia lesson presenter reads these; other surfaces treat the block as plain text. */
+  lesson?: { role: 'lede' | 'body' | 'callout' | 'list'; bullet?: string; item?: number; variant?: string; label?: string; emphasised?: boolean; section?: number; sourceIndex?: number };
 }
 
 export interface TelaWriterDevice {
@@ -6332,7 +7149,113 @@ export interface TelaFormDevice {
 // Slug analytic-curve text engine (spec §04) is a LATER dedicated push; SVG text
 // delivers sharp-at-zoom today.
 
-export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE';
+export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE' | 'LOTTIE' | 'MOTION_TEMPLATE';
+
+// ── Lottie — native animation objects (kind 'LOTTIE') ────────────────────────
+// A Lottie (.json) or dotLottie (.lottie) animation placed on a vector artboard
+// like any other box object (x/y/w/h, rotation, opacity, blend, shadow). The
+// runtime + deterministic seek live in services/tela/telaLottie.ts so Fabula,
+// presentations, Ambo and the broadcast titler can composite the same motion.
+
+/** Where the animation bytes live. Resolution order: inlineJson → assetId → url. */
+export interface TelaLottieSource {
+  format: 'json' | 'dotlottie';
+  /** Small Lottie JSON embedded in the doc (≤ ~200 KB) — travels with every copy. */
+  inlineJson?: string;
+  /** Local Tela asset store id (OPFS → localStorage), see services/tela/telaAssetStore. */
+  assetId?: string;
+  /** Durable URL (Storage download URL / remote URL). */
+  url?: string;
+  /** Present when uploaded to Storage (users/{uid}/tela/…). */
+  storagePath?: string;
+  /** Guest object: URL with no local/durable copy — gone on reload. */
+  sessionOnly?: boolean;
+  name?: string;
+  bytes?: number;
+}
+
+export type TelaLottieDirection = 'forward' | 'reverse' | 'bounce' | 'reverse-bounce';
+
+export interface TelaLottieSpec {
+  source: TelaLottieSource;
+  /** Composition size from the file (w/h) — the aspect the fit is computed against. */
+  intrinsicWidth: number;
+  intrinsicHeight: number;
+  /** Cached metadata (filled on import; refreshed when the player loads). */
+  frameRate?: number;
+  totalFrames?: number;
+  markers?: string[];
+  themes?: string[];
+  /** Slot ids found in the animation, with their kind (for editable titles/colours). */
+  slotInfo?: Array<{ id: string; kind: 'color' | 'text' | 'scalar' | 'vector' | 'image' | 'unknown'; default?: unknown }>;
+  autoplay: boolean;
+  loop: boolean;
+  /** Playback rate multiplier (1 = authored speed). */
+  speed: number;
+  direction: TelaLottieDirection;
+  /** Play only part of the animation. `unit` decides how start/end are read. */
+  segment?: { start: number; end: number; unit: 'frame' | 'second' };
+  /** Named marker to play instead of a segment (dotLottie / Lottie markers). */
+  marker?: string;
+  /** Seconds on the frame/document timeline before playback starts (frame holds at segment start). */
+  startOffset?: number;
+  /** Frame shown for thumbnails, print, reduced motion and before playback. */
+  posterFrame?: number;
+  /** Cached poster raster (data URL, ≤ 360px long side) for static renders. */
+  posterSrc?: string;
+  fit: 'contain' | 'cover' | 'fill';
+  /** dotLottie theme id (manifest.themes). */
+  themeId?: string;
+  /** Lottie slot overrides keyed by slot id — the raw `{ p: { a, k } }` slot payloads. */
+  slots?: Record<string, unknown>;
+}
+
+// ── Motion templates — code-driven animated graphics (kind 'MOTION_TEMPLATE') ──
+// "Both": the designer stays CODE (Ambo slide templates / scripture looks in
+// services/ambo), and a Tela object READS that code by reference — template id,
+// theme, field values and overrides — while the Tela doc owns the timing
+// (entrance at startOffset, hold, exit, loop). One pure renderer
+// (services/tela/telaMotionTemplate.ts → renderMotionTemplateAt) draws any frame
+// deterministically for Tela, Fabula title clips, exports and the titler.
+
+export interface TelaMotionTemplateTiming {
+  /** Seconds after the object appears (or the clip starts) before the entrance begins. */
+  startOffset?: number;
+  /** Entrance length (default: the theme's / transition's own). */
+  enterSec?: number;
+  /** Hold length; omitted = hold until cleared (or 4 s when looping). */
+  holdSec?: number;
+  /** Exit length (default: the theme's / transition's own). */
+  exitSec?: number;
+  /** Replay enter → hold → exit forever. */
+  loop?: boolean;
+  /** Empty gap between loop cycles (default 0.6 s). */
+  gapSec?: number;
+}
+
+export interface TelaMotionTemplateSpec {
+  kind: 'slide' | 'scripture';
+  /** Slide: Ambo slide-template id (services/ambo/slideTemplates/registry). */
+  templateId?: string;
+  /** Scripture: scripture layout id (services/ambo/scriptureLayouts). */
+  layoutId?: string;
+  /** Slide: theme id (one of the platform slide themes). */
+  theme?: string;
+  /** Slide: field values (missing keys fall back to the template defaults). Scripture: text / reference / translation / copyright. */
+  fields?: Record<string, string>;
+  /** Slide: ThemeOverrides from a saved template (palette, motion, faces). */
+  overrides?: Record<string, unknown>;
+  /** Scripture: accent colour. */
+  accent?: string;
+  /** Scripture: entrance/exit transition id. */
+  transition?: string;
+  timing: TelaMotionTemplateTiming;
+  /** Provenance when inserted from a saved/shared/community template (templateLibrary id). */
+  savedTemplateId?: string;
+  name?: string;
+  /** Cached poster raster (data URL, ≤ 360px long side) for thumbnails, print and static exports. */
+  posterSrc?: string;
+}
 
 export interface TelaVectorNode {
   id: string;
@@ -6410,6 +7333,23 @@ export interface TelaVectorObject {
   sourceImageSrc?: string;
   sourceCrop?: { x: number; y: number; width: number; height: number; sourceWidth: number; sourceHeight: number };
   objectLabel?: string;
+  // ── Slide-editor (Ambo) extras — all optional, ignored by other Tela surfaces ──
+  /** Image fit inside the box (default cover). */
+  imageFit?: 'cover' | 'contain' | 'fill';
+  /** Normalised 0-1 crop of the source image shown in the box. */
+  imageCrop?: { x: number; y: number; w: number; h: number };
+  /** TEXT: underline / strike-through, vertical alignment and shrink-to-fit. */
+  underline?: boolean;
+  strike?: boolean;
+  vAlign?: 'top' | 'middle' | 'bottom';
+  autoFit?: boolean;
+  /** Editor state: hidden objects are not drawn; locked objects cannot be moved. */
+  hidden?: boolean;
+  locked?: boolean;
+  /** Objects sharing a groupId select and move together. */
+  groupId?: string;
+  /** Raw passthrough of an Ambo layer this object stands for (kept verbatim; see services/ambo/telaSlide.ts). */
+  amboLayer?: unknown;
   /** Exact SVG outline fallback when no compatible open font can reproduce the glyphs. */
   svgPathData?: string;
   /** Nodes make traced outlines editable instead of leaving them as opaque SVG. */
@@ -6431,6 +7371,10 @@ export interface TelaVectorObject {
   detectedLabel?: string;
   detectionConfidence?: number;
   parentRegionId?: string;
+  /** LOTTIE-only: the animation source + playback/timing settings. */
+  lottie?: TelaLottieSpec;
+  /** MOTION_TEMPLATE-only: which code template to draw, its content and the doc-owned timing. */
+  motionTemplate?: TelaMotionTemplateSpec;
 }
 
 /** Vector design surface — an artboard of SVG objects (z-order = array order). */
@@ -6620,7 +7564,18 @@ export interface TelaMediaDevice {
   sessionOnly?: boolean;
 }
 
+/** A typed teaching figure (plate, audio, video, diagram, timeline, graph). Data charts use the native CHART device instead. */
+export interface TelaFigureDevice {
+  id: string;
+  type: 'FIGURE';
+  /** The lesson Figure model (components/learn/lesson/figures.ts); kept structural here so types.ts stays dependency-free. */
+  figure: any;
+  /** Index of the Writer text block this figure follows. */
+  after?: number;
+}
+
 export type TelaDevice =
+  | TelaFigureDevice
   | TelaWriterDevice | TelaGridDevice | TelaBaseDevice | TelaFormDevice
   | TelaVectorDevice | TelaImageDevice | TelaChartDevice | TelaNotesDevice | TelaMediaDevice;
 
@@ -6647,6 +7602,16 @@ export interface TelaBinding {
 
 /** One Tela file = one canvas. Content bundle stored in OPFS; manifest synced. */
 export interface TelaDoc {
+  /** Present when this doc is an Academia lesson: base lesson id, theme and the order figures sit in. */
+  lesson?: { lessonId: string; courseTitle?: string; theme?: string; figures: Array<{ deviceId: string; after: number; caption: string; credit?: string; sourceUrl?: string; alt?: string; layout?: string }> };
+  /** Versioned template provenance and media recipes travel with editable copies. */
+  templatePreset?: {
+    schemaVersion: 1;
+    templateId: string;
+    status: 'review' | 'available';
+    motion?: { duration: number; tracks: Array<{ objectId: string; property: 'rotation' | 'x' | 'y' | 'opacity'; from: number; to: number; delay: number; duration: number; loop?: 'restart' }> };
+    audio?: { notes: number[]; tempo: number };
+  };
   id: string;
   ownerId: string;
   title: string;
@@ -6718,4 +7683,100 @@ export interface TelaVersionMeta {
   docId: string;
   createdAt: number;
   label?: string;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADVANCE THREAT PROTECTION & CHIEF SECURITY OFFICER (CSO) TYPES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+export type ThreatSeverity = 'SUSPECTED' | 'MALICIOUS_RED';
+
+export type ThreatVector = 
+  | 'BOT_SCRAPING'
+  | 'CREDENTIAL_STUFFING'
+  | 'SQLI_ATTEMPT'
+  | 'XSS_ATTEMPT'
+  | 'SSRF_ATTEMPT'
+  | 'SESSION_HIJACK'
+  | 'PRIVILEGE_ESCALATION'
+  | 'TOKEN_POISONING'
+  | 'CHAT_DIRTY_DOZEN'
+  | 'DDOS_BURST'
+  | 'IMPOSSIBLE_TRAVEL'
+  | 'ANOMALOUS_API_VELOCITY';
+
+export interface SecurityGeoPing {
+  id: string;
+  lat: number;
+  lng: number;
+  country: string;
+  city: string;
+  ip: string;
+  severity: ThreatSeverity;
+  vector: ThreatVector;
+  timestamp: number;
+  summary: string;
+  targetEndpoint: string;
+}
+
+export interface SecurityThreatEvent {
+  id: string;
+  timestamp: number;
+  ip: string;
+  userAgent?: string;
+  geo: {
+    lat: number;
+    lng: number;
+    country: string;
+    city: string;
+  };
+  severity: ThreatSeverity;
+  vector: ThreatVector;
+  targetEndpoint: string;
+  targetUid?: string;
+  targetEmail?: string;
+  payloadSnippet?: string;
+  riskScore: number; // 0 - 100
+  mitigated: boolean;
+  mitigationAction?: 'BLOCKED_IP' | 'CHALLENGE_ISSUED' | 'SESSION_TERMINATED' | 'USER_WARNED' | 'LOGGED_MONITOR';
+  details: string;
+}
+
+export interface SecurityPlatformStats {
+  healthScore: number; // 0 - 100 (e.g. 98)
+  threatLevel: 'NORMAL' | 'ELEVATED' | 'CRITICAL_RED';
+  activeThreatCount: number;
+  blockedAttacks24h: number;
+  botTrafficPercent: number;
+  csoMode: 'CLOUD_GEMINI' | 'LOCAL_PHI4' | 'HYBRID_ACTIVE';
+  lastAssessmentAt: number;
+  recentPings: SecurityGeoPing[];
+  attackDistribution: { vector: ThreatVector; count: number }[];
+  timeline: { time: string; normal: number; suspected: number; malicious: number }[];
+}
+
+export interface CsoAssessment {
+  id: string;
+  timestamp: number;
+  csoAgentName: string;
+  threatLevel: 'NORMAL' | 'ELEVATED' | 'CRITICAL_RED';
+  executiveSummary: string;
+  riskScore: number;
+  indicatorsOfCompromise: string[];
+  recommendedActions: string[];
+  activeContainments: string[];
+  engineUsed: 'CLOUD_GEMINI' | 'LOCAL_PHI4' | 'SECURITY_HEURISTICS';
+}
+
+export interface UserThreatWarning {
+  id: string;
+  targetUid: string;
+  targetEmail?: string;
+  timestamp: number;
+  severity: ThreatSeverity;
+  detectedVector: ThreatVector;
+  originLocation: string;
+  originIp: string;
+  guidanceMessage: string;
+  resolved: boolean;
 }

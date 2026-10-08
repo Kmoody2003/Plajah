@@ -1,0 +1,16 @@
+{
+  "schema": "plajah-greek-verse-map-v1",
+  "referenceBasis": "KJV",
+  "originalBasis": "UGNT 0.34 ufw",
+  "status": "Source-checked editorial verse-division mappings; not word-level alignment or a claim of textual equality",
+  "checked": "2026-10-06",
+  "sources": ["https://git.door43.org/unfoldingWord/el-x-koine_ugnt", "https://api.getbible.net/v2/kjv.json"],
+  "license": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "mappings": [
+    { "book": 47, "target": "13:12", "sources": [{ "locator": "13:12", "type": "partial" }], "note": "UGNT 13:12 includes both the holy-kiss greeting and all-saints greeting, divided between KJV 13:12 and 13:13." },
+    { "book": 47, "target": "13:13", "sources": [{ "locator": "13:12", "type": "partial" }], "note": "KJV 13:13 is the all-saints greeting in the latter part of UGNT 13:12." },
+    { "book": 47, "target": "13:14", "sources": [{ "locator": "13:13", "type": "full" }], "note": "The closing grace, love and communion benediction is numbered UGNT 13:13 and KJV 13:14; wording and closing material differ by edition." },
+    { "book": 64, "target": "1:14", "sources": [{ "locator": "1:14", "type": "partial" }, { "locator": "1:15", "type": "partial" }], "note": "KJV 1:14 combines the face-to-face expectation and closing greetings, divided into UGNT 1:14 and 1:15." },
+    { "book": 66, "target": "13:1", "sources": [{ "locator": "12:18", "type": "partial" }, { "locator": "13:1", "type": "partial" }], "note": "The standing-on-the-shore clause is UGNT 12:18; the beast vision is UGNT 13:1. KJV 13:1 includes both. The standing clause also has a textual difference in its subject." }
+  ]
+}

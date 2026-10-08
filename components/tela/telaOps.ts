@@ -31,6 +31,7 @@ export type TelaOp =
   | { type: 'ADD_FRAME'; frame: TelaFrame; devices: TelaDevice[] }
   | { type: 'ADD_DEVICES_TO_FRAME'; frameId: string; devices: TelaDevice[] }
   | { type: 'MOVE_FRAME'; frameId: string; x: number; y: number }
+  | { type: 'RESIZE_FRAME'; frameId: string; w: number; h: number }
   | { type: 'RENAME_FRAME'; frameId: string; label: string }
   | { type: 'SET_FRAME_PRESET'; frameId: string; preset: TelaFramePreset }
   | { type: 'SET_FRAME_ORIENTATION'; frameId: string; orientation: 'PORTRAIT' | 'LANDSCAPE' }
@@ -99,6 +100,8 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const ids = op.devices.map(device => device.id);
       return { ...doc, frames: doc.frames.map(frame => frame.id === op.frameId ? { ...frame, deviceIds: [...frame.deviceIds.filter(id => !ids.includes(id)), ...ids] } : frame), devices, updatedAt: now };
     }
+    case 'RESIZE_FRAME':
+      return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, w: Math.max(80, Math.round(op.w)), h: Math.max(40, Math.round(op.h)) } : f), updatedAt: now };
     case 'MOVE_FRAME':
       return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, x: op.x, y: op.y } : f), updatedAt: now };
     case 'RENAME_FRAME':

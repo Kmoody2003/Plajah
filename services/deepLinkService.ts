@@ -8,10 +8,10 @@
 // handler, so a fresh visitor lands directly on the content.
 
 export type ShareAsset =
-  | 'album' | 'track' | 'video' | 'post' | 'profile' | 'release'
+  | 'album' | 'track' | 'video' | 'reello' | 'post' | 'profile' | 'release'
   | 'room' | 'livestream' | 'callin' | 'listen'
   | 'book' | 'article' | 'game' | 'club' | 'clubPost' | 'pitch' | 'event' | 'invite' | 'debate' | 'archive'
-  | 'videoPlaylist' | 'movie' | 'channel';
+  | 'videoPlaylist' | 'movie' | 'channel' | 'mix';
 
 /** Canonical origin for share links — prefer the configured app domain over
  *  whatever host the user is on (e.g. localhost), so links work everywhere. */
@@ -36,9 +36,11 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
     // Content assets route through /share — the server injects rich Open Graph meta
     // (title, "Experience … now on Plajah", cover/thumbnail) then bounces humans into
     // the app. A plain /?type= link hits static index.html and previews as generic Plajah.
+    case 'mix':        return `${base}/share?${qs({ type: 'mix', id })}`;
     case 'album':      return `${base}/share?${qs({ type: 'album', id, track: extra?.track, video: extra?.video })}`;
     case 'track':      return `${base}/share?${qs({ type: 'album', id, track: extra?.track })}`;
     case 'video':      return `${base}/share?${qs({ type: 'video', id })}`;
+    case 'reello':     return `${base}/share?${qs({ type: 'reello', id })}`;
     case 'movie':      return `${base}/share?${qs({ type: 'movie', id })}`;
     case 'videoPlaylist': return `${base}/share?${qs({ type: 'videoPlaylist', id })}`;
     case 'post':       return `${base}/share?${qs({ type: 'feed', id })}`;
@@ -67,16 +69,28 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
   }
 }
 
+export type ShowMode = 'DEFAULT' | 'FX' | 'SLIDES';
+export const parseShowMode = (v?: string | null): ShowMode =>
+  v === 'fx' || v === 'FX' ? 'FX' : v === 'slides' || v === 'SLIDES' ? 'SLIDES' : 'DEFAULT';
+
+/** "Share in Show Mode" — the album link plus `show=<mode>`; App's boot handler opens it on the
+ *  fullscreen ShowModeView. Still routes through /share, so link previews (OG) are the album's. */
+export function buildShowUrl(albumId: string, opts?: { track?: string; mode?: 'default' | 'fx' | 'slides' }): string {
+  const u = new URLSearchParams({ type: 'album', id: albumId, show: opts?.mode || 'default' });
+  if (opts?.track) u.set('track', opts.track);
+  return `${shareOrigin()}/share?${u.toString()}`;
+}
+
 /** The default social post body — creator-forward, mirrors the /share OG description so
- *  the typed text and the link-preview card read the same: "Check out X by Y on Plajah.com". */
+ *  the typed text and the link-preview card read the same: "Check out X by Y on Plajah". */
 export function shareText(title?: string, artist?: string): string {
   const t = (title || '').trim();
   let a = (artist || '').trim();
   // Placeholder artists read badly as "…by Unknown Artist" — drop them for clean copy.
   if (/^(unknown artist|unknown|various artists?|n\/?a|na|null|undefined)$/i.test(a)) a = '';
-  if (t && a) return `Check out ${t} by ${a} on Plajah.com`;
-  if (t)      return `Check out ${t} on Plajah.com`;
-  return 'Check out this on Plajah.com';
+  if (t && a) return `Check out ${t} by ${a} on Plajah`;
+  if (t)      return `Check out ${t} on Plajah`;
+  return 'Check out this on Plajah';
 }
 
 /** Copy a share link to the clipboard; returns true on success. */

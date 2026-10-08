@@ -119,3 +119,28 @@ export async function notifyOrderReady(
     return true;
   } catch { return false; }
 }
+
+/** "Your order shipped" (with tracking when there is one). Same consent rule as notifyOrderReady. */
+export async function notifyOrderShipped(
+  business: { uid: string; name: string; photo?: string },
+  customerUid: string,
+  orderLabel: string,
+  tracking?: { carrier?: string; number?: string },
+): Promise<boolean> {
+  try {
+    const snap = await getDoc(doc(db, 'businesses', business.uid, 'subscribers', customerUid));
+    if (!(snap.exists() && (snap.data() as BusinessSubscription).transactional)) return false;
+    await createNotification({
+      userId: customerUid,
+      senderId: business.uid,
+      senderName: business.name,
+      senderPhoto: business.photo || '',
+      type: 'BUSINESS_UPDATE',
+      title: `${business.name}: order shipped`,
+      message: `${orderLabel} is on its way${tracking?.number ? ` — ${tracking.carrier ? tracking.carrier + ' ' : ''}${tracking.number}` : ''}.`,
+      link: 'PROFILE',
+      targetId: business.uid,
+    } as any);
+    return true;
+  } catch { return false; }
+}

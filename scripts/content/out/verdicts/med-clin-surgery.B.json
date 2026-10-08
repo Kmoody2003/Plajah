@@ -1,0 +1,1292 @@
+{
+ "courseId": "med-clin-surgery",
+ "verifier": "B",
+ "note": "WebSearch/WebFetch worked (some publisher pages 403; used alternates). Option text cut off: l01.q2 choice 1. Key stale items: l14 vaccination after splenic embolization (EAST 2022 against routine), l18 adrenal incidentaloma 4 cm rule (ESE 2023), l16 Parkland 4 mL vs current 2 mL/kg/%TBSA start, l13 should name ATLS 11th ed (2025, xABCDE).",
+ "fetched": 58,
+ "questions": [
+  {
+   "id": "med-clin-surgery.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Option 1 text appears cut off mid-sentence (\"bridge with full-dose heparin until the day\")."
+  },
+  {
+   "id": "med-clin-surgery.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l06.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l11.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Unstable rupture goes to OR; some centres now do rapid CTA for EVAR planning if transiently responsive, but key answer is defensible."
+  },
+  {
+   "id": "med-clin-surgery.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l13.q3",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "ATLS teaches three-sided dressing; prehospital/TCCC guidance now favours vented chest seals, so wording is dated but answer stands."
+  },
+  {
+   "id": "med-clin-surgery.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l14.q5",
+   "answer": 3,
+   "confidence": "low",
+   "ambiguous": true,
+   "sources": [
+    "https://thetraumapro.com/2023/08/25/new-east-practice-guideline-spleen-vaccines-after-angioembolization/"
+   ],
+   "note": "EAST 2022 conditionally recommends against routine post-splenectomy vaccines after splenic angioembolization; choice 3 is the only plausible option but the premise is outdated (no \"no routine vaccination\" choice)."
+  },
+  {
+   "id": "med-clin-surgery.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l16.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Hoarseness plus carbonaceous sputum supports early intubation, though some guidance allows fibreoptic assessment first in a speaking patient."
+  },
+  {
+   "id": "med-clin-surgery.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Prompt says operative feature but capsular/vascular invasion is a histologic feature of the resected specimen; minor wording."
+  },
+  {
+   "id": "med-clin-surgery.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-surgery.l20.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-surgery.l01",
+   "claim": "RCRI has six factors incl. insulin-treated diabetes and creatinine >2 mg/dL",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Revised_Cardiac_Risk_Index",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC11130950/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l01",
+   "claim": "ACC/AHA perioperative guideline most recently revised in 2024; SGLT2 inhibitors held several days preop",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acc.org/Latest-in-Cardiology/Articles/2024/09/24/13/19/ACC-AHA-Release-New-Perioperative-Guideline-For-Patients-Undergoing-Noncardiac-Surgery",
+    "https://professional.heart.org/en/science-news/2024-guideline-for-perioperative-cardiovascular-management-for-noncardiac-surgery/top-things-to-know"
+   ],
+   "note": "Current as of Oct 2026: 2024 AHA/ACC guideline (Sept 2024); SGLT2i stopped >=3 days (ertugliflozin >=4 days)."
+  },
+  {
+   "lessonId": "med-clin-surgery.l01",
+   "claim": "BRIDGE trial: bridging raised bleeding without lowering thromboembolism in AF",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC4931686/",
+    "https://www.wikijournalclub.org/wiki/BRIDGE"
+   ],
+   "note": "ATE 0.4% vs 0.3%; major bleeding 1.3% vs 3.2%."
+  },
+  {
+   "lessonId": "med-clin-surgery.l02",
+   "claim": "Five Ws timing: wind days 1-2, water days 3-5, wound days 5-7, walking after day 3-5",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Postoperative_fever",
+    "https://epomedicine.com/medical-students/postoperative-fever-rule-w-mnemonic/"
+   ],
+   "note": "Mnemonic timings vary slightly between sources; tertiary sources only."
+  },
+  {
+   "lessonId": "med-clin-surgery.l02",
+   "claim": "Salmon-colored serosanguinous drainage on days 5-10 suggests fascial dehiscence",
+   "verdict": "supported",
+   "sources": [
+    "https://www.statpearls.com/point-of-care/21625",
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK551712/"
+   ],
+   "note": "StatPearls gives days 3-10 as typical window."
+  },
+  {
+   "lessonId": "med-clin-surgery.l02",
+   "claim": "Anastomotic leak typically presents days 5 to 7",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-surgery.l03",
+   "claim": "PROPPR used ~1:1:1 plasma:platelets:RBC in massive transfusion",
+   "verdict": "supported",
+   "sources": [
+    "https://jamanetwork.com/journals/jama/fullarticle/2107789",
+    "https://www.wikijournalclub.org/wiki/PROPPR"
+   ],
+   "note": "No significant mortality difference vs 1:1:2; fewer exsanguination deaths at 24 h."
+  },
+  {
+   "lessonId": "med-clin-surgery.l03",
+   "claim": "CRASH-2: early tranexamic acid reduces death from bleeding in trauma",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wikijournalclub.org/wiki/CRASH-2",
+    "https://www.ncbi.nlm.nih.gov/books/NBK260390/"
+   ],
+   "note": "Benefit within 3 h; harm if started after 3 h."
+  },
+  {
+   "lessonId": "med-clin-surgery.l03",
+   "claim": "Refeeding syndrome causes hypophosphatemia, hypokalemia, hypomagnesemia; thiamine given",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK564513/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l04",
+   "claim": "ASA fasting: 2 h clear liquids, 6 h light meal, 8 h fatty meal",
+   "verdict": "supported",
+   "sources": [
+    "https://www.asahq.org/~/media/sites/asahq/files/public/resources/preoperative-fasting-update-2-final.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l04",
+   "claim": "GLP-1 RA perioperative holding guidance has been evolving; follow current society statements",
+   "verdict": "supported",
+   "sources": [
+    "https://www.hcplive.com/view/endoscopy-in-the-age-of-glp-1-ras-2024-sees-new-risk-based-perioperative-guidance",
+    "https://dom-pubs.onlinelibrary.wiley.com/doi/full/10.1002/doi2.70009"
+   ],
+   "note": "Current position: Oct 2024 multisociety guidance (ASA/AGA/ASMBS/ISPCOP/SAGES) says most patients continue GLP-1 RAs, with 24-h liquid diet for higher-risk patients. Lesson could state this."
+  },
+  {
+   "lessonId": "med-clin-surgery.l04",
+   "claim": "Malignant hyperthermia: RYR1, rising EtCO2, treated by stopping triggers and dantrolene, 100% O2 hyperventilation",
+   "verdict": "supported",
+   "sources": [
+    "https://ncbi.nlm.nih.gov/books/NBK430828/?report=reader"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l05",
+   "claim": "CODA: substantial minority on antibiotics needed appendectomy within a few years",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMc2116018",
+    "https://www.facs.org/media-center/press-releases/2021/coda-study-102521/"
+   ],
+   "note": "29% by 90 days, 46% by 2 years, 49% by 3-4 years (closer to half than a 'minority')."
+  },
+  {
+   "lessonId": "med-clin-surgery.l05",
+   "claim": "In pregnancy ultrasound first, MRI as follow-up for suspected appendicitis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sciencedirect.com/science/article/pii/S1546144022006433",
+    "https://pubmed.ncbi.nlm.nih.gov/36436969/"
+   ],
+   "note": "ACR 2022 update."
+  },
+  {
+   "lessonId": "med-clin-surgery.l05",
+   "claim": "Alvarado score aids risk stratification; CT preferred in adults",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-surgery.l06",
+   "claim": "Cecal diameter above ~12 cm raises perforation risk with competent ileocecal valve",
+   "verdict": "supported",
+   "sources": [
+    "https://wikem.org/wiki/Large_bowel_obstruction",
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK441888/"
+   ],
+   "note": "Thresholds 9-12 cm cited; duration matters."
+  },
+  {
+   "lessonId": "med-clin-surgery.l06",
+   "claim": "Sigmoid volvulus: endoscopic decompression then elective sigmoid resection",
+   "verdict": "supported",
+   "sources": [
+    "https://journals.lww.com/dcrjournal/fulltext/10.1097/dcr.0000000000002159~the-american-society-of-colon-and-rectal-surgeons-clinical",
+    "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5768858/"
+   ],
+   "note": "ASCRS suggests colectomy during the same admission."
+  },
+  {
+   "lessonId": "med-clin-surgery.l06",
+   "claim": "Acute mesenteric ischemia: pain out of proportion; lactate may be normal early; CTA is test of choice",
+   "verdict": "supported",
+   "sources": [
+    "https://link.springer.com/article/10.1186/s13017-017-0150-5"
+   ],
+   "note": "WSES 2017."
+  },
+  {
+   "lessonId": "med-clin-surgery.l07",
+   "claim": "Randomized trial showed low acute incarceration with watchful waiting in minimally symptomatic men",
+   "verdict": "supported",
+   "sources": [
+    "https://jamanetwork.com/journals/jama/fullarticle/202212"
+   ],
+   "note": "Fitzgibbons JAMA 2006: 1.8 per 1000 patient-years."
+  },
+  {
+   "lessonId": "med-clin-surgery.l07",
+   "claim": "Femoral hernia more common in women, high strangulation risk, repaired once diagnosed",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sciencedirect.com/topics/medicine-and-dentistry/femoral-hernia"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l07",
+   "claim": "Umbilical hernias close spontaneously in many children by age 4-5",
+   "verdict": "supported",
+   "sources": [
+    "https://emedicine.medscape.com/article/932680-overview"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l08",
+   "claim": "Diverticular abscess >3-4 cm drained percutaneously; uncomplicated cases sometimes without antibiotics",
+   "verdict": "supported",
+   "sources": [
+    "https://www.guidelinecentral.com/guideline/41075/",
+    "https://reference.medscape.com/viewarticle/931288"
+   ],
+   "note": "ASCRS 2020: drain >3 cm; colonoscopy advised after complicated or atypical episodes rather than after every episode."
+  },
+  {
+   "lessonId": "med-clin-surgery.l08",
+   "claim": "Anal cancer is HPV-linked and treated with chemoradiation rather than surgery",
+   "verdict": "supported",
+   "sources": [
+    "https://www.analcancerfoundation.org/treatment/nigro-protocol/",
+    "https://ncbi.nlm.nih.gov/pmc/articles/PMC4177484"
+   ],
+   "note": "APR reserved for persistent/recurrent disease."
+  },
+  {
+   "lessonId": "med-clin-surgery.l08",
+   "claim": "Bariatric surgery indicated BMI >=35, or >=30 with comorbidity, per recent society statements",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9834364/"
+   ],
+   "note": "2022 ASMBS/IFSO: BMI >=35 regardless of comorbidity; consider for 30-34.9 with metabolic disease."
+  },
+  {
+   "lessonId": "med-clin-surgery.l09",
+   "claim": "Tokyo Guidelines recommend early laparoscopic cholecystectomy for acute cholecystitis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9885794/",
+    "https://www.hpbonline.org/article/S1365-182X(20)32149-3/fulltext"
+   ],
+   "note": "TG18 is current; it removed the strict 72-h limit."
+  },
+  {
+   "lessonId": "med-clin-surgery.l09",
+   "claim": "ASGE high risk: cholangitis, CBD stone on imaging, or bilirubin >4 mg/dL with dilated duct",
+   "verdict": "supported",
+   "sources": [
+    "https://www.asge.org/docs/default-source/guidelines/asge-guideline-on-the-role-of-endoscopy-in-the-evaluation-and-management-of-choledocholithiasis-2019-june-gie.pdf?sfvrsn=6757df52_4",
+    "https://www.giejournal.org/article/S0016-5107(21)00009-2/fulltext"
+   ],
+   "note": "ASGE 2019."
+  },
+  {
+   "lessonId": "med-clin-surgery.l09",
+   "claim": "Critical view of safety identifies cystic duct and artery before division to minimise bile duct injury",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sages.org/safe-cholecystectomy-program/",
+    "https://www.facs.org/for-medical-professionals/news-publications/news-and-articles/bulletin/2025/may-2025-volume-110-issue-5/critical-view-of-safety-minimizes-risk-of-bile-duct-injury/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l10",
+   "claim": "PANTER: step-up approach had less morbidity than open necrosectomy",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa0908821",
+    "https://www.wikijournalclub.org/wiki/PANTER"
+   ],
+   "note": "NEJM 2010."
+  },
+  {
+   "lessonId": "med-clin-surgery.l10",
+   "claim": "Transplantation for HCC within Milan criteria",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11815920/"
+   ],
+   "note": "Single <=5 cm or up to 3 nodules <=3 cm, no vascular invasion."
+  },
+  {
+   "lessonId": "med-clin-surgery.l10",
+   "claim": "Pseudocysts form four or more weeks after acute pancreatitis; drained if symptomatic",
+   "verdict": "supported",
+   "sources": [
+    "https://pubs.rsna.org/doi/full/10.1148/rg.2016150097",
+    "https://ajronline.org/doi/10.2214/AJR.14.14056"
+   ],
+   "note": "Revised Atlanta 2012."
+  },
+  {
+   "lessonId": "med-clin-surgery.l11",
+   "claim": "USPSTF 2019: one-time AAA ultrasound for men 65-75 who ever smoked",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/abdominal-aortic-aneurysm-screening"
+   ],
+   "note": "Grade B; still current."
+  },
+  {
+   "lessonId": "med-clin-surgery.l11",
+   "claim": "Elective AAA repair at 5.5 cm in men or growth >1 cm/yr",
+   "verdict": "supported",
+   "sources": [
+    "https://www.jvascsurg.org/article/S0741-5214(17)32369-8/fulltext",
+    "https://vascular.org/sites/files/2022-02/SVS_Guideline_AAA_Slides_0.pdf"
+   ],
+   "note": "SVS 2018; women >5.0 cm."
+  },
+  {
+   "lessonId": "med-clin-surgery.l11",
+   "claim": "Symptomatic 70-99% carotid stenosis benefits from CEA ideally within ~2 weeks (NASCET)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.2minutemedicine.com/the-nascet-carotid-endarterectomy-for-symptomatic-stenosis-classics-series/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC6481587/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l12",
+   "claim": "Compartment pressure within ~30 mmHg of diastolic BP supports compartment syndrome",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK448124/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l12",
+   "claim": "Motor weakness/sensory loss = immediately threatened limb; immediate heparin then revascularization",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aast.org/static/e943469d-0dfb-4f96-90396c0cbca05f83/T25-Acute-limb-ischemia.pdf",
+    "https://www.amboss.com/us/knowledge/acute-limb-ischemia"
+   ],
+   "note": "Rutherford IIb."
+  },
+  {
+   "lessonId": "med-clin-surgery.l12",
+   "claim": "IVC filter reserved for VTE with contraindication to anticoagulation",
+   "verdict": "supported",
+   "sources": [
+    "https://journal.chestnet.org/article/S0012-3692(21)01506-3/fulltext"
+   ],
+   "note": "CHEST 2021."
+  },
+  {
+   "lessonId": "med-clin-surgery.l13",
+   "claim": "Current ATLS teaching places control of massive external hemorrhage first (xABCDE)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.facs.org/for-medical-professionals/news-publications/news-and-articles/acs-brief/september-16-2025-issue/trauma-care-gets-major-upgrade-with-launch-of-atls-11/",
+    "https://thesgem.com/2026/03/sgem-xtra-this-one-goes-to-11-atls-11th-edition/"
+   ],
+   "note": "ATLS 11th edition (2025) is current; lesson should name the edition. ATLS 11 also stresses correcting shock before RSI."
+  },
+  {
+   "lessonId": "med-clin-surgery.l13",
+   "claim": "Thoracotomy considered for 1,500 mL immediate chest tube output or ~200 mL/h for several hours",
+   "verdict": "supported",
+   "sources": [
+    "https://litfl.com/thoracic-trauma/",
+    "https://hospitalprocedures.org/management-of-hemothorax/"
+   ],
+   "note": "ATLS 10 thresholds; not confirmed against ATLS 11 text."
+  },
+  {
+   "lessonId": "med-clin-surgery.l13",
+   "claim": "Flail chest from three or more adjacent ribs each broken in two places",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK534090/"
+   ],
+   "note": "Definitions vary; ATLS uses two or more adjacent ribs fractured in two or more places."
+  },
+  {
+   "lessonId": "med-clin-surgery.l14",
+   "claim": "ATLS hemorrhage classes: II 15-30% tachycardia, III 30-40% with hypotension, IV >40%",
+   "verdict": "supported",
+   "sources": [
+    "https://litfl.com/major-haemorrhage-in-trauma/",
+    "https://www.injuryjournal.com/article/S0020-1383(14)00375-1/fulltext"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l14",
+   "claim": "After splenectomy or splenic embolization, vaccination against encapsulated organisms is given",
+   "verdict": "contradicted",
+   "sources": [
+    "https://thetraumapro.com/2023/08/25/new-east-practice-guideline-spleen-vaccines-after-angioembolization/",
+    "https://www.surgicalcriticalcare.net/Guidelines/Post%20Splenectomy%20Vaccines%202022.pdf"
+   ],
+   "note": "EAST 2022 practice management guideline conditionally recommends AGAINST routine post-splenectomy vaccines after splenic angioembolization (immune function preserved); vaccines remain indicated after splenectomy. Affects question l14.q5."
+  },
+  {
+   "lessonId": "med-clin-surgery.l14",
+   "claim": "Tranexamic acid within 3 hours in bleeding trauma",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wikijournalclub.org/wiki/CRASH-2"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l15",
+   "claim": "GCS 13-15 mild, 9-12 moderate, 8 or below severe",
+   "verdict": "supported",
+   "sources": [
+    "https://biausa.org/brain-injury/about-brain-injury/diagnosis/hospital-assessments/glasgow-coma-scale"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l15",
+   "claim": "High-dose steroids for acute SCI not recommended in current guidelines",
+   "verdict": "supported",
+   "sources": [
+    "https://www.medscape.com/viewarticle/781669",
+    "https://emedicine.medscape.com/article/793582-guidelines"
+   ],
+   "note": "AANS/CNS 2013 says not recommended; AO Spine 2017 allows a 24-h MPSS infusion as an option within 8 h, so guidelines are not unanimous."
+  },
+  {
+   "lessonId": "med-clin-surgery.l15",
+   "claim": "Hip fractures in older adults operated within about 48 hours",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aaos.org/hipfxcpg",
+    "https://www.guidelinecentral.com/guideline/9553/"
+   ],
+   "note": "AAOS: within 24-48 h of admission."
+  },
+  {
+   "lessonId": "med-clin-surgery.l16",
+   "claim": "Parkland: 4 mL/kg/%TBSA LR over 24 h, half in first 8 h, titrate to UO 0.5 mL/kg/h",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/30725875/",
+    "https://journals.lww.com/cmii/fulltext/2021/19020/fluid_resuscitation_in_adult_burns.7.aspx"
+   ],
+   "note": "Correct as the Parkland formula, but ABA/ABLS since 2018 (and ATLS 10/11) start adult thermal burns at 2 mL/kg/%TBSA (4 mL for electrical) to limit fluid creep; lesson should mention."
+  },
+  {
+   "lessonId": "med-clin-surgery.l16",
+   "claim": "ABA referral for partial-thickness >10% TBSA, face/hands/feet/genitalia/joints, full-thickness, electrical, chemical, inhalation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ameriburn.org/storyblok-asset/x/b7f8f5d4e8/one-page-guidelines-for-burn-patient-referral-1.pdf"
+   ],
+   "note": "Current ABA one-page referral guideline (2022, revised 2024) frames these as immediate consultation with consideration of transfer."
+  },
+  {
+   "lessonId": "med-clin-surgery.l16",
+   "claim": "CO poisoning: pulse oximetry falsely normal; diagnose by co-oximetry; cyanide treated with hydroxocobalamin",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK557888/",
+    "https://emcrit.org/ibcc/co/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l17",
+   "claim": "USPSTF 2024: biennial mammography for women 40-74",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening",
+    "https://pubmed.ncbi.nlm.nih.gov/38687503/"
+   ],
+   "note": "Final April 30, 2024; still current."
+  },
+  {
+   "lessonId": "med-clin-surgery.l17",
+   "claim": "Breast-conserving surgery with radiation gives survival equal to mastectomy",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMoa022152",
+    "https://www.wikijournalclub.org/wiki/NSABP_B-06"
+   ],
+   "note": "NSABP B-06 20-year follow-up."
+  },
+  {
+   "lessonId": "med-clin-surgery.l17",
+   "claim": "Palpable mass: ultrasound first under 30; diagnostic mammography with ultrasound at 30+",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/37236740/",
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK560757/"
+   ],
+   "note": "ACR 2022: age 30-39 either ultrasound or mammography acceptable."
+  },
+  {
+   "lessonId": "med-clin-surgery.l18",
+   "claim": "Asymptomatic PHPT surgery: Ca >1 mg/dL above ULN, osteoporosis, stone, reduced renal function, age <50",
+   "verdict": "supported",
+   "sources": [
+    "https://academic.oup.com/jbmr/article/37/11/2293/7512381"
+   ],
+   "note": "Fifth International Workshop 2022."
+  },
+  {
+   "lessonId": "med-clin-surgery.l18",
+   "claim": "Adrenal incidentalomas above about 4 cm or with suspicious imaging are generally resected",
+   "verdict": "contradicted",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC10475962/",
+    "https://www.guidelinecentral.com/guideline/3097018/"
+   ],
+   "note": "Partly outdated: ESE/ENSAT 2023 removed size as a standalone criterion; homogeneous masses <=10 HU are benign regardless of size and need no surgery or follow-up; >=4 cm with >20 HU goes to MDT/surgery."
+  },
+  {
+   "lessonId": "med-clin-surgery.l18",
+   "claim": "Medullary carcinoma secretes calcitonin, RET/MEN2; exclude pheochromocytoma before thyroid surgery",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC4490627/"
+   ],
+   "note": "ATA 2015 revised MTC guideline."
+  },
+  {
+   "lessonId": "med-clin-surgery.l19",
+   "claim": "Testicular viability falls after ~6 hours; detorsion with bilateral fixation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2006/1115/p1739.html",
+    "https://www.cmaj.ca/content/191/28/E792"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l19",
+   "claim": "Obstructing stone with infection needs urgent decompression by stent or nephrostomy",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC10889283/",
+    "https://uroweb.org/guidelines/urolithiasis/chapter/guidelines"
+   ],
+   "note": "AUA offers MET for ureteral stones <=10 mm; lesson's <5 mm 'usually pass' is consistent."
+  },
+  {
+   "lessonId": "med-clin-surgery.l19",
+   "claim": "Scaphoid retrograde blood supply risks avascular necrosis; occult fracture immobilized and reimaged or MRI",
+   "verdict": "supported",
+   "sources": [
+    "https://teachmesurgery.com/orthopaedic/wrist-and-hand/scaphoid-fractures/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC6399182/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l20",
+   "claim": "Scar reaches about 80% of normal skin strength; remodeling replaces type III with type I collagen",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK576385/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-surgery.l20",
+   "claim": "Prophylaxis within 60 minutes before incision, cefazolin, stop within 24 hours",
+   "verdict": "supported",
+   "sources": [
+    "https://shea-online.org/guidance/antimicrobial-prophylaxis-in-surgery/",
+    "https://dig.pharmacy.uic.edu/faqs/2013-2/june-2013-faqs/"
+   ],
+   "note": "ASHP/IDSA/SIS/SHEA 2013. CDC 2017 is stricter: no additional doses after incision closure in clean/clean-contaminated cases."
+  },
+  {
+   "lessonId": "med-clin-surgery.l20",
+   "claim": "CDC guidance: chlorhexidine-alcohol skin prep, normothermia, glycemic control",
+   "verdict": "supported",
+   "sources": [
+    "https://jamanetwork.com/journals/jamasurgery/fullarticle/2623725"
+   ],
+   "note": "CDC 2017: alcohol-based prep, glucose <200 mg/dL, normothermia."
+  }
+ ]
+}

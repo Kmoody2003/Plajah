@@ -41,7 +41,15 @@ export interface Puppet2DRig {
 export type AvatarDescriptor =
   | { kind: 'VRM'; url: string; source: 'upload' | 'generated' }
   | { kind: 'PUPPET2D'; rig: Puppet2DRig }
-  | { kind: 'BODY2D'; rig: import('./bodyPuppet').BodyRig }; // full-body paper doll (pose-driven)
+  | { kind: 'BODY2D'; rig: import('./bodyPuppet').BodyRig } // full-body paper doll (pose-driven)
+  /** The Kaiju characters (Lorik / Lumi) — canvas puppet with a full continuous face rig (kaijuAvatar.ts). Built-in preset: no sheet to build. */
+  | { kind: 'KAIJU2D'; character: 'lorik' | 'lumi'; framing?: 'bust' | 'full'; props?: boolean };
+
+/** Ready-made characters for the VTuber templates (live streams, TV Studio, Fabula). */
+export const KAIJU_VTUBER_PRESETS: { id: string; name: string; emoji: string; blurb: string; descriptor: Extract<AvatarDescriptor, { kind: 'KAIJU2D' }> }[] = [
+  { id: 'kaiju-lorik', name: 'Lorik', emoji: '🎵', blurb: 'The music kaiju — speckled purple, sings into a mic.', descriptor: { kind: 'KAIJU2D', character: 'lorik', framing: 'bust' } },
+  { id: 'kaiju-lumi', name: 'Lumi', emoji: '📷', blurb: 'The camera kaiju — glowing orange eyes, camera on a strap.', descriptor: { kind: 'KAIJU2D', character: 'lumi', framing: 'bust' } },
+];
 
 export type AvatarPath = 'AUTO' | 'PUPPET2D' | 'VRM3D';
 export interface BuildAvatarOptions {

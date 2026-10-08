@@ -1,0 +1,95 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import http from 'node:http';
+import path from 'node:path';
+const server = http.createServer(async (req, res) => {
+  try {
+    const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    const root = path.resolve(pathname.startsWith('/sacred/') ? 'public' : 'tmp/sacred-reader-build');
+    const file = path.resolve(root, `.${pathname}`);
+    if (!file.startsWith(`${root}${path.sep}`)) { res.writeHead(403); res.end(); return; }
+    const body = await fs.readFile(file), type = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' }[path.extname(file)] || 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': `${type}; charset=utf-8` }); res.end(body);
+  } catch { res.writeHead(404); res.end(); }
+});
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const base = `http://127.0.0.1:${server.address().port}/tests/fixtures/sacred-reader-preview.html?tool=originals`;
+const browser = await chromium.launch({ headless: true });
+try {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } }), page = await context.newPage(), errors = [];
+  page.on('pageerror', e => errors.push(e.message)); page.setDefaultTimeout(30000);
+  await page.goto(base);
+  await page.getByRole('button', { name: /Study original word 2:/ }).click();
+  await page.getByText('verb · qal · perfect (qatal) · third person · masculine · singular', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Open H1254 dictionary', exact: true }).click();
+  assert.equal(await page.evaluate(() => document.body.dataset.strong), 'H1254');
+  await page.getByRole('button', { name: 'Find lemma 1254 a', exact: true }).click();
+  await page.getByText(/original word occurrences/).waitFor();
+  await page.getByLabel('Original concordance book').selectOption('1');
+  await page.getByRole('button', { name: 'Genesis 1:1 · word 2', exact: true }).click();
+  await page.getByRole('button', { name: 'Open corresponding Bible reference', exact: true }).click();
+  assert.equal(JSON.parse(await page.evaluate(() => document.body.dataset.navigation)).verse, 1);
+  await page.getByRole('button', { name: 'Save original passage to notebook', exact: true }).click();
+  const notebook = await page.evaluate(() => JSON.parse(localStorage.getItem('plajah_sacred_research_v1')));
+  assert.ok(notebook.sources.some(s => /WLC numbering/.test(s.locator) && /3d15126fb1ef/.test(s.edition) && /CC BY/.test(s.rights)));
+  await page.screenshot({ path: 'tmp/lectio-qa/original-hebrew.png' });
+  await page.goto(`${base}&chapter=32&verse=1`);
+  await page.getByText('Gen.32.2', { exact: true }).waitFor();
+  assert.equal(await page.getByLabel('Original source verse').inputValue(), '2');
+  await page.goto(`${base}&book=23&chapter=64&verse=1`);
+  await page.getByText(/Isa.63.19.*partial match/).waitFor();
+  assert.equal(await page.getByLabel('Original source chapter').inputValue(), '63');
+  await page.goto(`${base}&book=27&chapter=2&verse=4`);
+  await page.getByRole('button', { name: /Study original word 7:/ }).click();
+  await page.getByRole('heading', { name: 'Grammar in words · Aramaic', exact: true }).waitFor();
+  await page.getByText('verb · peal · imperative · second person · masculine · singular', { exact: true }).waitFor();
+  await page.goto(`${base}&book=47&chapter=13&verse=14`);
+  await page.getByText('2CO.13.13', { exact: true }).waitFor();
+  await page.goto(`${base}&book=64&chapter=1&verse=14`);
+  await page.getByRole('button', { name: 'Read source 3JN.1.15', exact: true }).click();
+  assert.equal(await page.getByLabel('Original source verse').inputValue(), '15');
+  await page.goto(`${base}&book=66&chapter=13&verse=1`);
+  await page.getByRole('button', { name: 'Read source REV.13.1', exact: true }).click();
+  assert.equal(await page.getByLabel('Original source chapter').inputValue(), '13');
+  await page.goto(`${base}&book=43`);
+  await page.getByRole('button', { name: /Study original word 3:/ }).click();
+  await page.getByText('verb · indicative mood · imperfect · active voice · third person · singular', { exact: true }).waitFor();
+  await page.getByRole('button', { name: /Study original word 5:/ }).click();
+  await page.getByRole('button', { name: 'Find lemma λόγος', exact: true }).click();
+  await page.getByText(/original word occurrences/).waitFor();
+  await page.getByLabel('Original concordance book').selectOption('43');
+  assert.equal(await page.getByRole('button', { name: /John 1:1 · word / }).count(), 3);
+  await page.getByRole('button', { name: 'Next original results', exact: true }).click();
+  await page.getByRole('button', { name: 'Previous original results', exact: true }).click();
+  await page.getByRole('button', { name: 'Find lemma and grammar together', exact: true }).click();
+  await page.getByText(/original word occurrences/).waitFor();
+  assert.equal(await page.getByRole('button', { name: /John 1:1 · word / }).count(), 3);
+  await page.screenshot({ path: 'tmp/lectio-qa/original-greek.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await page.getByLabel('Original source chapter').selectOption('5');
+  await page.getByLabel('Original source verse').selectOption('4');
+  await page.getByText('Source note: Some ancient manuscripts include verse 4.', { exact: true }).waitFor();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: 'tmp/lectio-qa/original-mobile.png' });
+  // The minimal preview has no app-shell service worker. Block all corpus
+  // requests while allowing the shell reload to prove IndexedDB recovery.
+  await page.route('**/sacred/**', route => route.abort());
+  await page.reload();
+  await page.getByRole('button', { name: /Study original word 5:/ }).click();
+  await page.getByRole('button', { name: 'Find lemma λόγος', exact: true }).click();
+  await page.getByText(/original word occurrences/).waitFor();
+  await page.unroute('**/sacred/**');
+  const failure = '**/sacred/oshb/book-2.json*';
+  await page.route(failure, route => route.abort());
+  await page.goto(`${base}&book=2`);
+  await page.getByRole('alert').waitFor();
+  assert.equal(await page.getByRole('button', { name: /Study original word / }).count(), 0);
+  await page.unroute(failure);
+  await page.getByRole('button', { name: 'Retry original text', exact: true }).click();
+  await page.getByRole('button', { name: /Study original word 1:/ }).waitFor();
+  assert.deepEqual(errors, []);
+  console.log('PASS: Hebrew, Aramaic and Greek reading; grammar decoding; original lemma/morphology search; source verse shifts and partial mappings; notebook citations; pagination; mobile width; cached reading and search after shell reload with corpus requests blocked; source failure and retry.');
+  await context.close();
+} finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

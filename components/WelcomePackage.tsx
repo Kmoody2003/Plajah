@@ -22,6 +22,8 @@ interface WelcomePackageProps {
   onNavigate: (view: string) => void;
   /** First-run only: renders a sticky "Continue" that advances into the 2-page onboarding. */
   onContinue?: () => void;
+  /** Optional: shows "Say hi to people who just joined" -> open PeopleDiscoveryPage (tab 'new'). */
+  onSayHiToNewMembers?: () => void;
 }
 
 const CSS = `
@@ -131,7 +133,7 @@ button.wpk-stop:hover{background:rgba(255,255,255,.03)}
 .wpk-continue:hover{filter:brightness(1.06)}
 `;
 
-const WelcomePackage: React.FC<WelcomePackageProps> = ({ displayName, onBack, onNavigate, onContinue }) => {
+const WelcomePackage: React.FC<WelcomePackageProps> = ({ displayName, onBack, onNavigate, onContinue, onSayHiToNewMembers }) => {
   const [role, setRole] = useState('creator');
   const firstName = displayName?.split(' ')[0] || 'traveller';
   const activeRole = WP_ROLES.find(r => r.key === role) || WP_ROLES[0];
@@ -272,6 +274,14 @@ const WelcomePackage: React.FC<WelcomePackageProps> = ({ displayName, onBack, on
                 </button>
               ))}
             </div>
+            {onSayHiToNewMembers && (
+              <div style={{ textAlign: 'center', margin: '8px 0 18px' }}>
+                <button className="wpk-gate" style={{ display: 'inline-block', width: 'auto', padding: '12px 22px' }} onClick={onSayHiToNewMembers}>
+                  <div className="wpk-gt">Say hi to people who just joined</div>
+                  <div className="wpk-gd">Everyone was new once — find the newest members and wave.</div>
+                </button>
+              </div>
+            )}
             <p className="wpk-foot">REOPEN ANYTIME · PROFILE › YOUR WELCOME PACKAGE</p>
           </div>
         </div>

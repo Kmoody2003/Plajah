@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
-import { useGoogleCast } from '../hooks/useGoogleCast';
+import { useUnifiedCasting } from '../hooks/useUnifiedCasting';
+import { CastingHubModal } from './casting/CastingHubModal';
 import { useViewport } from '../hooks/useViewport';
 import { useShellNext } from '../hooks/useShellNext';
 import { getPlatformInfo } from '../hooks/usePlatform';
@@ -73,7 +74,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   // Hidden on non-music phone views. `transportForced` (set below via the context) can
   // override this at the usage site to reveal the bar (double-tap Chora / swipe-up pill).
   const hideTransportOnPhone = isPhoneSized && !MUSIC_TRANSPORT_VIEWS.includes(view || '');
-  const { isCastAvailable, isCasting, castTrack, stopCasting } = useGoogleCast();
+  const { isCasting, activeDevice } = useUnifiedCasting();
+  const [isCastModalOpen, setIsCastModalOpen] = useState(false);
   const { 
     currentTrack, 
     currentAlbum, 
@@ -108,6 +110,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
     setVisualizerType,
     isSlideshowActive,
     setIsSlideshowActive,
+    isFullscreenSlideshowActive,
+    setIsFullscreenSlideshowActive,
     isSlideshowAuto,
     setIsUserActive,
     isUserActive,
@@ -147,6 +151,13 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
 
   // Keep context in sync so Aria panel knows when to push up
   React.useEffect(() => { setIsPlayerExpanded(isSpillOverOpen); }, [isSpillOverOpen, setIsPlayerExpanded]);
+
+  React.useEffect(() => {
+    const handleOpenCast = () => setIsCastModalOpen(true);
+    window.addEventListener('plajah:open-cast', handleOpenCast);
+    return () => window.removeEventListener('plajah:open-cast', handleOpenCast);
+  }, []);
+
   const [showVisualizerDrawer, setShowVisualizerDrawer] = useState(false);
 
   // ── Music Video Sync ────────────────────────────────────────────────────────
@@ -454,16 +465,26 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     <div className="flex items-center gap-1">
                        <button onClick={() => onNavigate?.('DASHBOARD')} className="p-2 text-white/40 hover:text-white transition-all bg-white/5 rounded-xl" title="Home"><Home size={14} /></button>
                        <button onClick={() => onNavigate?.('USER_PROFILE')} className="p-2 text-white/40 hover:text-white transition-all bg-white/5 rounded-xl" title="Profile"><UserIcon size={14} /></button>
-                       <button 
-                         onClick={() => setIsEssentialMode(!isEssentialMode)} 
-                         className={`p-2 transition-all rounded-xl ${isEssentialMode ? 'bg-small-orange text-white' : 'text-white/40 hover:text-white bg-white/5'}`} 
-                         title="Essential mode"
-                       >
-                         <Layers size={14} />
-                       </button>
-                       <button onClick={() => onNavigate?.('SETTINGS')} className="p-2 text-white/40 hover:text-white transition-all bg-white/5 rounded-xl" title="Settings"><Settings size={14} /></button>
-                    </div>
-                    <span className="text-[7px] font-black uppercase tracking-widest text-white/40 mt-1">Navigate</span>
+                        <button 
+                          onClick={() => setIsEssentialMode(!isEssentialMode)} 
+                          className={`p-2 transition-all rounded-xl ${isEssentialMode ? 'bg-small-orange text-white' : 'text-white/40 hover:text-white bg-white/5'}`} 
+                          title="Essential mode"
+                        >
+                          <Layers size={14} />
+                        </button>
+                        <button 
+                          onClick={() => setIsCastModalOpen(true)} 
+                          className={`p-2 transition-all rounded-xl relative ${isCasting ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_12px_rgba(0,245,212,0.3)]' : 'text-white/40 hover:text-white bg-white/5'}`} 
+                          title={isCasting ? `Casting to ${activeDevice?.name || 'Device'}` : "Cast to TV or Speakers (Google, Matter, Samsung)"}
+                        >
+                          <Cast size={14} />
+                          {isCasting && (
+                            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                          )}
+                        </button>
+                        <button onClick={() => onNavigate?.('SETTINGS')} className="p-2 text-white/40 hover:text-white transition-all bg-white/5 rounded-xl" title="Settings"><Settings size={14} /></button>
+                     </div>
+                     <span className="text-[7px] font-black uppercase tracking-widest text-white/40 mt-1">Navigate</span>
                   </div>
                   
                   {/* Compact Theme Switcher */}
@@ -1419,6 +1440,14 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     </button>
                   )}
                   <button
+                    onClick={() => setIsCastModalOpen(true)}
+                    className={`p-2 android-press transition-all rounded-full ${isCasting ? 'text-[#00F0FF] bg-[#00F0FF]/15 shadow-[0_0_12px_rgba(0,240,255,0.4)]' : 'text-white/30 hover:text-white'}`}
+                    style={{ minWidth: 36, minHeight: 36 }}
+                    title={isCasting ? `Casting to ${activeDevice?.name || 'Device'}` : 'Cast to Device'}
+                  >
+                    <Cast size={16} />
+                  </button>
+                  <button
                     onClick={handleShare}
                     className="p-2 android-press transition-all rounded-full text-white/30 hover:text-white"
                     style={{ minWidth: 36, minHeight: 36 }}
@@ -1931,6 +1960,16 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                       <Box size={16} />
                     </button>
                     <button
+                      onClick={() => setIsCastModalOpen(true)}
+                      className={`p-2 rounded-xl transition-all relative ${isCasting ? 'text-cyan-400 bg-cyan-500/20 border border-cyan-500/30' : 'text-white/20 hover:text-white'}`}
+                      title={isCasting ? `Casting to ${activeDevice?.name || 'Device'}` : "Cast to TV or Speakers (Google, Matter, Samsung)"}
+                    >
+                      <Cast size={16} />
+                      {isCasting && (
+                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                      )}
+                    </button>
+                    <button
                       onClick={() => setIsMinimized(v => !v)}
                       className={`p-1.5 rounded-xl transition-all hover:scale-110 active:scale-95 ${isMinimized ? 'opacity-50' : 'opacity-100'}`}
                       title={isMinimized ? 'Show Player Controls' : 'Hide Player Controls'}
@@ -2055,9 +2094,8 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         </div>
       </motion.div>
     <AnimatePresence>
-      {/* Full-screen takeover stays an explicit choice — a creator's auto-started slideshow
-          should fill the nano back face and the album backdrop, not seize the whole app. */}
-      {isSlideshowActive && !isSlideshowAuto && !isNanoView && currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
+      {/* Full-screen takeover stays an explicit choice triggered by user action only. Auto-cycling stays embedded in the viewer. */}
+      {isFullscreenSlideshowActive && currentAlbum?.slideshow && currentAlbum.slideshow.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -2065,7 +2103,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
           className="fixed inset-0 z-[120] bg-black/95 flex flex-col items-center justify-center p-12"
         >
           <button 
-            onClick={() => setIsSlideshowActive(false)}
+            onClick={() => setIsFullscreenSlideshowActive(false)}
             className="absolute top-12 right-12 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white/40 hover:text-white transition-all z-[130]"
           >
             <X size={32} />
@@ -2146,6 +2184,19 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         </motion.div>
       )}
     </AnimatePresence>
+
+    <CastingHubModal
+      isOpen={isCastModalOpen}
+      onClose={() => setIsCastModalOpen(false)}
+      media={{
+        title: currentTrack?.title || currentVideo?.title || 'Nothing playing',
+        artist: currentTrack?.artist || currentAlbum?.artist,
+        albumTitle: currentAlbum?.title,
+        imageUrl: (currentTrack ? (currentTrack.albumCover || currentAlbum?.coverImage) : currentVideo?.thumbnailUrl) || '',
+        contentUrl: (currentTrack as any)?.audioUrl || (currentTrack as any)?.fileUrl || (currentVideo as any)?.videoUrl,
+        mediaType: currentVideo ? 'video' : 'audio',
+      }}
+    />
     </div>
   );
 };

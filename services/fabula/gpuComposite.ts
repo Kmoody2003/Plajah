@@ -166,17 +166,19 @@ export async function createCompositor(canvas: HTMLCanvasElement | OffscreenCanv
         usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
       });
       slot.w = w; slot.h = h;
+      (slot as any).hasContent = false;
     }
     return slot.tex;
   }
 
   function composite(layers: CompositeLayer[]) {
+    if (!layers || layers.length === 0) return;
     const cw = (canvas as any).width || 1, ch = (canvas as any).height || 1;
     const aspect = cw / Math.max(1, ch);
     const view = ctx.getCurrentTexture().createView();
     const enc = device.createCommandEncoder();
     const pass = enc.beginRenderPass({
-      colorAttachments: [{ view, clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
+      colorAttachments: [{ view, clearValue: { r: 0, g: 0, b: 0, a: 0 }, loadOp: 'clear', storeOp: 'store' }],
     });
     pass.setPipeline(pipeline);
 
@@ -186,8 +188,14 @@ export async function createCompositor(canvas: HTMLCanvasElement | OffscreenCanv
       if (w > 4096) { h = Math.round(h * 4096 / w); w = 4096; }
       if (h > 4096) { w = Math.round(w * 4096 / h); h = 4096; }
       const tex = ensureTexture(i, w, h);
-      try { device.queue.copyExternalImageToTexture({ source: L.source as any }, { texture: tex }, [w, h]); }
-      catch { return; } // source not yet decodable this frame — skip the layer
+      const slot = texCache[i] as any;
+      try {
+        device.queue.copyExternalImageToTexture({ source: L.source as any }, { texture: tex }, [w, h]);
+        if (slot) slot.hasContent = true;
+      } catch {
+        // If source is seeking or momentarily unavailable, retain the previous frame texture!
+      }
+      if (!slot?.hasContent) return; // Only skip if this slot has never produced a frame yet
 
       const g = { ...NEUTRAL_GRADE, ...(L.grade || {}) };
       const rot = L.rot || 0;

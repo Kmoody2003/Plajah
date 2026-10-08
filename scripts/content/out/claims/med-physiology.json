@@ -1,0 +1,1731 @@
+{
+ "courseId": "med-physiology",
+ "label": "Human Physiology",
+ "lessons": [
+  {
+   "id": "med-physiology.l01",
+   "title": "Body Fluid Compartments and Membrane Transport",
+   "body": [
+    "Total body water makes up roughly 60 percent of body weight in a young adult man, somewhat less in women because of a higher fat fraction, and it declines with age and obesity. About two thirds of it is intracellular fluid (ICF) and one third is extracellular fluid (ECF). The ECF divides into plasma, roughly a quarter of the ECF, and interstitial fluid, roughly three quarters. These are the classic \"60-40-20\" and \"one-third, two-thirds\" rules of thumb: 60 percent of weight is water, 40 percent is ICF, 20 percent is ECF.",
+    "Compartment volumes are measured by indicator dilution. A known amount of a substance that distributes only in the compartment of interest is injected, and the volume equals amount given divided by the equilibrated concentration, corrected for any amount excreted. Deuterium oxide or tritiated water measures total body water. Inulin, mannitol or sulfate measures ECF, since they cross capillary walls but not cell membranes. Albumin labelled with a dye or radioiodine measures plasma volume. Interstitial volume and ICF cannot be measured directly: interstitial = ECF minus plasma, and ICF = total body water minus ECF.",
+    "Worked example. A 70 kg man has total body water of about 42 L. ICF is about 28 L, ECF about 14 L, plasma about 3.5 L and interstitial fluid about 10.5 L. If he loses 2 L of isotonic saline in the gut, the fluid comes from the ECF and the ICF is unchanged because osmolarity is unchanged.",
+    "Water moves by osmosis toward the compartment with the higher effective solute concentration. Normal plasma osmolarity is about 285 to 295 mOsm/L. Tonicity describes the effect of a solution on cell volume and counts only solutes that cannot freely cross the membrane (effective osmoles). Urea is an osmole but is ineffective in most tissues because it permeates, so urea does not drive lasting water shifts. Gaining pure water or losing sodium lowers ECF osmolarity and moves water into cells; adding sodium or losing pure water raises it and draws water out of cells. The reflection coefficient expresses how well a membrane excludes a solute, from 0 (freely permeable) to 1 (impermeant).",
+    "Solutes cross membranes in four main ways. Simple diffusion follows Fick's law: flux is proportional to the concentration gradient, area and permeability, which scales with lipid solubility. Facilitated diffusion uses a carrier or channel down a gradient, saturates and shows specificity, as with GLUT4 in muscle. Primary active transport spends ATP directly; the Na+/K+-ATPase moves 3 Na+ out and 2 K+ in per ATP, maintaining the low intracellular sodium that drives other processes. Secondary active transport couples uphill movement of one solute to downhill movement of another, usually sodium. Cotransporters such as SGLT1 (sodium with glucose) move both in the same direction; exchangers such as the Na+/Ca2+ exchanger move them in opposite directions.",
+    "Digoxin inhibits the Na+/K+-ATPase, raising intracellular sodium, which reduces Na+/Ca2+ exchange and increases cardiac calcium, a link between transport physiology and pharmacology."
+   ]
+  },
+  {
+   "id": "med-physiology.l02",
+   "title": "Equilibrium and Resting Membrane Potentials",
+   "body": [
+    "Every living cell keeps a voltage across its plasma membrane, with the inside negative. The voltage arises from two ingredients: concentration gradients established by pumps, and selective permeability of the membrane to particular ions.",
+    "The equilibrium (Nernst) potential for an ion is the voltage at which the electrical force on the ion exactly balances the chemical force from its concentration gradient, so that net flux is zero. At body temperature, for a monovalent cation, E = 61.5 mV times log10 of outside concentration over inside concentration. For potassium with 4 mM outside and 140 mM inside, E is 61.5 times log(0.0286), or about -95 mV. Sodium, with about 145 mM outside and 12 mM inside, has an equilibrium potential of about +65 mV. Calcium, at around 2 mM outside and about 100 nM free inside, is strongly positive, over +100 mV (the valence of 2 halves the factor). Chloride is typically near -70 to -90 mV in neurons. Exact values vary by cell type and textbook.",
+    "The actual resting potential is a permeability-weighted average of the equilibrium potentials, described by the Goldman-Hodgkin-Katz equation. At rest, the membrane is far more permeable to K+ than Na+ because of open leak potassium channels, so the resting potential sits near the potassium equilibrium potential, about -70 to -90 mV depending on the tissue. It stays a little less negative than E(K) because of a small sodium leak. The Na+/K+ pump is electrogenic (3 positive charges out, 2 in), contributing a few millivolts directly, but its main job is to maintain the gradients over the long term. Blocking the pump does not abolish the potential immediately; the gradients run down over minutes to hours.",
+    "Worked example. Raise extracellular K+ from 4 to 8 mM. E(K) becomes 61.5 times log(8/140) or about -76 mV, so resting potential moves in the same direction and the cell depolarizes. This is why hyperkalemia affects excitable tissue. Initially, depolarization brings the membrane closer to threshold and increases excitability. If it persists, voltage-gated sodium channels remain in the inactivated state, so excitability falls and conduction slows; in the heart that produces peaked T waves, wide QRS and eventually arrhythmia. Hypokalemia hyperpolarizes cells and, in the heart, increases susceptibility to certain arrhythmias.",
+    "Two practical ideas follow. First, change in membrane potential depends on the ratio of concentrations, not the absolute amounts, so a small movement of ions causes a large voltage change but negligible change in bulk concentration. Second, a channel opening moves the membrane potential toward that ion's equilibrium potential. Opening Na+ channels depolarizes toward +65 mV; opening K+ channels hyperpolarizes toward -95 mV; opening Cl- channels clamps the voltage near the chloride equilibrium potential, which is why GABA-A receptors inhibit."
+   ]
+  },
+  {
+   "id": "med-physiology.l03",
+   "title": "Action Potentials, Conduction and the Neuromuscular Junction",
+   "body": [
+    "A neuron or muscle fibre fires an action potential when depolarization reaches threshold, typically 10 to 20 mV above rest. Voltage-gated sodium channels have two gates: a fast activation gate that opens with depolarization and a slower inactivation gate that closes shortly afterward. Rising depolarization opens more sodium channels, which depolarizes further, a positive feedback loop that produces the upstroke toward the sodium equilibrium potential. Within a millisecond or so the inactivation gates close, and delayed-rectifier voltage-gated potassium channels open, repolarizing the cell, often with a brief afterhyperpolarization as potassium conductance outlasts the need.",
+    "Refractoriness follows from channel states. During the absolute refractory period, sodium channels are inactivated and no stimulus can trigger a second spike. During the relative refractory period, some channels have recovered and potassium conductance is still high, so a stronger-than-normal stimulus is needed. Refractory periods set the maximum firing rate and make impulses travel one way, away from the site just fired. Action potentials are all-or-none: stimulus strength is encoded by frequency, not amplitude.",
+    "Local anesthetics such as lidocaine block voltage-gated sodium channels from inside, preferentially in channels that are open or inactivated, so rapidly firing pain fibres are blocked first (use dependence). Tetrodotoxin blocks the channel pore from outside.",
+    "Conduction velocity rises with axon diameter, which lowers internal resistance and increases the length constant, and with myelination, which raises membrane resistance and lowers capacitance. In myelinated axons the impulse jumps between nodes of Ranvier (saltatory conduction), where sodium channels cluster. Demyelinating disease such as multiple sclerosis slows or blocks conduction.",
+    "At the neuromuscular junction, an action potential in the motor neuron opens presynaptic voltage-gated calcium channels. Calcium triggers SNARE-mediated fusion of vesicles containing acetylcholine (ACh), and botulinum toxin cleaves SNARE proteins to prevent this release. ACh crosses the cleft and binds nicotinic receptors, ligand-gated cation channels, producing an end-plate potential that is normally far above threshold, giving a safety margin. Acetylcholinesterase breaks ACh down within milliseconds. Curare-like drugs block nicotinic receptors competitively; succinylcholine acts as a persistent agonist and causes depolarizing block; cholinesterase inhibitors raise ACh levels.",
+    "Two autoimmune diseases illustrate the pathway. In myasthenia gravis, antibodies attack postsynaptic nicotinic receptors, so muscle weakness worsens with repeated use and improves with cholinesterase inhibitors. In Lambert-Eaton myasthenic syndrome, antibodies attack presynaptic calcium channels, often in association with small-cell lung cancer; weakness may transiently improve with repeated effort as calcium accumulates.",
+    "Worked example. A toxin that blocks only voltage-gated K+ channels in an axon would prolong the action potential by delaying repolarization. A toxin that blocks only inactivation of Na+ channels would do the same by keeping sodium current flowing."
+   ]
+  },
+  {
+   "id": "med-physiology.l04",
+   "title": "Skeletal, Cardiac and Smooth Muscle Contraction",
+   "body": [
+    "Skeletal muscle contracts by sliding actin thin filaments past myosin thick filaments inside sarcomeres, the repeating units between Z lines. In excitation-contraction coupling, the action potential spreads along the sarcolemma into T tubules, where voltage-sensing dihydropyridine receptors (L-type calcium channels) change shape. In skeletal muscle this is mechanically coupled to the ryanodine receptor (RyR1) on the sarcoplasmic reticulum, releasing stored calcium; calcium entry from outside is not required. Calcium binds troponin C, shifting tropomyosin off the myosin binding sites on actin.",
+    "The cross-bridge cycle then runs: the myosin head, with ADP and phosphate bound, attaches to actin; the power stroke releases phosphate and ADP and slides the filament; a fresh ATP binds myosin and detaches it; ATP hydrolysis re-cocks the head. Rigor mortis occurs because ATP is lacking, so heads cannot detach. Relaxation occurs when SERCA pumps calcium back into the sarcoplasmic reticulum. Malignant hyperthermia is a pharmacogenetic condition, usually from RyR1 mutations, in which volatile anesthetics or succinylcholine cause uncontrolled calcium release, sustained contraction, hypermetabolism, hyperthermia and rhabdomyolysis; dantrolene blocks RyR1 and is the specific treatment.",
+    "Force depends on sarcomere length (length-tension relationship): maximum near optimal overlap of thick and thin filaments, falling when stretched so overlap is poor or when shortened. Force falls with increasing shortening velocity (force-velocity). Whole muscles grade force by recruiting motor units in order of size, small first (the size principle) and by raising stimulation frequency, producing summation and tetanus.",
+    "Cardiac muscle differs. Its T-tubule L-type calcium channels let in a small calcium current that triggers a larger release through RyR2, calcium-induced calcium release, so cardiac contraction depends on extracellular calcium. Cardiac action potentials have a long plateau, giving a refractory period nearly as long as the contraction, which prevents tetany. Cardiac cells are coupled by gap junctions, so the heart works as a functional syncytium.",
+    "Smooth muscle lacks troponin and sarcomeres. Calcium binds calmodulin, activating myosin light-chain kinase (MLCK), which phosphorylates myosin so that it can cycle. Relaxation requires myosin light-chain phosphatase. Contraction can be triggered by hormones, stretch or neurotransmitters without an action potential (pharmacomechanical coupling). The latch state lets smooth muscle hold tone with low ATP use. Beta-2 agonists relax airway smooth muscle by raising cAMP, which inhibits MLCK.",
+    "Worked example. Removing extracellular calcium would abolish cardiac contraction within a few beats but skeletal contraction would persist briefly, because skeletal RyR1 is coupled mechanically to the T tubule voltage sensor and uses stored calcium."
+   ]
+  },
+  {
+   "id": "med-physiology.l05",
+   "title": "Cardiac Electrophysiology and the ECG",
+   "body": [
+    "The ventricular myocyte action potential has five phases. Phase 0 is the rapid upstroke from sodium channels. Phase 1 is brief early repolarization from a transient outward potassium current. Phase 2 is the plateau, in which inward calcium current through L-type channels balances outward potassium current. Phase 3 is repolarization as calcium channels close and delayed rectifier potassium channels dominate. Phase 4 is the resting potential near -90 mV, held by inward-rectifier potassium channels. The plateau makes the refractory period long and links electrical activity to calcium-triggered contraction.",
+    "Pacemaker cells differ. The sinoatrial (SA) node has no stable resting potential. In phase 4 a slow spontaneous depolarization occurs, driven by the funny current (If, carried through HCN channels) and later by calcium entry. Phase 0 is slow and depends on L-type calcium channels, not sodium channels; phase 3 is potassium repolarization. The fastest intrinsic rate wins, so the SA node (about 60 to 100 beats per minute intrinsically) overdrives the AV node (about 40 to 60) and Purkinje fibres (about 20 to 40), which serve as backups.",
+    "Autonomic input changes the slope of phase 4. Sympathetic stimulation through beta-1 receptors raises cAMP, increases If and calcium current, steepens the slope and raises heart rate. Vagal stimulation through M2 receptors opens an acetylcholine-activated potassium current and lowers cAMP, hyperpolarizing the cell and slowing the slope. At rest the vagal tone dominates, which is why denervated transplanted hearts beat faster, near 100.",
+    "The impulse spreads through atria, then to the AV node, where conduction is slow because cells are small and depend on calcium channels. This delay, about 0.1 second, lets the ventricles fill before they contract. The signal then travels through the bundle of His and the left and right bundle branches to Purkinje fibres, which conduct fastest and make the ventricles contract nearly together.",
+    "On the surface ECG, the P wave is atrial depolarization. The PR interval, normally about 120 to 200 ms, reflects AV conduction. The QRS complex, normally under about 120 ms, is ventricular depolarization; atrial repolarization is hidden within it. The ST segment corresponds to the plateau, and the T wave to ventricular repolarization. The QT interval spans ventricular depolarization to repolarization. Heart rate can be estimated by dividing 300 by the number of large boxes between R waves.",
+    "AV blocks follow from conduction delay. First-degree block prolongs the PR interval beyond 200 ms but every P conducts. In Mobitz type I (Wenckebach) block, the PR lengthens progressively until a beat is dropped, usually at the AV node. In Mobitz type II, PR is constant and beats drop unpredictably, often from disease below the node, and is more dangerous. In third-degree block, atria and ventricles beat independently. Adenosine, acting on A1 receptors, opens potassium channels and transiently blocks AV node conduction, used to terminate re-entrant supraventricular tachycardia.",
+    "Worked example. If 4 large boxes separate successive R waves, heart rate is about 300 divided by 4, or 75 beats per minute."
+   ]
+  },
+  {
+   "id": "med-physiology.l06",
+   "title": "The Cardiac Cycle and Pressure-Volume Loops",
+   "body": [
+    "The cardiac cycle is a repeating sequence of pressure and volume changes governed by valves. Valves open and close passively with pressure gradients. In atrial systole (just after the P wave), the atria contract and add the last 10 to 20 percent of ventricular filling in a healthy resting heart (more with age or tachycardia). In isovolumetric contraction, after the QRS, ventricular pressure rises above atrial pressure, closing the AV valve (producing the first heart sound, S1), but is still below aortic pressure, so volume stays constant. In rapid ejection, ventricular pressure exceeds aortic pressure, the aortic valve opens, and most of the stroke volume leaves. In reduced ejection, flow continues more slowly as pressures equalize. In isovolumetric relaxation, the ventricle relaxes and pressure falls with all valves closed; the aortic valve closes (the second heart sound, S2), producing the dicrotic notch on the aortic pressure tracing. In rapid filling, ventricular pressure falls below atrial pressure, the mitral valve opens and blood flows in passively; diastasis follows.",
+    "Heart sounds relate to these events. S1 marks AV valve closure and S2 semilunar valve closure. A third heart sound (S3), early in diastole, reflects rapid filling of a volume-overloaded ventricle and can be normal in children and young adults. A fourth heart sound (S4), just before S1, reflects atrial contraction into a stiff, hypertrophied ventricle. Splitting of S2 widens with inspiration because increased venous return delays pulmonic closure.",
+    "Representative left ventricular values are an end-diastolic volume (EDV) near 120 to 130 mL, an end-systolic volume (ESV) near 50 mL, and stroke volume (SV = EDV minus ESV) near 70 mL. Ejection fraction (EF) is SV divided by EDV, normally above about 55 percent. Peak left ventricular pressure is about 120 mmHg, aortic pressure ranges from about 80 to 120 mmHg, and left atrial mean pressure is a few mmHg.",
+    "On a pressure-volume loop, volume is on the x axis and pressure on the y axis. The loop runs counterclockwise: the bottom right corner is the end of filling (mitral valve closes, EDV), the vertical rise is isovolumetric contraction, the top is ejection, and the left lower corner is ESV, where the aortic valve closes. The vertical fall is isovolumetric relaxation, and the bottom is filling. The width of the loop is the stroke volume; its area is stroke work.",
+    "Valve lesions distort the loop. In aortic stenosis, systolic left ventricular pressure rises well above aortic pressure and the loop is taller, with a pressure gradient across the valve and concentric hypertrophy. In mitral regurgitation, blood flows backward into the low-pressure left atrium even during contraction, so there is no true isovolumetric phase, and the ventricle ejects with a lower afterload but forward output falls.",
+    "Worked example. A patient has EDV 140 mL and ESV 70 mL at 80 beats per minute. SV is 70 mL, EF is 50 percent, and cardiac output is 70 mL times 80, or 5.6 L per minute."
+   ]
+  },
+  {
+   "id": "med-physiology.l07",
+   "title": "Cardiac Output, Preload, Afterload and Contractility",
+   "body": [
+    "Cardiac output (CO) equals stroke volume times heart rate. Stroke volume depends on preload, afterload and contractility. The Fick principle gives a measurement: oxygen consumption equals cardiac output times the arteriovenous oxygen content difference, so CO = VO2 divided by (arterial minus mixed venous O2 content). Worked example: with oxygen consumption of 250 mL/min, arterial oxygen content of 200 mL per litre and mixed venous content of 150 mL per litre, CO is 250 divided by 50, or 5 L/min. Mixed venous blood must come from the pulmonary artery to include all venous return.",
+    "Preload is the stretch on ventricular fibres at the end of diastole, represented clinically by end-diastolic volume or pressure. The Frank-Starling mechanism states that, within limits, greater filling gives stronger contraction, because stretch increases myofilament calcium sensitivity and optimizes overlap. It matches output of the two ventricles and lets the heart accept increased venous return. Afterload is the load the ventricle must overcome during ejection and is approximated by arterial pressure or, more accurately, by wall stress, which by the Law of Laplace rises with pressure and radius and falls with wall thickness. Hypertension and aortic stenosis raise afterload, and a dilated ventricle has higher wall stress at the same pressure. Contractility, or inotropy, is the force generated at a given preload and afterload, shown by the slope of the end-systolic pressure-volume relationship (ESPVR). Sympathetic stimulation, calcium and digoxin raise contractility; acidosis, hypoxia and most negative inotropes lower it.",
+    "On the pressure-volume loop, increased preload moves the end-diastolic point to the right and widens the loop with the same ESPVR; stroke volume rises. Increased afterload shifts the ejection to a higher pressure, raises ESV and lowers stroke volume. Increased contractility steepens the ESPVR and lowers ESV, raising stroke volume and EF.",
+    "Heart failure is separated by ejection fraction. In systolic failure (reduced EF), contractility falls, ESV rises and the EF drops; the loop shifts rightward with a flatter ESPVR. In diastolic failure (preserved EF), a stiff ventricle fills poorly, so EDV is low for a given pressure, and pressures back up into the lungs.",
+    "Guyton's analysis combines the cardiac function curve (output as a function of right atrial pressure) with the venous return curve (venous return as a function of right atrial pressure). The curves intersect at the operating point, where cardiac output equals venous return. Mean systemic filling pressure, the pressure with no flow, is the x intercept of the venous return curve and is raised by increased blood volume and venoconstriction, which shift the curve to the right and raise equilibrium output. Greater contractility shifts the cardiac curve upward. Increased total peripheral resistance rotates the venous return curve downward and lowers output at a given pressure.",
+    "Worked example. Hemorrhage reduces blood volume, lowers mean systemic filling pressure and shifts the venous return curve left, so cardiac output falls until compensation by venoconstriction and tachycardia."
+   ]
+  },
+  {
+   "id": "med-physiology.l08",
+   "title": "Hemodynamics, Compliance and the Microcirculation",
+   "body": [
+    "Blood flow follows an Ohm-type law: flow (Q) equals the pressure difference divided by resistance. For the whole circulation, cardiac output equals mean arterial pressure minus right atrial pressure, divided by total peripheral resistance, so MAP is approximately CO times TPR (with CVP small). Mean arterial pressure is estimated as diastolic pressure plus one third of pulse pressure, since the heart spends more time in diastole. Pulse pressure rises with stroke volume and falls with arterial compliance, so it is wide in a stiff aorta (aging, atherosclerosis) and in aortic regurgitation, and narrow in a low stroke volume state.",
+    "Resistance is described by Poiseuille's equation: R = 8 times viscosity times length, divided by pi times radius to the fourth power. Radius dominates. Halving the radius of a vessel increases its resistance sixteen-fold, which is why small arterioles, the main resistance vessels, regulate flow so effectively. Viscosity rises with hematocrit, as in polycythemia, and falls in anemia. Resistances in series add; in parallel their reciprocals add, so adding parallel pathways lowers total resistance. Organs are in parallel, so the loss of one capillary bed raises TPR little.",
+    "Flow is laminar when smooth and turbulent when disrupted. Turbulence occurs when the Reynolds number, proportional to density times velocity times diameter divided by viscosity, exceeds roughly 2000. It explains murmurs and bruits from high velocity through narrowed vessels or low viscosity in anemia.",
+    "Wall tension follows the Law of Laplace: for a thin-walled vessel, tension equals pressure times radius, and wall stress equals pressure times radius divided by twice the wall thickness. This explains why capillaries with tiny radii survive low tension, why aortic aneurysms grow ever more vulnerable as they enlarge, and why ventricular hypertrophy reduces wall stress.",
+    "Compliance is the change in volume per change in pressure. Veins are about 20 times more compliant than arteries and hold about 60 to 70 percent of blood volume. Venoconstriction moves blood centrally and raises preload.",
+    "Fluid movement across capillaries follows Starling forces. Net filtration is proportional to the filtration coefficient times [(capillary hydrostatic pressure minus interstitial hydrostatic pressure) minus the reflection coefficient times (capillary oncotic pressure minus interstitial oncotic pressure)]. Worked example: with capillary pressure of 35 mmHg at the arteriolar end, interstitial pressure of 0, capillary oncotic pressure of 25 and interstitial oncotic pressure of 0, net outward pressure is 35 minus 25, or +10 mmHg, favouring filtration. At the venular end, with pressure falling to about 15 mmHg, the net force is about -10 mmHg, favouring reabsorption. Lymphatics return the net remaining filtrate.",
+    "Edema results when filtration exceeds lymphatic return. The causes follow the terms: raised capillary hydrostatic pressure (heart failure, venous obstruction, volume overload), lowered capillary oncotic pressure (nephrotic syndrome, liver failure, malnutrition), increased permeability (inflammation, burns, sepsis) and impaired lymphatic drainage (filariasis, surgical node removal). Arteriolar dilation also raises capillary pressure by transmitting more of the arterial pressure downstream."
+   ]
+  },
+  {
+   "id": "med-physiology.l09",
+   "title": "Regulation of Blood Pressure and Regional Blood Flow",
+   "body": [
+    "Blood pressure is regulated on several time scales. The fastest is the baroreceptor reflex. Stretch receptors in the carotid sinus (afferent via the glossopharyngeal nerve) and aortic arch (via the vagus) increase firing when pressure rises. The nucleus tractus solitarius in the medulla then increases parasympathetic outflow and decreases sympathetic outflow, which lowers heart rate, contractility and vascular tone. A fall in pressure reverses the response. The reflex acts within seconds and buffers acute changes, but resets to a higher set point in chronic hypertension, so it does not explain long-term control. Carotid sinus massage raises receptor firing and can slow the heart. Peripheral chemoreceptors in the carotid and aortic bodies respond to low arterial oxygen, high carbon dioxide and low pH, increasing ventilation and sympathetic outflow. The Cushing reflex, hypertension with bradycardia and irregular breathing, follows raised intracranial pressure that compromises brainstem perfusion.",
+    "Standing up illustrates the reflex. Gravity pools blood in the veins, central venous return falls, stroke volume and arterial pressure drop, baroreceptor firing falls, and sympathetic outflow rises, raising heart rate and vascular resistance and constricting veins. In autonomic failure or volume depletion the compensation is inadequate, producing orthostatic hypotension.",
+    "Hormonal control operates over minutes to days. The renin-angiotensin-aldosterone system is triggered when the juxtaglomerular cells sense low renal perfusion pressure, when the macula densa senses low sodium chloride delivery, or when sympathetic beta-1 stimulation occurs. Renin converts angiotensinogen (from the liver) to angiotensin I, and angiotensin-converting enzyme (ACE), mainly in the pulmonary endothelium, converts it to angiotensin II. Angiotensin II acts on AT1 receptors to constrict arterioles, constrict the efferent arteriole, stimulate aldosterone release, promote antidiuretic hormone release and thirst, and enhance sodium reabsorption in the proximal tubule. ACE inhibitors such as lisinopril lower angiotensin II and also reduce bradykinin breakdown, which explains the characteristic dry cough; angiotensin receptor blockers avoid that effect. Atrial natriuretic peptide, released by atrial stretch, opposes these actions by promoting sodium and water excretion.",
+    "Local control matches flow to need. Autoregulation keeps flow constant over a range of perfusion pressure in the brain, kidney and heart through myogenic response (stretch causes vasoconstriction) and metabolic factors. Cerebral vessels respond most strongly to carbon dioxide, with hypercapnia causing vasodilation and hyperventilation causing vasoconstriction. Coronary flow is closely coupled to myocardial oxygen demand, since the heart already extracts most of the oxygen delivered, and metabolites such as adenosine dilate vessels. Skeletal muscle flow rises with exercise metabolites, whereas skin flow is controlled mainly by sympathetic tone for temperature regulation. The pulmonary circulation uniquely vasoconstricts in response to alveolar hypoxia, which diverts blood from poorly ventilated areas.",
+    "Worked example. A patient has a stenosis of one renal artery. The kidney senses low perfusion, releases renin and raises angiotensin II and aldosterone, which raises systemic pressure (renovascular hypertension)."
+   ]
+  },
+  {
+   "id": "med-physiology.l10",
+   "title": "Lung Volumes and Respiratory Mechanics",
+   "body": [
+    "Spirometry measures lung volumes. In an adult, tidal volume (VT) is about 500 mL. Inspiratory reserve volume (IRV) and expiratory reserve volume (ERV) are what can be further inhaled or exhaled; residual volume (RV) is what remains after maximal exhalation and cannot be measured by spirometry alone. Capacities combine volumes: vital capacity (VC) equals IRV plus VT plus ERV, functional residual capacity (FRC) equals ERV plus RV, and total lung capacity (TLC) equals VC plus RV, around 6 L in a healthy adult man. FRC, roughly 2.4 L, is the lung volume at the end of a quiet exhalation, where the inward elastic recoil of the lung exactly balances the outward recoil of the chest wall. Measuring RV, FRC and TLC requires helium dilution, nitrogen washout or body plethysmography.",
+    "Compliance is the change in lung volume per unit change in transpulmonary pressure. It falls in pulmonary fibrosis, where the lung is stiff, and rises in emphysema, where elastic tissue is destroyed. A compliance-dependent shift changes FRC: emphysema raises FRC and RV because the lung recoils less and the chest wall expands the lung, whereas fibrosis lowers FRC.",
+    "Surfactant is a phospholipid mixture (mainly dipalmitoylphosphatidylcholine) secreted by type II pneumocytes. By the Law of Laplace for a bubble, collapsing pressure equals twice the surface tension divided by radius, so small alveoli would empty into large ones unless surface tension is lowered. Surfactant reduces surface tension more in smaller alveoli, stabilizing them and increasing compliance. Surfactant production matures late in gestation, and a premature infant may develop neonatal respiratory distress syndrome, with atelectasis, hypoxemia and ground-glass lung fields. Antenatal corticosteroids accelerate maturation, and the lecithin-to-sphingomyelin ratio in amniotic fluid, with a value above about 2 suggesting maturity, was a classic test.",
+    "Airway resistance depends on radius to the fourth power. Contrary to intuition, most resistance lies in medium-sized bronchi and not in the tiniest airways, since the huge combined cross-sectional area of small airways keeps their parallel resistance low. Resistance falls with lung volume because the airways are tethered open by parenchyma. Sympathetic beta-2 stimulation dilates and parasympathetic muscarinic stimulation constricts airways.",
+    "Pattern recognition separates two groups. In obstructive disease (asthma, COPD), airflow is limited so FEV1 (the volume exhaled in the first second) falls more than FVC, and the FEV1/FVC ratio is reduced, typically below about 0.7; air trapping raises RV and TLC. In restrictive disease (fibrosis, chest wall disease, obesity), lung expansion is limited, so FEV1 and FVC fall proportionally, the ratio is normal or high, and TLC is reduced.",
+    "Ventilation per minute is tidal volume times respiratory rate. Not all air reaches gas exchange; the anatomic dead space, roughly 150 mL, is filled by conducting airways. Alveolar ventilation equals (VT minus dead space) times rate. Worked example: with VT 500 mL, dead space 150 mL and rate 12 per minute, minute ventilation is 6 L/min but alveolar ventilation is 350 times 12, or 4.2 L/min. Rapid shallow breathing therefore ventilates the alveoli poorly even at the same minute ventilation."
+   ]
+  },
+  {
+   "id": "med-physiology.l11",
+   "title": "Gas Exchange and Oxygen and Carbon Dioxide Transport",
+   "body": [
+    "Gas partial pressure equals fractional concentration times total pressure (Dalton's law), and water vapour at body temperature takes up 47 mmHg. The alveolar gas equation estimates alveolar oxygen: PAO2 = FiO2 times (barometric pressure minus 47) minus PaCO2 divided by the respiratory quotient (about 0.8). At sea level on room air, 0.21 times 713 is about 150, minus 40 divided by 0.8 (50), gives a PAO2 of about 100 mmHg. The alveolar-arterial (A-a) gradient, normally about 5 to 15 mmHg in a young adult and widening with age, indicates whether the lung itself is the cause of hypoxemia.",
+    "Hypoxemia has five textbook causes. Low inspired oxygen (altitude) and hypoventilation lower alveolar oxygen and, in hypoventilation, produce a normal A-a gradient with elevated PaCO2. Diffusion limitation (fibrosis, edema), ventilation-perfusion mismatch and shunt widen the gradient. Mismatch and diffusion limitation improve with supplemental oxygen; true shunt, where blood bypasses ventilated alveoli, responds poorly because the shunted blood never meets the added oxygen.",
+    "Diffusion follows Fick's law, proportional to area and the partial pressure difference, and inversely proportional to thickness. Gases are classified by whether uptake is limited by perfusion or diffusion. Oxygen is perfusion-limited under normal conditions, because it equilibrates in about a third of the capillary transit time, but may become diffusion-limited in disease or exercise at altitude. Carbon monoxide is diffusion-limited, which is why carbon monoxide diffusing capacity (DLCO) is used clinically and falls with loss of surface area (emphysema) or thickened membranes.",
+    "Oxygen is carried mostly bound to hemoglobin. Oxygen content (mL per dL) equals 1.34 times hemoglobin (g/dL) times saturation plus 0.003 times PaO2. Worked example: with hemoglobin 15 g/dL and saturation 98 percent, bound oxygen is 1.34 times 15 times 0.98, about 19.7 mL/dL, plus about 0.3 mL/dL dissolved, near 20 mL/dL. Anemia reduces content without lowering PaO2 or saturation, so a normal pulse oximeter reading does not exclude low oxygen delivery.",
+    "The oxyhemoglobin dissociation curve is sigmoidal because of cooperative binding, with a P50 of about 26 mmHg. A rightward shift, which lowers affinity and favours unloading, occurs with raised carbon dioxide, acidosis (the Bohr effect), temperature and 2,3-bisphosphoglycerate. A leftward shift raises affinity and occurs with fetal hemoglobin, alkalosis, hypothermia and carbon monoxide. Carbon monoxide binds hemoglobin with an affinity over 200 times that of oxygen, lowers oxygen content and shifts the curve left, yet PaO2 is normal and standard pulse oximetry misreads carboxyhemoglobin as oxyhemoglobin. Methemoglobin has oxidized iron, cannot carry oxygen and gives pulse oximetry near 85 percent.",
+    "Carbon dioxide travels about 70 percent as bicarbonate, formed in red cells by carbonic anhydrase and exchanged for chloride (the chloride shift), about 20 percent as carbamino compounds on hemoglobin, and about 10 percent dissolved. Deoxygenated hemoglobin binds more carbon dioxide and hydrogen ion, the Haldane effect, which promotes carbon dioxide loading in tissues and unloading in the lungs."
+   ]
+  },
+  {
+   "id": "med-physiology.l12",
+   "title": "Ventilation-Perfusion Matching and the Pulmonary Circulation",
+   "body": [
+    "Efficient gas exchange requires ventilation (V) and perfusion (Q) to be matched in each lung unit. The overall ratio for the lung is about 0.8, since alveolar ventilation is about 4 L/min and cardiac output about 5 L/min. Regional ratios differ. In an upright lung, both ventilation and perfusion increase from apex to base, but perfusion increases more steeply, so V/Q is high at the apex (about 3) and low at the base (about 0.6). Apical alveoli therefore have high PO2 and low PCO2, and basal alveoli have lower PO2 and higher PCO2. This helps explain why the apex is a favoured site for some infections that thrive in high oxygen, such as tuberculosis reactivation.",
+    "The extremes define two disease models. When ventilation is zero and perfusion continues (V/Q = 0, a shunt), blood leaves with the composition of mixed venous blood. Examples include alveoli filled with fluid or pus, or collapsed lung. A right-to-left cardiac shunt behaves similarly. When perfusion is zero and ventilation continues (V/Q = infinity, dead space), the alveolar gas matches inspired air. Pulmonary embolism is the classic cause, creating alveolar dead space with raised ventilation of an unperfused region. Between those extremes, any mismatch lowers arterial oxygen and, to a lesser degree, raises carbon dioxide, because the high-V/Q regions cannot make up for low-V/Q regions given the shape of the hemoglobin curve.",
+    "Pulmonary pressures are low: about 25/8 mmHg, with a mean near 15. The circuit has low resistance because the vessels are thin and compliant and recruitable. Pulmonary vascular resistance equals (mean pulmonary artery pressure minus left atrial or wedge pressure) divided by cardiac output. Worked example: mean pulmonary artery pressure of 20 mmHg, wedge pressure of 8 mmHg and output of 5 L/min give a resistance of 12 divided by 5, or 2.4 Wood units. During exercise, recruitment and distension of capillaries lower resistance so pressure rises little.",
+    "The lung has a distinct response to low oxygen: alveolar hypoxia constricts local arterioles, diverting blood away from poorly ventilated units to well-ventilated ones, an adaptive mechanism for matching. Global hypoxia, as at altitude or in chronic lung disease, constricts the whole bed, raising pulmonary artery pressure and risking right heart strain (cor pulmonale). In the fetus the same mechanism keeps pulmonary resistance high until birth.",
+    "West zones describe the effect of gravity on perfusion. In zone 1 (apex, normally absent), alveolar pressure exceeds arterial pressure and no flow occurs; it can arise in hemorrhage or positive-pressure ventilation. In zone 2, arterial pressure exceeds alveolar pressure which exceeds venous pressure, so flow depends on arterial minus alveolar pressure. In zone 3 (the base), both arterial and venous pressures exceed alveolar pressure, so flow depends on arterial minus venous pressure.",
+    "Pulmonary edema forms when Starling forces change: left heart failure raises capillary pressure and causes cardiogenic edema, while injury to the endothelium and epithelium causes edema with normal wedge pressure (ARDS)."
+   ]
+  },
+  {
+   "id": "med-physiology.l13",
+   "title": "Control of Breathing and Acid-Base Disorders",
+   "body": [
+    "Breathing is driven by neural rhythm generators in the medulla and pons: the pre-Botzinger complex generates the basic rhythm, dorsal respiratory group neurons control inspiration, and the ventral group is recruited for forced breathing. The pons modulates the transition between inspiration and expiration. Higher centres can override for speech and breath-holding, but the automatic drive returns.",
+    "Chemoreceptors adjust ventilation to maintain gas tensions. The central chemoreceptors, on the ventral surface of the medulla, respond to hydrogen ion in cerebrospinal fluid. Carbon dioxide crosses the blood-brain barrier and is hydrated to produce hydrogen ions, whereas bicarbonate and hydrogen ions cross poorly, which makes the central chemoreceptors a sensitive detector of PaCO2. They account for the majority of the ventilatory response to carbon dioxide. Peripheral chemoreceptors in the carotid and aortic bodies respond to low PaO2 (usually when it falls below about 60 mmHg), rising PaCO2 and low arterial pH, and are the only route for the response to hypoxia. In chronic CO2 retention the central drive blunts, so peripheral hypoxic drive becomes important, one reason why high-flow oxygen may worsen hypercapnia in some patients with COPD (through several mechanisms, including worsened V/Q matching and the Haldane effect).",
+    "Acid-base balance is described by the Henderson-Hasselbalch equation: pH = 6.1 plus log of bicarbonate divided by 0.03 times PCO2. With bicarbonate 24 mmol/L and PCO2 40 mmHg, the ratio is 24 divided by 1.2, or 20, and pH is 6.1 plus 1.3, or 7.40. Four primary disorders exist. Respiratory acidosis (high PCO2) arises from hypoventilation; respiratory alkalosis from hyperventilation. Metabolic acidosis (low bicarbonate) arises from acid gain or bicarbonate loss; metabolic alkalosis from acid loss (vomiting) or bicarbonate gain.",
+    "Compensation is the opposing change in the other component. The lungs respond to metabolic disorders within minutes to hours, and the kidneys respond to respiratory disorders over days. In metabolic acidosis the expected PCO2 is estimated by Winter's formula: 1.5 times bicarbonate plus 8, plus or minus 2. Worked example: bicarbonate 13 mmol/L predicts a PCO2 of 27.5 plus or minus 2, so a measured value of 28 is appropriate compensation, whereas 40 would indicate an additional respiratory acidosis. In acute respiratory acidosis bicarbonate rises about 1 mmol/L for each 10 mmHg rise in PCO2, and in chronic respiratory acidosis about 3.5 to 4 mmol/L because of renal retention. Rules differ slightly among textbooks.",
+    "The anion gap, sodium minus chloride minus bicarbonate, normally about 8 to 12 mmol/L (laboratory-dependent), separates metabolic acidoses. A raised gap signals unmeasured anions: lactate, ketoacids, uremic anions, salicylate and toxic alcohol metabolites. A normal-gap (hyperchloremic) acidosis follows bicarbonate loss from diarrhea or renal tubular acidosis. Low albumin lowers the baseline gap."
+   ]
+  },
+  {
+   "id": "med-physiology.l14",
+   "title": "Renal Blood Flow, Glomerular Filtration and Clearance",
+   "body": [
+    "The kidneys receive about 20 to 25 percent of cardiac output, roughly 1.1 L of blood per minute, which is renal blood flow (RBF). Renal plasma flow (RPF) is about 600 mL/min. The glomerular filtration rate (GFR), the volume of plasma ultrafiltrate formed per minute by all nephrons, is about 125 mL/min or 180 L/day in a young adult. The filtration fraction is GFR divided by RPF, normally about 0.2.",
+    "Filtration is driven by Starling forces across the glomerular capillary: GFR equals the filtration coefficient (Kf) times [(glomerular capillary hydrostatic pressure minus Bowman's space hydrostatic pressure) minus glomerular capillary oncotic pressure]. Oncotic pressure in Bowman's space is essentially zero because little protein is filtered. Because filtration removes water but not protein, oncotic pressure rises along the capillary, and filtration slows. Obstruction of the urinary tract raises Bowman's space pressure and lowers GFR. Loss of filtration surface or damage to the barrier alters Kf. The filtration barrier has three layers (fenestrated endothelium, glomerular basement membrane and podocyte slit diaphragms) and is selective for size and negative charge; loss of charge selectivity, as in minimal change disease, allows albumin into the urine.",
+    "The afferent and efferent arterioles set glomerular pressure. Constricting the afferent arteriole lowers glomerular pressure, GFR and RPF. Constricting the efferent arteriole raises glomerular pressure and GFR while reducing RPF, so filtration fraction rises. Dilating the efferent arteriole, as angiotensin-converting enzyme inhibitors do by reducing angiotensin II, lowers GFR. Prostaglandins dilate the afferent arteriole, which is why NSAIDs can precipitate acute kidney injury in volume depletion or in heart failure, when the kidney depends on prostaglandins to maintain flow. A combination of NSAIDs, an ACE inhibitor and a diuretic is a recognized hazard.",
+    "Autoregulation keeps GFR and RBF fairly constant over a mean arterial pressure of about 80 to 180 mmHg through the myogenic response of afferent arterioles and tubuloglomerular feedback. In feedback, the macula densa cells of the distal tubule sense NaCl delivery. High delivery (a sign of high GFR) triggers adenosine release and afferent arteriolar constriction, lowering GFR.",
+    "Clearance of a substance equals urine concentration times urine flow divided by plasma concentration. If a substance is freely filtered and neither reabsorbed nor secreted, its clearance equals GFR; inulin meets this standard. Creatinine, produced from muscle at a steady rate, approximates it with a small contribution from tubular secretion, so creatinine clearance slightly overestimates GFR. Para-aminohippurate is nearly completely cleared in one pass and estimates renal plasma flow. Worked example: urine creatinine of 80 mg/dL, urine flow of 1.5 mL/min and plasma creatinine of 1.0 mg/dL give a clearance of 80 times 1.5 divided by 1.0, or 120 mL/min.",
+    "At steady state, creatinine production equals excretion, so plasma creatinine varies inversely with GFR: halving GFR doubles plasma creatinine. A rise in plasma creatinine therefore lags behind a fall in GFR. If clearance of a substance exceeds GFR, net secretion has occurred; if it is lower, net reabsorption."
+   ]
+  },
+  {
+   "id": "med-physiology.l15",
+   "title": "Tubular Transport Along the Nephron and Diuretic Sites",
+   "body": [
+    "The proximal tubule reclaims about two thirds of filtered sodium and water, nearly all filtered glucose and amino acids, most bicarbonate, and much phosphate. Reabsorption is isosmotic, so tubular fluid osmolarity stays near that of plasma. Sodium enters across the apical membrane through exchangers and cotransporters (including the Na+/H+ exchanger NHE3, and sodium-glucose cotransporters, mostly SGLT2 early and SGLT1 later), and is pumped out basolaterally by the Na+/K+-ATPase. Glucose has a transport maximum; when plasma glucose exceeds roughly 200 mg/dL, filtered glucose surpasses the capacity of the transporters and glucose spills into the urine. Inhibitors of SGLT2 such as empagliflozin deliberately cause glucosuria, lowering plasma glucose and with it body weight and blood pressure modestly; genital fungal infections and volume depletion are recognized adverse effects. The proximal tubule also secretes organic anions and cations, including many drugs, and parathyroid hormone reduces its phosphate reabsorption.",
+    "The descending thin limb of the loop of Henle is permeable to water but not solute, and its fluid concentrates. The thick ascending limb reabsorbs about a quarter of the filtered sodium through the Na+-K+-2Cl- cotransporter (NKCC2) but is impermeable to water, thereby diluting tubular fluid. Potassium recycling across the apical membrane creates a lumen-positive potential that drives paracellular reabsorption of calcium and magnesium. Loop diuretics such as furosemide block NKCC2, producing a large natriuresis and, because the lumen-positive potential is lost, increased calcium and magnesium excretion.",
+    "The distal convoluted tubule reabsorbs sodium and chloride through the thiazide-sensitive Na+-Cl- cotransporter (NCC). Parathyroid hormone enhances calcium reabsorption here. Thiazide diuretics such as hydrochlorothiazide block NCC, reduce urinary calcium and can raise serum calcium, which makes them useful in calcium stone disease, while also producing hyponatremia, hypokalemia and hyperuricemia in some patients.",
+    "In the collecting duct, principal cells reabsorb sodium through the epithelial sodium channel (ENaC) and secrete potassium through ROMK channels, both under the control of aldosterone, which acts through intracellular mineralocorticoid receptors to increase channel number and Na+/K+-ATPase activity. Water permeability depends on antidiuretic hormone. Intercalated cells secrete hydrogen ion through an H+-ATPase and reabsorb bicarbonate or potassium. Spironolactone blocks the mineralocorticoid receptor, and amiloride and triamterene block ENaC; both are potassium-sparing and can cause hyperkalemia.",
+    "Why do loop and thiazide diuretics lower potassium and raise pH? They increase sodium and fluid delivery to the collecting duct, which enhances sodium reabsorption through ENaC and drives potassium secretion by increasing flow, while volume contraction stimulates aldosterone, which promotes hydrogen secretion; the result is hypokalemia with a contraction metabolic alkalosis.",
+    "Worked example. A patient is given a loop diuretic. Urine sodium and volume increase sharply; urinary calcium rises; plasma potassium falls. If a thiazide were given instead, urinary calcium would fall."
+   ]
+  },
+  {
+   "id": "med-physiology.l16",
+   "title": "Urine Concentration, Dilution and Water Balance",
+   "body": [
+    "The kidney can excrete urine from about 50 to 1200 mOsm/kg, depending on antidiuretic hormone (ADH, vasopressin). The ability to concentrate rests on the medullary interstitium becoming hyperosmotic, which the loop of Henle creates by countercurrent multiplication. In the thick ascending limb, NKCC2 pumps solute out without water, which makes the interstitium concentrated (the single effect). The descending limb equilibrates with the interstitium, so the fluid becomes more concentrated as it descends, and the multiplier compounds the small horizontal gradient into a large vertical one. The vasa recta act as countercurrent exchangers that preserve the gradient by removing water and solute without washing it out. Urea, recycled from the inner medullary collecting duct into the interstitium under ADH control, contributes roughly half of inner medullary osmolarity.",
+    "ADH is made in hypothalamic neurons and released from the posterior pituitary. It acts on V2 receptors in principal cells, raising cAMP and inserting aquaporin 2 channels in the apical membrane, so water leaves the lumen down the osmotic gradient into the hyperosmotic interstitium. Without ADH the collecting duct stays water-impermeable and dilute urine passes. Osmoreceptors in the hypothalamus respond to changes of about 1 percent in plasma osmolarity; baroreceptors trigger ADH release in larger volume depletion (about 10 percent), even at the expense of osmolarity. Thirst provides the behavioural arm. Ethanol and certain drugs suppress ADH; nausea, pain and many medications stimulate it.",
+    "Free water clearance describes how the kidney handles water apart from solute: osmolar clearance equals urine osmolality times urine flow divided by plasma osmolality, and free water clearance equals urine flow minus osmolar clearance. Worked example: urine osmolality 600, plasma osmolality 300 and urine flow 1 mL/min give an osmolar clearance of 2 mL/min and a free water clearance of -1 mL/min, meaning the kidney is conserving water. Positive values indicate dilute urine.",
+    "Two disorders show the system failing. In diabetes insipidus the kidney cannot concentrate urine. Central DI arises from deficient ADH secretion, for example after pituitary surgery or head injury, and responds to desmopressin, which makes urine osmolality rise. Nephrogenic DI results from kidney resistance to ADH, caused by lithium, hypercalcemia or hypokalemia, and does not respond. Both cause polyuria, polydipsia and, if water is limited, hypernatremia. In the syndrome of inappropriate ADH secretion (SIADH), excess ADH from CNS disease, small-cell lung cancer or drugs causes water retention, euvolemic hypotonic hyponatremia, inappropriately concentrated urine (osmolality above about 100 mOsm/kg), and urine sodium usually above 30 to 40 mmol/L. Treatment includes restricting water. Correction of chronic hyponatremia must be slow (commonly no more than about 8 to 10 mmol/L in 24 hours) because rapid correction risks osmotic demyelination."
+   ]
+  },
+  {
+   "id": "med-physiology.l17",
+   "title": "Sodium, Potassium and Calcium Balance",
+   "body": [
+    "Total body sodium determines extracellular fluid volume, because water follows sodium to maintain osmolarity. The kidney therefore regulates volume by regulating sodium excretion. When effective circulating volume falls, renal perfusion pressure and distal sodium delivery drop and sympathetic tone rises, triggering renin release and angiotensin II, which increases proximal sodium reabsorption and stimulates aldosterone. Aldosterone, from the zona glomerulosa of the adrenal cortex, increases ENaC and Na+/K+-ATPase activity in principal cells, retaining sodium and secreting potassium and hydrogen. When volume rises, atrial natriuretic peptide is released from stretched atria, dilating the afferent arteriole, increasing GFR, inhibiting sodium reabsorption in the collecting duct and suppressing renin and aldosterone, thereby promoting sodium loss. Aldosterone excess causes sodium retention for a time, but an escape phenomenon follows: pressure natriuresis and ANP restore sodium balance after a few kilograms of retained fluid, so edema is not typical in primary hyperaldosteronism, though hypertension, hypokalemia and metabolic alkalosis are.",
+    "Potassium is mostly intracellular, and the small extracellular pool must be tightly controlled for membrane excitability. Short-term regulation moves potassium between cells and ECF. Insulin and beta-2 adrenergic stimulation drive potassium into cells by stimulating the Na+/K+-ATPase; so these are used in treating hyperkalemia. Acidosis from mineral acids tends to shift potassium out of cells in exchange for hydrogen ion, whereas alkalosis shifts it in. Tissue breakdown, such as rhabdomyolysis, and digoxin toxicity release potassium. Long-term regulation is renal. Potassium is filtered, then mostly reabsorbed in the proximal tubule and loop, and the final amount is set by secretion in principal cells. Secretion rises with aldosterone, high plasma potassium, increased distal flow, high sodium delivery and alkalosis, and falls with acidosis and with potassium-sparing diuretics. Hyperkalemia produces peaked T waves and, in severe cases, conduction block; membrane stabilization with intravenous calcium counters the depolarizing effect without lowering potassium.",
+    "Calcium is mostly in bone; ionized calcium in plasma is the regulated fraction, and acidosis raises it by reducing binding to albumin. The kidney reabsorbs about 98 percent of filtered calcium, most in the proximal tubule passively with sodium and in the thick ascending limb paracellularly. Fine regulation occurs in the distal convoluted tubule, where parathyroid hormone (PTH) increases calcium reabsorption. PTH also reduces proximal phosphate reabsorption, so it raises calcium and lowers phosphate in serum, and stimulates 1-alpha-hydroxylase to produce active vitamin D. Loop diuretics increase urinary calcium; thiazides decrease it.",
+    "Worked example. A patient with primary hyperaldosteronism would be expected to have hypertension, low serum potassium, a mild metabolic alkalosis, low plasma renin and high aldosterone, since the aldosterone source is autonomous and expansion suppresses renin."
+   ]
+  },
+  {
+   "id": "med-physiology.l18",
+   "title": "Renal Handling of Acid and Bicarbonate",
+   "body": [
+    "The kidneys excrete the roughly 1 mmol per kilogram per day of nonvolatile acid produced by metabolism, and also reclaim virtually all filtered bicarbonate (about 4,300 mmol per day). In the proximal tubule, hydrogen ion secreted by the Na+/H+ exchanger combines with filtered bicarbonate to form carbonic acid, which carbonic anhydrase on the brush border converts to water and carbon dioxide. Carbon dioxide diffuses into the cell, where intracellular carbonic anhydrase regenerates bicarbonate, which leaves across the basolateral membrane with sodium. This reclaims bicarbonate but creates none; it is bicarbonate recovery. Acetazolamide inhibits carbonic anhydrase, so it causes bicarbonate loss and a hyperchloremic metabolic acidosis.",
+    "New bicarbonate is generated when secreted hydrogen ion is buffered by something other than bicarbonate. Titratable acid is hydrogen ion buffered by filtered phosphate. Ammonium is produced from glutamine in proximal tubule cells and trapped in the lumen as hydrogen ion binds ammonia; each ammonium excreted corresponds to a new bicarbonate returned to the blood. Chronic acidosis increases renal ammoniagenesis severalfold, which is the main adaptive response. In the collecting duct, alpha-intercalated cells secrete hydrogen ion with an H+-ATPase (and H+/K+-ATPase), allowing urine pH to fall to about 4.5 to 5.",
+    "Renal tubular acidosis (RTA) is a group of tubular defects causing a non-anion gap metabolic acidosis. Type 1 (distal) is a failure of hydrogen secretion by intercalated cells; the urine cannot be acidified (pH stays above about 5.5), and it is associated with hypokalemia, hypercalciuria, nephrocalcinosis and stones. Type 2 (proximal) is a failure of bicarbonate reclamation, often part of Fanconi syndrome with glucosuria, phosphaturia and aminoaciduria; urine can acidify once serum bicarbonate falls enough that filtered bicarbonate is fully reclaimed. Type 4 is aldosterone deficiency or resistance, seen with diabetic nephropathy; it causes hyperkalemia, which suppresses ammoniagenesis and reduces acid excretion.",
+    "The urine anion gap, urine sodium plus urine potassium minus urine chloride, estimates urinary ammonium excretion since ammonium is an unmeasured cation paired with chloride. A negative gap suggests high ammonium excretion, and the kidney is responding appropriately to acidosis, as in diarrhea. A positive gap suggests impaired ammonium excretion, as in RTA.",
+    "Metabolic alkalosis is maintained by something that prevents bicarbonate excretion. In vomiting, loss of gastric hydrochloric acid generates bicarbonate; volume depletion, hypochloremia and secondary hyperaldosteronism with hypokalemia then promote bicarbonate reabsorption and hydrogen secretion. Urine chloride is low (below about 20 mmol/L) and the alkalosis responds to saline and potassium repletion. Hyperaldosteronism and loop diuretic use produce alkalosis with high urine chloride.",
+    "Worked example. A patient with severe diarrhea has a low bicarbonate and normal anion gap. If the urine anion gap is strongly negative, the kidney is excreting ammonium appropriately and a diarrheal cause is more likely than RTA."
+   ]
+  },
+  {
+   "id": "med-physiology.l19",
+   "title": "Gastrointestinal Secretion, Hormones and Absorption",
+   "body": [
+    "Gastric acid is secreted by parietal cells using an apical H+/K+-ATPase, with bicarbonate exported to blood across the basolateral membrane in exchange for chloride (the alkaline tide). Three signals stimulate parietal cells: acetylcholine from the vagus (M3 receptors), gastrin from antral G cells (CCK-B receptors) and histamine from enterochromaffin-like cells (H2 receptors, raising cAMP). Gastrin and acetylcholine also act partly by releasing histamine, which is why H2 blockers reduce acid from several stimuli. Proton pump inhibitors such as omeprazole irreversibly inhibit the final enzyme and suppress acid most effectively. Somatostatin from D cells inhibits acid secretion, and low luminal pH shuts off gastrin release.",
+    "The cephalic phase (sight, smell, vagal) starts secretion and motility, the gastric phase (distension, peptides) produces most of the acid, and the intestinal phase (fat, acid in the duodenum) inhibits gastric emptying. Gastrin raises acid secretion and trophic growth of the mucosa; in Zollinger-Ellison syndrome a gastrin-secreting tumour causes severe acid secretion, refractory peptic ulcers and diarrhea. In autoimmune atrophic gastritis, parietal cell loss reduces acid and intrinsic factor, so gastrin is high, and vitamin B12 deficiency (pernicious anemia) follows.",
+    "Cholecystokinin (CCK) from I cells responds to fat and protein digestion products, contracts the gallbladder, relaxes the sphincter of Oddi, stimulates pancreatic enzyme secretion and slows gastric emptying. Secretin from S cells responds to duodenal acid, and stimulates pancreatic ductal bicarbonate secretion to neutralize chyme. Glucose-dependent insulinotropic peptide, with glucagon-like peptide 1, forms the incretin effect, in which oral glucose causes more insulin release than the same glucose given intravenously.",
+    "Bile salts, made from cholesterol in the liver and conjugated, emulsify fat and form micelles that carry fatty acids and monoglycerides to the brush border. Lipids are re-esterified and packaged as chylomicrons that enter lymph, not blood. About 95 percent of bile salts are reabsorbed in the terminal ileum and recycled (the enterohepatic circulation). Ileal disease or resection causes bile salt loss, fat malabsorption and, because vitamin B12 is also absorbed there (bound to intrinsic factor), B12 deficiency.",
+    "Carbohydrates are absorbed as monosaccharides: glucose and galactose by SGLT1 and fructose by GLUT5, with exit through GLUT2. Proteins are absorbed as amino acids and as di- and tripeptides through PepT1. Iron is absorbed in the duodenum, mainly as ferrous iron, and calcium in the duodenum with calcitriol. Water follows solute, so most is absorbed in the small intestine. Cholera toxin permanently activates Gs, raising cAMP and driving CFTR chloride secretion, causing massive secretory diarrhea. Because SGLT1 remains functional, glucose-sodium oral rehydration solutions work. Lactase deficiency leaves lactose unabsorbed in the lumen, an osmotic diarrhea with gas.",
+    "Worked example. A patient has bloating and watery stool after drinking milk, with a stool osmotic gap that is large and fecal pH that is acidic from bacterial fermentation; the mechanism is brush-border lactase deficiency, an osmotic cause, not a secretory one."
+   ]
+  },
+  {
+   "id": "med-physiology.l20",
+   "title": "Hormone Axes and Feedback: Pituitary, Thyroid and Adrenal",
+   "body": [
+    "Hormones act through two broad mechanisms. Peptide and catecholamine hormones bind surface receptors and use second messengers (cAMP, IP3/calcium) or receptor tyrosine kinases (insulin, growth factors). Steroid and thyroid hormones cross the membrane and bind intracellular or nuclear receptors, altering gene transcription over hours. Steroids and thyroid hormones circulate largely bound to carrier proteins, and the free fraction is active.",
+    "Hypothalamic releasing hormones control the anterior pituitary through the portal vessels: thyrotropin-releasing hormone (TRH) drives TSH, corticotropin-releasing hormone (CRH) drives ACTH, gonadotropin-releasing hormone (GnRH) drives LH and FSH, and growth hormone-releasing hormone drives GH. Dopamine inhibits prolactin, so prolactin is unique in being under tonic inhibition; dopamine antagonists and pituitary stalk lesions raise prolactin. The posterior pituitary releases ADH and oxytocin made in hypothalamic neurons. In each axis, the end hormone exerts negative feedback on pituitary and hypothalamus, so a rise in cortisol or thyroid hormone shuts off its releasing signals.",
+    "The thyroid takes up iodide through the sodium-iodide symporter, oxidizes and attaches it to thyroglobulin tyrosines by thyroid peroxidase (organification), couples them to make T4 and T3, and stores them in colloid. Most circulating thyroid hormone is T4, which is converted to the more active T3 in tissues by deiodinases. TSH stimulates all steps. Graves disease results from stimulating antibodies against the TSH receptor, causing hyperthyroidism with low TSH. Hashimoto thyroiditis is autoimmune destruction leading to hypothyroidism. Thyroid hormone raises basal metabolic rate, sensitizes the heart to catecholamines and is essential for neurological development.",
+    "Reading axes. In primary hypothyroidism, the thyroid fails: T4 is low and TSH is high, since feedback is lost. In central (pituitary or hypothalamic) hypothyroidism, both T4 and TSH are low or inappropriately normal. In primary hyperthyroidism, T4 is high and TSH is suppressed. A TSH-secreting adenoma would show high T4 with a non-suppressed or high TSH.",
+    "The adrenal cortex has three zones: the glomerulosa makes aldosterone (controlled by angiotensin II and potassium), the fasciculata makes cortisol (controlled by ACTH) and the reticularis makes androgens. The medulla makes catecholamines. Cortisol raises blood glucose through gluconeogenesis, is permissive for catecholamine actions, suppresses inflammation and immunity, and mobilizes protein and fat. Chronic excess (Cushing syndrome) causes central obesity, proximal muscle weakness, striae, hypertension, hyperglycemia and bone loss. Exogenous glucocorticoids suppress CRH and ACTH, causing adrenal atrophy; abrupt withdrawal after prolonged use risks adrenal insufficiency.",
+    "Worked example. A patient with high cortisol and low ACTH has an adrenal (or exogenous) source of cortisol, because the excess cortisol has already suppressed pituitary ACTH by negative feedback."
+   ]
+  },
+  {
+   "id": "med-physiology.l21",
+   "title": "Glucose Homeostasis and Calcium Regulation",
+   "body": [
+    "Pancreatic beta cells take up glucose through GLUT2 and phosphorylate it with glucokinase, which acts as a glucose sensor. Rising ATP closes ATP-sensitive potassium channels, the cell depolarizes, voltage-gated calcium channels open and calcium triggers insulin exocytosis. Sulfonylureas such as glipizide close the same channel, which is why they can cause hypoglycemia. Insulin is also released more strongly after oral than intravenous glucose through incretins. Insulin binds a receptor tyrosine kinase, drives GLUT4 insertion into muscle and fat cells, stimulates glycogen synthesis, lipogenesis and protein synthesis, suppresses hepatic glucose output and lipolysis, and moves potassium into cells. Liver and brain glucose uptake do not depend on insulin.",
+    "Glucagon from alpha cells acts through cAMP in the liver to stimulate glycogenolysis, gluconeogenesis and ketogenesis. In the fasted state, insulin falls and glucagon rises. Early fasting is covered by glycogen; after about a day, gluconeogenesis dominates; with prolonged fasting, ketones fuel the brain and spare protein. Counter-regulatory responses to hypoglycemia are, in order, falling insulin, rising glucagon, then epinephrine, and later cortisol and growth hormone. In type 1 diabetes, insulin deficiency with glucagon excess drives hyperglycemia, lipolysis, ketoacid production and, if untreated, diabetic ketoacidosis with an anion gap acidosis. Hyperglycemia produces osmotic diuresis and volume depletion; total body potassium is depleted even when serum potassium is normal or high because insulin deficiency and acidosis shift potassium out of cells.",
+    "Calcium is regulated by parathyroid hormone (PTH), vitamin D and, less importantly in adults, calcitonin. Low ionized calcium, sensed by the calcium-sensing receptor on parathyroid chief cells, stimulates PTH release. PTH increases bone resorption (acting on osteoblasts, which signal osteoclasts through RANKL), increases renal distal calcium reabsorption, reduces proximal phosphate reabsorption and stimulates renal 1-alpha-hydroxylase, forming calcitriol, which increases intestinal calcium and phosphate absorption. Continuous high PTH promotes bone loss, whereas intermittent exposure is anabolic. Calcitriol and calcium feed back on PTH.",
+    "Interpreting hypercalcemia. In primary hyperparathyroidism (often a single adenoma), calcium is high with PTH inappropriately normal or high and phosphate low, and the patient may have stones, bone disease and abdominal symptoms. In malignancy-associated hypercalcemia, PTH is suppressed, because tumour PTH-related peptide acts on PTH receptors (or bone is invaded). In chronic kidney disease, failing calcitriol production and phosphate retention lower calcium and cause secondary hyperparathyroidism with high PTH. Hypocalcemia increases neuronal excitability, causing perioral tingling, tetany, positive Chvostek and Trousseau signs and a prolonged QT interval.",
+    "Worked example. A patient has calcium 11.8 mg/dL, phosphate 2.2 mg/dL and PTH raised: this combination points to primary hyperparathyroidism. If PTH were suppressed with the same calcium, humoral hypercalcemia of malignancy or vitamin D excess would be considered."
+   ]
+  },
+  {
+   "id": "med-physiology.l22",
+   "title": "Reproductive Physiology: Testis, Ovary and Pregnancy",
+   "body": [
+    "GnRH from the hypothalamus is secreted in pulses, driving pulsatile LH and FSH release from the anterior pituitary. Pulsatility is essential: continuous GnRH exposure, as with long-acting GnRH agonists, desensitizes the receptors and suppresses LH and FSH, a principle used in treating prostate cancer and endometriosis.",
+    "In the male, LH acts on Leydig cells to make testosterone; FSH acts on Sertoli cells, which support spermatogenesis, make androgen-binding protein and secrete inhibin B. Testosterone supplies negative feedback on LH, while inhibin suppresses FSH. High local testosterone is needed within the testis for spermatogenesis, a process taking about 2 to 3 months. Testosterone is converted to dihydrotestosterone by 5-alpha-reductase in prostate and external genitalia, and to estradiol by aromatase. Exogenous anabolic steroids suppress LH and FSH, causing testicular atrophy and reduced sperm production.",
+    "In the female, the menstrual cycle averages about 28 days. In the follicular phase, FSH stimulates follicle growth. LH acts on theca cells to produce androgens, and FSH induces aromatase in granulosa cells to convert them to estradiol (the two-cell mechanism). Estradiol feeds back negatively at low levels, but when sustained high concentrations occur near mid-cycle, the feedback becomes positive, producing the LH surge that triggers ovulation about 10 to 12 hours later, around day 14. In the luteal phase, the corpus luteum secretes progesterone (and estradiol), which prepares the endometrium for implantation, raises basal temperature and suppresses LH and FSH. Without pregnancy, the corpus luteum regresses after about 14 days, hormones fall and the endometrium sheds. The follicular phase varies in length, whereas the luteal phase is relatively constant. Combined hormonal contraception works mainly by sustained negative feedback that prevents the LH surge and ovulation.",
+    "Sexual differentiation depends on the gonad. The SRY gene on the Y chromosome produces the testis. Sertoli cells secrete anti-Mullerian hormone, which causes regression of the paramesonephric (Mullerian) ducts; Leydig cell testosterone stimulates the Wolffian ducts to form epididymis, vas deferens and seminal vesicles; and dihydrotestosterone virilizes the external genitalia. Without these, the default development is female.",
+    "If fertilization and implantation occur, the syncytiotrophoblast secretes human chorionic gonadotropin (hCG), which resembles LH and maintains the corpus luteum, so progesterone production continues. hCG rises early, peaks around the end of the first trimester and then falls as the placenta takes over progesterone production (the luteoplacental shift). Home pregnancy tests detect hCG in urine. Estriol, a placental product requiring fetal adrenal precursors, reflects feto-placental function. Prolactin rises through pregnancy, but high estrogen and progesterone block milk secretion until delivery; suckling then triggers prolactin for milk synthesis and oxytocin for milk ejection.",
+    "Menopause is follicular depletion: estradiol and inhibin fall, so FSH and LH rise because negative feedback is lost.",
+    "Worked example. A 28-year-old woman has amenorrhea, low estradiol and low FSH and LH after severe weight loss. Hypothalamic suppression of GnRH pulsatility explains it, in contrast to primary ovarian insufficiency where FSH and LH would be high."
+   ]
+  },
+  {
+   "id": "med-physiology.l23",
+   "title": "Integrated Responses: Exercise and Altitude",
+   "body": [
+    "During heavy exercise whole-body oxygen consumption can rise 10 to 20 times above rest. The cardiovascular system supplies this through the Fick relationship: VO2 equals cardiac output times the arteriovenous oxygen difference, and both rise. Cardiac output increases through heart rate (withdrawal of vagal tone then sympathetic stimulation) and stroke volume (greater venous return from the skeletal muscle pump, venoconstriction and increased contractility). Stroke volume tends to plateau at moderate intensities, so further increases in output at high intensities depend largely on rate. Maximum heart rate declines with age, about 220 minus age as a rough population estimate with wide individual scatter. The arteriovenous oxygen difference widens because working muscle extracts more oxygen, aided by the rightward shift of the hemoglobin curve from heat, carbon dioxide and acid.",
+    "Regional flow is redistributed. Metabolites (adenosine, potassium, lactate, falling PO2 and rising PCO2) cause vasodilation in active muscle, whereas sympathetic vasoconstriction reduces flow to the kidneys and viscera. Total peripheral resistance falls because the muscle vascular bed expands, so mean arterial pressure rises only modestly. Systolic pressure rises with stroke volume, diastolic pressure stays the same or falls. Cerebral flow is maintained, and coronary flow rises with demand. Skin flow rises for heat loss, then falls at maximal effort.",
+    "Ventilation rises in proportion to carbon dioxide production and oxygen consumption, up to about 20-fold. In moderate exercise, arterial PO2, PCO2 and pH remain remarkably constant, so the signal driving ventilation is not these chemoreceptor stimuli alone; neural feed-forward from motor cortex and afferents from moving limbs contribute. Above the lactate (anaerobic) threshold, lactic acid accumulates, bicarbonate buffers it to produce extra carbon dioxide, and ventilation rises disproportionately with a fall in arterial pH and PCO2. Training increases stroke volume, lowers resting and submaximal heart rate, increases capillary density and mitochondrial content, and raises maximal oxygen uptake. Training increases VO2max partly through increased maximal cardiac output.",
+    "At altitude, the barometric pressure falls but the oxygen fraction stays at 21 percent, so inspired PO2 is lower. At about 5,500 m, barometric pressure is roughly half of sea level, giving an inspired PO2 near 70 mmHg. Hypoxemia is sensed by the carotid bodies, causing hyperventilation, which lowers PaCO2 and produces respiratory alkalosis; the alkalosis initially limits the ventilatory response, but over days the kidneys excrete bicarbonate, restoring pH and allowing greater ventilation (acclimatization). Erythropoietin rises within hours to days, raising hemoglobin over weeks. 2,3-bisphosphoglycerate rises, and pulmonary vasoconstriction raises pulmonary artery pressure. Acute mountain sickness (headache, nausea, fatigue), high-altitude cerebral edema and high-altitude pulmonary edema are the recognized illnesses; rapid ascent is the major risk factor, and descent is definitive treatment. Acetazolamide speeds acclimatization by inducing a bicarbonate diuresis and metabolic acidosis, which stimulates breathing.",
+    "Worked example. Oxygen consumption at maximum effort is 3.0 L/min with an arterial-venous difference of 150 mL/L; cardiac output is 3,000 divided by 150, or 20 L/min."
+   ]
+  },
+  {
+   "id": "med-physiology.l24",
+   "title": "Integrated Responses: Hemorrhage and Shock",
+   "body": [
+    "Hemorrhage is the best test of how the circulatory system integrates its controls. Blood loss reduces venous return, which lowers cardiac output by the Frank-Starling mechanism, and arterial pressure falls. A common teaching scheme, used in trauma courses, grades loss as class I (under about 15 percent of blood volume), II (15 to 30 percent), III (30 to 40 percent) and IV (over 40 percent). The cut points are conventions and patients vary.",
+    "The response unfolds in stages. Within seconds, the baroreceptor reflex responds to the fall in pressure with increased sympathetic outflow and reduced vagal tone. Heart rate and contractility rise, arterioles constrict in skin, gut, muscle and kidney, and veins constrict, mobilizing blood from the venous reservoir to restore preload. Pulse pressure narrows early because stroke volume falls and vasoconstriction raises diastolic pressure. Systolic pressure may be maintained until a large fraction (often 30 percent or more) is lost, especially in young, fit patients, so hypotension is a late sign. Skin becomes pale and cool, urine output falls and the patient becomes anxious.",
+    "Within minutes to hours, humoral systems act. Renin-angiotensin-aldosterone activation promotes vasoconstriction and sodium retention, antidiuretic hormone (stimulated by baroreceptor unloading) promotes water retention and vasoconstriction, and cortisol and epinephrine raise glucose. Capillary hydrostatic pressure falls because of arteriolar constriction and lower arterial pressure, so Starling forces favour reabsorption, and interstitial fluid shifts into the capillaries (transcapillary refill), diluting hematocrit over hours. Hematocrit measured immediately after bleeding is therefore a poor guide to loss. Over days, plasma protein is replaced by the liver and red cells by erythropoietin-driven erythropoiesis.",
+    "When loss overwhelms compensation, decompensation follows. Poor perfusion causes anaerobic metabolism, lactic acidosis and reduced responsiveness of vessels to catecholamines, and in prolonged shock myocardial depression and capillary leak worsen the spiral, with a risk of irreversible shock.",
+    "Hemodynamic profiles distinguish shock types. Hypovolemic shock shows low cardiac output, low central venous and wedge pressures and high systemic vascular resistance. Cardiogenic shock shows low cardiac output, high filling pressures and high resistance. Distributive shock (sepsis, anaphylaxis, neurogenic) shows low systemic resistance; in sepsis cardiac output is often high early with low filling pressures after vasodilation, and the skin may be warm. Obstructive shock (tamponade, tension pneumothorax, massive pulmonary embolism) shows low output with high central venous pressure and variable wedge pressure.",
+    "Worked example. A 24-year-old has a pulse of 124, a blood pressure of 100/84, cool skin and low urine output after a femoral injury. A narrow pulse pressure, tachycardia and cool skin with preserved systolic pressure fit compensated hemorrhage, with high resistance and low cardiac output."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-physiology.l01.q1",
+   "lessonId": "med-physiology.l01",
+   "kind": "mcq",
+   "prompt": "In a young adult man, which fluid compartment contains the largest share of total body water?",
+   "choices": [
+    "Intracellular fluid",
+    "Transcellular fluid",
+    "Plasma",
+    "Interstitial fluid"
+   ]
+  },
+  {
+   "id": "med-physiology.l01.q2",
+   "lessonId": "med-physiology.l01",
+   "kind": "mcq",
+   "prompt": "Which indicator combination allows calculation of intracellular fluid volume in a research subject?",
+   "choices": [
+    "Albumin dilution alone, subtracted from the inulin space",
+    "Deuterium oxide space minus the inulin space",
+    "Inulin space minus the albumin space",
+    "Evans blue dye space minus the deuterium oxide space"
+   ]
+  },
+  {
+   "id": "med-physiology.l01.q3",
+   "lessonId": "med-physiology.l01",
+   "kind": "mcq",
+   "prompt": "Which transporter mechanism best describes SGLT1 in the small intestine?",
+   "choices": [
+    "Primary active transport that hydrolyzes ATP directly",
+    "Facilitated diffusion of glucose down its own gradient",
+    "Secondary active cotransport driven by the sodium gradient",
+    "Secondary active exchange of glucose for intracellular potassium"
+   ]
+  },
+  {
+   "id": "med-physiology.l01.q4",
+   "lessonId": "med-physiology.l01",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man with a prolonged diarrheal illness has lost 3 L of fluid that is isotonic to plasma and has replaced none of it. Assuming no compensatory change yet, which pattern of volume change is expected?",
+   "choices": [
+    "ECF volume unchanged, ICF volume decreases, and plasma osmolarity rises",
+    "ECF volume decreases, ICF volume increases, and plasma osmolarity falls",
+    "ECF volume decreases, ICF volume decreases, and plasma osmolarity rises",
+    "ECF volume decreases, ICF volume unchanged, and plasma osmolarity unchanged"
+   ]
+  },
+  {
+   "id": "med-physiology.l01.q5",
+   "lessonId": "med-physiology.l01",
+   "kind": "mcq",
+   "prompt": "A 55-year-old woman with heart failure takes digoxin and develops increased cardiac contractility. The effect on contractility is best explained by which sequence?",
+   "choices": [
+    "Inhibited Na+/K+-ATPase, then raised intracellular Na+, then reduced Ca2+ extrusion by Na+/Ca2+ exchange",
+    "Stimulated Na+/K+-ATPase, then lowered intracellular Na+, then increased Ca2+ extrusion through the exchanger",
+    "Blocked L-type calcium channels, then reduced calcium influx, then increased sarcoplasmic reticulum storage",
+    "Opened ryanodine receptors directly, then released more calcium independent of any sodium change"
+   ]
+  },
+  {
+   "id": "med-physiology.l02.q1",
+   "lessonId": "med-physiology.l02",
+   "kind": "mcq",
+   "prompt": "The resting membrane potential of most neurons lies close to the equilibrium potential of which ion?",
+   "choices": [
+    "Chloride only in the absence of the pump",
+    "Sodium",
+    "Calcium",
+    "Potassium"
+   ]
+  },
+  {
+   "id": "med-physiology.l02.q2",
+   "lessonId": "med-physiology.l02",
+   "kind": "mcq",
+   "prompt": "A cell has intracellular K+ of 150 mM and extracellular K+ of 5 mM. Using 61.5 mV times log10 of the concentration ratio, the equilibrium potential for potassium is closest to which value?",
+   "choices": [
+    "+91 mV",
+    "-61 mV",
+    "-91 mV",
+    "-120 mV"
+   ]
+  },
+  {
+   "id": "med-physiology.l02.q3",
+   "lessonId": "med-physiology.l02",
+   "kind": "mcq",
+   "prompt": "If a drug increases a neuron's membrane permeability to chloride and the chloride equilibrium potential is -80 mV with resting potential -70 mV, what is the expected effect on the cell?",
+   "choices": [
+    "Depolarization toward -50 mV because chloride influx lowers excitability",
+    "Hyperpolarization toward -80 mV and reduced likelihood of reaching threshold",
+    "Depolarization toward +65 mV because chloride follows sodium",
+    "No change in potential, because chloride is never conducted at rest"
+   ]
+  },
+  {
+   "id": "med-physiology.l02.q4",
+   "lessonId": "med-physiology.l02",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man with chronic kidney disease misses dialysis and presents with weakness and ECG changes including peaked T waves. His serum potassium is 7.4 mmol/L. Which statement best explains the effect of this change on myocytes?",
+   "choices": [
+    "E(K) becomes less negative, depolarizing the cell and inactivating sodium channels",
+    "Sodium equilibrium potential rises sharply, increasing the upstroke velocity",
+    "The pump reverses direction, extruding potassium and normalizing the potential",
+    "E(K) becomes more negative, hyperpolarizing the cell and making it harder to fire"
+   ]
+  },
+  {
+   "id": "med-physiology.l02.q5",
+   "lessonId": "med-physiology.l02",
+   "kind": "mcq",
+   "prompt": "Investigators inhibit the Na+/K+-ATPase in an isolated nerve with ouabain. In the first few minutes, what happens to the resting potential, and why?",
+   "choices": [
+    "It becomes more negative as potassium accumulates inside the cell",
+    "It is unchanged for hours because the potassium leak channels also close",
+    "It collapses to 0 mV immediately because the pump creates all of the potential",
+    "It falls only slightly at first, because the gradients run down slowly"
+   ]
+  },
+  {
+   "id": "med-physiology.l03.q1",
+   "lessonId": "med-physiology.l03",
+   "kind": "mcq",
+   "prompt": "Which event is responsible for the repolarization phase of a typical neuronal action potential?",
+   "choices": [
+    "Activation of the Na+/K+-ATPase as soon as threshold is crossed",
+    "Opening of voltage-gated Ca2+ channels along the axon membrane",
+    "Na+ channel inactivation plus delayed-rectifier K+ channel opening",
+    "Closure of the leak K+ channels once the peak has been reached"
+   ]
+  },
+  {
+   "id": "med-physiology.l03.q2",
+   "lessonId": "med-physiology.l03",
+   "kind": "mcq",
+   "prompt": "Which change would be expected to increase conduction velocity in an unmyelinated axon?",
+   "choices": [
+    "Increasing the membrane capacitance",
+    "Decreasing the length constant",
+    "Decreasing the axon diameter",
+    "Increasing the axon diameter"
+   ]
+  },
+  {
+   "id": "med-physiology.l03.q3",
+   "lessonId": "med-physiology.l03",
+   "kind": "mcq",
+   "prompt": "Which molecule is the direct target of botulinum toxin at the neuromuscular junction?",
+   "choices": [
+    "SNARE proteins needed for acetylcholine vesicle fusion",
+    "Voltage-gated sodium channels on the motor neuron",
+    "Nicotinic acetylcholine receptors on the end plate",
+    "Acetylcholinesterase in the synaptic cleft"
+   ]
+  },
+  {
+   "id": "med-physiology.l03.q4",
+   "lessonId": "med-physiology.l03",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man who smokes has proximal leg weakness, dry mouth and absent reflexes. Strength improves briefly after repeated voluntary contraction. Which pathology is most likely?",
+   "choices": [
+    "Antibodies against postsynaptic nicotinic receptors",
+    "Antibodies against presynaptic voltage-gated calcium channels",
+    "Inhibition of acetylcholinesterase by an organophosphate",
+    "Cleavage of SNARE proteins by a bacterial toxin"
+   ]
+  },
+  {
+   "id": "med-physiology.l03.q5",
+   "lessonId": "med-physiology.l03",
+   "kind": "mcq",
+   "prompt": "A 27-year-old woman has ptosis and diplopia that worsen late in the day, with improvement after an edrophonium test. Which change at the junction explains her weakness?",
+   "choices": [
+    "Excess acetylcholine persistently depolarizing the end plate",
+    "Inability of the sarcoplasmic reticulum to release calcium after depolarization",
+    "Fewer functional postsynaptic nicotinic receptors, lowering end-plate potentials",
+    "Failure of calcium entry into the motor terminal, reducing quantal release"
+   ]
+  },
+  {
+   "id": "med-physiology.l04.q1",
+   "lessonId": "med-physiology.l04",
+   "kind": "mcq",
+   "prompt": "Which protein binds calcium to initiate contraction in skeletal muscle?",
+   "choices": [
+    "Calmodulin",
+    "Troponin C",
+    "Tropomyosin",
+    "Myosin light-chain kinase"
+   ]
+  },
+  {
+   "id": "med-physiology.l04.q2",
+   "lessonId": "med-physiology.l04",
+   "kind": "mcq",
+   "prompt": "Which statement correctly compares cardiac and skeletal muscle excitation-contraction coupling?",
+   "choices": [
+    "Cardiac muscle depends on calcium entry that triggers calcium-induced release, while skeletal muscle does not",
+    "Skeletal muscle depends on calcium-induced release, while cardiac muscle uses a mechanical link",
+    "Neither uses the sarcoplasmic reticulum for calcium storage",
+    "Both rely entirely on extracellular calcium entering through L-type channels"
+   ]
+  },
+  {
+   "id": "med-physiology.l04.q3",
+   "lessonId": "med-physiology.l04",
+   "kind": "mcq",
+   "prompt": "Why does the cardiac action potential plateau make tetanus impossible?",
+   "choices": [
+    "Cardiac muscle lacks troponin and so cannot sustain force",
+    "Gap junctions block repeated depolarization in neighbouring cells",
+    "The sarcoplasmic reticulum cannot be refilled between beats",
+    "The refractory period lasts as long as the twitch, preventing summation"
+   ]
+  },
+  {
+   "id": "med-physiology.l04.q4",
+   "lessonId": "med-physiology.l04",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man develops rigidity, temperature of 40.5 C, tachycardia and dark urine within minutes of receiving succinylcholine and a volatile anesthetic. Which drug target explains the specific treatment?",
+   "choices": [
+    "Blockade of the sarcolemmal Na+/K+-ATPase",
+    "Acetylcholinesterase inhibition at the end plate",
+    "Blockade of the sarcoplasmic reticulum ryanodine receptor",
+    "Stimulation of beta-2 receptors in skeletal muscle"
+   ]
+  },
+  {
+   "id": "med-physiology.l04.q5",
+   "lessonId": "med-physiology.l04",
+   "kind": "mcq",
+   "prompt": "A 40-year-old woman with asthma is given inhaled albuterol and her airway smooth muscle relaxes. Which mechanism best explains the effect?",
+   "choices": [
+    "Closure of the T tubules prevents calcium release from the sarcoplasmic reticulum",
+    "Raised cAMP inhibits myosin light-chain kinase, reducing myosin phosphorylation",
+    "Raised cAMP activates troponin C so that actin is released",
+    "Calcium binds more tightly to calmodulin and speeds relaxation"
+   ]
+  },
+  {
+   "id": "med-physiology.l05.q1",
+   "lessonId": "med-physiology.l05",
+   "kind": "mcq",
+   "prompt": "Which ionic current mainly produces the upstroke (phase 0) of the sinoatrial node action potential?",
+   "choices": [
+    "Inward calcium current through L-type channels",
+    "Outward potassium current through delayed rectifiers",
+    "Inward chloride current through the funny channel",
+    "Inward sodium current through fast channels"
+   ]
+  },
+  {
+   "id": "med-physiology.l05.q2",
+   "lessonId": "med-physiology.l05",
+   "kind": "mcq",
+   "prompt": "Why is conduction through the AV node deliberately slow?",
+   "choices": [
+    "The node depends on sodium channels that recover slowly after each beat",
+    "Small, calcium-dependent nodal cells conduct slowly, giving filling time",
+    "The node is insulated by myelin that must be re-formed after each beat",
+    "The node has large fibres with few gap junctions, which slows the impulse"
+   ]
+  },
+  {
+   "id": "med-physiology.l05.q3",
+   "lessonId": "med-physiology.l05",
+   "kind": "mcq",
+   "prompt": "A 34-year-old woman has a regular supraventricular tachycardia at 190 beats per minute. A drug given by rapid injection briefly slows AV node conduction and terminates the rhythm. What is its mechanism?",
+   "choices": [
+    "Blockade of fast sodium channels in the His-Purkinje system",
+    "Inhibition of the Na+/K+-ATPase, raising intracellular calcium in nodal cells",
+    "Adenosine activation of A1 receptors that open potassium channels in nodal tissue",
+    "Beta-1 receptor stimulation that increases the funny current in the node"
+   ]
+  },
+  {
+   "id": "med-physiology.l05.q4",
+   "lessonId": "med-physiology.l05",
+   "kind": "mcq",
+   "prompt": "A 71-year-old man has a rhythm strip on which the PR interval lengthens with each successive beat until a P wave is not followed by a QRS, after which the pattern restarts. The most likely site and mechanism of the delay is which of the following?",
+   "choices": [
+    "A fixed block in the bundle branches below the node, with no change in PR",
+    "Complete separation of atrial and ventricular activity with independent rhythms",
+    "Premature atrial beats blocked because the sinus node fires too fast",
+    "Progressive fatigue of AV nodal conduction, with a block at the node"
+   ]
+  },
+  {
+   "id": "med-physiology.l05.q5",
+   "lessonId": "med-physiology.l05",
+   "kind": "mcq",
+   "prompt": "A heart transplant recipient, with the donor heart denervated, has a resting rate near 100 beats per minute. Which explanation is most accurate?",
+   "choices": [
+    "The intrinsic SA node rate lies near 100, normally held lower by vagal tone that is now absent",
+    "The denervated AV node takes over as pacemaker because the SA node is damaged",
+    "The sympathetic fibres regenerate immediately and exert tonic stimulation",
+    "The recipient has excess circulating epinephrine, which always dominates the intrinsic rate"
+   ]
+  },
+  {
+   "id": "med-physiology.l06.q1",
+   "lessonId": "med-physiology.l06",
+   "kind": "mcq",
+   "prompt": "Which event produces the first heart sound (S1)?",
+   "choices": [
+    "Closure of the aortic and pulmonic valves at the end of systole",
+    "Rapid passive filling of the ventricles in early diastole",
+    "Opening of the aortic valve at peak ventricular pressure",
+    "Closure of the mitral and tricuspid valves at the start of systole"
+   ]
+  },
+  {
+   "id": "med-physiology.l06.q2",
+   "lessonId": "med-physiology.l06",
+   "kind": "mcq",
+   "prompt": "A patient has an end-diastolic volume of 150 mL and an end-systolic volume of 60 mL. What is the ejection fraction?",
+   "choices": [
+    "40 percent",
+    "50 percent",
+    "60 percent",
+    "90 percent"
+   ]
+  },
+  {
+   "id": "med-physiology.l06.q3",
+   "lessonId": "med-physiology.l06",
+   "kind": "mcq",
+   "prompt": "During which phase of the cardiac cycle is ventricular volume constant while ventricular pressure is rising?",
+   "choices": [
+    "Rapid ejection",
+    "Isovolumetric contraction",
+    "Isovolumetric relaxation",
+    "Atrial systole"
+   ]
+  },
+  {
+   "id": "med-physiology.l06.q4",
+   "lessonId": "med-physiology.l06",
+   "kind": "mcq",
+   "prompt": "A 72-year-old man has syncope on exertion and a harsh crescendo-decrescendo systolic murmur at the right upper sternal border. Compared with normal, which finding would a left ventricular pressure-volume loop show?",
+   "choices": [
+    "A taller loop with a markedly higher peak ventricular pressure than aortic pressure",
+    "A loop with no isovolumetric contraction because blood moves backward",
+    "A loop that is shifted far right with a very low ejection fraction at normal pressures",
+    "A narrower loop with normal peak pressure and a shortened diastole"
+   ]
+  },
+  {
+   "id": "med-physiology.l06.q5",
+   "lessonId": "med-physiology.l06",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman has a holosystolic apical murmur radiating to the axilla. Which feature of her pressure-volume loop best reflects the underlying lesion?",
+   "choices": [
+    "A prolonged isovolumetric contraction phase because the aortic valve opens late",
+    "An exaggerated end-systolic pressure above the aortic pressure",
+    "A reduced end-diastolic volume because the mitral valve is stenotic",
+    "No true isovolumetric contraction, since the ventricle empties backward into the atrium"
+   ]
+  },
+  {
+   "id": "med-physiology.l07.q1",
+   "lessonId": "med-physiology.l07",
+   "kind": "mcq",
+   "prompt": "Which term describes the force the ventricle generates at a given preload and afterload?",
+   "choices": [
+    "Venous capacitance",
+    "Compliance",
+    "Contractility",
+    "Elastance of the aorta"
+   ]
+  },
+  {
+   "id": "med-physiology.l07.q2",
+   "lessonId": "med-physiology.l07",
+   "kind": "mcq",
+   "prompt": "A patient has oxygen consumption of 300 mL/min, arterial oxygen content of 190 mL per litre and mixed venous oxygen content of 150 mL per litre. What is the cardiac output by the Fick principle?",
+   "choices": [
+    "9.0 L/min",
+    "4.0 L/min",
+    "6.0 L/min",
+    "7.5 L/min"
+   ]
+  },
+  {
+   "id": "med-physiology.l07.q3",
+   "lessonId": "med-physiology.l07",
+   "kind": "mcq",
+   "prompt": "On a pressure-volume loop, which change accompanies an increase in afterload with unchanged contractility and preload?",
+   "choices": [
+    "Stroke volume falls and end-systolic volume rises",
+    "End-diastolic volume falls and the loop widens",
+    "The slope of the end-systolic pressure-volume line increases",
+    "Stroke volume rises and end-systolic volume falls"
+   ]
+  },
+  {
+   "id": "med-physiology.l07.q4",
+   "lessonId": "med-physiology.l07",
+   "kind": "mcq",
+   "prompt": "A 63-year-old man with a prior myocardial infarction has dyspnea. Echocardiography shows a dilated left ventricle and an ejection fraction of 30 percent. Which finding on a pressure-volume loop best matches his condition?",
+   "choices": [
+    "A steeper end-systolic pressure-volume line and a smaller end-systolic volume",
+    "A flatter end-systolic pressure-volume line and a larger end-systolic volume",
+    "A normal end-systolic line with a very small end-diastolic volume",
+    "A loop that moves to the left with a widened stroke volume"
+   ]
+  },
+  {
+   "id": "med-physiology.l07.q5",
+   "lessonId": "med-physiology.l07",
+   "kind": "mcq",
+   "prompt": "During hemorrhage with a 20 percent loss of blood volume, which change on Guyton curves best explains the initial fall in cardiac output?",
+   "choices": [
+    "The operating point shifts right along an unchanged venous return curve",
+    "The cardiac function curve shifts downward because contractility falls",
+    "The venous return curve shifts left because mean systemic filling pressure falls",
+    "The venous return curve rotates upward because total resistance falls"
+   ]
+  },
+  {
+   "id": "med-physiology.l08.q1",
+   "lessonId": "med-physiology.l08",
+   "kind": "mcq",
+   "prompt": "If a vessel radius is halved and all else remains constant, resistance to flow changes by what factor?",
+   "choices": [
+    "It increases eightfold",
+    "It increases sixteenfold",
+    "It doubles",
+    "It increases fourfold"
+   ]
+  },
+  {
+   "id": "med-physiology.l08.q2",
+   "lessonId": "med-physiology.l08",
+   "kind": "mcq",
+   "prompt": "A blood pressure is 126/76 mmHg. What is the approximate mean arterial pressure?",
+   "choices": [
+    "93 mmHg",
+    "101 mmHg",
+    "126 mmHg",
+    "76 mmHg"
+   ]
+  },
+  {
+   "id": "med-physiology.l08.q3",
+   "lessonId": "med-physiology.l08",
+   "kind": "mcq",
+   "prompt": "At the arteriolar end of a capillary, capillary hydrostatic pressure is 32 mmHg, interstitial hydrostatic pressure 2 mmHg, capillary oncotic pressure 24 mmHg and interstitial oncotic pressure 4 mmHg. Assuming a reflection coefficient of 1, what is the net filtration pressure?",
+   "choices": [
+    "+14 mmHg outward",
+    "-4 mmHg inward",
+    "0 mmHg",
+    "+10 mmHg outward"
+   ]
+  },
+  {
+   "id": "med-physiology.l08.q4",
+   "lessonId": "med-physiology.l08",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man with cirrhosis has bilateral leg swelling and ascites. Serum albumin is low. Which change in Starling forces best explains the swelling?",
+   "choices": [
+    "Decreased filtration coefficient from capillary thickening",
+    "Increased capillary hydrostatic pressure from venous obstruction",
+    "Decreased capillary oncotic pressure favouring net filtration",
+    "Increased interstitial oncotic pressure from lymph blockage"
+   ]
+  },
+  {
+   "id": "med-physiology.l08.q5",
+   "lessonId": "med-physiology.l08",
+   "kind": "mcq",
+   "prompt": "A 65-year-old man has an abdominal aortic aneurysm whose diameter has doubled over several years. Which principle best explains why the larger aneurysm is at higher risk of rupture?",
+   "choices": [
+    "Poiseuille's law, which predicts that resistance falls as radius increases",
+    "Laplace's law, in which wall tension rises as radius increases at a given pressure",
+    "Reynolds number, which predicts laminar flow in wide vessels",
+    "Starling's law, which links stretch to greater force of contraction"
+   ]
+  },
+  {
+   "id": "med-physiology.l09.q1",
+   "lessonId": "med-physiology.l09",
+   "kind": "mcq",
+   "prompt": "Which nerve carries baroreceptor information from the carotid sinus to the brainstem?",
+   "choices": [
+    "Glossopharyngeal nerve",
+    "Facial nerve",
+    "Hypoglossal nerve",
+    "Vagus nerve"
+   ]
+  },
+  {
+   "id": "med-physiology.l09.q2",
+   "lessonId": "med-physiology.l09",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man stands up abruptly. Which reflex response restores blood pressure within seconds?",
+   "choices": [
+    "Reduced aldosterone secretion to promote sodium loss",
+    "Reduced baroreceptor firing, increased sympathetic outflow and reduced vagal tone",
+    "Increased baroreceptor firing, increased vagal tone and venodilation",
+    "Release of atrial natriuretic peptide with reduced venous return"
+   ]
+  },
+  {
+   "id": "med-physiology.l09.q3",
+   "lessonId": "med-physiology.l09",
+   "kind": "mcq",
+   "prompt": "Which tissue most strongly shows vasoconstriction in response to local hypoxia?",
+   "choices": [
+    "Cerebral circulation",
+    "Coronary circulation",
+    "Pulmonary circulation",
+    "Skeletal muscle circulation"
+   ]
+  },
+  {
+   "id": "med-physiology.l09.q4",
+   "lessonId": "med-physiology.l09",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man with hypertension starts a new medication and develops a persistent dry cough. Which mechanism most directly accounts for the cough and the drug's antihypertensive effect?",
+   "choices": [
+    "Renin inhibition, lowering angiotensin I and increasing aldosterone",
+    "Mineralocorticoid receptor blockade, increasing potassium excretion",
+    "Blockade of AT1 receptors, causing accumulation of angiotensin I",
+    "ACE inhibition, lowering angiotensin II and increasing bradykinin"
+   ]
+  },
+  {
+   "id": "med-physiology.l09.q5",
+   "lessonId": "med-physiology.l09",
+   "kind": "mcq",
+   "prompt": "A 66-year-old woman with a narrowed right renal artery has hypertension. Which sequence best explains the hypertension?",
+   "choices": [
+    "Low renal perfusion, then increased renin, then more angiotensin II and aldosterone",
+    "Low perfusion in the affected kidney, then increased ANP, then volume expansion",
+    "Low perfusion in the affected kidney, then decreased renin, then vasodilation",
+    "High perfusion in the contralateral kidney, then decreased sympathetic tone"
+   ]
+  },
+  {
+   "id": "med-physiology.l10.q1",
+   "lessonId": "med-physiology.l10",
+   "kind": "mcq",
+   "prompt": "Which lung capacity equals expiratory reserve volume plus residual volume?",
+   "choices": [
+    "Inspiratory capacity",
+    "Vital capacity",
+    "Functional residual capacity",
+    "Total lung capacity"
+   ]
+  },
+  {
+   "id": "med-physiology.l10.q2",
+   "lessonId": "med-physiology.l10",
+   "kind": "mcq",
+   "prompt": "A patient breathes with a tidal volume of 400 mL at 20 breaths per minute, with an anatomic dead space of 150 mL. What is the alveolar ventilation?",
+   "choices": [
+    "6.0 L/min",
+    "8.0 L/min",
+    "3.0 L/min",
+    "5.0 L/min"
+   ]
+  },
+  {
+   "id": "med-physiology.l10.q3",
+   "lessonId": "med-physiology.l10",
+   "kind": "mcq",
+   "prompt": "Which change is expected in a patient with emphysema compared with a healthy adult?",
+   "choices": [
+    "Increased compliance, raised FRC and a reduced FEV1/FVC ratio",
+    "Decreased compliance and a raised FEV1/FVC ratio",
+    "Reduced residual volume and increased elastic recoil",
+    "Reduced total lung capacity and a normal FEV1/FVC ratio"
+   ]
+  },
+  {
+   "id": "med-physiology.l10.q4",
+   "lessonId": "med-physiology.l10",
+   "kind": "mcq",
+   "prompt": "A premature infant born at 29 weeks develops tachypnea, grunting and hypoxemia within hours of birth. A chest radiograph shows diffuse ground-glass opacities. Which mechanism best explains the lung findings?",
+   "choices": [
+    "Excess surfactant secretion that raises alveolar surface tension and stiffens the lung",
+    "Deficient surfactant, raising surface tension and promoting alveolar collapse",
+    "Deficient alpha-1 antitrypsin, with destruction of alveolar elastic tissue",
+    "Defective cystic fibrosis transmembrane conductance regulator function in airway epithelium"
+   ]
+  },
+  {
+   "id": "med-physiology.l10.q5",
+   "lessonId": "med-physiology.l10",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man with progressive dyspnea has an FEV1/FVC ratio of 0.85, a reduced FVC and a reduced total lung capacity. His lung compliance is low. Which condition best fits these findings?",
+   "choices": [
+    "Emphysema with air trapping",
+    "Chronic bronchitis",
+    "Idiopathic pulmonary fibrosis",
+    "Asthma during an exacerbation"
+   ]
+  },
+  {
+   "id": "med-physiology.l11.q1",
+   "lessonId": "med-physiology.l11",
+   "kind": "mcq",
+   "prompt": "Which factor shifts the oxyhemoglobin dissociation curve to the right?",
+   "choices": [
+    "Fetal hemoglobin",
+    "Alkalosis",
+    "Carbon monoxide",
+    "Raised 2,3-BPG"
+   ]
+  },
+  {
+   "id": "med-physiology.l11.q2",
+   "lessonId": "med-physiology.l11",
+   "kind": "mcq",
+   "prompt": "A subject at sea level breathes room air with PaCO2 of 48 mmHg. Using a respiratory quotient of 0.8 and water vapour pressure of 47 mmHg, what is the approximate PAO2?",
+   "choices": [
+    "150 mmHg",
+    "100 mmHg",
+    "90 mmHg",
+    "110 mmHg"
+   ]
+  },
+  {
+   "id": "med-physiology.l11.q3",
+   "lessonId": "med-physiology.l11",
+   "kind": "mcq",
+   "prompt": "A man breathing 100 percent oxygen has a persistently low arterial PO2. Which cause of hypoxemia is most strongly suggested?",
+   "choices": [
+    "Hypoventilation from sedative use",
+    "Right-to-left intracardiac shunt",
+    "Ascent to high altitude",
+    "Mild ventilation-perfusion mismatch"
+   ]
+  },
+  {
+   "id": "med-physiology.l11.q4",
+   "lessonId": "med-physiology.l11",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman found in a closed garage with a running car engine has headache and confusion. Pulse oximetry shows 98 percent and arterial PO2 is normal. Which statement best describes her blood?",
+   "choices": [
+    "Oxygen content is reduced and the dissociation curve is shifted to the left",
+    "Oxygen content is normal and the dissociation curve is shifted to the right",
+    "Dissolved oxygen is reduced and hemoglobin saturation is accurately reflected by oximetry",
+    "Oxygen content is normal but carbon dioxide transport is impaired"
+   ]
+  },
+  {
+   "id": "med-physiology.l11.q5",
+   "lessonId": "med-physiology.l11",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man with pulmonary fibrosis has normal resting oxygen saturation but becomes hypoxemic during exercise. His DLCO is reduced. Which explanation is best?",
+   "choices": [
+    "Increased dead space ventilation raises PaCO2, which shifts the oxygen curve left",
+    "Reduced hemoglobin concentration lowers the oxygen content at normal PO2",
+    "Hypoventilation lowers alveolar oxygen at rest but not during exercise",
+    "Reduced diffusion capacity leaves too little time for equilibration when transit time shortens"
+   ]
+  },
+  {
+   "id": "med-physiology.l12.q1",
+   "lessonId": "med-physiology.l12",
+   "kind": "mcq",
+   "prompt": "Which region of the upright lung has the highest ventilation-perfusion ratio?",
+   "choices": [
+    "The apex",
+    "The middle",
+    "The base",
+    "The hilum"
+   ]
+  },
+  {
+   "id": "med-physiology.l12.q2",
+   "lessonId": "med-physiology.l12",
+   "kind": "mcq",
+   "prompt": "A pulmonary vascular resistance calculation uses a mean pulmonary artery pressure of 25 mmHg, a wedge pressure of 10 mmHg and a cardiac output of 5 L/min. What is the resistance?",
+   "choices": [
+    "1.0 Wood units",
+    "3.0 Wood units",
+    "5.0 Wood units",
+    "7.0 Wood units"
+   ]
+  },
+  {
+   "id": "med-physiology.l12.q3",
+   "lessonId": "med-physiology.l12",
+   "kind": "mcq",
+   "prompt": "Which condition increases alveolar dead space?",
+   "choices": [
+    "Cardiogenic pulmonary edema from left heart failure with fluid-filled alveoli",
+    "Lobar pneumonia with dense consolidation filling the airspaces of a lobe",
+    "Pulmonary embolism that blocks perfusion to ventilated alveoli",
+    "Atelectasis with collapse of well-perfused lung units after surgery"
+   ]
+  },
+  {
+   "id": "med-physiology.l12.q4",
+   "lessonId": "med-physiology.l12",
+   "kind": "mcq",
+   "prompt": "A 48-year-old woman has sudden pleuritic chest pain and dyspnea after a long flight. Her oxygen saturation is 90 percent, and her end-tidal CO2 is lower than her arterial CO2 by a wide margin. Which mechanism best explains the low end-tidal CO2?",
+   "choices": [
+    "Perfused alveoli that receive no ventilation add CO2-rich gas to the exhaled sample",
+    "Hyperventilation from pain removes all carbon dioxide from the blood",
+    "Reduced carbonic anhydrase activity in red cells blocks CO2 formation",
+    "Ventilated alveoli that receive no blood flow add CO2-free gas to the exhaled sample"
+   ]
+  },
+  {
+   "id": "med-physiology.l12.q5",
+   "lessonId": "med-physiology.l12",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man develops a localized pneumonia in the right lower lobe with alveoli filled with exudate. His oxygen saturation drops, and does not rise much with 100 percent oxygen. Which compensatory mechanism limits the severity of hypoxemia in the affected lobe?",
+   "choices": [
+    "Hypoxic pulmonary vasoconstriction diverting blood to better-ventilated regions",
+    "Increased surface tension that holds alveoli open",
+    "Reduced dead space from increased perfusion at the apex",
+    "Vasodilation of the arterioles supplying the consolidated alveoli"
+   ]
+  },
+  {
+   "id": "med-physiology.l13.q1",
+   "lessonId": "med-physiology.l13",
+   "kind": "mcq",
+   "prompt": "Which receptors are the only ones that respond to a fall in arterial PO2?",
+   "choices": [
+    "Central chemoreceptors in the medulla",
+    "Peripheral chemoreceptors in the carotid and aortic bodies",
+    "Stretch receptors in the airway smooth muscle",
+    "Irritant receptors in the bronchial epithelium"
+   ]
+  },
+  {
+   "id": "med-physiology.l13.q2",
+   "lessonId": "med-physiology.l13",
+   "kind": "mcq",
+   "prompt": "A patient has arterial pH 7.25, PCO2 28 mmHg and bicarbonate 12 mmol/L, with sodium 140 and chloride 100 mmol/L. What is the anion gap?",
+   "choices": [
+    "28 mmol/L",
+    "40 mmol/L",
+    "12 mmol/L",
+    "16 mmol/L"
+   ]
+  },
+  {
+   "id": "med-physiology.l13.q3",
+   "lessonId": "med-physiology.l13",
+   "kind": "mcq",
+   "prompt": "A patient has pH 7.55, PCO2 30 mmHg and bicarbonate 25 mmol/L shortly after a panic attack. Which disorder is present?",
+   "choices": [
+    "Metabolic alkalosis with respiratory compensation",
+    "Acute respiratory acidosis",
+    "Mixed metabolic acidosis and alkalosis",
+    "Acute respiratory alkalosis"
+   ]
+  },
+  {
+   "id": "med-physiology.l13.q4",
+   "lessonId": "med-physiology.l13",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man with type 1 diabetes has vomiting and abdominal pain. Arterial pH is 7.20 and bicarbonate 8 mmol/L with deep rapid breathing; PCO2 is 21 mmHg. Using Winter's formula, which interpretation is correct?",
+   "choices": [
+    "Metabolic acidosis with an additional respiratory alkalosis",
+    "Primary respiratory alkalosis with renal compensation",
+    "Appropriate respiratory compensation for a metabolic acidosis",
+    "Metabolic acidosis with an additional respiratory acidosis"
+   ]
+  },
+  {
+   "id": "med-physiology.l13.q5",
+   "lessonId": "med-physiology.l13",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman with long-standing COPD has chronic hypercapnia. After receiving high-flow oxygen in an emergency room she becomes drowsy and her PCO2 rises. Which mechanism most likely contributes?",
+   "choices": [
+    "Direct inhibition of carbonic anhydrase by oxygen",
+    "Reversal of the Haldane effect and worsened ventilation-perfusion matching",
+    "Stimulation of central chemoreceptors by the extra oxygen",
+    "Complete loss of peripheral chemoreceptor function from oxygen toxicity"
+   ]
+  },
+  {
+   "id": "med-physiology.l14.q1",
+   "lessonId": "med-physiology.l14",
+   "kind": "mcq",
+   "prompt": "Which substance, freely filtered and neither reabsorbed nor secreted, has a clearance equal to the glomerular filtration rate?",
+   "choices": [
+    "Urea",
+    "Para-aminohippurate",
+    "Inulin",
+    "Glucose"
+   ]
+  },
+  {
+   "id": "med-physiology.l14.q2",
+   "lessonId": "med-physiology.l14",
+   "kind": "mcq",
+   "prompt": "A patient has urine creatinine 60 mg/dL, urine flow 2 mL/min and plasma creatinine 1.0 mg/dL. What is the creatinine clearance?",
+   "choices": [
+    "180 mL/min",
+    "30 mL/min",
+    "60 mL/min",
+    "120 mL/min"
+   ]
+  },
+  {
+   "id": "med-physiology.l14.q3",
+   "lessonId": "med-physiology.l14",
+   "kind": "mcq",
+   "prompt": "Which change would be expected to increase filtration fraction?",
+   "choices": [
+    "Constriction of the efferent arteriole",
+    "Constriction of the afferent arteriole",
+    "Dilation of the efferent arteriole",
+    "Urinary tract obstruction"
+   ]
+  },
+  {
+   "id": "med-physiology.l14.q4",
+   "lessonId": "med-physiology.l14",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman with heart failure takes an ACE inhibitor and a loop diuretic and starts an NSAID for knee pain. Within days her creatinine doubles. Which mechanism most directly explains the fall in GFR?",
+   "choices": [
+    "Increased filtration coefficient leading to excessive filtration and tubular injury",
+    "Loss of prostaglandin afferent dilation and angiotensin II efferent constriction",
+    "Increased glomerular oncotic pressure from reduced filtration of albumin",
+    "Direct toxicity to the macula densa, which stops tubuloglomerular feedback"
+   ]
+  },
+  {
+   "id": "med-physiology.l14.q5",
+   "lessonId": "med-physiology.l14",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man has a kidney stone obstructing the ureter. Which change in glomerular Starling forces on the affected side explains the fall in GFR?",
+   "choices": [
+    "Decreased glomerular capillary oncotic pressure favouring filtration",
+    "Decreased filtration coefficient from podocyte effacement",
+    "Increased hydrostatic pressure in Bowman space opposing filtration",
+    "Increased oncotic pressure in Bowman space opposing filtration"
+   ]
+  },
+  {
+   "id": "med-physiology.l15.q1",
+   "lessonId": "med-physiology.l15",
+   "kind": "mcq",
+   "prompt": "Which nephron segment reabsorbs most of the filtered sodium and water?",
+   "choices": [
+    "Thick ascending limb",
+    "Distal convoluted tubule",
+    "Collecting duct",
+    "Proximal tubule"
+   ]
+  },
+  {
+   "id": "med-physiology.l15.q2",
+   "lessonId": "med-physiology.l15",
+   "kind": "mcq",
+   "prompt": "Which transporter is the target of furosemide?",
+   "choices": [
+    "Na+/H+ exchanger in the proximal tubule",
+    "Na+-Cl- cotransporter in the distal tubule",
+    "Na+-K+-2Cl- cotransporter in the thick ascending limb",
+    "Epithelial sodium channel in the collecting duct"
+   ]
+  },
+  {
+   "id": "med-physiology.l15.q3",
+   "lessonId": "med-physiology.l15",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man with recurrent calcium kidney stones is given a thiazide diuretic. What is the expected change in urinary calcium and why?",
+   "choices": [
+    "Increase, because sodium delivery to the loop rises",
+    "Decrease, because distal tubular calcium reabsorption is enhanced",
+    "Increase, because proximal calcium reabsorption is blocked",
+    "No change, because calcium is not handled by the distal tubule"
+   ]
+  },
+  {
+   "id": "med-physiology.l15.q4",
+   "lessonId": "med-physiology.l15",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man with type 2 diabetes starts a new agent and develops glucose in the urine with a plasma glucose of 120 mg/dL and a genital yeast infection. Which target best explains the drug effect?",
+   "choices": [
+    "Inhibition of SGLT2 in the early proximal tubule",
+    "Inhibition of the Na+-K+-2Cl- cotransporter in the loop of Henle",
+    "Stimulation of GLUT2 in the collecting duct",
+    "Blockade of aquaporin 2 in principal cells"
+   ]
+  },
+  {
+   "id": "med-physiology.l15.q5",
+   "lessonId": "med-physiology.l15",
+   "kind": "mcq",
+   "prompt": "A 66-year-old woman with heart failure takes a loop diuretic and has a serum potassium of 3.0 mmol/L with a bicarbonate of 32 mmol/L. Which mechanism best accounts for these findings?",
+   "choices": [
+    "Blockade of aldosterone receptors causing potassium wasting",
+    "Inhibition of the H+-ATPase in intercalated cells",
+    "Reduced sodium delivery to the collecting duct lowering potassium secretion",
+    "Increased distal flow and aldosterone enhancing potassium and hydrogen secretion"
+   ]
+  },
+  {
+   "id": "med-physiology.l16.q1",
+   "lessonId": "med-physiology.l16",
+   "kind": "mcq",
+   "prompt": "Which receptor and second messenger mediate the effect of ADH on the collecting duct?",
+   "choices": [
+    "V2 receptor with cAMP",
+    "V1 receptor with IP3",
+    "Mineralocorticoid receptor with cGMP",
+    "AT1 receptor with calcium"
+   ]
+  },
+  {
+   "id": "med-physiology.l16.q2",
+   "lessonId": "med-physiology.l16",
+   "kind": "mcq",
+   "prompt": "A patient has urine osmolality 450 mOsm/kg, plasma osmolality 300 mOsm/kg and urine flow 2 mL/min. What is the free water clearance?",
+   "choices": [
+    "+3.0 mL/min",
+    "-1.0 mL/min",
+    "+1.0 mL/min",
+    "-3.0 mL/min"
+   ]
+  },
+  {
+   "id": "med-physiology.l16.q3",
+   "lessonId": "med-physiology.l16",
+   "kind": "mcq",
+   "prompt": "Which structure maintains the corticomedullary osmotic gradient by acting as a countercurrent exchanger?",
+   "choices": [
+    "The glomerular capillary",
+    "The thick ascending limb",
+    "The vasa recta",
+    "The macula densa"
+   ]
+  },
+  {
+   "id": "med-physiology.l16.q4",
+   "lessonId": "med-physiology.l16",
+   "kind": "mcq",
+   "prompt": "A 38-year-old woman treated with lithium has polyuria and thirst. After water deprivation her urine osmolality stays at 160 mOsm/kg, and it does not change after desmopressin. Which diagnosis best fits?",
+   "choices": [
+    "Primary polydipsia",
+    "Syndrome of inappropriate ADH secretion",
+    "Central diabetes insipidus",
+    "Nephrogenic diabetes insipidus"
+   ]
+  },
+  {
+   "id": "med-physiology.l16.q5",
+   "lessonId": "med-physiology.l16",
+   "kind": "mcq",
+   "prompt": "A 64-year-old man who smokes has a serum sodium of 123 mmol/L, appears euvolemic, and has urine osmolality of 420 mOsm/kg and urine sodium of 52 mmol/L. Which mechanism best explains his hyponatremia?",
+   "choices": [
+    "Water retention from nonosmotic ADH release, with sodium excreted normally",
+    "Excessive sodium loss through the thick ascending limb after a loop diuretic",
+    "Primary adrenal insufficiency with loss of aldosterone",
+    "Increased water intake with a maximally dilute urine"
+   ]
+  },
+  {
+   "id": "med-physiology.l17.q1",
+   "lessonId": "med-physiology.l17",
+   "kind": "mcq",
+   "prompt": "Which hormone, released from stretched atria, promotes sodium excretion?",
+   "choices": [
+    "Aldosterone",
+    "Atrial natriuretic peptide",
+    "Angiotensin II",
+    "Vasopressin"
+   ]
+  },
+  {
+   "id": "med-physiology.l17.q2",
+   "lessonId": "med-physiology.l17",
+   "kind": "mcq",
+   "prompt": "Which of the following would shift potassium from the extracellular fluid into cells?",
+   "choices": [
+    "Insulin",
+    "Metabolic acidosis from a mineral acid",
+    "Rhabdomyolysis",
+    "Digoxin toxicity"
+   ]
+  },
+  {
+   "id": "med-physiology.l17.q3",
+   "lessonId": "med-physiology.l17",
+   "kind": "mcq",
+   "prompt": "Which statement correctly describes the action of parathyroid hormone on the nephron?",
+   "choices": [
+    "It increases proximal calcium reabsorption and increases proximal phosphate reabsorption",
+    "It decreases distal calcium reabsorption and increases proximal phosphate reabsorption",
+    "It decreases distal calcium reabsorption and decreases phosphate excretion",
+    "It increases distal calcium reabsorption and decreases proximal phosphate reabsorption"
+   ]
+  },
+  {
+   "id": "med-physiology.l17.q4",
+   "lessonId": "med-physiology.l17",
+   "kind": "mcq",
+   "prompt": "A 44-year-old woman has hypertension, serum potassium of 2.9 mmol/L, bicarbonate 31 mmol/L and no edema. Plasma renin activity is low and aldosterone is high. Which mechanism best explains the lack of edema?",
+   "choices": [
+    "Aldosterone-mediated loss of sodium in the collecting duct",
+    "Reduced capillary hydrostatic pressure from vasodilation",
+    "Escape through pressure natriuresis and natriuretic peptides",
+    "Increased proximal sodium reabsorption that offsets the volume gain"
+   ]
+  },
+  {
+   "id": "med-physiology.l17.q5",
+   "lessonId": "med-physiology.l17",
+   "kind": "mcq",
+   "prompt": "A 29-year-old man with a crush injury has potassium of 7.0 mmol/L and ECG changes. Which intervention protects the heart without lowering serum potassium?",
+   "choices": [
+    "Intravenous insulin with glucose",
+    "Intravenous calcium",
+    "Nebulized albuterol",
+    "Loop diuretic"
+   ]
+  },
+  {
+   "id": "med-physiology.l18.q1",
+   "lessonId": "med-physiology.l18",
+   "kind": "mcq",
+   "prompt": "Which enzyme on the proximal tubule brush border converts luminal carbonic acid to carbon dioxide and water?",
+   "choices": [
+    "Renin",
+    "Na+/K+-ATPase",
+    "Carbonic anhydrase",
+    "Glutaminase"
+   ]
+  },
+  {
+   "id": "med-physiology.l18.q2",
+   "lessonId": "med-physiology.l18",
+   "kind": "mcq",
+   "prompt": "A patient has urine sodium 30, potassium 20 and chloride 90 mmol/L. What is the urine anion gap and what does it suggest?",
+   "choices": [
+    "+40, high ammonium excretion",
+    "-40, impaired ammonium excretion",
+    "+40, impaired ammonium excretion",
+    "-40, high ammonium excretion"
+   ]
+  },
+  {
+   "id": "med-physiology.l18.q3",
+   "lessonId": "med-physiology.l18",
+   "kind": "mcq",
+   "prompt": "Which renal tubular acidosis is associated with hyperkalemia?",
+   "choices": [
+    "Type 4 (hypoaldosteronism)",
+    "Fanconi syndrome",
+    "Type 1 (distal)",
+    "Type 2 (proximal)"
+   ]
+  },
+  {
+   "id": "med-physiology.l18.q4",
+   "lessonId": "med-physiology.l18",
+   "kind": "mcq",
+   "prompt": "A 33-year-old woman has recurrent kidney stones, a serum bicarbonate of 16 mmol/L, a normal anion gap and a serum potassium of 3.1 mmol/L. Her urine pH is 6.4. Which defect is most likely?",
+   "choices": [
+    "Excess ammoniagenesis in proximal cells",
+    "Failure of hydrogen secretion by distal intercalated cells",
+    "Failure of proximal bicarbonate reabsorption",
+    "Aldosterone resistance in principal cells"
+   ]
+  },
+  {
+   "id": "med-physiology.l18.q5",
+   "lessonId": "med-physiology.l18",
+   "kind": "mcq",
+   "prompt": "A 25-year-old man with several days of vomiting has a bicarbonate of 36 mmol/L, a potassium of 2.9 mmol/L, and a urine chloride below 10 mmol/L. Which statement best explains why the alkalosis persists?",
+   "choices": [
+    "Loss of bicarbonate in the stool is replaced by renal production",
+    "A defect in carbonic anhydrase prevents bicarbonate excretion",
+    "Volume depletion and hypochloremia promote bicarbonate reabsorption",
+    "Excess aldosterone from an adrenal adenoma drives bicarbonate retention"
+   ]
+  },
+  {
+   "id": "med-physiology.l19.q1",
+   "lessonId": "med-physiology.l19",
+   "kind": "mcq",
+   "prompt": "Which cells secrete gastrin?",
+   "choices": [
+    "Parietal cells",
+    "Duodenal S cells",
+    "Gastric D cells",
+    "Antral G cells"
+   ]
+  },
+  {
+   "id": "med-physiology.l19.q2",
+   "lessonId": "med-physiology.l19",
+   "kind": "mcq",
+   "prompt": "Which GI hormone is released in response to acid in the duodenum and stimulates pancreatic bicarbonate secretion?",
+   "choices": [
+    "Motilin",
+    "Cholecystokinin",
+    "Secretin",
+    "Gastrin"
+   ]
+  },
+  {
+   "id": "med-physiology.l19.q3",
+   "lessonId": "med-physiology.l19",
+   "kind": "mcq",
+   "prompt": "Which transporter is responsible for the absorption of fructose across the brush border?",
+   "choices": [
+    "SGLT1",
+    "GLUT5",
+    "GLUT2",
+    "PepT1"
+   ]
+  },
+  {
+   "id": "med-physiology.l19.q4",
+   "lessonId": "med-physiology.l19",
+   "kind": "mcq",
+   "prompt": "A 41-year-old man has recurrent duodenal and jejunal ulcers, diarrhea and a fasting serum gastrin markedly elevated, with gastric pH of 1.5. Which mechanism best explains his ulcers?",
+   "choices": [
+    "Autonomous gastrin driving excess acid secretion",
+    "Loss of parietal cells with absent acid secretion",
+    "Excess secretin that inhibits gastric acid",
+    "Deficient bicarbonate secretion from the pancreas"
+   ]
+  },
+  {
+   "id": "med-physiology.l19.q5",
+   "lessonId": "med-physiology.l19",
+   "kind": "mcq",
+   "prompt": "A 52-year-old woman who had the terminal ileum resected for Crohn disease has watery diarrhea, steatorrhea and later macrocytic anemia. Which pairing of absorptive defects best explains her findings?",
+   "choices": [
+    "Loss of iron absorption and loss of intrinsic factor secretion",
+    "Loss of SGLT1-mediated glucose uptake and loss of lactase activity",
+    "Loss of pancreatic lipase and loss of gastric acid secretion",
+    "Loss of bile salt reabsorption and loss of intrinsic factor-bound B12 uptake"
+   ]
+  },
+  {
+   "id": "med-physiology.l20.q1",
+   "lessonId": "med-physiology.l20",
+   "kind": "mcq",
+   "prompt": "Which hypothalamic factor tonically inhibits prolactin secretion?",
+   "choices": [
+    "Somatostatin",
+    "Thyrotropin-releasing hormone",
+    "Gonadotropin-releasing hormone",
+    "Dopamine"
+   ]
+  },
+  {
+   "id": "med-physiology.l20.q2",
+   "lessonId": "med-physiology.l20",
+   "kind": "mcq",
+   "prompt": "A patient has low free T4 and a high TSH. Which diagnosis fits?",
+   "choices": [
+    "Graves disease",
+    "TSH-secreting pituitary adenoma",
+    "Primary hypothyroidism",
+    "Central hypothyroidism"
+   ]
+  },
+  {
+   "id": "med-physiology.l20.q3",
+   "lessonId": "med-physiology.l20",
+   "kind": "mcq",
+   "prompt": "Which enzyme attaches iodine to tyrosine residues on thyroglobulin?",
+   "choices": [
+    "Thyroglobulin protease",
+    "Thyroid peroxidase",
+    "Type 1 deiodinase",
+    "Sodium-iodide symporter"
+   ]
+  },
+  {
+   "id": "med-physiology.l20.q4",
+   "lessonId": "med-physiology.l20",
+   "kind": "mcq",
+   "prompt": "A 36-year-old woman has weight loss, tremor, heat intolerance, a diffusely enlarged thyroid and exophthalmos. Her TSH is suppressed and free T4 is elevated. Which pathology best explains her hyperthyroidism?",
+   "choices": [
+    "Antibodies that stimulate the TSH receptor",
+    "Antibodies that destroy thyroid peroxidase-expressing follicles",
+    "A TSH-secreting pituitary adenoma",
+    "Excess iodide uptake driven by a TRH-secreting tumour"
+   ]
+  },
+  {
+   "id": "med-physiology.l20.q5",
+   "lessonId": "med-physiology.l20",
+   "kind": "mcq",
+   "prompt": "A 57-year-old man has taken high-dose prednisone daily for a year for vasculitis and abruptly stops it. He later develops hypotension, vomiting and weakness. Which sequence best explains the presentation?",
+   "choices": [
+    "Prolonged steroid exposure raised ACTH, causing adrenal hyperplasia and excess aldosterone",
+    "Prednisone destroyed the adrenal medulla, causing loss of catecholamines",
+    "Prednisone blocked the renin system, so withdrawal caused unopposed angiotensin II",
+    "Prolonged steroids suppressed ACTH, causing adrenal atrophy and cortisol deficiency"
+   ]
+  },
+  {
+   "id": "med-physiology.l21.q1",
+   "lessonId": "med-physiology.l21",
+   "kind": "mcq",
+   "prompt": "Which glucose transporter is insulin-dependent in skeletal muscle and adipose tissue?",
+   "choices": [
+    "GLUT1",
+    "GLUT2",
+    "GLUT4",
+    "SGLT1"
+   ]
+  },
+  {
+   "id": "med-physiology.l21.q2",
+   "lessonId": "med-physiology.l21",
+   "kind": "mcq",
+   "prompt": "Which event directly links glucose metabolism to insulin release in beta cells?",
+   "choices": [
+    "Closure of voltage-gated calcium channels",
+    "Inhibition of glucokinase",
+    "Opening of ATP-sensitive potassium channels",
+    "Closure of ATP-sensitive potassium channels"
+   ]
+  },
+  {
+   "id": "med-physiology.l21.q3",
+   "lessonId": "med-physiology.l21",
+   "kind": "mcq",
+   "prompt": "Which pattern of laboratory results best fits primary hyperparathyroidism?",
+   "choices": [
+    "High calcium, high PTH, low phosphate",
+    "High calcium, low PTH, low phosphate",
+    "Low calcium, high PTH, high phosphate",
+    "Low calcium, low PTH, high phosphate"
+   ]
+  },
+  {
+   "id": "med-physiology.l21.q4",
+   "lessonId": "med-physiology.l21",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man with lung cancer has calcium 14 mg/dL, low phosphate and a suppressed PTH. Which mechanism most likely explains the hypercalcemia?",
+   "choices": [
+    "Excess calcitonin from a medullary tumour",
+    "Tumour production of PTH-related peptide acting on PTH receptors",
+    "Autonomous secretion of PTH from a parathyroid adenoma",
+    "Secondary hyperparathyroidism from low calcitriol"
+   ]
+  },
+  {
+   "id": "med-physiology.l21.q5",
+   "lessonId": "med-physiology.l21",
+   "kind": "mcq",
+   "prompt": "A 19-year-old with type 1 diabetes presents with vomiting and deep breathing. Glucose is 520 mg/dL, bicarbonate 8 mmol/L and potassium 5.6 mmol/L. Which statement about his total body potassium is correct?",
+   "choices": [
+    "It is normal, because serum potassium directly reflects total body stores",
+    "It is likely elevated, because insulin deficiency increases cellular uptake of potassium",
+    "It is likely depleted, since potassium shifts out of cells and is lost in urine",
+    "It is likely elevated, since hyperglycemia retains potassium"
+   ]
+  },
+  {
+   "id": "med-physiology.l22.q1",
+   "lessonId": "med-physiology.l22",
+   "kind": "mcq",
+   "prompt": "Which cells in the testis produce testosterone in response to LH?",
+   "choices": [
+    "Sertoli cells",
+    "Leydig cells",
+    "Spermatogonia",
+    "Granulosa cells"
+   ]
+  },
+  {
+   "id": "med-physiology.l22.q2",
+   "lessonId": "med-physiology.l22",
+   "kind": "mcq",
+   "prompt": "What triggers ovulation in the normal menstrual cycle?",
+   "choices": [
+    "A surge of LH caused by sustained high estradiol exerting positive feedback",
+    "A rise in progesterone from the corpus luteum",
+    "A surge of hCG from the developing follicle",
+    "A fall in estradiol that releases the pituitary from inhibition"
+   ]
+  },
+  {
+   "id": "med-physiology.l22.q3",
+   "lessonId": "med-physiology.l22",
+   "kind": "mcq",
+   "prompt": "Which hormone maintains the corpus luteum in early pregnancy?",
+   "choices": [
+    "Prolactin from the decidua and anterior pituitary",
+    "Estriol made from fetal adrenal precursors",
+    "Follicle-stimulating hormone from the anterior pituitary",
+    "Chorionic gonadotropin from the placenta"
+   ]
+  },
+  {
+   "id": "med-physiology.l22.q4",
+   "lessonId": "med-physiology.l22",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man has a 46,XY karyotype, normal testes, and a blind-ending vagina with absent uterus and tubes. Testosterone is normal for a man, and he has female external genitalia with scant body hair. Which defect best explains his presentation?",
+   "choices": [
+    "Deficiency of 5-alpha-reductase",
+    "Absence of the SRY gene",
+    "Absence of androgen receptor function",
+    "Deficiency of anti-Mullerian hormone"
+   ]
+  },
+  {
+   "id": "med-physiology.l22.q5",
+   "lessonId": "med-physiology.l22",
+   "kind": "mcq",
+   "prompt": "A 29-year-old woman has been using a long-acting GnRH agonist for endometriosis and reports hot flashes and amenorrhea. Which mechanism best explains these effects?",
+   "choices": [
+    "Inhibition of aromatase in granulosa cells",
+    "Continuous stimulation desensitizes gonadotrophs, lowering LH and FSH",
+    "Pulsatile receptor stimulation increases FSH and LH, raising estradiol",
+    "Direct blockade of the ovarian estrogen receptor"
+   ]
+  },
+  {
+   "id": "med-physiology.l23.q1",
+   "lessonId": "med-physiology.l23",
+   "kind": "mcq",
+   "prompt": "Which change is typical of moderate dynamic exercise?",
+   "choices": [
+    "Fall in total peripheral resistance",
+    "Rise in diastolic pressure by 40 mmHg",
+    "Fall in the arteriovenous oxygen difference",
+    "Fall in cardiac output"
+   ]
+  },
+  {
+   "id": "med-physiology.l23.q2",
+   "lessonId": "med-physiology.l23",
+   "kind": "mcq",
+   "prompt": "At maximal exercise, oxygen consumption is 3.6 L/min and the arteriovenous oxygen difference is 150 mL/L. What is the cardiac output?",
+   "choices": [
+    "18 L/min",
+    "24 L/min",
+    "36 L/min",
+    "12 L/min"
+   ]
+  },
+  {
+   "id": "med-physiology.l23.q3",
+   "lessonId": "med-physiology.l23",
+   "kind": "mcq",
+   "prompt": "Which change is part of acclimatization to high altitude over several days?",
+   "choices": [
+    "Decreased 2,3-bisphosphoglycerate, shifting the curve leftward",
+    "Reduced pulmonary artery pressure from vasodilation",
+    "Renal bicarbonate excretion that corrects the respiratory alkalosis",
+    "Reduced erythropoietin secretion, lowering red cell production"
+   ]
+  },
+  {
+   "id": "med-physiology.l23.q4",
+   "lessonId": "med-physiology.l23",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman climbs rapidly to 4,000 m and develops headache, nausea and insomnia. Which prophylactic drug acts by creating a metabolic acidosis that stimulates ventilation?",
+   "choices": [
+    "Spironolactone",
+    "Hydrochlorothiazide",
+    "Furosemide",
+    "Acetazolamide"
+   ]
+  },
+  {
+   "id": "med-physiology.l23.q5",
+   "lessonId": "med-physiology.l23",
+   "kind": "mcq",
+   "prompt": "A 26-year-old cyclist exercising above the lactate threshold has rapid, deep breathing, with arterial PCO2 lower than at rest and a falling pH. Which explanation best accounts for the ventilation?",
+   "choices": [
+    "Buffering of lactic acid generates CO2, and acidosis stimulates chemoreceptors",
+    "Hypoxemia from diffusion limitation is the sole stimulus",
+    "Reduced blood flow to the carotid bodies stimulates central chemoreceptors",
+    "Increased dead space from pulmonary embolism increases PCO2"
+   ]
+  },
+  {
+   "id": "med-physiology.l24.q1",
+   "lessonId": "med-physiology.l24",
+   "kind": "mcq",
+   "prompt": "Which finding is a late sign of hemorrhage in a young healthy adult?",
+   "choices": [
+    "Narrow pulse pressure",
+    "Tachycardia",
+    "Cool pale skin",
+    "Hypotension"
+   ]
+  },
+  {
+   "id": "med-physiology.l24.q2",
+   "lessonId": "med-physiology.l24",
+   "kind": "mcq",
+   "prompt": "Several hours after a moderate hemorrhage, a patient's hematocrit falls without further bleeding. Which mechanism explains this?",
+   "choices": [
+    "Reduced erythropoietin secretion, lowering red cell production",
+    "Increased capillary hydrostatic pressure from vasodilation",
+    "Transcapillary refill of interstitial fluid into the vasculature",
+    "Destruction of red cells by hemolysis"
+   ]
+  },
+  {
+   "id": "med-physiology.l24.q3",
+   "lessonId": "med-physiology.l24",
+   "kind": "mcq",
+   "prompt": "Which hemodynamic profile is expected in hypovolemic shock?",
+   "choices": [
+    "Low cardiac output, high central venous pressure, low systemic vascular resistance",
+    "Low cardiac output, low wedge pressure, high systemic vascular resistance",
+    "Low cardiac output, high wedge pressure, high systemic vascular resistance",
+    "High cardiac output, low wedge pressure, low systemic vascular resistance"
+   ]
+  },
+  {
+   "id": "med-physiology.l24.q4",
+   "lessonId": "med-physiology.l24",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man is hypotensive with distended neck veins, muffled heart sounds and clear lung fields after a stab wound to the chest. Which hemodynamic profile best fits his condition?",
+   "choices": [
+    "Low cardiac output with high central venous pressure",
+    "Low cardiac output with low central venous pressure",
+    "High cardiac output with low systemic vascular resistance",
+    "Normal cardiac output with low wedge pressure"
+   ]
+  },
+  {
+   "id": "med-physiology.l24.q5",
+   "lessonId": "med-physiology.l24",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman has fever, warm flushed skin and a blood pressure of 78/40 mmHg after a urinary infection. Cardiac output is high and systemic vascular resistance is low. Which mechanism best explains her hypotension?",
+   "choices": [
+    "Loss of intravascular volume from hemorrhage",
+    "Reduced myocardial contractility with pump failure",
+    "Obstruction of the right ventricular outflow tract by a clot",
+    "Widespread vasodilation with low systemic resistance"
+   ]
+  }
+ ]
+}

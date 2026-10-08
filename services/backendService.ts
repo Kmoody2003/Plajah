@@ -28,6 +28,8 @@ const onSnapshot: typeof rawOnSnapshot = ((...args: any[]) => {
 }) as typeof rawOnSnapshot;
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithCredential,
   linkWithPopup,
   getAdditionalUserInfo,
@@ -45,10 +47,26 @@ import {
   User
 } from 'firebase/auth';
 import { db, storage, auth as firebaseAuth } from './firebase';
+import { isWindowsApp } from './windowsBridgeService';
+import { followNeedsApproval, requestFollow } from './socialSafetyService';
+import { chunkArray, mergeByTimestamp, uniqueIds } from './followGraphUtils';
+import { tryConsume } from './socialRateLimit';
 import { saveResumable, updateResumableProgress, clearResumable } from './resumableUpload';
 import { registerTransfer, updateTransfer, removeTransfer } from './activeUpload';
 export const auth = firebaseAuth;
 export { db };
+
+// Catch any pending redirect credentials (fallback for redirect auth)
+if (typeof window !== 'undefined') {
+  getRedirectResult(auth).then(async (result) => {
+    if (result?.user) {
+      try { await result.user.getIdToken(true); } catch { /* non-fatal */ }
+      await syncUserProfile(result.user);
+    }
+  }).catch((err) => {
+    console.warn('[auth] getRedirectResult error:', err);
+  });
+}
 
 /**
  * Ensure we have *some* Firebase identity so spectator features (video-room
@@ -69,7 +87,10 @@ export const ensureGuestAuth = async (): Promise<User | null> => {
   }
 };
 
-// ── Sacred Library: cloud-synced Bible notes (per user, per verse ref) ────────
+// ── Sacred Library: legacy `bibleNotes` collection (read-only) ────────────────
+// Verse notes now live in the shared notebook (services/readerNotes →
+// users/{uid}/notebook). This is only used to import notes written by older
+// builds, once per account. Nothing writes here any more.
 export const loadBibleNotes = async (uid: string): Promise<Record<string, string>> => {
   try {
     const snap = await getDocs(query(collection(db, 'bibleNotes'), where('uid', '==', uid)));
@@ -78,16 +99,9 @@ export const loadBibleNotes = async (uid: string): Promise<Record<string, string
     return out;
   } catch { return {}; }
 };
-export const saveBibleNote = async (uid: string, ref: string, text: string): Promise<void> => {
-  const id = `${uid}__${ref}`;
-  try {
-    if (text.trim()) await setDoc(doc(db, 'bibleNotes', id), { uid, ref, text: text.slice(0, 5000), updatedAt: Date.now() });
-    else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
-  } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
-};
 import { allTakenNumbers, canClaim, isAllocatableMajor, legacyMajors, numberFor, type NumberRegistry } from './fast/channelNumbers';
 import { guideAccounts, type GuideAccount } from './fast/guideLineup';
-import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel } from '../types';
+import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel, SecurityPlatformStats, SecurityThreatEvent, SecurityGeoPing, CsoAssessment, UserThreatWarning } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
@@ -1503,9 +1517,11 @@ export const resolveEduRole = async (uid: string): Promise<Post['eduRole'] | nul
   return role;
 };
 
-export const createPost = async (post: Partial<Post>) => {
+export const createPost = async (post: Partial<Post>, opts?: { postId?: string }) => {
   if (!auth.currentUser) return;
-  const path = 'posts';
+  // Private accounts write to `private_posts` (followers-only, rules-enforced) — see services/privatePostsService.ts.
+  const path: 'posts' | 'private_posts' = await import('./privatePostsService')
+    .then(m => m.resolvePostCollectionForMe(post)).catch(() => 'posts' as const);
   const feedPath = 'feed';
   try {
     // "Operate as org": a caller may present the post as an organization the user
@@ -1528,11 +1544,36 @@ export const createPost = async (post: Partial<Post>) => {
       likesCount: 0,
       commentsCount: 0,
       timestamp: Date.now(),
-      isPublic: true,
+      // Elevate DEPARTMENT-thread posts are private to that department (rules grant read via orgInDepartment).
+      isPublic: post.orgAudience === 'DEPARTMENT' ? false : true,
       targetUserId: post.targetUserId || null,
       targetUserName: post.targetUserName || null
     });
-    const docRef = await addDoc(collection(db, path), postData);
+    // opts.postId = deterministic id (scheduled posts: `sched_<scheduledId>`, shared with the server publisher in
+    // routes/socialServer.ts) so a client+server double publish can never create two posts. If a post with that
+    // id already exists (in either collection) it was already published — return it untouched.
+    let docRef: { id: string };
+    if (opts?.postId) {
+      const sibling = path === 'posts' ? 'private_posts' : 'posts';
+      const [a, b] = await Promise.all([
+        getDoc(doc(db, path, opts.postId)).catch(() => null),
+        getDoc(doc(db, sibling, opts.postId)).catch(() => null),
+      ]);
+      if (a?.exists() || b?.exists()) return opts.postId;
+      const ref = doc(db, path, opts.postId);
+      await setDoc(ref, postData);
+      docRef = ref;
+    } else {
+      docRef = await addDoc(collection(db, path), postData);
+    }
+
+    // Department-private posts never mirror to the global feed or notify followers.
+    if (post.orgAudience === 'DEPARTMENT') return docRef.id;
+    // Followers-only posts never mirror to the world-readable `feed` collection.
+    if (path === 'private_posts') {
+      notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Post', `${auth.currentUser.displayName} shared a new post`, 'FEED', docRef.id);
+      return docRef.id;
+    }
 
     // Mirror to feed collection — fire-and-forget so a feed write failure can't kill the post
     addDoc(collection(db, feedPath), {
@@ -1597,25 +1638,26 @@ export const postFieldsForAssetEmbed = async (
   return fields;
 };
 
-export const updatePost = async (postId: string, updates: Partial<Post>) => {
+export const updatePost = async (postId: string, updates: Partial<Post>, col: 'posts' | 'private_posts' = 'posts') => {
   if (!auth.currentUser) return;
-  const path = `posts/${postId}`;
+  const path = `${col}/${postId}`;
   try {
     const updateData = removeUndefined({
       ...updates,
       modifiedAt: Date.now()
     });
-    await updateDoc(doc(db, 'posts', postId), updateData);
+    await updateDoc(doc(db, col, postId), updateData);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
 };
 
-export const deletePost = async (postId: string) => {
+export const deletePost = async (postId: string, col: 'posts' | 'private_posts' = 'posts') => {
   if (!auth.currentUser) return;
-  const path = `posts/${postId}`;
+  const path = `${col}/${postId}`;
   try {
-    await deleteDoc(doc(db, 'posts', postId));
+    await deleteDoc(doc(db, col, postId));
+    if (col === 'private_posts') return; // no feed mirror for private posts
     // Cascade delete the corresponding feed mirror (created by createPost)
     const feedQuery = query(collection(db, 'feed'), where('originalPostId', '==', postId));
     const feedSnap = await getDocs(feedQuery);
@@ -1658,19 +1700,20 @@ export const togglePostLike = async (postId: string): Promise<{ liked: boolean; 
 };
 
 // --- POST COMMENTS (clean, dedicated functions) ---
-export const subscribeToPostComments = (postId: string, callback: (comments: any[]) => void) => {
+export const subscribeToPostComments = (postId: string, callback: (comments: any[]) => void, col: 'posts' | 'private_posts' = 'posts') => {
   const q = query(
-    collection(db, 'posts', postId, 'comments'),
+    collection(db, col, postId, 'comments'),
     orderBy('timestamp', 'asc')
   );
   return onSnapshot(q, snapshot => {
     callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-  }, err => handleFirestoreError(err, OperationType.LIST, `posts/${postId}/comments`));
+  }, err => handleFirestoreError(err, OperationType.LIST, `${col}/${postId}/comments`));
 };
 
 export const addPostComment = async (
   postId: string, text: string, parentId?: string | null,
   videoUrl?: string, audioUrl?: string, gifUrl?: string, imageUrl?: string,
+  col: 'posts' | 'private_posts' = 'posts',
 ) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const displayName = auth.currentUser.displayName || 'Anonymous';
@@ -1690,21 +1733,21 @@ export const addPostComment = async (
   if (videoUrl) commentData.videoUrl = videoUrl;
   if (audioUrl) commentData.audioUrl = audioUrl;
   if (gifUrl)   commentData.gifUrl   = gifUrl;
-  const docRef = await addDoc(collection(db, 'posts', postId, 'comments'), commentData);
-  updateDoc(doc(db, 'posts', postId), { commentsCount: increment(1) }).catch(() => {});
+  const docRef = await addDoc(collection(db, col, postId, 'comments'), commentData);
+  updateDoc(doc(db, col, postId), { commentsCount: increment(1) }).catch(() => {});
   return { id: docRef.id, ...commentData };
 };
 
-export const deletePostComment = async (postId: string, commentId: string) => {
+export const deletePostComment = async (postId: string, commentId: string, col: 'posts' | 'private_posts' = 'posts') => {
   if (!auth.currentUser) return;
-  await deleteDoc(doc(db, 'posts', postId, 'comments', commentId));
-  updateDoc(doc(db, 'posts', postId), { commentsCount: increment(-1) }).catch(() => {});
+  await deleteDoc(doc(db, col, postId, 'comments', commentId));
+  updateDoc(doc(db, col, postId), { commentsCount: increment(-1) }).catch(() => {});
 };
 
-export const toggleCommentLike = async (postId: string, commentId: string): Promise<boolean | undefined> => {
+export const toggleCommentLike = async (postId: string, commentId: string, col: 'posts' | 'private_posts' = 'posts'): Promise<boolean | undefined> => {
   if (!auth.currentUser) return;
   const uid = auth.currentUser.uid;
-  const ref = doc(db, 'posts', postId, 'comments', commentId);
+  const ref = doc(db, col, postId, 'comments', commentId);
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) return false;
@@ -1857,17 +1900,45 @@ export const listenToChildrenPosts = (childUids: string[], callback: (posts: Pos
  * feed by filtering to its id. Client-side sort avoids a composite index.
  */
 export const listenToOrgPosts = (orgId: string, callback: (posts: Post[]) => void) => {
-  const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), limit(50));
+  const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('isPublic', '==', true), limit(50));
   return onSnapshot(q, snapshot => {
     const items = snapshot.docs
       .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
-      .filter(p => p.timestamp > 0)
+      .filter(p => p.timestamp > 0 && !p.orgDepartmentId)
       .sort((a, b) => b.timestamp - a.timestamp);
     callback(items);
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'posts'));
 };
 
-/** Post as a business/organization the caller runs (appears on the org's feed + globally). */
+/**
+ * Elevate threads: the org-wide thread (no departmentId) or one ministry/department thread.
+ * DEPARTMENT threads query orgAudience=='DEPARTMENT' so the rules can prove access per department.
+ */
+export const listenToOrgThread = (
+  orgId: string,
+  opts: { departmentId?: string; audience?: 'ORG' | 'PUBLIC' | 'DEPARTMENT' },
+  callback: (posts: Post[]) => void,
+  onError?: (e: any) => void,
+) => {
+  const q = opts.departmentId
+    ? (opts.audience === 'DEPARTMENT'
+      ? query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('orgAudience', '==', 'DEPARTMENT'), where('orgDepartmentId', '==', opts.departmentId), limit(50))
+      : query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('orgDepartmentId', '==', opts.departmentId), where('isPublic', '==', true), limit(50)))
+    : query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('isPublic', '==', true), limit(50));
+  return onSnapshot(q, snapshot => {
+    const items = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
+      .filter(p => p.timestamp > 0 && (opts.departmentId ? true : !p.orgDepartmentId))
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
+  }, (err) => { onError?.(err); handleFirestoreError(err, OperationType.LIST, 'posts'); });
+};
+
+/**
+ * Post as a business/organization the caller runs (appears on the org's feed + globally).
+ * Elevate: `orgAudience` 'PUBLIC' (default) = public timeline, open comments; 'MEMBERS' = readable by all,
+ * members + followers may comment; 'DEPARTMENT' + orgDepartmentId = that department only.
+ */
 export const createOrgPost = async (
   orgId: string, orgName: string, orgPhoto: string, post: Partial<Post>,
 ): Promise<string | undefined> =>
@@ -1926,34 +1997,63 @@ export const listenToLikedPosts = (uid: string, callback: (posts: Post[]) => voi
   return unsub;
 };
 
+/** Ids the user follows, read straight from the `follows` collection (source of truth —
+ *  UserProfile.following is legacy and never written). Capped at `max` (default 1000). */
+export const fetchFollowingIds = async (uid: string, max: number = 1000): Promise<string[]> => {
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(query(collection(db, 'follows'), where('followerId', '==', uid), limit(max)));
+    return uniqueIds(snap.docs.map(d => d.data().followingId as string));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'follows');
+    return [];
+  }
+};
+
+/**
+ * Run one onSnapshot per chunk of ids (Firestore `in` caps at 10), hold the latest result of
+ * each chunk, and emit the merged/deduped/newest-first/capped union whenever any chunk changes.
+ * First emission waits until every chunk has answered once (or errored) so the list doesn't flicker.
+ */
+function listenChunked<T extends { id: string; timestamp: number }>(
+  ids: string[],
+  buildQuery: (chunk: string[]) => any,
+  mapDoc: (d: any) => T,
+  cap: number,
+  callback: (items: T[]) => void,
+  onError: (e: unknown) => void,
+): () => void {
+  const chunks = chunkArray(uniqueIds(ids));
+  if (chunks.length === 0) { callback([]); return () => {}; }
+  const results: T[][] = chunks.map(() => []);
+  const ready: boolean[] = chunks.map(() => false);
+  const emit = () => { if (ready.every(Boolean)) callback(mergeByTimestamp(results, cap)); };
+  const unsubs = chunks.map((chunk, i) => onSnapshot(buildQuery(chunk), (snap: any) => {
+    results[i] = snap.docs.map(mapDoc);
+    ready[i] = true;
+    emit();
+  }, (err: unknown) => { ready[i] = true; emit(); onError(err); }));
+  return () => unsubs.forEach(u => u());
+}
+
 export const listenToFollowedPosts = async (uid: string, callback: (posts: Post[]) => void) => {
   const postsPath = 'posts';
   try {
-    const following = await fetchFollowedArtists(uid);
-    const followingIds = following.map(f => f.uid);
-    const targetIds = [uid, ...followingIds.slice(0, 9)];
-
-    const postsQuery = query(
-      collection(db, postsPath),
-      where('authorId', 'in', targetIds),
-      orderBy('timestamp', 'desc'),
-      limit(50)
+    const followingIds = await fetchFollowingIds(uid, 500);
+    const targetIds = uniqueIds([uid, ...followingIds]);
+    return listenChunked<Post>(
+      targetIds,
+      (chunk) => query(collection(db, postsPath), where('authorId', 'in', chunk), orderBy('timestamp', 'desc'), limit(50)),
+      (d) => ({
+        id: d.id,
+        ...d.data(),
+        sourceCollection: 'posts',
+        timestamp: safeToMillis(d.data().timestamp),
+      } as Post),
+      50,
+      (items) => callback(items.filter(p => p.timestamp > 0)),
+      (err) => handleFirestoreError(err, OperationType.LIST, postsPath),
     );
-
-    const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-      const items = snapshot.docs
-        .map(d => ({
-          id: d.id,
-          ...d.data(),
-          sourceCollection: 'posts',
-          timestamp: safeToMillis(d.data().timestamp)
-        } as Post))
-        .filter(p => p.timestamp > 0)
-        .sort((a, b) => b.timestamp - a.timestamp);
-      callback(items);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
-
-    return unsubscribePosts;
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, postsPath);
     return () => {};
@@ -2681,8 +2781,10 @@ export const updateAppStats = async (appId: string, field: 'installCount' | 'pla
 
 export const syncUserProfile = async (user: User) => {
   const userRef = doc(db, 'users', user.uid);
-  const isAdminEmail = user.email === 'kmoody2003@gmail.com';
-  
+  // NOTE: `role` is never written from the client. It is the platform-admin flag, and
+  // firestore.rules forbids owners from setting or changing it (the owner is recognised by
+  // verified email in rules/server; staff are added in the server-only `admins` collection).
+
   try {
     const docSnap = await getDoc(userRef);
     if (!docSnap.exists()) {
@@ -2699,7 +2801,7 @@ export const syncUserProfile = async (user: User) => {
         followerCount: 0,
         followingCount: 0,
         createdAt: Date.now(),
-        role: isAdminEmail ? 'admin' : 'user',
+        role: 'user',
         tier: isPioneer ? 'PIONEER' : 'FREE',
         isPioneer: isPioneer,
         storageLimit: isPioneer ? 0 : 5 * 1024 * 1024 * 1024, // Pioneer gets unlimited (0)
@@ -2718,8 +2820,7 @@ export const syncUserProfile = async (user: User) => {
         uid: user.uid,
         displayName: user.displayName || d.displayName || 'Anonymous Artist',
         photoURL: (user.photoURL ?? d.photoURL ?? '') as string,
-        email: user.email || d.email || '',
-        ...(isAdminEmail ? { role: 'admin' } : {})
+        email: user.email || d.email || ''
       };
       await updateDoc(userRef, updates);
     }
@@ -3007,42 +3108,36 @@ export const migratePostsToFeed = async () => {
 export const fetchFollowedFeed = async (uid: string, callback: (items: FeedItem[]) => void) => {
   const feedPath = 'feed';
   const postsPath = 'posts';
-  
+
   try {
-    const following = await fetchFollowedArtists(uid);
-    const followingIds = following.map(f => f.uid);
-    const targetIds = [uid, ...followingIds.slice(0, 9)];
-    
+    // Ids come from the follows collection and are CHUNKED (10 per `in` query) — no more
+    // 9-author truncation. Each of the two sources is merged across chunks, then the union is
+    // deduped, sorted newest-first and capped.
+    const followingIds = await fetchFollowingIds(uid, 500);
+    const targetIds = uniqueIds([uid, ...followingIds]);
+
     let feedItems: FeedItem[] = [];
     let postItems: FeedItem[] = [];
+    const updateItems = () => callback(mergeByTimestamp([feedItems, postItems], 50));
 
-    const updateItems = () => {
-      const combined = [...feedItems, ...postItems].sort((a, b) => b.timestamp - a.timestamp);
-      callback(combined.slice(0, 50));
-    };
-
-    const feedQuery = query(
-      collection(db, feedPath),
-      where('authorId', 'in', targetIds)
-    );
-
-    const postsQuery = query(
-      collection(db, postsPath),
-      where('authorId', 'in', targetIds)
-    );
-
-    const unsubscribeFeed = onSnapshot(feedQuery, (snapshot) => {
-      feedItems = snapshot.docs.map(d => ({
+    const unsubscribeFeed = listenChunked<FeedItem>(
+      targetIds,
+      (chunk) => query(collection(db, feedPath), where('authorId', 'in', chunk)),
+      (d) => ({
         id: d.id,
         ...d.data(),
         timestamp: safeToMillis(d.data().timestamp),
-        sourceCollection: 'feed'
-      } as FeedItem));
-      updateItems();
-    }, (err) => handleFirestoreError(err, OperationType.LIST, feedPath));
+        sourceCollection: 'feed',
+      } as FeedItem),
+      200,
+      (items) => { feedItems = items; updateItems(); },
+      (err) => handleFirestoreError(err, OperationType.LIST, feedPath),
+    );
 
-    const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-      postItems = snapshot.docs.map(d => {
+    const unsubscribePosts = listenChunked<FeedItem>(
+      targetIds,
+      (chunk) => query(collection(db, postsPath), where('authorId', 'in', chunk)),
+      (d) => {
         const data = d.data();
         return {
           id: d.id,
@@ -3057,11 +3152,13 @@ export const fetchFollowedFeed = async (uid: string, callback: (items: FeedItem[
           likesCount: data.likesCount || 0,
           commentCount: data.commentsCount || 0,
           shareCount: 0,
-          sourceCollection: 'posts'
+          sourceCollection: 'posts',
         } as FeedItem;
-      });
-      updateItems();
-    }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
+      },
+      200,
+      (items) => { postItems = items; updateItems(); },
+      (err) => handleFirestoreError(err, OperationType.LIST, postsPath),
+    );
 
     return () => {
       unsubscribeFeed();
@@ -4320,6 +4417,10 @@ export const loginWithTwitter = async (): Promise<string | null> => {
 
   const provider = new TwitterAuthProvider();
   try {
+    if (isWindowsApp()) {
+      await signInWithRedirect(auth, provider);
+      return null;
+    }
     const result = await signInWithPopup(auth, provider);
     if (result.user) {
       await syncUserProfile(result.user);
@@ -4390,6 +4491,10 @@ export const loginWithFacebook = async () => {
 
   const provider = new FacebookAuthProvider();
   try {
+    if (isWindowsApp()) {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
     const result = await signInWithPopup(auth, provider);
     if (result.user) await syncUserProfile(result.user);
   } catch (error: any) {
@@ -4428,6 +4533,10 @@ export const loginWithMicrosoft = async () => {
   const provider = new OAuthProvider('microsoft.com');
   provider.setCustomParameters({ prompt: 'select_account' });
   try {
+    if (isWindowsApp()) {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
     const result = await signInWithPopup(auth, provider);
     if (result.user) await syncUserProfile(result.user);
   } catch (error: any) {
@@ -4756,53 +4865,81 @@ export const fetchUserStreamArchives = async (userId: string): Promise<StreamArc
 
 // --- Social Features ---
 
-export const followUser = async (targetUserId: string) => {
-  if (!auth.currentUser) return;
+export type FollowResult = 'followed' | 'requested' | 'already' | 'blocked' | 'rate' | 'none';
+
+/**
+ * Follow `targetUserId`. The follow doc and both counters are written in ONE transaction and the
+ * existing doc is checked first, so double-clicks / retries / two tabs can never double-count.
+ * Private accounts (SAFETY's followNeedsApproval) get a follow REQUEST instead of a follow.
+ * Rules: others may bump the target's followerCount by exactly 1; the follower owns followingCount.
+ */
+export const followUser = async (targetUserId: string, opts: { bypassRateLimit?: boolean } = {}): Promise<FollowResult> => {
+  const me = auth.currentUser;
+  if (!me || !targetUserId || me.uid === targetUserId) return 'none';
   const path = 'follows';
   try {
-    const followId = `${auth.currentUser.uid}_${targetUserId}`;
-    await setDoc(doc(db, path, followId), {
-      followerId: auth.currentUser.uid,
-      followingId: targetUserId,
-      timestamp: serverTimestamp()
+    // client-side anti-spam throttle (services/socialRateLimit); onboarding's small seed batch bypasses the per-click cooldown
+    if (!opts.bypassRateLimit) {
+      const created = Date.parse(me.metadata?.creationTime || '');
+      if (!tryConsume(me.uid, 'follow', Number.isNaN(created) ? null : created).ok) return 'rate';
+    }
+    if (await followNeedsApproval(targetUserId)) {
+      const status = await requestFollow(targetUserId);
+      if (status === 'blocked') return 'blocked';
+      if (status === 'rate_limited') return 'rate';
+      return 'requested';
+    }
+    const followRef = doc(db, path, `${me.uid}_${targetUserId}`);
+    const created = await runTransaction(db, async (tx) => {
+      const existing = await tx.get(followRef);
+      if (existing.exists()) return false;
+      tx.set(followRef, {
+        followerId: me.uid,
+        followingId: targetUserId,
+        timestamp: serverTimestamp(),
+      });
+      tx.update(doc(db, 'users', targetUserId), { followerCount: increment(1) });
+      tx.update(doc(db, 'users', me.uid), { followingCount: increment(1) });
+      return true;
     });
-    
-    // Update counts (simplified for now, ideally use cloud functions or transactions)
-    const targetUserRef = doc(db, 'users', targetUserId);
-    const currentUserRef = doc(db, 'users', auth.currentUser.uid);
-    
-    await updateDoc(targetUserRef, { followerCount: increment(1) });
-    await updateDoc(currentUserRef, { followingCount: increment(1) });
+    if (!created) return 'already';
 
     // Notify target user
     createNotification({
       userId: targetUserId,
-      senderId: auth.currentUser.uid,
-      senderName: auth.currentUser.displayName || 'Anonymous',
-      senderPhoto: auth.currentUser.photoURL || '',
+      senderId: me.uid,
+      senderName: me.displayName || 'Anonymous',
+      senderPhoto: me.photoURL || '',
       type: 'FOLLOW',
       title: 'New Follower',
-      message: `${auth.currentUser.displayName} is now following you`,
+      message: `${me.displayName || 'Someone'} is now following you`,
       link: 'USER_PROFILE',
-      targetId: auth.currentUser.uid
+      targetId: me.uid
     });
+    return 'followed';
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, path);
+    return 'none';
   }
 };
 
-export const unfollowUser = async (targetUserId: string) => {
-  if (!auth.currentUser) return;
+/** Unfollow in one transaction; a no-op when the follow doc is already gone (no count drift). */
+export const unfollowUser = async (targetUserId: string): Promise<void> => {
+  if (!auth.currentUser || !targetUserId) return;
+  const meUid = auth.currentUser.uid;
   const path = 'follows';
   try {
-    const followId = `${auth.currentUser.uid}_${targetUserId}`;
-    await deleteDoc(doc(db, path, followId));
-    
-    const targetUserRef = doc(db, 'users', targetUserId);
-    const currentUserRef = doc(db, 'users', auth.currentUser.uid);
-    
-    await updateDoc(targetUserRef, { followerCount: increment(-1) });
-    await updateDoc(currentUserRef, { followingCount: increment(-1) });
+    const followRef = doc(db, path, `${meUid}_${targetUserId}`);
+    const targetRef = doc(db, 'users', targetUserId);
+    const meRef = doc(db, 'users', meUid);
+    await runTransaction(db, async (tx) => {
+      const [existing, targetSnap, meSnap] = await Promise.all([tx.get(followRef), tx.get(targetRef), tx.get(meRef)]);
+      if (!existing.exists()) return;
+      tx.delete(followRef);
+      // rules require the follower-count change to be exactly 1, so skip when already 0
+      if (targetSnap.exists() && (targetSnap.data().followerCount || 0) > 0) tx.update(targetRef, { followerCount: increment(-1) });
+      if (meSnap.exists() && (meSnap.data().followingCount || 0) > 0) tx.update(meRef, { followingCount: increment(-1) });
+    });
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
   }
@@ -4883,7 +5020,7 @@ export const saveFcmToken = async (uid: string, token: string): Promise<void> =>
 // Maps each notification type to a user-facing preference category + Android channel id.
 const PUSH_CATEGORY: Record<string, 'messages' | 'social' | 'content' | 'system'> = {
   MESSAGE: 'messages',
-  COMMENT: 'social', LIKE: 'social', FOLLOW: 'social',
+  COMMENT: 'social', LIKE: 'social', FOLLOW: 'social', HELLO: 'social',
   CONTENT: 'content',
   SYSTEM: 'system',
 };
@@ -5504,18 +5641,43 @@ export const fetchUserProfiles = async (uids: string[]): Promise<UserProfile[]> 
   }
 };
 
-export const searchUserProfiles = async (searchTerm: string): Promise<UserProfile[]> => {
-  if (!searchTerm.trim()) return [];
+/** Case variants of a search term. Firestore prefix ranges are case-sensitive and we have no
+ *  lowercase search field, so we query the original, lower, Capitalised and Title Case forms. */
+const nameSearchVariants = (term: string): string[] => {
+  const t = term.trim();
+  const cap = t.charAt(0).toUpperCase() + t.slice(1);
+  const title = t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  return uniqueIds([t, t.toLowerCase(), cap, title]);
+};
+
+/**
+ * Prefix search over displayName AND handle (case-insensitive via variants). Pass
+ * `{ excludeRestricted: true }` from people-discovery UI to drop child + managed-employee profiles
+ * (default keeps them so existing DM/mention flows are unchanged). Accounts that opted out of
+ * suggestions stay findable by search. Results are deduped and capped at `max` (default 10).
+ */
+export const searchUserProfiles = async (searchTerm: string, max: number = 10, opts: { excludeRestricted?: boolean } = {}): Promise<UserProfile[]> => {
+  const term = searchTerm.replace(/^@/, '').trim();
+  if (!term) return [];
   const path = 'users';
   try {
-    const q = query(
-      collection(db, path),
-      where('displayName', '>=', searchTerm),
-      where('displayName', '<=', searchTerm + '\uf8ff'),
-      limit(10)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
+    const variants = nameSearchVariants(term);
+    const runs: Promise<{ docs: any[] }>[] = [];
+    for (const v of variants) {
+      runs.push(getDocs(query(collection(db, path), where('displayName', '>=', v), where('displayName', '<=', v + ''), limit(max))));
+      runs.push(getDocs(query(collection(db, path), where('handle', '>=', v.toLowerCase()), where('handle', '<=', v.toLowerCase() + ''), limit(max))).catch(() => ({ docs: [] })));
+    }
+    const snaps = await Promise.all(runs);
+    const byId = new Map<string, UserProfile>();
+    for (const snap of snaps) {
+      for (const d of snap.docs) {
+        if (byId.has(d.id)) continue;
+        const u = { uid: d.id, ...d.data() } as UserProfile;
+        if (opts.excludeRestricted && (u.isChild || u.isEmployee)) continue;
+        byId.set(d.id, u);
+      }
+    }
+    return [...byId.values()].slice(0, max);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -5543,6 +5705,8 @@ export const searchLiveChannels = async (searchTerm: string): Promise<UserProfil
   }
 };
 
+/** @deprecated random-of-first-50 users. Use `suggestPeople` (services/discoveryService) for real
+ *  suggestions. Remaining callers: components/FeedView.tsx (~1566), components/LandingPage.tsx (~155). */
 export const fetchRandomActiveUser = async (): Promise<UserProfile | null> => {
   const path = 'users';
   try {
@@ -5906,9 +6070,7 @@ export const fetchPurchasedAlbums = async (uid: string): Promise<Album[]> => {
 
 export const fetchFollowedArtists = async (uid: string): Promise<UserProfile[]> => {
   try {
-    const q = query(collection(db, 'follows'), where("followerId", "==", uid), limit(100));
-    const snapshot = await getDocs(q);
-    const followingIds = snapshot.docs.map(d => d.data().followingId);
+    const followingIds = (await fetchFollowingIds(uid, 300)).slice(0, 100);   // profiles are fetched one by one; callers wanting ALL ids use fetchFollowingIds
     if (followingIds.length === 0) return [];
     const results = await Promise.all(followingIds.map(id => fetchUserProfile(id).catch(() => null)));
     return results.filter((p): p is UserProfile => p !== null);
@@ -7071,7 +7233,7 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
           title: isProtected ? 'Plajah' : (isGuardianCopy ? 'Copied on your child\'s message' : isMention ? `Mentioned in ${roomData.name || 'chat'}` : 'New Message'),
           message: isProtected
             ? 'New protected message'
-            : `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`,
+            : (message.text?.startsWith('enc:') ? 'New encrypted message' : `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`),
           link: 'MESSAGES',
           targetId: roomId
         });
@@ -7864,7 +8026,7 @@ export const getLikedVideos = async (uid?: string): Promise<Video[]> => {
   }
 };
 
-export const postVideoComment = async (videoId: string, text: string, parentId?: string) => {
+export const postVideoComment = async (videoId: string, text: string, parentId?: string, gifUrl?: string, mediaTimestamp?: number) => {
   if (!auth.currentUser) return;
   const id = `vcom_${Date.now()}`;
   const path = `videos/${videoId}/comments/${id}`;
@@ -7874,9 +8036,11 @@ export const postVideoComment = async (videoId: string, text: string, parentId?:
     userId: auth.currentUser.uid,
     userName: auth.currentUser.displayName || 'User',
     userPhoto: auth.currentUser.photoURL || '',
-    text,
+    text: text || '',
     timestamp: Date.now(),
-    parentId: parentId || undefined
+    parentId: parentId || undefined,
+    gifUrl: gifUrl || undefined,
+    mediaTimestamp: typeof mediaTimestamp === 'number' && !isNaN(mediaTimestamp) ? mediaTimestamp : undefined,
   });
   try {
     await setDoc(doc(db, 'videos', videoId, 'comments', id), comment);
@@ -8650,6 +8814,8 @@ export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { owne
       id: channel.ownerId,
       ownerId: channel.ownerId,
       name: channel.name ?? existing?.name ?? 'My Channel',
+      subNames: channel.subNames ?? existing?.subNames,
+      subLogos: channel.subLogos ?? existing?.subLogos,
       number: channel.number ?? existing?.number,
       category: channel.category ?? existing?.category,
       logoUrl: channel.logoUrl ?? existing?.logoUrl,
@@ -8925,6 +9091,42 @@ export const setChannelName = async (uid: string, name: string): Promise<void> =
   // Let permission/network failures reach the caller so an inline editor never claims an update
   // succeeded when Firestore rejected it. Firestore rules enforce that uid is the signed-in owner.
   await saveFastChannelMeta({ ownerId: uid, name: (name || '').trim().slice(0, 60) });
+};
+
+/** Name ONE of an account's sub-channels (N.1, N.2…) without touching the others or the account name.
+ *  Reads the current map first so a second rename adds to it rather than replacing it. */
+export const setChannelSubName = async (uid: string, subId: string, name: string): Promise<void> => {
+  if (!uid || !subId) return;
+  const existing = await fetchFastChannelMeta(uid).catch(() => null);
+  const subNames = { ...(existing?.subNames || {}) };
+  const clean = (name || '').trim().slice(0, 60);
+  if (clean) subNames[subId] = clean; else delete subNames[subId];
+  await saveFastChannelMeta({ ownerId: uid, subNames });
+};
+
+/** Upload a channel logo to the owner's own storage folder; returns its URL. */
+export const uploadChannelLogo = async (uid: string, file: File | Blob): Promise<string> => {
+  if (!uid) throw new Error('Sign in to change a channel logo.');
+  const type = (file as any).type || '';
+  if (!/^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(type)) throw new Error('Choose a PNG, JPG, WebP or SVG image.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Logo must be under 5 MB.');
+  const ext = type.split('/')[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg');
+  return uploadFile(`users/${uid}/channel-logos/${Date.now()}.${ext}`, file);
+};
+
+/** Set (or clear, with null) the logo of ONE sub-channel without touching the others. */
+export const setChannelSubLogo = async (uid: string, subKey: string, url: string | null): Promise<void> => {
+  if (!uid || !subKey) return;
+  const existing = await fetchFastChannelMeta(uid).catch(() => null);
+  const subLogos = { ...(existing?.subLogos || {}) };
+  if (url) subLogos[subKey] = url; else delete subLogos[subKey];
+  await saveFastChannelMeta({ ownerId: uid, subLogos });
+};
+
+/** The account-wide default logo (every channel of the account that has no logo of its own). */
+export const setChannelAccountLogo = async (uid: string, url: string | null): Promise<void> => {
+  if (!uid) return;
+  await saveFastChannelMeta({ ownerId: uid, logoUrl: url || '' });
 };
 
 export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number, membersOnly = false): Promise<void> => {
@@ -9500,6 +9702,13 @@ export interface FastChannelListing {
   number?: number;
   category?: string;
   logoUrl?: string;
+  /** Owner-chosen names for individual sub-channels, keyed by sub-channel id. */
+  subNames?: Record<string, string>;
+  /** Raw account logo (fast_channels.logoUrl) — `logoUrl` above already falls back to the profile photo. */
+  accountLogo?: string;
+  subLogos?: Record<string, string>;
+  /** The owner's own profile photo — the next fallback after a custom logo. */
+  photoURL?: string;
   /** When the channel was created. The guide allocates unclaimed numbers oldest-first, so this
    *  is what keeps a channel on the number it already has — see fast/channelNumbers.ts. */
   createdAt?: number;
@@ -9529,6 +9738,10 @@ export const fetchAllFastChannels = async (max = 300): Promise<FastChannelListin
         name: m?.name || ((p as any).displayName ? `${(p as any).displayName}'s Channel` : 'Channel'),
         number: m?.number,
         category: m?.category,
+        subNames: m?.subNames,
+        accountLogo: m?.logoUrl || undefined,
+        subLogos: m?.subLogos,
+        photoURL: (p as any).photoURL || undefined,
         logoUrl: m?.logoUrl || (p as any).photoURL || (p as any).headerImage,
         // Fall back to the account's own creation time: a channel doc written before createdAt
         // was recorded is still older than one written today, and the account age says so.
@@ -10664,16 +10877,33 @@ export const createStory = async (ownerId: string, data: Omit<Story, 'id' | 'own
 };
 
 export const listenToFollowedStories = (followedUids: string[], callback: (stories: Story[]) => void) => {
-  if (followedUids.length === 0) { callback([]); return () => {}; }
+  const ids = uniqueIds(followedUids);
+  if (ids.length === 0) { callback([]); return () => {}; }
   const now = Date.now();
-  const q = query(
-    collection(db, 'stories'),
-    where('ownerId', 'in', followedUids.slice(0, 30)),
-    where('expiresAt', '>', now),
-    orderBy('expiresAt'),
-    orderBy('timestamp', 'desc'),
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => d.data() as Story)));
+  // chunked (10 owners per `in` query) and merged — no 30-owner truncation
+  const chunks = chunkArray(ids);
+  const results: Story[][] = chunks.map(() => []);
+  const ready: boolean[] = chunks.map(() => false);
+  const emit = () => {
+    if (!ready.every(Boolean)) return;
+    const seen = new Set<string>();
+    const merged: Story[] = [];
+    for (const list of results) for (const st of list) { if (!seen.has(st.id)) { seen.add(st.id); merged.push(st); } }
+    merged.sort((a, b) => b.timestamp - a.timestamp);
+    callback(merged);
+  };
+  const unsubs = chunks.map((chunk, i) => onSnapshot(
+    query(
+      collection(db, 'stories'),
+      where('ownerId', 'in', chunk),
+      where('expiresAt', '>', now),
+      orderBy('expiresAt'),
+      orderBy('timestamp', 'desc'),
+    ),
+    snap => { results[i] = snap.docs.map(d => d.data() as Story); ready[i] = true; emit(); },
+    () => { ready[i] = true; emit(); },
+  ));
+  return () => unsubs.forEach(u => u());
 };
 
 export const listenToUserStories = (uid: string, callback: (stories: Story[]) => void) => {
@@ -11689,11 +11919,94 @@ export const fetchCreatorEvents = async (uid: string): Promise<any[]> => {
   return d.events ?? [];
 };
 
+export const DEFAULT_VENUE_PACKAGES: any[] = [
+  {
+    id: 'pkg_deluxe_bev',
+    name: 'Deluxe Open Bar Package',
+    category: 'ALCOHOL',
+    type: 'UNLIMITED',
+    description: 'Unlimited craft draft beers, premium wines by the glass, signature cocktails up to $16, zero-proof mocktails, fountain sodas, and energy drinks.',
+    priceCents: 6500,
+    totalUnits: -1,
+    unitName: 'Drinks',
+    eligibleItems: ['Craft Draft Beer', 'Wine by the Glass (up to $16)', 'Signature Craft Cocktails', 'Zero-Proof Mocktails', 'Fountain Soda', 'Red Bull & Energy Drinks', 'Still & Sparkling Water'],
+    eligibleItemsDescription: 'All drinks up to $16 included at all bars. 1 drink at a time per pass.',
+    stations: ['Main Stage Bar', 'Patio Lounge', 'VIP Mezzanine Bar'],
+    cooldownMinutes: 5,
+    souvenirCupIncluded: true,
+    badgeColor: '#ec4899',
+    isActive: true,
+  },
+  {
+    id: 'pkg_refreshment',
+    name: 'Refreshment Zero-Proof Package',
+    category: 'DRINK',
+    type: 'UNLIMITED',
+    description: 'All-inclusive non-alcoholic craft mocktails, Coca-Cola Freestyle fountain refills, cold brew, energy drinks, and bottled sparkling waters with souvenir cup.',
+    priceCents: 2800,
+    totalUnits: -1,
+    unitName: 'Drinks',
+    eligibleItems: ['Artisan Mocktails', 'Coca-Cola Freestyle Fountain Refills', 'Nitro Cold Brew Coffee', 'San Pellegrino & Fiji Water', 'Red Bull'],
+    eligibleItemsDescription: 'Unlimited non-alcoholic beverages at all venue stations.',
+    stations: ['Main Stage Bar', 'Patio Lounge', 'Food Court Stations'],
+    cooldownMinutes: 3,
+    souvenirCupIncluded: true,
+    badgeColor: '#06b6d4',
+    isActive: true,
+  },
+  {
+    id: 'pkg_food_tasting',
+    name: 'Taste of the Venue / VIP 3-Course Food Pass',
+    category: 'FOOD_AND_BEVERAGE',
+    type: 'QUANTITY_CREDITS',
+    description: '3 gourmet specialty food items or entrees across any participating festival food truck or venue culinary station.',
+    priceCents: 3500,
+    totalUnits: 3,
+    unitName: 'Entrees / Plates',
+    eligibleItems: ['Artisan Pizza Slices', 'Smoked BBQ Sliders', 'Gourmet Tacos', 'Truffle Fries & Loaded Nachos', 'Specialty Dessert'],
+    eligibleItemsDescription: 'Valid for any 3 entrees or dishes across all culinary stalls.',
+    stations: ['Food Truck Row', 'Main Concessions', 'VIP Chef Station'],
+    badgeColor: '#f59e0b',
+    isActive: true,
+  },
+  {
+    id: 'pkg_craft_flight',
+    name: 'Craft Brewery Tasting Flight (5 Pours)',
+    category: 'ALCOHOL',
+    type: 'QUANTITY_CREDITS',
+    description: '5 pours of local craft beers, microbrew ciders, or hard seltzers. Perfect for sampling.',
+    priceCents: 3000,
+    totalUnits: 5,
+    unitName: 'Pours / Cans',
+    eligibleItems: ['Local IPA Drafts', 'Sour & Saison Ales', 'Hard Ciders', 'Craft Seltzers', 'Stout Pours'],
+    eligibleItemsDescription: 'Redeemable for 5 distinct draft pours or 16oz craft cans.',
+    stations: ['Main Stage Bar', 'Craft Beer Garden'],
+    badgeColor: '#10b981',
+    isActive: true,
+  },
+  {
+    id: 'pkg_credit_50',
+    name: '$50 Venue Dining & Bar Allowance',
+    category: 'VALUE_ALLOWANCE',
+    type: 'VALUE_ALLOWANCE',
+    description: '$50.00 dollar-for-dollar credit balance redeemable for any food, drinks, or merch onsite at 10% discount.',
+    priceCents: 4500,
+    totalUnits: 5000,
+    unitName: 'Cents',
+    eligibleItems: ['All Bar Items', 'All Food Vendors', 'Non-Alcoholic Drinks'],
+    eligibleItemsDescription: 'Valid dollar-for-dollar on any food or drink transaction across the entire venue.',
+    stations: ['All Venue Bars', 'Food Truck Row', 'VIP Lounge'],
+    badgeColor: '#8b5cf6',
+    isActive: true,
+  },
+];
+
 export const purchaseTickets = async (params: {
   eventId: string; tierId: string; quantity: number;
   holderName: string; holderEmail: string;
   physicalRequested?: boolean; customPackagingRequested?: boolean;
   shippingAddress?: any; promoCode?: string;
+  selectedPackages?: any[];
 }): Promise<{ url: string }> => {
   const idToken = await getRequiredIdToken();
   const res = await fetch(`/api/events/${params.eventId}/tickets/purchase`, {
@@ -11702,6 +12015,43 @@ export const purchaseTickets = async (params: {
     body: JSON.stringify(params),
   });
   if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to initiate purchase'); }
+  return res.json();
+};
+
+export const redeemTicketPackage = async (params: {
+  ticketId: string;
+  packageId: string;
+  units?: number;
+  itemName: string;
+  stationName: string;
+  staffName?: string;
+  notes?: string;
+  overrideCooldown?: boolean;
+}): Promise<{ success: boolean; package?: any; redemption?: any; reason?: string; cooldownActive?: boolean; remainingSeconds?: number }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${params.ticketId}/redeem-package`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    return { success: false, reason: d.reason || 'Server error redeeming package' };
+  }
+  return res.json();
+};
+
+export const addPackageToTicket = async (ticketId: string, packageAddon: any): Promise<{ success: boolean; package?: any }> => {
+  const idToken = await getRequiredIdToken();
+  const res = await fetch(`/api/tickets/${ticketId}/add-package`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ packageAddon }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || 'Failed to add package');
+  }
   return res.json();
 };
 
@@ -11833,5 +12183,134 @@ export const fetchImportedEpisodes = async (uid: string): Promise<ImportedRssEpi
     return snap.docs.map(d => d.data() as ImportedRssEpisode);
   } catch {
     return [];
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADVANCE THREAT PROTECTION & CHIEF SECURITY OFFICER (CSO) CLIENT HELPERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// The threat-protection API is platform-admin only (server: authMiddleware + requireVerifiedAdmin),
+// so every call must carry the signed-in user's ID token.
+const threatFetch = async (path: string, init: RequestInit = {}): Promise<Response> => {
+  let token: string | null = null;
+  try { token = (await auth.currentUser?.getIdToken()) || null; } catch { /* unauthenticated → server answers 401 */ }
+  return fetch(`/api/security/threat-protection/${path}`, {
+    ...init,
+    headers: { ...(init.headers as Record<string, string> | undefined), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+};
+
+export const fetchThreatStats = async (): Promise<SecurityPlatformStats | null> => {
+  try {
+    const res = await threatFetch('stats');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    // In-memory local fallback if offline or backend route initializing
+    const { CsoAgentService } = await import('./csoAgentService');
+    return CsoAgentService.getPlatformStats();
+  }
+};
+
+export const fetchThreatEvents = async (): Promise<SecurityThreatEvent[]> => {
+  try {
+    const res = await threatFetch('events');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.events || [];
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return CsoAgentService.getThreatEvents();
+  }
+};
+
+export const fetchThreatMapData = async (): Promise<SecurityGeoPing[]> => {
+  try {
+    const res = await threatFetch('map-data');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.pings || [];
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return CsoAgentService.getPlatformStats().recentPings;
+  }
+};
+
+export const fetchCsoAssessment = async (refresh: boolean = false): Promise<CsoAssessment | null> => {
+  try {
+    const res = await threatFetch(`assessment?refresh=${refresh}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.assessment || null;
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return await CsoAgentService.generateSecurityAssessment();
+  }
+};
+
+export const simulateThreatAttack = async (isMalicious: boolean, targetUserUid?: string): Promise<SecurityThreatEvent | null> => {
+  try {
+    const res = await threatFetch('simulate-attack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isMalicious, targetUserUid })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.event || null;
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return await CsoAgentService.simulateAttack(isMalicious, targetUserUid);
+  }
+};
+
+export const dispatchThreatAlert = async (eventId?: string, email?: string): Promise<{ ok: boolean; emailSent?: boolean; chatDelivered?: boolean }> => {
+  try {
+    const res = await threatFetch('dispatch-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId, email })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    const { CsoAgentService, ADMIN_PRIMARY_EMAIL } = await import('./csoAgentService');
+    const events = CsoAgentService.getThreatEvents();
+    const event = events.find(e => e.id === eventId) || events[0];
+    if (event) {
+      await CsoAgentService.sendRichAdminEmail({ to: email || ADMIN_PRIMARY_EMAIL, subject: `🚨 Incident Alert: ${event.vector}`, event });
+      await CsoAgentService.dispatchAssessmentToAdminChat(event);
+      return { ok: true, emailSent: true, chatDelivered: true };
+    }
+    return { ok: false };
+  }
+};
+
+export const warnUserThreat = async (uid: string, vector?: string, details?: string): Promise<UserThreatWarning | null> => {
+  try {
+    const res = await threatFetch('warn-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, vector, details })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.warning || null;
+  } catch (err) {
+    const { CsoAgentService } = await import('./csoAgentService');
+    return await CsoAgentService.warnTargetUser(uid, {
+      id: 'evt-manual-' + Date.now(),
+      timestamp: Date.now(),
+      ip: '198.51.100.42',
+      geo: { lat: 37.7749, lng: -122.4194, country: 'United States', city: 'San Francisco' },
+      severity: 'MALICIOUS_RED',
+      vector: (vector as any) || 'CREDENTIAL_STUFFING',
+      targetEndpoint: '/api/auth/session',
+      targetUid: uid,
+      riskScore: 94,
+      mitigated: true,
+      details: details || 'Administrative security warning dispatched.'
+    });
   }
 };

@@ -1,0 +1,34 @@
+endpoints {
+  action-endpoints {
+    action-endpoint (PlaySong) {
+      accepted-inputs (song, artist)
+      remote-endpoint ("https://plajah.com/api/bixby") {
+        method (POST)
+      }
+    }
+    action-endpoint (PlayArtist) {
+      accepted-inputs (artist)
+      remote-endpoint ("https://plajah.com/api/bixby") {
+        method (POST)
+      }
+    }
+    action-endpoint (PlayAlbum) {
+      accepted-inputs (album, artist)
+      remote-endpoint ("https://plajah.com/api/bixby") {
+        method (POST)
+      }
+    }
+    action-endpoint (PlayMix) {
+      accepted-inputs (genre)
+      remote-endpoint ("https://plajah.com/api/bixby") {
+        method (POST)
+      }
+    }
+    action-endpoint (ControlPlayback) {
+      accepted-inputs (control, token)
+      remote-endpoint ("https://plajah.com/api/bixby") {
+        method (POST)
+      }
+    }
+  }
+}

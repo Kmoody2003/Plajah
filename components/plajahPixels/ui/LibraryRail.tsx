@@ -323,7 +323,7 @@ export const LibraryRail: React.FC<Props> = ({
                       livePreview
                       selected={selectedSrc === w.src}
                       picked={pickedSrc === w.src && selectedSrc !== w.src}
-                      onClick={() => setPickedSrc(w.src)}
+                      onClick={() => { setPickedSrc(w.src); onSelect({ kind: 'shader', src: w.src }); }}
                       onDoubleClick={() => { setPickedSrc(w.src); onSelect({ kind: 'shader', src: w.src }); }}
                     />
                   </div>
@@ -345,7 +345,7 @@ export const LibraryRail: React.FC<Props> = ({
                   hue={(i * 47) % 360}
                   mode={g.mode}
                   selected={!selectedSrc && selectedMode === g.mode}
-                  onClick={() => { setPickedSrc(null); setHoverLabel(g.name); }}
+                  onClick={() => { setPickedSrc(null); setHoverLabel(g.name); onSelect({ kind: 'generator', mode: g.mode }); }}
                   onDoubleClick={() => onSelect({ kind: 'generator', mode: g.mode })}
                 />
               </div>
@@ -363,7 +363,7 @@ export const LibraryRail: React.FC<Props> = ({
                 <Tile
                   name={m.name} hue={(m.i * 31) % 360}
                   selected={!!milkdropOn && milkdropIndex === m.i}
-                  onClick={() => { setPickedSrc(null); setHoverLabel(m.name); }}
+                  onClick={() => { setPickedSrc(null); setHoverLabel(m.name); onSelect({ kind: 'milkdrop', index: m.i, name: m.name }); }}
                   onDoubleClick={() => onSelect({ kind: 'milkdrop', index: m.i, name: m.name })}
                 />
               </div>

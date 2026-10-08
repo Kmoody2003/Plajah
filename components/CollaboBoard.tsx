@@ -4,6 +4,7 @@ import { MousePointer2, Pencil, Square, Circle as CircleIcon, Type, Trash2, Save
 import { motion, AnimatePresence } from 'motion/react';
 import { CollabProject } from '../types';
 import { updateCollabProject, listenToCollabProject } from '../services/backendService';
+import TelaCollaborationWorkspace from './chat/TelaCollaborationWorkspace';
 
 interface CollaboBoardProps {
   projectId: string;
@@ -12,6 +13,7 @@ interface CollaboBoardProps {
 
 const CollaboBoard: React.FC<CollaboBoardProps> = ({ projectId, onBack }) => {
   const [project, setProject] = useState<CollabProject | null>(null);
+  const [showTela, setShowTela] = useState(false);
   const [tool, setTool] = useState<'pencil' | 'rect' | 'circle' | 'text' | 'select'>('pencil');
   const [lines, setLines] = useState<any[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -82,6 +84,7 @@ const CollaboBoard: React.FC<CollaboBoardProps> = ({ projectId, onBack }) => {
 
   return (
     <div className="h-full bg-[#0a0a0a] flex flex-col overflow-hidden">
+      {showTela && <TelaCollaborationWorkspace project={project} onClose={() => setShowTela(false)} />}
       {/* Toolbar Header */}
       <div className="p-4 bg-white/5 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -91,6 +94,7 @@ const CollaboBoard: React.FC<CollaboBoardProps> = ({ projectId, onBack }) => {
             </button>
           )}
           <h2 className="text-sm font-black uppercase tracking-widest text-white/60">{project.name}</h2>
+          <button onClick={() => setShowTela(true)} className="px-3 py-2 rounded-xl bg-small-orange/20 text-small-orange text-xs font-semibold">Open Tela workspace</button>
         </div>
         <div className="flex items-center gap-2 bg-black/40 p-1 rounded-2xl border border-white/5">
           {[

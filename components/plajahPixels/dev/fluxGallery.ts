@@ -24,11 +24,11 @@ async function analyseTempo(blob:Blob){
   });
 }
 
-const ids:FluxSceneId[]=['tapestry-ii','porcelain-tide','velvet-bloom','prism-archive'];
-const subtitles=['Brass sunburst / morphing architecture','Ceramic scales / copper crests','Pleated silk / opening sculpture','Dichroic glass / spectral pages'];
+// Every built scene, straight from the registry (math journey first) — no hand-kept list to go stale.
+const ids:FluxSceneId[]=['math-morph',...FLUX_SCENES.filter(s=>s.built&&s.id!=='math-morph').map(s=>s.id)];
 const $=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 const canvas=$<HTMLCanvasElement>('screen'),ctx=canvas.getContext('2d')!;
-let selected:FluxSceneId='tapestry-ii',paused=false,t=0,last=performance.now(),dirty=true,sensitivity=1.5;
+let selected:FluxSceneId='math-morph',paused=false,t=0,last=performance.now(),dirty=true,sensitivity=1.5;
 let audio:HTMLAudioElement|undefined,audioCtx:AudioContext|undefined,analyser:AnalyserNode|undefined;
 let bins:Uint8Array<ArrayBuffer>|undefined,url:string|undefined,sourceName='',failure='',loading=false;
 let measured:FluxAudio={...SILENT_AUDIO};
@@ -36,10 +36,11 @@ const nav=document.querySelector('nav')!;
 for(const [i,id] of ids.entries()){
   const info=FLUX_SCENES.find(s=>s.id===id)!;
   const b=document.createElement('button');b.className='tile';b.role='tab';b.dataset.scene=id;
-  b.innerHTML=`<span class="n">0${i+1} / ${info.cat.toUpperCase()}</span><strong>${info.name}</strong><span>${subtitles[i]}</span>`;
+  b.innerHTML=`<span class="n">${String(i+1).padStart(2,'0')} / ${info.cat.toUpperCase()}</span><strong>${info.name}</strong><span>${info.line.length>110?info.line.slice(0,107)+'…':info.line}</span>`;
   b.onclick=()=>select(id);nav.append(b);
 }
 function select(id:FluxSceneId){selected=id;t=0;dirty=true;const info=FLUX_SCENES.find(s=>s.id===id)!;
+  seedSelect.hidden=info.cat!=='Deco';
   $('title').textContent=info.name;$('description').textContent=info.line;$('category').textContent=`${info.cat.toUpperCase()} / FLUX ATELIER`;
   nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.scene===id)));
   $('original').textContent=id==='tapestry'?'Return to Deco Tapestry II':'Compare original Deco Tapestry';

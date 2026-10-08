@@ -2,14 +2,27 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Image, Smile, Globe, X, Mic, Camera, Square, Share2,
   BarChart2, FlaskConical, ChevronDown, ChevronUp, Plus, Trash2,
-  ToggleLeft, ToggleRight, BookOpen, List,
+  ToggleLeft, ToggleRight, BookOpen, List, Clock, FileText, TriangleAlert, Hash,
 } from 'lucide-react';
 import VoiceRecorder from './VoiceRecorder';
-import { Album, IPWorld, UserProfile } from '../types';
+import { Album, IPWorld, UserProfile, Post } from '../types';
+import { QuotedSnapshotCard } from './feed/posting/QuotedPostEmbed';
+import { ReplyAudiencePicker, AltTextPanel, DraftsAndScheduledPanel } from './feed/posting/ComposerPanels';
+import {
+  activeHashtagQuery, buildQuoteSnapshot, resolveQuoteTarget, isDraftMeaningful, validateSchedule,
+  extractHashtags, composerPostExtras, linkPreviewMedia,
+  type ReplyAudience, type Draft, type DraftData, type LinkPreviewData,
+} from '../services/postingLogic';
+import { suggestHashtags, type HashtagInfo } from '../services/hashtagService';
+import { saveDraft, deleteDraft, getDraft, AUTOSAVE_ID } from '../services/draftService';
+import { schedulePost } from '../services/scheduledPostService';
+import { fetchLinkPreview, firstUrl } from '../services/linkPreviewService';
+import { tryConsume, formatRetry, isNewAccount } from '../services/socialRateLimit';
+import { assessPostSpam, SPAM_REASON_COPY } from '../services/socialSpamHeuristic';
 import { useFediverse } from '../contexts/FediverseContext';
 import SocialEmbedCard from './SocialEmbedCard';
 import { detectSocialEmbeds, type SocialEmbed } from '../utils/socialEmbed';
-import { searchUsers } from '../services/backendService';
+import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import ContentLabelPicker from './safety/ContentLabelPicker';
 import { SanctuaryGatePicker } from './sanctuary/SanctuaryGate';
 
@@ -23,6 +36,8 @@ export interface ComposerAttachment {
   file?: File;
   reused?: boolean;     // this file is already in the user's library (will be reused, not re-uploaded)
   forceNew?: boolean;   // user chose to upload a fresh copy anyway
+  /** Accessibility description (postingPower mode). Callers copy it onto Post.media[].alt (see withAltText). */
+  alt?: string;
 }
 
 export interface AssetEmbed {
@@ -38,6 +53,8 @@ export interface ComposerPoll {
   options: string[];
   multiSelect: boolean;
   durationHours: 24 | 48 | 72 | 168; // 1d / 2d / 3d / 7d
+  vizKind?: string;
+  vizStyle?: string;
 }
 
 export interface ComposerDataViz {
@@ -68,6 +85,15 @@ export interface ComposerPostData {
   threadChunks?: string[];
   /** When set, the post's media is locked behind the author's Sanctuary. */
   sanctuaryGate?: import('../types').SanctuaryGate;
+  // ── postingPower fields (all optional; undefined when the mode is off) ──
+  /** Who may reply. Absent/'everyone' = unrestricted. */
+  replyAudience?: ReplyAudience;
+  /** Normalised tags parsed from `text`. */
+  hashtags?: string[];
+  /** Set in Quote mode (the `quoteOf` prop). Route through publishComposerPost / createQuotePost. */
+  quoteOf?: Post;
+  /** Link card for the first pasted non-social URL. Append linkPreviewMedia(lp) to media. */
+  linkPreview?: LinkPreviewData;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -142,6 +168,21 @@ interface UniversalPostComposerProps {
   /** When provided, offers a "gate this post behind your Sanctuary" control. */
   userSanctuaryId?: string;
   userSanctuaryTiers?: import('../types').SanctuaryTier[];
+  /**
+   * Quote mode: shows the source post under the text box and sets data.quoteOf on
+   * submit. Works regardless of postingPower. The caller clears it via onClearQuote.
+   */
+  quoteOf?: Post | null;
+  onClearQuote?: () => void;
+  /**
+   * Opt-in posting power tools for the MAIN feed composer: reply audience, content-warning
+   * toggle, per-image alt text, #hashtag autocomplete, link-preview on paste, drafts
+   * (autosave + restore), scheduling, and the posting-speed pre-check. Default false so
+   * comment boxes / club / discipline composers are unchanged.
+   */
+  postingPower?: boolean;
+  /** postingPower: the viewer's recent own post texts, for the duplicate/spam pre-check (assessPostSpam). */
+  recentOwnTexts?: readonly string[];
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -164,8 +205,12 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   postLabel,
   userSanctuaryId,
   userSanctuaryTiers,
+  quoteOf,
+  onClearQuote,
+  postingPower = false,
+  recentOwnTexts,
 }) => {
-  const [expanded, setExpanded]     = useState(autoExpand);
+  const [expanded, setExpanded]     = useState(autoExpand || !!quoteOf);
   const [text, setText]             = useState(initialText ?? '');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>(initialAttachments ?? []);
   const [assetEmbed, setAssetEmbed] = useState<AssetEmbed | undefined>(undefined);
@@ -239,6 +284,89 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [mentionAnchor, setMentionAnchor]     = useState(0); // index of the triggering @
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // ── postingPower state (inert unless the `postingPower` prop is set) ───────
+  const uid = currentUser?.uid;
+  const [replyAudience, setReplyAudience] = useState<ReplyAudience>('everyone');
+  const [showLater, setShowLater]         = useState(false);
+  const [showSchedule, setShowSchedule]   = useState(false);
+  const [scheduleAt, setScheduleAt]       = useState('');
+  const [restorable, setRestorable]       = useState<Draft | null>(null);
+  const [linkPreview, setLinkPreview]     = useState<LinkPreviewData | null>(null);
+  const [notice, setNotice]               = useState<string | null>(null);
+  const [tagQuery, setTagQuery]           = useState<string | null>(null);
+  const [tagAnchor, setTagAnchor]         = useState(0);
+  const [tagResults, setTagResults]       = useState<HashtagInfo[]>([]);
+  const [tagIndex, setTagIndex]           = useState(0);
+
+  const cwOn = contentLabels.includes('SENSITIVE_OTHER');
+  const toggleCw = () => setContentLabels(prev => prev.includes('SENSITIVE_OTHER') ? prev.filter(l => l !== 'SENSITIVE_OTHER') : [...prev, 'SENSITIVE_OTHER']);
+  const setAlt = (index: number, alt: string) => setAttachments(prev => prev.map((a, i) => i === index ? { ...a, alt } : a));
+
+  // The editable state as a draft payload.
+  const currentDraft = (): DraftData => ({
+    text, attachments: attachments.map(a => ({ type: a.type, url: a.url, title: a.title, thumbnail: a.thumbnail, alt: a.alt })),
+    contentLabels, replyAudience, theme, quoteOfId: quoteOf?.id,
+  });
+
+  // Offer to restore the autosaved draft once, on mount.
+  useEffect(() => {
+    if (!postingPower || !uid || initialText || initialAttachments?.length) return;
+    let alive = true;
+    getDraft(uid, AUTOSAVE_ID).then(d => { if (alive && d && isDraftMeaningful(d)) setRestorable(d); }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, postingPower]);
+
+  // Autosave (debounced). Quote mode skips it: a quote draft without its source is useless.
+  useEffect(() => {
+    if (!postingPower || !uid || !expanded || posting || restorable || quoteOf) return;
+    const t = setTimeout(() => { void saveDraft(uid, AUTOSAVE_ID, currentDraft()); }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, attachments, contentLabels, replyAudience, theme, expanded, postingPower, uid, restorable, quoteOf]);
+
+  const restoreDraft = (d: Draft) => {
+    setText(d.text);
+    setAttachments(d.attachments.map(a => ({ type: a.type as ComposerAttachment['type'], url: a.url, title: a.title, thumbnail: a.thumbnail, alt: a.alt })));
+    setContentLabels((d.contentLabels ?? []) as typeof contentLabels);
+    setReplyAudience(d.replyAudience ?? 'everyone');
+    if (d.theme) setTheme(d.theme as ComposerPostData['theme']);
+    setRestorable(null); setShowLater(false); setExpanded(true);
+  };
+
+  // Opening Quote mode expands the composer.
+  useEffect(() => { if (quoteOf) setExpanded(true); }, [quoteOf]);
+
+  // #hashtag autocomplete (known tags starting with what's typed).
+  useEffect(() => {
+    if (!postingPower || tagQuery === null || tagQuery.length === 0) { setTagResults([]); return; }
+    let alive = true;
+    const t = setTimeout(async () => {
+      const r = await suggestHashtags(tagQuery);
+      if (alive) { setTagResults(r); setTagIndex(0); }
+    }, 180);
+    return () => { alive = false; clearTimeout(t); };
+  }, [tagQuery, postingPower]);
+
+  const insertHashtag = (tag: string) => {
+    const cursor = textareaRef.current?.selectionStart ?? text.length;
+    const token = `#${tag} `;
+    setText(text.slice(0, tagAnchor) + token + text.slice(cursor));
+    setTagQuery(null); setTagResults([]);
+    const pos = tagAnchor + token.length;
+    requestAnimationFrame(() => { textareaRef.current?.focus(); textareaRef.current?.setSelectionRange(pos, pos); });
+  };
+
+  // Link card for a pasted URL (social embeds already have their own preview).
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!postingPower || linkPreview) return;
+    const url = firstUrl(e.clipboardData.getData('text') || '');
+    if (!url || detectSocialEmbeds(url).length > 0) return;
+    fetchLinkPreview(url).then(lp => setLinkPreview(prev => prev ?? lp));
+  };
+  // Drop the card if its URL is edited out of the text.
+  useEffect(() => { if (linkPreview && !text.includes(linkPreview.url)) setLinkPreview(null); }, [text, linkPreview]);
+
   useEffect(() => {
     if (mentionQuery === null || mentionQuery.length === 0) {
       setMentionResults([]);
@@ -263,8 +391,12 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     if (match) {
       setMentionQuery(match[1]);
       setMentionAnchor(cursor - match[0].length);
+      setTagQuery(null);
     } else {
       setMentionQuery(null);
+      const tag = postingPower ? activeHashtagQuery(val, cursor) : null;
+      setTagQuery(tag ? tag.query : null);
+      if (tag) setTagAnchor(tag.anchor);
     }
   };
 
@@ -283,6 +415,14 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   };
 
   const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    e.stopPropagation();
+    if (tagQuery !== null && tagResults.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setTagIndex(i => Math.min(i + 1, tagResults.length - 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setTagIndex(i => Math.max(i - 1, 0)); }
+      else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertHashtag(tagResults[tagIndex].tag); }
+      else if (e.key === 'Escape') { setTagQuery(null); }
+      return;
+    }
     if (mentionQuery === null || mentionResults.length === 0) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, mentionResults.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); }
@@ -307,20 +447,31 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
   const processFiles = useCallback((files: FileList | File[]) => {
     Array.from(files).forEach(async file => {
-      const url = URL.createObjectURL(file);
+      let activeFile = file;
+      const isImg = file.type.startsWith('image/') && !file.type.includes('gif') && !file.type.includes('svg');
+      if (isImg) {
+        try {
+          const { compressSocialImage } = await import('../services/socialImageOptimizer');
+          const opt = await compressSocialImage(file);
+          if (opt.file && opt.compressedSize < file.size) {
+            activeFile = opt.file;
+          }
+        } catch { /* compression is best-effort fallback */ }
+      }
+      const url = URL.createObjectURL(activeFile);
       const type: ComposerAttachment['type'] = file.type.startsWith('video/')
         ? 'VIDEO'
         : file.type.startsWith('audio/')
         ? 'AUDIO'
         : 'PHOTO';
-      setAttachments(prev => [...prev, { type, url, title: file.name, file }]);
+      setAttachments(prev => [...prev, { type, url, title: file.name, file: activeFile }]);
       // Is this file already in the user's library? If so, flag it so we reuse instead of
       // uploading a duplicate — the user can still choose a fresh copy per attachment.
       const uid = (currentUser as any)?.uid;
       if (uid && (type === 'PHOTO' || type === 'VIDEO')) {
         try {
           const { fingerprintFile, lookupMedia } = await import('../services/mediaDedup');
-          const fp = await fingerprintFile(file);
+          const fp = await fingerprintFile(activeFile);
           if (fp) {
             const hit = await lookupMedia(uid, fp);
             if (hit) setAttachments(prev => prev.map(a => a.url === url ? { ...a, reused: true } : a));
@@ -483,12 +634,18 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(blob => {
+    canvas.toBlob(async blob => {
       if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      setAttachments(prev => [...prev, { type: 'PHOTO', url, title: 'Photo', file: new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' }) }]);
+      let finalFile = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      try {
+        const { compressSocialImage } = await import('../services/socialImageOptimizer');
+        const opt = await compressSocialImage(finalFile);
+        if (opt.file) finalFile = opt.file;
+      } catch { /* fallback */ }
+      const url = URL.createObjectURL(finalFile);
+      setAttachments(prev => [...prev, { type: 'PHOTO', url, title: 'Photo', file: finalFile }]);
       closeCameraCapture();
-    }, 'image/jpeg', 0.9);
+    }, 'image/jpeg', 0.85);
   };
 
   // ── Post ─────────────────────────────────────────────────────────────────────
@@ -514,7 +671,24 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     if (!canPost || posting) return;
     setPosting(true);
     setSafetyBlock(null);
+    setNotice(null);
     try {
+      // Posting-speed pre-check (SAFETY's socialRateLimit). Gentle, client-side courtesy only.
+      // Spam / duplicate pre-check (socialSpamHeuristic): block outright on `block`, ask to confirm on `warn`.
+      if (postingPower && uid && !scheduleAt && text.trim()) {
+        const createdMs = currentUser?.metadata?.creationTime ? Date.parse(currentUser.metadata.creationTime) : NaN;
+        const spam = assessPostSpam(text, recentOwnTexts ?? [], { newAccount: Number.isFinite(createdMs) ? isNewAccount(Date.now() - createdMs) : false });
+        if (spam.block) { setNotice(`This post can't be published. ${spam.reasons.map(r => SPAM_REASON_COPY[r]).join(' ')}`); return; }
+        if (spam.warn && !window.confirm(`${spam.reasons.map(r => SPAM_REASON_COPY[r]).join(' ')}
+
+Post it anyway?`)) return;
+      }
+      if (postingPower && uid && !scheduleAt) {
+        const created = currentUser?.metadata?.creationTime ? Date.parse(currentUser.metadata.creationTime) : undefined;
+        const rate = tryConsume(uid, 'post', Number.isFinite(created as number) ? created : undefined);
+        if (!rate.ok) { setNotice(`You're posting quickly. Try again in ${formatRetry(rate.retryAfterMs)}.`); return; }
+      }
+
       // AI safety screen: blocks likely-prohibited content (porn, real gore,
       // doxxing, non-consensual likeness) and auto-adds missing content labels.
       let finalLabels = contentLabels;
@@ -539,11 +713,56 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       }
 
       const pollData = poll && poll.question.trim() && poll.options.filter(o => o.trim()).length >= 2
-        ? { ...poll, options: poll.options.filter(o => o.trim()) }
+        ? {
+            question: poll.question.trim(),
+            options: poll.options.filter(o => o.trim()),
+            multiSelect: !!poll.multiSelect,
+            durationHours: poll.durationHours || 24,
+            createdAt: Date.now(),
+            votes: {},
+            vizKind: poll.vizKind || 'BAR',
+            vizStyle: poll.vizStyle || 'PLAJAH',
+          }
         : undefined;
       const isLong = text.length > CHUNK_SIZE;
       const threadChunks = isLong ? splitIntoChunks(text) : undefined;
-      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig(), ...(finalLabels.length ? { contentLabels: finalLabels } : {}), ...(isLong ? { postMode, threadChunks } : {}), ...(sanctuaryGate ? { sanctuaryGate } : {}) });
+
+      // Scheduled: store for later instead of posting now. Text + already-uploaded media only.
+      if (postingPower && uid && scheduleAt) {
+        const when = new Date(scheduleAt).getTime();
+        const v = validateSchedule(when, Date.now());
+        if (!v.ok) { setNotice(v.reason || 'Pick a valid time'); return; }
+        if (poll || dataViz || assetEmbed || exclusive || sanctuaryGate || isLong) {
+          setNotice('Scheduling supports text, photos and GIFs only (no polls, embeds, exclusive or gated posts, or long threads).');
+          return;
+        }
+        const extras = composerPostExtras({ text, replyAudience, quoteOf: quoteOf ? resolveQuoteTarget(quoteOf as any) as any : undefined });
+        const media: any[] = attachments.map(a => ({ type: a.type, url: a.url, title: a.title, thumbnail: a.thumbnail, alt: a.alt }));
+        if (linkPreview) media.push(linkPreviewMedia(linkPreview));
+        try {
+          await schedulePost(uid, {
+            text, isPublic: true,
+            ...(theme !== 'STANDARD' ? { theme } : {}),
+            ...(media.length ? { media } : {}),
+            ...(finalLabels.length ? { contentLabels: finalLabels } : {}),
+            ...extras,
+          } as any, when);
+        } catch (err: any) { setNotice(err?.message || 'Could not schedule this post'); return; }
+        void deleteDraft(uid, AUTOSAVE_ID);
+        setText(''); setAttachments([]); setContentLabels([]); setReplyAudience('everyone'); setScheduleAt(''); setShowSchedule(false);
+        setLinkPreview(null); setTheme('STANDARD'); setExpanded(false); onClearQuote?.();
+        setNotice(`Scheduled for ${new Date(when).toLocaleString()}`);
+        return;
+      }
+
+      await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig(), ...(finalLabels.length ? { contentLabels: finalLabels } : {}), ...(isLong ? { postMode, threadChunks } : {}), ...(sanctuaryGate ? { sanctuaryGate } : {}),
+        ...(quoteOf ? { quoteOf } : {}),
+        ...(postingPower ? {
+          ...(replyAudience !== 'everyone' ? { replyAudience } : {}),
+          ...(extractHashtags(text).length ? { hashtags: extractHashtags(text) } : {}),
+          ...(linkPreview ? { linkPreview } : {}),
+        } : {}),
+      });
       if (crossPost && hasFediverse && text.trim()) {
         broadcast({ text: text.trim(), thumbnail: attachments.find(a => a.type === 'PHOTO')?.url, uri: window.location.href }).catch(() => {});
       }
@@ -551,6 +770,11 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       setPoll(null); setDataViz(null); setShowPoll(false); setShowViz(false);
       setExclusive(null); setShowExclusive(false); setContentLabels([]);
       setPostMode('thread');
+      if (postingPower && uid) {
+        void deleteDraft(uid, AUTOSAVE_ID);
+        setReplyAudience('everyone'); setLinkPreview(null); setScheduleAt(''); setShowSchedule(false); setShowLater(false);
+      }
+      if (quoteOf) onClearQuote?.();
       setExpanded(false);
     } finally { setPosting(false); }
   };
@@ -582,7 +806,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         />
         {isDragging
           ? <span className="text-sm font-black text-orange-400 uppercase tracking-widest">Drop files to attach</span>
-          : <span className="text-sm text-white/30 font-medium">{placeholder}</span>
+          : <span className="text-sm text-white/30 font-medium">{notice || placeholder}</span>
         }
       </div>
     );
@@ -621,6 +845,18 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
+      {/* Restore the autosaved draft */}
+      {restorable && (
+        <div className="pl-0 sm:pl-12">
+          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <FileText size={14} className="text-small-orange shrink-0" />
+            <p className="text-xs text-white/70 flex-1 min-w-0 truncate">Pick up where you left off? <span className="text-white/40">“{restorable.text.trim().slice(0, 40) || 'your draft'}”</span></p>
+            <button onClick={() => restoreDraft(restorable)} className="px-3 py-1 rounded-full bg-small-orange text-black text-[9px] font-black uppercase tracking-widest">Restore</button>
+            <button onClick={() => { if (uid) void deleteDraft(uid, AUTOSAVE_ID); setRestorable(null); }} className="px-2 py-1 text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">Discard</button>
+          </div>
+        </div>
+      )}
+
       {/* Avatar + textarea — avatar hidden on phone so the text box gets full width */}
       <div className={`flex items-start gap-3 ${isDragging ? 'opacity-20 pointer-events-none' : ''}`}>
         <img
@@ -634,7 +870,9 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             value={text}
             onChange={handleTextChange}
             onKeyDown={handleMentionKeyDown}
-            placeholder={placeholder}
+            onKeyUp={e => e.stopPropagation()}
+            onPaste={handlePaste}
+            placeholder={quoteOf ? 'Add your thoughts…' : placeholder}
             rows={2}
             className="w-full bg-transparent text-base sm:text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[56px] max-h-[320px] overflow-y-auto leading-relaxed"
             autoFocus
@@ -685,8 +923,50 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
               </div>
             </div>
           )}
+
+          {/* #hashtag autocomplete */}
+          {postingPower && tagQuery !== null && tagResults.length > 0 && (
+            <div className="absolute top-full left-0 z-50 mt-1 w-64 bg-[#0e0e0e]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+              {tagResults.map((t, i) => (
+                <button
+                  key={t.tag}
+                  onMouseDown={e => { e.preventDefault(); insertHashtag(t.tag); }}
+                  className={`w-full flex items-center gap-2 px-4 py-2 text-left transition-colors ${i === tagIndex ? 'bg-white/8' : 'hover:bg-white/5'}`}
+                >
+                  <Hash size={12} className="text-small-orange shrink-0" />
+                  <span className="text-xs font-bold truncate flex-1">{t.tag}</span>
+                  <span className="text-[9px] text-white/25 tabular-nums">{t.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Quote mode: the post being quoted */}
+      {quoteOf && (
+        <div className="pl-0 sm:pl-12 relative">
+          <QuotedSnapshotCard snap={buildQuoteSnapshot(resolveQuoteTarget(quoteOf as any) as any)} />
+          {onClearQuote && (
+            <button onClick={onClearQuote} className="absolute top-3 right-2 p-1 rounded-full bg-black/60 text-white/60 hover:text-white" aria-label="Remove quote"><X size={12} /></button>
+          )}
+        </div>
+      )}
+
+      {/* Pasted-link card */}
+      {postingPower && linkPreview && (
+        <div className="pl-0 sm:pl-12">
+          <div className="relative flex gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+            {linkPreview.image && <img src={linkPreview.image} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" loading="lazy" />}
+            <div className="min-w-0 flex-1 pr-5">
+              <p className="text-xs font-black truncate">{linkPreview.title || linkPreview.url}</p>
+              {linkPreview.description && <p className="text-[11px] text-white/45 line-clamp-2">{linkPreview.description}</p>}
+              <p className="text-[10px] text-white/25 truncate">{linkPreview.url}</p>
+            </div>
+            <button onClick={() => setLinkPreview(null)} className="absolute top-2 right-2 p-1 rounded-full text-white/40 hover:text-white" aria-label="Remove link card"><X size={12} /></button>
+          </div>
+        </div>
+      )}
 
       {/* Theme chips */}
       <div className="flex flex-wrap gap-2 pl-0 sm:pl-12">
@@ -709,6 +989,12 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         {safetyBlock && (
           <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
             <p className="text-[9px] font-bold text-red-300 leading-relaxed">{safetyBlock}</p>
+          </div>
+        )}
+        {notice && (
+          <div className="mt-2 flex items-start gap-2 p-3 rounded-xl bg-amber-400/10 border border-amber-400/25">
+            <TriangleAlert size={12} className="text-amber-300 mt-0.5 shrink-0" />
+            <p className="text-[10px] font-bold text-amber-200 leading-relaxed">{notice}</p>
           </div>
         )}
       </div>
@@ -762,6 +1048,11 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Alt text (postingPower) */}
+      {postingPower && attachments.some(a => a.type === 'PHOTO' || a.type === 'GIF') && (
+        <AltTextPanel attachments={attachments} onChange={setAlt} />
       )}
 
       {/* Video action sheet */}
@@ -866,6 +1157,55 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             >
               {DURATION_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
+          </div>
+
+          {/* Visualizer Template Gallery for Poll */}
+          <div className="pt-2.5 border-t border-white/5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
+                <BarChart2 size={11} />
+                Visualizer Template
+              </span>
+              <span className="text-[8px] font-bold uppercase tracking-wider text-white/30">Tela & Fabula Gallery</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[8px] font-black uppercase tracking-wider text-white/40 block mb-1">Chart Type</label>
+                <select
+                  value={poll?.vizKind || 'BAR'}
+                  onChange={e => setPoll(p => p ? { ...p, vizKind: e.target.value } : p)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-white outline-none focus:border-purple-400"
+                >
+                  <option value="BAR">Bar Chart</option>
+                  <option value="DONUT">Donut / Ring</option>
+                  <option value="RADAR">Radar Matrix</option>
+                  <option value="GAUGE">Radial Gauge</option>
+                  <option value="FUNNEL">Funnel Pipeline</option>
+                  <option value="WATERFALL">Waterfall</option>
+                  <option value="AREA">Area Signal</option>
+                  <option value="BAR_3D">3D Isometric Bar</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[8px] font-black uppercase tracking-wider text-white/40 block mb-1">Art Direction</label>
+                <select
+                  value={poll?.vizStyle || 'PLAJAH'}
+                  onChange={e => setPoll(p => p ? { ...p, vizStyle: e.target.value } : p)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-white outline-none focus:border-purple-400"
+                >
+                  <option value="PLAJAH">Signal Bloom (Plajah)</option>
+                  <option value="NEON">Night Current (Neon)</option>
+                  <option value="SWISS">Index / 01 (Swiss)</option>
+                  <option value="BAUHAUS">Primary Orbit (Bauhaus)</option>
+                  <option value="EDITORIAL">Measured Poise (Editorial)</option>
+                  <option value="GLASS">Refractive Field (Glass)</option>
+                  <option value="SPORTS">Velocity Readout (Sports)</option>
+                  <option value="BROADCAST">Live Decision (Broadcast)</option>
+                  <option value="MONO">Absolute Contrast (Mono)</option>
+                  <option value="FUTURIST">Predictive Lattice (Futurist)</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1151,6 +1491,30 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
         </div>
       )}
 
+      {/* Schedule picker */}
+      {postingPower && showSchedule && (
+        <div className="pl-0 sm:pl-12">
+          <div className="flex items-center gap-2 flex-wrap rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+            <Clock size={14} className="text-small-orange" />
+            <input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={e => setScheduleAt(e.target.value)}
+              className="bg-white/[0.05] rounded-xl px-3 py-1.5 text-xs outline-none border border-white/10 [color-scheme:dark]"
+            />
+            {scheduleAt && <button onClick={() => setScheduleAt('')} className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white">Post now instead</button>}
+            <p className="w-full text-[10px] text-white/30">Publishes when you next open Plajah after this time. Text, photos and GIFs only.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Drafts + scheduled list */}
+      {postingPower && showLater && uid && (
+        <div className="pl-0 sm:pl-12">
+          <DraftsAndScheduledPanel uid={uid} current={currentDraft()} onLoad={restoreDraft} onClose={() => setShowLater(false)} />
+        </div>
+      )}
+
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-1 pl-0 sm:pl-12 flex-wrap">
         <input ref={fileInputRef} type="file" accept="image/*,video/*,audio/*" multiple className="hidden" onChange={handleFileChange} />
@@ -1244,6 +1608,28 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           </div>
         )}
 
+        {postingPower && (
+          <>
+            <button
+              onClick={toggleCw}
+              title="Content warning: hides the post behind a tap"
+              aria-pressed={cwOn}
+              className={`px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${cwOn ? 'text-amber-300 bg-amber-400/15' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
+            >CW</button>
+            <button
+              onClick={() => { setShowSchedule(s => !s); closeAll(); }}
+              title="Schedule for later"
+              className={`p-2 rounded-xl transition-all ${showSchedule || scheduleAt ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
+            ><Clock size={16} /></button>
+            <button
+              onClick={() => setShowLater(s => !s)}
+              title="Drafts and scheduled posts"
+              className={`p-2 rounded-xl transition-all ${showLater ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
+            ><FileText size={16} /></button>
+            <ReplyAudiencePicker value={replyAudience} onChange={setReplyAudience} />
+          </>
+        )}
+
         <div className="flex-1" />
 
         <span className={`text-[9px] font-black tabular-nums ${text.length > CHUNK_SIZE ? 'text-small-orange' : 'text-white/20'}`}>
@@ -1277,7 +1663,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
           disabled={!canPost || posting}
           className="px-6 py-2 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-small-orange/90 transition-all"
         >
-          {posting ? '...' : (postLabel || 'Post')}
+          {posting ? '...' : (postingPower && scheduleAt ? 'Schedule' : quoteOf && !postLabel ? 'Quote' : (postLabel || 'Post'))}
         </button>
       </div>
     </div>

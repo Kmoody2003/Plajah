@@ -15,11 +15,19 @@ export interface StoreOrderRecord {
   businessUid: string;
   customerUid: string;
   status: string;                 // PENDING_PAYMENT | CONFIRMED | PREPARING | READY | COMPLETED | CANCELLED
-  items: { productId: string; title: string; qty: number; unitAmount: number; variantName?: string | null }[];
+  items: { productId: string; variantId?: string | null; title: string; qty: number; unitAmount: number; variantName?: string | null; image?: string | null }[];
   subtotalCents: number;
+  shippingCents?: number;
+  totalCents?: number;            // what the customer actually paid (Stripe total / POS net)
   fulfillment: string;            // PICKUP | SHIP
   note?: string;
   customerName?: string;
+  customerEmail?: string;
+  ship?: { name: string; line1: string; line2?: string; city: string; state: string; postal: string; country: string };
+  trackingNumber?: string;
+  trackingCarrier?: string;
+  oversold?: boolean;             // paid for stock that had just run out — seller must restock or refund
+  source?: string;                // 'POS' for register sales
   createdAt: number;
   paidAt?: number;
 }
@@ -30,8 +38,12 @@ function mapOrder(id: string, x: any): StoreOrderRecord {
   return {
     id, businessUid: x.businessUid || x.sellerId, customerUid: x.customerUid || x.buyerId,
     status: x.status || 'PENDING_PAYMENT', items,
-    subtotalCents: x.subtotalCents || 0, fulfillment: x.fulfillment || 'PICKUP',
-    note: x.note, customerName: x.customerName, createdAt: x.createdAt || 0, paidAt: x.paidAt,
+    subtotalCents: x.subtotalCents || 0, shippingCents: x.shippingCents || 0, totalCents: x.totalCents || undefined,
+    fulfillment: x.fulfillment || 'PICKUP',
+    note: x.note, customerName: x.customerName, customerEmail: x.customerEmail, createdAt: x.createdAt || 0, paidAt: x.paidAt,
+    ship: x.shipLine1 ? { name: x.shipName || '', line1: x.shipLine1, line2: x.shipLine2 || undefined, city: x.shipCity || '', state: x.shipState || '', postal: x.shipPostal || '', country: x.shipCountry || '' } : undefined,
+    trackingNumber: x.trackingNumber || undefined, trackingCarrier: x.trackingCarrier || undefined,
+    oversold: x.oversold === true, source: x.source,
   };
 }
 
@@ -56,8 +68,13 @@ export async function fetchBusinessStoreOrders(businessUid: string): Promise<Sto
 }
 
 /** Advance a spine order's status (business only — rules require sellerId == the signed-in user). */
-export async function advanceStoreOrder(orderId: string, status: string): Promise<void> {
-  await updateDoc(doc(db, 'storeOrders', orderId), { status, updatedAt: Date.now() });
+export async function advanceStoreOrder(orderId: string, status: string, extra: { trackingNumber?: string; trackingCarrier?: string; oversold?: boolean } = {}): Promise<void> {
+  const patch: Record<string, any> = { status, updatedAt: Date.now() };
+  if (extra.trackingNumber) patch.trackingNumber = extra.trackingNumber;
+  if (extra.trackingCarrier) patch.trackingCarrier = extra.trackingCarrier;
+  if (extra.oversold !== undefined) patch.oversold = extra.oversold;
+  if (status === 'OUT_FOR_DELIVERY') patch.shippedAt = Date.now();
+  await updateDoc(doc(db, 'storeOrders', orderId), patch);
 }
 
 // ── POS + loyalty ──────────────────────────────────────────────────────────────

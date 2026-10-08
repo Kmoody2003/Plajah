@@ -1,0 +1,21 @@
+# med-skills: claims for expert review
+
+- l01: "history alone points to the diagnosis most of the time" is a widely quoted generalization, no figure given. Physicians "interrupt within seconds" is a loose summary of published visit studies.
+- l02: Pack-year formula standard. CAGE and AUDIT-C named, no cut-offs stated. Adolescent time alone described as common practice.
+- l03: Title VI of the Civil Rights Act and ACA Section 1557 cited as language-access bases (general statement, check scope). NURSE mnemonic attribution not stated. Health literacy "substantial share of adults" not quantified.
+- l04: SPIKES steps as commonly taught. Capacity elements (choice, understanding, appreciation, reasoning) as commonly taught. Apology laws "in many jurisdictions" is general.
+- l05: Approximate normal ranges (HR 60-100, RR 12-20, temp range, SpO2 >= 95%). ACC/AHA 2017 hypertension categories; other bodies differ and newer guidance may exist as of this writing. Orthostatic criteria (20/10 mm Hg within three minutes). Pulse oximetry overestimating in darker skin (published, magnitude not stated). Pulse oximetry in methemoglobinemia (about 85%) in l05 q3 explanation.
+- l06: Icterus threshold "about 2 to 3 mg/dL". Virchow node attributed to abdominal malignancy. Relative afferent pupillary defect description. ABCDE diameter about 6 mm.
+- l07: Paradoxical splitting narrowing on inspiration. S3 normal in the young. Valsalva/squatting effects on HCM versus AS (stated for standard cases; mitral valve prolapse differs). Pericardial rub "three components". PMI location approximate.
+- l08: Tracheal shift away from large effusion and toward atelectasis. Egophony/pectoriloquy descriptions. Tension pneumothorax management stated as immediate decompression.
+- l09: Liver span "6 to 12 cm" varies by source. McBurney point location. Courvoisier sign interpretation (typical, not absolute). Rovsing, psoas, obturator descriptions.
+- l10: Tongue deviates toward the side of an LMN lesion. Facial palsy forehead sparing rule. Brown-Sequard pattern. Reflex root levels (patellar L3-L4, Achilles S1). Romberg interpretation.
+- l11: Gout negatively and pseudogout positively birefringent crystals. Lachman versus anterior drawer sensitivity. Cauda equina red flags. Heberden/Bouchard node sites. Carpal tunnel distribution.
+- l12: Hickam dictum and Occam razor characterization. Cannot-miss chest pain list is not exhaustive. "Illness script" framing follows common medical-education literature.
+- l13: Likelihood ratio cut-offs (above about 10, below about 0.1). Worked numbers: 90/90 test, LR+ 9, pretest 1% gives about 8%. D-dimer logic assumes a high-sensitivity assay with a validated low-probability rule (Wells).
+- l14: "Cognitive factors contribute to most diagnostic errors" is a summary of case-review literature. Premature closure called the most common cognitive error (commonly stated, uncertain). Bias name labels vary by author ("representativeness restraint", "psych-out error", "triage cueing").
+- l15: 64% chance that at least one of 20 independent tests is out of range (1 - 0.95^20 = 0.64; independence is an approximation). Statement that treating asymptomatic bacteriuria usually does harm (guideline-supported but with exceptions such as pregnancy and urologic procedures). Choosing Wisely back pain example.
+- l16: HIPAA minimum necessary principle as general description. Patient access to notes (US Cures Act open notes) not named; described as "in many jurisdictions".
+- l17: I-PASS expansion and its association with fewer preventable adverse events (study-based, effect size not stated).
+- l18: WHO five moments for hand hygiene (not enumerated). Lumbar puncture level L3-L4 or L4-L5. Lidocaine toxicity signs. Imaging before LP with focal signs (stated; antibiotics should not be delayed is in the explanation only). Universal Protocol three-part structure. Chlorhexidine-alcohol preference.
+- All lessons: no dosing instructions were intended; the only numeric clinical thresholds are standard textbook values.

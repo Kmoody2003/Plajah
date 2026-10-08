@@ -1,0 +1,1458 @@
+{
+ "courseId": "law-profresp",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "law-profresp.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l01.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Model Rule 8.5(b)(2) text is \"where the conduct occurred, or if the predominant effect is elsewhere, that jurisdiction\"; \"predominantly occurred\" paraphrase is loose but choice 1 is still best."
+  },
+  {
+   "id": "law-profresp.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Best answer; ABA Formal Op. 08-450 and comments to 1.7 support addressing sharing at outset."
+  },
+  {
+   "id": "law-profresp.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Assumes the form asked about all arrests; nondisclosure being knowing is inferred."
+  },
+  {
+   "id": "law-profresp.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-profresp.l01",
+   "claim": "1908 Canons, 1969 Model Code (Canons/ECs/DRs), 1983 Model Rules in black-letter-plus-comment format",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/American_Bar_Association_Model_Rules_of_Professional_Conduct"
+   ],
+   "note": "Wikipedia gives the Code effective 1970 (adopted 1969); 1983 adoption and Restatement-style format confirmed."
+  },
+  {
+   "lessonId": "law-profresp.l01",
+   "claim": "California went its own way and adopted a Model-Rules-style structure only recently",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/American_Bar_Association_Model_Rules_of_Professional_Conduct"
+   ],
+   "note": "Effective November 2018."
+  },
+  {
+   "lessonId": "law-profresp.l01",
+   "claim": "Rule 8.5(b)(2): for non-tribunal conduct the rules of the jurisdiction where the conduct \"predominantly occurred\" apply, with a safe harbor for reasonable belief about predominant effect",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/8-5"
+   ],
+   "note": "Adopted text matching MR 8.5: rules of the jurisdiction where the conduct occurred, or, if the predominant effect is in a different jurisdiction, that jurisdiction. \"Predominantly occurred\" is not the test; the safe-harbor sentence is accurate. Same paraphrase appears in l01.q4 choice 1 and the worked example."
+  },
+  {
+   "lessonId": "law-profresp.l02",
+   "claim": "Togstad v. Vesely, Otto, Miller and Keefe (Minnesota, 1980): lawyer told a woman he did not think there was a case; duty found",
+   "verdict": "supported",
+   "sources": [
+    "https://www.courtlistener.com/api/rest/v4/search/?q=caseName:Togstad%20AND%20%22did%20not%20think%22&type=o&highlight=on"
+   ],
+   "note": "Minn. Sup. Ct., decided 1980-04-11."
+  },
+  {
+   "lessonId": "law-profresp.l02",
+   "claim": "Rule 1.2(a): client decides settlement and, in a criminal case, plea, jury waiver and whether to testify",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-2"
+   ],
+   "note": "Checked against North Dakota adopted text (ABA site blocked by Cloudflare)."
+  },
+  {
+   "lessonId": "law-profresp.l02",
+   "claim": "Rule 1.14(b): lawyer may take reasonably necessary protective action, e.g., consulting others or seeking a guardian",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-14"
+   ],
+   "note": "State adopted copy; wording matches."
+  },
+  {
+   "lessonId": "law-profresp.l02",
+   "claim": "Rule 1.18 lets the firm avoid disqualification by consent of both, or if the lawyer limited intake and is timely screened with notice",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "MR text not opened (ABA blocked); ND variant omits screening (notice only), showing state variation. MR 1.18(d)(1) also requires consent confirmed in writing."
+  },
+  {
+   "lessonId": "law-profresp.l03",
+   "claim": "Rule 1.1 comment: keeping abreast of changes in law and practice includes the benefits and risks of relevant technology",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-1"
+   ],
+   "note": "Content confirmed in ND adopted copy (numbered [5] there); MR numbering as Comment [8] not confirmed on an opened page."
+  },
+  {
+   "lessonId": "law-profresp.l03",
+   "claim": "Mata v. Avianca (S.D.N.Y. 2023): lawyers sanctioned for nonexistent AI-generated citations",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mata_v._Avianca,_Inc."
+   ],
+   "note": "Decided June 22, 2023; Rule 11 bad-faith sanctions confirmed; the inherent-power basis was not confirmed on the page opened."
+  },
+  {
+   "lessonId": "law-profresp.l03",
+   "claim": "ABA Formal Opinion 512 on generative AI issued in 2024",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mata_v._Avianca,_Inc."
+   ],
+   "note": "Page confirms the ABA issued its first formal GAI ethics opinion in July 2024; the number 512 was not visible on an opened page (ABA site blocked)."
+  },
+  {
+   "lessonId": "law-profresp.l03",
+   "claim": "Rule 1.3 comment [5]: sole practitioner should plan for death or disability",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-3"
+   ],
+   "note": "State copy; same comment number."
+  },
+  {
+   "lessonId": "law-profresp.l03",
+   "claim": "Strickland v. Washington (1984): deficient performance plus prejudice (reasonable probability of different result)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/466/668/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l04",
+   "claim": "In re Cooperman (N.Y. 1994): non-refundable special retainer agreements are improper",
+   "verdict": "supported",
+   "sources": [
+    "https://www.courtlistener.com/api/rest/v4/search/?q=caseName:Cooperman%20AND%20%22nonrefundable%22&type=o&highlight=on"
+   ],
+   "note": "N.Y. Court of Appeals, 1994-03-17."
+  },
+  {
+   "lessonId": "law-profresp.l04",
+   "claim": "Fracasse v. Brent (Cal. 1972): discharged contingent-fee lawyer limited to quantum meruit, payable on the contingency",
+   "verdict": "supported",
+   "sources": [
+    "https://www.courtlistener.com/api/rest/v4/search/?q=caseName:Fracasse%20AND%20%22quantum%20meruit%22&type=o&highlight=on"
+   ],
+   "note": "Snippet confirms the quantum meruit limit; timing of payment not shown in the snippet."
+  },
+  {
+   "lessonId": "law-profresp.l04",
+   "claim": "Rule 1.5(d): no contingent fee in criminal defense or in divorce/alimony/support-contingent domestic matters",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-5"
+   ],
+   "note": "State copy with matching text."
+  },
+  {
+   "lessonId": "law-profresp.l04",
+   "claim": "Rule 1.16(a) requires withdrawal when continuing would violate the Rules or the lawyer is discharged",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-16",
+    "https://www.fmglaw.com/professional-liability/aba-passes-hotly-debated-amendments-to-model-rule-1-16/"
+   ],
+   "note": "Accurate but incomplete: in Aug. 2023 the ABA amended Rule 1.16 to require inquiry into each representation and added a mandatory-withdrawal ground when the client seeks to use or persists in using the lawyer to commit or further a crime or fraud."
+  },
+  {
+   "lessonId": "law-profresp.l05",
+   "claim": "Model Rule 1.6(b) lists seven permissive exceptions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ABA text blocked; the ND adopted copy has the same exceptions in substance but makes the death/bodily-harm exception mandatory, so it cannot confirm MR numbering."
+  },
+  {
+   "lessonId": "law-profresp.l05",
+   "claim": "Several states require disclosure to prevent death or serious bodily harm; states vary on the financial-fraud exceptions",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-6",
+    "https://www.revisor.mn.gov/court_rules/pr/subtype/cond/id/1.6/"
+   ],
+   "note": "North Dakota 1.6(b) is mandatory; Minnesota uses a different structure."
+  },
+  {
+   "lessonId": "law-profresp.l05",
+   "claim": "Rule 1.6(c): reasonable efforts to prevent inadvertent or unauthorized disclosure of, or access to, client information",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-6"
+   ],
+   "note": "ND numbers it (d); text matches."
+  },
+  {
+   "lessonId": "law-profresp.l06",
+   "claim": "United States v. Kovel (2d Cir. 1961): accountant helping lawyer does not destroy privilege",
+   "verdict": "supported",
+   "sources": [
+    "https://www.courtlistener.com/api/rest/v4/search/?q=caseName:Kovel%20AND%20accountant&type=o&highlight=on"
+   ],
+   "note": "2d Cir., 1961-12-05."
+  },
+  {
+   "lessonId": "law-profresp.l06",
+   "claim": "Swidler & Berlin v. United States (1998): privilege survives death; testamentary exception recognized",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/524/399/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l06",
+   "claim": "United States v. Zolin (1989): in camera review for crime-fraud after a threshold good-faith factual showing",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/491/554/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l06",
+   "claim": "FRE 502(b) inadvertent disclosure; FRE 501 applies state privilege law where state law supplies the rule of decision",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_502",
+    "https://www.law.cornell.edu/rules/fre/rule_501"
+   ],
+   "note": "Rule 501 is keyed to claims governed by state law, which the lesson simplifies to \"diversity cases\"."
+  },
+  {
+   "lessonId": "law-profresp.l06",
+   "claim": "FRCP 26(b)(3): work product discoverable on substantial need and undue hardship; mental impressions protected",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_26"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l07",
+   "claim": "Upjohn Co. v. United States (1981) rejected the control-group test",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/449/383/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l07",
+   "claim": "17 C.F.R. Part 205: report up to CLO or CLO and CEO, then audit committee or board",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/cfr/text/17/205.3"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l07",
+   "claim": "Rule 1.13(b)-(c): report up to the highest authority; permissive disclosure outside if the highest authority fails to act on a clear violation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-13"
+   ],
+   "note": "State copy matches MR on these points. The MR 1.13(d) exclusion for lawyers retained to investigate was not located on the page."
+  },
+  {
+   "lessonId": "law-profresp.l08",
+   "claim": "United States v. O'Hagan (1997): Dorsey & Whitney partner convicted under the misappropriation theory",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/521/642/"
+   ],
+   "note": "He did no work on the Grand Met matter."
+  },
+  {
+   "lessonId": "law-profresp.l08",
+   "claim": "FRE 502(b) and FRCP 26(b)(5)(B) clawback and sequestration",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/fre/rule_502",
+    "https://www.law.cornell.edu/rules/frcp/rule_26"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l08",
+   "claim": "ABA Formal Opinions 477R (2017), 483 (2018), 498 (2021)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ABA site blocked (403/Cloudflare); not checked."
+  },
+  {
+   "lessonId": "law-profresp.l09",
+   "claim": "Rule 1.7(b) four conditions, including no claim by one client against another in the same litigation; informed consent confirmed in writing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ND version uses different wording; MR text not opened."
+  },
+  {
+   "lessonId": "law-profresp.l09",
+   "claim": "Hot potato doctrine: dropping a current client does not make it a former client",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No source opened."
+  },
+  {
+   "lessonId": "law-profresp.l09",
+   "claim": "Positional conflicts generally are not conflicts absent a significant risk of material limitation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No source opened."
+  },
+  {
+   "lessonId": "law-profresp.l10",
+   "claim": "Model Rule 1.10(a)(2) lateral screening applies only if the lateral lawyer was not substantially involved in the earlier matter",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2018Fall/003bRule110-112ImputationGovt%20AttysFormerJudges.pdf",
+    "https://www.calbar.ca.gov/sites/default/files/portals/0/documents/rules/Rule_1.10-Exec_Summary-Redline.pdf"
+   ],
+   "note": "MR 1.10(a)(2) (2009 amendment) requires only that the conflict arise from a prior-firm association, plus timely screening, no fee share, written notice and certifications. There is no substantial-involvement limit; that limit is in California rule 1.10(a)(2)(i) and some other states."
+  },
+  {
+   "lessonId": "law-profresp.l10",
+   "claim": "The Model Rules' screening provisions do not rescue a lawyer who obtained material confidential information in a substantial role (and the worked example: even screening states unlikely to save Firm B)",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2018Fall/003bRule110-112ImputationGovt%20AttysFormerJudges.pdf"
+   ],
+   "note": "Under MR 1.10(a)(2) screening is available whatever the lateral's role or knowledge; the limitation exists only in some states' versions. The lesson confuses state variants with the Model Rule, and the Tessa example is wrong under the Model Rule."
+  },
+  {
+   "lessonId": "law-profresp.l10",
+   "claim": "T.C. Theatre Corp. v. Warner Bros. (S.D.N.Y. 1953, Weinfeld): substantial relationship test",
+   "verdict": "supported",
+   "sources": [
+    "https://www.courtlistener.com/api/rest/v4/search/?q=caseName:%22Theatre%20Corp%22%20AND%20%22substantially%20related%22&type=o&highlight=on"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l10",
+   "claim": "Rule 1.11: personal and substantial participation; firm may proceed with screening, no fee and written notice to the agency; Rule 1.12 screening for former judges and clerks",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.uh.edu/faculty/adjunct/dstevenson/2018Fall/003bRule110-112ImputationGovt%20AttysFormerJudges.pdf"
+   ],
+   "note": "UH page reproduces MR 1.11 comments and 1.12(c) (screening with notice to the parties and tribunal)."
+  },
+  {
+   "lessonId": "law-profresp.l11",
+   "claim": "Rule 1.8(e) financial assistance is limited to advancing costs and paying them for indigent clients",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.courts.delaware.gov/forms/download.aspx?id=226258"
+   ],
+   "note": "Out of date: in Aug. 2020 the ABA added MR 1.8(e)(3), allowing a lawyer representing an indigent client pro bono to give modest gifts for food, rent, transportation, medicine and other basic living expenses (recited in a Dec. 2023 Delaware order). l04 also says 1.8(e) \"generally bars other financial assistance\"."
+  },
+  {
+   "lessonId": "law-profresp.l11",
+   "claim": "Rule 1.8(c): no preparing an instrument giving the lawyer a substantial gift unless related",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-8"
+   ],
+   "note": "State copy."
+  },
+  {
+   "lessonId": "law-profresp.l11",
+   "claim": "Rule 1.8(d) bars literary or media rights before the representation ends",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-8"
+   ],
+   "note": "State copy."
+  },
+  {
+   "lessonId": "law-profresp.l12",
+   "claim": "Holloway v. Arkansas (1978): automatic reversal when joint representation is forced over a timely objection",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/435/475/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l12",
+   "claim": "Cuyler v. Sullivan (1980): actual conflict adversely affecting performance; Mickens v. Taylor (2002) still requires adverse effect",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/446/335/",
+    "https://supreme.justia.com/cases/federal/us/535/162/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l12",
+   "claim": "Wheat v. United States (1988): court may refuse waivers for an actual conflict or a serious potential for conflict",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/486/153/"
+   ],
+   "note": "Facts simplified: Wheat sought to substitute counsel (Iredale) who represented codefendants Gomez-Barajas and Bravo."
+  },
+  {
+   "lessonId": "law-profresp.l12",
+   "claim": "Rule 3.7(a) three exceptions; 3.7(b) other firm lawyers may act",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/3-7"
+   ],
+   "note": "State copy."
+  },
+  {
+   "lessonId": "law-profresp.l13",
+   "claim": "Nix v. Whiteside (1986): \"something metallic\"; no Sixth Amendment violation",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/475/157/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l13",
+   "claim": "A lawyer may refuse evidence reasonably believed false, except a criminal defendant's testimony, which requires knowledge",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/3-3"
+   ],
+   "note": "State copy comment."
+  },
+  {
+   "lessonId": "law-profresp.l13",
+   "claim": "Knowledge means actual knowledge, inferable from circumstances (Rule 1.0(f))",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/1-0"
+   ],
+   "note": "ND numbers the definition (g); MR is 1.0(f)."
+  },
+  {
+   "lessonId": "law-profresp.l14",
+   "claim": "FRCP 11(c)(2) 21-day safe harbor",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/rules/frcp/rule_11"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l14",
+   "claim": "28 U.S.C. 1927 and Chambers v. NASCO (1991) inherent power",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/28/1927",
+    "https://supreme.justia.com/cases/federal/us/501/32/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l14",
+   "claim": "Gentile v. State Bar of Nevada (1991): substantial-likelihood standard valid; safe harbor void for vagueness as applied",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/501/1030/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l14",
+   "claim": "Rule 4.2 and organizational constituents who supervise or regularly consult, can obligate, or whose acts are imputed",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/4-2"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l14",
+   "claim": "Rule 3.4: may pay witness expenses and expert compensation, but not a fact-witness fee for testifying",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/3-4"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l15",
+   "claim": "Rule 2.1: lawyer may refer to moral, economic, social and political factors",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/2-1"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l15",
+   "claim": "Cannabis: federal law still controls marijuana while some states amended rules to allow advice and assistance on state-lawful conduct",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.ohio.gov/ruleamendments/documents/Medical%20Marijuana%20Amendment%20(FINAL).pdf",
+    "https://en.wikipedia.org/wiki/Removal_of_cannabis_from_Schedule_I_of_the_Controlled_Substances_Act"
+   ],
+   "note": "Still accurate, but needs an update: an April 22, 2026 DOJ order moved state-licensed MEDICAL cannabis to Schedule III (effective Apr. 28, 2026); adult-use marijuana stays in Schedule I. Ohio Rule 1.2(d)(2) (2016) is one example of a state amendment."
+  },
+  {
+   "lessonId": "law-profresp.l15",
+   "claim": "When a client's conduct crosses the line, Rule 1.16(a)(1) requires withdrawal",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fmglaw.com/professional-liability/aba-passes-hotly-debated-amendments-to-model-rule-1-16/"
+   ],
+   "note": "Since Aug. 2023 MR 1.16(a) has a specific mandatory ground when the client seeks to use or persists in using the lawyer's services for a crime or fraud; the lesson should cite it."
+  },
+  {
+   "lessonId": "law-profresp.l15",
+   "claim": "SEC v. National Student Marketing Corp. (D.D.C. 1978)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search showed related D.D.C. litigation, but the 1978 SEC opinion was not opened."
+  },
+  {
+   "lessonId": "law-profresp.l16",
+   "claim": "Berger v. United States (1935): hard blows but not foul ones; the sovereign's interest is that justice be done",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/295/78/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l16",
+   "claim": "Rule 3.8(d) and (g)-(h); Kyles (1995) duty to learn of police-held favorable evidence and cumulative materiality; Bagley materiality",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/3-8",
+    "https://supreme.justia.com/cases/federal/us/514/419/",
+    "https://supreme.justia.com/cases/federal/us/473/667/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l16",
+   "claim": "Bordenkircher (1978); Imbler (1976) absolute immunity; Buckley (1993) qualified immunity for investigative acts; Connick (2011) single Brady violation",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/434/357/",
+    "https://supreme.justia.com/cases/federal/us/424/409/",
+    "https://supreme.justia.com/cases/federal/us/509/259/",
+    "https://supreme.justia.com/cases/federal/us/563/51/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l16",
+   "claim": "Giglio (1972) promises to a witness; Napue (1959) false testimony",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/405/150/",
+    "https://supreme.justia.com/cases/federal/us/360/264/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l17",
+   "claim": "NCBE is introducing the NextGen bar exam on a phased schedule",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbex.org/exams/nextgen"
+   ],
+   "note": "First administered July 2026 (the July 2026 Washington administration was cancelled and a make-up held Sept. 2026); most jurisdictions switch by July 2028; legacy UBE runs through Feb. 2028."
+  },
+  {
+   "lessonId": "law-profresp.l17",
+   "claim": "Schware (1957) rational connection; Konigsberg I (1957) reversal and Konigsberg II (1961) upholding exclusion for refusal to answer",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/353/232/",
+    "https://supreme.justia.com/cases/federal/us/353/252/",
+    "https://supreme.justia.com/cases/federal/us/366/36/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l17",
+   "claim": "In re Ruffalo (1968): disbarment proceedings are quasi-criminal; notice of charges before proceedings",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/390/544/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l17",
+   "claim": "Keller v. State Bar of California (1990)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/496/1/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l17",
+   "claim": "Rule 8.4(g) added to the Model Rules in 2016",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ABA site blocked; not opened."
+  },
+  {
+   "lessonId": "law-profresp.l18",
+   "claim": "Rule 5.2: a subordinate is not liable when following a supervisor's reasonable resolution of an arguable question",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/5-2"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l18",
+   "claim": "Arizona ABS and Utah regulatory sandbox",
+   "verdict": "supported",
+   "sources": [
+    "https://www.azcourts.gov/cld/Alternative-Business-Structure",
+    "https://utahinnovationoffice.org/"
+   ],
+   "note": "The Utah sandbox is closed to new applications and set to sunset Aug. 14, 2027."
+  },
+  {
+   "lessonId": "law-profresp.l18",
+   "claim": "Bates (1977); Ohralik (1978); Primus (1978); Shapero (1988); Went For It (1995) 5-4 30-day ban",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/433/350/",
+    "https://supreme.justia.com/cases/federal/us/436/447/",
+    "https://supreme.justia.com/cases/federal/us/436/412/",
+    "https://supreme.justia.com/cases/federal/us/486/466/",
+    "https://supreme.justia.com/cases/federal/us/515/618/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l19",
+   "claim": "Powell (1932) capital case; Gideon (1963) felony; Argersinger (1972); Scott (1979); Lassiter (1981) case-by-case; Turner (2011) safeguards",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/287/45/",
+    "https://supreme.justia.com/cases/federal/us/372/335/",
+    "https://supreme.justia.com/cases/federal/us/407/25/",
+    "https://supreme.justia.com/cases/federal/us/440/367/",
+    "https://supreme.justia.com/cases/federal/us/452/18/",
+    "https://supreme.justia.com/cases/federal/us/564/431/"
+   ],
+   "note": "Alabama v. Shelton (2002) page returned 403; not checked."
+  },
+  {
+   "lessonId": "law-profresp.l19",
+   "claim": "LSC created by Congress in 1974; Velazquez (2001) struck the restriction",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Legal_Services_Corporation",
+    "https://supreme.justia.com/cases/federal/us/531/533/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l19",
+   "claim": "LSC studies: low-income Americans get little or no help for most civil legal problems",
+   "verdict": "supported",
+   "sources": [
+    "https://justicegap.lsc.gov/"
+   ],
+   "note": "2022 report: no help, or not enough, for 92% of problems."
+  },
+  {
+   "lessonId": "law-profresp.l19",
+   "claim": "Rule 6.2 good cause and Rule 6.5 short-term limited services",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/6-2",
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/6-5"
+   ],
+   "note": "The Rule 6.1 figure of 50 hours was not checked on an opened page."
+  },
+  {
+   "lessonId": "law-profresp.l20",
+   "claim": "Fried \"The Lawyer as Friend\" (1976); Wasserstrom \"Lawyers as Professionals\" (1975); Pepper (1986)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No source opened."
+  },
+  {
+   "lessonId": "law-profresp.l20",
+   "claim": "Luban, Lawyers and Justice (1988); Simon, The Practice of Justice (1998)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No source opened."
+  },
+  {
+   "lessonId": "law-profresp.l20",
+   "claim": "Freedman's three hardest questions (1966), book 1975",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No source opened."
+  },
+  {
+   "lessonId": "law-profresp.l21",
+   "claim": "Rule 8.2(a): a false statement, knowing or reckless, about a judge's qualifications or integrity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ndcourts.gov/legal-resources/rules/ndrprofconduct/8-2"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l21",
+   "claim": "Republican Party of Minn. v. White (2002); Caperton (2009); Williams-Yulee (2015) 5-4",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Republican_Party_of_Minnesota_v._White",
+    "https://en.wikipedia.org/wiki/Caperton_v._A._T._Massey_Coal_Co.",
+    "https://supreme.justia.com/cases/federal/us/575/433/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-profresp.l21",
+   "claim": "2016 study of lawyers' problem drinking, depression and anxiety (ABA and Hazelden Betty Ford)",
+   "verdict": "supported",
+   "sources": [
+    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=26825268&retmode=json"
+   ],
+   "note": "Krill, Johnson & Albert, J. Addiction Medicine, Jan-Feb 2016; the sponsorship is not shown in the record opened."
+  }
+ ],
+ "fetched": 67,
+ "note": "WebFetch/WebSearch hit a session limit partway through; the remaining checks used curl. americanbar.org (rule pages and content/dam) returned 403 or a Cloudflare challenge, so Model Rule text was checked against a University of Houston reproduction of MR 1.10-1.12 and the North Dakota adopted rules, with state variations noted. No question options were cut off mid-sentence."
+}

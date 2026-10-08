@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { VOCA_PASSAGES, VOCA_LEVELS, passagesForLevel } from '../data/vocaPassages';
 import { checkPassageSafety } from '../services/voca/vocaContentSafety';
-import { createAlign, feedWord, summarize, wordsMatch, splitPassage, syllabify, markHelped, judge, moveOn } from '../services/voca/vocaAlign';
+import { createAlign, feedWord, leniencyFor, sentenceStart, summarize, wordsMatch, splitPassage, syllabify, markHelped, judge, moveOn } from '../services/voca/vocaAlign';
 import { applySession, defaultProgress, decideLevel, dueReview, reviewResult, nextPassage, type VocaSession } from '../services/voca/vocaProgress';
 import { STANDARDS } from '../data/educationStandards';
 
@@ -187,4 +187,40 @@ test('native partials emit only settled words; the final flushes the rest with a
   assert.deepEqual(fin.map(w => w.text), ['can', 'run']);
   assert.deepEqual(fin[1].alts, ['ran']);
   assert.deepEqual(a.partial('next'), []);                              // new utterance starts clean
+});
+
+test('restarting the sentence after a long pause is a re-read, never a miss', () => {
+  const s = createAlign('The little fox ran home. Then it slept soundly.', 4);
+  s.attemptGapMs = 3000;
+  let t = 1000;
+  for (const w of ['the', 'little', 'fox']) feedWord(s, w, [], (t += 400));
+  // long pause, then the child starts the line over and reads forward again
+  t += 9000;
+  const evs = ['the', 'little', 'fox', 'ran', 'home'].flatMap(w => feedWord(s, w, [], (t += 500)));
+  assert.ok(evs.every(e => e.type !== 'attempt' && e.type !== 'noise'));
+  assert.equal(s.words[3].status, 'good'); assert.equal(s.i, 5); assert.equal(s.reread, null);
+  assert.equal(sentenceStart(s, 6), 5);
+});
+
+test('a second guess right after the first is the same stumble (patience gap)', () => {
+  const s = createAlign('An enormous paw.', 6); s.attemptGapMs = 3000;
+  feedWord(s, 'an', [], 1000);
+  assert.equal(feedWord(s, 'enormus', [], 2000)[0].type, 'attempt');
+  assert.deepEqual(feedWord(s, 'enormis', [], 2500), []);
+  assert.equal(s.words[1].attempts, 1);
+});
+
+test('forgiving ears credit a one-letter-off second try (hoarse voice)', () => {
+  const s = createAlign('A volcano erupts.', 7); s.gentle = true;
+  feedWord(s, 'a');
+  assert.equal(feedWord(s, 'volcan')[0].type, 'attempt');
+  assert.equal(feedWord(s, 'volcan')[0].type, 'good');
+});
+
+test('leniency tightens only as level AND experience grow', () => {
+  assert.equal(leniencyFor(2, 40).tier, 0);      // low level stays patient however long they have played
+  assert.equal(leniencyFor(8, 2).tier, 0);       // a brand-new reader stays patient at any level
+  assert.equal(leniencyFor(5, 8).tier, 1);
+  assert.equal(leniencyFor(9, 20).tier, 2);
+  assert.equal(leniencyFor(9, 20).gentle, false);
 });

@@ -37,7 +37,7 @@ export type GenMode = 'connected' | 'handoff';
  *                 (Kling, Runway). A subscription grants NO API access and credits don't transfer.
  *  - `none`     — no usable public API at all; handoff only (Dreamina, Google Flow).
  *  The panel must state this before the user hits Generate, or they get billed by surprise. */
-export type WalletModel = 'shared' | 'separate' | 'none';
+export type WalletModel = 'shared' | 'separate' | 'none' | 'free_local';
 
 /** What a reference image is *for*. Providers accept different subsets — see ConnectorCaps.refRoles. */
 export type RefRole =
@@ -104,6 +104,22 @@ export interface GenJob {
 // The backend overrides `connected` per user; this static list lets the panel render (and explain
 // "connect your account") before the backend is even reachable.
 export const CONNECTORS: Connector[] = [
+  {
+    id: 'local_creative', name: 'Plajah Creative Studio (Local GPU)', kind: 'upscale', modes: ['connected', 'handoff'],
+    walletModel: 'free_local', connectMode: 'api',
+    blurb: 'Local detail hallucination, 3D relighting & FLUX cinema stills',
+    promptHint: 'Describe texture, lighting, and cinematic lenses. Runs 100% free on your local GPU.',
+    caps: { refRoles: ['source', 'first_frame', 'style', 'character'], maxRefs: 4, supportsSeed: true },
+    walletNote: 'Runs entirely on your local hardware via headless ComfyUI / discrete GPU. 0 credits, 100% free.',
+  },
+  {
+    id: 'local_wan', name: 'Wan 2.1 Video (Local GPU)', kind: 'video', modes: ['connected', 'handoff'],
+    walletModel: 'free_local', connectMode: 'api',
+    blurb: 'Cinematic open-source video generation on local GPU',
+    promptHint: 'Motion and camera trajectory language. Smooth 24fps cinematic motion.',
+    caps: { refRoles: ['first_frame', 'character'], maxRefs: 2, durations: [3, 5], supportsSeed: true },
+    walletNote: 'Runs locally on discrete GPU. Zero cloud cost.',
+  },
   {
     id: 'runway', name: 'Runway Gen-4', kind: 'video', modes: ['connected', 'handoff'],
     walletModel: 'separate', connectMode: 'api',
@@ -491,7 +507,7 @@ export function placeResultInCut(
 
   for (const c of clips) {
     const isPicture = !String(c.trackId || '').startsWith('a');
-    if (c.shotId !== shotId || !isPicture) { next.push(c); continue; }
+    if ((c.shotId !== shotId && c.id !== shotId) || !isPicture) { next.push(c); continue; }
     if (c.kind === 'script') {
       next.push({ ...c, kind: 'media', assetId: asset.id, srcIn: 0, label: asset.name || c.label });
       filled++;

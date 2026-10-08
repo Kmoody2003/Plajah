@@ -8,7 +8,10 @@ import {
   ArrowLeft, Info, Sparkles, ShieldCheck, Tv, Trash2,
   Film, Users, Globe, Award, ShoppingBag,
   FlaskConical, DollarSign, Zap, Split, CreditCard, Wallet,
+  Sliders, Lightbulb, Layers, HeartPulse, Building2, MonitorPlay,
 } from 'lucide-react';
+import { FeatureTutorialModal } from './tutorial/FeatureTutorialModal';
+import { getTutorialForFeature, TUTORIAL_REGISTRY, FeatureTutorial } from '../services/tutorial/tutorialRegistry';
 
 interface HelpSection {
   id: string;
@@ -510,6 +513,210 @@ const helpSections: HelpSection[] = [
         description: 'In Settings, configure your account details, email preferences, social link visibility, and content privacy defaults. To permanently delete your account and all associated data, scroll to the bottom of this Help page and click "Delete Account & Data." This action is irreversible and removes all uploaded content, profile data, and purchase history.'
       }
     ]
+  },
+  {
+    id: 'ambo',
+    title: 'Ambo Pro Broadcast',
+    icon: MonitorPlay,
+    description: 'Master live presentation, worship broadcasts, multi-screen LED wall mapping, and NDI video routing with background auto-save.',
+    features: [
+      {
+        name: 'Master Presentation Broadcast',
+        description: 'Ambo allows multi-display live presentation with seamless slide ordering, scripture lookups, lyric overlays, and background auto-save. Broadcast slides never freeze or drop display sync during live events.',
+        tutorial: 'ambo-broadcast'
+      },
+      {
+        name: 'LED Wall & Multi-Screen Routing',
+        description: 'Open the Output menu to configure dedicated LED Wall aspect ratios, confidence monitors, projector feeds, and local NDI video destinations. Each display can render distinct graphics or synchronized mirror streams.',
+        tutorial: 'ambo-broadcast'
+      },
+      {
+        name: 'Worship & Service Run Sheets',
+        description: 'Build complete service run-sheets linking worship songs from Chora, presentation slides, sermon notes, and prayer requests. Transition smoothly between live speakers, video bumpers, and ambient soundscapes.',
+        tutorial: 'ambo-broadcast'
+      }
+    ]
+  },
+  {
+    id: 'melos',
+    title: 'Melos Pro Audio Studio',
+    icon: Sliders,
+    description: 'Browser and desktop DAW featuring ONDA wavetable synthesis, KERA multi-sample engine, Spectra mastering EQ, and VST3 plugin hosting.',
+    features: [
+      {
+        name: 'ONDA Wavetable Synthesizer',
+        description: 'ONDA is a high-performance Rust/WASM synthesizer built natively into Melos. Choose from hundreds of wavetables, shape sounds with visual LFO Motion modulators, and sculpt rich analog-style pads, leads, and basses.',
+        tutorial: 'melos-synth-sampler'
+      },
+      {
+        name: 'KERA Multisampler & Soundfonts',
+        description: 'Load authentic instruments with the KERA multisampler. Import SF2 and SFZ soundfonts, map sample zones across velocity layers, edit loop points, and play realistic acoustic and orchestral sounds.',
+        tutorial: 'melos-synth-sampler'
+      },
+      {
+        name: 'Spectra Mix-Bus EQ & Dynamics',
+        description: 'Spectra provides mastering-grade parametric EQ, dynamic compression, stereo imaging, and real-time spectrum analysis. Clean up muddiness, add punch, and glue tracks together on the master bus.',
+        tutorial: 'melos-synth-sampler'
+      },
+      {
+        name: 'Hardware MIDI Learn & Windows VST3',
+        description: 'Plug in Native Instruments Maschine, Komplete Kontrol, or any MIDI keyboard. Melos auto-detects and premaps controllers. On Windows, host external 64-bit VST3 plugins directly inside your Melos project.',
+        tutorial: 'melos-synth-sampler'
+      },
+      {
+        name: 'One-Tap Export to Fabula NLE',
+        description: 'Send finished beats, stems, or grooves directly into active Fabula video timelines with the "→ Fabula" button. Complete sample clearance licensing is attached automatically.',
+        tutorial: 'melos-synth-sampler'
+      }
+    ]
+  },
+  {
+    id: 'fabula',
+    title: 'Fabula Pro Video (NLE)',
+    icon: Layers,
+    description: 'Disk-first video editing, 175 real-time Forge GPU effects, Beat Reactor audio sync, SAM AI object rotoscoping, and Runway Gen AI.',
+    features: [
+      {
+        name: 'Local-First Drive Editing',
+        description: 'Fabula edits media directly from your computer drive via File System Access handles. Experience zero-buffering scrubbing, real JKL shuttle, and automatic lightweight AAC/WebP proxy generation while idle.',
+        tutorial: 'fabula-forge-fx'
+      },
+      {
+        name: 'Forge GPU FX & Beat Reactor',
+        description: 'Access over 175 real-time GPU effects and 49 cinematic transitions. Enable Beat Reactor to lock video parameters, zooms, glitch flashes, or color shifts directly to music beats.',
+        tutorial: 'fabula-forge-fx'
+      },
+      {
+        name: 'Segment Anything (SAM) & AI Rotoscoping',
+        description: 'Isolate any moving object or person in your video shot with a single click. SAM performs client-side edge segmentation and tracking, creating clean alpha mattes without sending clips to external servers.',
+        tutorial: 'fabula-forge-fx'
+      },
+      {
+        name: 'Runway Gen AI & Spatial 3D XR',
+        description: 'Generate AI video extensions, image-to-video scenes, and depth-based stereoscopic 3D layers using the integrated Runway plugin panel and WebXR spatial shaders.',
+        tutorial: 'fabula-forge-fx'
+      }
+    ]
+  },
+  {
+    id: 'lighting',
+    title: 'Lighting Designer (LD)',
+    icon: Lightbulb,
+    description: 'Smart stage and home lighting: zero-friction Wi-Fi discovery for Govee and Nanoleaf fixtures with Razer Chroma and visualizer sync.',
+    features: [
+      {
+        name: 'Zero-Friction LAN Discovery',
+        description: 'Lighting Designer automatically detects Govee and Nanoleaf light strips, panels, and bulbs across your local Wi-Fi via UDP broadcast. No manual IP entry or complex pairing required.',
+        tutorial: 'lighting-designer'
+      },
+      {
+        name: 'Visualizer & Music Reactive Sync',
+        description: 'Link your physical smart lights to Chora music playback and Plajah Pixels visualizers. Lights pulse, change color temperature, and strobe in synchronized harmony with the music.',
+        tutorial: 'lighting-designer'
+      },
+      {
+        name: 'Razer Chroma & DMX Stage Mode',
+        description: 'Sync your Razer Chroma gaming peripherals, keyboards, and mice alongside room smart fixtures and professional DMX stage rigs for immersive concerts and live broadcasts.',
+        tutorial: 'lighting-designer'
+      }
+    ]
+  },
+  {
+    id: 'business_pos',
+    title: 'Business & POS Register',
+    icon: Building2,
+    description: 'Complete physical retail suite: touchscreen POS register, receipt printers, cash drawers, staff time-clocks, and In-Store Live broadcasts.',
+    features: [
+      {
+        name: 'Touchscreen POS Register',
+        description: 'Process in-person customer sales on the direct Stripe Connect order spine. Supports barcode scanning, cash tender, credit cards, and instant loyalty discount auto-application.',
+        tutorial: 'business-pos-register'
+      },
+      {
+        name: 'Hardware Seam (Receipts & Cash Drawer)',
+        description: 'Connect thermal receipt printers and cash drawers via local USB or network. Supports standard ESC-POS print protocols and QZ Tray native hardware triggers.',
+        tutorial: 'business-pos-register'
+      },
+      {
+        name: 'Staff HR & PIN Time-Clock',
+        description: 'Manage employee shifts, permissions, and payroll exports. Employees punch in and out using secure 4-digit PINs directly on the POS register screen.',
+        tutorial: 'business-pos-register'
+      },
+      {
+        name: 'In-Store Live Broadcasting',
+        description: 'Turn any shop into an interactive space. Patrons who walk in can auto-check in via geofence, see the current music track playing in the store, tip creators, or order products.',
+        tutorial: 'business-pos-register'
+      }
+    ]
+  },
+  {
+    id: 'terra',
+    title: 'Terra Civic & Real Estate',
+    icon: Globe,
+    description: 'Civic place layer, 3D zoning envelope generation for Detroit parcels, verified property passports, and automated room listing films.',
+    features: [
+      {
+        name: '3D Zoning Envelopes & Parcels',
+        description: 'Inspect any parcel in the Terra 3D explorer to visualize allowable building volumes, height limits, setbacks, and verified Open Listing Record (OLR) zoning data.',
+        tutorial: 'terra-listing-film'
+      },
+      {
+        name: 'Automated Walkthrough Listing Films',
+        description: 'Turn simple smartphone video walkthroughs into polished real-estate listing films. The AI transcribes narration, segments rooms (kitchen, master suite, patio), and cuts an edited showcase.',
+        tutorial: 'terra-listing-film'
+      },
+      {
+        name: 'Property Passports & Civic Compliance',
+        description: 'Each location receives a digital Property Passport documenting architectural history, tax incentives, permits, environmental scores, and local community points of interest.',
+        tutorial: 'terra-listing-film'
+      }
+    ]
+  },
+  {
+    id: 'firstlight',
+    title: 'Project Firstlight & Sports 3D',
+    icon: Award,
+    description: 'Interactive 3D football passing simulation, customizable stadium aurora shaders, personalized game day, and gyro-aimed mobile games.',
+    features: [
+      {
+        name: '3D Passing Lab Physics',
+        description: 'Step onto the virtual gridiron with realistic ball aerodynamics, spiral spin dynamics, wind resistance, and customizable receiver route trees in WebGL.',
+        tutorial: 'firstlight-3d-lab'
+      },
+      {
+        name: 'Stitch Design Menu & Aurora Shaders',
+        description: 'Customize visual atmosphere with real-time stadium aurora shaders, volumetric floodlights, turf textures, and team color grading.',
+        tutorial: 'firstlight-3d-lab'
+      },
+      {
+        name: 'Pew Pew Gyro-Aimed Phone Game',
+        description: 'Play first-party mobile sports arcade games utilizing smartphone accelerometer and gyroscope sensors for smooth, jitter-free precision aiming.',
+        tutorial: 'firstlight-3d-lab'
+      }
+    ]
+  },
+  {
+    id: 'ora',
+    title: 'Ora Wellbeing Suite',
+    icon: HeartPulse,
+    description: 'Mindful rhythms, breathwork with the glowing interactive orb, voice-driven journal nudges, and generative ambient focus soundscapes.',
+    features: [
+      {
+        name: 'Daily Rhythms & Mindful Rest',
+        description: 'Track restorative habits, morning intentions, and evening reflections. Ora helps maintain healthy creator rhythms across long creative sessions.',
+        tutorial: 'ora-wellbeing-suite'
+      },
+      {
+        name: 'Voice Journal with AI Nudges',
+        description: 'Speak your thoughts freely in private voice journals. Ora transcribes and provides gentle, empathetic reflection nudges to support your wellbeing.',
+        tutorial: 'ora-wellbeing-suite'
+      },
+      {
+        name: 'Ambient Focus Soundscapes',
+        description: 'Immerse yourself in procedurally generated vocal soundscapes, binaural tones, and nature textures designed to enhance deep focus and creative flow.',
+        tutorial: 'ora-wellbeing-suite'
+      }
+    ]
   }
 ];
 
@@ -524,6 +731,7 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpen
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [quickPolicy, setQuickPolicy] = useState<string | null>(null);
+  const [selectedTutorial, setSelectedTutorial] = useState<FeatureTutorial | null>(null);
 
   const filteredSections = helpSections.filter(s => 
     s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -641,10 +849,18 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpen
                             <div className="shrink-0 px-4 py-2 bg-white/5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-white/40 border border-white/5 group-hover:border-white/20 transition-all">Quick Guide</div>
                           </div>
                           <p className="text-white/60 text-sm font-bold leading-relaxed mb-8 relative z-10 lg:pl-12 max-w-3xl">{feature.description}</p>
-                          <div className="lg:pl-12 relative z-10">
-                             <button className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/10 hover:bg-white text-[10px] font-black uppercase tracking-[0.2em] text-white hover:text-black transition-all">
-                               <Play size={14} fill="currentColor" /> Play Mini Video
+                          <div className="lg:pl-12 relative z-10 flex items-center gap-3">
+                             <button
+                               onClick={() => {
+                                 const tutId = feature.tutorial || activeSection || 'ambo-broadcast';
+                                 const tut = getTutorialForFeature(tutId) || getTutorialForFeature('ambo-broadcast');
+                                 if (tut) setSelectedTutorial(tut);
+                               }}
+                               className="flex items-center gap-2.5 px-6 py-3 rounded-full bg-white/10 hover:bg-[#ff8c00] text-[10px] font-black uppercase tracking-[0.2em] text-white hover:text-black transition-all shadow-lg hover:shadow-orange-500/20 group/btn"
+                             >
+                               <Play size={13} fill="currentColor" className="group-hover/btn:scale-110 transition-transform" /> Interactive Walkthrough
                              </button>
+                             <span className="text-[10px] font-mono text-white/30 hidden sm:inline">Self-guided markup &amp; shortcuts</span>
                           </div>
                         </div>
                       ))}
@@ -817,6 +1033,12 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpen
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Interactive Feature Tutorial Walkthrough Modal */}
+      <FeatureTutorialModal
+        tutorial={selectedTutorial}
+        onClose={() => setSelectedTutorial(null)}
+      />
     </div>
   );
 };

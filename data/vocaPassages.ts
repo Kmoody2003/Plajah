@@ -13,6 +13,8 @@
  * Levels map to grade bands; `targetWcpm` ≈ Hasbrouck & Tindal (2017) spring 50th percentile for the band.
  */
 
+import { VOCA_HISTORY_PASSAGES } from './vocaHistoryPassages';
+import { VOCA_SPORTS_PASSAGES } from './vocaSportsPassages';
 export interface VocaQuestion { prompt: string; choices: [string, string, string]; answer: 0 | 1 | 2 }
 export interface VocaPassage {
   id: string;
@@ -173,6 +175,9 @@ export const VOCA_PASSAGES: VocaPassage[] = [
     question: { prompt: 'According to the passage, why does reading aloud help beginners?', choices: ['It links a word\'s spelling to its sound and strengthens the pathway', 'It makes the eyes stronger', 'It replaces the need to practice'], answer: 0 },
     syllables: { evolution: ['ev', 'o', 'lu', 'tion'], cortex: ['cor', 'tex'], specializes: ['spe', 'cial', 'iz', 'es'], repetition: ['rep', 'e', 'ti', 'tion'] } }),
 ];
+
+// History read-alouds (music, film, art, money): the same reading practice, learning real history at the same time.
+VOCA_PASSAGES.push(...VOCA_HISTORY_PASSAGES, ...VOCA_SPORTS_PASSAGES);
 
 export const passagesForLevel = (level: number) => VOCA_PASSAGES.filter(p => p.level === level);
 export const levelInfo = (level: number) => VOCA_LEVELS.find(l => l.level === level) ?? VOCA_LEVELS[0];

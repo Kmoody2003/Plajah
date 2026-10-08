@@ -134,15 +134,19 @@ class ErrorBoundary extends React.Component<Props, State> {
     // Firestore SDK corruption is only cleared by a real reload — a soft reset
     // re-mounts into the same broken SDK. (User-initiated, so no loop-guard.)
     if (isFirestoreInternalAssertion(this.state.error)) { try { window.location.reload(); } catch { /* */ } return; }
-    this.setState({ hasError: false, error: null, culprit: null });
-    if (this.props.onReset) { this.props.onReset(); return; }
+    if (this.props.onReset) { this.setState({ hasError: false, error: null, culprit: null }); this.props.onReset(); return; }
     const lastErrorTime = sessionStorage.getItem('last_error_time');
     const now = Date.now();
-    if (lastErrorTime && now - parseInt(lastErrorTime) < 5000) {
-      console.error('Multiple errors detected in short sequence. Stopping auto-reload.');
+    // Second "Reboot" press shortly after the first means the soft reset re-crashed into the same
+    // broken state. Previously this silently did nothing (OK appeared dead, esp. in the Android
+    // WebView). Escalate to a real cache-busting hard reload so the button always recovers.
+    if (lastErrorTime && now - parseInt(lastErrorTime) < 60_000) {
+      console.warn('Repeated crash after soft reset - escalating to hard reload.');
+      recoverFromStaleChunk(true);
       return;
     }
     sessionStorage.setItem('last_error_time', now.toString());
+    this.setState({ hasError: false, error: null, culprit: null });
     window.dispatchEvent(new CustomEvent('app-reset'));
   };
 

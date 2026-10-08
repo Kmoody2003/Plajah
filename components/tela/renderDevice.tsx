@@ -17,6 +17,7 @@ import TelaImage from './TelaImage';
 import TelaNotes from './TelaNotes';
 import TelaChart from './TelaChart';
 import TelaMedia from './TelaMedia';
+import FigureBlock from '../learn/lesson/FigureBlock';
 import { auth } from '../../services/firebase';
 
 /** Everything renderDevice needs that isn't the device itself. */
@@ -124,6 +125,7 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
   if (device.type === 'NOTES') {
     return <TelaNotes key={device.id} device={device} readOnly={readOnly} onChange={patch => dispatchOp({ type: 'UPDATE_NOTES_DEVICE', deviceId: device.id, patch })}/>;
   }
+  if (device.type === 'FIGURE') return <FigureBlock key={device.id} f={device.figure} />;
   if (device.type === 'MEDIA') return <TelaMedia key={device.id} device={device} readOnly={readOnly}/>;
   return (
     <TelaGrid

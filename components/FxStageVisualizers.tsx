@@ -7,16 +7,22 @@
 // engine components are lazy-loaded so they never weigh down the player bundle.
 
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
-import { VisualizerMode, type VisualizationConfig } from './plajahPixels/types';
+import { VisualizerMode, type VisualizationConfig, isStudioMode } from './plajahPixels/types';
+import { FLUX_PLATFORM_MODES } from './plajahPixels/engine/fluxPlatformCatalog';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { getLookLibrary, onLooksChanged } from '../services/shaders/looksLibrary';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 
 const ButterchurnLayer = React.lazy(() => import('./plajahPixels/components/ButterchurnLayer'));
 const ShaderLayer = React.lazy(() => import('./plajahPixels/components/ShaderLayer'));
 const AudioVisualizer = React.lazy(() => import('./plajahPixels/components/AudioVisualizer'));
+const StudioStage = React.lazy(() => import('./plajahPixels/components/StudioStage'));
 const FluxStage = React.lazy(() => import('./plajahPixels/components/FluxStage'));
+const TypoStage = React.lazy(() => import('./ChoraTypoVisualizer'));
+const KaijuStage = React.lazy(() => import('./kaiju/KaijuFxStage'));
+const LooksStage = React.lazy(() => import('./chora/looks/LooksStage'));
 
-export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX';
+export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX' | 'TYPO' | 'KAIJU' | 'LOOKS';
 
 /**
  * Frames per second the Pixels engines should target on this device. 0 = uncapped.
@@ -53,21 +59,19 @@ export async function loadSignatureShaders(): Promise<FxShader[]> {
   _shadersPromise = (async () => {
     let built: FxShader[] = [];
     try {
-      const mod: any = await import('./plajahPixels/engine/presets/signatureShaders');
-      const works: any[] = mod.SIGNATURE_WORKS || [];
-      // The WHOLE library is offered on every surface, television included. Series V (kit3d) are
-      // SDF raymarchers at 72–104 steps per pixel and genuinely heavy, but hiding a third of the
-      // collection from the biggest screen in the house is the wrong trade — a TV is where these
-      // are most worth looking at. They are paid for with frame rate instead (see fxFrameCap),
-      // which costs smoothness on the heaviest works rather than removing them.
-      built = works
-        .map(w => ({
-          name: w.name,
-          source: mod.signatureSource(w),
-          // Each work ships its own tuned defaults; without them the whole set renders at
-          // a flat 0.5 and reads nothing like the intended look.
-          params: [0, 1, 2, 3].map(i => w.params?.[i]?.def ?? 0.5),
-        }));
+      // ONE library: the same SHADER_LIBRARY the Pixels studio, Library rail, DJ and Ambo pickers read
+      // (Signature I-VIII incl. Council Masterworks, Living Volumes / Glass Harmonics material works,
+      // raw GLSL, procedural and ISF). It used to read SIGNATURE_WORKS alone, so every material,
+      // procedural and ISF shader added later never reached Chora / TV / Mixes. Signature entries
+      // stay first so saved preset indices do not move.
+      const mod: any = await import('./plajahPixels/components/ShaderPanel');
+      const works: any[] = mod.SHADER_LIBRARY || [];
+      built = works.map(w => ({
+        name: w.name,
+        source: w.src,
+        // Each work ships its own tuned defaults; without them the whole set renders at a flat 0.5.
+        params: [0, 1, 2, 3].map(i => w.params?.[i]?.def ?? 0.5),
+      }));
     } catch (e) {
       console.warn('[Plajah Pixels] Signature shader library failed to load:', e);
     }
@@ -84,18 +88,9 @@ export async function loadShaderNames(): Promise<string[]> {
 }
 
 // ── Flux 3D Real-Time Scenes (Trapcode Form / Mir lineage) ──
-export const FLUX_MODES: { name: string; mode: VisualizerMode }[] = [
-  { name: 'Flux Field', mode: VisualizerMode.FluxField },
-  { name: 'Deco Tapestry', mode: VisualizerMode.FluxTapestry },
-  { name: 'Deco Tapestry II', mode: VisualizerMode.FluxTapestryII },
-  { name: 'Flux Lattice', mode: VisualizerMode.FluxLattice },
-  { name: 'Flux Tunnel', mode: VisualizerMode.FluxTunnel },
-  { name: 'Flux Aurora', mode: VisualizerMode.FluxAurora },
-  { name: 'The Sanctum', mode: VisualizerMode.FluxSanctum },
-  { name: 'Porcelain Tide', mode: VisualizerMode.PorcelainTide },
-  { name: 'Velvet Bloom', mode: VisualizerMode.VelvetBloom },
-  { name: 'Prism Archive', mode: VisualizerMode.PrismArchive },
-];
+// Preserve existing preset indices while sourcing every Flux entry from its catalog.
+export const FLUX_MODES: { name: string; mode: VisualizerMode }[] =
+  FLUX_PLATFORM_MODES.map(s=>({name:s.name,mode:s.mode}));
 
 // ── Generator presets — every Plajah Pixels scene, chrome stripped ──
 const GEN_MODES: { name: string; mode: VisualizerMode }[] = [
@@ -126,13 +121,38 @@ export async function loadMilkdropNames(): Promise<string[]> {
   return _milkdropNames;
 }
 
+// ── Kinetic Typographic Sacred Geometry presets ──
+const TYPO_MODES: { name: string; preset: import('./ChoraTypoVisualizer').TypoVolumePreset }[] = [
+  { name: 'Obsidian & Neon', preset: 'SPHERE' },
+  { name: 'Glass Lattice', preset: 'CUBIC_GLASS' },
+  { name: 'Constructivist Sun', preset: 'SUNBURST' },
+  { name: 'Lyric Helix', preset: 'DNA_HELIX' },
+  { name: 'Contour Field', preset: 'TOPOGRAPHY' },
+  { name: 'Type Gear', preset: 'GEAR' },
+  { name: 'Chaos Drain', preset: 'VORTEX' },
+  { name: 'Letter Skyline', preset: 'SKYLINE' },
+  { name: 'Word Wings', preset: 'BUTTERFLY' },
+  { name: 'Tide Lines', preset: 'OCEAN_WAVES' },
+  { name: 'Bauhaus Shatter', preset: 'SHATTER' },
+  { name: 'Letter Maze', preset: 'MAZE' },
+];
+
+// ── Kaiju dance party — Lorik & Lumi (names mirror KAIJU_PRESETS in kaiju/KaijuFxStage) ──
+const KAIJU_MODES = ['Kaiju Party (Auto)', 'Meditation Float', 'EDM Rave', 'Rock Headbang', 'Ballet & Cinema', 'Kaiju Music Video (Clips)', 'Kaiju Disco 2D (Lorik & Lumi)', 'Kaiju Disco 3D (Chora & Reello)'];
+
 // Preset-list metadata the selector uses to label. MilkDrops is loaded async (above).
 export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {
   MILKDROP: [], // filled at runtime via loadMilkdropNames()
   SHADER: [],   // filled at runtime via loadSignatureShaders()
   GENERATOR: GEN_MODES.map(g => g.name),
   FLUX: FLUX_MODES.map(f => f.name),
+  TYPO: TYPO_MODES.map(t => t.name),
+  KAIJU: KAIJU_MODES,
+  // Looks (open-source WebGPU `shaders` library): house set + saved/council looks. Names only — the library itself
+  // is lazy-loaded by LooksStage. Refreshed in place when a look is saved so the preset list stays current.
+  LOOKS: getLookLibrary().map(l => l.name),
 };
+onLooksChanged(() => { FX_ENGINE_PRESETS.LOOKS = getLookLibrary().map(l => l.name); });
 
 /** `names` supplies the runtime list for the async engines (MilkDrops, Shaders); the
  *  already-loaded FX_ENGINE_PRESETS entry is used when a caller doesn't hold one. */
@@ -147,8 +167,8 @@ const BASE_CONFIG: VisualizationConfig = {
   gpuGenerators: false, unifyOverlays: false, workerCompositor: false,
   gradeBrightness: 1, gradeContrast: 1, gradeSaturation: 1, gradeGamma: 1,
   colorPalette: ['#FF00CC', '#3333FF', '#00CCFF', '#FFFFFF'],
-  smoothingTimeConstant: 0.8, minDecibels: -90, maxDecibels: -10, fftSize: 2048,
-  sensitivity: 1.5, glowIntensity: 15, speed: 1.0,
+  smoothingTimeConstant: 0.62, minDecibels: -85, maxDecibels: -15, fftSize: 2048,
+  sensitivity: 1.85, glowIntensity: 15, speed: 1.0,
   enableBlur: true, blurStrength: 0.8, blendMode: 'screen',
   backgroundOpacity: 1.0, backgroundPulseIntensity: 0.5,
   enableBackgroundRotation: false, backgroundRotationInterval: 4,
@@ -237,13 +257,29 @@ export default function FxStageVisualizers({
     <Suspense fallback={<Loading />}>
       {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} fpsCap={fps} renderScale={renderScale} />}
       {engine === 'SHADER' && (shader
-        ? <ShaderLayer key={shader.name} analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} renderScale={renderScale} />
+        ? <ShaderLayer analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} renderScale={renderScale} />
         : <Loading />)}
       {engine === 'GENERATOR' && (
-        <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
+        isStudioMode(genConfig.mode)
+          ? <StudioStage analyser={analyser} config={genConfig} isPlaying={isPlaying} />
+          : <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
       )}
       {engine === 'FLUX' && (
         <FluxStage analyser={analyser} config={fluxConfig} isPlaying={isPlaying} />
+      )}
+      {engine === 'TYPO' && (
+        <TypoStage
+          preset={TYPO_MODES[((presetIndex % TYPO_MODES.length) + TYPO_MODES.length) % TYPO_MODES.length].preset}
+          analyser={analyser} isPlaying={isPlaying} fpsCap={fps} renderScale={renderScale}
+        />
+      )}
+      {engine === 'KAIJU' && (
+        <KaijuStage preset={presetIndex} analyser={analyser} isPlaying={isPlaying} fpsCap={fps} />
+      )}
+      {engine === 'LOOKS' && (
+        <LooksStage presetIndex={presetIndex} analyser={analyser} isPlaying={isPlaying} fpsCap={fps}
+          coverUrl={(gp?.currentAlbum as any)?.coverArt || (gp?.currentAlbum as any)?.coverUrl || gp?.currentTrack?.images?.[0]}
+          trackId={gp?.currentTrack?.id} />
       )}
     </Suspense>
   );

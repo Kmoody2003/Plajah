@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dossier — Design Direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Abril+Fatface&family=Playfair+Display:ital,wght@0,500;1,500&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=Noto+Naskh+Arabic:wght@500;700&family=Noto+Sans+Syriac&family=Fraunces:opsz,wght@9..144,400;9..144,800&family=Noto+Nastaliq+Urdu&family=Inter+Tight:wght@400;600&family=Noto+Serif+SC:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0a0d;--ink:#f4efe6;--mute:#a79f94;--line:rgba(255,255,255,.14)}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',system-ui,sans-serif;line-height:1.5}
+.ex{--a:#ff4b1f;--b:#1a1411;--font-d:'Anton',sans-serif;--font-b:'Source Serif 4',serif}
+.ex[data-x=douglass]{--a:#d9b36a;--b:#14110d;--font-d:'Abril Fatface',serif}
+.ex[data-x=persia]{--a:#4f7cff;--b:#0c1020;--font-d:'Cormorant Garamond',serif}
+.ex[data-x=partition]{--a:#e8553d;--b:#120f0c;--font-d:'Fraunces',serif}
+/* top bar */
+.bar{position:sticky;top:0;z-index:50;display:flex;gap:6px;align-items:center;padding:10px 16px;background:rgba(11,10,13,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);overflow:auto}
+.bar b{font:500 11px 'IBM Plex Mono';letter-spacing:.14em;color:var(--mute);margin-right:10px;white-space:nowrap}
+.bar a{color:var(--ink);text-decoration:none;font-size:13px;padding:6px 12px;border:1px solid var(--line);border-radius:99px;white-space:nowrap}
+.bar a:hover{border-color:var(--ink)}
+section.sys{padding:80px 6vw;border-bottom:1px solid var(--line)}
+.kicker{font:500 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
+h2.big{font:800 clamp(36px,6vw,84px)/.95 'Fraunces',serif;letter-spacing:-.02em;margin-bottom:22px}
+p.lede{max-width:62ch;color:#cfc8bc;font-size:18px}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:40px}
+.rule{border-top:2px solid var(--ink);padding-top:12px}
+.rule h4{font:700 15px 'Inter Tight';margin-bottom:6px}
+.rule p{color:var(--mute);font-size:14px}
+/* exhibit stage */
+.ex{position:relative;background:var(--b);border-bottom:1px solid var(--line)}
+.hero{position:relative;min-height:92vh;display:grid;align-content:end;padding:6vw;overflow:hidden;isolation:isolate}
+.hero img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;filter:saturate(.85) contrast(1.05);transform:scale(1.06);animation:drift 24s ease-in-out infinite alternate}
+.hero:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,.1) 35%,var(--b) 100%)}
+@keyframes drift{to{transform:scale(1.14) translate(-1.5%,1%)}}
+.hero .tag{font:500 11px 'IBM Plex Mono';letter-spacing:.18em;text-transform:uppercase;color:var(--a);margin-bottom:12px}
+.hero h1{font:400 clamp(56px,13vw,210px)/.86 var(--font-d);text-transform:uppercase;letter-spacing:-.01em;max-width:14ch}
+.ex[data-x=persia] .hero h1,.ex[data-x=partition] .hero h1{text-transform:none;font-weight:700;letter-spacing:-.025em}
+.hero .sub{margin-top:22px;max-width:56ch;font:400 clamp(17px,1.6vw,22px)/1.45 var(--font-b);color:#e6dfd3}
+.hero .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;font:500 12px 'IBM Plex Mono';color:var(--mute)}
+.hero .meta span{border:1px solid var(--line);padding:6px 10px;border-radius:99px}
+.stage{padding:90px 6vw}
+.stage .label{display:flex;align-items:center;gap:12px;font:500 11px 'IBM Plex Mono';letter-spacing:.16em;text-transform:uppercase;color:var(--a);margin-bottom:10px}
+.stage .label i{display:inline-block;width:38px;height:2px;background:var(--a)}
+.stage h3{font:400 clamp(34px,6vw,86px)/.95 var(--font-d);text-transform:uppercase;margin-bottom:18px;max-width:18ch}
+.ex[data-x=persia] .stage h3,.ex[data-x=partition] .stage h3{text-transform:none;font-weight:700}
+.stage p.d{max-width:60ch;color:#d4ccc0;font:400 19px/1.6 var(--font-b)}
+.note{font:500 11px 'IBM Plex Mono';color:var(--mute);margin-top:14px;max-width:70ch}
+.tag-recon{display:inline-block;font:700 11px 'IBM Plex Mono';letter-spacing:.14em;padding:3px 8px;border:1.5px solid #ff6b57;color:#ff6b57;text-transform:uppercase}
+/* ---------- FORD: moving line ---------- */
+.line{margin-top:44px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#0f0c0a}
+.line .rail{position:relative;height:210px;background:repeating-linear-gradient(90deg,#1a1411 0 38px,#16100d 38px 76px);overflow:hidden;border-bottom:1px solid var(--line)}
+.line .belt{position:absolute;left:0;right:0;bottom:44px;height:10px;background:#2b211b}
+.line .chassis{position:absolute;bottom:56px;width:150px;height:62px;transition:left .08s linear}
+.chassis svg{width:100%;height:100%}
+.line .st{position:absolute;top:14px;font:700 11px 'IBM Plex Mono';letter-spacing:.12em;color:#8b7d70;text-transform:uppercase}
+.line .readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--line)}
+.readout div{background:#0f0c0a;padding:22px 24px}
+.readout b{display:block;font:400 clamp(40px,5vw,72px)/1 'Anton';color:var(--a)}
+.readout small{font:500 11px 'IBM Plex Mono';letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+input[type=range]{width:100%;accent-color:var(--a);margin:0}
+.ctl{padding:20px 24px;display:grid;gap:10px;border-top:1px solid var(--line)}
+.ctl label{font:500 11px 'IBM Plex Mono';letter-spacing:.12em;color:var(--mute);text-transform:uppercase;display:flex;justify-content:space-between}
+.bars{display:grid;gap:10px;padding:24px;border-top:1px solid var(--line)}
+.bar-r{display:grid;grid-template-columns:70px 1fr 70px;gap:12px;align-items:center;font:500 12px 'IBM Plex Mono';color:var(--mute)}
+.bar-r .tr{height:16px;background:#1d1612;border-radius:2px;overflow:hidden}
+.bar-r .fi{height:100%;background:var(--a);transition:width .25s}
+/* ---------- DOUGLASS: composing stick ---------- */
+.stick{margin-top:44px;display:grid;grid-template-columns:minmax(260px,380px) 1fr;gap:28px;align-items:start}
+@media(max-width:820px){.stick{grid-template-columns:1fr}}
+.case{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:14px;background:#1d1812;border:1px solid var(--line);border-radius:10px}
+.case button{aspect-ratio:1;font:400 26px 'Abril Fatface';background:#2b241a;color:#d9b36a;border:0;border-bottom:3px solid #0d0a06;border-radius:4px;cursor:pointer}
+.case button:hover{background:#d9b36a;color:#14110d;transform:translateY(-2px)}
+.press{background:#e9dfc9;color:#1a140c;border-radius:6px;padding:34px 30px;min-height:300px;box-shadow:0 30px 70px rgba(0,0,0,.6),inset 0 0 90px rgba(120,90,40,.25);position:relative}
+.press .hd{font:500 10px 'IBM Plex Mono';letter-spacing:.2em;text-transform:uppercase;color:#7a6a4a;border-bottom:1px solid #b8a67f;padding-bottom:8px;margin-bottom:18px}
+.press .set{font:400 clamp(30px,4.4vw,60px)/1.02 'Abril Fatface';min-height:3em;overflow-wrap:normal;word-break:normal;white-space:normal}
+.press .set span{display:inline;animation:thud .28s ease-out}
+@keyframes thud{from{transform:translateY(-14px) scale(1.15);opacity:0}}
+.press .src{margin-top:22px;font:italic 500 14px 'Playfair Display';color:#5a4a30}
+.press .ctrls{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+.press .ctrls button{font:600 12px 'Inter Tight';padding:8px 14px;border-radius:99px;border:1.5px solid #1a140c;background:transparent;color:#1a140c;cursor:pointer}
+.press .ctrls button:hover{background:#1a140c;color:#e9dfc9}
+/* ---------- PERSIA: the road ---------- */
+.road{margin-top:44px;border:1px solid var(--line);border-radius:16px;background:radial-gradient(1200px 400px at 20% 0%,#162049 0,#0c1020 70%);padding:26px;overflow:hidden}
+.road svg{width:100%;height:auto;display:block}
+.road .pin{cursor:pointer}
+.road .pin circle{transition:r .2s,fill .2s}
+.road .pin:hover circle,.road .pin.on circle{fill:#9fb8ff}
+.road{position:relative;isolation:isolate}
+.road .bgart{position:absolute;inset:0;z-index:-2;background-size:cover;background-position:center;opacity:0;filter:saturate(.7) blur(1px);-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 25%,#000 75%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 25%,#000 75%,transparent 100%);transition:opacity 1.2s ease;inset:-6%;will-change:transform;transform:translate3d(calc(var(--px,0)*-18px),calc(var(--py,0)*-12px),0) scale(1.12)}
+.road .bgart.on{opacity:.34;animation:kb 22s ease-in-out infinite alternate}
+@keyframes kb{from{transform:translate3d(calc(var(--px,0)*-18px + var(--x0,0%)),calc(var(--py,0)*-12px + var(--y0,0%)),0) scale(1.1)}to{transform:translate3d(calc(var(--px,0)*-18px + var(--x1,0%)),calc(var(--py,0)*-12px + var(--y1,0%)),0) scale(1.24)}}
+.road .haze{position:absolute;inset:-20% -30%;z-index:-1;pointer-events:none;background:radial-gradient(40% 50% at 30% 40%,rgba(159,184,255,.14),transparent 70%),radial-gradient(35% 45% at 70% 60%,rgba(255,220,170,.08),transparent 70%);animation:haze 18s ease-in-out infinite alternate}
+@keyframes haze{from{transform:translateX(-8%)}to{transform:translateX(8%) translateY(4%)}}
+.road canvas.dust{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}
+.road .bgscript span{translate:calc(var(--px,0)*10px) calc(var(--py,0)*6px)}
+.road .bgscript{position:absolute;inset:0;z-index:-1;display:grid;place-items:center;pointer-events:none;overflow:hidden}
+.road .bgscript span{display:block;font-size:clamp(150px,34vw,420px);line-height:1;white-space:nowrap;color:#9fb8ff;opacity:.13;text-shadow:0 0 60px rgba(79,124,255,.35);animation:scriptIn 1.1s cubic-bezier(.2,.8,.2,1) both}
+.road .bgscript span.zh{letter-spacing:.04em}
+.road .bgcap{position:absolute;left:26px;bottom:10px;font:500 10px 'IBM Plex Mono';letter-spacing:.16em;color:#7f93cf;text-transform:uppercase;opacity:.85}
+@keyframes scriptIn{from{opacity:0;transform:translateY(40px) scale(.94);filter:blur(14px)}to{opacity:.13;transform:none;filter:blur(0)}}
+@media(prefers-reduced-motion:reduce){.road .bgart.on,.road .haze{animation:none}.road .bgscript span{animation:none}.road .bgart{transition:opacity .2s}}
+.card{display:grid;grid-template-columns:200px 1fr;gap:24px;align-items:center;margin-top:20px;padding:22px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03)}
+@media(max-width:700px){.card{grid-template-columns:1fr}}
+.glyph{font-size:92px;line-height:1.1;text-align:center;color:#9fb8ff}
+.card h4{font:700 30px 'Cormorant Garamond';margin-bottom:6px}
+.card p{color:#cfd6ee;font:400 17px/1.55 'Source Serif 4'}
+.card .yr{font:500 11px 'IBM Plex Mono';letter-spacing:.14em;color:#9fb8ff;text-transform:uppercase}
+/* ---------- PARTITION: five weeks ---------- */
+.weeks{margin-top:44px;display:grid;grid-template-columns:1.2fr 1fr;gap:26px}
+@media(max-width:860px){.weeks{grid-template-columns:1fr}}
+.map{position:relative;border:1px solid var(--line);border-radius:16px;background:#17120e;overflow:hidden}
+.map svg{width:100%;display:block}
+.pen{position:absolute;top:0;bottom:0;width:0}
+.dates{border:1px solid var(--line);border-radius:16px;padding:24px;background:#17120e}
+.dates .big{font:800 clamp(56px,8vw,120px)/.9 'Fraunces';color:var(--a)}
+.dates .what{font:400 19px/1.55 'Source Serif 4';color:#e3dacb;margin-top:12px;min-height:7.5em}
+.dates .cap{font:500 11px 'IBM Plex Mono';letter-spacing:.12em;color:var(--mute);text-transform:uppercase;margin-bottom:6px}
+footer{padding:60px 6vw;color:var(--mute);font-size:14px}
+.chip{display:inline-block;margin:2px 4px 2px 0;padding:3px 10px;border:1px solid var(--line);border-radius:99px;font:500 11px 'IBM Plex Mono'}
+@media(prefers-reduced-motion:reduce){.hero img.bg{animation:none}.press .set span{animation:none}}
+</style>
+</head>
+<body>
+<div class="bar"><b>DOSSIER · DESIGN DIRECTION</b>
+<a href="#system">System</a><a href="#ford">Ford</a><a href="#douglass">Douglass</a><a href="#persia">Persia</a><a href="#partition">Partition</a></div>
+
+<section class="sys" id="system">
+  <div class="kicker">One museum, four rooms of its own</div>
+  <h2 class="big">Bold type.<br>Real evidence.<br>Something to do.</h2>
+  <p class="lede">The Council asked for one honest grammar: archive photograph largest and ungraded, reconstructions framed and labelled, one clear "where am I". You asked for cinematic, bold and interactive. This is where those meet: the <em>structure</em> is shared, the <em>voice</em> is not. Each exhibit gets its own display face, its own ink, its own motion, and one centrepiece you can only do there.</p>
+  <div class="rules">
+    <div class="rule"><h4>Shared skeleton</h4><p>Same plan strip, same room template, same reading-level lens, same RECONSTRUCTION tag. Visitors learn it once.</p></div>
+    <div class="rule"><h4>Type is the set design</h4><p>Huge display type (up to 210px) opens every exhibit. Body is always a real serif at 18px+; system voice is a plain sans. One tracked-caps label only: RECONSTRUCTION.</p></div>
+    <div class="rule"><h4>Infographics you operate</h4><p>No static charts. Every number is a control: drag, scrub, set type, pin a place. Numbers come from the evidence ledger and carry their confidence.</p></div>
+    <div class="rule"><h4>Cinematic, not slow</h4><p>One slow drift on the hero, short slides between rooms, 4-second skippable entrance. Reduced motion becomes cuts.</p></div>
+  </div>
+  <p class="note" style="margin-top:28px">Prototype notes: images are the real exhibit paintings (labelled Reconstruction). Figures in the infographics are design-mock placeholders to show behaviour; production versions read their values from each exhibit's claims ledger, with confidence and sources.</p>
+</section>
+
+<!-- ================= FORD ================= -->
+<div class="ex" data-x="ford" id="ford">
+  <header class="hero">
+    <img class="bg" src="ford/recon/recon-ford-highland-line.jpg" alt="Reconstruction: a Highland Park assembly hall">
+    <div class="tag">Exhibit 02 · Detroit · 1863 — 1947</div>
+    <h1>Motor<br>City</h1>
+    <p class="sub">He put the world on wheels and Detroit at the centre of the machine age. The whole record is here.</p>
+    <div class="meta"><span class="tag-recon">Reconstruction</span><span>Signal red-orange on iron</span><span>Display: Anton · Body: Source Serif 4</span></div>
+  </header>
+  <div class="stage">
+    <div class="label"><i></i>Centrepiece · The Moving Line</div>
+    <h3>Run the line</h3>
+    <p class="d">Scrub from the bench-built car to the moving line. Watch a chassis crawl past the stations, and the hours, the price and the output fall together. In production, each stage opens the photograph, the worker's job and the claim behind the number.</p>
+    <div class="line" id="lineBox">
+      <div class="rail"><div class="belt"></div>
+        <span class="st" style="left:4%">Frame</span><span class="st" style="left:24%">Axles</span><span class="st" style="left:44%">Engine</span><span class="st" style="left:64%">Body</span><span class="st" style="left:84%">Wheels</span>
+        <div class="chassis" id="chassis"><svg viewBox="0 0 150 62"><rect x="6" y="30" width="138" height="10" rx="2" fill="#c8c0b4"/><rect x="40" y="14" width="56" height="18" rx="3" fill="#ff4b1f" opacity=".0" id="engBlock"/><rect x="40" y="14" width="56" height="18" rx="3" fill="#ff4b1f" id="body"/><circle cx="30" cy="46" r="13" fill="#0f0c0a" stroke="#c8c0b4" stroke-width="3" id="w1"/><circle cx="120" cy="46" r="13" fill="#0f0c0a" stroke="#c8c0b4" stroke-width="3" id="w2"/></svg></div>
+      </div>
+      <div class="readout">
+        <div><b id="rHours">12.7</b><small>Hours to build a chassis</small></div>
+        <div><b id="rPrice">$850</b><small>Price of a Model T</small></div>
+        <div><b id="rYear">1909</b><small>Year</small></div>
+      </div>
+      <div class="ctl"><label><span>Bench-built</span><span>Moving line</span></label><input type="range" id="era" min="0" max="100" value="0" aria-label="Scrub from bench-built to moving line"></div>
+      <div class="bars"><div class="bar-r"><span>Hours</span><div class="tr"><div class="fi" id="bH"></div></div><span id="bHv"></span></div><div class="bar-r"><span>Price</span><div class="tr"><div class="fi" id="bP"></div></div><span id="bPv"></span></div></div>
+    </div>
+    <p class="note">Mock values (hours 12.7 → 1.5, price $850 → $260). The real build reads dated, sourced figures from the Ford ledger, shows range and confidence, and links each stage to its archive photograph.</p>
+  </div>
+</div>
+
+<!-- ================= DOUGLASS ================= -->
+<div class="ex" data-x="douglass" id="douglass">
+  <header class="hero">
+    <img class="bg" src="douglass/recon/recon-printing-office.png" alt="Reconstruction: a printing office">
+    <div class="tag">Exhibit 01 · 1818 — 1895</div>
+    <h1>Frederick<br>Douglass</h1>
+    <p class="sub">A man who taught himself to read, and then set the words in type himself.</p>
+    <div class="meta"><span class="tag-recon">Reconstruction</span><span>Gold on iron-gall brown-black</span><span>Display: Abril Fatface · Handbill slab + Playfair</span></div>
+  </header>
+  <div class="stage">
+    <div class="label"><i></i>Centrepiece · The Composing Stick</div>
+    <h3>Set his words</h3>
+    <p class="d">Pick up the type. Each letter you press lands on the printed page with a thud, in the wood and slab faces of the 1840s. Set the line, then read the speech around it at your own reading level. Nobody else's exhibit has you doing the work of the printer.</p>
+    <div class="stick">
+      <div class="case" id="case"></div>
+      <div class="press">
+        <div class="hd">The North Star · Rochester · set by you</div>
+        <div class="set" id="set" aria-live="polite"></div>
+        <div class="src" id="src">Press the letters, or use <b>Set the line</b> to see his sentence composed.</div>
+        <div class="ctrls"><button id="auto">Set the line</button><button id="clr">Clear the stick</button></div>
+      </div>
+    </div>
+    <p class="note">The line is from the 1852 Rochester address, public domain. Production adds the full speech, a typeset-by-word audio read, and "what the printer would have had to choose".</p>
+  </div>
+</div>
+
+<!-- ================= PERSIA ================= -->
+<div class="ex" data-x="persia" id="persia">
+  <header class="hero">
+    <img class="bg" src="persia/recon/recon-silk-road-caravan.jpg" alt="Reconstruction: a caravan road">
+    <div class="tag">Exhibit 03 · Seleucia-Ctesiphon to Chang'an</div>
+    <h1>Christianity<br>in Persia</h1>
+    <p class="sub">A church that walked the Silk Road, in three scripts, for a thousand years.</p>
+    <div class="meta"><span class="tag-recon">Reconstruction</span><span>Lapis on midnight</span><span>Display: Cormorant · Scripts: Noto Naskh + Syriac</span></div>
+  </header>
+  <div class="stage">
+    <div class="label"><i></i>Centrepiece · The Road</div>
+    <h3>Follow the road east</h3>
+    <p class="d">Tap a stage on the route. The line extends, the script on the card changes to the one used there, and the room behind opens. Real scripts at full size, with the reading beside them. A second script is never decoration.</p>
+    <div class="road">
+      <div class="bgart" id="bgA"></div><div class="bgart" id="bgB"></div>
+      <div class="haze"></div><canvas class="dust" id="dust"></canvas>
+      <div class="bgscript" id="bgScript" aria-hidden="true"></div><div class="bgcap" id="bgCap"></div>
+      <svg viewBox="0 0 900 260" id="roadSvg" role="img" aria-label="Schematic route from Mesopotamia to Chang'an">
+        <path id="roadPath" d="M60 170 C190 140 250 90 380 110 S560 170 640 120 S780 70 850 90" fill="none" stroke="#2c3b78" stroke-width="3" stroke-dasharray="3 7"/>
+        <path id="roadDone" d="M60 170 C190 140 250 90 380 110 S560 170 640 120 S780 70 850 90" fill="none" stroke="#9fb8ff" stroke-width="3" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" style="transition:stroke-dashoffset .8s cubic-bezier(.3,.7,.2,1)"/>
+        <g id="pins"></g>
+      </svg>
+      <div class="card" id="roadCard"></div>
+    </div>
+    <p class="note">Schematic route, not a survey map. Production uses a real historical basemap, dated sources per stop and the verified stele text.</p>
+  </div>
+</div>
+
+<!-- ================= PARTITION ================= -->
+<div class="ex" data-x="partition" id="partition">
+  <header class="hero">
+    <img class="bg" src="persia/recon/recon-julfa-lane.jpg" alt="Placeholder atmosphere: an empty lane (production uses Partition's own reconstruction)">
+    <div class="tag">Exhibit 04 · 1947</div>
+    <h1>Five weeks,<br>one line</h1>
+    <p class="sub" style="font-family:'Noto Nastaliq Urdu','Fraunces',serif">تقسیمِ ہند &nbsp;·&nbsp; भारत का विभाजन &nbsp;·&nbsp; ਭਾਰਤ ਦੀ ਵੰਡ</p>
+    <div class="meta"><span>Madder red on soot</span><span>Display: Fraunces · Titles in Urdu, Hindi, Punjabi, English</span><span>Placeholder image</span></div>
+  </header>
+  <div class="stage">
+    <div class="label"><i></i>Centrepiece · The Pen</div>
+    <h3>Hold the pen</h3>
+    <p class="d">A lawyer who had never been to India was given about five weeks to divide Punjab and Bengal. Draw your own boundary between the same two ends Radcliffe had, then lay his over it and see which towns land on a different side.</p>
+    <iframe src="partition-map.html?embed" title="Hold the pen: the 1948 Foreign Office map of the Punjab" style="width:100%;height:min(1000px,150vw);border:0;margin-top:44px;border-radius:16px" loading="lazy"></iframe>
+    <p class="note">Now the real thing: a 1948 Foreign Office map (public-domain tag, rights review pending) with Radcliffe's printed lines isolated by colour, not redrawn. Town positions are approximate. No people are shown, and all numbers about the violence are contested ranges. This exhibit needs a South Asian historian's review before it ships.</p>
+  </div>
+</div>
+
+<footer>Design direction prototype · not the shipped UI · all four exhibits share one skeleton and four voices.</footer>
+
+<script>
+// ---------- FORD
+(function(){
+  const era=document.getElementById('era'),ch=document.getElementById('chassis');
+  const rail=ch.parentElement,w1=document.getElementById('w1'),w2=document.getElementById('w2'),body=document.getElementById('body');
+  function upd(){
+    const t=era.value/100;
+    const hours=12.7-(12.7-1.5)*t, price=Math.round(850-(850-260)*t), yr=Math.round(1909+(1925-1909)*t);
+    rHours.textContent=hours.toFixed(1);rPrice.textContent='$'+price;rYear.textContent=yr;
+    bH.style.width=(hours/12.7*100)+'%';bP.style.width=(price/850*100)+'%';bHv.textContent=hours.toFixed(1)+' h';bPv.textContent='$'+price;
+    const W=rail.clientWidth-170;ch.style.left=(10+t*W)+'px';
+    const done=t;w1.style.opacity=done>.8?1:.25;w2.style.opacity=done>.8?1:.25;body.style.opacity=done>.55?1:.15;
+  }
+  era.addEventListener('input',upd);window.addEventListener('resize',upd);upd();
+})();
+// ---------- DOUGLASS
+(function(){
+  const line='THIS FOURTH OF JULY IS YOURS, NOT MINE.';
+  const set=document.getElementById('set'),cs=document.getElementById('case');
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ.,'.split('').forEach(c=>{const b=document.createElement('button');b.textContent=c;b.setAttribute('aria-label','Set '+c);b.onclick=()=>add(c);cs.appendChild(b)});
+  const sp=document.createElement('button');sp.textContent='␣';sp.onclick=()=>add(' ');cs.appendChild(sp);
+  function add(c){const s=document.createElement('span');s.textContent=c===' '?' ':c;set.appendChild(s);if(set.textContent.length>70)set.firstChild.remove()}
+  let timer;
+  auto.onclick=()=>{clearInterval(timer);set.innerHTML='';let i=0;timer=setInterval(()=>{if(i>=line.length){clearInterval(timer);src.innerHTML='— <b>Frederick Douglass</b>, Rochester, 5 July 1852. Public domain.';return}add(line[i++])},85)};
+  clr.onclick=()=>{clearInterval(timer);set.innerHTML=''};
+})();
+// ---------- PERSIA
+(function(){
+  const stops=[
+   {x:60,y:170,n:'Seleucia-Ctesiphon',w:'ܥܕܬܐ',art:'persia/recon/recon-ctesiphon-vault.jpg',cap:'Syriac · edta · “the church”',g:'ܥܕܬܐ',font:"'Noto Sans Syriac'",yr:'Capital of the Sasanian Empire',t:'Where the Church of the East gathered its bishops. The language of its liturgy and its books was Syriac.',p:0},
+   {x:250,y:112,n:'Merv',w:'ܡܫܝܚܐ',art:'persia/recon/recon-synod-hall.jpg',cap:'Syriac · mshiha · “the Messiah”',g:'ܡܫܝܚܐ',font:"'Noto Sans Syriac'",yr:'Eastern Iran, a metropolitan see',t:'A hub on the road east, with a Christian community and bishop in the fifth century.',p:30},
+   {x:430,y:128,n:'Samarkand',w:'ܐܠܗܐ',art:'persia/recon/recon-silk-road-caravan.jpg',cap:'Syriac script carried Sogdian here · alaha · “God”',g:'ܐܠܗܐ',font:"'Noto Sans Syriac'",yr:'Sogdiana',t:'Merchants carried the faith along the trade routes; Syriac texts were translated into Sogdian.',p:55},
+   {x:640,y:120,n:'Turfan',w:'ܟܬܒܐ',art:'persia/recon/recon-arghun-letter.jpg',cap:'Syriac script carried Turkic here · ktaba · “the book”',g:'ܟܬܒܐ',font:"'Noto Sans Syriac'",yr:'Tarim Basin',t:'Manuscripts in Syriac, Sogdian and Turkic survive from the oasis towns.',p:78},
+   {x:850,y:90,n:"Chang'an",w:'景教',zh:1,art:'persia/recon/recon-stele-courtyard.jpg',cap:'Chinese · Jingjiao · “the Luminous Religion”',g:'景教',font:"'Noto Naskh Arabic',serif",yr:'AD 635 · the Xi’an Stele, AD 781',t:'A Syriac-Chinese monument records the arrival of the faith under the Tang. The exhibit shows the stele and what each line says.',p:100}
+  ];
+  const pins=document.getElementById('pins'),card=document.getElementById('roadCard'),done=document.getElementById('roadDone');
+  const ns='http://www.w3.org/2000/svg';
+  stops.forEach((s,i)=>{
+    const g=document.createElementNS(ns,'g');g.setAttribute('class','pin');g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',s.n);
+    g.innerHTML=`<circle cx="${s.x}" cy="${s.y}" r="9" fill="#4f7cff" stroke="#0c1020" stroke-width="3"/><text x="${s.x}" y="${s.y+(i%2?-18:28)}" text-anchor="middle" fill="#cfd6ee" font-family="IBM Plex Mono" font-size="12">${s.n}</text>`;
+    g.onclick=g.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;show(i)};
+    pins.appendChild(g);
+  });
+  function show(i){
+    const s=stops[i];done.style.strokeDashoffset=100-s.p;
+    const sc=document.getElementById('bgScript');sc.innerHTML='';const sp=document.createElement('span');sp.textContent=s.w;sp.style.fontFamily=s.font;if(s.zh){sp.className='zh';sp.style.fontFamily="'Noto Serif SC','Songti SC','SimSun',serif"}sp.setAttribute('dir','auto');sc.appendChild(sp);
+    document.getElementById('bgCap').textContent=s.cap;
+    const a=document.getElementById('bgA'),b=document.getElementById('bgB'),hot=a.classList.contains('on')?b:a,cold=hot===a?b:a;const pans=[[-3,2,3,-2],[3,-1,-3,2],[-2,-2,3,2],[3,2,-3,-1],[0,3,0,-3]],pn=pans[i%5];hot.style.cssText+=';--x0:'+pn[0]+'%;--y0:'+pn[1]+'%;--x1:'+pn[2]+'%;--y1:'+pn[3]+'%';hot.style.backgroundImage='url('+s.art+')';hot.classList.add('on');cold.classList.remove('on');
+    [...pins.children].forEach((p,j)=>p.classList.toggle('on',j===i));
+    card.innerHTML=`<div class="glyph" style="font-family:${s.font}" dir="auto">${s.g}</div><div><div class="yr">${s.yr}</div><h4>${s.n}</h4><p>${s.t}</p></div>`;
+  }
+  show(0);
+  const road=document.querySelector('.road'),still=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(!still){
+    road.addEventListener('pointermove',e=>{const r=road.getBoundingClientRect();road.style.setProperty('--px',((e.clientX-r.left)/r.width-.5).toFixed(3));road.style.setProperty('--py',((e.clientY-r.top)/r.height-.5).toFixed(3))});
+    const c=document.getElementById('dust'),x=c.getContext('2d');let W,H,P=[];
+    const size=()=>{W=c.width=c.clientWidth;H=c.height=c.clientHeight;P=Array.from({length:46},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.8+.4,v:Math.random()*.25+.05,a:Math.random()*.5+.15,p:Math.random()*6}))};
+    size();addEventListener('resize',size);
+    (function f(t){x.clearRect(0,0,W,H);for(const q of P){q.x+=q.v;q.y+=Math.sin(t/2000+q.p)*.15;if(q.x>W+4)q.x=-4;x.fillStyle='rgba(200,215,255,'+q.a*(.6+.4*Math.sin(t/1500+q.p))+')';x.beginPath();x.arc(q.x,q.y,q.r,0,6.3);x.fill()}requestAnimationFrame(f)})(0);
+  }
+})();
+// ---------- PARTITION
+(function(){
+  const events=[
+    ['8 Jul','Cyril Radcliffe arrives in India to chair the boundary commissions. He had never been there. (Established)'],
+    ['Mid-Jul','Hearings begin; the parties argue district by district, sometimes village by village. (Probable on detail)'],
+    ['Late Jul','Maps, census tables and canal and rail records are the working material. Population figures are disputed. (Probable)'],
+    ['Early Aug','Drafting continues under pressure of a date already fixed for independence. (Established)'],
+    ['15 Aug','India and Pakistan become independent. The boundary awards are not yet public. (Established)'],
+    ['17 Aug','The award is announced. Millions find out which side of the line they are on. (Established)']
+  ];
+  const cal=document.getElementById('cal'),big=document.getElementById('dateBig'),what=document.getElementById('dateWhat');
+  function showEv(){const e=events[+cal.value];big.textContent=e[0];what.textContent=e[1]}
+  cal.oninput=showEv;showEv();
+  const svg=document.getElementById('mapSvg'),h=document.getElementById('handle'),ln=document.getElementById('lineP');
+  const things=[['town A',150],['town B',300],['town C',440],['rail junction',230]];
+  let drag=false;
+  function setX(px){
+    const r=svg.getBoundingClientRect(),x=Math.max(40,Math.min(560,(px-r.left)/r.width*600));
+    ln.setAttribute('d',`M${x} 0 L${x} 420`);h.setAttribute('x',x-12);
+    const left=things.filter(t=>t[1]<x).map(t=>t[0]),right=things.filter(t=>t[1]>=x).map(t=>t[0]);
+    cutCap.textContent='Your line, at the pen';
+    cuts.innerHTML='<div class="cap">West of your line</div>'+(left.map(t=>'<span class="chip">'+t+'</span>').join('')||'<span class="chip">nothing</span>')+'<div class="cap" style="margin-top:8px">East of your line</div>'+(right.map(t=>'<span class="chip">'+t+'</span>').join('')||'<span class="chip">nothing</span>')+'<p class="note" style="margin-top:10px">Every choice separates something from something. The real exhibit shows who and what: rivers, canals, rail, markets, villages.</p>';
+  }
+  h.addEventListener('pointerdown',e=>{drag=true;h.setPointerCapture(e.pointerId)});
+  h.addEventListener('pointermove',e=>{if(drag)setX(e.clientX)});
+  h.addEventListener('pointerup',()=>drag=false);
+  svg.addEventListener('click',e=>setX(e.clientX));
+  setX(svg.getBoundingClientRect().left+svg.getBoundingClientRect().width/2);
+})();
+</script>
+</body>
+</html>

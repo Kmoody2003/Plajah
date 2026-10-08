@@ -24,7 +24,7 @@ export type VerticalId =
 export type VerticalTab =
   | 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM'
   | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS'
-  | 'LISTINGS' | 'COMPLIANCE';
+  | 'LISTINGS' | 'COMPLIANCE' | 'APPOINTMENTS' | 'TICKETS';
 
 export interface VerticalDefinition {
   id: VerticalId;
@@ -68,7 +68,7 @@ export const BUSINESS_VERTICALS: Record<VerticalId, VerticalDefinition> = {
     id: 'SERVICE', label: 'Service', labelPlural: 'Services',
     color: '#6B0099',
     blurb: 'Trades and professional services — bookings, clients and invoicing.',
-    tabs: ['OVERVIEW', 'ORDERS', 'TEAM', 'MESSAGING', 'CRM', 'COMPLIANCE', 'SEEDRAISER', 'SETTINGS'],
+    tabs: ['OVERVIEW', 'APPOINTMENTS', 'ORDERS', 'TEAM', 'MESSAGING', 'CRM', 'COMPLIANCE', 'SEEDRAISER', 'SETTINGS'],
     catalogNoun: 'Services',
     publicSections: ['hours', 'gallery'],
   },
@@ -92,8 +92,8 @@ export const BUSINESS_VERTICALS: Record<VerticalId, VerticalDefinition> = {
   HEALTH: {
     id: 'HEALTH', label: 'Health & Wellness', labelPlural: 'Health & Wellness',
     color: '#FFD166',
-    blurb: 'Clinics, salons and studios — appointments, clients and staff.',
-    tabs: ['OVERVIEW', 'ORDERS', 'TEAM', 'MESSAGING', 'CRM', 'COMPLIANCE', 'SEEDRAISER', 'SETTINGS'],
+    blurb: 'Clinics, salons and dental practices — appointments, telehealth and charts.',
+    tabs: ['OVERVIEW', 'APPOINTMENTS', 'ORDERS', 'TEAM', 'MESSAGING', 'CRM', 'COMPLIANCE', 'SEEDRAISER', 'SETTINGS'],
     catalogNoun: 'Services',
     publicSections: ['hours', 'amenities', 'gallery'],
   },

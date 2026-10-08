@@ -19,7 +19,7 @@ import { subscribeToPhotoPool, uploadPhoto, auth } from '../services/backendServ
 
 interface EventPhotoPoolViewProps {
   poolId: string;
-  event?: PPVEvent;
+  event?: any;
   onBack: () => void;
 }
 

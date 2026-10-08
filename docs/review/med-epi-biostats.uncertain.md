@@ -1,0 +1,21 @@
+# med-epi-biostats: claims for expert review
+
+- l01: "rare disease / low prevalence: prevalence is approximately incidence x duration" stated as holding for stable populations; the textbook caveat wording may need tightening.
+- l03: Framingham Heart Study named as the example of a prospective cohort (well established; included for completeness).
+- l04: "rare disease assumption, loosely under about 10%" is a rule of thumb; thresholds vary by source (some say 5%).
+- l05: Phase I to IV descriptions are simplified (phase I often in healthy volunteers, except oncology); non-inferiority ITT discussion is simplified.
+- l06: NNT "rounded up" is conventional; some sources round to nearest. Attributable risk percent formula (RR-1)/RR is correct for the exposed.
+- l07: Non-differential misclassification "toward the null" rule given with caveats; exact caveats (small samples, multicategory exposures, errors dependent between exposure and outcome) may merit expert wording.
+- l08: Informal "10 to 20 percent change-in-estimate" rule for confounding varies by source.
+- l09: Hill 1965 nine viewpoints; claim that temporality is the only strictly required one is standard. Smoking history: 1950 case-control studies, British doctors cohort, 1964 US Surgeon General's report, Fisher's genetic-constitution objection (stated briefly, not detailed).
+- l10: STARD 2015 anchor; "AUC around 0.7 to 0.8 acceptable" in l12 is a conventional label with no universal standard.
+- l11: LR rule of thumb (LR+ above 10, LR- below 0.1 = large shifts) is conventional. All 2x2 arithmetic was hand-checked.
+- l12: Wilson and Jungner screening principles attributed to WHO, 1968 (well established). "AUC is the probability a random diseased person scores higher" is correct for continuous markers (ties handled as half).
+- l13: z = 2.5 corresponds to about the 99.4th percentile (checked); "about 99%" wording in the lesson is approximate.
+- l14: ASA statement on p-values anchor dated 2016 (Wasserstein and Lazar). 1 - 0.95^20 = about 64% (checked).
+- l15: Strict frequentist interpretation of CI is given; "range compatible with the data" reading is a common practical gloss.
+- l16: Expected-count rule "below 5" for chi-square is a conventional threshold; some sources use other rules (e.g. 80% of cells above 5).
+- l17: Kaplan-Meier worked example hand-computed (0.675). Statement that naive KM overestimates cumulative incidence under competing risks is standard.
+- l18: PRISMA 2020 anchor; GRADE described in simplified form (observational start low, RCT start high). I-squared formula (Q - df)/Q checked.
+- l20: Dates and details to verify: CAST publication years (about 1989 for the initial report, 1992 for CAST II; lesson says "around 1989 and 1991"; the second year should be checked). WHI estrogen-plus-progestin results reported 2002 (JAMA). Moseley sham arthroscopy trial, NEJM 2002. Rofecoxib withdrawn September 2004. Wakefield: Lancet paper 1998, partial retraction of interpretation 2004, full retraction 2010, GMC finding of serious professional misconduct 2010. Ioannidis essay 2005 (PLoS Medicine). Claim that misconduct accounts for a majority of retractions is based on published analyses of retraction notices and may vary by period and database. Nurses' Health Study associated with observational HRT findings (accepted history, cited loosely).
+- Distractor-length balancing: some distractors were extended with generic clauses to fix answer-length tell; reviewers should check that none reads awkwardly.

@@ -1,0 +1,12 @@
+{
+  "film": "founding-battle",
+  "timing": "estimated",
+  "note": "timing: estimated, silent",
+  "duration": 46.160000000000004,
+  "silences": [
+    {
+      "from": 5.5,
+      "to": 39.160000000000004
+    }
+  ]
+}

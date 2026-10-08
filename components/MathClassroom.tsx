@@ -42,7 +42,7 @@ interface QuizResult {
 }
 
 // ── Grade curriculum structure ────────────────────────────────────────────────
-const GRADE_TOPICS: Record<number, string[]> = {
+export const GRADE_TOPICS: Record<number, string[]> = {
   1: ['Counting & Numbers', 'Addition (0–10)', 'Subtraction (0–10)', 'Shapes'],
   2: ['Addition (0–100)', 'Subtraction (0–100)', 'Place Value', 'Measurement', 'Clocks & Time'],
   3: ['Multiplication (1–10)', 'Division Intro', 'Fractions Intro', 'Area & Perimeter'],

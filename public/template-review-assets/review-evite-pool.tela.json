@@ -1,0 +1,573 @@
+{
+  "id": "review-evite-pool-copy-e984b7d2-381b-4537-910b-369c870eedcc",
+  "ownerId": "local-review",
+  "title": "Poolside · review copy",
+  "createdAt": 1790719091441,
+  "updatedAt": 1790719091441,
+  "frames": [
+    {
+      "id": "review-evite-pool-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-pool-vector"
+      ],
+      "label": "Poolside"
+    }
+  ],
+  "devices": {
+    "review-evite-pool-vector": {
+      "id": "review-evite-pool-vector",
+      "type": "VECTOR",
+      "name": "Poolside",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-pool-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#cbe9e9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-pool-tile-x-0",
+          "kind": "LINE",
+          "x": 77,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            77,
+            90,
+            77,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-x-1",
+          "kind": "LINE",
+          "x": 133,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            133,
+            90,
+            133,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-x-2",
+          "kind": "LINE",
+          "x": 189,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            189,
+            90,
+            189,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-x-3",
+          "kind": "LINE",
+          "x": 245,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            245,
+            90,
+            245,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-x-4",
+          "kind": "LINE",
+          "x": 301,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            301,
+            90,
+            301,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-x-5",
+          "kind": "LINE",
+          "x": 357,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            357,
+            90,
+            357,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-x-6",
+          "kind": "LINE",
+          "x": 413,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            413,
+            90,
+            413,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-x-7",
+          "kind": "LINE",
+          "x": 469,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            469,
+            90,
+            469,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-x-8",
+          "kind": "LINE",
+          "x": 525,
+          "y": 90,
+          "w": 0,
+          "h": 275,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            525,
+            90,
+            525,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-y-0",
+          "kind": "LINE",
+          "x": 77,
+          "y": 90,
+          "w": 446,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            77,
+            90,
+            523,
+            90
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-y-1",
+          "kind": "LINE",
+          "x": 77,
+          "y": 145,
+          "w": 446,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            77,
+            145,
+            523,
+            145
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-y-2",
+          "kind": "LINE",
+          "x": 77,
+          "y": 200,
+          "w": 446,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            77,
+            200,
+            523,
+            200
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-y-3",
+          "kind": "LINE",
+          "x": 77,
+          "y": 255,
+          "w": 446,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            77,
+            255,
+            523,
+            255
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-y-4",
+          "kind": "LINE",
+          "x": 77,
+          "y": 310,
+          "w": 446,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            77,
+            310,
+            523,
+            310
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-tile-y-5",
+          "kind": "LINE",
+          "x": 77,
+          "y": 365,
+          "w": 446,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            77,
+            365,
+            523,
+            365
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-float",
+          "kind": "ELLIPSE",
+          "x": 210,
+          "y": 120,
+          "w": 194,
+          "h": 194,
+          "fill": "#ef965c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 22,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-pool-float-hole",
+          "kind": "ELLIPSE",
+          "x": 258,
+          "y": 168,
+          "w": 98,
+          "h": 98,
+          "fill": "#cbe9e9",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-pool-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#174f69",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-pool-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#f8edbe",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-pool-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#174f69",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Poolside, please",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-pool-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#174f69",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Sunshine / cool water / good people",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-pool-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#174f69",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-pool-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#174f69",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-pool-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#174f69",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-pool-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#174f69",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-pool-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#174f69",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-pool",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-pool-float",
+          "property": "rotation",
+          "from": 22,
+          "to": 19,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-pool-float-hole",
+          "property": "rotation",
+          "from": 0,
+          "to": 3,
+          "delay": 140,
+          "duration": 3060
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        57,
+        64,
+        69,
+        71
+      ],
+      "tempo": 76
+    }
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "id": "douglass-explainer",
+  "title": "Frederick Douglass: A Life in Brief",
+  "displayTitle": "Frederick Douglass",
+  "subtitle": "Born enslaved. Became the nation's conscience.",
+  "level": "middle",
+  "voice": "Microsoft David Desktop",
+  "beats": [
+    {
+      "asset": "ref-1847-miller",
+      "claims": [
+        "c-born",
+        "c-birthyear"
+      ],
+      "caption": "Daguerreotype by Samuel J. Miller, about 1847–52",
+      "text": "Frederick Douglass was born into slavery in Maryland, around the year eighteen eighteen. He never knew his exact birthday."
+    },
+    {
+      "asset": "doc-lifeandtimes-1882-a",
+      "claims": [
+        "c-reading"
+      ],
+      "caption": "Engraving from Life and Times of Frederick Douglass, 1882",
+      "text": "As a boy in Baltimore, he was taught the alphabet by the woman of the house, until her husband forbade it. So Frederick traded bread for reading lessons, and taught himself."
+    },
+    {
+      "asset": "ref-1855-younger",
+      "claims": [
+        "c-escape",
+        "c-name",
+        "c-nantucket"
+      ],
+      "caption": "Engraving after a daguerreotype, 1855",
+      "text": "In eighteen thirty-eight, he escaped to the North and took the name Douglass. Soon he was speaking out against slavery to crowds across the country."
+    },
+    {
+      "asset": "doc-1845-narrative-cover",
+      "claims": [
+        "c-narrative",
+        "c-britain"
+      ],
+      "caption": "Title page, Narrative of the Life of Frederick Douglass, 1845",
+      "text": "In eighteen forty-five he published his life story. It became a bestseller, and carried his voice across the ocean to Britain."
+    },
+    {
+      "asset": "ref-1860s-merrill-crosby",
+      "claims": [
+        "c-northstar",
+        "c-seneca"
+      ],
+      "caption": "Carte de visite, Merrill & Crosby, 1860s",
+      "text": "He started his own newspaper, The North Star, and he stood up for women's right to vote."
+    },
+    {
+      "asset": "ref-1866-nyhs",
+      "claims": [
+        "c-fourth"
+      ],
+      "caption": "Portrait, about 1866, New-York Historical Society",
+      "text": "In eighteen fifty-two he asked a whole nation a hard question: what is the Fourth of July to a person who is not free?"
+    },
+    {
+      "asset": "ref-1860s-merrill-crosby",
+      "claims": [
+        "c-soldiers",
+        "c-lincoln"
+      ],
+      "caption": "Carte de visite, Merrill & Crosby, 1860s",
+      "text": "During the Civil War he helped recruit Black soldiers, and he met President Lincoln to demand equal pay and fair treatment."
+    },
+    {
+      "asset": "ref-1879-warren",
+      "claims": [
+        "c-suffrage",
+        "c-offices"
+      ],
+      "caption": "Photograph by George K. Warren, about 1879",
+      "text": "After the war he fought for the right to vote, and served his country as a marshal, an official in Washington, and its representative to Haiti."
+    },
+    {
+      "asset": "ref-1890s-grandson",
+      "claims": [
+        "c-death",
+        "c-cedarhill"
+      ],
+      "caption": "With his grandson Joseph, Notman Photo Co., 1890s",
+      "text": "Frederick Douglass died in eighteen ninety-five, at his home on Cedar Hill. He spent his life asking America to live up to its own words."
+    }
+  ]
+}

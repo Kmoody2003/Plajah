@@ -28,6 +28,10 @@ import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
 import { attachPlaybackHealth, configurePlaybackHealth, getSummary as getHealthSummary, getEvents as getHealthEvents, reset as resetHealth } from '../services/playbackHealth';
 import { auth as fbAuth } from '../services/firebase';
+import { canPlayFull, PREVIEW_SECONDS, MUSIC_LOCKED_EVENT } from '../services/musicAccess';
+import { recordListen } from '../services/listenHistoryService';
+import { createAdvanceGuard, type AdvanceReason } from '../services/playbackAdvanceGuard';
+import { showPlayerToast } from '../services/playerToast';
 import { buildRadioQueue, type UpNextItem } from '../services/musicRecommender';
 import { FxChainHost, newInstance, type FxInstance } from '../services/melos/beats/fx/devices';
 
@@ -126,6 +130,9 @@ interface GlobalPlayerContextType {
   setVisualizerType: (t: 'FLOW' | 'PAINT') => void;
   isSlideshowActive: boolean;
   setIsSlideshowActive: (val: boolean) => void;
+  /** Explicit fullscreen modal takeover for slideshow. Only true on deliberate user action. */
+  isFullscreenSlideshowActive: boolean;
+  setIsFullscreenSlideshowActive: (val: boolean) => void;
   /** The TV FX Stage (audio-reactive visualizer) fullscreen takeover. */
   isTvFxActive: boolean;
   setIsTvFxActive: (val: boolean) => void;
@@ -229,6 +236,44 @@ const setSessionPosition = (audio: HTMLAudioElement | null) => {
   try { navigator.mediaSession.setPositionState({ duration: d, position: p, playbackRate: rate }); } catch { /* */ }
 };
 
+/** Tells the native Media3 service whether the WebView <audio> is playing, so it can hold a foreground
+ *  service + wake/wifi locks. Without that the OS freezes the WebView/network shortly after the screen
+ *  goes off and the NEXT segment/track can't be fetched. No-op off Android, and on an older APK whose
+ *  native plugin predates the method. */
+const setNativePlaybackActive = (active: boolean, track: Track | null, album: Album | null) => {
+  try {
+    const plajahNative = (window as any).Capacitor?.Plugins?.PlajahNativeAudio;
+    if (!plajahNative?.setPlaybackActive) return;
+    const pending = plajahNative.setPlaybackActive({
+      active,
+      title: track?.title || 'Plajah Chora',
+      artist: album?.artist || track?.artist || 'Now Playing',
+    });
+    Promise.resolve(pending).catch(() => {});
+  } catch { /* plugin missing on this build */ }
+};
+
+const syncToNativeAudioPlugin = (track: Track | null, album: Album | null, isPlaying: boolean) => {
+  if (!track) return;
+  const plajahNative = (window as any).Capacitor?.Plugins?.PlajahNativeAudio;
+  if (!plajahNative?.syncTrackInfo) return;
+  const src = toAbsoluteUrl(track.images?.[0] || (track as any).albumCover || album?.coverImage);
+  const streamUrl = (track as any).audioUrl || (track as any).streamUrl || (track as any).url;
+  try {
+    plajahNative.syncTrackInfo({
+      title: track.title || 'Unknown Title',
+      artist: album?.artist || track.artist || 'Unknown Artist',
+      album: album?.title || (track as any).albumTitle || 'Plajah Chora',
+      artworkUrl: src || null,
+      durationMs: track.duration ? track.duration * 1000 : 0,
+      isPlaying,
+      streamUrl: streamUrl || null,
+    });
+  } catch {
+    // ignore
+  }
+};
+
 export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [currentAlbum, setCurrentAlbum] = useState<Album | null>(null);
@@ -254,9 +299,36 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const radioFillingRef = useRef(false);
   const sessionPlayedRef = useRef<Set<string>>(new Set()); // track ids heard this session (avoid repeats)
   const nextRef = useRef<() => void>(() => {}); // set to next() so early-defined callbacks can advance
+  // Every automatic/external "go to the next track" signal passes through this guard (see
+  // services/playbackAdvanceGuard.ts): one advance per track instance, external commands de-duplicated,
+  // failure skips chain-limited so a dead network can never run through the queue.
+  const advanceGuardRef = useRef(createAdvanceGuard());
+  // Wall-clock of the last playTrack() — the `ended-fallback` poll ignores the first seconds, when the
+  // element can still report the PREVIOUS track as ended while the new source is being attached.
+  const trackStartedAtRef = useRef(0);
+  // Abandons the active transcoded HLS stream for the track's original file (set per playTrack).
+  const bailHlsRef = useRef<(() => boolean) | null>(null);
+  /** The single entry point for advancing the queue from anything other than a direct UI tap. */
+  const requestAdvance = useCallback((reason: AdvanceReason, armedInstance?: number): boolean => {
+    const verdict = advanceGuardRef.current.claim(reason, armedInstance);
+    if (!verdict.ok) {
+      if (verdict.why === 'failure-chain-limit') {
+        // A track that would not load was already skipped once. Do NOT keep walking the queue on a
+        // dead network — stop and say so; the listener can retry when they are back online.
+        intendedPlayingRef.current = false;
+        try { audioRef.current.pause(); } catch { /* */ }
+        setIsPlaying(false);
+        showPlayerToast("Can't load the next track right now. Check your connection, then press play.");
+      }
+      return false;
+    }
+    nextRef.current?.();
+    return true;
+  }, []);
   const [isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled] = useState(true);
   const [visualizerType, setVisualizerType] = useState<'FLOW' | 'PAINT'>('FLOW');
   const [isSlideshowActive, setSlideshowActiveRaw] = useState(false);
+  const [isFullscreenSlideshowActive, setIsFullscreenSlideshowActive] = useState(false);
   const [isTvFxActive, setIsTvFxActive] = useState(false);
   const [isSlideshowAuto, setIsSlideshowAuto] = useState(false);
   // Every explicit listener toggle drops the auto marker — once they've chosen, the choice is
@@ -346,6 +418,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // stream — the reason an earlier eager preloader was removed. `warmingRef` is the in-flight fetch.
   const prewarmRef = useRef<{ url: string; blob: string } | null>(null);
   const warmingRef = useRef<{ url: string; ctrl: AbortController } | null>(null);
+  const warmAttemptRef = useRef<{ url: string; at: number }>({ url: '', at: 0 });
   const discardPrewarm = () => {
     if (warmingRef.current) { try { warmingRef.current.ctrl.abort(); } catch { /* */ } warmingRef.current = null; }
     if (prewarmRef.current) { try { URL.revokeObjectURL(prewarmRef.current.blob); } catch { /* */ } prewarmRef.current = null; }
@@ -365,6 +438,10 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // handoff, AudioContext suspend) → we recover it. A user/OS pause clears the intent
   // first, so it's respected.
   const intendedPlayingRef = useRef(false);
+  // Set once a silent-output recovery swapped the element: never route the replacement through
+  // a MediaElementSource again (that routing is what produced the silence).
+  const mesDisabledRef = useRef(false);
+  const silenceWatch = useRef({ flat: 0, lastT: -1, stuck: 0, recoveries: 0, healthy: 0 });
   const resumeRecoveryRef = useRef<{ tries: number; timer: any }>({ tries: 0, timer: null });
   // Invalidates asynchronous fallback work from an older play request. Without this guard, a
   // slow decode/error recovery could finish after a newer request and start a second source,
@@ -448,6 +525,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         });
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
+        // High-responsiveness tuning for desktop and mobile:
+        // 0.62 provides sharp, immediate transient response on drum kicks and synth drops,
+        // eliminating the sluggish 0.80 lag while maintaining smooth visual decay.
+        analyser.smoothingTimeConstant = 0.62;
+        // Expanded dynamic range (-85 dB to -15 dB) captures quiet nuances and prevents
+        // saturation/flatness on modern mastered audio.
+        analyser.minDecibels = -85;
+        analyser.maxDecibels = -15;
         analyserRef.current = analyser;
         setAnalyserEpoch(e => e + 1); // re-publish the now-live analyser to consumers
         // DJ carry-over filter — starts transparent (lowpass wide open), so it's inert until
@@ -590,6 +675,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // this distinction correctly (isMobile there is `!isTV && …`), so use it rather than
     // re-deriving it from the UA and getting it wrong a second time.
     if (isPhoneNotTv() && !force) return;
+    if (mesDisabledRef.current) return;
 
     const audio = audioRef.current;
     if (audioContextRef.current && analyserRef.current && !sourceRef.current) {
@@ -634,23 +720,39 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Best-effort and idempotent: unsupported (older iOS) or CORS-tainted media simply yields no tap
   // and the visuals degrade to their previous non-reactive state — never a regression, never audio
   // loss. Consumers should call this when they actually need reactivity (e.g. opening a Mix).
-  const ensureAnalyserTap = useCallback(() => {
+  const ensureAnalyserTap = useCallback((force = false) => {
     const onTv = getPlatformInfo().isTV;
-    if (!isPhoneNotTv() && !onTv) return;         // desktop is already fed via connectAudioSource
-    if (sourceRef.current || tapSourceRef.current) return; // already routed/tapped
+    const isPhone = isPhoneNotTv();
+
+    // If already routed or tapped, only proceed if forced (e.g. signal is flat/silent)
+    if (!force && (sourceRef.current || tapSourceRef.current)) return;
+
     initAudioContext();
     const ctx = audioContextRef.current;
     const analyser = analyserRef.current;
     const audio = audioRef.current;
     if (!ctx || !analyser || !audio) return;
+
+    // Desktop: first attempt connectAudioSource if not connected yet
+    if (!isPhone && !sourceRef.current && !force) {
+      connectAudioSource();
+      if (sourceRef.current) return;
+    }
+
+    // Passive tap via captureStream (works on Desktop, Windows WebView2, and Mobile):
+    // Mirrors audio PCM directly to the analyser, immune to CORS-induced silence.
     const capture: (() => MediaStream) | undefined =
       (audio as any).captureStream || (audio as any).mozCaptureStream;
     if (capture) {
       try {
         const stream = capture.call(audio) as MediaStream;
         if (stream && stream.getAudioTracks().length > 0) {
+          if (tapSourceRef.current) {
+            try { tapSourceRef.current.disconnect(); } catch (_) {}
+            tapSourceRef.current = null;
+          }
           const src = ctx.createMediaStreamSource(stream);
-          src.connect(analyser);                 // tap → analyser ONLY; never → destination
+          src.connect(analyser); // tap → analyser ONLY; never → destination
           tapSourceRef.current = src;
           if (ctx.state === 'suspended') ctx.resume().catch(() => {});
           return;
@@ -659,11 +761,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.warn('[Plajah Audio] analyser tap unavailable:', e);
       }
     }
-    // TV fallback: wire the element through the graph directly. That is off-limits on a phone
-    // because it makes the OS suspend background audio, but a TV app is foreground by nature and
-    // a silent visualizer is the worse trade there. Deliberately LAST — the passive tap above
-    // can never affect audio, this can, so it only runs when the safe route is unavailable.
-    if (onTv) connectAudioSource(true);
+
+    // Direct audio graph fallback. NEVER on a phone: routing the element through a
+    // MediaElementSource mid-playback is what mutes Android tracks (CORS / platform-HLS silence,
+    // suspended context in the background). Visuals degrade; audio must not.
+    if (isPhone || mesDisabledRef.current) return;
+    connectAudioSource(true);
   }, [initAudioContext, connectAudioSource]);
 
   // Global click listener to resume AudioContext (critical for mobile browsers)
@@ -682,19 +785,132 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   // Continuous reactivity watchdog: when isPlaying is true, ensure AudioContext stays active
-  // and ensureAnalyserTap / connectAudioSource stays connected through full songs and track changes.
+  // and ensureAnalyserTap / connectAudioSource stays connected with active live signal.
   useEffect(() => {
     if (!isPlaying) return;
     const checkInterval = setInterval(() => {
-      if (audioContextRef.current?.state === 'suspended') {
-        audioContextRef.current.resume().catch(() => {});
+      const ctx = audioContextRef.current;
+      if (ctx?.state === 'suspended') {
+        ctx.resume().catch(() => {});
       }
       try {
-        ensureAnalyserTap();
+        const an = analyserRef.current;
+        const audio = audioRef.current;
+        if (!sourceRef.current && !tapSourceRef.current) {
+          ensureAnalyserTap();
+        } else if (an && audio && !audio.paused && audio.currentTime > 0.4) {
+          // Verify analyser has actual audio signal rather than flat zeros
+          const testBuf = new Uint8Array(32);
+          an.getByteFrequencyData(testBuf);
+          let sum = 0;
+          for (let i = 0; i < 32; i++) sum += testBuf[i];
+          if (sum === 0) {
+            // Signal is flat despite audio actively playing (e.g. CORS block or stale graph)
+            ensureAnalyserTap(true);
+          }
+        }
       } catch { /* ignore */ }
-    }, 2500);
+    }, 2000);
     return () => clearInterval(checkInterval);
   }, [isPlaying, ensureAnalyserTap]);
+
+  // Playback-health watchdog (music only). Detects the two failure shapes behind "plays a song,
+  // advances, then plays the next ones SILENTLY":
+  //  (a) element reports playing but currentTime is frozen (decoder/stream wedge) -> reload at
+  //      the same position (or kick hls.js);
+  //  (b) clock advances but the Web-Audio graph carries nothing (MediaElementSource over a CORS-
+  //      blocked / platform-HLS source, or a context the OS keeps suspended) -> resume the
+  //      context, and if still flat, swap to a fresh un-routed element and never route again.
+  useEffect(() => {
+    if (!isPlaying || audioSource === 'VIDEO' || audioSource === 'RADIO') return;
+    const w = silenceWatch.current;
+    // Recoveries are PER TRACK. They used to live across the whole session, so four unrelated
+    // hiccups hours apart ended in a spurious "giving up on this track, advancing" mid-song.
+    w.flat = 0; w.lastT = -1; w.stuck = 0; w.recoveries = 0; w.healthy = 0;
+    const watchedTrackId = stateRef.current.currentTrack?.id;
+    const armedInstance = advanceGuardRef.current.current();
+    const id = setInterval(() => {
+      const audio = audioRef.current;
+      if (!audio || audio.paused || audio.ended || !intendedPlayingRef.current || usingDecodeFallbackRef.current) { w.stuck = 0; w.flat = 0; return; }
+      if (!stateRef.current.currentTrack) return;
+      // The track changed under us (the effect is about to be torn down) — never act for the old one.
+      if (stateRef.current.currentTrack.id !== watchedTrackId) return;
+      const t = audio.currentTime;
+      const title = stateRef.current.currentTrack.title;
+      const advancing = Math.abs(t - w.lastT) >= 0.05;
+      w.lastT = t;
+      if (!advancing) {
+        w.stuck++;
+        // Never got going (still at the very start) vs frozen mid-song. A track that will not start
+        // is escalated quickly — the listener is sitting in silence — a wedge mid-song after 4s, and
+        // real buffering on a slow link gets 12s.
+        const neverStarted = t < 0.5;
+        const limit = neverStarted
+          ? (w.recoveries === 0 ? 3 : w.recoveries === 1 ? 3 : 5)
+          : (audio.readyState >= 3 ? 2 : 6);
+        // No `!document.hidden` gate: this compares MEDIA time between ticks, so a throttled
+        // background timer cannot fake a stall — only audio that truly did not move can. With the
+        // screen off is exactly when a dropped segment/track fetch must be recovered.
+        if (w.stuck >= limit) {
+          w.stuck = 0; w.recoveries++;
+          console.warn(`[Plajah Audio] watchdog: "${title}" ${neverStarted ? 'not starting' : `frozen at ${t.toFixed(1)}s`} (readyState ${audio.readyState}); recovery #${w.recoveries}`);
+          if (audioContextRef.current?.state === 'suspended') audioContextRef.current.resume().catch(() => {});
+          // Escalation, ONE track at most:
+          //   1. kick the loader   2. (HLS) abandon the transcode for the original file / reload
+          //   3. nothing worked -> skip a single track with a visible notice (chain-limited, so a
+          //      dead network pauses instead of running through the queue).
+          if (w.recoveries >= 3) {
+            console.warn('[Plajah Audio] watchdog: giving up on this track');
+            w.recoveries = 0;
+            showPlayerToast(`Couldn't load "${title}". Skipping to the next track.`);
+            requestAdvance('stream-failed', armedInstance);
+            return;
+          }
+          try {
+            if (hlsRef.current && w.recoveries === 1) {
+              hlsRef.current.startLoad();
+              if (!neverStarted) hlsRef.current.recoverMediaError();
+            } else if (hlsRef.current && bailHlsRef.current) {
+              bailHlsRef.current();                       // fall back to the track's original URL
+            } else {
+              const at = t; audio.load(); audio.addEventListener('loadedmetadata', () => { try { if (at > 0.5) audio.currentTime = at; } catch { /* */ } }, { once: true });
+            }
+            audio.play().catch(() => {});
+          } catch { /* */ }
+        }
+        return;
+      }
+      w.stuck = 0;
+      // Genuinely advancing for ~10s: the failure budget for this track is fresh again.
+      if (++w.healthy >= 5) { w.healthy = 0; w.recoveries = 0; }
+      // (b) routed through Web Audio but the analyser sees nothing while time advances
+      const an = analyserRef.current;
+      if (!sourceRef.current || !an || hlsRef.current || t < 3) { w.flat = 0; return; }
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== 'running') { ctx.resume().catch(() => {}); w.flat = 0; return; }
+      const buf = new Uint8Array(an.frequencyBinCount);
+      an.getByteFrequencyData(buf);
+      let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i];
+      if (sum > 0) { w.flat = 0; return; }
+      if (++w.flat < 4) return; // ~8s of flat output
+      w.flat = 0;
+      console.warn(`[Plajah Audio] watchdog: "${title}" advancing but Web Audio output is silent; dropping MediaElementSource routing`);
+      mesDisabledRef.current = true;
+      const old = audio;
+      const fresh = new Audio();
+      fresh.volume = old.volume;
+      try { fresh.playbackRate = playbackRateRef.current || 1; } catch { /* */ }
+      if (old.crossOrigin) fresh.crossOrigin = old.crossOrigin;
+      fresh.src = old.currentSrc || old.src;
+      fresh.addEventListener('loadedmetadata', () => { try { fresh.currentTime = t; } catch { /* */ } }, { once: true });
+      try { old.pause(); old.removeAttribute('src'); old.load(); } catch { /* */ }
+      sourceRef.current = null;
+      audioRef.current = fresh;
+      setAudioElement(fresh);
+      fresh.play().catch(() => {});
+    }, 2000);
+    return () => clearInterval(id);
+  }, [isPlaying, audioSource, currentTrack?.id]);
 
   useEffect(() => {
     stateRef.current = { repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: ytPlayerRef.current };
@@ -861,21 +1077,43 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!nextTrack?.url) return;
     // If the next track has a ready transcoded stream, hls.js/native HLS buffers it ahead on its own —
     // no need to prewarm the (unused) original file.
-    if (peekTrackStream(nextTrack.id)?.status === 'ready') return;
+    if (pickStreamUrl(peekTrackStream(nextTrack.id), getAudioQuality())) return;   // a usable stream (not merely 'ready' on a shell that can't reach it)
     const nextUrl = nextTrack.url;
     if (prewarmRef.current?.url === nextUrl || warmingRef.current?.url === nextUrl) return; // already warm/warming
+    // This is called from the animation-frame tick (~16x/s) for the last 20s. Without a memory of
+    // "tried, skipped/failed", every early return below (huge original, HEAD blocked, 4xx) cleared
+    // the in-flight marker and the NEXT frame fired the same HEAD request again — a few hundred
+    // requests in 20s competing with the stream that is still playing. Remember the outcome.
+    const warmAttempt = warmAttemptRef.current;
+    if (warmAttempt.url === nextUrl && Date.now() - warmAttempt.at < 60_000) return;
+    // Only warm when the CURRENT track is comfortably buffered: if the playing stream has not got a
+    // healthy runway yet, a parallel download is exactly what would starve it.
+    const cur = audioRef.current;
+    try {
+      if (cur && cur.readyState >= 1 && isFinite(cur.duration)) {
+        const b = cur.buffered; let runway = 0;
+        for (let i = 0; i < b.length; i++) if (b.start(i) <= cur.currentTime + 0.5 && b.end(i) >= cur.currentTime) runway = b.end(i) - cur.currentTime;
+        const remaining = cur.duration - cur.currentTime;
+        if (runway < Math.min(8, remaining - 0.5)) return;     // not yet buffered ahead — try again next frame
+      }
+    } catch { /* buffered ranges unavailable — fall through */ }
     discardPrewarm();
+    warmAttemptRef.current = { url: nextUrl, at: Date.now() };
     const ctrl = new AbortController();
     warmingRef.current = { url: nextUrl, ctrl }; // synchronous re-entry guard (set before any await)
+    // A phone on a cellular link gets a much smaller ceiling than a desktop on Wi-Fi.
+    const maxBytes = (isPhoneNotTv() ? 25 : 60) * 1024 * 1024;
     try {
       // Already downloaded for offline → use that blob directly, no network.
       const cached = await getCachedMedia(nextUrl).catch(() => null);
       if (cached) { prewarmRef.current = { url: nextUrl, blob: cached }; return; }
       // Skip huge originals (hi-res WAV) — warming them would starve the stream + blow memory.
       let bytes = 0;
-      try { const head = await fetch(nextUrl, { method: 'HEAD', signal: ctrl.signal }); bytes = parseInt(head.headers.get('content-length') || '0', 10) || 0; } catch { /* HEAD may be blocked */ }
-      if (bytes > 60 * 1024 * 1024) return;
-      const res = await fetch(nextUrl, { signal: ctrl.signal });
+      try { const head = await fetch(nextUrl, { method: 'HEAD', signal: ctrl.signal, priority: 'low' } as RequestInit); bytes = parseInt(head.headers.get('content-length') || '0', 10) || 0; } catch { /* HEAD may be blocked */ }
+      if (bytes > maxBytes) return;
+      // Unknown size (HEAD blocked) on a phone: don't gamble a full-file download.
+      if (!bytes && isPhoneNotTv()) return;
+      const res = await fetch(nextUrl, { signal: ctrl.signal, priority: 'low' } as RequestInit);
       if (!res.ok || ctrl.signal.aborted) return;
       const blob = await res.blob();
       if (ctrl.signal.aborted) return;
@@ -886,6 +1124,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const playTrack = React.useCallback(async (track: Track, album: Album | null, source: 'LIBRARY' | 'RADIO' | 'VIDEO', startAt?: number, forceReload?: boolean) => {
     const playbackRequest = ++playbackRequestRef.current;
+    // New track instance: re-arms the advance guard (one advance per instance) and drops any
+    // signal that was armed for the previous track.
+    advanceGuardRef.current.begin();
+    trackStartedAtRef.current = Date.now();
+    bailHlsRef.current = null;
     let audio = audioRef.current;
     const isNewTrack = forceReload || stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
 
@@ -938,7 +1181,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
             discardPrewarm();
             audio.crossOrigin = 'anonymous'; // served with permissive CORS
             if (streamPick.isHls) {
-              if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+              // Prefer hls.js (MSE) wherever it exists. Android WebView/Chrome answer canPlayType('maybe')
+              // and then play HLS through the PLATFORM MediaPlayer, which Web Audio cannot tap: a
+              // MediaElementSource on such an element outputs SILENCE (transcoded tracks mute while
+              // untranscoded WAV tracks sound fine -> 'audio comes back 2-3 songs later'). Native
+              // HLS is now only for engines without MSE (iOS Safari).
+              if (!Hls.isSupported() && audio.canPlayType('application/vnd.apple.mpegurl')) {
                 if (audio.src !== streamPick.url) audio.src = streamPick.url;   // native HLS (Safari/iOS)
               } else if (Hls.isSupported()) {
                 audio.removeAttribute('src');
@@ -952,9 +1200,14 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 // stopped mid-song at random. Try what hls.js is built to recover from first,
                 // and only fall back to the original master once recovery is genuinely spent.
                 let netRetries = 0, mediaRetries = 0;
-                const bailToOriginal = () => {
+                let everBuffered = false;   // has this stream delivered even ONE segment yet?
+                const bailToOriginal = (): boolean => {
+                  // Only ever act for the stream that is still the live one — a late timer/handler
+                  // from a previous track's hls.js must not hijack the track playing now.
+                  if (hlsRef.current !== hls || playbackRequest !== playbackRequestRef.current) return false;
                   try { hls.destroy(); } catch { /* */ }
                   hlsRef.current = null;
+                  bailHlsRef.current = null;
                   const at = audio.currentTime || 0;
                   try {
                     audio.src = track.url!;
@@ -963,13 +1216,23 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     audio.addEventListener('loadedmetadata', seek);
                     audio.play().catch(() => {});
                   } catch { /* */ }
+                  return true;
                 };
+                bailHlsRef.current = bailToOriginal;
                 // A successful segment means the connection is healthy again — clear the retry
                 // budget so INDEPENDENT blips spread across a long track don't accumulate into a
                 // bail-to-WAV. (Without this, six lifetime blips killed the stream on track 8.)
-                hls.on(Hls.Events.FRAG_BUFFERED, () => { netRetries = 0; mediaRetries = 0; });
+                hls.on(Hls.Events.FRAG_BUFFERED, () => { netRetries = 0; mediaRetries = 0; everBuffered = true; });
                 hls.on(Hls.Events.ERROR, (_evt, data) => {
                   if (!data?.fatal) return;
+                  // A stream that has never delivered a single segment is not "a blip on a healthy
+                  // connection" — the manifest/first segment itself can't be fetched (wrong origin,
+                  // 404, blocked). Retrying that for ~10s of silence helps nobody: one quick retry,
+                  // then straight to the track's original file.
+                  if (!everBuffered && data.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries >= 1) {
+                    bailToOriginal();
+                    return;
+                  }
                   if (data.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries < 6) {
                     netRetries++;
                     // Back OFF before resuming (mirrors the live-stream path): a network that just
@@ -1117,7 +1380,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
             if (stateRef.current.repeatMode === 'ONE') {
               player.play(0).catch(() => {});
             } else {
-              setTimeout(() => nextRef.current?.(), 0);
+              setTimeout(() => { requestAdvance('ended'); }, 0);
             }
           });
           if (playbackRequest !== playbackRequestRef.current) return;
@@ -1498,11 +1761,19 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     else audio.pause();
   }, []);
 
-  const onEnded = useCallback(() => {
+  // `reason` says WHICH signal noticed the track is over (the element's `ended` event, the near-end
+  // stall watchdog, or the visibility-safe poll). Several can notice the same ending; the advance
+  // guard lets exactly one of them move the queue.
+  const handleTrackEnd = useCallback((reason: AdvanceReason = 'ended') => {
     const state = stateRef.current;
-    // Reaching the end is the clearest completion signal there is — record it before any
-    // repeat/advance logic changes the current track out from under us.
-    if (state.currentTrack?.id && state.audioSource !== 'VIDEO') {
+    if (state.repeatMode !== 'ONE' && state.audioSource !== 'VIDEO') {
+      if (!advanceGuardRef.current.claim(reason).ok) return;      // someone already advanced this track
+      // Reaching the end is the clearest completion signal there is — record it before any
+      // repeat/advance logic changes the current track out from under us.
+      if (state.currentTrack?.id) {
+        trackComplete(state.currentTrack.id, 'track', undefined, (state.currentAlbum as any)?.ownerId);
+      }
+    } else if (state.currentTrack?.id && state.audioSource !== 'VIDEO') {
       trackComplete(state.currentTrack.id, 'track', undefined, (state.currentAlbum as any)?.ownerId);
     }
     if (state.repeatMode === 'ONE') {
@@ -1521,6 +1792,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       next();
     }
   }, [next, seek, resume]);
+  // The DOM `ended` listener / YouTube poll call this with no (or an Event) argument.
+  const onEnded = useCallback(() => handleTrackEnd('ended'), [handleTrackEnd]);
+  const handleTrackEndRef = useRef(handleTrackEnd); handleTrackEndRef.current = handleTrackEnd;
 
   const togglePlay = useCallback(() => {
     if (stateRef.current.isPlaying) pause();
@@ -1578,7 +1852,6 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // froze synced lyrics mid-song and then jumped them out of sync. Driving the
   // clock from requestAnimationFrame against audio.currentTime keeps the lyrics and
   // scrubber progressing continuously. (Video/Radio use the YouTube poll above.)
-  const onEndedRef = useRef(onEnded); onEndedRef.current = onEnded;
   const stallRef = useRef({ lastT: -1, since: 0 });
   useEffect(() => {
     if (!isPlaying || audioSource === 'VIDEO' || audioSource === 'RADIO') return;
@@ -1607,7 +1880,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           // then fires when the last segment lands — jump the album forward by two tracks.
           else if (now - stallRef.current.since > 3500 && dur && isFinite(dur) && dur - t < 8 && !audio.loop && !document.hidden && !hlsRef.current) {
             stallRef.current = { lastT: -1, since: 0 };
-            onEndedRef.current();
+            // Same advance guard as the real `ended` event: if that event (or the poll) already moved
+            // the queue for this track, this is a no-op instead of a second skip.
+            handleTrackEndRef.current('stall-watchdog');
             raf = requestAnimationFrame(tick);
             return;
           }
@@ -1627,6 +1902,52 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [isPlaying, audioSource]);
+
+  // Visibility-safe end-of-track fallback. The `ended` event is the primary signal, and the rAF
+  // watchdog above is a foreground-only safety net (rAF is suspended when the screen is off). If the
+  // WebView drops or delays the `ended` event while backgrounded, nothing would advance the queue
+  // until the user came back. This low-rate poll (setInterval keeps running with audio playing) and
+  // the visibility/focus hooks catch that case. They go through the same advance guard, so when the
+  // real `ended` DID fire this is a no-op rather than a second skip.
+  useEffect(() => {
+    const check = () => {
+      const audio = audioRef.current;
+      const st = stateRef.current;
+      if (!audio || !intendedPlayingRef.current || !st.currentTrack) return;
+      if (st.audioSource === 'VIDEO' || st.audioSource === 'RADIO' || usingDecodeFallbackRef.current) return;
+      if (!audio.ended || audio.loop) return;
+      // The element can still report the PREVIOUS track as ended for a moment after playTrack() while
+      // the new source is attached — only trust `ended` once this track has had time to load, and
+      // only when the clock really sits at the end of what is loaded.
+      if (Date.now() - trackStartedAtRef.current < 3000) return;
+      const dur = audio.duration;
+      if (!isFinite(dur) || dur <= 0 || audio.currentTime < dur - 1.5) return;
+      handleTrackEndRef.current('ended-fallback');
+    };
+    const id = setInterval(check, 1500);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    window.addEventListener('pageshow', check);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+      window.removeEventListener('pageshow', check);
+    };
+  }, []);
+
+  // Lets code OUTSIDE the player (the service-worker update path in index.tsx) ask "is music playing
+  // right now?" so it never reloads the page — which would kill playback and drop the queue — while
+  // someone is listening with the screen off.
+  useEffect(() => {
+    (window as any).__plajahAudioActive = () => {
+      try {
+        const a = audioRef.current;
+        return !!(intendedPlayingRef.current || (a && !a.paused && !a.ended));
+      } catch { return false; }
+    };
+    return () => { try { delete (window as any).__plajahAudioActive; } catch { /* */ } };
+  }, []);
 
   // Repeat-ONE loops at the MEDIA layer, not via JS. The browser replays the already-buffered
   // track seamlessly and — the fix — keeps looping when the screen is locked. The old path
@@ -1874,7 +2195,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       navigator.mediaSession.setActionHandler('play', resume);
       navigator.mediaSession.setActionHandler('pause', pause);
       navigator.mediaSession.setActionHandler('previoustrack', prev);
-      navigator.mediaSession.setActionHandler('nexttrack', next);
+      navigator.mediaSession.setActionHandler('nexttrack', () => { requestAdvance('media-session'); });
       navigator.mediaSession.setActionHandler('seekto', (details) => {
          if (details.seekTime !== undefined) seek(details.seekTime);
       });
@@ -1896,7 +2217,67 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         } catch { /* */ }
       }
     };
-  }, [resume, pause, prev, next, seek]);
+  }, [resume, pause, prev, next, seek, requestAdvance]);
+
+  // Sync metadata and playback status with native Android Media3 foreground service
+  useEffect(() => {
+    if (currentTrack) {
+      updateMediaMetadata(currentTrack, currentAlbum);
+      syncToNativeAudioPlugin(currentTrack, currentAlbum, isPlaying);
+    }
+    // Foreground-service keep-alive follows the real playing state (also when the track is cleared).
+    setNativePlaybackActive(!!currentTrack && isPlaying && audioSource !== 'VIDEO', currentTrack, currentAlbum);
+  }, [currentTrack, currentAlbum, isPlaying, audioSource]);
+
+  // Remote controls: Bluetooth AVRCP / Car Stereo / Fire TV / Silk remote commands
+  useEffect(() => {
+    const plajahNative = (window as any).Capacitor?.Plugins?.PlajahNativeAudio;
+    let removeListener: (() => void) | undefined;
+    if (plajahNative?.addListener) {
+      // The raw Capacitor.Plugins bridge does not always return a Promise from addListener (the legacy
+      // bridge returns a plain handle or nothing). Calling .then on it threw "addListener(...).then is
+      // not a function" and took the whole app to the System Interruption screen on Android.
+      try {
+        const pending = plajahNative.addListener('onRemoteCommand', (data: { command: string }) => {
+          if (data?.command === 'next') {
+            requestAdvance('remote-command');
+          } else if (data?.command === 'previous') {
+            prev();
+          } else if (data?.command === 'playPause') {
+            togglePlay();
+          }
+        });
+        Promise.resolve(pending).then((handle: any) => {
+          if (handle?.remove) removeListener = () => handle.remove();
+        }).catch(() => {});
+      } catch { /* plugin not available on this device */ }
+    }
+
+    const handleTvPlayPause = () => togglePlay();
+    const handleTvNext = () => { requestAdvance('tv-remote'); };
+    const handleTvPrev = () => prev();
+
+    window.addEventListener('tv:media-play-pause', handleTvPlayPause);
+    window.addEventListener('tv:media-next', handleTvNext);
+    window.addEventListener('tv:media-prev', handleTvPrev);
+
+    return () => {
+      removeListener?.();
+      window.removeEventListener('tv:media-play-pause', handleTvPlayPause);
+      window.removeEventListener('tv:media-next', handleTvNext);
+      window.removeEventListener('tv:media-prev', handleTvPrev);
+    };
+  }, [next, prev, togglePlay, requestAdvance]);
+
+  // Recent listens: count a play once a LIBRARY track has been audible ~20s (timer clears on pause/track change).
+  useEffect(() => {
+    if (!isPlaying || !currentTrack || audioSource !== 'LIBRARY' || currentAlbum?.subType === 'PODCAST' || currentTrack.podcastMetadata) return;
+    const t = window.setTimeout(() => {
+      if (!canPlayFull(currentTrack, currentAlbum, fbAuth.currentUser?.uid)) return;
+      recordListen(fbAuth.currentUser?.uid, currentTrack, currentAlbum);
+    }, 20000);
+    return () => window.clearTimeout(t);
+  }, [isPlaying, currentTrack?.id, audioSource]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -1913,6 +2294,21 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const onTimeUpdate = () => {
       const time = audio.currentTime;
       stateRef.current.currentTime = time;
+      // A track that has really been playing for a few seconds clears the failure-skip chain.
+      if (time > 5) advanceGuardRef.current.markHealthy();
+
+      // Priced release, not bought: the listener hears a PREVIEW_SECONDS preview, then we stop and ask
+      // the app to offer the buy flow. Locker copies, radio and the artist's own plays are exempt.
+      if (time >= PREVIEW_SECONDS && stateRef.current.audioSource === 'LIBRARY') {
+        const lockedTrack = stateRef.current.currentTrack, lockedAlbum = stateRef.current.currentAlbum;
+        if (!canPlayFull(lockedTrack, lockedAlbum, fbAuth.currentUser?.uid)) {
+          intendedPlayingRef.current = false;
+          audio.pause();
+          audio.currentTime = 0;
+          window.dispatchEvent(new CustomEvent(MUSIC_LOCKED_EVENT, { detail: { track: lockedTrack, album: lockedAlbum } }));
+          return;
+        }
+      }
 
       setCurrentTime(prev => {
         if (Math.abs(prev - time) >= 0.05 || time === 0) {
@@ -2034,12 +2430,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         navigator.mediaSession.playbackState = 'paused';
       });
       navigator.mediaSession.setActionHandler('previoustrack', prev);
-      navigator.mediaSession.setActionHandler('nexttrack', next);
+      navigator.mediaSession.setActionHandler('nexttrack', () => { requestAdvance('media-session'); });
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime !== undefined) seek(details.seekTime);
       });
     }
-  }, [resume, pause, prev, next, seek]);
+  }, [resume, pause, prev, next, seek, requestAdvance]);
 
   useEffect(() => {
     if ('mediaSession' in navigator && currentTrack && duration > 0 && currentTime >= 0) {
@@ -2223,7 +2619,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
     analyser: analyserRef.current, ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive,
     activeLiveFx, liveFxParams, toggleLiveFx, setLiveFxParam, clearLiveFx,
-    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
+    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isFullscreenSlideshowActive, setIsFullscreenSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme, isBigScreen: theme === 'BIG_SCREEN',
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,
@@ -2237,7 +2633,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     playTrack, playVideo, setVideoElement, setYtPlayer, setCurrentVideo, setCurrentTrack, pause, resume, togglePlay, setVolume, next, prev, beginScratch, scratchBy, endScratch,
     ensureAnalyserTap, getAudioContext, setDjFilter, resetAudioFx, isFxActive,
     activeLiveFx, liveFxParams, toggleLiveFx, setLiveFxParam, clearLiveFx,
-    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
+    isFrequencyVisualizerEnabled, setIsFrequencyVisualizerEnabled, visualizerType, setVisualizerType, isSlideshowActive, setIsSlideshowActive, isFullscreenSlideshowActive, setIsFullscreenSlideshowActive, isTvFxActive, setIsTvFxActive, isSlideshowAuto,
     isNanoView, setIsNanoView, isNanoDocked, setIsNanoDocked, isUserActive, setIsUserActive, nanoPosition, setNanoPosition, snapReset, theme, setTheme,
     isTVMode, setIsTVMode, isPhoneMode, isShrunk, setIsShrunk, isMinimized, setIsMinimized, transportForced, setTransportForced, isThreeDEnabled, setIsThreeDEnabled,
     isSpatialAudioEnabled, setSpatialAudioEnabled,

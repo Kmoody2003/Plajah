@@ -14,6 +14,10 @@
  */
 
 import { drawScriptureGraphic } from './scriptureGraphic';
+import { publishAppOutput, onAppOutputStream } from './mediaEngine/bridge';
+import { watchProductionFeeds } from './productionFeeds';
+import { Compositor } from '../components/plajahPixels/engine/core/compositor';
+import { parseCubeLut, type CubeLutData } from './fabula/cubeLut';
 
 export type SourceType =
   | 'CAMERA' | 'SCREEN' | 'MEDIA' | 'GRAPHIC' | 'COLOR' | 'BARS' | 'BLACK';
@@ -25,6 +29,8 @@ export interface StudioSource {
   type: SourceType;
   label: string;
   stream?: MediaStream;
+  borrowed?: boolean;
+  audioInputNode?: MediaStreamAudioSourceNode;
   videoEl?: HTMLVideoElement;
   imageEl?: HTMLImageElement;
   // Color source
@@ -33,6 +39,7 @@ export interface StudioSource {
   gainNode?: GainNode;
   analyserNode?: AnalyserNode;
   audioLevel: number;     // 0–1
+  faderGain?: number;
   isMuted: boolean;
   isSolo: boolean;
   // Color correction (applied per-source as CSS filter string on off-screen canvas)
@@ -42,6 +49,8 @@ export interface StudioSource {
   hue: number;         // -180 to 180, default 0
   // LUT
   lutData?: Float32Array; // 3D LUT 17x17x17 RGB
+  cubeLut?: CubeLutData;
+  colorProcessor?: { canvas: HTMLCanvasElement; compositor: Compositor };
   // State
   isReady: boolean;
   /** VTuber mode — when set, the avatar canvas is composited in place of the raw camera. */
@@ -51,7 +60,8 @@ export interface StudioSource {
 export interface GraphicOverlay {
   id: string;
   label: string;
-  type: 'LOWER_THIRD' | 'FULLSCREEN' | 'BUG' | 'CLOCK' | 'LOTTIE' | 'WEBM' | 'SCRIPTURE';
+  type: 'LOWER_THIRD' | 'FULLSCREEN' | 'BUG' | 'CLOCK' | 'LOTTIE' | 'WEBM' | 'SCRIPTURE' | 'TELA';
+  canvasEl?: HTMLCanvasElement;
   // Lower third
   title?: string;
   subtitle?: string;
@@ -99,6 +109,7 @@ export interface StudioProject {
 // ── Engine class ──────────────────────────────────────────────────────────────
 
 export class TVStudioEngine {
+  private productionFeedsUnsub?: () => void;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private offA: OffscreenCanvas;
@@ -147,6 +158,10 @@ export class TVStudioEngine {
   private midiAccess: any = null; // MIDIAccess — typed as any; @types/webmidi not installed
   private onMidiCallback?: (cc: number, value: number, channel: number) => void;
 
+  private amboAudienceUnsub?: () => void;
+  private amboLowerThirdUnsub?: () => void;
+  private programStream?: MediaStream;
+
   onSourcesChanged?: () => void;
   onOverlaysChanged?: () => void;
   onProgramChanged?: (id: string | null) => void;
@@ -180,6 +195,9 @@ export class TVStudioEngine {
     // Add default sources
     this._addColorSource('black', 'Black', '#000000');
     this._addColorSource('bars', 'Color Bars', 'BARS');
+
+    // Subscribe to platform media bus for native Ambo feeds
+    this.listenToAmboFeeds();
   }
 
   // ── Source management ─────────────────────────────────────────────────────
@@ -203,6 +221,31 @@ export class TVStudioEngine {
     const src = this._makeSource(id, color === 'BARS' ? 'BARS' : 'COLOR', label);
     src.color = color; src.isReady = true;
     this.sources.set(id, src);
+  }
+
+  /** Listen to native Ambo outputs published over the virtual video bus */
+  listenToAmboFeeds(): void {
+    this.productionFeedsUnsub?.();
+    let productionIds = new Set<string>();
+    this.productionFeedsUnsub = watchProductionFeeds(feeds => {
+      const current = new Set(feeds.map(feed => feed.id));
+      for (const id of productionIds) if (!current.has(id)) this.removeSource(id);
+      for (const feed of feeds) {
+        const fresh = !this.sources.has(feed.id);
+        this.addStreamSourceWithId(feed.id, feed.stream, feed.label);
+        if (fresh && feed.kind === 'chat' && !feed.id.endsWith(':group')) this.muteSource(feed.id, true);
+      }
+      productionIds = current;
+    });
+    this.amboAudienceUnsub?.();
+    this.amboAudienceUnsub = onAppOutputStream('ambo:audience', (stream) => {
+      this.addStreamSourceWithId('ambo_audience', stream, 'Ambo Audience');
+    });
+
+    this.amboLowerThirdUnsub?.();
+    this.amboLowerThirdUnsub = onAppOutputStream('ambo:lower_third', (stream) => {
+      this.addStreamSourceWithId('ambo_lower_third', stream, 'Ambo Lower Third');
+    });
   }
 
   async addCameraSource(deviceId?: string): Promise<StudioSource | null> {
@@ -229,24 +272,48 @@ export class TVStudioEngine {
     } catch { return null; }
   }
 
+  /** Add or update a stream source with an explicit ID */
+  addStreamSourceWithId(id: string, stream: MediaStream, label: string): StudioSource {
+    let src = this.sources.get(id);
+    if (src?.stream === stream) { src.label = label; return src; }
+    if (!src) {
+      src = this._makeSource(id, 'MEDIA', label);
+      this.sources.set(id, src);
+    } else {
+      src.label = label;
+    }
+    src.audioInputNode?.disconnect();
+    src.audioInputNode = undefined;
+    src.borrowed = true;
+    src.stream = stream;
+    if (!src.videoEl) {
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      src.videoEl = video;
+    }
+    src.videoEl.srcObject = stream;
+    src.videoEl.onloadeddata = () => { src!.isReady = true; this.onSourcesChanged?.(); };
+    src.videoEl.play?.().catch(() => {});
+    src.isReady = true;
+
+    const audioTrack = stream.getAudioTracks()[0];
+    if (audioTrack && src.gainNode) {
+      try {
+        const msSrc = this.audioCtx.createMediaStreamSource(new MediaStream([audioTrack]));
+        msSrc.connect(src.gainNode);
+        src.audioInputNode = msSrc;
+      } catch { /* ignored */ }
+    }
+    this.onSourcesChanged?.();
+    return src;
+  }
+
   /** Add a source from an existing MediaStream — e.g. a REMOTE campus program feed
    *  pulled over the platform (multi-site master control). */
   addStreamSource(stream: MediaStream, label: string): StudioSource {
-    const id = `feed_${Date.now()}`;
-    const src = this._makeSource(id, 'CAMERA', label);
-    src.stream = stream;
-    const video = document.createElement('video');
-    video.srcObject = stream; video.autoplay = true; video.muted = true; video.playsInline = true;
-    video.onloadeddata = () => { src.isReady = true; this.onSourcesChanged?.(); };
-    video.play?.().catch(() => {});
-    src.videoEl = video;
-    const audioTrack = stream.getAudioTracks()[0];
-    if (audioTrack) {
-      try { const msSrc = this.audioCtx.createMediaStreamSource(new MediaStream([audioTrack])); msSrc.connect(src.gainNode!); } catch { /* */ }
-    }
-    this.sources.set(id, src);
-    this.onSourcesChanged?.();
-    return src;
+    return this.addStreamSourceWithId(`feed_${Date.now()}`, stream, label);
   }
 
   async addScreenSource(): Promise<StudioSource | null> {
@@ -291,7 +358,10 @@ export class TVStudioEngine {
   removeSource(id: string) {
     const src = this.sources.get(id);
     if (!src) return;
-    src.stream?.getTracks().forEach(t => t.stop());
+    if (!src.borrowed) src.stream?.getTracks().forEach(t => t.stop());
+    src.audioInputNode?.disconnect();
+    if (src.videoEl) { src.videoEl.pause(); src.videoEl.srcObject = null; }
+    src.colorProcessor?.compositor.dispose();
     src.gainNode?.disconnect();
     this.sources.delete(id);
     if (this.programId === id) { this.programId = null; this.onProgramChanged?.(null); }
@@ -389,7 +459,14 @@ export class TVStudioEngine {
       ctx.filter = 'none';
       return;
     }
-    if (src.videoEl && src.isReady) {
+    if (src.videoEl && src.isReady && src.videoEl.readyState >= 2) {
+      if (src.cubeLut && src.colorProcessor && src.videoEl.readyState >= 2) {
+        src.colorProcessor.compositor.render([{ element: src.videoEl, opacity: 1, blendMode: 'normal' }], undefined, undefined, src.cubeLut);
+        ctx.filter = `brightness(${src.brightness}) contrast(${src.contrast}) saturate(${src.saturation}) hue-rotate(${src.hue}deg)`;
+        ctx.drawImage(src.colorProcessor.canvas, 0, 0, 1920, 1080);
+        ctx.filter = 'none';
+        return;
+      }
       // Apply basic color correction via CSS filter simulation on offscreen
       ctx.filter = `brightness(${src.brightness}) contrast(${src.contrast}) saturate(${src.saturation}) hue-rotate(${src.hue}deg)`;
       ctx.drawImage(src.videoEl, 0, 0, 1920, 1080);
@@ -422,6 +499,8 @@ export class TVStudioEngine {
       ctx.globalAlpha = ov.opacity;
       if (ov.type === 'LOWER_THIRD') {
         this._drawLowerThird(ctx, ov);
+      } else if (ov.type === 'TELA' && ov.canvasEl) {
+        ctx.drawImage(ov.canvasEl, 0, 0, 1920, 1080);
       } else if (ov.type === 'SCRIPTURE') {
         this._drawScripture(ctx, ov);
       } else if ((ov.type === 'WEBM' || ov.type === 'FULLSCREEN') && ov.videoEl) {
@@ -579,6 +658,14 @@ export class TVStudioEngine {
     if (this.running) return;
     this.running = true;
     this.frameHandle = requestAnimationFrame(this._frame);
+
+    // Publish program output to platform virtual video bus
+    try {
+      if (!this.programStream) {
+        this.programStream = this.getProgramStream();
+      }
+      publishAppOutput('switcher:pgm', this.programStream, 'Switcher Program (PGM)');
+    } catch { /* ignored */ }
   }
 
   stop() {
@@ -713,12 +800,29 @@ ${events}
     const src = this.sources.get(id);
     if (src) { src.brightness = brightness; src.contrast = contrast; src.saturation = saturation; src.hue = hue; }
   }
+  /** Same .cube parser and GPU LUT pass as Fabula preview/export. */
+  setSourceLut(id: string, text: string | null, name = 'Live LUT'): void {
+    const source = this.sources.get(id);
+    if (!source) throw new Error('Select a source before importing a LUT.');
+    if (!text) { source.cubeLut = undefined; source.colorProcessor?.compositor.dispose(); source.colorProcessor = undefined; return; }
+    const lut = parseCubeLut(text, name);
+    if (!source.colorProcessor) {
+      const canvas = document.createElement('canvas');
+      const compositor = new Compositor(canvas);
+      compositor.resize(1920, 1080);
+      source.colorProcessor = { canvas, compositor };
+    }
+    source.cubeLut = lut;
+  }
 
   // ── Audio ─────────────────────────────────────────────────────────────────
 
   setSourceGain(id: string, gain: number) {
     const src = this.sources.get(id);
-    if (src?.gainNode) src.gainNode.gain.value = Math.max(0, Math.min(2, gain));
+    if (src?.gainNode && Number.isFinite(gain)) {
+      src.faderGain = Math.max(0, Math.min(2, gain));
+      src.gainNode.gain.value = src.isMuted ? 0 : src.faderGain;
+    }
   }
 
   setMasterGain(gain: number) { this.masterGain.gain.value = Math.max(0, Math.min(2, gain)); }
@@ -727,7 +831,7 @@ ${events}
     const src = this.sources.get(id);
     if (!src) return;
     src.isMuted = muted;
-    if (src.gainNode) src.gainNode.gain.value = muted ? 0 : src.audioLevel;
+    if (src.gainNode) src.gainNode.gain.value = muted ? 0 : (src.faderGain ?? 1);
   }
 
   getSourceLevel(id: string): number {
@@ -807,6 +911,10 @@ ${events}
     const rafHandle = requestAnimationFrame(draw);
     this.auxBuses.set(id, { label, canvas, ctx, sourceId: null, rafHandle });
     this.onAuxBusesChanged?.();
+    try {
+      const auxStream = canvas.captureStream(30);
+      publishAppOutput(`switcher:${id.toLowerCase()}`, auxStream, `Switcher ${label}`);
+    } catch { /* ignored */ }
   }
 
   removeAuxBus(id: string): void {
@@ -875,13 +983,15 @@ ${events}
     return this.canvas.toDataURL('image/jpeg', 0.7);
   }
 
-  // ── NDI / AVB stubs ───────────────────────────────────────────────────────
-  // NDI and AVB require a native bridge. These methods emit the program stream
-  // over a WebSocket to a local NDI Bridge process (ndi-webrtc-peer-worker
-  // or OBS NDI plugin with WebSocket server mode enabled).
+  // ── NDI / OMT / SRT / AVB Broadcast & Hardware Transport ─────────────
+  // Supports native low-latency LAN (OMT, NDI), reliable internet WAN (SRT),
+  // and deterministic multi-channel network audio hardware (AVB/Milan).
 
   private ndiWs: WebSocket | null = null;
   private avbWs: WebSocket | null = null;
+  private omtActive = false;
+  private srtActive = false;
+  private avbNativeActive = false;
 
   connectNDI(wsUrl: string): void {
     if (this.ndiWs) this.ndiWs.close();
@@ -893,19 +1003,90 @@ ${events}
   disconnectNDI(): void { this.ndiWs?.close(); this.ndiWs = null; }
   isNDIConnected(): boolean { return this.ndiWs?.readyState === WebSocket.OPEN; }
 
-  connectAVB(wsUrl: string): void {
-    if (this.avbWs) this.avbWs.close();
-    this.avbWs = new WebSocket(wsUrl);
-    this.avbWs.onopen = () => console.log('[TVStudio] AVB bridge connected');
+  async startNativeOmtBroadcast(streamName = 'Ambo Switcher PGM', port = 9998): Promise<boolean> {
+    try {
+      const { startOmtBroadcast } = await import('./mediaEngine/bridge');
+      const res = await startOmtBroadcast({ streamId: 'ambo_pgm_omt', name: streamName, port, width: 1920, height: 1080, fps: 60, audioChannels: 8, hasAlpha: true });
+      this.omtActive = !!res?.success;
+      return this.omtActive;
+    } catch { return false; }
   }
 
-  disconnectAVB(): void { this.avbWs?.close(); this.avbWs = null; }
-  isAVBConnected(): boolean { return this.avbWs?.readyState === WebSocket.OPEN; }
+  async stopNativeOmtBroadcast(): Promise<void> {
+    try {
+      const { stopOmtBroadcast } = await import('./mediaEngine/bridge');
+      await stopOmtBroadcast('ambo_pgm_omt');
+      this.omtActive = false;
+    } catch { /* */ }
+  }
+  isOMTConnected(): boolean { return this.omtActive; }
+
+  async startNativeSrtStream(mode: 'listener' | 'caller' = 'listener', endpoint = '0.0.0.0:9000', latencyMs = 120, passphrase?: string): Promise<boolean> {
+    try {
+      const { startSrtListener, connectSrtCaller } = await import('./mediaEngine/bridge');
+      if (mode === 'listener') {
+        const port = parseInt(endpoint.split(':')[1] || '9000', 10);
+        const res = await startSrtListener({ streamId: 'ambo_srt_feed', name: 'Ambo Program SRT', port, latencyMs, passphrase });
+        this.srtActive = !!res?.success;
+      } else {
+        const [host, portStr] = endpoint.split(':');
+        const res = await connectSrtCaller({ streamId: 'ambo_srt_feed', name: 'Ambo Program SRT', host: host || '127.0.0.1', port: parseInt(portStr || '9000', 10), latencyMs, passphrase });
+        this.srtActive = !!res?.success;
+      }
+      return this.srtActive;
+    } catch { return false; }
+  }
+
+  async stopNativeSrtStream(): Promise<void> {
+    try {
+      const { stopSrtStream } = await import('./mediaEngine/bridge');
+      await stopSrtStream('ambo_srt_feed');
+      this.srtActive = false;
+    } catch { /* */ }
+  }
+  isSRTConnected(): boolean { return this.srtActive; }
+
+  async connectAVB(wsUrlOrNative?: string): Promise<boolean> {
+    try {
+      const { configureAvbTalker, hasNativeEngine } = await import('./mediaEngine/bridge');
+      if (hasNativeEngine()) {
+        const res = await configureAvbTalker({ streamId: 'tvstudio_pgm_avb', name: 'TVStudio Master Out', channels: 8, sampleRate: 48000 });
+        this.avbNativeActive = !!res?.success;
+        return this.avbNativeActive;
+      }
+    } catch { /* */ }
+    if (wsUrlOrNative && wsUrlOrNative.startsWith('ws')) {
+      if (this.avbWs) this.avbWs.close();
+      this.avbWs = new WebSocket(wsUrlOrNative);
+      this.avbWs.onopen = () => console.log('[TVStudio] AVB bridge connected');
+      return true;
+    }
+    return false;
+  }
+
+  async disconnectAVB(): Promise<void> {
+    try {
+      const { stopAvbStream } = await import('./mediaEngine/bridge');
+      await stopAvbStream('tvstudio_pgm_avb');
+    } catch { /* */ }
+    this.avbWs?.close();
+    this.avbWs = null;
+    this.avbNativeActive = false;
+  }
+  isAVBConnected(): boolean { return this.avbNativeActive || this.avbWs?.readyState === WebSocket.OPEN; }
 
   destroy() {
     this.stop();
     this.recorder?.stop();
-    this.sources.forEach(src => src.stream?.getTracks().forEach(t => t.stop()));
+    this.amboAudienceUnsub?.();
+    this.amboLowerThirdUnsub?.();
+    this.productionFeedsUnsub?.();
+    this.sources.forEach(src => {
+      if (!src.borrowed) src.stream?.getTracks().forEach(t => t.stop());
+      src.audioInputNode?.disconnect();
+      src.colorProcessor?.compositor.dispose();
+      if (src.videoEl) { src.videoEl.pause(); src.videoEl.srcObject = null; }
+    });
     this.auxBuses.forEach(b => cancelAnimationFrame(b.rafHandle));
     this.audioCueNodes.forEach(n => { try { n.stop(); } catch {} });
     this.ndiWs?.close();

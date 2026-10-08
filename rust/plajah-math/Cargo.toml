@@ -1,0 +1,16 @@
+[package]
+name = "plajah-math"
+version = "0.1.0"
+edition = "2024"
+description = "High-performance SIMD tracking, planar homography, and geometry engine for Fabula and Tela"
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]

@@ -1,0 +1,1452 @@
+{
+ "courseId": "law-crimpro",
+ "label": "Criminal Procedure",
+ "lessons": [
+  {
+   "id": "law-crimpro.l01",
+   "title": "What Is a Search?",
+   "body": [
+    "The Fourth Amendment protects \"the right of the people to be secure in their persons, houses, papers, and effects, against unreasonable searches and seizures.\" Everything in the doctrine depends on a threshold question: did government conduct amount to a \"search\" or a \"seizure\" at all? If not, the Amendment is not engaged and no warrant, probable cause, or reasonableness is required.",
+    "The Court has given two tests for a search. Under the property-based test, revived in United States v. Jones (2012), a search occurs when the government physically intrudes on a constitutionally protected area (persons, houses, papers, effects) to gather information. Attaching a GPS tracker to a car was such an intrusion. Florida v. Jardines (2013) applied the same idea to a drug-sniffing dog brought onto a home's front porch, which is curtilage, the area immediately surrounding the home. The implied license that lets a visitor walk to the door does not extend to bringing an investigative dog to look for evidence.",
+    "Under the privacy-based test from Katz v. United States (1967), a search occurs when the government violates a reasonable expectation of privacy, usually phrased through Justice Harlan's concurrence: the person had an actual, subjective expectation of privacy, and society is prepared to recognize it as reasonable. Katz held that eavesdropping on a phone booth conversation was a search. Kyllo v. United States (2001) held that using a thermal imager to learn about the inside of a home is a search when the technology is not in general public use.",
+    "Several categories fall outside the Amendment. Open fields get no protection (Oliver v. United States, 1984), and a person who leaves trash at the curb has no reasonable expectation in it (California v. Greenwood, 1988). Looking at what is exposed to public view, including from lawful airspace (Florida v. Riley, 1989), is not a search. A dog sniff of luggage or of a car during a lawful stop is not a search because it reveals only contraband (Illinois v. Caballes, 2005).",
+    "The third-party doctrine says a person has no reasonable expectation in information voluntarily given to a third party, such as bank records (United States v. Miller, 1976) or numbers dialed (Smith v. Maryland, 1979). Carpenter v. United States (2018) declined to extend it mechanically to historical cell-site location information covering seven days or more, holding that acquiring it is a search that generally requires a warrant. The Court called its holding narrow, so lower courts continue to sort out tower dumps, real-time location, and similar data.",
+    "Worked example: officers, without a warrant, use a specialized thermal device from the sidewalk to detect the heat pattern of a suspect's living room. Under Kyllo that is a search of the home, and without a warrant or an exception the results are presumptively unreasonable.",
+    "Remember the trap: a Fourth Amendment violation requires state action. A private party's search is not covered unless the person is acting as a government agent."
+   ]
+  },
+  {
+   "id": "law-crimpro.l02",
+   "title": "Warrants and Probable Cause",
+   "body": [
+    "The Warrant Clause says that no warrants shall issue \"but upon probable cause, supported by Oath or affirmation, and particularly describing the place to be searched, and the persons or things to be seized.\" That yields four requirements: probable cause, an oath or affirmation, particularity, and a neutral and detached magistrate.",
+    "Probable cause is a fair probability, not a certainty and not a preponderance. For a search warrant it means a fair probability that contraband or evidence of a crime will be found in a particular place. For an arrest warrant it means a fair probability that a particular person committed a crime. Illinois v. Gates (1983) replaced the rigid two-pronged test for informant tips with a totality-of-the-circumstances approach: the informant's veracity and basis of knowledge are still relevant, but a weakness in one can be offset by strength in the other, or by police corroboration of details. Courts review a magistrate's finding with deference, asking only whether there was a substantial basis.",
+    "The magistrate must be neutral and detached and capable of determining probable cause. In Coolidge v. New Hampshire (1971), a warrant issued by the state attorney general, who was also leading the investigation, was invalid. The magistrate reads the sworn affidavit and cannot rubber-stamp it.",
+    "Particularity prevents general warrants. The warrant must describe the place with enough detail that officers can identify it with reasonable effort, and describe the items sought. A warrant for \"evidence of crime\" is too broad. In Maryland v. Garrison (1987), officers who reasonably but mistakenly searched the wrong apartment in a building were upheld because the warrant was valid when issued and the mistake was reasonable.",
+    "A defendant may challenge the affidavit. Franks v. Delaware (1978) allows a hearing if the defendant makes a substantial preliminary showing that the affiant knowingly or recklessly included a false statement and that the statement was necessary to the finding of probable cause. If at the hearing the defendant proves it, the false material is set aside and the warrant falls if the remainder lacks probable cause. Mere negligence does not qualify.",
+    "Execution matters too. Wilson v. Arkansas (1995) held that the common-law knock-and-announce principle is part of reasonableness, though officers may dispense with it on reasonable suspicion of danger or evidence destruction (Richards v. Wisconsin, 1997). Under Hudson v. Michigan (2006), however, violating the rule does not require suppression of the evidence found. Officers executing a search warrant may detain occupants during the search (Michigan v. Summers, 1981).",
+    "Worked example: an affidavit states that a reliable informant bought cocaine at a house, and an officer adds a sentence he knows is false to bolster the case. If the defendant shows deliberate falsity at a Franks hearing and the rest of the affidavit does not establish probable cause, the warrant is void and the fruits are subject to suppression."
+   ]
+  },
+  {
+   "id": "law-crimpro.l03",
+   "title": "Arrest, Search Incident, and Vehicles",
+   "body": [
+    "Warrantless searches are presumptively unreasonable, but the Court recognizes a set of narrow exceptions. Three of the most important cluster around arrests and cars.",
+    "Arrests first. In a public place, an officer may arrest for a felony on probable cause without a warrant (United States v. Watson, 1976). Entering a home to make a routine arrest is different: Payton v. New York (1980) requires an arrest warrant plus reason to believe the suspect is inside. To arrest a suspect in a third party's home, police need a search warrant for that home (Steagald v. United States, 1981) unless an exception such as consent or exigency applies.",
+    "Search incident to arrest allows a search of the arrestee's person and the area within immediate control to find weapons and prevent evidence destruction (Chimel v. California, 1969). A full search of the person incident to a lawful custodial arrest requires no additional justification (United States v. Robinson, 1973). But the rationale limits the scope. Riley v. California (2014) held that police generally may not search the digital contents of a cell phone seized from an arrestee without a warrant, since phones carry vast private information and pose no physical danger. The phone itself may be secured and examined for physical threats.",
+    "For vehicles, Arizona v. Gant (2009) narrowed the old rule that allowed searching a car's passenger compartment automatically after any occupant's arrest. Now police may search the passenger compartment incident to arrest only if the arrestee is unsecured and within reaching distance, or if it is reasonable to believe the vehicle contains evidence of the offense of arrest. A driver arrested for a traffic offense who is handcuffed in the patrol car generally triggers neither prong.",
+    "The automobile exception, from Carroll v. United States (1925), allows a warrantless search of a vehicle based on probable cause that it contains contraband or evidence, because of mobility and a lesser expectation of privacy. The search extends to any container in the car where the object could be found (United States v. Ross, 1982; California v. Acevedo, 1991), including passengers' belongings (Wyoming v. Houghton, 1999). The exception does not allow entering a home's curtilage to search a vehicle parked there (Collins v. Virginia, 2018).",
+    "Inventory searches are a separate category: when a car is lawfully impounded, police may inventory its contents under standardized procedures, which are not investigative tools (South Dakota v. Opperman, 1976; Colorado v. Bertine, 1987).",
+    "Worked example: police stop Dana for a broken tail light, arrest her on an outstanding fine warrant, cuff her and place her in a squad car, then search the car and find drugs. Under Gant there is no search-incident justification and no reason to believe evidence of the warrant offense is inside. Unless there is independent probable cause, the evidence is suppressible."
+   ]
+  },
+  {
+   "id": "law-crimpro.l04",
+   "title": "Consent, Exigency, and Plain View",
+   "body": [
+    "Consent is the most commonly used exception. A search authorized by voluntary consent needs neither a warrant nor probable cause. Under Schneckloth v. Bustamonte (1973), voluntariness is judged by the totality of the circumstances, and police need not tell the person they may refuse. Factors include age, education, custody, threats or promises, and the number of officers. A false claim of authority, such as \"open up, we have a warrant,\" makes consent invalid because it is acquiescence, not choice.",
+    "Who can consent? A person with common authority over the premises can consent as to shared space, and the evidence found can be used against a co-occupant (United States v. Matlock, 1974). Police may also rely on apparent authority if they reasonably, though mistakenly, believe the person had it (Illinois v. Rodriguez, 1990). But when a physically present co-occupant expressly objects, another occupant's consent is ineffective as to that person (Georgia v. Randolph, 2006). If the objector has been lawfully removed, as by a valid arrest, the objection no longer controls (Fernandez v. California, 2014). A consenter may limit scope, and general consent to search a car allows opening containers where the item sought could be found (Florida v. Jimeno, 1991).",
+    "Exigent circumstances excuse the warrant requirement when a real emergency leaves no time to get one. Examples include hot pursuit of a fleeing felon (Warden v. Hayden, 1967), preventing imminent destruction of evidence, and rendering emergency aid to someone seriously injured or threatened (Brigham City v. Stuart, 2006). Kentucky v. King (2011) held that police do not create an impermissible exigency by knocking and announcing, as long as they do not violate or threaten to violate the Fourth Amendment. The Court rejected a categorical rule for misdemeanor pursuit (Lange v. California, 2021) and a broad community-caretaking exception for homes (Caniglia v. Strom, 2021). In Missouri v. McNeely (2013), natural dissipation of blood alcohol does not alone create a per se exigency.",
+    "Plain view allows seizure of an item if the officer is lawfully in the position from which it is viewed, has lawful access to it, and its incriminating character is immediately apparent, meaning probable cause. Horton v. California (1990) held that the discovery need not be inadvertent. Arizona v. Hicks (1987) shows the limit: moving a stereo to read its serial number was a separate search needing probable cause. Plain feel during a Terry frisk follows the same logic (Minnesota v. Dickerson, 1993).",
+    "Worked example: Lee shares a house with Morgan. Police knock, and Lee says Morgan is in the shower and invites them in to look at the shared living room. They see a bag of illegal firearms in plain view. Lee's common authority supports the entry, the lawful vantage point satisfies plain view, and the guns can be seized and used against Morgan, who was not present to object."
+   ]
+  },
+  {
+   "id": "law-crimpro.l05",
+   "title": "Stops, Frisks, and Arrests",
+   "body": [
+    "A seizure of a person occurs when an officer, by physical force or show of authority, restrains liberty. Under United States v. Mendenhall (1980) and Florida v. Bostick (1991), a consensual encounter becomes a seizure when a reasonable person would not feel free to decline the officer's requests or otherwise terminate the encounter. California v. Hodari D. (1991) added that a seizure by show of authority requires actual submission; a fleeing suspect is not seized until caught. Torres v. Madrid (2021) held that the application of physical force with intent to restrain is a seizure even if the person escapes.",
+    "The Fourth Amendment sorts encounters into tiers. A consensual conversation needs no justification. A brief investigative detention, a Terry stop (Terry v. Ohio, 1968), requires reasonable suspicion, meaning specific and articulable facts that criminal activity is afoot. It is less than probable cause and more than a hunch. A frisk, a pat-down of outer clothing, requires an additional reasonable belief that the person is armed and dangerous, and it is limited to a search for weapons. If the officer feels an object whose contour makes its identity immediately apparent as contraband, it may be seized (Minnesota v. Dickerson, 1993), but squeezing or manipulating it goes too far. An arrest requires probable cause.",
+    "Tips and flight are recurring issues. An anonymous tip that lacks predictive detail, such as a bare report that a person is carrying a gun, does not by itself supply reasonable suspicion (Florida v. J.L., 2000), but a 911 call with eyewitness detail and contemporaneous reporting can (Navarette v. California, 2014). Headlong flight upon seeing police, in a high-crime area, may contribute to reasonable suspicion (Illinois v. Wardlow, 2000).",
+    "Traffic stops are seizures of the driver and every passenger (Brendlin v. California, 2007). Probable cause or reasonable suspicion of a traffic violation justifies the stop, and the officer's actual motive is irrelevant (Whren v. United States, 1996). Reasonable mistakes of law can still support a stop (Heien v. North Carolina, 2014). Police may order the driver and passengers out of the car (Pennsylvania v. Mimms, 1977; Maryland v. Wilson, 1997) and frisk a passenger with reasonable suspicion of armed danger (Arizona v. Johnson, 2009). The stop may last only as long as needed to handle the mission of the stop; Rodriguez v. United States (2015) held that extending it, even briefly, to conduct a dog sniff without reasonable suspicion is unlawful.",
+    "Arrest rules: probable cause suffices for a warrantless custodial arrest even for a minor offense punishable only by a fine (Atwater v. City of Lago Vista, 2001). Moving a suspect to the station for questioning without probable cause is an arrest (Dunaway v. New York, 1979). After a warrantless arrest, a prompt judicial determination of probable cause is required, presumptively within 48 hours (Gerstein v. Pugh, 1975; County of Riverside v. McLaughlin, 1991).",
+    "Worked example: an officer sees Jo walking at night near a closed store where a burglary alarm just sounded. Jo ducks into an alley. That alone is thin, but combined with the time, the alarm, and furtive movement it may support reasonable suspicion to stop and ask questions. A frisk would need a further basis to think Jo is armed."
+   ]
+  },
+  {
+   "id": "law-crimpro.l06",
+   "title": "The Exclusionary Rule",
+   "body": [
+    "The exclusionary rule bars the prosecution from using evidence obtained in violation of the Constitution in its case-in-chief. Weeks v. United States (1914) applied it in federal court, and Mapp v. Ohio (1961) applied it to the states. The Court today justifies the rule mainly as a deterrent of police misconduct, not as a personal right of the defendant, which is why it is not automatic. The Court has said suppression is a last resort whose costs, releasing possibly guilty people, must be outweighed by deterrence benefits.",
+    "The rule reaches derivative evidence, the fruit of the poisonous tree (Wong Sun v. United States, 1963). The question is whether the evidence was obtained by exploitation of the illegality or by means sufficiently distinguishable to purge the taint. Three exceptions limit fruits. Independent source: evidence also obtained through a genuinely separate lawful path is admissible (Murray v. United States, 1988). Inevitable discovery: evidence that would inevitably have been found lawfully is admissible (Nix v. Williams, 1984). Attenuation: the causal chain is broken by intervening events, judged by the factors of Brown v. Illinois (1975), namely time elapsed, intervening circumstances, and the purpose and flagrancy of the misconduct. In Utah v. Strieff (2016), discovery of a valid, preexisting arrest warrant after an unlawful stop attenuated the taint of the stop.",
+    "The good-faith exception from United States v. Leon (1984) admits evidence obtained by officers acting in objectively reasonable reliance on a facially valid warrant later found unsupported. It does not apply if the affiant misled the magistrate, the magistrate abandoned the neutral role, the affidavit was so lacking in probable cause that belief in it was unreasonable, or the warrant was facially deficient. Related cases extend good faith to reliance on statutes later struck down (Illinois v. Krull, 1987), court-clerk errors (Arizona v. Evans, 1995), isolated police negligence in recordkeeping (Herring v. United States, 2009), and binding appellate precedent later overruled (Davis v. United States, 2011).",
+    "Who may invoke the rule? Fourth Amendment rights are personal, so a defendant must have a legitimate expectation of privacy in the place searched or the item seized (Rakas v. Illinois, 1978). A passenger without a possessory interest usually cannot challenge a car search, though can challenge the stop that detained him. An unauthorized driver of a rental car is not automatically without standing (Byrd v. United States, 2018).",
+    "Where the rule does not apply: grand jury proceedings (United States v. Calandra, 1974), civil deportation hearings (INS v. Lopez-Mendoza, 1984), and parole revocation (Pennsylvania Board of Probation and Parole v. Scott, 1998). Illegally seized evidence may impeach a defendant's own testimony (United States v. Havens, 1980). Federal habeas review of Fourth Amendment claims is generally barred if the state provided a full and fair opportunity to litigate (Stone v. Powell, 1976).",
+    "Worked example: police unlawfully enter Ray's home and see a ledger, then use what they saw to apply for a warrant. Under Murray, if officers would have sought the warrant anyway on independent information and the unlawful entry did not affect their decision or the magistrate's, the evidence found under the warrant may be admitted."
+   ]
+  },
+  {
+   "id": "law-crimpro.l07",
+   "title": "Miranda v. Arizona",
+   "body": [
+    "The Fifth Amendment says no person \"shall be compelled in any criminal case to be a witness against himself.\" Miranda v. Arizona (1966) held that the inherently compelling pressures of custodial interrogation require procedural safeguards. Statements from custodial interrogation are inadmissible in the prosecution's case-in-chief unless the suspect was warned of the right to remain silent, that anything said can be used in court, the right to consult counsel before and during questioning, and the right to appointed counsel if indigent. Dickerson v. United States (2000) held that Miranda is a constitutional rule that Congress cannot overrule by statute.",
+    "Miranda applies only if both custody and interrogation are present. Custody means a formal arrest or restraint of the degree associated with arrest, judged by whether a reasonable person would feel free to terminate the encounter and leave. Ordinary traffic stops are not custody (Berkemer v. McCarty, 1984). The suspect's age is relevant for juveniles (J.D.B. v. North Carolina, 2011). Interrogation means express questioning or its functional equivalent, words or actions police should know are reasonably likely to elicit an incriminating response (Rhode Island v. Innis, 1980). Volunteered statements are not covered.",
+    "Waiver must be knowing, intelligent, and voluntary. It need not be express: Berghuis v. Thompkins (2010) held that a suspect who understood the warnings and then answered questions impliedly waived, and that invoking silence requires an unambiguous statement. Likewise, a request for counsel must be unambiguous, so \"maybe I should talk to a lawyer\" does not require police to stop (Davis v. United States, 1994). Once a suspect clearly invokes the right to counsel, Edwards v. Arizona (1981) bars further interrogation until counsel is made available or the suspect himself initiates further communication. Maryland v. Shatzer (2010) permits resumed questioning after a 14-day break in custody. Police need not tell a suspect that a lawyer has arrived to speak with him (Moran v. Burbine, 1986).",
+    "Exceptions and limits include public safety (New York v. Quarles, 1984), when questions are aimed at an immediate threat, and undercover agents (Illinois v. Perkins, 1990), because a suspect who does not know he is speaking to police feels no coercion. Statements taken in violation of Miranda can still impeach the defendant's testimony if voluntary (Harris v. New York, 1971). Physical fruits of an unwarned but voluntary statement are admissible (United States v. Patane, 2004). A deliberate two-step, questioning first without warnings, then warning and repeating, makes the second statement inadmissible (Missouri v. Seibert, 2004), though a good-faith unwarned slip does not taint a later warned confession (Oregon v. Elstad, 1985). Vega v. Tekoh (2022) held that a Miranda violation does not support a damages action under 42 U.S.C. section 1983.",
+    "Worked example: an officer questions Lin at a roadside after a routine stop, then arrests him and continues without warnings. The roadside answers fall outside Miranda for lack of custody, but the post-arrest answers are inadmissible in the case-in-chief and usable only to impeach."
+   ]
+  },
+  {
+   "id": "law-crimpro.l08",
+   "title": "Voluntariness, Massiah, and the Privilege",
+   "body": [
+    "Miranda is not the only constraint on confessions. The Due Process Clauses bar involuntary confessions regardless of warnings. Voluntariness turns on the totality of circumstances, including the suspect's age, intelligence, the length of questioning, and any threats, promises, or physical or psychological pressure. Colorado v. Connelly (1986) held that coercive police activity is a necessary predicate to finding a confession involuntary, so a mentally ill man's confession prompted by internal voices was not excluded. Deception by police is not automatically coercive (Frazier v. Cupp, 1969), though it counts in the totality. A coerced confession is subject to harmless-error analysis (Arizona v. Fulminante, 1991), and an involuntary statement cannot be used even to impeach.",
+    "The Sixth Amendment provides a separate protection. The right to counsel attaches at the initiation of adversary judicial proceedings: formal charge, preliminary hearing, indictment, information, or arraignment (Kirby v. Illinois, 1972; Rothgery v. Gillespie County, 2008, holding that attachment occurs at the initial appearance before a magistrate). After attachment, police cannot deliberately elicit statements from the accused outside counsel's presence without a valid waiver (Massiah v. United States, 1964), including through an informant. Brewer v. Williams (1977) applied it to the \"Christian burial speech\" given to an arraigned suspect in a police car. Unlike Miranda, the Sixth Amendment right is offense-specific (Texas v. Cobb, 2001), covering the charged offense and its legal equivalents under the Blockburger test. Montejo v. Louisiana (2009) allows police to initiate questioning of a represented defendant who has not invoked the right, if the defendant validly waives after Miranda warnings. Massiah applies to deliberate elicitation, so a passive listening informant does not violate it.",
+    "The Fifth Amendment privilege itself covers only compelled, testimonial communications. Physical evidence is not testimonial: taking a blood sample (Schmerber v. California, 1966), a voice or handwriting exemplar, fingerprints, or a lineup appearance does not violate it. Whether an act of producing documents is testimonial depends on whether it implicitly communicates existence, possession, or authenticity (Fisher v. United States, 1976; United States v. Hubbell, 2000). The privilege covers any proceeding where an answer might incriminate, but a witness granted use and derivative use immunity can be compelled to testify (Kastigar v. United States, 1972). Statements compelled by threat of job loss cannot be used in a criminal case (Garrity v. New Jersey, 1967). The prosecution may not comment on a defendant's failure to testify at trial (Griffin v. California, 1965), and on request the jury must be told not to draw an adverse inference. Corporations and collective entities have no privilege.",
+    "Worked example: Terry is indicted for robbery and released. A police informant, wearing a wire, asks about the robbery, and Terry talks. The statements violate Massiah if the informant deliberately elicited them about the charged offense, even though Terry was not in custody and Miranda did not apply."
+   ]
+  },
+  {
+   "id": "law-crimpro.l09",
+   "title": "Double Jeopardy",
+   "body": [
+    "The Double Jeopardy Clause says no person shall \"be subject for the same offence to be twice put in jeopardy of life or limb.\" Incorporated against the states in Benton v. Maryland (1969), it protects against a second prosecution after acquittal, a second prosecution after conviction, and multiple punishments for the same offense in one proceeding. Its heart is finality: the government, with its resources, should not get repeated attempts to convict.",
+    "Attachment. Jeopardy attaches in a jury trial when the jury is empaneled and sworn (Crist v. Bretz, 1978), and in a bench trial when the first witness is sworn. A dismissal before attachment does not bar a new prosecution.",
+    "Same offense. Under Blockburger v. United States (1932), two offenses are different if each requires proof of an element the other does not. Conversely, a lesser included offense is the same as the greater offense (Brown v. Ohio, 1977), so conviction of one bars prosecution of the other. The Court rejected a broader same-conduct test in United States v. Dixon (1993). The Blockburger test controls successive prosecutions; in a single trial legislatures may authorize cumulative punishment for offenses that overlap, if clearly expressed.",
+    "Acquittal is final even if wrong. The government cannot appeal a jury acquittal, and a judge's acquittal on sufficiency grounds is equally final, even if based on a legal error (Evans v. Michigan, 2013). Ashe v. Swenson (1970) held that collateral estoppel is part of the guarantee: if a jury necessarily decided an issue for the defendant, such as identity, the government cannot relitigate that issue in a later trial for a different offense.",
+    "Retrial after conviction. A defendant who wins a reversal on appeal because of trial error may be retried (United States v. Ball, 1896). But if the appellate court reverses because the evidence was legally insufficient, retrial is barred, since that is the equivalent of acquittal (Burks v. United States, 1978). A reversal based on the weight of the evidence is different and allows retrial (Tibbs v. Florida, 1982).",
+    "Mistrials. A mistrial declared at the defendant's request or with consent generally does not bar retrial. If declared over objection, retrial is allowed only if there was manifest necessity, such as a hung jury (Arizona v. Washington, 1978). If the prosecutor intentionally provokes a defense mistrial to avoid an acquittal, retrial is barred (Oregon v. Kennedy, 1982).",
+    "Separate sovereigns. Two governments with independent sources of authority may each prosecute for the same conduct. Gamble v. United States (2019) reaffirmed the dual-sovereignty doctrine for state and federal prosecutions, and Puerto Rico and tribal cases turn on the source of authority. Many states by statute or constitution restrict successive prosecutions. The Clause covers criminal punishment only; civil penalties generally do not trigger it unless so punitive in effect that they are criminal (Hudson v. United States, 1997).",
+    "Worked example: the state acquits Ryan of murder, then the federal government charges him with violating the victim's civil rights based on the same killing. Because the sovereigns are separate, the Clause does not bar the federal case, although Ashe may block relitigating an issue if the identical sovereign were involved."
+   ]
+  },
+  {
+   "id": "law-crimpro.l10",
+   "title": "Charging, Initial Appearance, and Bail",
+   "body": [
+    "The usual path begins with a complaint or arrest, then an initial appearance before a magistrate. There the defendant is informed of the charges and rights, counsel is appointed if needed, and bail is considered. If arrested without a warrant, the defendant is entitled to a prompt judicial determination of probable cause, generally within 48 hours (Gerstein v. Pugh, 1975; County of Riverside v. McLaughlin, 1991). It may be combined with the initial appearance.",
+    "Formal charging comes by indictment or information. The Fifth Amendment guarantees a grand jury indictment for federal capital or \"otherwise infamous\" crimes, but that guarantee is not incorporated against the states (Hurtado v. California, 1884), so many states use a prosecutor's information after a preliminary hearing instead. The grand jury, which in federal court has 16 to 23 members, meets in secret, receives evidence from the prosecutor, and decides whether there is probable cause. The defendant has no right to appear, to have counsel in the room, or to present evidence. The exclusionary rule does not apply (Calandra), hearsay is allowed (Costello v. United States, 1956), and the prosecutor has no constitutional duty to present exculpatory evidence (United States v. Williams, 1992). A grand jury subpoena may be challenged if unreasonable, and a witness may invoke the Fifth Amendment. Discrimination in selection of grand jurors by race requires reversal of a conviction (Vasquez v. Hillery, 1986).",
+    "A preliminary hearing, where used (Federal Rule of Criminal Procedure 5.1), tests probable cause before a magistrate with counsel, cross-examination, and hearsay generally allowed in many jurisdictions. A later indictment generally moots it. Arraignment follows: the defendant hears the charges and enters a plea. Pretrial motions to dismiss, suppress, or sever are then heard.",
+    "Bail. The Eighth Amendment says \"excessive bail shall not be required.\" It does not guarantee a right to bail. Stack v. Boyle (1951) held that bail set higher than is reasonably calculated to assure the defendant's appearance is excessive. United States v. Salerno (1987) upheld the Bail Reform Act of 1984, which permits pretrial detention of a defendant charged with serious crimes upon clear and convincing evidence that no conditions of release can reasonably assure community safety or appearance, after an adversarial hearing. Detention based on dangerousness is regulatory, not punishment. Federal law (18 U.S.C. section 3142) sets a preference for release on the least restrictive conditions and a rebuttable presumption of detention for certain drug and firearm offenses. Cash bail, risk assessment tools, and release without money have been reformed in many states, and approaches vary widely. Debate centers on public safety, the presumption of innocence, and the effect of money-based detention on poor defendants.",
+    "Worked example: police arrest Kira without a warrant on Friday night and hold her until Tuesday with no judicial review of probable cause. A 48-hour presumption makes the delay presumptively unreasonable, and the state must show a bona fide emergency or extraordinary circumstance."
+   ]
+  },
+  {
+   "id": "law-crimpro.l11",
+   "title": "Discovery and the Brady Obligation",
+   "body": [
+    "Criminal discovery is narrower than civil discovery. There is no general constitutional right to discovery (Weatherford v. Bursey, 1977). Instead, obligations come from the Due Process Clause, rules, and statutes.",
+    "Brady v. Maryland (1963) holds that the prosecution's suppression of evidence favorable to an accused, upon request, violates due process where the evidence is material either to guilt or to punishment, irrespective of good or bad faith. The Court later held that the duty exists with or without a request. Giglio v. United States (1972) extends it to impeachment evidence, such as a deal with a cooperating witness. A Brady violation has three parts (Strickler v. Greene, 1999): the evidence is favorable, either exculpatory or impeaching; it was suppressed by the state, willfully or inadvertently; and prejudice ensued, which means it was material.",
+    "Materiality is evaluated collectively. Evidence is material if there is a reasonable probability that, had it been disclosed, the result would have been different, which is less than a preponderance but enough to undermine confidence in the verdict (United States v. Bagley, 1985; Kyles v. Whitley, 1995). Kyles also held that the prosecutor has a duty to learn of favorable evidence known to others acting on the government's behalf, including police. Because materiality can be assessed only after the trial, the duty is often framed as one of disclosure, and prosecutors are expected to err toward disclosure. Many jurisdictions have adopted broader ethics and statutory rules than the constitutional minimum. The prosecution has no constitutional duty to disclose impeachment material before a guilty plea (United States v. Ruiz, 2002).",
+    "Beyond Brady: Federal Rule of Criminal Procedure 16 requires disclosure on request of the defendant's statements, prior record, documents and objects, and reports of examinations and tests, with reciprocal obligations on the defense. The Jencks Act (18 U.S.C. section 3500) requires production of a government witness's prior statements after the witness testifies. Reciprocal discovery from the defendant is limited by the Fifth Amendment but valid where it is fair (Wardius v. Oregon, 1973, requires reciprocity when notice of alibi is demanded). Failure to preserve evidence violates due process only if the police acted in bad faith as to potentially useful evidence (Arizona v. Youngblood, 1988).",
+    "Remedies include a new trial, a continuance, or dismissal in rare cases. Prosecutors enjoy absolute immunity from civil suits for trial advocacy conduct (Imbler v. Pachtman, 1976), and the Court has held that a district attorney's office is not liable for a single Brady violation absent a pattern (Connick v. Thompson, 2011), leaving professional discipline as a principal check.",
+    "Worked example: a state's key witness testified that he received no benefit for his testimony, but the prosecutor had promised in writing to dismiss his pending charge. After conviction the defense learns of it. The promise is Giglio material, and if there is a reasonable probability that the jury, knowing it, would have returned a different verdict, the conviction must be overturned."
+   ]
+  },
+  {
+   "id": "law-crimpro.l12",
+   "title": "Plea Bargaining",
+   "body": [
+    "Most criminal convictions in the United States, by widely cited estimates well over 90 percent in both federal and state courts, result from guilty pleas rather than trials. The Court has accepted plea bargaining as legitimate because it benefits the defendant, the prosecutor, and the court, while insisting on constitutional limits.",
+    "A guilty plea waives several constitutional rights: the privilege against self-incrimination, the right to a jury trial, and the right to confront witnesses (Boykin v. Alabama, 1969). The record must show that the plea is knowing, intelligent, and voluntary. Federal Rule of Criminal Procedure 11 requires the judge to personally address the defendant, confirm understanding of the charge, rights waived, and maximum and minimum penalties, and find a factual basis. A court may accept a plea even if the defendant maintains innocence where there is strong evidence of guilt (North Carolina v. Alford, 1970), and a nolo contendere plea admits no guilt in later civil actions. Under Rule 11, judges may not participate in plea negotiations.",
+    "Prosecutorial leverage is permitted. A prosecutor may offer a lesser charge or sentence recommendation in exchange for a plea (Brady v. United States, 1970). In Bordenkircher v. Hayes (1978), a prosecutor who warned a defendant that he would seek a habitual-offender indictment carrying life if the defendant refused a plea offer did not violate due process, because the threatened charge was supported by probable cause and the defendant was free to accept or reject. A vindictive increase in charges merely for exercising a right after a trial is different. Promises made as part of a plea must be honored: when a prosecutor breaks a promise, the defendant may be entitled to specific performance or withdrawal of the plea (Santobello v. New York, 1971).",
+    "Effective assistance applies. Counsel must advise accurately about direct consequences and, under Padilla v. Kentucky (2010), about clear deportation risks. Missouri v. Frye (2012) held that counsel must communicate formal plea offers, and Lafler v. Cooper (2012) held that bad advice causing rejection of a favorable plea can be prejudice, measured by a reasonable probability that the offer would have been accepted, accepted by the court, and led to a lesser sentence. The standard for challenging a plea is a reasonable probability that, but for counsel's error, the defendant would have gone to trial (Hill v. Lockhart, 1985; Lee v. United States, 2017). There is no right to a plea offer, and a defendant has no constitutional right to plead guilty to a particular charge.",
+    "Limits on use of pleas. Statements in plea discussions and withdrawn pleas are generally inadmissible (Federal Rule of Evidence 410 and Rule 11(f)), but defendants may waive that protection (United States v. Mezzanatto, 1995). Appeal waivers are common and generally enforceable. A guilty plea normally waives claims of pre-plea constitutional defects, but not a challenge to the government's power to prosecute at all, such as a claim that the statute is unconstitutional (Class v. United States, 2018).",
+    "Worked example: defense counsel fails to tell Mara about a prosecutor's formal offer of two years, and she later is convicted at trial and sentenced to six. Under Frye and Lafler, she can show deficient performance, and prejudice if she shows a reasonable probability she would have taken the deal, the court would have approved it, and the sentence would have been lower."
+   ]
+  },
+  {
+   "id": "law-crimpro.l13",
+   "title": "The Right to Counsel",
+   "body": [
+    "The Sixth Amendment guarantees that \"in all criminal prosecutions, the accused shall enjoy the right ... to have the Assistance of Counsel for his defence.\" Gideon v. Wainwright (1963) held that states must appoint counsel for indigent defendants charged with felonies, overruling Betts v. Brady. Argersinger v. Hamlin (1972) and Scott v. Illinois (1979) extended the right to any case in which actual imprisonment is imposed, so a defendant fined only has no right to appointed counsel. Alabama v. Shelton (2002) added that a suspended sentence that could later trigger imprisonment requires counsel.",
+    "The right attaches when adversary judicial proceedings begin (Rothgery v. Gillespie County, 2008) and applies at every critical stage, meaning a stage where the defendant's rights may be lost or prejudiced: arraignment (Hamilton v. Alabama, 1961), a preliminary hearing (Coleman v. Alabama, 1970), post-indictment lineups (United States v. Wade, 1967), plea negotiations, trial, and sentencing. It does not apply to pre-charge lineups (Kirby v. Illinois, 1972). On a first appeal as of right, due process and equal protection require counsel (Douglas v. California, 1963), but not for discretionary review (Ross v. Moffitt, 1974) or collateral attack (Pennsylvania v. Finley, 1987).",
+    "A defendant may choose to represent himself if the waiver is knowing and voluntary (Faretta v. California, 1975), but a court may appoint standby counsel over objection (McKaskle v. Wiggins, 1984) and may insist on counsel for a defendant competent to stand trial but too impaired to conduct a defense (Indiana v. Edwards, 2008). The right to counsel of choice, for a defendant with the means, is protected, and its erroneous denial is structural error (United States v. Gonzalez-Lopez, 2006), but there is no right to a particular appointed lawyer, and courts may disqualify counsel for serious conflicts (Wheat v. United States, 1988). The privacy of the attorney-client relationship also matters. In McCoy v. Louisiana (2018), counsel may not concede guilt over the client's clear objection, because choosing the objective of the defense belongs to the client.",
+    "Ineffective assistance. Strickland v. Washington (1984) requires a defendant to show (1) deficient performance, falling below an objective standard of reasonableness measured by prevailing professional norms, with a strong presumption that conduct was reasonable strategy, and (2) prejudice, a reasonable probability that, but for the error, the result would have been different. Both prongs are required, and a court may resolve the claim on prejudice alone. Prejudice is presumed in narrow situations: complete denial of counsel at a critical stage, counsel who entirely fails to test the prosecution's case (United States v. Cronic, 1984), or an actual conflict of interest that adversely affects performance (Cuyler v. Sullivan, 1980). Examples of deficient performance include failing to conduct any investigation of mitigating evidence (Wiggins v. Smith, 2003), and failing to file a requested appeal (Roe v. Flores-Ortega, 2000). Claims are often raised on collateral review because the trial record may not show counsel's reasons, and federal habeas review of them is doubly deferential.",
+    "Worked example: a lawyer in a capital case does not look at the client's records of childhood abuse, and the sentencing jury never hears any mitigating evidence. Under Strickland and Wiggins, the failure to investigate is not a reasoned strategic choice, and if there is a reasonable probability that at least one juror would have voted for a life sentence, relief is warranted."
+   ]
+  },
+  {
+   "id": "law-crimpro.l14",
+   "title": "Confrontation",
+   "body": [
+    "The Confrontation Clause gives the accused the right \"to be confronted with the witnesses against him.\" It guarantees face-to-face meeting at trial, an oath, observation of demeanor, and above all cross-examination. The Clause applies to the states (Pointer v. Texas, 1965).",
+    "For decades, Ohio v. Roberts (1980) allowed hearsay if it bore adequate \"indicia of reliability.\" Crawford v. Washington (2004) rejected that approach as unprincipled. Under Crawford, testimonial hearsay offered against a defendant is inadmissible unless the declarant is unavailable and the defendant had a prior opportunity to cross-examine. There, a wife's recorded statement to police describing the stabbing, implicating her husband, was testimonial and could not be admitted merely because a court thought it reliable. Reliability is no longer the test. Nontestimonial hearsay is regulated only by evidence law, not by the Clause (Davis v. Washington, 2006).",
+    "What is testimonial? Davis drew the line by primary purpose: statements to police in response to interrogation are nontestimonial when the primary purpose is to enable police to meet an ongoing emergency, and testimonial when the primary purpose is to establish past events relevant to later prosecution. Michigan v. Bryant (2011) applied it to a dying victim's statements about the shooter and found them nontestimonial. Ohio v. Clark (2015) held that a young child's statements to a teacher, in the course of detecting abuse, were not testimonial. Statements to friends, casual remarks, and business records are typically nontestimonial, while affidavits, custodial confessions, prior testimony, and formal statements to police are paradigms of testimonial statements.",
+    "Forensic reports. Melendez-Diaz v. Massachusetts (2009) held that sworn certificates of analysis identifying a substance as cocaine are testimonial, so the analyst must be available for cross-examination. Bullcoming v. New Mexico (2011) held that a surrogate analyst who did not conduct or observe the test cannot substitute for the author of a certified report. Williams v. Illinois (2012) produced no majority rationale, and in Smith v. Arizona (2024) the Court held that when an expert conveys an absent analyst's statements as the basis for the expert's opinion, and those statements are offered for their truth, the Clause applies, and the state may not avoid it by labeling them mere \"basis\" evidence.",
+    "Exceptions. A defendant who wrongfully procures a witness's unavailability forfeits confrontation (Giles v. California, 2008, requiring intent to prevent testimony, so a murder defendant's killing of the victim alone is not enough). A child witness may testify by one-way closed-circuit television upon a case-specific finding of necessity (Maryland v. Craig, 1990), though Coy v. Iowa (1988) invalidated a blanket screen rule. Cross-examination about bias is constitutionally protected (Davis v. Alaska, 1974), though judges may limit repetitious inquiry. In joint trials, a nontestifying codefendant's confession that expressly names the defendant cannot be admitted at the joint trial even with a limiting instruction (Bruton v. United States, 1968), but redacted confessions that do not obviously point to the defendant are permitted (Richardson v. Marsh, 1987). If the declarant testifies at trial and is subject to cross-examination, the Clause does not bar the prior statements.",
+    "Worked example: police arrive at a home after a call. A woman, now calm and in the kitchen, describes how her boyfriend hit her an hour earlier, and she signs an affidavit. She does not testify at trial. The primary purpose of the exchange was to establish past events, so the statements are testimonial and, absent prior cross-examination or forfeiture, inadmissible against him."
+   ]
+  },
+  {
+   "id": "law-crimpro.l15",
+   "title": "Jury Trial and Speedy Trial",
+   "body": [
+    "The jury right. The Sixth Amendment guarantees an impartial jury in criminal prosecutions, and Duncan v. Louisiana (1968) applied it to the states for serious offenses. Petty offenses, those with a maximum authorized penalty of six months or less, carry no jury right (Baldwin v. New York, 1970; Blanton v. City of North Las Vegas, 1989), unless additional statutory penalties make them serious.",
+    "Jury size and unanimity. Twelve is not constitutionally required. Williams v. Florida (1970) upheld six-person juries, but Ballew v. Georgia (1978) held five too few. Burch v. Louisiana (1979) required unanimity for six-person juries. For twelve-person juries, Apodaca v. Oregon (1972) tolerated nonunanimous verdicts, but Ramos v. Louisiana (2020) overruled it and held that the Sixth Amendment, as incorporated, requires a unanimous verdict to convict of a serious offense in state court. In Edwards v. Vannoy (2021) the Court held Ramos does not apply retroactively on federal collateral review.",
+    "The jury venire and selection. The jury pool must be drawn from a fair cross-section of the community (Taylor v. Louisiana, 1975; Duren v. Missouri, 1979), but the petit jury itself need not mirror the community. During voir dire, jurors may be removed for cause for bias, and each side has peremptory challenges. Batson v. Kentucky (1986) forbids peremptory strikes based on race, using a three-step framework: the opponent makes a prima facie showing of discrimination, the striking party gives a race-neutral explanation, and the court decides whether purposeful discrimination was shown. It was extended to gender (J.E.B. v. Alabama ex rel. T.B., 1994) and applies to the defense (Georgia v. McCollum, 1992). Flowers v. Mississippi (2019) emphasized the importance of context and the history of a prosecutor's strikes. In capital cases, jurors may be excluded for cause only if their views on capital punishment would prevent or substantially impair their duties (Wainwright v. Witt, 1985).",
+    "Judge versus jury. The Sixth Amendment requires that any fact increasing the maximum penalty, other than a prior conviction, be found by a jury beyond a reasonable doubt (Apprendi v. New Jersey, 2000), which applies to state sentencing schemes (Blakely v. Washington, 2004), to the federal guidelines, which became advisory (United States v. Booker, 2005), and to facts triggering mandatory minimums (Alleyne v. United States, 2013). Ring v. Arizona (2002) required that a jury find capital aggravating factors. Erlinger v. United States (2024) applied the principle to the question whether prior offenses were committed on separate occasions for purposes of the Armed Career Criminal Act.",
+    "Speedy trial. The Sixth Amendment right attaches at arrest or formal charge (United States v. Marion, 1971). Barker v. Wingo (1972) gave a balancing test with four factors: length of delay, reason for delay, the defendant's assertion of the right, and prejudice. Courts treat delays approaching a year as presumptively prejudicial triggers for analysis, and Doggett v. United States (1992) found a violation after an eight-and-a-half-year delay mostly attributable to government negligence even without specific proof of prejudice. The remedy is dismissal with prejudice (Strunk v. United States, 1973). The right does not apply to sentencing delay (Betterman v. Montana, 2016). The Speedy Trial Act of 1974 sets federal deadlines: an indictment within 30 days of arrest and trial within 70 days of indictment or first appearance, excluding specified periods. Pre-indictment delay is governed by due process and statutes of limitations (United States v. Lovasco, 1977).",
+    "Worked example: a prosecutor in a trial of a Black defendant strikes four of five Black venire members, explaining that they are \"too young.\" The record shows she did not strike young white jurors with similar profiles. A court applying Batson may find that the stated reason is pretextual."
+   ]
+  },
+  {
+   "id": "law-crimpro.l16",
+   "title": "The Eighth Amendment",
+   "body": [
+    "The Eighth Amendment provides: \"Excessive bail shall not be required, nor excessive fines imposed, nor cruel and unusual punishments inflicted.\" It is incorporated against the states. Courts interpret \"cruel and unusual\" in light of the \"evolving standards of decency that mark the progress of a maturing society\" (Trop v. Dulles, 1958), assessed with objective indicia such as state legislation and sentencing practice, plus the Court's own judgment.",
+    "Methods of punishment. Methods that are barbaric or involve the unnecessary infliction of pain are forbidden. Baze v. Rees (2008) and Glossip v. Gross (2015) upheld lethal injection protocols, and Bucklew v. Precythe (2019) held that a prisoner challenging a method must propose a feasible alternative that significantly reduces the risk of severe pain. The Court has also held that the Amendment bars punishing a status such as addiction (Robinson v. California, 1962), though it did not bar punishing public drunkenness (Powell v. Texas, 1968).",
+    "Proportionality in noncapital sentences. The Amendment has a narrow proportionality principle. Solem v. Helm (1983) struck down life without parole for a seventh nonviolent felony, but Harmelin v. Michigan (1991) upheld life without parole for possessing a large quantity of cocaine, and Ewing v. California (2003) and Lockyer v. Andrade (2003) upheld California's three-strikes sentences. The Court looks to the gravity of the offense and harshness of the penalty, and successful challenges are rare.",
+    "Capital punishment. This subject is contested, and the law and the debate should be kept separate. As a matter of current law, the death penalty is constitutional: Furman v. Georgia (1972) struck down arbitrary capital sentencing schemes, and Gregg v. Georgia (1976) upheld guided-discretion schemes with bifurcated trials, aggravating circumstances, and individualized sentencing. Mandatory death sentences are unconstitutional (Woodson v. North Carolina, 1976), and the sentencer must be permitted to consider any mitigating evidence (Lockett v. Ohio, 1978). Categorical exclusions have been recognized: nonhomicide offenses against individuals, including rape of an adult (Coker v. Georgia, 1977) and rape of a child (Kennedy v. Louisiana, 2008); persons with intellectual disability (Atkins v. Virginia, 2002; Hall v. Florida, 2014); offenders under 18 at the time of the offense (Roper v. Simmons, 2005); and those insane at the time of execution (Ford v. Wainwright, 1986). Defendants whose participation in a killing was minor are subject to an individual-culpability requirement (Enmund v. Florida, 1982; Tison v. Arizona, 1987).",
+    "Supporters stress retribution for the gravest crimes, the interests of victims' families, and democratic choice. Critics stress the risk of executing innocent people, uneven application by race, geography and quality of counsel, cost, and doubts about deterrence. A majority of states retain capital punishment by statute, but several have abolished it, and the situation changes, so current status should be checked.",
+    "Juveniles. Graham v. Florida (2010) bars life without parole for juveniles who did not commit homicide. Miller v. Alabama (2012) bars mandatory life without parole for juvenile homicide offenders, requiring individualized consideration of youth, and Montgomery v. Louisiana (2016) made it retroactive. Jones v. Mississippi (2021) held that a sentencer need not make a separate finding of permanent incorrigibility.",
+    "Conditions and fines. Prison officials violate the Amendment through deliberate indifference to serious medical needs (Estelle v. Gamble, 1976) or substantial risks of harm (Farmer v. Brennan, 1994), and Brown v. Plata (2011) upheld a population cap remedy for unconstitutional overcrowding. The Excessive Fines Clause bars fines grossly disproportional to the offense (United States v. Bajakajian, 1998), and was incorporated in Timbs v. Indiana (2019).",
+    "Worked example: a state mandates life without parole for any person convicted of murder, including a 16-year-old. Under Miller, a mandatory scheme with no chance to consider youth and attendant circumstances is unconstitutional as applied to the juvenile."
+   ]
+  },
+  {
+   "id": "law-crimpro.l17",
+   "title": "Special Needs, Borders, and Supervised Persons",
+   "body": [
+    "The Fourth Amendment's baseline is a warrant on probable cause. For some searches, the Court uses a general reasonableness balancing that weighs the intrusion on privacy against the government interest, and it sometimes dispenses with individualized suspicion. The key divider is purpose: searches serving ordinary crime control generally need individualized suspicion, while those serving \"special needs\" beyond normal law enforcement may not.",
+    "Administrative searches. Camara v. Municipal Court (1967) required warrants for housing inspections, but allowed them on a showing of reasonable legislative or administrative standards rather than probable cause of a violation. Closely regulated industries, such as liquor or firearms dealers and mines, may be inspected without warrants under a statute that is a constitutionally adequate substitute.",
+    "Schools and workplaces. In New Jersey v. T.L.O. (1985), school officials may search a student on reasonable suspicion rather than probable cause, if the search is reasonably related to the objective and not excessively intrusive. Safford Unified School District v. Redding (2009) held that a strip search for ibuprofen was unreasonable. Suspicionless drug testing is allowed for student athletes (Vernonia School District v. Acton, 1995) and for students in competitive extracurricular activities (Board of Education v. Earls, 2002), and for certain railway employees and customs officers in safety-sensitive jobs (Skinner v. Railway Labor Executives' Association, 1989; National Treasury Employees Union v. Von Raab, 1989). But the Court struck down testing of candidates for state office (Chandler v. Miller, 1997) and a hospital program that shared drug-test results with police (Ferguson v. City of Charleston, 2001) because its primary purpose was law enforcement.",
+    "Checkpoints. Fixed sobriety checkpoints are valid (Michigan Department of State Police v. Sitz, 1990), as are fixed immigration checkpoints near the border (United States v. Martinez-Fuerte, 1976). A roadblock whose primary purpose is general crime control, such as drug interdiction, is not (Indianapolis v. Edmond, 2000). An information-seeking checkpoint about a recent crime can be reasonable (Illinois v. Lidster, 2004).",
+    "Borders. Routine searches of persons and property at the border or its functional equivalent need no warrant or suspicion (United States v. Ramsey, 1977; United States v. Flores-Montano, 2004, upholding disassembly of a gas tank). Highly intrusive searches of the person, such as a body cavity search, require reasonable suspicion. Forensic searches of electronic devices at the border have divided the lower courts on what suspicion is required, and the Supreme Court has not resolved it.",
+    "Probation, parole, and arrestees. Probationers may be searched on reasonable suspicion when a condition of probation authorizes it (United States v. Knights, 2001). Parolees, who have a lesser expectation of privacy, may be searched without any suspicion (Samson v. California, 2006). Taking a DNA swab from persons arrested for serious offenses and brought to custody is a reasonable booking procedure (Maryland v. King, 2013).",
+    "Worked example: a high school vice principal receives a report that Ty was seen with a vape cartridge and searches his backpack. Under T.L.O. the search is reasonable at its inception if there are reasonable grounds to suspect a rule violation, and reasonable in scope if it matches the suspected violation. Searching his underwear for a cartridge would require much more."
+   ]
+  },
+  {
+   "id": "law-crimpro.l18",
+   "title": "Due Process at Trial",
+   "body": [
+    "In re Winship (1970) held that due process requires proof beyond a reasonable doubt of every fact necessary to constitute the charged crime. The presumption of innocence is a central principle, and the court must instruct the jury on it on request in appropriate cases (Taylor v. Kentucky, 1978). The state may not shift the burden on an element through a mandatory presumption (Sandstrom v. Montana, 1979), but may place the burden on the defendant to prove an affirmative defense that does not negate an element (Patterson v. New York, 1977), so the allocation depends on how the legislature defines the offense.",
+    "Sufficiency. A conviction violates due process if no rational trier of fact could have found guilt beyond a reasonable doubt, viewing the evidence in the light most favorable to the prosecution (Jackson v. Virginia, 1979). A trial judge may enter a judgment of acquittal under Federal Rule of Criminal Procedure 29, which, once granted, is final.",
+    "Competence and presence. A defendant must be competent to stand trial, meaning he has sufficient present ability to consult with counsel with a reasonable degree of rational understanding and a rational and factual understanding of the proceedings (Dusky v. United States, 1960). A state may not require the defendant to prove incompetence by clear and convincing evidence (Cooper v. Oklahoma, 1996). A defendant has a right to be present, but may forfeit it by disruptive conduct (Illinois v. Allen, 1970). Visible shackles are not allowed in front of a jury without case-specific justification (Deck v. Missouri, 2005), nor may the defendant be compelled to wear prison clothes (Estelle v. Williams, 1976).",
+    "Public trial and fairness. The Sixth Amendment guarantees a public trial, and closing a courtroom requires an overriding interest, narrowly tailored closure, and findings (Waller v. Georgia, 1984; Presley v. Georgia, 2010). Pervasive pretrial publicity can warrant change of venue, but the question is whether jurors can be impartial (Irvin v. Dowd, 1961; Skilling v. United States, 2010).",
+    "Defense rights. The defendant has a constitutional right to testify (Rock v. Arkansas, 1987), compulsory process to obtain witnesses (Washington v. Texas, 1967), and a meaningful opportunity to present a complete defense (Chambers v. Mississippi, 1973; Holmes v. South Carolina, 2006), though evidence rules that serve legitimate purposes are not invalid merely because they exclude defense evidence. The prosecution violates due process by knowingly using false testimony or failing to correct it (Napue v. Illinois, 1959).",
+    "Eyewitness identification. Due process bars admission of an identification produced by an unnecessarily suggestive police procedure only if, under the totality, the identification is not reliable, considering opportunity to view, attention, accuracy of the description, certainty, and time elapsed (Neil v. Biggers, 1972; Manson v. Brathwaite, 1977). Perry v. New Hampshire (2012) held that this inquiry applies only when police arranged the suggestive circumstances. Many jurisdictions give cautionary instructions on eyewitness reliability.",
+    "Harmless error. Most constitutional errors are subject to harmless-error review, requiring the state to prove beyond a reasonable doubt that the error did not contribute to the verdict (Chapman v. California, 1967). A small class of structural errors defeats the framework and requires automatic reversal, including complete denial of counsel, denial of counsel of choice, a biased judge, denial of a public trial, a defective reasonable-doubt instruction, and denial of self-representation. Some structural claims, when raised on direct review through a claim of ineffective assistance, still require a showing of prejudice (Weaver v. Massachusetts, 2017). Plain error review applies to unpreserved claims on appeal (Federal Rule of Criminal Procedure 52(b); United States v. Olano, 1993).",
+    "Worked example: an officer, in a showup shortly after a robbery, tells the victim, \"We caught the guy, is this him?\" The identification procedure was suggestive, but under Biggers and Brathwaite it is admissible if the victim had a good view in good light, gave a detailed prior description, and was certain."
+   ]
+  },
+  {
+   "id": "law-crimpro.l19",
+   "title": "Appeals, Preservation, and Finality",
+   "body": [
+    "There is no federal constitutional right to appeal a criminal conviction, but every state and the federal system provide one, and once provided it must be administered consistent with due process and equal protection. Griffin v. Illinois (1956) held that a state may not deny an indigent a transcript needed for appeal. Douglas v. California (1963) requires counsel on a first appeal as of right. When appointed counsel concludes that an appeal is frivolous, counsel must file a brief referring to anything in the record that arguably supports the appeal and request leave to withdraw, and the court then reviews the record (Anders v. California, 1967).",
+    "Mechanics. In federal court, a defendant ordinarily must file a notice of appeal within 14 days after entry of judgment (Federal Rule of Appellate Procedure 4(b)). State deadlines vary. The prosecution generally cannot appeal an acquittal but may appeal some pretrial rulings such as suppression orders (18 U.S.C. section 3731). Interlocutory appeals are limited, and the final-judgment rule normally means the defendant waits until sentencing, with narrow exceptions such as denials of double jeopardy motions.",
+    "Preservation. To obtain review, a party generally must make a timely, specific objection at trial and obtain a ruling. A motion to suppress must be made before trial (Federal Rule of Criminal Procedure 12). A failure to object forfeits the issue, and review then lies only for plain error: an error, that is plain or clear, that affects substantial rights, and that seriously affects the fairness, integrity, or public reputation of judicial proceedings (United States v. Olano, 1993). Waiver, the intentional relinquishment of a known right, bars review entirely. Appellate courts defer to trial findings of fact, applying clear error review, and review questions of law de novo. Evidentiary rulings are reviewed for abuse of discretion.",
+    "Standards of reversal. A preserved constitutional error triggers Chapman's harmless-beyond-a-reasonable-doubt standard, with the state bearing the burden. Nonconstitutional errors are harmless if they did not have a substantial influence on the outcome (Kotteakos v. United States, 1946). Insufficient evidence leads to acquittal, while trial error leads to a new trial. Appeal waivers contained in plea agreements are generally enforceable.",
+    "Finality. Once direct review ends, either because the time to seek certiorari expires or the Court denies it, the judgment is final. Finality supports the retroactivity rules in habeas (Teague v. Lane, 1989) and the one-year habeas limitations period. The pressure of finality creates the tension between correcting error and preserving closure that the next lesson addresses. Collateral attack, such as a state postconviction petition, can raise claims that could not be raised earlier, such as ineffective assistance or newly discovered evidence, and most states have their own time limits and procedural bars. Executive clemency and pardons are a separate, discretionary path.",
+    "Worked example: a defendant who did not object when the prosecutor commented on his silence at trial raises the point for the first time on appeal. Review is for plain error. Griffin v. California makes the comment error, and it is plain, but the defendant must also show that it affected his substantial rights, usually by showing a reasonable probability of a different result."
+   ]
+  },
+  {
+   "id": "law-crimpro.l20",
+   "title": "Habeas Corpus",
+   "body": [
+    "Habeas corpus, \"you have the body,\" is the writ by which a court tests the lawfulness of detention. The Constitution protects it in the Suspension Clause (Article I, section 9), and Boumediene v. Bush (2008) applied it to detainees held at Guantanamo Bay. In criminal practice the main vehicles are 28 U.S.C. section 2254, which lets federal courts review the custody of state prisoners, and section 2255, which lets federal prisoners attack their sentence in the sentencing court. The petitioner must be \"in custody,\" which includes parole and probation, and must allege a violation of federal law.",
+    "AEDPA. The Antiterrorism and Effective Death Penalty Act of 1996 sharply restricted habeas. It sets a one-year limitation period, running generally from the date the judgment becomes final, tolled during pending state postconviction review. It limits second or successive petitions and requires a certificate of appealability. Most important, section 2254(d) bars relief on any claim adjudicated on the merits in state court unless the state decision was contrary to, or an unreasonable application of, clearly established federal law as determined by the Supreme Court, or was based on an unreasonable determination of the facts (Williams v. Taylor, 2000). Only Supreme Court holdings, not lower-court decisions, count as clearly established law. \"Unreasonable\" means more than incorrect: Harrington v. Richter (2011) held that relief is available only where there is no possibility fairminded jurists could disagree that the state court's decision conflicts with Supreme Court precedent, and that the standard applies even to a summary denial without opinion. Review of the facts is limited to the record before the state court (Cullen v. Pinholster, 2011).",
+    "Exhaustion and procedural default. A petitioner must first present claims to the state courts (28 U.S.C. section 2254(b); Rose v. Lundy, 1982). If a claim was not properly presented and state remedies are now barred, it is procedurally defaulted, and a federal court may reach it only upon showing cause and prejudice (Wainwright v. Sykes, 1977; Coleman v. Thompson, 1991) or a fundamental miscarriage of justice, meaning a credible showing of actual innocence (Schlup v. Delo, 1995; McQuiggin v. Perkins, 2013). Martinez v. Ryan (2012) created a narrow equitable exception for defaults caused by ineffective postconviction counsel on trial-ineffectiveness claims, which Shinn v. Ramirez (2022) sharply limited by restricting new evidence.",
+    "Other limits. Fourth Amendment exclusionary claims are not cognizable if the state gave a full and fair chance to litigate them (Stone v. Powell, 1976). New rules of criminal procedure generally do not apply retroactively to final convictions (Teague v. Lane, 1989), except for substantive rules and, in theory, watershed rules of fundamental fairness, a category the Court has said is effectively empty (Edwards v. Vannoy, 2021). On trial-type errors, the petitioner must show a substantial and injurious effect on the verdict (Brecht v. Abrahamson, 1993). A freestanding claim of actual innocence has not been recognized by the Court as a basis for relief in a noncapital case (Herrera v. Collins, 1993, assuming without deciding for a capital case).",
+    "Contested policy. Proponents of AEDPA's limits stress finality, federalism, respect for state courts, and the burden on victims of repeated litigation. Critics stress that federal courts are an important check on constitutional violations and wrongful convictions, and that procedural rules sometimes block meritorious claims.",
+    "Worked example: a state prisoner whose conviction became final in January files a federal petition 18 months later alleging that his lawyer failed to investigate. No state petition was pending. The petition is likely time-barred under the one-year period unless equitable tolling or a statutory exception applies, and the court would not reach the merits."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-crimpro.l01.q1",
+   "lessonId": "law-crimpro.l01",
+   "kind": "mcq",
+   "prompt": "Which test did United States v. Jones (2012) rely on when it held that attaching a GPS device to a car was a search?",
+   "choices": [
+    "A reasonable expectation of privacy in the car's public movements over a short trip",
+    "A balancing of the intrusion against the government's need for the information",
+    "A requirement that the technology used was not in general public use",
+    "A physical intrusion on a protected effect for the purpose of obtaining information"
+   ]
+  },
+  {
+   "id": "law-crimpro.l01.q2",
+   "lessonId": "law-crimpro.l01",
+   "kind": "mcq",
+   "prompt": "Officers bring a trained drug-detection dog onto the enclosed front porch of a suspect's house and the dog alerts at the door. Under the Court's case law, this is most likely:",
+   "choices": [
+    "Not a search, because the porch is visible from the street and any visitor may walk up and knock",
+    "A search only if the handler lacked reasonable suspicion that drugs were inside before bringing the dog up",
+    "A search, because the porch is curtilage and the implied license to approach does not cover this",
+    "Not a search, because a dog sniff reveals only contraband, so no legitimate privacy interest is invaded"
+   ]
+  },
+  {
+   "id": "law-crimpro.l01.q3",
+   "lessonId": "law-crimpro.l01",
+   "kind": "mcq",
+   "prompt": "What did Carpenter v. United States (2018) decide?",
+   "choices": [
+    "Cell-site records are protected only if the user took affirmative steps to disable location services before the data was generated",
+    "Acquiring seven or more days of historical cell-site location records is generally a search requiring a warrant",
+    "The third-party doctrine was abolished, so no business record is ever available to police without a warrant",
+    "Real-time tracking of a phone is always a search, but historical location records held by carriers never are"
+   ]
+  },
+  {
+   "id": "law-crimpro.l01.q4",
+   "lessonId": "law-crimpro.l01",
+   "kind": "mcq",
+   "prompt": "Without a warrant, an officer stands on a public sidewalk and aims a specialized thermal imager, not available to the general public, at Rowan's house. It reveals heat patterns suggesting grow lamps inside. Rowan moves to suppress the results. The most likely ruling is that the motion is:",
+   "choices": [
+    "Granted, because using sense-enhancing technology not in general public use to learn about the home's interior is a search",
+    "Denied, because the officer stood on a public sidewalk and observed only heat that radiated off the exterior of the house",
+    "Denied, because heat waste emitted from a house is voluntarily exposed to the public in the same way as trash left at the curb",
+    "Granted, but only if the imager revealed intimate details of the home such as the people present or their private activities"
+   ]
+  },
+  {
+   "id": "law-crimpro.l01.q5",
+   "lessonId": "law-crimpro.l01",
+   "kind": "mcq",
+   "prompt": "A bank teller, acting entirely on her own after noticing suspicious activity, copies a customer's private letters from a safe-deposit box and mails them to the police. The police read them without a warrant. The customer moves to suppress. The most likely outcome is that the motion is:",
+   "choices": [
+    "Granted, because the contents of sealed letters carry a reasonable expectation of privacy against all intrusions",
+    "Granted, because police acquisition of private papers requires a warrant even when a private party supplied them",
+    "Denied, because the third-party doctrine strips protection from anything stored at a bank",
+    "Denied, because the teller's private search is not state action and the police may examine what she revealed"
+   ]
+  },
+  {
+   "id": "law-crimpro.l02.q1",
+   "lessonId": "law-crimpro.l02",
+   "kind": "mcq",
+   "prompt": "What standard of proof does probable cause represent for a search warrant?",
+   "choices": [
+    "A fair probability that contraband or evidence will be found in the place to be searched",
+    "A preponderance of the evidence that the suspect committed the crime under investigation",
+    "Clear and convincing evidence that the items sought are inside the place to be searched",
+    "Proof beyond a reasonable doubt that a crime occurred and that evidence is on the premises"
+   ]
+  },
+  {
+   "id": "law-crimpro.l02.q2",
+   "lessonId": "law-crimpro.l02",
+   "kind": "mcq",
+   "prompt": "A defendant claims that the affidavit for a search warrant contained a false statement. To obtain a Franks hearing the defendant must make a substantial preliminary showing that:",
+   "choices": [
+    "The magistrate failed to independently verify each factual assertion in the affidavit before issuing the warrant",
+    "The affiant knowingly or recklessly included a false statement that was necessary to probable cause",
+    "The affiant made an honest but negligent factual error that the defense can show was material to the warrant",
+    "The informant who supplied the tip was unreliable, even though the affiant honestly relayed what the informant said"
+   ]
+  },
+  {
+   "id": "law-crimpro.l02.q3",
+   "lessonId": "law-crimpro.l02",
+   "kind": "mcq",
+   "prompt": "Officers who executed a valid warrant for Apartment 3A in a building with two apartments on the third floor entered 3B by reasonable mistake and found contraband. The evidence is most likely:",
+   "choices": [
+    "Inadmissible, because a mistaken entry onto the wrong unit is always an unreasonable execution of the warrant",
+    "Admissible, but only if the officers obtained a second warrant for 3B before examining the contraband",
+    "Admissible, because the warrant was valid when issued and the mistake was objectively reasonable",
+    "Inadmissible, because the warrant described only Apartment 3A and was therefore void as to the unit entered"
+   ]
+  },
+  {
+   "id": "law-crimpro.l02.q4",
+   "lessonId": "law-crimpro.l02",
+   "kind": "mcq",
+   "prompt": "A confidential informant, reliable on four prior occasions, tells Detective Voss that Alvarez keeps stolen jewelry in his garage, giving no basis for knowing this. Voss drives by and confirms only that Alvarez has a garage and a car matching the informant's description parked there, details anyone could observe. Voss obtains a warrant. The warrant is most likely:",
+   "choices": [
+    "Valid, because an informant with a record of reliability on prior tips always satisfies probable cause by that record alone",
+    "Invalid, because Illinois v. Gates requires every tip to be corroborated by a second independent informant before issuance",
+    "Valid, because a magistrate finding of probable cause receives deference and cannot be reviewed by any later court",
+    "Open to challenge, because the corroboration confirmed only innocent, public details and nothing about criminal activity"
+   ]
+  },
+  {
+   "id": "law-crimpro.l02.q5",
+   "lessonId": "law-crimpro.l02",
+   "kind": "mcq",
+   "prompt": "Police execute a valid search warrant and, in violation of the knock-and-announce rule and without justification, burst in unannounced and seize cocaine named in the warrant. Under current Supreme Court law, the defendant's motion to suppress should be:",
+   "choices": [
+    "Denied, because violation of the knock-and-announce rule does not trigger the exclusionary remedy",
+    "Granted, because the manner of entry makes the whole search unreasonable and the evidence its fruit",
+    "Granted, only if the unannounced entry led the defendant to destroy some of the evidence",
+    "Denied, because knock-and-announce is a state-law rule and has no constitutional basis"
+   ]
+  },
+  {
+   "id": "law-crimpro.l03.q1",
+   "lessonId": "law-crimpro.l03",
+   "kind": "mcq",
+   "prompt": "Under Payton v. New York, police generally need what to enter a suspect's own home to make a routine felony arrest?",
+   "choices": [
+    "Consent from a neighbor or landlord who knows the suspect lives there",
+    "An arrest warrant and reason to believe the suspect is inside",
+    "Probable cause alone, since felony arrests never require a warrant",
+    "A search warrant describing any evidence that the home may hold"
+   ]
+  },
+  {
+   "id": "law-crimpro.l03.q2",
+   "lessonId": "law-crimpro.l03",
+   "kind": "mcq",
+   "prompt": "Officers lawfully arrest Pat for a drug sale and seize his smartphone from his pocket. Without a warrant, an officer scrolls through the phone's photos. Under Riley v. California, this search is:",
+   "choices": [
+    "Impermissible without a warrant or another exception, because phone data poses no physical danger to officers",
+    "Permissible as a search incident to arrest, because the phone was within his reach and on his person when it was seized",
+    "Permissible if the officer reasonably suspects the photos contain evidence related to the drug sale",
+    "Permissible, because a smartphone is a container like a wallet or cigarette pack found on an arrestee"
+   ]
+  },
+  {
+   "id": "law-crimpro.l03.q3",
+   "lessonId": "law-crimpro.l03",
+   "kind": "mcq",
+   "prompt": "Officers have probable cause to believe that a parked sedan contains stolen electronics somewhere inside. Without a warrant they open the trunk and a duffel bag. Under the automobile exception this search is:",
+   "choices": [
+    "Unlawful, because each container needs its own separate, independent probable cause aimed specifically at that particular container",
+    "Lawful only if the owner is absent and the sedan is parked on a public street rather than private property",
+    "Unlawful, because the exception reaches only the passenger compartment and never the trunk or closed bags",
+    "Lawful, because the exception covers any part of the vehicle and any container where the items could be found"
+   ]
+  },
+  {
+   "id": "law-crimpro.l03.q4",
+   "lessonId": "law-crimpro.l03",
+   "kind": "mcq",
+   "prompt": "Officers stop a car for speeding and arrest the driver, Quinn, for driving on a suspended license. They handcuff him, put him in a patrol car, and search the passenger compartment, where they find a pistol under the seat. They had no other suspicion. Quinn's best argument for suppression is that:",
+   "choices": [
+    "The automobile exception requires a warrant whenever the driver has already been arrested and secured",
+    "The pistol was concealed under the seat and therefore could not be seized under the plain view doctrine",
+    "He was secured and not within reaching distance, and evidence of a suspended license is unlikely to be inside the car",
+    "Handcuffing him made the later search of the car an unconstitutional general search, regardless of any other facts in the record"
+   ]
+  },
+  {
+   "id": "law-crimpro.l03.q5",
+   "lessonId": "law-crimpro.l03",
+   "kind": "mcq",
+   "prompt": "Police impound a car after the driver is arrested for DUI and, following a written department policy requiring inventory of every impounded vehicle, open a closed backpack and find drugs. The strongest basis for admitting the drugs is that:",
+   "choices": [
+    "Closed containers lose Fourth Amendment protection once a vehicle has been lawfully impounded by police",
+    "A routine inventory under standardized procedures is not an investigative search and the policy was not a pretext to find evidence",
+    "A search incident to arrest allows officers to open any container belonging to the arrestee, including one left in a car, whether or not the policy mattered",
+    "The DUI arrest by itself supplied probable cause to believe more evidence of intoxication was inside the backpack"
+   ]
+  },
+  {
+   "id": "law-crimpro.l04.q1",
+   "lessonId": "law-crimpro.l04",
+   "kind": "mcq",
+   "prompt": "Under Schneckloth v. Bustamonte, which statement about consent searches is correct?",
+   "choices": [
+    "Consent is voluntary only if it is given in writing and the person has had a chance to consult a lawyer",
+    "Consent is invalid whenever the person is in custody at the time, because custody makes any consent coerced",
+    "Police need not inform the person of the right to refuse, and voluntariness is judged by the totality of the circumstances",
+    "Police must warn the person of the right to refuse consent, or the search is invalid under the Fourth Amendment, as with Miranda warnings before questioning"
+   ]
+  },
+  {
+   "id": "law-crimpro.l04.q2",
+   "lessonId": "law-crimpro.l04",
+   "kind": "mcq",
+   "prompt": "Police arrive at an apartment and, without a warrant, ask Riley for permission to search. Riley, who shares it with her roommate Sam, says yes. Sam, who is not present, would have said no. Evidence found in the shared living room is:",
+   "choices": [
+    "Inadmissible against Sam, because every resident with a possessory interest in the home must consent before any shared space is searched",
+    "Inadmissible, because the objection Sam would have voiced if asked overrides the consent of his co-tenant Riley",
+    "Admissible only if police first reached Sam by telephone and obtained his consent to the search of the shared room",
+    "Admissible against Sam, because a present co-occupant's consent is effective and an absent person's objection is irrelevant"
+   ]
+  },
+  {
+   "id": "law-crimpro.l04.q3",
+   "lessonId": "law-crimpro.l04",
+   "kind": "mcq",
+   "prompt": "An officer, lawfully inside a suspect's living room under a valid warrant for stolen laptops, sees what he immediately recognizes as a bag of cocaine on a table. He seizes it. Under Horton v. California the seizure is:",
+   "choices": [
+    "Valid, because plain view does not require that the discovery be inadvertent",
+    "Invalid, because the warrant did not list cocaine and the discovery must be inadvertent",
+    "Valid, only if the officer had not earlier planned to look for narcotics",
+    "Invalid, because plain view applies only to evidence seen from outside the home"
+   ]
+  },
+  {
+   "id": "law-crimpro.l04.q4",
+   "lessonId": "law-crimpro.l04",
+   "kind": "mcq",
+   "prompt": "Detectives with probable cause to arrest Cole for drug dealing knock on his apartment door and say, \"Police, open up.\" Hearing movement, they fear evidence is being destroyed and kick the door in. They find drugs. They had time to get a warrant but did not. Which is the strongest argument for the state?",
+   "choices": [
+    "Because the initial knock was lawful, the later forced entry is analyzed under the consent exception instead of exigency",
+    "The police did not create the exigency through an actual or threatened Fourth Amendment violation, so the entry was reasonable",
+    "Probable cause to arrest Cole for dealing, by itself, allowed the officers to enter his home without a warrant to search for evidence",
+    "Evidence-destruction exigencies need no objective basis and rest on the subjective belief of the officers at the scene alone"
+   ]
+  },
+  {
+   "id": "law-crimpro.l04.q5",
+   "lessonId": "law-crimpro.l04",
+   "kind": "mcq",
+   "prompt": "Officers lawfully present in a home investigating a burglary notice a stereo they suspect is stolen. To read its serial number they turn it over, confirm that it matches a stolen-goods report, and seize it. They had only a hunch before moving it. Under Arizona v. Hicks the stronger view is that:",
+   "choices": [
+    "The seizure is valid because the search of the home was lawful and the stereo sat in the same room as the burglary",
+    "The seizure is invalid only if the stereo was found inside a closed cabinet or container within the home",
+    "Moving the stereo was a separate search that needed probable cause, so the seizure is not justified by plain view",
+    "The seizure is valid because the stereo was in plain view and the officers were lawfully present in the home"
+   ]
+  },
+  {
+   "id": "law-crimpro.l05.q1",
+   "lessonId": "law-crimpro.l05",
+   "kind": "mcq",
+   "prompt": "What level of justification is required for a brief investigative stop under Terry v. Ohio?",
+   "choices": [
+    "Probable cause to believe the person stopped has committed, or is about to commit, a specific crime",
+    "An inchoate hunch of wrongdoing, which suffices for a brief detention so long as the stop stays short",
+    "A reasonable belief that the person is armed and dangerous, which is required before any stop may begin",
+    "Specific and articulable facts supporting reasonable suspicion that criminal activity is afoot"
+   ]
+  },
+  {
+   "id": "law-crimpro.l05.q2",
+   "lessonId": "law-crimpro.l05",
+   "kind": "mcq",
+   "prompt": "Officers in a patrol car shout \"Stop!\" at Ben on the sidewalk. Ben keeps running and drops a bag of drugs, then is caught two blocks later. Under California v. Hodari D., when was Ben seized?",
+   "choices": [
+    "Never, because a pursuit on a public street is not a seizure of any kind",
+    "Only when he was caught, because a show of authority is a seizure only if the person submits",
+    "When the officers shouted, because a reasonable person would not feel free to leave",
+    "When he dropped the bag, because abandonment shows he knew he was being pursued"
+   ]
+  },
+  {
+   "id": "law-crimpro.l05.q3",
+   "lessonId": "law-crimpro.l05",
+   "kind": "mcq",
+   "prompt": "An officer lawfully stops a car for a broken tail light and issues the warning. With no suspicion of drugs, he holds the driver another seven minutes until a canine unit arrives, and the dog alerts. Under Rodriguez v. United States this prolonged stop is:",
+   "choices": [
+    "Unlawful, only if the driver objected to the delay and expressly asked to be allowed to leave",
+    "Unlawful, because a stop may not be extended beyond the stop's mission without reasonable suspicion",
+    "Lawful, because a brief extension of a few minutes is a de minimis intrusion and a dog sniff is not a search",
+    "Lawful, because probable cause for the initial traffic violation lets the officer hold the car as long as needed"
+   ]
+  },
+  {
+   "id": "law-crimpro.l05.q4",
+   "lessonId": "law-crimpro.l05",
+   "kind": "mcq",
+   "prompt": "Officers receive an anonymous call that \"a man in a plaid shirt at the bus stop has a gun.\" They find a man matching the description, who is calm and does nothing unusual. They immediately frisk him and find a pistol. The call gave no information about future behavior. The motion to suppress should most likely be:",
+   "choices": [
+    "Granted, because a bare anonymous tip identifying a person without predictive detail does not supply reasonable suspicion",
+    "Denied, because any report that a person is carrying a firearm justifies an immediate frisk, regardless of how reliable the tipster is",
+    "Denied, because the officers confirmed that the man matched the description of his clothing and location in the tip",
+    "Granted, because a frisk that follows an anonymous tip requires probable cause that the person is armed, not mere suspicion"
+   ]
+  },
+  {
+   "id": "law-crimpro.l05.q5",
+   "lessonId": "law-crimpro.l05",
+   "kind": "mcq",
+   "prompt": "Deputy Cruz stops Maya's car for following too closely. He sees that Pete, a passenger, is nervous and, based on a reasonable belief that Pete is armed and dangerous, frisks him and finds a pistol. Pete is a felon. Pete moves to suppress, arguing that the stop was only about the driver. The likely outcome is:",
+   "choices": [
+    "Granted, because only the driver is seized during a traffic stop, so officers had no authority over the passenger at all",
+    "Granted, because frisking a passenger requires probable cause rather than reasonable suspicion, even when armed danger is believed",
+    "Denied, because a passenger has no standing to complain about any aspect of the stop or the frisk that followed",
+    "Denied, because passengers are seized during the stop and the frisk was supported by reasonable suspicion of armed danger"
+   ]
+  },
+  {
+   "id": "law-crimpro.l06.q1",
+   "lessonId": "law-crimpro.l06",
+   "kind": "mcq",
+   "prompt": "What does the fruit of the poisonous tree doctrine from Wong Sun v. United States address?",
+   "choices": [
+    "Suppression of evidence derived from an illegality, unless an exception such as attenuation applies",
+    "Suppression of only the item first seized unlawfully, with no reach to anything discovered afterward as a result",
+    "Admission of any evidence that police might have stumbled onto eventually, even without a causal link to the illegality",
+    "A bar on using tainted evidence to impeach a defendant who chooses to testify at his own trial"
+   ]
+  },
+  {
+   "id": "law-crimpro.l06.q2",
+   "lessonId": "law-crimpro.l06",
+   "kind": "mcq",
+   "prompt": "Police arrest Sol under a warrant later found invalid because the clerk's database was negligently not updated, and they find drugs in his pocket. Under Herring v. United States and related cases, the evidence is most likely:",
+   "choices": [
+    "Inadmissible, because the good-faith exception applies only to search warrants issued by magistrates",
+    "Admissible, because isolated negligence in recordkeeping is not sufficiently culpable to justify exclusion",
+    "Inadmissible, because any arrest on an invalid warrant violates the Fourth Amendment and requires suppression",
+    "Admissible, only if the clerk who erred was an employee of a court rather than the police"
+   ]
+  },
+  {
+   "id": "law-crimpro.l06.q3",
+   "lessonId": "law-crimpro.l06",
+   "kind": "mcq",
+   "prompt": "A judge issues a search warrant on an affidavit that states only that a confidential source \"believes\" the suspect sells drugs. The officers execute it in good faith and find drugs. Under Leon, the good-faith exception most likely:",
+   "choices": [
+    "Saves the evidence, because the officers did not themselves draft the affidavit and had no reason to doubt its source",
+    "Does not save the evidence, because Leon applies only to arrests made on a warrant and never to searches of premises",
+    "Does not save the evidence, because the affidavit was so lacking in indicia of probable cause that reliance was unreasonable",
+    "Saves the evidence, because the judge, not the officers, made the probable cause decision and officers may always rely on that"
+   ]
+  },
+  {
+   "id": "law-crimpro.l06.q4",
+   "lessonId": "law-crimpro.l06",
+   "kind": "mcq",
+   "prompt": "Officers unlawfully stop Dee, learn her name, and find that a court issued a valid arrest warrant for an unpaid fine a month earlier. They arrest her and find drugs in a search incident to the arrest. Applying Utah v. Strieff, the strongest argument for admission is that:",
+   "choices": [
+    "The officers acted in objectively reasonable reliance on binding appellate precedent authorizing the stop that was later overruled",
+    "The drugs would inevitably have been discovered through the ordinary process of serving the unrelated warrant on her",
+    "Dee lacks standing, because a person walking on a public street has no reasonable expectation of privacy at all",
+    "The preexisting warrant was an intervening circumstance and the stop was not flagrant misconduct, so the taint was attenuated"
+   ]
+  },
+  {
+   "id": "law-crimpro.l06.q5",
+   "lessonId": "law-crimpro.l06",
+   "kind": "mcq",
+   "prompt": "In a drug trial the court suppresses cocaine seized in an unlawful search of Hal's car. Hal then testifies, \"I have never touched drugs in my life.\" The prosecutor offers the suppressed cocaine to contradict him. The court should most likely:",
+   "choices": [
+    "Allow it for impeachment only, because the exclusionary rule does not give a defendant license to commit perjury",
+    "Exclude it entirely, because suppressed evidence may never be used against the defendant for any purpose at trial",
+    "Allow it as substantive evidence of guilt, because Hal opened the door to the whole subject of drugs by testifying",
+    "Exclude it, because the impeachment exception reaches only unwarned statements and never physical evidence"
+   ]
+  },
+  {
+   "id": "law-crimpro.l07.q1",
+   "lessonId": "law-crimpro.l07",
+   "kind": "mcq",
+   "prompt": "Miranda warnings are required before:",
+   "choices": [
+    "Any questioning that occurs after a formal charge has been filed, whether or not the person is in custody",
+    "Custodial interrogation by police where the statement will be used in the prosecution's case-in-chief",
+    "Any questioning by an officer of a person suspected of a crime, wherever the conversation takes place",
+    "Any custodial arrest, even when officers never ask the suspect a question or seek a statement afterward"
+   ]
+  },
+  {
+   "id": "law-crimpro.l07.q2",
+   "lessonId": "law-crimpro.l07",
+   "kind": "mcq",
+   "prompt": "After being read his rights, Quan says, \"Maybe I should talk to a lawyer.\" Officers keep asking questions and he confesses. Under Davis v. United States the confession is most likely:",
+   "choices": [
+    "Admissible, because the request for counsel was ambiguous and police were not required to stop",
+    "Inadmissible, because any mention of a lawyer requires officers to stop questioning immediately and permanently",
+    "Inadmissible, because police must first ask clarifying questions to learn what the suspect meant",
+    "Admissible, but only if Quan had previously spoken to a lawyer about some other pending case"
+   ]
+  },
+  {
+   "id": "law-crimpro.l07.q3",
+   "lessonId": "law-crimpro.l07",
+   "kind": "mcq",
+   "prompt": "A suspect in custody is read Miranda warnings, says he understands them, and sits silent through a three-hour interrogation before giving one incriminating answer. He never signed a waiver. Under Berghuis v. Thompkins the statement is most likely:",
+   "choices": [
+    "Inadmissible, because prolonged silence unambiguously invokes the right and any later statement must be suppressed",
+    "Inadmissible, because a signed written waiver is required before any custodial questioning may begin",
+    "Admissible, because Miranda protections lapse once an interview has run for a lengthy period of time",
+    "Admissible, because a knowing choice to answer after understanding the warnings can be an implied waiver"
+   ]
+  },
+  {
+   "id": "law-crimpro.l07.q4",
+   "lessonId": "law-crimpro.l07",
+   "kind": "mcq",
+   "prompt": "Detective Lowe arrests Nia for armed robbery and, without warnings, questions her for 40 minutes until she confesses. He then reads Miranda warnings and she repeats the confession, as part of a planned technique to get around the rule. Under Missouri v. Seibert the second statement is most likely:",
+   "choices": [
+    "Admissible, because under Elstad the first statement was voluntary and the second followed a valid waiver",
+    "Inadmissible, because the first unwarned confession was coerced and therefore involuntary under the Due Process Clause",
+    "Inadmissible, because a deliberate midstream warning would not let a suspect meaningfully choose whether to speak",
+    "Admissible, because a statement made after proper warnings is always voluntary and untainted by earlier questioning"
+   ]
+  },
+  {
+   "id": "law-crimpro.l07.q5",
+   "lessonId": "law-crimpro.l07",
+   "kind": "mcq",
+   "prompt": "An officer arrests Omar in a parking lot and, while Omar is handcuffed, asks, \"Where is the gun?\" because he saw an empty holster and children are nearby. Omar says, \"Under the van.\" No warnings were given. Omar moves to suppress. The best argument for admission is:",
+   "choices": [
+    "The Edwards rule permits police to question an arrestee about weapons at any time, warnings or not",
+    "The question was prompted by an immediate threat to public safety, which falls under the Quarles exception",
+    "Omar impliedly waived his rights by answering the question without objecting, so no warnings were needed beforehand",
+    "Because the question was asked without hostility or threats, it was not interrogation under Miranda"
+   ]
+  },
+  {
+   "id": "law-crimpro.l08.q1",
+   "lessonId": "law-crimpro.l08",
+   "kind": "mcq",
+   "prompt": "The Sixth Amendment right to counsel for purposes of Massiah attaches when:",
+   "choices": [
+    "A suspect first receives Miranda warnings at the station house before any interrogation begins",
+    "A grand jury begins investigating the case, even if no one has yet been charged or arraigned",
+    "Adversary judicial proceedings have begun, such as at a formal charge or initial appearance",
+    "A suspect is first questioned by police in any setting, whether or not that questioning is custodial"
+   ]
+  },
+  {
+   "id": "law-crimpro.l08.q2",
+   "lessonId": "law-crimpro.l08",
+   "kind": "mcq",
+   "prompt": "Which of the following is not protected by the Fifth Amendment privilege against self-incrimination?",
+   "choices": [
+    "Being compelled to testify that one committed a robbery",
+    "Being compelled to answer an unimmunized question at a grand jury",
+    "Being compelled to reveal the combination to a safe in one's memory",
+    "Being compelled to give a blood sample for chemical analysis"
+   ]
+  },
+  {
+   "id": "law-crimpro.l08.q3",
+   "lessonId": "law-crimpro.l08",
+   "kind": "mcq",
+   "prompt": "A court gives a witness use and derivative use immunity and orders him to testify before a grand jury. He refuses, citing the Fifth Amendment. Under Kastigar v. United States:",
+   "choices": [
+    "He may be compelled, because the immunity is coextensive with the privilege and bars use of the testimony and its fruits",
+    "He may not be compelled, because only transactional immunity is broad enough to fully replace the Fifth Amendment privilege",
+    "He may not be compelled, because a court order cannot override the Fifth Amendment privilege once it is asserted",
+    "He may be compelled, but the prosecutor remains free to use the testimony itself to prosecute him for the same events"
+   ]
+  },
+  {
+   "id": "law-crimpro.l08.q4",
+   "lessonId": "law-crimpro.l08",
+   "kind": "mcq",
+   "prompt": "Victor is indicted for bank fraud, appears at arraignment, and is released on bail. A police informant, equipped with a recorder, meets Victor and deliberately steers the conversation to the fraud, and Victor makes admissions. Victor was not in custody. At trial Victor moves to suppress the recording. The strongest basis is:",
+   "choices": [
+    "The recording was a Fourth Amendment search because Victor had a reasonable expectation that his words to a friend would stay private",
+    "The informant deliberately elicited statements about the charged offense after the Sixth Amendment right attached, without waiver",
+    "Victor was in custody when he spoke with the informant, so Miranda warnings were required before the conversation began",
+    "The informant's deception overbore Victor's will and rendered the statements involuntary under the Due Process Clause"
+   ]
+  },
+  {
+   "id": "law-crimpro.l08.q5",
+   "lessonId": "law-crimpro.l08",
+   "kind": "mcq",
+   "prompt": "Police arrest Gail on a burglary charge, she appears at arraignment, and she asserts her right to counsel. A day later detectives approach her in jail about an unrelated, uncharged murder, give her Miranda warnings, and she waives and confesses. On the murder, her statement is most likely:",
+   "choices": [
+    "Inadmissible, because an invocation of counsel at arraignment bars all later police contact about any crime",
+    "Admissible, because uncharged crimes are never covered by any right to counsel once the person has been read the warnings",
+    "Admissible as to the murder, because the Sixth Amendment right is offense-specific and Miranda waiver was valid",
+    "Inadmissible, because the right to counsel attached to every offense once it was invoked on any charge"
+   ]
+  },
+  {
+   "id": "law-crimpro.l09.q1",
+   "lessonId": "law-crimpro.l09",
+   "kind": "mcq",
+   "prompt": "Under the Blockburger test, two offenses are treated as different for double jeopardy purposes when:",
+   "choices": [
+    "They arise from a single course of conduct or one criminal episode",
+    "They were committed against the same victim on the same day",
+    "One offense is punished more severely than the other",
+    "Each statute requires proof of a fact that the other does not"
+   ]
+  },
+  {
+   "id": "law-crimpro.l09.q2",
+   "lessonId": "law-crimpro.l09",
+   "kind": "mcq",
+   "prompt": "A jury is sworn in Ed's robbery trial, but the judge dismisses the case over Ed's objection when the prosecutor's key witness cannot be found, with no showing of necessity. The state wants to retry Ed. The retrial is:",
+   "choices": [
+    "Permitted, because the dismissal was caused by a witness rather than a prosecutor",
+    "Barred, only if Ed had first asked the court for a mistrial",
+    "Barred, because jeopardy attached and there was no manifest necessity for the dismissal",
+    "Permitted, because a dismissal entered before any verdict leaves the case unresolved and open to retrial"
+   ]
+  },
+  {
+   "id": "law-crimpro.l09.q3",
+   "lessonId": "law-crimpro.l09",
+   "kind": "mcq",
+   "prompt": "Jan is convicted of burglary, but an appellate court reverses because the trial judge wrongly admitted a confession, and the other evidence was sufficient. May the state retry Jan?",
+   "choices": [
+    "Yes, but only on a lesser included offense of the burglary charge",
+    "Yes, because reversal for trial error does not bar a retrial",
+    "No, because conviction followed by reversal is equivalent to an acquittal",
+    "No, because the government has already had its one opportunity to convict"
+   ]
+  },
+  {
+   "id": "law-crimpro.l09.q4",
+   "lessonId": "law-crimpro.l09",
+   "kind": "mcq",
+   "prompt": "A jury acquits Lou of robbing a poker player, Pat, after the defense claimed Lou was not present. The jury necessarily decided that Lou was not one of the robbers. The state then charges Lou with robbing a second player in the same game by the same robbers. Lou raises double jeopardy. The best argument is that:",
+   "choices": [
+    "Collateral estoppel bars relitigating identity, which the first jury necessarily decided in his favor",
+    "Blockburger bars the second case because both offenses are robbery",
+    "The two offenses are the same because they arose from one poker game",
+    "The first acquittal made Lou immune from any further charge arising out of the same evening, whatever the victim or offense"
+   ]
+  },
+  {
+   "id": "law-crimpro.l09.q5",
+   "lessonId": "law-crimpro.l09",
+   "kind": "mcq",
+   "prompt": "A state jury acquits Cam of assaulting a federal officer under a state statute. Federal prosecutors later charge him under a federal statute for the same assault. Under current doctrine, Cam's double jeopardy challenge to the federal prosecution will most likely:",
+   "choices": [
+    "Succeed, because the same defendant, victim, and act are involved and the Clause protects against any second prosecution for them",
+    "Succeed, because incorporation of the Clause erased the dual-sovereignty rule",
+    "Fail, because the federal statute has an element the state statute lacks, regardless of sovereignty",
+    "Fail, because the state and federal governments are separate sovereigns with independent sources of authority"
+   ]
+  },
+  {
+   "id": "law-crimpro.l10.q1",
+   "lessonId": "law-crimpro.l10",
+   "kind": "mcq",
+   "prompt": "Under Gerstein v. Pugh and County of Riverside v. McLaughlin, after a warrantless arrest a judicial determination of probable cause must generally occur within:",
+   "choices": [
+    "Seven days",
+    "48 hours",
+    "24 hours exactly",
+    "72 hours"
+   ]
+  },
+  {
+   "id": "law-crimpro.l10.q2",
+   "lessonId": "law-crimpro.l10",
+   "kind": "mcq",
+   "prompt": "A defendant claims that a grand jury indictment must be dismissed because the prosecutor withheld evidence tending to show innocence. Under United States v. Williams, the court should:",
+   "choices": [
+    "Reject the claim, because courts do not impose a duty on prosecutors to present exculpatory evidence to the grand jury",
+    "Grant it, because grand jurors cannot fairly assess probable cause unless they see all material evidence, favorable or not",
+    "Grant it, because the Brady rule applies fully to grand jury presentations",
+    "Reject it, but only if the defense was told of the evidence before the vote"
+   ]
+  },
+  {
+   "id": "law-crimpro.l10.q3",
+   "lessonId": "law-crimpro.l10",
+   "kind": "mcq",
+   "prompt": "Under United States v. Salerno, pretrial detention of an arrestee on the ground that he is dangerous is:",
+   "choices": [
+    "Prohibited by the Eighth Amendment, which guarantees a right to bail in every criminal case once the arrestee is charged",
+    "Permissible only if the defendant has been charged with a capital offense carrying the death penalty",
+    "Prohibited by the Due Process Clause, because it punishes the arrestee before any conviction has occurred",
+    "Permissible as regulatory rather than punitive, if an adversarial hearing supports it by clear and convincing evidence"
+   ]
+  },
+  {
+   "id": "law-crimpro.l10.q4",
+   "lessonId": "law-crimpro.l10",
+   "kind": "mcq",
+   "prompt": "Sam is charged in a state that prosecutes all felonies by information after a preliminary hearing rather than by grand jury. He argues that the Fifth Amendment guarantee of a grand jury entitles him to an indictment. The most likely ruling is that the claim:",
+   "choices": [
+    "Succeeds, because due process requires a screening of all serious charges by lay citizens",
+    "Fails, because the Fifth Amendment guarantee applies only to misdemeanors",
+    "Fails, because the grand jury guarantee has not been incorporated against the states",
+    "Succeeds, because all felonies are infamous crimes under the Fifth Amendment"
+   ]
+  },
+  {
+   "id": "law-crimpro.l10.q5",
+   "lessonId": "law-crimpro.l10",
+   "kind": "mcq",
+   "prompt": "In federal court, Dee is charged with a serious drug offense. The prosecutor seeks detention. At the hearing, the government shows probable cause and that Dee has a record of failures to appear, but offers no evidence about danger. The judge finds that no conditions can reasonably assure her appearance by a preponderance of the evidence and orders detention. Which statement best describes the ruling under the Bail Reform Act?",
+   "choices": [
+    "It is consistent with the Act, because detention follows automatically once probable cause has been shown",
+    "It is consistent with the Act, because flight risk need be shown only by a preponderance of the evidence",
+    "It is invalid, because the Act permits detention only on clear and convincing evidence that the defendant is dangerous",
+    "It is invalid, because risk of flight is not a permitted ground for pretrial detention under the Act at all"
+   ]
+  },
+  {
+   "id": "law-crimpro.l11.q1",
+   "lessonId": "law-crimpro.l11",
+   "kind": "mcq",
+   "prompt": "Under Brady v. Maryland, the prosecution's suppression of favorable evidence violates due process when the evidence is:",
+   "choices": [
+    "Material to guilt or punishment, regardless of the prosecutor's good or bad faith",
+    "Suppressed in bad faith by the prosecutor, whether or not it would have affected the result",
+    "Favorable to the defense, even if cumulative and immaterial",
+    "Requested in writing and in advance by defense counsel"
+   ]
+  },
+  {
+   "id": "law-crimpro.l11.q2",
+   "lessonId": "law-crimpro.l11",
+   "kind": "mcq",
+   "prompt": "Which of the following is a Giglio violation?",
+   "choices": [
+    "The state declines to share the identity of a confidential informant who merely gave a tip",
+    "The state conceals that a witness was promised leniency for testifying",
+    "The state calls a witness whose testimony the defense dislikes",
+    "The state fails to hand over its trial strategy memo"
+   ]
+  },
+  {
+   "id": "law-crimpro.l11.q3",
+   "lessonId": "law-crimpro.l11",
+   "kind": "mcq",
+   "prompt": "A detective knows that an eyewitness initially failed to identify the defendant but never tells the prosecutor. At trial the defense does not learn of it. Under Kyles v. Whitley, the Brady duty:",
+   "choices": [
+    "Applies only to evidence the defense specifically asked for",
+    "Does not apply to police, who are not part of the prosecution team",
+    "Extends to favorable evidence known to police acting for the government, even if the prosecutor was unaware",
+    "Applies only to evidence that the trial prosecutor personally knew about, not to what investigators learned and held back"
+   ]
+  },
+  {
+   "id": "law-crimpro.l11.q4",
+   "lessonId": "law-crimpro.l11",
+   "kind": "mcq",
+   "prompt": "After Ana's murder conviction, she learns that the state concealed a report that another suspect had confessed. The state's case relied on one eyewitness who was unsure, and no physical evidence connected Ana to the crime. Ana seeks a new trial. Her strongest argument is that:",
+   "choices": [
+    "Any suppressed favorable evidence compels reversal of the conviction, whatever its likely effect on the outcome of the trial, because Brady is a per se rule",
+    "The police acted in bad faith, which is required for a Brady violation",
+    "The report would have shown the prosecutor's theory of the case was untrue",
+    "The report was favorable and suppressed, and there is a reasonable probability that the verdict would differ given the weak evidence"
+   ]
+  },
+  {
+   "id": "law-crimpro.l11.q5",
+   "lessonId": "law-crimpro.l11",
+   "kind": "mcq",
+   "prompt": "Before pleading guilty, Roy asked for impeachment material about the government's informant, but the prosecutor refused. Roy pleaded guilty, then learned the informant had been unreliable in earlier cases, and moves to withdraw his plea under Brady. The strongest point for the state is that:",
+   "choices": [
+    "The Constitution does not require disclosure of impeachment material before a guilty plea",
+    "A guilty plea waives all Brady claims, including claims about exculpatory material evidence withheld before it",
+    "The informant's record was not favorable to the defense in any respect",
+    "Brady applies only if the defendant asked in writing before the plea hearing"
+   ]
+  },
+  {
+   "id": "law-crimpro.l12.q1",
+   "lessonId": "law-crimpro.l12",
+   "kind": "mcq",
+   "prompt": "Which rights does a defendant waive by pleading guilty, according to Boykin v. Alabama?",
+   "choices": [
+    "The right to counsel at sentencing, the right to bail pending sentence, and the right to appeal any conviction",
+    "The right to a speedy trial and protection against double jeopardy",
+    "The right to be free from unreasonable searches in any later proceeding",
+    "The privilege against self-incrimination, the right to a jury trial, and the right to confront accusers"
+   ]
+  },
+  {
+   "id": "law-crimpro.l12.q2",
+   "lessonId": "law-crimpro.l12",
+   "kind": "mcq",
+   "prompt": "A prosecutor tells Lena that if she rejects a plea offer, he will add a habitual-offender charge for which there is probable cause. She refuses, and he does add it. Under Bordenkircher v. Hayes this is:",
+   "choices": [
+    "Unconstitutional, because prosecutors may not threaten harsher charges",
+    "Permissible only if the prosecutor had planned the charge before offering the deal",
+    "Permissible, because the charge was supported by probable cause and the defendant was free to choose",
+    "Unconstitutional, because it penalizes the exercise of the right to trial"
+   ]
+  },
+  {
+   "id": "law-crimpro.l12.q3",
+   "lessonId": "law-crimpro.l12",
+   "kind": "mcq",
+   "prompt": "A prosecutor promises to recommend a one-year sentence in a plea agreement, but a different prosecutor at sentencing asks for ten years. Under Santobello v. New York, the court should:",
+   "choices": [
+    "Dismiss the charges as a sanction for breach of the agreement",
+    "Allow specific performance or withdrawal of the plea, because the promise induced it",
+    "Disregard the promise, because the judge decides the sentence",
+    "Treat the promise as unenforceable because it was not in writing"
+   ]
+  },
+  {
+   "id": "law-crimpro.l12.q4",
+   "lessonId": "law-crimpro.l12",
+   "kind": "mcq",
+   "prompt": "Defense counsel never tells Dev about a prosecutor's formal offer of two years. Dev is convicted at trial and sentenced to six. In a postconviction proceeding Dev testifies he would have accepted. To obtain relief under Missouri v. Frye and Lafler v. Cooper, Dev must show deficient performance and also a reasonable probability that:",
+   "choices": [
+    "He would have accepted the offer, the court would have approved it, and the sentence would have been lower",
+    "He would have been found innocent had the case gone to trial",
+    "The prosecutor would have increased the offer after negotiations",
+    "The offer would have been accepted even if the court had rejected it"
+   ]
+  },
+  {
+   "id": "law-crimpro.l12.q5",
+   "lessonId": "law-crimpro.l12",
+   "kind": "mcq",
+   "prompt": "Under a plea agreement Ian pleaded guilty to a federal firearms offense, then argued on appeal that the statute violates the Second Amendment. The government says that the plea waived the claim. Under Class v. United States the argument most likely:",
+   "choices": [
+    "Succeeds for the government, because a guilty plea waives all constitutional claims",
+    "Succeeds for the government, because only jurisdictional claims survive a plea",
+    "Fails for the government, because pleas never waive any claim about police conduct before the plea",
+    "Fails for the government, because a guilty plea does not bar a claim that the statute of conviction is unconstitutional"
+   ]
+  },
+  {
+   "id": "law-crimpro.l13.q1",
+   "lessonId": "law-crimpro.l13",
+   "kind": "mcq",
+   "prompt": "Under Argersinger v. Hamlin and Scott v. Illinois, an indigent defendant has a right to appointed counsel in a misdemeanor case when:",
+   "choices": [
+    "A jury trial is requested by the defendant",
+    "The maximum authorized penalty exceeds one month",
+    "Actual imprisonment is imposed as a sentence",
+    "The offense carries a fine of any amount"
+   ]
+  },
+  {
+   "id": "law-crimpro.l13.q2",
+   "lessonId": "law-crimpro.l13",
+   "kind": "mcq",
+   "prompt": "A defendant who is competent to stand trial but severely mentally ill wants to represent himself, and the judge refuses, appointing counsel instead. Under Indiana v. Edwards the ruling is:",
+   "choices": [
+    "Unconstitutional, because only the defendant may decide whether counsel is appointed",
+    "Permissible only if the defendant has been found incompetent to stand trial",
+    "Permissible, because a state may insist on counsel for a defendant too impaired to conduct a defense",
+    "Unconstitutional, because Faretta guarantees self-representation to every competent defendant"
+   ]
+  },
+  {
+   "id": "law-crimpro.l13.q3",
+   "lessonId": "law-crimpro.l13",
+   "kind": "mcq",
+   "prompt": "To prove ineffective assistance of counsel under Strickland v. Washington, a defendant must show:",
+   "choices": [
+    "Performance below an objective standard of reasonableness and a reasonable probability of a different result",
+    "That counsel made any error at all and that the defendant was ultimately convicted",
+    "That counsel was less experienced than the prosecutor and the defense lost",
+    "Deficient performance, with prejudice presumed in every case of attorney error"
+   ]
+  },
+  {
+   "id": "law-crimpro.l13.q4",
+   "lessonId": "law-crimpro.l13",
+   "kind": "mcq",
+   "prompt": "Lawyer Bram represents Cal in a murder trial. Cal has insisted, repeatedly and clearly, that he did not kill the victim. In closing, Bram, believing acquittal hopeless, tells the jury Cal did kill but lacked intent. Cal is convicted of murder. On appeal, Cal's strongest argument is that:",
+   "choices": [
+    "Counsel effectively waived Cal's right to testify by unilaterally choosing the theory the defense presented",
+    "Counsel conceded guilt over his express objection, violating his autonomy over the defense objective",
+    "Counsel's chosen strategy was unreasonable under Strickland, so Cal must show that acquittal was probable",
+    "Counsel violated Cronic by failing entirely to subject the state's case to meaningful adversarial testing"
+   ]
+  },
+  {
+   "id": "law-crimpro.l13.q5",
+   "lessonId": "law-crimpro.l13",
+   "kind": "mcq",
+   "prompt": "A lawyer in a robbery case never interviews alibi witnesses her client names, saying she \"didn't think it would matter,\" although the witnesses place the client across town at the time. At the postconviction hearing the witnesses are credible and no strategic reason is shown. The court is most likely to find:",
+   "choices": [
+    "Presumed prejudice, since failing to investigate is the equivalent of no counsel at trial",
+    "No prejudice, since the jury already rejected the defendant's testimony",
+    "Deficient performance, since the failure to investigate was not a reasoned strategic choice, and prejudice if the alibi creates a reasonable probability of acquittal",
+    "No deficient performance, since all decisions about whom to call are protected strategy"
+   ]
+  },
+  {
+   "id": "law-crimpro.l14.q1",
+   "lessonId": "law-crimpro.l14",
+   "kind": "mcq",
+   "prompt": "Under Crawford v. Washington, testimonial hearsay offered against a defendant is admissible only if:",
+   "choices": [
+    "The prosecution can show that the declarant would have been truthful",
+    "The declarant is unavailable and the defendant had a prior opportunity to cross-examine",
+    "A judge finds that the statement bears adequate indicia of reliability",
+    "The statement falls within a firmly rooted hearsay exception"
+   ]
+  },
+  {
+   "id": "law-crimpro.l14.q2",
+   "lessonId": "law-crimpro.l14",
+   "kind": "mcq",
+   "prompt": "A mother calls 911 while her attacker is still in the house, describing what he is doing and identifying him. The statements are later offered at his trial. Under Davis v. Washington, they are probably:",
+   "choices": [
+    "Nontestimonial, because the primary purpose was to meet an ongoing emergency",
+    "Testimonial, because any call to police is an accusation of crime",
+    "Testimonial, because the caller identified a suspect by name",
+    "Inadmissible, because hearsay exceptions never cover statements to the police"
+   ]
+  },
+  {
+   "id": "law-crimpro.l14.q3",
+   "lessonId": "law-crimpro.l14",
+   "kind": "mcq",
+   "prompt": "Under Melendez-Diaz v. Massachusetts, a sworn laboratory certificate stating that a seized substance is cocaine:",
+   "choices": [
+    "Is nontestimonial, because business and public records are exempt from the Clause",
+    "Is admissible if signed by a supervisor who vouches for the lab's methods",
+    "Is testimonial only if it contains the analyst's opinion about the weight",
+    "Is testimonial, so the analyst must be available for cross-examination unless a waiver or prior cross exists"
+   ]
+  },
+  {
+   "id": "law-crimpro.l14.q4",
+   "lessonId": "law-crimpro.l14",
+   "kind": "mcq",
+   "prompt": "At a drug trial, the state's testifying expert did not run the lab test. She tells the jury that the unavailable analyst's notes show the substance was heroin, and she relies on them in giving her own opinion that it was heroin. The defense objects under the Confrontation Clause. Under Smith v. Arizona the best view is that:",
+   "choices": [
+    "The Clause is satisfied here, since the testifying expert is herself available and subject to cross-examination",
+    "The Clause applies only when the absent analyst's statements appear in a signed and sworn affidavit or certificate",
+    "The Clause applies if the analyst's testimonial statements are offered for their truth, even as the basis for an opinion",
+    "The Clause is not implicated at all, because experts may rely on inadmissible facts in forming opinions under the evidence rules"
+   ]
+  },
+  {
+   "id": "law-crimpro.l14.q5",
+   "lessonId": "law-crimpro.l14",
+   "kind": "mcq",
+   "prompt": "Defendants Ames and Boyd are tried jointly for a robbery. A detective testifies that Boyd told him, \"Ames and I did it,\" and Boyd does not take the stand. The judge instructs the jury to consider the confession only against Boyd. Ames is convicted and appeals. The most likely ruling is that:",
+   "choices": [
+    "There was no violation, because Ames could call Boyd to the stand himself",
+    "Ames's Confrontation Clause rights were violated, because Bruton forbids admission of a codefendant's confession naming him, despite a limiting instruction",
+    "The instruction cured any problem, since juries are presumed to follow instructions in all cases",
+    "There was no violation, because Boyd's statement to a detective was nontestimonial"
+   ]
+  },
+  {
+   "id": "law-crimpro.l15.q1",
+   "lessonId": "law-crimpro.l15",
+   "kind": "mcq",
+   "prompt": "What did Ramos v. Louisiana (2020) hold?",
+   "choices": [
+    "The Sixth Amendment requires a unanimous jury verdict to convict of a serious offense in state court",
+    "Juries in all criminal cases must consist of exactly twelve members",
+    "Nonunanimous verdicts are valid if at least ten jurors agree",
+    "Defendants have a right to a jury drawn to reflect the racial makeup of the community"
+   ]
+  },
+  {
+   "id": "law-crimpro.l15.q2",
+   "lessonId": "law-crimpro.l15",
+   "kind": "mcq",
+   "prompt": "In which situation is a Batson challenge most likely to succeed?",
+   "choices": [
+    "A judge excuses a juror for cause after the juror admits she cannot be fair",
+    "A prosecutor strikes the only Black venire member and offers a reason that she did not apply to white jurors with similar characteristics",
+    "A prosecutor strikes a juror because she is unemployed and has little prior jury exposure",
+    "A defense lawyer strikes a juror because the juror's brother is a police officer"
+   ]
+  },
+  {
+   "id": "law-crimpro.l15.q3",
+   "lessonId": "law-crimpro.l15",
+   "kind": "mcq",
+   "prompt": "Which factors does Barker v. Wingo list for a speedy-trial claim?",
+   "choices": [
+    "The defendant's criminal history, flight risk, and the strength of the evidence",
+    "Length of delay, reason for delay, the defendant's assertion of the right, and prejudice to the defendant",
+    "Whether the defendant was in custody, the seriousness of the charge, and the prosecutor's motive",
+    "Length of delay and whether the delay exceeded the statute of limitations"
+   ]
+  },
+  {
+   "id": "law-crimpro.l15.q4",
+   "lessonId": "law-crimpro.l15",
+   "kind": "mcq",
+   "prompt": "Fay is convicted of firearm possession carrying a statutory maximum of ten years. Under the sentencing statute, a judge, finding by a preponderance that Fay used the firearm in a robbery, raises the maximum to twenty and sentences her to fifteen. The jury never considered the robbery. Under Apprendi and Blakely the strongest argument is that:",
+   "choices": [
+    "Sentencing judges may never consider facts beyond the elements of the offense",
+    "Fact-finding by a judge at sentencing is valid when the sentence is within the range the legislature set",
+    "Fact-finding for sentencing must meet the clear and convincing evidence standard",
+    "A fact that increases the maximum penalty must be found by a jury beyond a reasonable doubt"
+   ]
+  },
+  {
+   "id": "law-crimpro.l15.q5",
+   "lessonId": "law-crimpro.l15",
+   "kind": "mcq",
+   "prompt": "Sixteen months after his arrest on a drug charge, Lou, who had not demanded a trial before, is still awaiting trial because the state's only crime-lab chemist is overloaded. Lou is not in jail and can identify no specific harm except anxiety. Under Barker, which statement best describes his claim?",
+   "choices": [
+    "It is weak but not foreclosed, since the delay triggers review and institutional delay weighs lightly against the state",
+    "It is conclusively valid, because any delay longer than twelve months automatically violates the Sixth Amendment right",
+    "It is conclusively invalid, because Lou never asserted the right and so waived any later speedy trial claim",
+    "It is invalid, because every speedy trial claim requires proof of specific prejudice to the defense at trial"
+   ]
+  },
+  {
+   "id": "law-crimpro.l16.q1",
+   "lessonId": "law-crimpro.l16",
+   "kind": "mcq",
+   "prompt": "Which of the following is currently prohibited by the Eighth Amendment under Supreme Court precedent?",
+   "choices": [
+    "Executing a person convicted of intentional murder after a guided-discretion sentencing",
+    "Using lethal injection under a protocol that carries some risk of pain",
+    "Imposing life without parole for a third serious felony committed by an adult",
+    "Executing a person for a crime committed before age 18"
+   ]
+  },
+  {
+   "id": "law-crimpro.l16.q2",
+   "lessonId": "law-crimpro.l16",
+   "kind": "mcq",
+   "prompt": "A state statute requires life without parole for every murder conviction, including offenders aged 15. Under Miller v. Alabama, as applied to juveniles, the statute is:",
+   "choices": [
+    "Constitutional, because the legislature is free to set mandatory penalties for adults and juveniles alike",
+    "Unconstitutional, because mandatory schemes prevent the sentencer from considering youth and its attendant characteristics",
+    "Constitutional, because murder is among the gravest offenses",
+    "Unconstitutional, because life without parole is never permitted for any juvenile"
+   ]
+  },
+  {
+   "id": "law-crimpro.l16.q3",
+   "lessonId": "law-crimpro.l16",
+   "kind": "mcq",
+   "prompt": "An inmate with a serious, painful illness repeatedly requests treatment, and prison doctors consciously ignore his condition. Under Estelle v. Gamble, this conduct:",
+   "choices": [
+    "Violates it whenever the inmate suffers any harm from delayed care",
+    "Can violate the Eighth Amendment as deliberate indifference to serious medical needs",
+    "Cannot violate the Amendment, because it applies only to the sentence imposed",
+    "Violates it only if the inmate has been placed in solitary confinement"
+   ]
+  },
+  {
+   "id": "law-crimpro.l16.q4",
+   "lessonId": "law-crimpro.l16",
+   "kind": "mcq",
+   "prompt": "A state sentences Pru, an adult with an IQ score of 72 and documented adaptive-skill deficits that began in childhood, to death for murder. The state argues that an IQ score above 70 settles the matter. Under Atkins and Hall v. Florida, the strongest response is that:",
+   "choices": [
+    "Courts must consider the standard error of measurement and other evidence of intellectual disability rather than a fixed cutoff",
+    "Atkins applies only to defendants with scores below 60",
+    "Intellectual disability is relevant only at the sentencing phase and never to the constitutional bar",
+    "Atkins left states complete discretion to define intellectual disability however they choose"
+   ]
+  },
+  {
+   "id": "law-crimpro.l16.q5",
+   "lessonId": "law-crimpro.l16",
+   "kind": "mcq",
+   "prompt": "Dan, a getaway driver who was nowhere near the scene, is sentenced to death after a co-felon kills a store clerk. The jury found only that Dan participated in the robbery and had no intent that anyone be killed. Under Enmund and Tison, the sentence is most likely:",
+   "choices": [
+    "Constitutional, because felony murder makes every participant fully responsible for the death",
+    "Constitutional, because the Eighth Amendment does not regulate death eligibility",
+    "Unconstitutional, because no accomplice may ever be sentenced to death",
+    "Unconstitutional, because a minor participant without intent to kill, or a showing of major participation with reckless indifference, is required"
+   ]
+  },
+  {
+   "id": "law-crimpro.l17.q1",
+   "lessonId": "law-crimpro.l17",
+   "kind": "mcq",
+   "prompt": "Under New Jersey v. T.L.O., a public school official may search a student's belongings when:",
+   "choices": [
+    "The principal gives a general warning that all backpacks are subject to search",
+    "The student is suspected of a crime that is also a felony under state law",
+    "There are reasonable grounds to suspect the search will turn up evidence of a rule violation, and the search is reasonable in scope",
+    "The official has probable cause and has first obtained a warrant"
+   ]
+  },
+  {
+   "id": "law-crimpro.l17.q2",
+   "lessonId": "law-crimpro.l17",
+   "kind": "mcq",
+   "prompt": "A city sets up a roadblock whose stated purpose is to stop cars and have dogs sniff for drugs. Under Indianapolis v. Edmond, the checkpoint is:",
+   "choices": [
+    "Constitutional, because a short seizure of drivers is minimally intrusive",
+    "Constitutional, because dog sniffs are not searches",
+    "Unconstitutional, because the Fourth Amendment forbids all checkpoints",
+    "Unconstitutional, because its primary purpose is general crime control without individualized suspicion"
+   ]
+  },
+  {
+   "id": "law-crimpro.l17.q3",
+   "lessonId": "law-crimpro.l17",
+   "kind": "mcq",
+   "prompt": "Under Samson v. California, police may search a parolee:",
+   "choices": [
+    "Without any suspicion, where the parole conditions authorize searches, since a parolee has a diminished expectation of privacy",
+    "Only with a warrant based on probable cause of a new crime",
+    "Only on reasonable suspicion of a parole violation",
+    "Only if the parole officer is present and the search is announced"
+   ]
+  },
+  {
+   "id": "law-crimpro.l17.q4",
+   "lessonId": "law-crimpro.l17",
+   "kind": "mcq",
+   "prompt": "A public hospital adopts a policy of testing pregnant patients' urine for cocaine and giving positive results to police, who arrest the patients for child endangerment. The policy's goal is to get women into treatment, though prosecution is the means. The patients challenge it. Under Ferguson v. City of Charleston the likely result is that the testing is:",
+   "choices": [
+    "Unconstitutional, because the Fourth Amendment forbids every kind of drug testing of hospital patients",
+    "Unconstitutional without consent or a warrant, because its immediate aim was to generate evidence for police",
+    "Constitutional, because hospitals have special needs related to the health of their patients and the public",
+    "Constitutional, because the patients had no reasonable expectation of privacy in urine given to a hospital"
+   ]
+  },
+  {
+   "id": "law-crimpro.l17.q5",
+   "lessonId": "law-crimpro.l17",
+   "kind": "mcq",
+   "prompt": "At an international airport, a customs officer, without any suspicion, opens a traveler's suitcase and cuts into the lining of a bag. Another officer, also without suspicion, orders a strip and body-cavity search of a different traveler. Under the border search cases, the likely results are:",
+   "choices": [
+    "Neither search is valid without a warrant, since the Fourth Amendment applies fully at airports",
+    "Only the body search is valid, because searches of property require probable cause",
+    "The suitcase search is valid without suspicion, while the invasive search of the person requires at least reasonable suspicion",
+    "Both searches are valid without suspicion, because the border exception has no limits"
+   ]
+  },
+  {
+   "id": "law-crimpro.l18.q1",
+   "lessonId": "law-crimpro.l18",
+   "kind": "mcq",
+   "prompt": "In re Winship held that due process requires the prosecution to prove:",
+   "choices": [
+    "The defendant's motive beyond a reasonable doubt in every case",
+    "Every fact necessary to constitute the charged crime beyond a reasonable doubt",
+    "Only the most disputed element beyond a reasonable doubt",
+    "Guilt by clear and convincing evidence in felony cases"
+   ]
+  },
+  {
+   "id": "law-crimpro.l18.q2",
+   "lessonId": "law-crimpro.l18",
+   "kind": "mcq",
+   "prompt": "A defendant is found incompetent to stand trial under Dusky if he:",
+   "choices": [
+    "Lacks a sufficient present ability to consult with counsel rationally or lacks a rational and factual understanding of the proceedings",
+    "Was mentally ill at the time of the offense",
+    "Does not remember the events of the alleged crime",
+    "Disagrees with his lawyer about trial strategy"
+   ]
+  },
+  {
+   "id": "law-crimpro.l18.q3",
+   "lessonId": "law-crimpro.l18",
+   "kind": "mcq",
+   "prompt": "A trial court orders the entire courtroom closed during a witness's testimony because the prosecutor asked for it, with no findings and no consideration of alternatives. Under Waller v. Georgia, the closure is:",
+   "choices": [
+    "Valid, because trial judges have unreviewable control of their courtrooms",
+    "Valid, because the right belongs to the press rather than to the defendant",
+    "A violation only if the defendant objected before the trial started",
+    "Likely a violation of the public trial right, because closure requires an overriding interest, narrow tailoring, and findings"
+   ]
+  },
+  {
+   "id": "law-crimpro.l18.q4",
+   "lessonId": "law-crimpro.l18",
+   "kind": "mcq",
+   "prompt": "Right after a robbery, police take Vi to a lineup in which the suspect, Dex, is the only person wearing a red jacket, as Vi had described. Vi, who had a clear view of the robber at close range for several minutes, immediately and with certainty picks Dex. At trial Dex moves to exclude the identification. The most likely ruling is that:",
+   "choices": [
+    "It is automatically admitted, because lineup procedures are never subject to due process review",
+    "It is excluded, because Vi did not have counsel present at a pre-charge lineup",
+    "It is admissible if the totality of the circumstances shows it was reliable, even though the procedure was suggestive",
+    "It is automatically excluded, because suggestive procedures always violate due process"
+   ]
+  },
+  {
+   "id": "law-crimpro.l18.q5",
+   "lessonId": "law-crimpro.l18",
+   "kind": "mcq",
+   "prompt": "On direct appeal, the state admits that the trial court violated the Confrontation Clause by admitting a witness's testimonial statement, but argues that the error was harmless. Which showing must the state make under Chapman v. California?",
+   "choices": [
+    "That the defendant suffered no prejudice, proved by the defense",
+    "Beyond a reasonable doubt that the error did not contribute to the verdict",
+    "By a preponderance that the remaining evidence was strong",
+    "By clear and convincing evidence that the defendant was in fact guilty"
+   ]
+  },
+  {
+   "id": "law-crimpro.l19.q1",
+   "lessonId": "law-crimpro.l19",
+   "kind": "mcq",
+   "prompt": "When appointed appellate counsel concludes that an appeal is frivolous, Anders v. California requires counsel to:",
+   "choices": [
+    "File a brief identifying anything in the record that arguably supports the appeal and request to withdraw",
+    "Simply withdraw without any brief and notify the client by letter",
+    "Continue the appeal and argue every conceivable issue",
+    "Ask the court to appoint a prosecutor to rebut the client's claims"
+   ]
+  },
+  {
+   "id": "law-crimpro.l19.q2",
+   "lessonId": "law-crimpro.l19",
+   "kind": "mcq",
+   "prompt": "A defendant fails to object at trial to a jury instruction. On appeal he seeks review. Which is the correct standard?",
+   "choices": [
+    "Harmless error review, with the burden on the state to prove the error harmless",
+    "Plain error review, requiring a clear error that affects substantial rights",
+    "De novo review of the instruction, as if a timely objection had been made at trial",
+    "No review is possible at all, because forfeited claims are always barred on appeal"
+   ]
+  },
+  {
+   "id": "law-crimpro.l19.q3",
+   "lessonId": "law-crimpro.l19",
+   "kind": "mcq",
+   "prompt": "An appellate court reverses a conviction because the evidence was legally insufficient to prove an element. The effect is that:",
+   "choices": [
+    "The case returns for resentencing only",
+    "The state may retry the defendant only on lesser offenses",
+    "The defendant must be acquitted and may not be retried",
+    "The state may retry the defendant on the same charge"
+   ]
+  },
+  {
+   "id": "law-crimpro.l19.q4",
+   "lessonId": "law-crimpro.l19",
+   "kind": "mcq",
+   "prompt": "At trial, prosecutor Pell makes an improper remark during closing. Defense counsel does not object. After conviction on appeal, defendant raises the remark. The court finds that the remark was clearly improper but that the evidence of guilt was overwhelming. Under plain error review, the most likely outcome is that the conviction:",
+   "choices": [
+    "Is reversed, because any clearly improper remark by a prosecutor is automatically reversible",
+    "Is reversed, because the state must prove harmlessness beyond a reasonable doubt",
+    "Stands, because all failures to object waive review permanently",
+    "Stands, because the defendant has not shown that the error affected his substantial rights"
+   ]
+  },
+  {
+   "id": "law-crimpro.l19.q5",
+   "lessonId": "law-crimpro.l19",
+   "kind": "mcq",
+   "prompt": "Orr pleads guilty under an agreement containing a waiver of the right to appeal, then wants to challenge the sentence as above the statutory maximum. Most courts would hold that:",
+   "choices": [
+    "A knowing waiver is generally enforceable, with narrow exceptions such as a sentence above the statutory maximum",
+    "An appeal waiver is never enforceable in any case, because the right to appeal is itself a constitutional right",
+    "An appeal waiver bars every possible claim on appeal, with no exceptions of any kind, however serious the error",
+    "An appeal waiver is enforceable only if the defendant has already gone through a full trial before waiving it"
+   ]
+  },
+  {
+   "id": "law-crimpro.l20.q1",
+   "lessonId": "law-crimpro.l20",
+   "kind": "mcq",
+   "prompt": "Under 28 U.S.C. section 2254(d), a federal court may grant habeas relief on a claim already decided on the merits in state court only if that decision was:",
+   "choices": [
+    "Contrary to or an unreasonable application of clearly established Supreme Court law, or based on unreasonable fact-finding",
+    "Simply wrong in the federal judge's own independent view of what the Constitution requires in the case",
+    "Issued by a state court that had lacked personal jurisdiction over the defendant at the time of trial",
+    "Contrary to any decision of a federal court of appeals in the circuit where the state sits"
+   ]
+  },
+  {
+   "id": "law-crimpro.l20.q2",
+   "lessonId": "law-crimpro.l20",
+   "kind": "mcq",
+   "prompt": "What is the general rule for retroactivity of new constitutional rules on federal habeas review under Teague v. Lane?",
+   "choices": [
+    "New rules apply only if the Supreme Court says so within one year of the decision",
+    "New rules of criminal procedure do not apply to convictions already final, subject to narrow exceptions",
+    "All new rules apply to every case regardless of finality",
+    "New rules apply only to defendants sentenced to death"
+   ]
+  },
+  {
+   "id": "law-crimpro.l20.q3",
+   "lessonId": "law-crimpro.l20",
+   "kind": "mcq",
+   "prompt": "A state prisoner never raised a claim in state court, and state law now bars raising it. To have the federal court hear it, he must generally show:",
+   "choices": [
+    "Only that the claim is of constitutional dimension",
+    "That the state court judge was biased against him",
+    "Cause for the default and actual prejudice, or a fundamental miscarriage of justice",
+    "That the claim is more likely true than not"
+   ]
+  },
+  {
+   "id": "law-crimpro.l20.q4",
+   "lessonId": "law-crimpro.l20",
+   "kind": "mcq",
+   "prompt": "A state court denies a claim in a one-line order without explanation. In federal habeas the petitioner argues that the denial was wrong under Supreme Court precedent. Under Harrington v. Richter, the federal court should:",
+   "choices": [
+    "Review the claim de novo as the first court to consider it, because the state court gave no reasons for its denial",
+    "Presume that the state court did not decide the merits of the claim, so that section 2254(d) deference does not apply",
+    "Remand the case to the state court for a written opinion explaining its denial before the federal court decides",
+    "Ask whether any reasonable argument could support the denial, granting relief only if fairminded jurists could not disagree"
+   ]
+  },
+  {
+   "id": "law-crimpro.l20.q5",
+   "lessonId": "law-crimpro.l20",
+   "kind": "mcq",
+   "prompt": "Nia, a state prisoner, files a habeas petition arguing that police obtained evidence through an illegal search and that her lawyer was ineffective for failing to file a motion to suppress. The state courts gave her a full opportunity to litigate the search claim on direct appeal. Under Stone v. Powell the federal court will most likely:",
+   "choices": [
+    "Refuse to consider the Fourth Amendment claim itself, although the ineffective-assistance claim may be considered",
+    "Consider both claims fully because habeas reviews all constitutional errors",
+    "Refuse both claims because Stone bars every claim connected to a search",
+    "Consider the Fourth Amendment claim and refuse the ineffective-assistance claim"
+   ]
+  }
+ ]
+}

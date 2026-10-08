@@ -25,6 +25,9 @@ export interface GameState {
   periodLabel: string;
   timeRemaining: string;
   clockRunning: boolean;
+  /** Wall-clock ms when the clock was last started. While running, the displayed clock is
+   *  derived from this + timeRemaining (see displayClock) — nobody writes every second. */
+  clockStartedAt?: number;
   // Football-specific
   down?: number;
   distance?: number;
@@ -85,6 +88,42 @@ export function buildPeriodLabel(sport: SportType, period: number): string {
     return s[period - 1] ?? `${period}th`;
   }
   return `${period}`;
+}
+
+// ─── Game clock (anchored, derived) ─────────────────────────────────────────────
+// The clock used to tick by writing timeRemaining to Firestore every second from the
+// producer's phone — a write storm that also froze if that phone slept. Now a start/stop
+// writes { clockRunning, clockStartedAt, timeRemaining } once, and every reader derives the
+// live value from the anchor. Soccer counts up; the rest count down.
+
+export const clockCountsUp = (sport: SportType) => sport === 'SOCCER';
+
+export function parseClock(str: string): number {
+  const [m, s] = (str || '0:00').split(':').map(n => parseInt(n, 10) || 0);
+  return Math.max(0, m * 60 + s);
+}
+
+export function formatClock(totalSeconds: number): string {
+  const t = Math.max(0, Math.floor(totalSeconds));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+}
+
+/** Seconds on the clock right now. */
+export function clockSeconds(gs: Pick<GameState, 'sport' | 'timeRemaining' | 'clockRunning' | 'clockStartedAt'>, now = Date.now()): number {
+  const base = parseClock(gs.timeRemaining);
+  if (!gs.clockRunning || !gs.clockStartedAt) return base;
+  const elapsed = (now - gs.clockStartedAt) / 1000;
+  return clockCountsUp(gs.sport) ? base + elapsed : Math.max(0, base - elapsed);
+}
+
+/** The clock string to display right now. */
+export const displayClock = (gs: Pick<GameState, 'sport' | 'timeRemaining' | 'clockRunning' | 'clockStartedAt'>, now = Date.now()) =>
+  formatClock(clockSeconds(gs, now));
+
+/** The patch that starts or stops the clock (freezes the current value on stop). */
+export function clockTogglePatch(gs: GameState, now = Date.now()): Partial<GameState> {
+  if (gs.clockRunning) return { clockRunning: false, timeRemaining: displayClock(gs, now), clockStartedAt: 0 };
+  return { clockRunning: true, clockStartedAt: now };
 }
 
 function getDefaultClock(sport: SportType): string {

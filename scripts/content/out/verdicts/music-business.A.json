@@ -1,0 +1,979 @@
+{
+ "courseId": "music-business",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "music-business.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l02.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Sampling: de minimis defense is contested across circuits; 'normally needed' is the safe answer."
+  },
+  {
+   "id": "music-business.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l10.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Somewhat subjective; reversion returning rights is the defensible answer."
+  },
+  {
+   "id": "music-business.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-business.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "music-business.l01",
+   "claim": "Sound recording and musical composition are separate copyrights",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l01",
+   "claim": "Recorded music pays through separate recording-side and publishing-side collectors",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Illustrative 60/40 split is labelled made-up in the text."
+  },
+  {
+   "lessonId": "music-business.l01",
+   "claim": "Live income (tickets, guarantees, merch) is paid for performing, not copyright ownership",
+   "verdict": "supported",
+   "sources": [],
+   "note": "General principle; no specific source."
+  },
+  {
+   "lessonId": "music-business.l02",
+   "claim": "Musical work and sound recording are distinct copyrights under US law",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l02",
+   "claim": "A cover needs a license for the composition (Sec. 115) and the cover artist owns the new master",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l02",
+   "claim": "Sampling generally requires clearance from master owner and publisher",
+   "verdict": "supported",
+   "sources": [],
+   "note": "De minimis defense is contested across circuits; text says 'normally'."
+  },
+  {
+   "lessonId": "music-business.l03",
+   "claim": "Splits are negotiated between writers, not set by law",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Absent agreement, joint authors share equally by default case law."
+  },
+  {
+   "lessonId": "music-business.l03",
+   "claim": "Administration fees commonly 10-25 percent",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Industry practice, hedged in text; no authoritative source."
+  },
+  {
+   "lessonId": "music-business.l03",
+   "claim": "Performance income paid as writer's share and publisher's share",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l04",
+   "claim": "US has four PROs: ASCAP, BMI, SESAC, GMR",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l04",
+   "claim": "ASCAP and BMI operate under DOJ antitrust consent decrees",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l04",
+   "claim": "ASCAP is nonprofit; BMI, SESAC and GMR are for-profit",
+   "verdict": "supported",
+   "sources": [],
+   "note": "BMI became for-profit in 2013."
+  },
+  {
+   "lessonId": "music-business.l05",
+   "claim": "Sec. 115 compulsory license; Copyright Royalty Board sets rates",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l05",
+   "claim": "MMA 2018 created blanket license administered by the MLC, operating since 2021",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l05",
+   "claim": "MLC does not handle physical products or performance royalties",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l06",
+   "claim": "Sync is negotiated (not statutory) and needs a sync license plus a master use license",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Industry-standard description."
+  },
+  {
+   "lessonId": "music-business.l06",
+   "claim": "MFN clause equalizes master and sync fees",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Industry convention; no primary source."
+  },
+  {
+   "lessonId": "music-business.l06",
+   "claim": "Cue sheets support performance royalty payment for TV use",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l07",
+   "claim": "License is limited permission; assignment transfers ownership (writing required, Sec. 204)",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l07",
+   "claim": "Non-exclusive licenses can be granted to many; exclusive licenses cannot",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l07",
+   "claim": "Sample owner commonly asks a percentage of new song's publishing (20 percent example)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Illustrative; practice varies widely."
+  },
+  {
+   "lessonId": "music-business.l08",
+   "claim": "ISRC identifies a sound recording; UPC identifies a release",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l08",
+   "claim": "Most services use pro-rata pools; user-centric alternatives exist",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l08",
+   "claim": "Arithmetic: 250k of 500M streams of a $1M pool = $500; doubled streams = $250; less 15% = $425",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic verified."
+  },
+  {
+   "lessonId": "music-business.l09",
+   "claim": "SoundExchange collects statutory Sec. 112/114 digital sound recording performance royalties",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l09",
+   "claim": "Statutory split is 50 percent owner, 45 percent featured artist, 5 percent non-featured",
+   "verdict": "supported",
+   "sources": [],
+   "note": "17 USC 114(g)(2)."
+  },
+  {
+   "lessonId": "music-business.l09",
+   "claim": "Terrestrial AM/FM owes no sound recording performance royalty in the US",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Sec. 114(a); AMFA proposals not enacted to my knowledge."
+  },
+  {
+   "lessonId": "music-business.l10",
+   "claim": "Traditional deal: label funds recoupable advances and owns masters",
+   "verdict": "supported",
+   "sources": [],
+   "note": "General industry description; text hedges."
+  },
+  {
+   "lessonId": "music-business.l10",
+   "claim": "360 deals share in income beyond records",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Industry convention; not statutory."
+  },
+  {
+   "lessonId": "music-business.l10",
+   "claim": "Arithmetic: 15% of $20,000 = $3,000; 50% of $50,000 profit = $25,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified."
+  },
+  {
+   "lessonId": "music-business.l11",
+   "claim": "Advance is recouped from artist royalties, generally non-returnable if record fails",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard industry practice."
+  },
+  {
+   "lessonId": "music-business.l11",
+   "claim": "Break-even receipts = advance / royalty rate ($500,000; $1,000,000 for $200k)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic verified."
+  },
+  {
+   "lessonId": "music-business.l11",
+   "claim": "Cross-collateralization example: $50,000 - $30,000 = $20,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic verified."
+  },
+  {
+   "lessonId": "music-business.l12",
+   "claim": "Managers commonly 15-20 percent of gross",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Widely cited industry range; no authoritative source."
+  },
+  {
+   "lessonId": "music-business.l12",
+   "claim": "Booking agents commonly around 10 percent; some jurisdictions/unions regulate",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Industry range; regulation hedged in text."
+  },
+  {
+   "lessonId": "music-business.l12",
+   "claim": "Arithmetic: $15,000 total commissions; $12,000 vs $4,500 difference $7,500",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified."
+  },
+  {
+   "lessonId": "music-business.l13",
+   "claim": "One-year term plus four one-year options can run five years",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic verified."
+  },
+  {
+   "lessonId": "music-business.l13",
+   "claim": "Reversion and audit rights are key contract clauses",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "General contract education; nothing factual to check."
+  },
+  {
+   "lessonId": "music-business.l13",
+   "claim": "Controlled composition clauses are a standard watch item",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Industry term; unsourced."
+  },
+  {
+   "lessonId": "music-business.l14",
+   "claim": "Versus deal pays greater of guarantee or percentage of net",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Industry-standard definition; no primary source."
+  },
+  {
+   "lessonId": "music-business.l14",
+   "claim": "Tour P&L arithmetic: $17,000 expenses, $7,500 commissions, $5,500 left, $1,375 each, $2,500 after 360",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified."
+  },
+  {
+   "lessonId": "music-business.l14",
+   "claim": "Versus example: 80% of $3,000 net = $2,400 beats $2,000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified."
+  },
+  {
+   "lessonId": "music-business.l15",
+   "claim": "Venue merch cut commonly 10-25 percent of gross",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Industry range; hedged in text."
+  },
+  {
+   "lessonId": "music-business.l15",
+   "claim": "Shirt $12 and hoodie $22 profit; 100 shirts + 50 hoodies = $2,300",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified."
+  },
+  {
+   "lessonId": "music-business.l15",
+   "claim": "Bulk vs print-on-demand at 200 shirts: $1,600 vs $1,200",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified."
+  },
+  {
+   "lessonId": "music-business.l16",
+   "claim": "28 days before June 26 is May 29",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Calendar verified."
+  },
+  {
+   "lessonId": "music-business.l16",
+   "claim": "Distributors need lead time for editorial pitching; 8-12 week plan",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Spotify minimum is about 7 days; the 4-week/8-12 week figures are planning advice, not contradicted."
+  },
+  {
+   "lessonId": "music-business.l16",
+   "claim": "Budget 40/30/20/10 of $3,000 = $1,200/$900/$600/$300",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified."
+  },
+  {
+   "lessonId": "music-business.l17",
+   "claim": "CAN-SPAM requires honest headers, physical postal address, working unsubscribe",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l17",
+   "claim": "COPPA covers children under 13",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l17",
+   "claim": "Funnel arithmetic: 200 subscribers, 20 buyers, $500; $2.00 per signup",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Verified."
+  },
+  {
+   "lessonId": "music-business.l18",
+   "claim": "Default LLC is taxed as a pass-through",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l18",
+   "claim": "Commingling funds can weaken LLC liability protection",
+   "verdict": "supported",
+   "sources": [],
+   "note": "General state-law doctrine; varies by state."
+  },
+  {
+   "lessonId": "music-business.l18",
+   "claim": "Independent earners owe estimated taxes and receive 1099s",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l19",
+   "claim": "Publishing on a platform does not itself register works with a PRO, MLC or SoundExchange",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l19",
+   "claim": "PRO, MLC and SoundExchange registrations are separate",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "music-business.l19",
+   "claim": "Plajah feature descriptions (Chora, licensing store, Melos, Artist Manager)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Product claims; not externally checkable."
+  }
+ ]
+}

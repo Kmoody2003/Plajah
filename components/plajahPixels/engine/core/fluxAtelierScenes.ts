@@ -1,6 +1,7 @@
 // Rebuilt Flux Atelier Scenes — Trapcode Form point-cloud particle implementations.
 // Porcelain Tide, Velvet Bloom, Prism Archive: geometry-accurate to mockup designs.
 import type { SceneInst } from './flux';
+import { PLAJAH_BRAND_GLSL } from './fluxBrand';
 
 const NOISE_GLSL = `
   float h31(vec3 p){p=fract(p*0.3183099+0.1);p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -51,6 +52,7 @@ export function buildPorcelainTide(T: any): SceneInst {
       uniform float uTime, uBass, uMid, uTre, uKick, uEnergy, uPix, uHue;
       attribute vec2 aUv;
       varying vec3 vCol; varying float vAlpha;
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         vec2 p0 = position.xy;
         float r = length(p0);
@@ -86,7 +88,7 @@ export function buildPorcelainTide(T: any): SceneInst {
         c += colCyan * ringGlow * 0.8;
         // Brightness boost
         c *= 1.5;
-        c = mix(c, c.bgr, (uHue-0.5)*0.3);
+        c = plajahBrand(c, (uHue - 0.5) + uTime * 0.01);
         float edgeFade = 1.0 - smoothstep(11.0, 13.5, r);
         vCol = c;
         vAlpha = (0.65 + latticeLine*0.35 + spark*0.5) * edgeFade * (0.8 + uEnergy*0.2);
@@ -201,6 +203,7 @@ export function buildVelvetBloom(T: any): SceneInst {
       uniform float uTime, uBass, uMid, uTre, uKick, uEnergy, uPix, uHue;
       attribute vec3 aPetal; // petalId, u (0..1 along length), v (0..1 across width)
       varying vec3 vCol; varying float vAlpha;
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         float petalId = aPetal.x;
         float u = aPetal.y;  // 0=center, 1=tip
@@ -267,7 +270,7 @@ export function buildVelvetBloom(T: any): SceneInst {
 
         // Overall brightness boost
         c *= 1.6;
-        c = mix(c, c.bgr, (uHue - 0.5) * 0.35);
+        c = plajahBrand(c, (uHue - 0.5) + uTime * 0.01);
 
         // Alpha: fade at petal base, tip edges, and width borders
         float petalFade = smoothstep(0.0, 0.08, u) * (1.0 - smoothstep(0.93, 1.0, u));
@@ -430,6 +433,7 @@ export function buildPrismArchive(T: any): SceneInst {
       varying vec3 vCol; varying float vAlpha;
       vec3 rotY(vec3 p, float a) { float c=cos(a),s=sin(a); return vec3(c*p.x+s*p.z, p.y, -s*p.x+c*p.z); }
       vec3 rotX(vec3 p, float a) { float c=cos(a),s=sin(a); return vec3(p.x, c*p.y-s*p.z, s*p.y+c*p.z); }
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         vec3 p0 = position;
         float isOuter = 1.0 - aShell;
@@ -456,7 +460,7 @@ export function buildPrismArchive(T: any): SceneInst {
         c += vec3(1.0, 0.8, 0.95) * kickFlash;
         // Inner shell slightly brighter
         c *= (1.0 + isInner * 0.25);
-        c = mix(c, c.bgr, (uHue-0.5)*0.25);
+        c = plajahBrand(c, (uHue - 0.5) + uTime * 0.01);
         vCol = c;
         // Alpha: edges always bright, faces semi-transparent
         float faceAlpha = mix(0.35, 0.85, edge);

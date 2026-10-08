@@ -13,10 +13,11 @@ import { motion } from 'motion/react';
 import { ChevronLeft } from 'lucide-react';
 import { FAITHS, FAITH_TEMPLATE, FAITH_WINGS, type FaithMeta } from '../data/sacredLibrary/faiths';
 import { PLAJAH_BG, PLAJAH_HEADER, BRAND_TEXT, PJ_LILAC as LILAC } from '../data/sacredLibrary/theme';
+import type { FaithId } from '../data/sacredLibrary/readerCatalog';
 
 const BibleExperience = lazy(() => import('./BibleExperience'));
 const FaithWing = lazy(() => import('./faith/FaithWing'));
-const SutraReader = lazy(() => import('./faith/SutraReader'));
+const SacredTextReader = lazy(() => import('./faith/SacredTextReader'));
 
 interface SacredLibraryHubProps {
   onBack: () => void;
@@ -41,9 +42,9 @@ const SacredLibraryHub: React.FC<SacredLibraryHubProps> = ({ onBack }) => {
   if (wingData && readerOpen) {
     return (
       <Suspense fallback={<Loader />}>
-        {wingData.reader === 'sutra'
-          ? <SutraReader onBack={closeReader} />
-          : <BibleExperience onBack={closeReader} />}
+        {wingData.reader === 'bible'
+          ? <BibleExperience onBack={closeReader} />
+          : <SacredTextReader key={wingData.id} faith={wingData.id as FaithId} name={wingData.name} accent={wingData.accent} onBack={closeReader} />}
       </Suspense>
     );
   }
@@ -139,7 +140,7 @@ const SacredLibraryHub: React.FC<SacredLibraryHubProps> = ({ onBack }) => {
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}>Every wing is built the same way</h2>
           </div>
           <p className="hidden sm:block text-[13px] text-white/50 max-w-[46ch] text-right">
-            Ten galleries define a faith. Christianity sets the model; each tradition keeps the frame and bends it to fit.
+            Explore sacred texts, history, practice, and ideas. Each tradition keeps its own sources and ways of reading.
           </p>
         </div>
         <div className="rounded-3xl border p-5 sm:p-6" style={{ borderColor: 'rgba(255,255,255,0.09)', background: 'linear-gradient(180deg, rgba(208,188,255,0.06), transparent)' }}>
@@ -157,7 +158,7 @@ const SacredLibraryHub: React.FC<SacredLibraryHubProps> = ({ onBack }) => {
           </div>
           <div className="flex gap-3 items-start mt-4 p-3.5 rounded-2xl border border-dashed text-[12.5px] text-white/70 leading-relaxed" style={{ borderColor: 'rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.035)' }}>
             <span style={{ color: LILAC, fontSize: 16 }}>✦</span>
-            <span>Everything currently in the Sacred Library lives in the <b style={{ color: LILAC }}>Christianity</b> wing — it's the reference build. New faiths reuse these ten galleries, then <b style={{ color: LILAC }}>deviate</b> wherever the tradition demands it.</span>
+            <span>Open a faith section to read its texts and keep your own research. Save cited passages across sections to compare them in the <b style={{ color: LILAC }}>shared notebook</b>. Each reader states which works and editions are available.</span>
           </div>
         </div>
 

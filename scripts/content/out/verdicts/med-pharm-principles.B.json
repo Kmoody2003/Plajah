@@ -1,0 +1,1270 @@
+{
+ "courseId": "med-pharm-principles",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "med-pharm-principles.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "Prompt says 'enzyme family' but CYP3A4 is a single isoform; wording imprecise, answer clear.",
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l09.q5",
+   "answer": 3,
+   "confidence": "medium",
+   "note": "Best option, but tremor is a direct skeletal-muscle beta-2 effect (not loss of selectivity) and tachycardia is partly reflex/cardiac beta-2; wording slightly imprecise.",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC7983936/"
+   ],
+   "ambiguous": false
+  },
+  {
+   "id": "med-pharm-principles.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "note": "Modern texts often call G6PD hemolysis a pharmacogenetic (type B) reaction; 'idiosyncratic' is the intended and best choice.",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "note": "Textbook answer for systemic clearance; for an ORAL high-extraction drug induction still sharply lowers bioavailability (e.g. rifampin-verapamil), but no option captures that.",
+   "sources": [
+    "https://journals.lww.com/hep/abstract/10.1002/hep.510240407~differential-induction-of-prehepatic-and-hepatic-metabolism?redirectionsource=fulltextview"
+   ],
+   "ambiguous": false
+  },
+  {
+   "id": "med-pharm-principles.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-pharm-principles.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-pharm-principles.l01",
+   "claim": "Swallowed nitroglycerin is almost entirely cleared by the liver; sublingual bypasses the portal circulation and acts within minutes.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK551679/",
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK568677/"
+   ],
+   "note": ">90% hepatic extraction; onset 1-3 min."
+  },
+  {
+   "lessonId": "med-pharm-principles.l01",
+   "claim": "An IV dose has bioavailability 1; oral F is estimated as AUC(oral)/AUC(IV) for equal doses (worked example 20/100 = 0.2).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK551679/"
+   ],
+   "note": "Standard definition."
+  },
+  {
+   "lessonId": "med-pharm-principles.l01",
+   "claim": "A weak acid is mostly un-ionized when pH is below its pKa; a weak base is mostly un-ionized when pH is above its pKa.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.clintox.org/wp-content/uploads/2016/04/Position-Paper-on-Urine-Alkalinization.pdf"
+   ],
+   "note": "Henderson-Hasselbalch; underlies urine alkalinization for weak acids."
+  },
+  {
+   "lessonId": "med-pharm-principles.l02",
+   "claim": "Vd near 3 L = plasma-confined; about 15 L = extracellular fluid.",
+   "verdict": "supported",
+   "sources": [
+    "https://sepia2.unil.ch/pharmacology/parameters/volumeofdistribution/"
+   ],
+   "note": "Sources give plasma ~3 L, ECF ~14 L, TBW ~42 L for 70 kg adult."
+  },
+  {
+   "lessonId": "med-pharm-principles.l02",
+   "claim": "Warfarin is roughly 99 percent albumin bound.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Warfarin",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC3495144/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l02",
+   "claim": "Protein-binding displacement interactions are usually clinically minor because extra free drug is cleared/redistributed.",
+   "verdict": "supported",
+   "sources": [
+    "https://ascpt.onlinelibrary.wiley.com/doi/10.1067/mcp.2002.121829"
+   ],
+   "note": "Benet & Hoener 2002."
+  },
+  {
+   "lessonId": "med-pharm-principles.l03",
+   "claim": "CYP3A4 handles the largest share of drugs.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC11625447/"
+   ],
+   "note": "~50% of marketed drugs."
+  },
+  {
+   "lessonId": "med-pharm-principles.l03",
+   "claim": "Lorazepam, oxazepam and temazepam are glucuronidated directly without phase I, so are preferred in liver disease and older adults.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK544349/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC5292604/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l03",
+   "claim": "Acetaminophen is oxidized by CYP2E1 and CYP3A4 to NAPQI, neutralized by glutathione; N-acetylcysteine replenishes glutathione.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/NAPQI",
+    "https://www.researchgate.net/publication/12573949_Contribution_of_CYP2E1_and_CYP3A_to_acetaminophen_reactive_metabolite_formation"
+   ],
+   "note": "CYP1A2 also minor contributor."
+  },
+  {
+   "lessonId": "med-pharm-principles.l04",
+   "claim": "Probenecid blocks organic anion secretion and raises methotrexate levels.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.medsafe.govt.nz/profs/datasheet/a/aft-Probenecidtab.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l04",
+   "claim": "Alkalinizing urine increases excretion of weak acids such as salicylate and phenobarbital.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.clintox.org/wp-content/uploads/2016/04/Position-Paper-on-Urine-Alkalinization.pdf"
+   ],
+   "note": "AACT/EAPCCT: increases elimination of both, though for phenobarbital multiple-dose charcoal is preferred."
+  },
+  {
+   "lessonId": "med-pharm-principles.l04",
+   "claim": "Biliary excretion handles molecules typically over about 300-500 daltons.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Commonly taught threshold (species-dependent, ~500 Da in humans); no primary source fetched."
+  },
+  {
+   "lessonId": "med-pharm-principles.l05",
+   "claim": "t1/2 = 0.693 x Vd / CL.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK554498/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l05",
+   "claim": "About 94 percent eliminated after four half-lives and about 97 percent after five.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK554498/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l05",
+   "claim": "Amiodarone's huge Vd gives a half-life measured in weeks with effects persisting for months.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2015/018972s047lbl.pdf"
+   ],
+   "note": "Terminal t1/2 mean ~53 days."
+  },
+  {
+   "lessonId": "med-pharm-principles.l06",
+   "claim": "About 90 percent of the plateau is reached after about 3.3 half-lives and practically by 4-5 half-lives, independent of dose.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK554498/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l06",
+   "claim": "When the dosing interval equals the half-life, the accumulation factor is about two.",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Follows directly from R = 1/(1 - e^(-k*tau)) = 1/(1-0.5) = 2; standard derivation, no external source fetched."
+  },
+  {
+   "lessonId": "med-pharm-principles.l06",
+   "claim": "Digoxin levels drawn during the distribution phase shortly after a dose are misleading.",
+   "verdict": "supported",
+   "sources": [
+    "https://pharmaceutical-journal.com/article/ld/digoxin-monitoring-and-toxicity-management",
+    "https://www.uspharmacist.com/article/digoxin-toxicity-a-review"
+   ],
+   "note": "Draw at least 6 h (ideally 8-12 h) post dose. Lesson's general statement that trough is the standard sample is fine."
+  },
+  {
+   "lessonId": "med-pharm-principles.l07",
+   "claim": "Loading dose depends on Vd (target C x Vd / F); maintenance dose rate depends on clearance (CL x target C / F).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK557418/",
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK545280/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l07",
+   "claim": "In renal failure with unchanged Vd, the loading dose is usually unchanged while the maintenance rate is reduced.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK557418/"
+   ],
+   "note": "Digoxin is a known exception where Vd falls in renal failure; lesson's 'unless the disease also changes the volume' covers this."
+  },
+  {
+   "lessonId": "med-pharm-principles.l07",
+   "claim": "Loading doses of narrow-index drugs given too fast cause transient high central-compartment levels, so they are divided or infused slowly.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK557418/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l08",
+   "claim": "Phenytoin's main metabolizing enzyme is CYP2C9 with a CYP2C19 contribution, and it saturates near the therapeutic range.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK499866/",
+    "https://doi.org/10.3390/pharmaceutics15102486"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l08",
+   "claim": "Ethanol is eliminated by zero-order kinetics at usual amounts because alcohol dehydrogenase saturates.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK499866/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l08",
+   "claim": "At higher aspirin doses the glycine conjugation and glucuronidation pathways saturate, lengthening salicylate half-life.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.tandfonline.com/doi/full/10.1080/17425255.2024.2386368",
+    "https://www.sciencedirect.com/topics/medicine-and-dentistry/salicyluric-acid"
+   ],
+   "note": "Salicyluric acid and salicyl phenolic glucuronide formation are saturable."
+  },
+  {
+   "lessonId": "med-pharm-principles.l09",
+   "claim": "Alpha-1 and M1/M3 couple to Gq (PLC, IP3/DAG); alpha-2 and M2 couple to Gi; beta-1/beta-2 couple to Gs.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Alpha-1_adrenergic_receptor",
+    "https://www.sciencedirect.com/topics/medicine-and-dentistry/adrenergic-receptor"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l09",
+   "claim": "With receptor reserve an irreversible antagonist first shifts the curve right without lowering the maximum, then lowers the maximum once reserve is exhausted.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sciencedirect.com/topics/pharmacology-toxicology-and-pharmaceutical-science/receptor-reserve",
+    "https://litfl.com/ec50-and-spare-receptors/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l09",
+   "claim": "Abrupt withdrawal of a long-term beta-blocker can cause rebound tachycardia and hypertension from up-regulated beta receptors.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/37093/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l10",
+   "claim": "Buprenorphine is a high-affinity mu partial agonist with a ceiling on respiratory depression that can precipitate withdrawal in full-agonist-dependent people.",
+   "verdict": "supported",
+   "sources": [
+    "https://academic.oup.com/bja/article/96/5/627/313315",
+    "https://emedicine.medscape.com/article/1641147-overview"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l10",
+   "claim": "Phenoxybenzamine binds alpha-adrenergic receptors covalently (irreversible, insurmountable antagonism).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK560667/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l10",
+   "claim": "Naloxone has a shorter duration than many opioids, so opioid effect can return after reversal.",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard teaching (naloxone duration ~30-90 min); not separately fetched."
+  },
+  {
+   "lessonId": "med-pharm-principles.l11",
+   "claim": "Loop diuretics have a higher maximal diuresis (greater efficacy) than thiazides.",
+   "verdict": "supported",
+   "sources": [
+    "https://journals.lww.com/cjasn/fulltext/2019/08000/clinical_pharmacology_in_diuretic_use.21.aspx",
+    "https://en.wikipedia.org/wiki/Loop_diuretic"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l11",
+   "claim": "Potency is measured by EC50/ED50 (position on dose axis); efficacy is Emax.",
+   "verdict": "supported",
+   "sources": [
+    "https://tmedweb.tulane.edu/pharmwiki/doku.php/basic_principles_of_pharm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l11",
+   "claim": "ED50, TD50 and LD50 are quantal (population) measures; LD50 is the dose lethal to 50 percent of animals.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Therapeutic_index"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l12",
+   "claim": "The certain safety factor is LD1/ED99, a more conservative measure than TD50/ED50.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Therapeutic_index",
+    "https://tmedweb.tulane.edu/pharmwiki/doku.php/basic_principles_of_pharm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l12",
+   "claim": "With opioids, tolerance to respiratory depression develops more slowly than tolerance to euphoria and analgesia; tolerance to constipation and miosis is limited.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acep.org/siteassets/sites/acep/media/by-medical-focus/opioids/acep-opioid-summary-guide.pdf",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC7983936/"
+   ],
+   "note": "Widely taught; respiratory tolerance does develop substantially (Algera 2021), but the relative ordering is the standard teaching."
+  },
+  {
+   "lessonId": "med-pharm-principles.l12",
+   "claim": "Warfarin, digoxin, lithium, phenytoin, theophylline, aminoglycosides, cyclosporine and tacrolimus are narrow-therapeutic-index drugs.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Therapeutic_index"
+   ],
+   "note": "Standard NTI list; no single official FDA list fetched."
+  },
+  {
+   "lessonId": "med-pharm-principles.l13",
+   "claim": "Strong CYP3A4 inhibitors include ketoconazole, itraconazole, clarithromycin, ritonavir; CYP2D6 inhibitors fluoxetine, paroxetine, quinidine, bupropion; CYP1A2 inhibitors ciprofloxacin, fluvoxamine.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-interactions-labeling/drug-development-and-drug-interactions-table-substrates-inhibitors-and-inducers"
+   ],
+   "note": "Grapefruit juice is not on FDA's strong list (variable, moderate); calling it 'strong' is a mild overstatement."
+  },
+  {
+   "lessonId": "med-pharm-principles.l13",
+   "claim": "Induction develops over days to a couple of weeks (new protein synthesis via PXR/CAR/AhR); rifampin, carbamazepine, phenytoin, phenobarbital and St John's wort are classic inducers.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/drugs/drug-interactions-labeling/drug-development-and-drug-interactions-table-substrates-inhibitors-and-inducers"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l13",
+   "claim": "Induction has little effect on high-extraction drugs because their clearance is limited by blood flow.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://journals.lww.com/hep/abstract/10.1002/hep.510240407~differential-induction-of-prehepatic-and-hepatic-metabolism?redirectionsource=fulltextview",
+    "https://pubmed.ncbi.nlm.nih.gov/3180898/"
+   ],
+   "note": "True only for systemic clearance after IV dosing. For ORAL high-extraction drugs, induction greatly lowers bioavailability (rifampin cut oral S-verapamil bioavailability ~25-fold). Needs qualification; same oversimplification appears in l03 for propranolol."
+  },
+  {
+   "lessonId": "med-pharm-principles.l14",
+   "claim": "Grapefruit juice inhibits intestinal CYP3A4 and raises felodipine bioavailability.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.jci.org/articles/view/119439",
+    "https://bpspubs.onlinelibrary.wiley.com/doi/10.1046/j.1365-2125.1998.00764.x"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l14",
+   "claim": "Tyramine is normally broken down by gut and liver MAO; with non-selective MAOIs it releases norepinephrine and can cause hypertensive crisis.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.bap.org.uk/pdfs/PS03-20-July2020.pdf",
+    "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2738414/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l14",
+   "claim": "Metronidazole-alcohol disulfiram-like reaction is traditional teaching but the evidence is debated.",
+   "verdict": "supported",
+   "sources": [
+    "https://journals.asm.org/doi/full/10.1128/aac.02167-19",
+    "https://pubmed.ncbi.nlm.nih.gov/12022894/"
+   ],
+   "note": "US labeling still advises avoiding alcohol during and 3 days after therapy."
+  },
+  {
+   "lessonId": "med-pharm-principles.l15",
+   "claim": "Heparin-induced thrombocytopenia is antibody-mediated (type II), against platelet factor 4-heparin complexes.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.mayocliniclabs.com/test-catalog/overview/86533",
+    "https://thrombosisjournal.biomedcentral.com/articles/10.1186/s12959-021-00318-2"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l15",
+   "claim": "Urinary alkalinization enhances salicylate elimination; hemodialysis suits agents with small Vd and low protein binding.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.clintox.org/wp-content/uploads/2016/04/Position-Paper-on-Urine-Alkalinization.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l15",
+   "claim": "Type A reactions are predictable, dose-related, common and rarely fatal; type B are unpredictable and uncommon; C chronic, D delayed, E withdrawal.",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Rawlins-Thompson / extended Edwards-Aronson classification; standard teaching, not separately fetched."
+  },
+  {
+   "lessonId": "med-pharm-principles.l16",
+   "claim": "HLA-B*57:01 predicts abacavir hypersensitivity; HLA-B*15:02 predicts carbamazepine SJS/TEN; HLA-B*58:01 predicts allopurinol severe cutaneous reactions.",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/gene/hla/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l16",
+   "claim": "Codeine is avoided in children after tonsillectomy and in breastfeeding mothers who are CYP2D6 ultrarapid metabolizers.",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/aapnews/news/8748/Do-not-use-codeine-tramadol-in-children-FDA"
+   ],
+   "note": "Understates current FDA position: since 2017 codeine is contraindicated in ALL children under 12 and FDA recommends against it for ALL breastfeeding mothers, not only known ultrarapid metabolizers."
+  },
+  {
+   "lessonId": "med-pharm-principles.l16",
+   "claim": "CYP2C19 loss-of-function carriers form less clopidogrel active metabolite and may have reduced antiplatelet effect.",
+   "verdict": "supported",
+   "sources": [
+    "https://cpicpgx.org/gene/hla/"
+   ],
+   "note": "Consistent with CPIC CYP2C19-clopidogrel guideline and FDA boxed warning; CPIC page cited is the HLA index, clopidogrel guideline not separately fetched."
+  },
+  {
+   "lessonId": "med-pharm-principles.l17",
+   "claim": "Sweat glands receive sympathetic cholinergic fibers acting on muscarinic receptors.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.openanesthesia.org/keywords/sweat-gland-innervation/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l17",
+   "claim": "Tyrosine hydroxylase is the rate-limiting enzyme in catecholamine synthesis.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.jneurosci.org/content/20/19/7362"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l17",
+   "claim": "Physostigmine (tertiary) crosses the blood-brain barrier and treats central anticholinergic toxicity; neostigmine (quaternary) does not.",
+   "verdict": "supported",
+   "sources": [
+    "https://tmedweb.tulane.edu/pharmwiki/doku.php/physostigmine"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l18",
+   "claim": "An IND may proceed 30 days after FDA receipt unless a clinical hold is imposed (21 CFR 312.40).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/cfr/text/21/312.40"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l18",
+   "claim": "PDUFA review goals are about 10 months (standard) and 6 months (priority) from filing.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/media/151712/download",
+    "https://www.gao.gov/assets/gao-20-244.pdf"
+   ],
+   "note": "For NMEs the clock starts at the 60-day filing date (i.e. ~12 and ~8 months from submission)."
+  },
+  {
+   "lessonId": "med-pharm-principles.l18",
+   "claim": "Phase 1 typically enrolls 20 to 100 subjects, often healthy volunteers.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/patients/drug-development-process/step-3-clinical-research"
+   ],
+   "note": "FDA's page says 20 to 80; 20-100 is a common textbook range. Minor."
+  },
+  {
+   "lessonId": "med-pharm-principles.l19",
+   "claim": "The FDA Pregnancy and Lactation Labeling Rule replaced letter categories A/B/C/D/X with narrative summaries since 2015.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/media/100406/download",
+    "https://www.aafp.org/pubs/afp/issues/2016/0701/p12.html"
+   ],
+   "note": "Effective June 30, 2015; phased in for older labels."
+  },
+  {
+   "lessonId": "med-pharm-principles.l19",
+   "claim": "First two weeks after conception are all-or-none; weeks 3 to 8 (organogenesis) carry the main risk of major malformations.",
+   "verdict": "supported",
+   "sources": [
+    "http://www.columbia.edu/itc/hs/medical/humandev/2004/Chpt23-Teratogens.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l19",
+   "claim": "Chloramphenicol caused gray baby syndrome in neonates because of immature glucuronidation.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK448133/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l20",
+   "claim": "The AGS Beers Criteria list potentially inappropriate drugs for older adults, such as long-acting benzodiazepines, first-generation antihistamines and anticholinergics.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.americangeriatrics.org/media-center/news/many-older-adults-take-multiple-medications-updated-ags-beers-criteriar-will-help"
+   ],
+   "note": "Current version is the 2023 update."
+  },
+  {
+   "lessonId": "med-pharm-principles.l20",
+   "claim": "Morphine-6-glucuronide accumulates in kidney disease causing sedation; normeperidine accumulation can cause seizures.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.mypcnow.org/fast-fact/opioid-use-in-renal-failure/",
+    "https://www.sciencedirect.com/topics/pharmacology-toxicology-and-pharmaceutical-science/norpethidine"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-pharm-principles.l20",
+   "claim": "Glucuronidated drugs such as lorazepam are relatively preserved in cirrhosis compared with oxidized drugs such as diazepam.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC5292604/"
+   ],
+   "note": ""
+  }
+ ]
+}

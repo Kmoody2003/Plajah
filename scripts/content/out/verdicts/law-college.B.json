@@ -1,0 +1,1316 @@
+{
+  "courseId": "law-college",
+  "verifier": "B",
+  "fetched": 43,
+  "note": "WebFetch/WebSearch worked; louvre.fr, bl.uk and americanbar.org failed (404/403) and were replaced with other sources. Research done in passes over all 18 lessons and 108 questions.",
+  "questions": [
+    {
+      "id": "law-college.l01.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Code_of_Hammurabi"
+      ]
+    },
+    {
+      "id": "law-college.l01.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Twelve_Tables"
+      ]
+    },
+    {
+      "id": "law-college.l01.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l01.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Code_of_Hammurabi"
+      ]
+    },
+    {
+      "id": "law-college.l01.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l01.q6",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l02.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Corpus_Juris_Civilis"
+      ]
+    },
+    {
+      "id": "law-college.l02.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Corpus_Juris_Civilis"
+      ]
+    },
+    {
+      "id": "law-college.l02.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l02.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l02.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Law_of_Louisiana"
+      ]
+    },
+    {
+      "id": "law-college.l02.q6",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l03.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l03.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Judicature_Acts"
+      ]
+    },
+    {
+      "id": "law-college.l03.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l03.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Magna_Carta"
+      ]
+    },
+    {
+      "id": "law-college.l03.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l03.q6",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l04.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+      ]
+    },
+    {
+      "id": "law-college.l04.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Commentaries_on_the_Laws_of_England"
+      ]
+    },
+    {
+      "id": "law-college.l04.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l04.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l04.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l04.q6",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l05.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l05.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Fiqh"
+      ]
+    },
+    {
+      "id": "law-college.l05.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l05.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l05.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Law_of_South_Africa"
+      ]
+    },
+    {
+      "id": "law-college.l05.q6",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l06.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.law.cornell.edu/constitution/articlevi"
+      ]
+    },
+    {
+      "id": "law-college.l06.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Restatements_of_the_Law"
+      ]
+    },
+    {
+      "id": "law-college.l06.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "note": "Choice 1 (forum-state law) is a Klaxon choice-of-law point, not Erie's holding; choice 3 is best.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+      ]
+    },
+    {
+      "id": "law-college.l06.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l06.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l06.q6",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l07.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l07.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+      ]
+    },
+    {
+      "id": "law-college.l07.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l07.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l07.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l07.q6",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Nondelegation_doctrine_in_the_United_States"
+      ]
+    },
+    {
+      "id": "law-college.l08.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l08.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l08.q3",
+      "answer": 1,
+      "confidence": "medium",
+      "ambiguous": false,
+      "note": "Palsgraf turned on unforeseeability; package wrapped in newspaper gave no notice of danger.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+      ]
+    },
+    {
+      "id": "law-college.l08.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+      ]
+    },
+    {
+      "id": "law-college.l08.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l08.q6",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l09.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l09.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l09.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l09.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l09.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l09.q6",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Marks_v._United_States"
+      ]
+    },
+    {
+      "id": "law-college.l10.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l10.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l10.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l10.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education",
+        "https://en.wikipedia.org/wiki/Plessy_v._Ferguson"
+      ]
+    },
+    {
+      "id": "law-college.l10.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l10.q6",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l11.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l11.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l11.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.uscourts.gov/about-federal-courts/court-role-and-structure"
+      ]
+    },
+    {
+      "id": "law-college.l11.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l11.q5",
+      "answer": 1,
+      "confidence": "medium",
+      "ambiguous": false,
+      "note": "Treatment of intermediate appellate splits varies by state (e.g. California lets trial courts choose); choice 1 is the most sound general answer.",
+      "sources": []
+    },
+    {
+      "id": "law-college.l11.q6",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l12.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l12.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+      ]
+    },
+    {
+      "id": "law-college.l12.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l12.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l12.q5",
+      "answer": 2,
+      "confidence": "medium",
+      "ambiguous": true,
+      "note": "\"Congress could not have meant\" sounds intentionalist (choice 0), but the safety-work rationale is purposive; choice 2 is best but 0 is arguable. Prompt also says \"Congress\" for what reads like a campground statute.",
+      "sources": []
+    },
+    {
+      "id": "law-college.l12.q6",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l13.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l13.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.law.cornell.edu/wex/rule_of_lenity"
+      ]
+    },
+    {
+      "id": "law-college.l13.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l13.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l13.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "note": "Yates plurality used both noscitur a sociis and ejusdem generis; only noscitur is offered.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Yates_v._United_States_(2015)"
+      ]
+    },
+    {
+      "id": "law-college.l13.q6",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l14.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf"
+      ]
+    },
+    {
+      "id": "law-college.l14.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Chevron_U.S.A.,_Inc._v._Natural_Resources_Defense_Council,_Inc."
+      ]
+    },
+    {
+      "id": "law-college.l14.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf",
+        "https://en.wikipedia.org/wiki/Skidmore_v._Swift_%26_Co."
+      ]
+    },
+    {
+      "id": "law-college.l14.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf"
+      ]
+    },
+    {
+      "id": "law-college.l14.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l14.q6",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf"
+      ]
+    },
+    {
+      "id": "law-college.l15.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l15.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://iep.utm.edu/val-snd/"
+      ]
+    },
+    {
+      "id": "law-college.l15.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l15.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l15.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Affirming_the_consequent"
+      ]
+    },
+    {
+      "id": "law-college.l15.q6",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l16.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Straw_man"
+      ]
+    },
+    {
+      "id": "law-college.l16.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/Post_hoc_ergo_propter_hoc"
+      ]
+    },
+    {
+      "id": "law-college.l16.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l16.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l16.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l16.q6",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l17.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.lsac.org/lsat/taking-lsat/test-format"
+      ]
+    },
+    {
+      "id": "law-college.l17.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l17.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l17.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l17.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l17.q6",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l18.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l18.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.ncbex.org/exams/mpre"
+      ]
+    },
+    {
+      "id": "law-college.l18.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://en.wikipedia.org/wiki/ABA_Model_Rules_of_Professional_Conduct"
+      ]
+    },
+    {
+      "id": "law-college.l18.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.ncbex.org/exams/ube"
+      ]
+    },
+    {
+      "id": "law-college.l18.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "law-college.l18.q6",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    }
+  ],
+  "claims": [
+    {
+      "lessonId": "law-college.l01",
+      "claim": "Hammurabi was king of Babylon in the 18th century BCE and the best-known copy of the code is a stele in the Louvre",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Code_of_Hammurabi"
+      ],
+      "note": "Reign c.1792-1750 BCE; stele found at Susa, now in the Louvre."
+    },
+    {
+      "lessonId": "law-college.l01",
+      "claim": "Earlier Mesopotamian law collections predate Hammurabi's code",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Code_of_Hammurabi"
+      ],
+      "note": "Ur-Nammu and Lipit-Ishtar."
+    },
+    {
+      "lessonId": "law-college.l01",
+      "claim": "The Twelve Tables are traditionally dated to about 451-450 BCE and survive only in later quotations",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Twelve_Tables"
+      ],
+      "note": "Wikipedia: first ten tables c.450 BCE, formally promulgated 449 BCE; lesson's \"about 451 to 450\" is a slight simplification. Children memorised them per Cicero."
+    },
+    {
+      "lessonId": "law-college.l02",
+      "claim": "Justinian's compilation under Tribonian has four parts: Code, Digest/Pandects, Institutes, Novels",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Corpus_Juris_Civilis"
+      ],
+      "note": "Enacted 529-534."
+    },
+    {
+      "lessonId": "law-college.l02",
+      "claim": "Roman law study revived at Bologna in the late eleventh century",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Corpus_Juris_Civilis"
+      ],
+      "note": "Digest recovered c.1070 at Bologna."
+    },
+    {
+      "lessonId": "law-college.l02",
+      "claim": "The German Civil Code took effect in 1900 and the French Civil Code dates from 1804",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/B%C3%BCrgerliches_Gesetzbuch"
+      ],
+      "note": "BGB in force 1 January 1900."
+    },
+    {
+      "lessonId": "law-college.l03",
+      "claim": "Henry II (second half of 12th c.) expanded royal justice with itinerant judges, laying the basis of the common law",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Henry_II_of_England"
+      ],
+      "note": "Reigned 1154-1189."
+    },
+    {
+      "lessonId": "law-college.l03",
+      "claim": "Magna Carta was sealed in 1215 as a settlement between King John and the barons, reissued in revised forms, and only a few clauses remain in force",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Magna_Carta"
+      ],
+      "note": "Reissued 1216, 1217, 1225; three clauses (via the 1297 statute version) remain in force in England and Wales; none of the 1215 text itself is in force."
+    },
+    {
+      "lessonId": "law-college.l03",
+      "claim": "The Judicature Acts of the 1870s merged the administration of law and equity in England",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Judicature_Acts"
+      ],
+      "note": "1873 and 1875 Acts."
+    },
+    {
+      "lessonId": "law-college.l04",
+      "claim": "Blackstone's Commentaries were published from 1765 and became the standard text for early American lawyers",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Commentaries_on_the_Laws_of_England"
+      ],
+      "note": "Four volumes 1765-1769; first American edition 1772."
+    },
+    {
+      "lessonId": "law-college.l04",
+      "claim": "Marbury v. Madison (1803), Marshall CJ, is the classic source of US judicial review",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Marbury_v._Madison"
+      ],
+      "note": "Decided 24 Feb 1803."
+    },
+    {
+      "lessonId": "law-college.l04",
+      "claim": "Most states adopted English common law by reception statutes or constitutions as of a set date",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened for this claim."
+    },
+    {
+      "lessonId": "law-college.l05",
+      "claim": "South Africa is a mixed system: Roman-Dutch civil law, common law method, and constitutionally recognised customary law",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Law_of_South_Africa"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l05",
+      "claim": "Fiqh is the human jurisprudence by which jurists derive rules from the sources of sharia",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Fiqh"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l05",
+      "claim": "Louisiana and Quebec are mixed/civil law jurisdictions within common law countries",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Law_of_Louisiana"
+      ],
+      "note": "Louisiana private law from French/Spanish civil law; Quebec not separately checked."
+    },
+    {
+      "lessonId": "law-college.l06",
+      "claim": "Article VI Supremacy Clause makes the Constitution, federal laws made in pursuance of it, and treaties the supreme law of the land",
+      "verdict": "supported",
+      "sources": [
+        "https://www.law.cornell.edu/constitution/articlevi"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l06",
+      "claim": "Erie Railroad Co. v. Tompkins (1938) held federal courts in diversity must apply state substantive law including state common law",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Erie_Railroad_Co._v._Tompkins"
+      ],
+      "note": "6-2, Brandeis; overruled Swift v. Tyson."
+    },
+    {
+      "lessonId": "law-college.l06",
+      "claim": "Restatements are published by the American Law Institute and are persuasive, not binding",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Restatements_of_the_Law"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l07",
+      "claim": "McCulloch v. Maryland (1819) upheld an implied power via the Necessary and Proper Clause to create a national bank and barred the state tax",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/McCulloch_v._Maryland"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l07",
+      "claim": "Tenth Amendment reserves undelegated, unprohibited powers to the states or the people",
+      "verdict": "supported",
+      "sources": [
+        "https://www.law.cornell.edu/constitution/tenth_amendment"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l07",
+      "claim": "Delegation is permitted where Congress supplies an intelligible principle (q6 premise)",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Nondelegation_doctrine_in_the_United_States"
+      ],
+      "note": "J.W. Hampton (1928)."
+    },
+    {
+      "lessonId": "law-college.l08",
+      "claim": "Palsgraf v. Long Island R.R. was decided by the New York Court of Appeals in 1928; Cardozo majority, Andrews dissent; judgment for plaintiff reversed",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+      ],
+      "note": "4-3, May 29, 1928; reversed and complaint dismissed."
+    },
+    {
+      "lessonId": "law-college.l08",
+      "claim": "Palsgraf facts: \"A railroad employee helped a passenger board a moving train\"",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+      ],
+      "note": "Imprecise: two employees helped (one pulling from the car, one pushing from the platform). Fireworks package wrapped in newspaper; scale toppled. Suggest \"two railroad guards\"."
+    },
+    {
+      "lessonId": "law-college.l08",
+      "claim": "Cardozo held no duty to a plaintiff outside the zone of foreseeable danger; Andrews would treat duty as owed to the world and limit via proximate cause",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Palsgraf_v._Long_Island_Railroad_Co."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l09",
+      "claim": "When no rationale commands a majority, later courts look for the narrowest ground on which a majority agreed",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Marks_v._United_States"
+      ],
+      "note": "Marks v. United States (1977)."
+    },
+    {
+      "lessonId": "law-college.l09",
+      "claim": "Dicta are statements not necessary to the result and do not bind later courts",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened; standard doctrine."
+    },
+    {
+      "lessonId": "law-college.l09",
+      "claim": "Alternative independent grounds are treated by many authorities as both holdings",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened."
+    },
+    {
+      "lessonId": "law-college.l10",
+      "claim": "Plessy v. Ferguson (1896) upheld state-mandated segregation under separate but equal",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Plessy_v._Ferguson"
+      ],
+      "note": "7-1."
+    },
+    {
+      "lessonId": "law-college.l10",
+      "claim": "Brown v. Board (1954) held school segregation violates the Equal Protection Clause, repudiating Plessy in public education",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Brown_v._Board_of_Education"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l10",
+      "claim": "Supreme Court overruling factors include workability, reasoning quality, eroded basis and reliance",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened."
+    },
+    {
+      "lessonId": "law-college.l11",
+      "claim": "Federal system has 94 district courts and 13 courts of appeals under the Supreme Court",
+      "verdict": "supported",
+      "sources": [
+        "https://www.uscourts.gov/about-federal-courts/court-role-and-structure"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l11",
+      "claim": "A court of appeals decision binds district courts within that circuit but is only persuasive elsewhere",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened."
+    },
+    {
+      "lessonId": "law-college.l11",
+      "claim": "Supreme Court often grants review to resolve circuit splits but is not required to",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened."
+    },
+    {
+      "lessonId": "law-college.l12",
+      "claim": "Church of the Holy Trinity v. United States (1892): statute barring contract labor or service of any kind held not to apply to an English pastor, on spirit/purpose reasoning",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Church_of_the_Holy_Trinity_v._United_States"
+      ],
+      "note": "Brewer J.; criticised by textualists incl. Scalia."
+    },
+    {
+      "lessonId": "law-college.l12",
+      "claim": "Textualists rely on bicameralism and presentment to privilege enacted text",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened."
+    },
+    {
+      "lessonId": "law-college.l12",
+      "claim": "Intentionalism is less common today",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened."
+    },
+    {
+      "lessonId": "law-college.l13",
+      "claim": "Rule of lenity resolves genuine ambiguity in criminal statutes in the defendant favour",
+      "verdict": "supported",
+      "sources": [
+        "https://www.law.cornell.edu/wex/rule_of_lenity"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l13",
+      "claim": "Noscitur a sociis and ejusdem generis definitions (as applied to tangible object in q5)",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Yates_v._United_States_(2015)"
+      ],
+      "note": "Yates v. United States (2015) plurality applied both canons."
+    },
+    {
+      "lessonId": "law-college.l13",
+      "claim": "Constitutional avoidance canon: read statute, where fairly possible, to avoid serious constitutional doubt",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened."
+    },
+    {
+      "lessonId": "law-college.l14",
+      "claim": "Chevron (1984) two-step: has Congress directly spoken to the precise question; if silent/ambiguous, is the agency view a permissible construction",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Chevron_U.S.A.,_Inc._v._Natural_Resources_Defense_Council,_Inc."
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l14",
+      "claim": "Loper Bright Enterprises v. Raimondo (2024) overruled Chevron; APA requires independent judgment; Skidmore-style respect remains; express delegations policed by courts",
+      "verdict": "supported",
+      "sources": [
+        "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf",
+        "https://www.scotusblog.com/2024/06/supreme-court-strikes-down-chevron-curtailing-power-of-federal-agencies/",
+        "https://en.wikipedia.org/wiki/Skidmore_v._Swift_%26_Co."
+      ],
+      "note": "Decided June 28, 2024; 6-2 in Loper Bright (Jackson recused), 6-3 in companion Relentless. Lesson omits the vote, which is fine."
+    },
+    {
+      "lessonId": "law-college.l14",
+      "claim": "Court said it did not call into question prior cases relying on Chevron (statutory stare decisis)",
+      "verdict": "supported",
+      "sources": [
+        "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf"
+      ],
+      "note": "Opinion: we do not call into question prior cases that relied on the Chevron framework."
+    },
+    {
+      "lessonId": "law-college.l15",
+      "claim": "Valid = impossible for premises true and conclusion false; sound = valid with true premises",
+      "verdict": "supported",
+      "sources": [
+        "https://iep.utm.edu/val-snd/"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l15",
+      "claim": "Modus ponens and contrapositive are valid; affirming the consequent and denying the antecedent are invalid",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Affirming_the_consequent"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l15",
+      "claim": "Q unless P translates to if not P, then Q",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened; standard LSAT convention."
+    },
+    {
+      "lessonId": "law-college.l16",
+      "claim": "Straw man misstates an opponent position in weaker form and refutes the distortion",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Straw_man"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l16",
+      "claim": "Post hoc ergo propter hoc assumes that because one event followed another, the first caused it",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Post_hoc_ergo_propter_hoc"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l16",
+      "claim": "Impeachment for bias/financial interest is legitimate, not ad hominem",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "No page opened."
+    },
+    {
+      "lessonId": "law-college.l17",
+      "claim": "LSAT scored sections are two logical reasoning and one reading comprehension; logic games removed from August 2024",
+      "verdict": "supported",
+      "sources": [
+        "https://www.lsac.org/lsat/taking-lsat/test-format"
+      ],
+      "note": "LSAC: four 35-minute sections (three scored + one unscored variable). August 2024 date not restated on the page opened; removal confirmed."
+    },
+    {
+      "lessonId": "law-college.l17",
+      "claim": "LSAT writing sample is unscored and taken separately",
+      "verdict": "supported",
+      "sources": [
+        "https://www.lsac.org/lsat/taking-lsat/test-format"
+      ],
+      "note": "Now LSAT Argumentative Writing, 50 minutes, remote proctored."
+    },
+    {
+      "lessonId": "law-college.l17",
+      "claim": "LSAT is administered by the Law School Admission Council",
+      "verdict": "supported",
+      "sources": [
+        "https://www.lsac.org/lsat/taking-lsat/test-format"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "law-college.l18",
+      "claim": "NextGen bar exam is being introduced in stages beginning in 2026",
+      "verdict": "supported",
+      "sources": [
+        "https://www.ncbex.org/exams/nextgen"
+      ],
+      "note": "First administered July 2026 in 10 jurisdictions (CT, Guam, ID, MD, MO, CNMI, OR, Palau, USVI, WA); staggered transition to July 2028. Lesson could now say it has begun."
+    },
+    {
+      "lessonId": "law-college.l18",
+      "claim": "UBE combines MEE, MPT and MBE and produces a portable score; jurisdictions set their own passing scores",
+      "verdict": "supported",
+      "sources": [
+        "https://www.ncbex.org/exams/ube"
+      ],
+      "note": "About 33 states currently use the UBE."
+    },
+    {
+      "lessonId": "law-college.l18",
+      "claim": "Most states require the MPRE; most states adopted versions of the ABA Model Rules; confidentiality is broader than the evidentiary privilege",
+      "verdict": "supported",
+      "sources": [
+        "https://www.ncbex.org/exams/mpre",
+        "https://en.wikipedia.org/wiki/ABA_Model_Rules_of_Professional_Conduct"
+      ],
+      "note": "MPRE required in all but Wisconsin and Puerto Rico; all 50 states + DC have rules based on the Model Rules (California last, 2018)."
+    }
+  ]
+}

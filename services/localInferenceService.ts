@@ -56,7 +56,7 @@
  *  Once downloaded, model is cached indefinitely.
  */
 
-export type LocalInferenceBackend = 'WINDOWS_ML' | 'ONNX_ANDROID' | 'WEBNN' | 'UNAVAILABLE';
+export type LocalInferenceBackend = 'NVIDIA_TENSORRT' | 'WINDOWS_ML' | 'ONNX_ANDROID' | 'WEBNN' | 'UNAVAILABLE';
 
 interface LocalInferenceState {
   backend: LocalInferenceBackend;

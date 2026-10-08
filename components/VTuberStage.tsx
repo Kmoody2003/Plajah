@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Video, Square, Sparkles, ArrowLeft, Loader2, AlertCircle, Upload, Check } from 'lucide-react';
 import { createVTuberStream, type VTuberHandle, type VTuberMode } from '../services/vtuber/vtuberEngine';
-import { buildVTuberFromSheet, type AvatarDescriptor } from '../services/vtuber/avatarFactory';
+import { buildVTuberFromSheet, KAIJU_VTUBER_PRESETS, type AvatarDescriptor } from '../services/vtuber/avatarFactory';
 
 const T = {
   bg: '#0a0a0f', card: '#12121a', border: '#20202c', ink: '#fff', muted: '#9a9aa6',
@@ -93,6 +93,17 @@ const VTuberStage: React.FC<{ avatarUrl?: string; onBack?: () => void }> = ({ av
             </div>
           )}
         </div>
+
+        {/* Ready-made characters */}
+        {!running && (
+          <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: T.muted, fontWeight: 700 }}>Characters:</span>
+            {KAIJU_VTUBER_PRESETS.map(p => {
+              const on = descriptor?.kind === 'KAIJU2D' && descriptor.character === p.descriptor.character;
+              return <button key={p.id} title={p.blurb} onClick={() => { setDescriptor(p.descriptor); setBuildMsg(`${p.name} ready`); setError(''); }} style={chip(on)}>{p.emoji} {p.name}</button>;
+            })}
+          </div>
+        )}
 
         {/* Character sheet → avatar */}
         {!running && (

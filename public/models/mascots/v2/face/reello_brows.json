@@ -1,0 +1,165 @@
+{
+ "cols": 3,
+ "rows": 4,
+ "cell": 384,
+ "source": "reello_brows_raw.png",
+ "side": null,
+ "states": [
+  {
+   "name": "angry",
+   "col": 0,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8307,
+    0.3411
+   ]
+  },
+  {
+   "name": "flat",
+   "col": 1,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9193,
+    0.138
+   ]
+  },
+  {
+   "name": "raised",
+   "col": 2,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8854,
+    0.2604
+   ]
+  },
+  {
+   "name": "sad",
+   "col": 0,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8724,
+    0.2083
+   ]
+  },
+  {
+   "name": "worried",
+   "col": 1,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8854,
+    0.2031
+   ]
+  },
+  {
+   "name": "skeptic",
+   "col": 2,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7682,
+    0.3594
+   ]
+  },
+  {
+   "name": "furrowed",
+   "col": 0,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8672,
+    0.263
+   ]
+  },
+  {
+   "name": "thin",
+   "col": 1,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9089,
+    0.125
+   ]
+  },
+  {
+   "name": "surprised",
+   "col": 2,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8464,
+    0.2552
+   ]
+  },
+  {
+   "name": "villain",
+   "col": 0,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8333,
+    0.3464
+   ]
+  },
+  {
+   "name": "soft",
+   "col": 1,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.888,
+    0.1484
+   ]
+  },
+  {
+   "name": "wavy",
+   "col": 2,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8255,
+    0.1927
+   ]
+  }
+ ]
+}

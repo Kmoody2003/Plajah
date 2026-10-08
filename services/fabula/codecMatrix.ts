@@ -80,6 +80,24 @@ export const VIDEO: CodecEntry[] = [
     ext: ['mp4', 'mov', 'hevc', 'mkv'], encoder: 'libx265',
     note: 'Encode via WebCodecs only where the OS provides it; three patent pools make shipping our own untenable.',
   },
+  {
+    id: 'mainconcept_avc', label: 'MainConcept AVC / H.264 (Intra/Broadcast)', kind: V, license: 'vendor',
+    importTiers: ['native', 'webcodecs', 'wasm', 'crossover'], exportTiers: ['webcodecs', 'crossover'],
+    ext: ['mp4', 'mov', 'mxf', 'ts'], encoder: 'libx264',
+    note: 'MainConcept AVC-Intra Class 50/100/200, Sony XAVC Intra/Long GOP, and broadcast transport stream encoding.',
+  },
+  {
+    id: 'mainconcept_hevc', label: 'MainConcept HEVC / H.265 (Broadcast HDR)', kind: V, license: 'vendor',
+    importTiers: ['native', 'webcodecs', 'crossover'], exportTiers: ['webcodecs', 'crossover'],
+    ext: ['mp4', 'mov', 'ts', 'mkv'], encoder: 'libx265',
+    note: 'MainConcept HEVC 10-bit broadcast and HDR delivery profile with Windows hardware MFT acceleration.',
+  },
+  {
+    id: 'xavc', label: 'Sony XAVC / XAVC-S', kind: V, license: 'vendor',
+    importTiers: ['native', 'webcodecs', 'wasm', 'crossover'], exportTiers: ['crossover'],
+    ext: ['mxf', 'mp4'], encoder: 'libx264',
+    note: 'Sony XAVC Intra / Long GOP (Class 100/300/480). Decodes natively or via crossover ffmpeg.',
+  },
   // ── royalty-free ──
   {
     id: 'av1', label: 'AV1', kind: V, license: 'free',
@@ -107,6 +125,12 @@ export const VIDEO: CodecEntry[] = [
     importTiers: ['wasm', 'crossover'], exportTiers: ['wasm', 'crossover'],
     ext: ['mpg', 'mpeg', 'm2v', 'ts', 'm2ts', 'mts', 'vob', 'mxf', 'mov'], encoder: 'mpeg2video',
     note: 'Last essential patent expired Feb 2018. In the LGPL ffmpeg core — full import AND export, no royalty.',
+  },
+  {
+    id: 'mainconcept_mpeg2', label: 'MainConcept MPEG-2 (PS/TS/XDCAM/HDV)', kind: V, license: 'expired',
+    importTiers: ['wasm', 'crossover'], exportTiers: ['wasm', 'crossover'],
+    ext: ['mpg', 'mpeg', 'm2v', 'ts', 'm2ts', 'mts', 'vob', 'mxf', 'm2t', 'hdv'], encoder: 'mpeg2video',
+    note: 'Patent-expired MPEG-2 with MainConcept / Microsoft MFT hardware acceleration on Windows. Profiles: Program Stream, Transport Stream, Sony XDCAM HD422, Sony HDV, IMX/D-10, DVD-Video.',
   },
   {
     id: 'mpeg1', label: 'MPEG-1', kind: V, license: 'expired',
@@ -187,6 +211,11 @@ export const VIDEO: CodecEntry[] = [
     id: 'arriraw', label: 'ARRIRAW', kind: V, license: 'grey',
     importTiers: ['crossover'], exportTiers: [], ext: ['ari', 'arx'],
     note: 'Decode via ARRI SDK (free, native). Impossible in-browser.',
+  },
+  {
+    id: 'canon_crm', label: 'Canon Cinema RAW Light (CRM)', kind: V, license: 'grey',
+    importTiers: ['crossover'], exportTiers: [], ext: ['crm'],
+    note: 'Decode-only via Canon Cinema RAW Light SDK / Crossover desktop. High-efficiency 12-bit raw.',
   },
 ];
 

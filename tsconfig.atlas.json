@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": ["services/machineAtlas/**/*.ts", "data/atlas/**/*.ts", "components/atlas/**/*.tsx", "tests/machineAtlas.test.ts", "src/atlasPreview.tsx"]
+}

@@ -1,0 +1,1258 @@
+{
+ "courseId": "med-ethics-prof",
+ "verifier": "A",
+ "note": "Web tools worked, but several pages (HHS, USHMM, Hopkins, PubMed, some Wikipedia) returned 403/404 or empty, so those claims are marked unverifiable. Questions answered from knowledge; none found wrong. Euthanasia and abortion positions are presented even-handedly. Additional pages opened and consistent with the course: AMA opposes physician-assisted suicide (https://code-medical-ethics.ama-assn.org/ethics-opinions/physician-assisted-suicide); Netherlands law in force 1 April 2002 (https://en.wikipedia.org/wiki/Euthanasia_in_the_Netherlands); Carter v Canada 6 Feb 2015 and Bill C-14 June 2016 (https://en.wikipedia.org/wiki/Carter_v_Canada_(Attorney_General)); Belmont three principles, report Sept 1978 and Federal Register April 1979 (https://en.wikipedia.org/wiki/Belmont_Report), so the lesson date 1979 is conventional.",
+ "fetched": 33,
+ "questions": [
+  {
+   "id": "med-ethics-prof.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l21.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l21.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l21.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-ethics-prof.l21.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-ethics-prof.l01",
+   "claim": "Beauchamp and Childress, Principles of Biomedical Ethics, first edition 1979, four principles",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Wikipedia page not retrievable (404); not checked against an opened page."
+  },
+  {
+   "lessonId": "med-ethics-prof.l01",
+   "claim": "Principles are prima facie binding, resolved by specification and balancing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard account; no page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l01",
+   "claim": "Principlism critiques (checklist, American autonomy priority)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Interpretive; no page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l02",
+   "claim": "Double effect conditions and Kantian ends-in-themselves formulation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l02",
+   "claim": "Virtue ethics traced to Aristotle; phronesis",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l02",
+   "claim": "Utilitarian organ-sacrifice objection and rule-based reply",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l03",
+   "claim": "Rita Charon developed narrative medicine; Gilligan In a Different Voice",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l03",
+   "claim": "Jonsen and Toulmin, The Abuse of Casuistry (1988)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Wikipedia fetch returned 404; unverified."
+  },
+  {
+   "lessonId": "med-ethics-prof.l03",
+   "claim": "Narrative medicine evidence base described as thin; presented fairly",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; the course hedges appropriately."
+  },
+  {
+   "lessonId": "med-ethics-prof.l04",
+   "claim": "Phrase first do no harm is not in the Hippocratic Oath; Epidemics has a related idea; Latin tag is later",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Primum_non_nocere"
+   ],
+   "note": "Page: not in Oath; Epidemics 'to do good or to do no harm'; Latin tag popularised 19th century."
+  },
+  {
+   "lessonId": "med-ethics-prof.l04",
+   "claim": "Doctors Trial and Nuremberg Code 1947; American judges",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Doctors%27_trial"
+   ],
+   "note": "Trial 9 Dec 1946 to 20 Aug 1947; three US judges."
+  },
+  {
+   "lessonId": "med-ethics-prof.l04",
+   "claim": "Declaration of Helsinki 1964, revised many times; independent ethics committee review and legally authorised representative consent",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wma.net/policies-post/wma-declaration-of-helsinki/"
+   ],
+   "note": "Current version adopted October 2024 (75th WMA General Assembly); prior revisions 1975, 1983, 1989, 1996, 2000, 2002, 2004, 2008, 2013. Lesson does not state the current year; could add 2024."
+  },
+  {
+   "lessonId": "med-ethics-prof.l05",
+   "claim": "Schloendorff v. Society of New York Hospital (NY, 1914), Cardozo, right to determine what is done with own body",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Schloendorff_v._Society_of_New_York_Hospital"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l05",
+   "claim": "Salgo (Cal. Ct. App. 1957) coined informed consent",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Salgo_v._Leland_Stanford_Jr._University_Board_of_Trustees"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l05",
+   "claim": "Canterbury v. Spence (D.C. Cir. 1972) reasonable patient standard",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Canterbury_v._Spence"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l06",
+   "claim": "Appelbaum and Grisso four abilities; decision-specific capacity",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l06",
+   "claim": "England and Wales Mental Capacity Act 2005 presumption of capacity",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l06",
+   "claim": "US has no single federal capacity test; state law",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l07",
+   "claim": "HIPAA permits use/disclosure for treatment, payment, operations without authorisation; threat-averting disclosure",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "HHS page returned 403; unverified by an opened page."
+  },
+  {
+   "lessonId": "med-ethics-prof.l07",
+   "claim": "Tarasoff v. Regents (Cal. 1976) duty to protect; states differ",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tarasoff_v._Regents_of_the_University_of_California"
+   ],
+   "note": "Decision 1 July 1976; as of 2012 states split between codified duty, common law duty, permissive, and none."
+  },
+  {
+   "lessonId": "med-ethics-prof.l07",
+   "claim": "42 CFR Part 2 substance use disorder records",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l08",
+   "claim": "SPIKES protocol, Baile and colleagues 2000, six steps",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "PubMed fetch returned no usable content."
+  },
+  {
+   "lessonId": "med-ethics-prof.l08",
+   "claim": "1961 survey that most physicians avoided telling cancer patients",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened (Oken 1961)."
+  },
+  {
+   "lessonId": "med-ethics-prof.l08",
+   "claim": "Therapeutic privilege narrow; right not to know",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l09",
+   "claim": "Cruzan (1990): state may require clear and convincing evidence",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cruzan_v._Director,_Missouri_Department_of_Health"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l09",
+   "claim": "In re Quinlan (NJ 1976) father authorised ventilator removal on privacy grounds",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Karen_Ann_Quinlan"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l09",
+   "claim": "Patient Self-Determination Act 1990 requires Medicare/Medicaid institutions to inform patients of directive rights",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Patient_Self-Determination_Act"
+   ],
+   "note": "Enacted 1990 (effective Dec 1991)."
+  },
+  {
+   "lessonId": "med-ethics-prof.l10",
+   "claim": "Medicare hospice requires certification of terminal illness, life expectancy six months or less, with recertification",
+   "verdict": "supported",
+   "sources": [
+    "https://www.medicare.gov/coverage/hospice-care"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l10",
+   "claim": "Uniform Determination of Death Act 1981, most states adopted",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Uniform_Determination_of_Death_Act"
+   ],
+   "note": "Approved 1981; 2021 revision committee paused indefinitely Sept 2023, so 1981 text remains current."
+  },
+  {
+   "lessonId": "med-ethics-prof.l10",
+   "claim": "Opioids appropriately titrated do not generally shorten life; palliative sedation distinguished from euthanasia",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Clinical-evidence claim; no page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l11",
+   "claim": "List of US jurisdictions permitting aid in dying: Oregon, Washington, Vermont, California, Colorado, Hawaii, New Jersey, Maine, New Mexico, DC, plus Montana by court decision",
+   "verdict": "contradicted",
+   "sources": [
+    "https://compassionandchoices.org/states-where-medical-aid-in-dying-is-authorized/"
+   ],
+   "note": "Out of date. Current list (Compassion & Choices) is 13 states plus DC and also includes Delaware (2025; effective 1 Jan 2026 per search), Illinois (signed Dec 2025; effective Sept 2026 per search) and New York (signed Feb 2026; effective Aug 2026 per search). Lesson says 'including' and 'check current status', so hedged, but the named list omits three jurisdictions as of Oct 2026. Montana via Baxter (2009) is correct."
+  },
+  {
+   "lessonId": "med-ethics-prof.l11",
+   "claim": "Glucksberg (1997) no constitutional right to assisted suicide; Vacco v. Quill (1997) equal protection",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supct/html/96-110.ZS.html",
+    "https://en.wikipedia.org/wiki/Vacco_v._Quill"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l11",
+   "claim": "England and Wales assisting suicide a crime under Suicide Act 1961; Parliament considering legislation as of this writing; Spain, NZ and parts of Australia have laws",
+   "verdict": "contradicted",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Terminally_Ill_Adults_(End_of_Life)_Bill",
+    "https://en.wikipedia.org/wiki/Legality_of_euthanasia",
+    "https://en.wikipedia.org/wiki/Suicide_Act_1961"
+   ],
+   "note": "Suicide Act s.2 offence correct. But Wikipedia (opened) reports the Terminally Ill Adults Bill failed in the Lords at end of session April 2026 and a reintroduced bill was defeated at Commons second reading 11 Sept 2026 (286 to 270); the legality page also lists NT completing all Australian jurisdictions (Aug 2026), France (Aug 2026), Jersey, Uruguay. 'Parliament has been considering' is stale, though the lesson hedges with 'as of this writing'. Wikipedia is a secondary source for these 2026 events."
+  },
+  {
+   "lessonId": "med-ethics-prof.l12",
+   "claim": "Dobbs v. Jackson Women's Health (2022) overruled Roe and Casey; regulation returned to states; law varies widely",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Abortion_law_in_the_United_States_by_state"
+   ],
+   "note": "Page states Dobbs overturned Roe; roughly 13 states have near-total bans, others six-week bans (Florida, Georgia, Iowa, South Carolina); content current through early 2026 and changing. Lesson appropriately hedges and tells students to check current state law."
+  },
+  {
+   "lessonId": "med-ethics-prof.l12",
+   "claim": "Buck v. Bell (1927) upheld eugenic sterilisation",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Buck_v._Bell"
+   ],
+   "note": "8-1, Holmes."
+  },
+  {
+   "lessonId": "med-ethics-prof.l12",
+   "claim": "Church Amendments conscientious objection; Thomson violinist argument",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened. Abortion positions are presented even-handedly."
+  },
+  {
+   "lessonId": "med-ethics-prof.l13",
+   "claim": "Tuskegee 1932-1972, about 600 men, about 400 with syphilis, about 200 without; penicillin withheld; Clinton apology 1997; men not infected by researchers",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/tuskegee/about/timeline.html"
+   ],
+   "note": "CDC: 600 men, 399 with syphilis, 201 without; 1932-1972; penicillin standard by 1943 yet withheld; apology 16 May 1997; $10M settlement 1974. Buxtun detail not on page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l13",
+   "claim": "Henrietta Lacks cervical cells taken 1951 without knowledge; HeLa; not infected by doctors",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Henrietta_Lacks"
+   ],
+   "note": "Opened page confirms 1951 biopsy at Johns Hopkins without permission."
+  },
+  {
+   "lessonId": "med-ethics-prof.l13",
+   "claim": "Willowbrook from 1956 deliberate hepatitis infection; Beecher 1966 NEJM 22 examples; Guatemala 1946-48 and 2011 commission; Gelsinger 1999 age 18 at Penn",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Willowbrook_State_School",
+    "https://en.wikipedia.org/wiki/Henry_K._Beecher",
+    "https://en.wikipedia.org/wiki/Guatemala_syphilis_experiment",
+    "https://en.wikipedia.org/wiki/Jesse_Gelsinger"
+   ],
+   "note": "All confirmed on opened pages."
+  },
+  {
+   "lessonId": "med-ethics-prof.l14",
+   "claim": "Freedman clinical equipoise 1987",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Clinical_equipoise"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l14",
+   "claim": "US IRB review under Common Rule 45 CFR 46; subparts for pregnant women, prisoners, children",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l14",
+   "claim": "Early trial stopping for benefit tends to overestimate effects; 1990s perinatal HIV trial controversy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l15",
+   "claim": "National Organ Transplant Act 1984 bans organ sales and created OPTN",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/National_Organ_Transplant_Act"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l15",
+   "claim": "NICE threshold of the order of 20 to 30 thousand pounds per QALY",
+   "verdict": "contradicted",
+   "sources": [
+    "https://blueteq.com/2026/05/11/nice-raises-cost-effectiveness-threshold-for-the-first-time-in-26-years/"
+   ],
+   "note": "Out of date: NICE raised the threshold to 25,000-35,000 pounds per QALY from April 2026 (first rise in about 26 years). The lesson's range was correct until then."
+  },
+  {
+   "lessonId": "med-ethics-prof.l15",
+   "claim": "Daniels and Sabin accountability for reasonableness conditions; ADA bans categorical exclusion",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l16",
+   "claim": "Physician Payments Sunshine Act part of ACA 2010; Open Payments database",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Physician_Payments_Sunshine_Act"
+   ],
+   "note": "Manufacturers of drugs, devices and supplies report to CMS; public site since Sept 2014."
+  },
+  {
+   "lessonId": "med-ethics-prof.l16",
+   "claim": "Moore v. Regents (Cal. 1990): duty to disclose economic interests; no conversion claim",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Moore_v._Regents_of_the_University_of_California"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l16",
+   "claim": "Stark Law and Anti-Kickback Statute descriptions; Cochrane review of industry sponsorship",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l17",
+   "claim": "To Err Is Human 1999 report; Swiss cheese model; just culture",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Wikipedia fetch returned 404; unverified."
+  },
+  {
+   "lessonId": "med-ethics-prof.l17",
+   "claim": "CANDOR toolkit; apology statutes; PSQIA 2005; HCQIA 1986 and NPDB",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l17",
+   "claim": "Sentinel event definition (Joint Commission)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l18",
+   "claim": "EMTALA 1986 screening and stabilisation by Medicare-participating hospitals",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Emergency_Medical_Treatment_and_Active_Labor_Act"
+   ],
+   "note": "Signed 7 April 1986."
+  },
+  {
+   "lessonId": "med-ethics-prof.l18",
+   "claim": "Daubert v. Merrell Dow (1993) governs expert admissibility in federal courts and many states; others use other tests",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Daubert_standard"
+   ],
+   "note": "Applies federally and in over half of states; California, Illinois, Pennsylvania, Washington still Frye."
+  },
+  {
+   "lessonId": "med-ethics-prof.l18",
+   "claim": "Darling v. Charleston Community Memorial Hospital (Ill. 1965) corporate negligence; loss of chance minority rule",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Darling page returned 404; unverified."
+  },
+  {
+   "lessonId": "med-ethics-prof.l19",
+   "claim": "Homosexuality removed from DSM-II by APA in 1973",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Homosexuality_and_psychology"
+   ],
+   "note": "Page notes removal driven by evidence; lesson says evidence and shifting values, a fair characterisation."
+  },
+  {
+   "lessonId": "med-ethics-prof.l19",
+   "claim": "Drapetomania proposed by Samuel Cartwright in 1851",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Drapetomania"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-ethics-prof.l19",
+   "claim": "WHO constitution 1948 definition of health",
+   "verdict": "supported",
+   "sources": [
+    "https://www.who.int/about/governance/constitution"
+   ],
+   "note": "Adopted 1946, in force 7 April 1948; definition quoted correctly."
+  },
+  {
+   "lessonId": "med-ethics-prof.l20",
+   "claim": "Bradford Hill 1965 considerations presented as viewpoints, not a checklist; temporality",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bradford_Hill_criteria"
+   ],
+   "note": "Page confirms 1965, nine viewpoints, not absolute requirements; temporality as the only essential one not stated on the page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l20",
+   "claim": "Koch postulates (Koch and Loeffler) and Rothman sufficient-component cause model",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l20",
+   "claim": "Relative risk above two as legal rule of thumb for probable causation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-ethics-prof.l21",
+   "claim": "Sackett 1996 definition of EBM",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Evidence-based_medicine"
+   ],
+   "note": "Wording matches the lesson."
+  },
+  {
+   "lessonId": "med-ethics-prof.l21",
+   "claim": "CAST trial: suppressing arrhythmias raised mortality",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cardiac_Arrhythmia_Suppression_Trial"
+   ],
+   "note": "Encainide and flecainide stopped for excess mortality; consistent with lesson."
+  },
+  {
+   "lessonId": "med-ethics-prof.l21",
+   "claim": "GRADE starts RCTs high, observational low; Bayesian predictive value with rare disease",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; q5 arithmetic checked by hand (PPV about 1.9 percent)."
+  }
+ ]
+}

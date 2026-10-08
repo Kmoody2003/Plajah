@@ -1,0 +1,1025 @@
+{
+  "id": "review-evite-workshop-copy-1856eb30-3b27-41ef-b567-6a1a6ebc5885",
+  "ownerId": "local-review",
+  "title": "Make Something · review copy",
+  "createdAt": 1790719091417,
+  "updatedAt": 1790719091417,
+  "frames": [
+    {
+      "id": "review-evite-workshop-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-workshop-vector"
+      ],
+      "label": "Make Something"
+    }
+  ],
+  "devices": {
+    "review-evite-workshop-vector": {
+      "id": "review-evite-workshop-vector",
+      "type": "VECTOR",
+      "name": "Make Something",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-workshop-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#f2edda",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-workshop-ruler",
+          "kind": "RECT",
+          "x": 86,
+          "y": 85,
+          "w": 428,
+          "h": 37,
+          "fill": "#73949e",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-workshop-tick-0",
+          "kind": "LINE",
+          "x": 92,
+          "y": 86,
+          "w": 0,
+          "h": 27,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            92,
+            86,
+            92,
+            113
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-1",
+          "kind": "LINE",
+          "x": 104,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            104,
+            86,
+            104,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-2",
+          "kind": "LINE",
+          "x": 116,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            116,
+            86,
+            116,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-3",
+          "kind": "LINE",
+          "x": 128,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            128,
+            86,
+            128,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-4",
+          "kind": "LINE",
+          "x": 140,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            140,
+            86,
+            140,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-5",
+          "kind": "LINE",
+          "x": 152,
+          "y": 86,
+          "w": 0,
+          "h": 27,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            152,
+            86,
+            152,
+            113
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-6",
+          "kind": "LINE",
+          "x": 164,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            164,
+            86,
+            164,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-7",
+          "kind": "LINE",
+          "x": 176,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            176,
+            86,
+            176,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-8",
+          "kind": "LINE",
+          "x": 188,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            188,
+            86,
+            188,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-9",
+          "kind": "LINE",
+          "x": 200,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            200,
+            86,
+            200,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-10",
+          "kind": "LINE",
+          "x": 212,
+          "y": 86,
+          "w": 0,
+          "h": 27,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            212,
+            86,
+            212,
+            113
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-11",
+          "kind": "LINE",
+          "x": 224,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            224,
+            86,
+            224,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-12",
+          "kind": "LINE",
+          "x": 236,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            236,
+            86,
+            236,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-13",
+          "kind": "LINE",
+          "x": 248,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            248,
+            86,
+            248,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-14",
+          "kind": "LINE",
+          "x": 260,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            260,
+            86,
+            260,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-15",
+          "kind": "LINE",
+          "x": 272,
+          "y": 86,
+          "w": 0,
+          "h": 27,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            272,
+            86,
+            272,
+            113
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-16",
+          "kind": "LINE",
+          "x": 284,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            284,
+            86,
+            284,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-17",
+          "kind": "LINE",
+          "x": 296,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            296,
+            86,
+            296,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-18",
+          "kind": "LINE",
+          "x": 308,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            308,
+            86,
+            308,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-19",
+          "kind": "LINE",
+          "x": 320,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            320,
+            86,
+            320,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-20",
+          "kind": "LINE",
+          "x": 332,
+          "y": 86,
+          "w": 0,
+          "h": 27,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            332,
+            86,
+            332,
+            113
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-21",
+          "kind": "LINE",
+          "x": 344,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            344,
+            86,
+            344,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-22",
+          "kind": "LINE",
+          "x": 356,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            356,
+            86,
+            356,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-23",
+          "kind": "LINE",
+          "x": 368,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            368,
+            86,
+            368,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-24",
+          "kind": "LINE",
+          "x": 380,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            380,
+            86,
+            380,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-25",
+          "kind": "LINE",
+          "x": 392,
+          "y": 86,
+          "w": 0,
+          "h": 27,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            392,
+            86,
+            392,
+            113
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-26",
+          "kind": "LINE",
+          "x": 404,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            404,
+            86,
+            404,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-27",
+          "kind": "LINE",
+          "x": 416,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            416,
+            86,
+            416,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-28",
+          "kind": "LINE",
+          "x": 428,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            428,
+            86,
+            428,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-29",
+          "kind": "LINE",
+          "x": 440,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            440,
+            86,
+            440,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-30",
+          "kind": "LINE",
+          "x": 452,
+          "y": 86,
+          "w": 0,
+          "h": 27,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            452,
+            86,
+            452,
+            113
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-31",
+          "kind": "LINE",
+          "x": 464,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            464,
+            86,
+            464,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-32",
+          "kind": "LINE",
+          "x": 476,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            476,
+            86,
+            476,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-33",
+          "kind": "LINE",
+          "x": 488,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            488,
+            86,
+            488,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-tick-34",
+          "kind": "LINE",
+          "x": 500,
+          "y": 86,
+          "w": 0,
+          "h": 13,
+          "fill": "none",
+          "stroke": "#283d50",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            500,
+            86,
+            500,
+            99
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-paper-a",
+          "kind": "RECT",
+          "x": 115,
+          "y": 169,
+          "w": 171,
+          "h": 160,
+          "fill": "#e27542",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": -9,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-workshop-paper-b",
+          "kind": "PATH",
+          "x": 309,
+          "y": 149,
+          "w": 600,
+          "h": 800,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            349,
+            149,
+            490,
+            323,
+            309,
+            339
+          ],
+          "pathClosed": true,
+          "templateRole": "ORNAMENT"
+        },
+        {
+          "id": "review-evite-workshop-cutout",
+          "kind": "ELLIPSE",
+          "x": 171,
+          "y": 210,
+          "w": 76,
+          "h": 76,
+          "fill": "#f2edda",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-workshop-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-workshop-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#73949e",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-workshop-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Make something",
+          "fontSize": 41,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-workshop-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "A hands-on creative workshop",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-workshop-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-workshop-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-workshop-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-workshop-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-workshop-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#283d50",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-workshop",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-workshop-ruler",
+          "property": "rotation",
+          "from": 0,
+          "to": -3,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-workshop-paper-a",
+          "property": "rotation",
+          "from": -9,
+          "to": -6,
+          "delay": 140,
+          "duration": 3060
+        },
+        {
+          "objectId": "review-evite-workshop-paper-b",
+          "property": "rotation",
+          "from": 0,
+          "to": -3,
+          "delay": 280,
+          "duration": 3320
+        },
+        {
+          "objectId": "review-evite-workshop-cutout",
+          "property": "rotation",
+          "from": 0,
+          "to": 3,
+          "delay": 420,
+          "duration": 3580
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        54,
+        61,
+        66,
+        68
+      ],
+      "tempo": 92
+    }
+  }
+}

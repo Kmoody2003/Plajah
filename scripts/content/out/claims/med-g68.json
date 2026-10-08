@@ -1,0 +1,821 @@
+{
+ "courseId": "med-g68",
+ "label": "Health Science",
+ "lessons": [
+  {
+   "id": "med-g68.l01",
+   "title": "Cells: The Body's Building Blocks",
+   "body": [
+    "Your body is made of trillions of tiny units called cells. A cell is the smallest unit of life that can carry out the jobs a living thing needs: taking in energy, making parts, and responding to its surroundings. Most cells are far too small to see without a microscope.",
+    "A cell works a bit like a small factory. The cell membrane is a thin skin that decides what goes in and out. The nucleus holds DNA, the set of instructions for building the body's proteins. Mitochondria are the power stations: they release usable energy from the sugar and oxygen the cell takes in. Ribosomes read instructions and build proteins, and proteins do much of the cell's work.",
+    "Not all cells look alike, because different cells have different jobs. A red blood cell is shaped like a flattened disc and carries oxygen. A nerve cell is long and thin so it can send signals across the body. A muscle cell contains fibers that can shorten, which makes movement possible. Even though they look different, almost all of your cells carry the same DNA. What differs is which instructions each cell uses.",
+    "Cells also divide to make new cells. This is how you grow, and how a scraped knee heals. Doctors care about cells because most diseases begin when cells are damaged, invaded by germs, or stop following their normal rules."
+   ]
+  },
+  {
+   "id": "med-g68.l02",
+   "title": "From Tissues to Organ Systems",
+   "body": [
+    "Cells rarely work alone. A group of similar cells doing a shared job is called a tissue. The body has four main kinds. Epithelial tissue covers surfaces, like your skin and the lining of your gut. Connective tissue holds and supports, and includes bone, fat and blood. Muscle tissue contracts to make movement. Nervous tissue carries signals.",
+    "When several tissues combine to do a bigger job, they form an organ. The stomach is a good example. It has muscle tissue that churns food, epithelial tissue that lines it and makes acid, nervous tissue that controls it, and connective tissue that holds it together.",
+    "Organs that cooperate make an organ system. The digestive system breaks food into nutrients. The circulatory system, made of the heart and blood vessels, delivers oxygen and nutrients. The respiratory system brings in oxygen and removes carbon dioxide. The nervous system senses and controls. The immune system defends against germs. The skeletal and muscular systems support and move you. The kidneys and bladder in the urinary system clean the blood and remove waste.",
+    "The systems depend on each other. When you run, your muscles need energy, so your lungs breathe faster and your heart beats faster to deliver more oxygen. Keeping conditions inside the body steady, such as temperature and water balance, is called homeostasis. Illness often happens when one system struggles and the others have to compensate."
+   ]
+  },
+  {
+   "id": "med-g68.l03",
+   "title": "Nutrition and Metabolism",
+   "body": [
+    "Food does two jobs: it supplies energy and it supplies the materials for building and repairing the body. The big nutrient groups are carbohydrates, proteins, fats, vitamins, minerals and water. Carbohydrates are the body's quickest fuel. Proteins are broken into amino acids, which the body rebuilds into muscle, enzymes and many other parts. Fats store energy, help build cell membranes and help the body absorb some vitamins. Vitamins and minerals are needed in small amounts for many chemical reactions. Water is needed for almost everything.",
+    "Energy in food is measured in Calories. Metabolism is the name for all the chemical reactions that keep you alive, including breaking food down for energy and building new molecules. Even at rest, your body uses energy to keep your heart beating, your brain working and your temperature steady. This is called the basal metabolic rate.",
+    "Balance matters more than any single food. A varied diet with vegetables, fruits, whole grains, protein foods and enough water covers most needs. Eating far more energy than you use over a long time can lead to weight gain and raise the risk of conditions such as type 2 diabetes. Eating too little can slow growth, which is especially important during the teen years.",
+    "Growing bodies have real needs. Calcium and vitamin D help build strong bones, and iron helps make the red blood cells that carry oxygen. If someone worries a lot about food or weight, or avoids eating, that is a good reason to talk to a trusted adult or a doctor."
+   ]
+  },
+  {
+   "id": "med-g68.l04",
+   "title": "How Disease Spreads",
+   "body": [
+    "Some illnesses are not caused by germs at all, like a broken bone or an allergy. A disease caused by a germ and able to pass from one host to another is called a communicable or infectious disease. A host is the living thing the germ lives in.",
+    "Germs travel in a few main ways. Direct contact happens when germs pass through touching, such as a handshake or a kiss. Droplets are tiny spits of liquid released when we cough, sneeze or talk, which can land on a nearby person. Some germs travel in smaller particles that can hang in the air longer, which is why ventilation matters indoors. Contaminated objects and surfaces can carry germs from hand to face. Contaminated food or water can spread germs to the gut. Vectors, such as mosquitoes and ticks, carry some germs from animal to person or person to person.",
+    "Because there are several routes, there are several ways to block them. Washing hands with soap for about twenty seconds breaks the hand-to-face route. Covering coughs, staying home when sick, and cooking and storing food properly all help. Vaccines train the body to fight a germ before it arrives. Clean water and good sanitation have prevented more illness than almost any medicine.",
+    "An outbreak is a sudden rise in cases of a disease in a place. Public health workers trace who was exposed, then test, treat or isolate people to stop the chain of spread."
+   ]
+  },
+  {
+   "id": "med-g68.l05",
+   "title": "Bacteria and Viruses",
+   "body": [
+    "Bacteria and viruses are both too small to see without a microscope, but they are very different. Bacteria are single living cells. They can grow and divide on their own, and many are harmless or helpful. Your gut holds trillions of bacteria that help digest food. Only a small share of bacteria cause disease. Strep throat and many ear infections are caused by bacteria.",
+    "Viruses are much smaller and are not cells. A virus is a bit of genetic material wrapped in a protein coat. It cannot reproduce by itself. Instead, it enters a living cell and uses that cell's machinery to make copies of itself. Colds, flu, chickenpox and measles are caused by viruses.",
+    "This difference matters for treatment. Antibiotics are medicines that kill bacteria or stop them growing. They have no effect on viruses, so taking an antibiotic for a cold will not help. Some viral infections can be treated with antiviral medicines, and many can be prevented with vaccines.",
+    "Taking antibiotics when they are not needed, or stopping them early against a doctor's advice, helps bacteria that resist the drug to survive and spread. This is called antibiotic resistance, and it is a serious global health problem. The simple rule is to use antibiotics only when a health professional says an infection is likely bacterial. Other germs exist too, including fungi, such as the one that causes athlete's foot, and parasites, such as the one that causes malaria."
+   ]
+  },
+  {
+   "id": "med-g68.l06",
+   "title": "Immunity and Vaccination",
+   "body": [
+    "Your body has layers of defense. The first layer is barriers: skin, the sticky mucus in your nose, and stomach acid all keep germs out. If a germ gets past, the innate immune response reacts fast but in a general way. White blood cells swallow invaders and inflammation brings more help, which is why an infected cut turns red, warm and swollen.",
+    "The second layer is the adaptive immune response, which is slower the first time but specific. White blood cells called B cells make antibodies, proteins that stick to a particular germ. T cells help coordinate the attack and destroy infected cells. After the infection, memory cells stay behind. If the same germ returns, the body recognizes it and responds much faster, often before you feel sick.",
+    "Vaccines use this memory system without making you ill from the real disease. A vaccine shows the immune system a harmless piece or weakened or inactivated form of a germ, or instructions for making one piece of it. The body practices and builds memory cells. Some vaccines need booster doses because protection fades.",
+    "When enough people in a community are immune, a germ struggles to find new hosts. This is called herd immunity, and it helps protect babies and people who cannot be vaccinated for medical reasons. Smallpox was eliminated worldwide through vaccination. Vaccines can cause mild side effects such as a sore arm or a brief fever. Serious reactions are rare, and vaccines are monitored for safety after approval. People debate how to set vaccination policy, such as school requirements, but the basic science of how vaccines train immunity is well established."
+   ]
+  },
+  {
+   "id": "med-g68.l07",
+   "title": "Puberty and Reproductive Health",
+   "body": [
+    "Puberty is the stage when a child's body develops into an adult body that is able to reproduce. It is triggered by the brain releasing signals that tell the reproductive organs to make more of the hormones estrogen and testosterone. Hormones are chemical messengers carried in the blood.",
+    "Puberty usually begins somewhere between about ages 8 and 14, and it is completely normal to start earlier or later than friends. Common changes include a growth spurt, body hair, sweating more, and oily skin that can cause acne. In people with ovaries, breast development begins and periods start, usually a couple of years after the first changes. In people with testes, the testicles enlarge, the voice deepens and facial hair appears. Moods can also change, partly because the brain is developing as well.",
+    "A period, or menstruation, is the monthly shedding of the lining of the uterus when pregnancy has not occurred. Cycles are often irregular at first. Using pads, tampons or other products and tracking dates helps. Very painful periods or very heavy bleeding are worth mentioning to a doctor.",
+    "Good habits matter: showering, using deodorant, eating well, sleeping, and washing skin gently. Pregnancy happens when a sperm cell joins an egg cell, which is possible only after puberty begins. Sexually transmitted infections can spread through sexual contact, and the only fully reliable way to avoid pregnancy and these infections is not having sex. Questions about bodies and relationships are normal, and a parent, school nurse or doctor is the right person to ask. Everyone has the right to say no to touching they do not want."
+   ]
+  },
+  {
+   "id": "med-g68.l08",
+   "title": "Mental Health",
+   "body": [
+    "Mental health is about how we think, feel and cope. Like physical health, it goes up and down. Everyone feels stress, sadness and worry sometimes. These feelings are normal and often useful. A mental health condition is different: the feelings are strong, last for weeks, and get in the way of school, friends, sleep or daily life.",
+    "Common conditions in young people include anxiety disorders, which involve excessive fear or worry, and depression, which involves a persistently low mood or loss of interest. Many conditions begin in the teen years. They are caused by a mix of things, including genes, brain chemistry, life events and stress. They are not a sign of weakness and nobody chooses them.",
+    "Some habits protect mental health. Regular sleep matters a great deal, since sleep-deprived brains handle emotions less well. Physical activity, time outdoors, balanced meals, and time with supportive people all help. Slow breathing can calm the body's stress response. Talking about feelings is an important skill, and so is noticing when a friend seems to be struggling.",
+    "Treatments work. Talk therapy teaches skills for handling thoughts and feelings, and for some conditions doctors also use medicine. Seeking help is a sign of strength. If someone is thinking about hurting themselves or ending their life, they should tell a trusted adult right away, and in the United States they can call or text 988, the Suicide and Crisis Lifeline. In an emergency, call the local emergency number. If a friend tells you this, take it seriously and tell an adult even if they asked you not to."
+   ]
+  },
+  {
+   "id": "med-g68.l09",
+   "title": "Substance Use and the Brain",
+   "body": [
+    "A drug is any substance that changes how the body or mind works. Some drugs are medicines. Others, such as nicotine, alcohol, cannabis and many illegal drugs, are used for the way they change mood or perception. To understand why people can get hooked, you need to know how the brain communicates.",
+    "Brain cells pass messages using chemicals called neurotransmitters. One of them, dopamine, is part of the reward system that makes things like food, friends and achievement feel good and want to be repeated. Many addictive drugs trigger a much bigger release of dopamine than natural rewards. The brain adapts by turning down its own reward signals, so the person needs more of the drug to feel the same effect (tolerance) and may feel bad without it (withdrawal).",
+    "Addiction, also called a substance use disorder, is when someone keeps using a substance despite harm and cannot easily stop. It is considered a health condition affecting brain circuits for reward, stress and self-control, not a simple lack of willpower.",
+    "The teen brain is still developing, especially the front part that handles planning and impulse control. Research suggests that starting substance use at younger ages raises the chance of developing a problem later. Nicotine in vaping products is highly addictive. Alcohol slows the brain and impairs judgment and coordination. Opioids, including some prescription painkillers, slow breathing, and overdose can be deadly. Some pills sold illegally contain fentanyl without the buyer knowing.",
+    "Many teens do not use drugs, and the idea that everyone does is a myth. Treatment for addiction works for many people, and anyone who needs help can start by talking to a trusted adult or doctor."
+   ]
+  },
+  {
+   "id": "med-g68.l10",
+   "title": "Medicine Safety and How Drugs Work",
+   "body": [
+    "A medicine is a drug used to prevent, treat or relieve a health problem. Most drugs work by attaching to a specific molecule in the body, often a receptor on a cell or an enzyme. You can picture a key fitting a lock. When the drug fits, it can switch the target on, block it, or slow it down. For example, a pain reliever such as ibuprofen blocks enzymes that help make chemicals involved in pain and swelling.",
+    "Every drug has intended effects and side effects. Side effects happen because the drug can affect parts of the body other than the target. Some are mild, like drowsiness. Others, such as allergic reactions, can be serious. This is why medicines must be used as directed.",
+    "Dose matters. A dose that is helpful can be harmful if it is too high. Acetaminophen (paracetamol), a common pain and fever reducer found in many products, can seriously damage the liver in overdose, so checking labels to avoid doubling up is important. Never take someone else's prescription, and do not mix medicines or take them with alcohol unless a pharmacist or doctor says it is safe.",
+    "Safe habits include reading the label, using the measuring tool that comes with liquid medicine, keeping medicines in their original containers and out of reach of young children, and asking a pharmacist when unsure. Expired or unused medicines should be returned through take-back programs where possible. Poison control services can give fast advice in the United States at 1-800-222-1222 if someone swallows too much of something."
+   ]
+  },
+  {
+   "id": "med-g68.l11",
+   "title": "How Medical Research and Clinical Trials Work",
+   "body": [
+    "How do we know a treatment works? Personal stories can mislead, because people often get better on their own, or feel better because they expect to. Scientists use tests designed to remove these tricks.",
+    "A clinical trial is a research study in which people volunteer to try a new treatment. A new drug usually goes through stages. Before human testing, it is studied in laboratory cells and sometimes animals. Phase 1 trials use a small number of people, mainly to check safety. Phase 2 trials test whether it seems to work and look for the right dose. Phase 3 trials use many people, often thousands, and compare the new treatment with a placebo (a harmless pill with no active drug) or with the best existing treatment. After approval, safety monitoring continues.",
+    "Good trials use several safeguards. A control group receives the comparison treatment so researchers can see what would have happened anyway. Randomization means chance decides who gets which treatment, which keeps the groups similar. Blinding means participants, and ideally researchers, do not know who gets what, so expectations do not color the results. A larger group of people makes a finding more trustworthy than a handful of cases.",
+    "Ethics are central. People must give informed consent, meaning they understand the risks and benefits and agree freely, and children usually take part only with a parent's permission and their own agreement. Review boards check studies for safety. Results are best trusted when reviewed by other experts and repeated by other research teams."
+   ]
+  },
+  {
+   "id": "med-g68.l12",
+   "title": "How to Judge a Health Claim",
+   "body": [
+    "Health claims are everywhere: ads, videos, social posts, labels. Some are accurate, some are hopeful guesses, and some are made to sell something. A few habits help you sort them out.",
+    "First, ask who is making the claim and what they gain. A company selling a supplement has a reason to say it works. That does not make it false, but it means you should look for independent evidence. Second, ask what the evidence is. A personal testimonial, such as \"this tea cured my cold,\" is only a story. Colds go away by themselves, so the tea gets the credit. Stronger evidence comes from well-designed trials with a control group, and strongest of all is a review that combines many good studies.",
+    "Third, watch the wording. Words like miracle, secret, detox, cure-all, or \"doctors hate this\" are warning signs. Real medicine rarely fixes everything. Fourth, remember that correlation is not causation. If people who eat breakfast do better at school, it may be that breakfast helps, or that something else, such as a stable home life, explains both. Fifth, check the size of an effect. A \"50 percent higher risk\" of something very rare can still be a tiny risk.",
+    "Good sources include national health agencies, university hospitals, and your own doctor or pharmacist. Before sharing a claim, pause and check it. If the claim is about something that could cause harm, such as stopping a prescribed medicine, ask a health professional first."
+   ]
+  },
+  {
+   "id": "med-g68.l13",
+   "title": "First Aid and CPR Basics",
+   "body": [
+    "First aid is the help you give to an injured or ill person until professional help takes over. The first step is always safety. Check that the scene is safe for you before going near someone, because you cannot help if you become hurt too. Then call the local emergency number, or ask another person to call, and tell them where you are and what has happened.",
+    "For bleeding, press firmly on the wound with a clean cloth and keep pressing. For a minor burn, cool it under cool running water for several minutes, and do not use ice or butter. For a nosebleed, sit up, lean slightly forward and pinch the soft part of the nose. For a suspected broken bone, keep the person still and call for help. Choking in a person who cannot cough, speak or breathe needs immediate action from a trained person, often a series of back blows and abdominal thrusts.",
+    "CPR, or cardiopulmonary resuscitation, is for someone who is unresponsive and not breathing normally. When the heart stops, blood stops carrying oxygen to the brain, and every minute without help lowers the chance of survival. The simplest CPR is hands-only: call for help, then push hard and fast in the center of the chest at about 100 to 120 pushes per minute, allowing the chest to rise between pushes. Keep going until help takes over. An AED, or automated external defibrillator, is a portable device that gives voice instructions and can shock a stopped heart back into a normal rhythm, and anyone can use it.",
+    "A certified course from a group such as the Red Cross or the American Heart Association gives hands-on practice, and many courses are open to middle school students."
+   ]
+  },
+  {
+   "id": "med-g68.l14",
+   "title": "Careers in Health",
+   "body": [
+    "Health care is a team effort, and the team is much bigger than doctors. Physicians diagnose and treat illness and can specialize, for example as pediatricians who care for children or surgeons who operate. Nurses provide hands-on care, teach patients, and watch for changes in condition; advanced practice nurses can diagnose and prescribe in many places. Pharmacists are experts in medicines and check that drugs are safe and work well together. Physician assistants and nurse practitioners often provide care alongside doctors.",
+    "Many other roles matter too. Paramedics and emergency medical technicians give care at the scene of emergencies. Respiratory therapists help people with breathing problems. Physical and occupational therapists help people regain movement and daily skills. Dietitians guide eating plans. Medical laboratory scientists run the tests that help diagnose disease. Radiologic technologists take images such as X-rays. Dentists, dental hygienists and optometrists look after teeth and eyes. Psychologists, counselors and psychiatrists help with mental health; psychiatrists are medical doctors who can prescribe medicine.",
+    "Some health careers focus on whole communities. Epidemiologists study how disease spreads and who is affected. Public health workers run vaccination programs and clean water efforts. Researchers and biomedical engineers invent new tests, treatments and devices.",
+    "Paths differ. Some roles take a certificate or two-year program. Nurses, therapists and many others complete a college degree, and doctors complete college, four years of medical school and several years of residency training. Strong skills in science, communication and kindness all matter. You can start exploring by volunteering, joining a health club at school, or taking a first aid course."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-g68.l01.q1",
+   "lessonId": "med-g68.l01",
+   "kind": "mcq",
+   "prompt": "Which part of a cell contains the DNA that holds the instructions for building proteins?",
+   "choices": [
+    "The cell membrane, which stores the genetic instructions",
+    "The ribosomes, which store the genetic instructions",
+    "The nucleus, which stores the genetic instructions",
+    "The mitochondria, which store the genetic instructions"
+   ]
+  },
+  {
+   "id": "med-g68.l01.q2",
+   "lessonId": "med-g68.l01",
+   "kind": "mcq",
+   "prompt": "What is the main job of mitochondria in a cell?",
+   "choices": [
+    "Controlling which substances enter and leave the cell",
+    "Copying DNA before the cell divides in two",
+    "Carrying signals from one end of the body to the other",
+    "Releasing usable energy from sugar and oxygen"
+   ]
+  },
+  {
+   "id": "med-g68.l01.q3",
+   "lessonId": "med-g68.l01",
+   "kind": "mcq",
+   "prompt": "A nerve cell is long and thin while a red blood cell is a small flat disc. What best explains this difference?",
+   "choices": [
+    "Each cell type has a shape that suits its particular job",
+    "Each cell type carries a completely different set of DNA",
+    "Each cell type is made of a different kind of atom",
+    "Each cell type grew in a different part of the body by chance"
+   ]
+  },
+  {
+   "id": "med-g68.l01.q4",
+   "lessonId": "med-g68.l01",
+   "kind": "mcq",
+   "prompt": "A scientist notes that skin cells and muscle cells in the same person have nearly identical DNA yet behave very differently. Which conclusion best fits this?",
+   "choices": [
+    "The DNA is changed completely each time the cell divides",
+    "Different cells use different parts of the same instruction set",
+    "Muscle cells must have lost most of their DNA over time",
+    "Skin cells must have gained extra DNA from the surrounding environment as they aged"
+   ]
+  },
+  {
+   "id": "med-g68.l02.q1",
+   "lessonId": "med-g68.l02",
+   "kind": "mcq",
+   "prompt": "Which choice lists the four main types of tissue in the body?",
+   "choices": [
+    "Soft, hard, liquid and electrical tissue",
+    "Epithelial, connective, muscle and nervous tissue",
+    "Bone, blood, skin and organ tissue, based on where each is found",
+    "Cardiac, skeletal, smooth and nervous tissue"
+   ]
+  },
+  {
+   "id": "med-g68.l02.q2",
+   "lessonId": "med-g68.l02",
+   "kind": "mcq",
+   "prompt": "What is an organ system?",
+   "choices": [
+    "A group of organs that work together to do a large job",
+    "A group of identical cells doing the same small job",
+    "A single large organ working entirely alone to protect the body",
+    "A group of tissues that has stopped growing"
+   ]
+  },
+  {
+   "id": "med-g68.l02.q3",
+   "lessonId": "med-g68.l02",
+   "kind": "mcq",
+   "prompt": "While running, your breathing and heart rate both increase. What does this show about the body systems?",
+   "choices": [
+    "They compete with each other so that only one system can work at a time",
+    "They operate separately without affecting each other",
+    "They shut down to save energy during exercise",
+    "They coordinate to deliver more oxygen to working muscles"
+   ]
+  },
+  {
+   "id": "med-g68.l02.q4",
+   "lessonId": "med-g68.l02",
+   "kind": "mcq",
+   "prompt": "On a hot day a person sweats and their skin flushes, and their core temperature stays near normal. Which idea explains this best?",
+   "choices": [
+    "Immunity attacking the heat as if it were a germ",
+    "Digestion absorbing the heat from the surrounding air",
+    "Homeostasis, where the body adjusts to keep conditions steady",
+    "Metabolism stopping completely so that no body heat is produced at all"
+   ]
+  },
+  {
+   "id": "med-g68.l03.q1",
+   "lessonId": "med-g68.l03",
+   "kind": "mcq",
+   "prompt": "Which nutrient is broken into amino acids that the body uses to build muscle and enzymes?",
+   "choices": [
+    "Protein",
+    "Carbohydrate",
+    "Fat",
+    "Water"
+   ]
+  },
+  {
+   "id": "med-g68.l03.q2",
+   "lessonId": "med-g68.l03",
+   "kind": "mcq",
+   "prompt": "What does the term metabolism describe?",
+   "choices": [
+    "The speed at which a person can run a short distance",
+    "All the chemical reactions that keep a living body going",
+    "Only the breakdown of food in the stomach and intestines",
+    "The total amount of water a person drinks in a day"
+   ]
+  },
+  {
+   "id": "med-g68.l03.q3",
+   "lessonId": "med-g68.l03",
+   "kind": "mcq",
+   "prompt": "A teen skips most meals for weeks to lose weight and feels tired and dizzy. What is the most sensible advice?",
+   "choices": [
+    "Drink only water, because food slows down the metabolism",
+    "Take more vitamins instead of eating regular meals",
+    "Talk to a trusted adult or doctor, since growing bodies need enough food",
+    "Keep going without help, because tiredness shows that the body is burning fat"
+   ]
+  },
+  {
+   "id": "med-g68.l03.q4",
+   "lessonId": "med-g68.l03",
+   "kind": "mcq",
+   "prompt": "A student says that a single food, such as one trendy \"superfood,\" can cover all nutrition needs. Which response is best supported by what we know?",
+   "choices": [
+    "It is correct because one superfood contains every nutrient",
+    "It is correct if the food is eaten in very large amounts",
+    "Variety is harmful because foods cancel out each other's nutrients",
+    "Health depends on overall variety and balance, not one food"
+   ]
+  },
+  {
+   "id": "med-g68.l04.q1",
+   "lessonId": "med-g68.l04",
+   "kind": "mcq",
+   "prompt": "Which action best blocks the route by which germs travel from hands to the mouth or eyes?",
+   "choices": [
+    "Rinsing hands briefly with water and no soap",
+    "Wiping hands once on a dry cloth",
+    "Wearing gloves that are never changed",
+    "Washing hands with soap for about twenty seconds"
+   ]
+  },
+  {
+   "id": "med-g68.l04.q2",
+   "lessonId": "med-g68.l04",
+   "kind": "mcq",
+   "prompt": "What is a vector in the spread of disease?",
+   "choices": [
+    "A surface such as a doorknob that has been cleaned",
+    "A person who has recovered from an illness and can never be infected again",
+    "An animal such as a mosquito or tick that carries a germ between hosts",
+    "A medicine that is used to kill a germ inside the body"
+   ]
+  },
+  {
+   "id": "med-g68.l04.q3",
+   "lessonId": "med-g68.l04",
+   "kind": "mcq",
+   "prompt": "A stomach illness hits many people who ate at the same picnic. Which route of spread is most likely?",
+   "choices": [
+    "Sharing a sneeze with a stranger on the way home",
+    "Contaminated food or water",
+    "Bites from mosquitoes during the picnic",
+    "Breathing particles that lingered in outdoor air"
+   ]
+  },
+  {
+   "id": "med-g68.l04.q4",
+   "lessonId": "med-g68.l04",
+   "kind": "mcq",
+   "prompt": "A school nurse notices many cases of the same illness in a single classroom within two days. What is the best first public health step?",
+   "choices": [
+    "Identify who was exposed and test or separate those who are sick",
+    "Wait several weeks to see whether the cases simply disappear by themselves",
+    "Cancel all school permanently across the whole country",
+    "Give every student an antibiotic whatever the cause"
+   ]
+  },
+  {
+   "id": "med-g68.l05.q1",
+   "lessonId": "med-g68.l05",
+   "kind": "mcq",
+   "prompt": "Which type of germ is a single living cell that can reproduce on its own?",
+   "choices": [
+    "Prions",
+    "Antibodies",
+    "Bacteria",
+    "Viruses"
+   ]
+  },
+  {
+   "id": "med-g68.l05.q2",
+   "lessonId": "med-g68.l05",
+   "kind": "mcq",
+   "prompt": "Why do antibiotics not help against a cold?",
+   "choices": [
+    "Colds are caused by bacteria that hide deep in the body where antibiotics cannot reach",
+    "Colds are caused by allergies, which no medicine can treat",
+    "Colds are too mild for any medicine to have an effect",
+    "Colds are caused by viruses, and antibiotics act on bacteria"
+   ]
+  },
+  {
+   "id": "med-g68.l05.q3",
+   "lessonId": "med-g68.l05",
+   "kind": "mcq",
+   "prompt": "A doctor tells a patient to finish a prescribed antibiotic course unless told otherwise, and also not to ask for antibiotics for viral illness. What problem do both pieces of advice help prevent?",
+   "choices": [
+    "Antibiotic resistance, where bacteria survive the drug",
+    "Viral mutation, where viruses become much smaller",
+    "Immune overload, where white blood cells run out forever",
+    "Vaccine failure, where vaccines stop working on all germs"
+   ]
+  },
+  {
+   "id": "med-g68.l05.q4",
+   "lessonId": "med-g68.l05",
+   "kind": "mcq",
+   "prompt": "A patient has a sore throat and a doctor runs a test that shows Streptococcus bacteria growing. Compared with a sore throat from a cold virus, what is the key difference in approach?",
+   "choices": [
+    "Neither infection can ever be diagnosed with a laboratory test",
+    "The bacterial infection may be treated with an antibiotic, while the viral one is not",
+    "The viral infection must be treated with an antibiotic, while the bacterial one is not",
+    "Both infections must be treated with the same antibiotic in every case"
+   ]
+  },
+  {
+   "id": "med-g68.l06.q1",
+   "lessonId": "med-g68.l06",
+   "kind": "mcq",
+   "prompt": "Which cells make antibodies that stick to a specific germ?",
+   "choices": [
+    "Platelets",
+    "B cells",
+    "Red blood cells",
+    "Nerve cells"
+   ]
+  },
+  {
+   "id": "med-g68.l06.q2",
+   "lessonId": "med-g68.l06",
+   "kind": "mcq",
+   "prompt": "What does a vaccine do for the immune system?",
+   "choices": [
+    "Gives it a safe preview of a germ so it builds memory",
+    "Replaces the natural immune system with a stronger artificial immune system",
+    "Kills all germs that may enter the body in future",
+    "Removes the need for the body to make antibodies"
+   ]
+  },
+  {
+   "id": "med-g68.l06.q3",
+   "lessonId": "med-g68.l06",
+   "kind": "mcq",
+   "prompt": "A baby is too young for a certain vaccine, but most people around her are immune to the disease. Why is she somewhat protected?",
+   "choices": [
+    "The baby's skin kills germs that older people cannot resist",
+    "The vaccine given to others passes directly into her blood",
+    "Babies cannot catch diseases that older people can catch",
+    "Herd immunity makes it hard for the germ to find hosts"
+   ]
+  },
+  {
+   "id": "med-g68.l06.q4",
+   "lessonId": "med-g68.l06",
+   "kind": "mcq",
+   "prompt": "After a first infection with a germ, a person gets only a mild illness the second time they meet it. Which part of the immune system best accounts for this?",
+   "choices": [
+    "Stomach acid that gets stronger after each illness",
+    "Red blood cells that learn to recognize the germ",
+    "Memory cells that respond fast to a germ they have seen before",
+    "Skin barriers that become permanently thicker after every single infection"
+   ]
+  },
+  {
+   "id": "med-g68.l07.q1",
+   "lessonId": "med-g68.l07",
+   "kind": "mcq",
+   "prompt": "What triggers the start of puberty?",
+   "choices": [
+    "Hormone signals from the brain that activate the reproductive organs",
+    "Eating certain foods in the months leading up to a particular birthday each year",
+    "A sudden increase in how many hours a person sleeps each night",
+    "Exposure to a common germ that mainly affects the skin and hair"
+   ]
+  },
+  {
+   "id": "med-g68.l07.q2",
+   "lessonId": "med-g68.l07",
+   "kind": "mcq",
+   "prompt": "What is a period (menstruation)?",
+   "choices": [
+    "The normal loss of baby teeth that begins during puberty",
+    "The shedding of the uterine lining when pregnancy has not occurred",
+    "The release of an egg from the ovary into the nearby tube each month",
+    "The settling of a fertilized egg into the lining of the uterus"
+   ]
+  },
+  {
+   "id": "med-g68.l07.q3",
+   "lessonId": "med-g68.l07",
+   "kind": "mcq",
+   "prompt": "A 12-year-old is worried because friends have started puberty and she has not. What is the most accurate thing to tell her?",
+   "choices": [
+    "Late puberty always means that something is seriously wrong",
+    "Puberty can be sped up if she eats a lot more sugar and sweets",
+    "Timing varies widely, and a doctor can check if she is concerned",
+    "Puberty always begins at exactly the same age for every healthy child"
+   ]
+  },
+  {
+   "id": "med-g68.l07.q4",
+   "lessonId": "med-g68.l07",
+   "kind": "mcq",
+   "prompt": "A teen says that if they feel fine, they cannot have a sexually transmitted infection, so testing is pointless. Which response is most accurate?",
+   "choices": [
+    "This is correct, since all infections cause obvious symptoms",
+    "This is correct, because tests are only reliable when symptoms exist",
+    "Infections only occur if the person has had many partners",
+    "Many infections cause no symptoms, so testing is how they are found"
+   ]
+  },
+  {
+   "id": "med-g68.l08.q1",
+   "lessonId": "med-g68.l08",
+   "kind": "mcq",
+   "prompt": "Which description fits a mental health condition rather than ordinary stress?",
+   "choices": [
+    "A short feeling of worry that comes up the night before a big school test",
+    "Feeling sad for a few hours after a real disappointment",
+    "Being tired and cranky after a night of poor sleep",
+    "Strong feelings lasting weeks and interfering with daily life"
+   ]
+  },
+  {
+   "id": "med-g68.l08.q2",
+   "lessonId": "med-g68.l08",
+   "kind": "mcq",
+   "prompt": "Which habit is known to help protect mental health?",
+   "choices": [
+    "Staying awake late to finish worries",
+    "Ignoring every upsetting feeling",
+    "Getting regular, sufficient sleep",
+    "Avoiding all contact with friends"
+   ]
+  },
+  {
+   "id": "med-g68.l08.q3",
+   "lessonId": "med-g68.l08",
+   "kind": "mcq",
+   "prompt": "A friend tells you privately that they have been thinking of hurting themselves and asks you to promise to keep it secret. What is the best response?",
+   "choices": [
+    "Post about it online and ask other people for their opinions",
+    "Take it seriously and tell a trusted adult, even if they asked you not to",
+    "Keep the secret so that the friendship is protected and trust is never broken",
+    "Tell them to simply cheer up and try to think about other things"
+   ]
+  },
+  {
+   "id": "med-g68.l08.q4",
+   "lessonId": "med-g68.l08",
+   "kind": "mcq",
+   "prompt": "A student who used to love soccer now stays in bed, has lost interest in friends, and feels low most days for over a month. Which interpretation is most reasonable?",
+   "choices": [
+    "These may be signs of depression, so a doctor or counselor should be consulted",
+    "This is only laziness, and plain willpower and a little effort will fix it quickly",
+    "This proves the student has an undiagnosed physical injury",
+    "This is a normal reaction that never needs anyone's attention"
+   ]
+  },
+  {
+   "id": "med-g68.l09.q1",
+   "lessonId": "med-g68.l09",
+   "kind": "mcq",
+   "prompt": "Which brain chemical is strongly linked to the reward system?",
+   "choices": [
+    "Hemoglobin",
+    "Collagen",
+    "Dopamine",
+    "Insulin"
+   ]
+  },
+  {
+   "id": "med-g68.l09.q2",
+   "lessonId": "med-g68.l09",
+   "kind": "mcq",
+   "prompt": "What does tolerance mean in the context of drug use?",
+   "choices": [
+    "Being able to say no to a drug quite easily",
+    "Having no side effects from any drug at all",
+    "Feeling better after a dose is stopped",
+    "Needing more of a drug to get the same effect"
+   ]
+  },
+  {
+   "id": "med-g68.l09.q3",
+   "lessonId": "med-g68.l09",
+   "kind": "mcq",
+   "prompt": "Why are teens at higher risk of lasting harm from substance use than adults?",
+   "choices": [
+    "The brain areas for planning and impulse control are still developing",
+    "The teen liver is completely unable to process any substance at all",
+    "Teens always have weaker bones that break more easily",
+    "Teens do not yet have a working reward system at all"
+   ]
+  },
+  {
+   "id": "med-g68.l09.q4",
+   "lessonId": "med-g68.l09",
+   "kind": "mcq",
+   "prompt": "A person is told that a pill bought from an unknown seller looks identical to a prescription painkiller. Why is taking it especially dangerous?",
+   "choices": [
+    "The only risk is that the pill may taste unpleasant",
+    "Illegal pills may contain fentanyl, and an unknown dose can stop breathing",
+    "Pills that look identical to real medicine are always identical in content",
+    "Painkillers can never be harmful when they come in pill form"
+   ]
+  },
+  {
+   "id": "med-g68.l10.q1",
+   "lessonId": "med-g68.l10",
+   "kind": "mcq",
+   "prompt": "How do most drugs produce their effect in the body?",
+   "choices": [
+    "By attaching to a specific target such as a receptor or enzyme",
+    "By replacing the blood in the body with a different kind of liquid",
+    "By permanently changing a person's DNA in every cell",
+    "By heating the body gradually from the inside out"
+   ]
+  },
+  {
+   "id": "med-g68.l10.q2",
+   "lessonId": "med-g68.l10",
+   "kind": "mcq",
+   "prompt": "What is a side effect?",
+   "choices": [
+    "Any effect that lasts for under a minute",
+    "An effect of a drug other than the one intended",
+    "The main reason a doctor decides to prescribe a drug",
+    "A sign that the drug did not properly enter the body"
+   ]
+  },
+  {
+   "id": "med-g68.l10.q3",
+   "lessonId": "med-g68.l10",
+   "kind": "mcq",
+   "prompt": "A parent gives a child a cold medicine and also a separate fever reducer, and both contain acetaminophen. What is the main concern?",
+   "choices": [
+    "The child will become permanently allergic to every other medicine in the house",
+    "The medicines will make the child grow far more slowly",
+    "Accidentally giving too much acetaminophen, which can damage the liver",
+    "The two medicines will cancel each other out entirely"
+   ]
+  },
+  {
+   "id": "med-g68.l10.q4",
+   "lessonId": "med-g68.l10",
+   "kind": "mcq",
+   "prompt": "A teen has leftover prescription medicine from a past illness and a friend has similar symptoms. Which choice is the safest?",
+   "choices": [
+    "Share it, since the symptoms seem similar enough",
+    "Share half of it, because half a dose is always safe for anyone to take",
+    "Share it only if the friend promises not to tell",
+    "Not share it, and suggest the friend talk to a doctor or pharmacist"
+   ]
+  },
+  {
+   "id": "med-g68.l11.q1",
+   "lessonId": "med-g68.l11",
+   "kind": "mcq",
+   "prompt": "What is the main goal of a Phase 1 clinical trial?",
+   "choices": [
+    "Comparing prices of different brands",
+    "Checking safety in a small group of people",
+    "Proving the drug works in thousands of people",
+    "Collecting product reviews after approval"
+   ]
+  },
+  {
+   "id": "med-g68.l11.q2",
+   "lessonId": "med-g68.l11",
+   "kind": "mcq",
+   "prompt": "Why do trials often use a control group?",
+   "choices": [
+    "To show what happens without the new treatment for comparison",
+    "To make sure that everyone in the study receives exactly the same new treatment",
+    "To make the study cheaper and quicker to run",
+    "To give researchers a group of people they can ignore"
+   ]
+  },
+  {
+   "id": "med-g68.l11.q3",
+   "lessonId": "med-g68.l11",
+   "kind": "mcq",
+   "prompt": "In a trial, neither the patients nor the doctors know who gets the real drug and who gets the placebo. What does this blinding prevent?",
+   "choices": [
+    "The drug from ever reaching the bloodstream",
+    "Participants from taking the study seriously at all",
+    "Side effects from ever appearing",
+    "Expectations from changing the results"
+   ]
+  },
+  {
+   "id": "med-g68.l11.q4",
+   "lessonId": "med-g68.l11",
+   "kind": "mcq",
+   "prompt": "A company reports that five patients felt better after trying a new tablet and says this proves it works. What is the strongest criticism?",
+   "choices": [
+    "Patients should never be asked how they are feeling",
+    "Reports should only ever come from the company itself",
+    "There was no control group, and so few people cannot show cause",
+    "Five patients is far too many people for any careful health study to include"
+   ]
+  },
+  {
+   "id": "med-g68.l12.q1",
+   "lessonId": "med-g68.l12",
+   "kind": "mcq",
+   "prompt": "Which of these is a warning sign of a misleading health claim?",
+   "choices": [
+    "A statement of both benefits and risks",
+    "Advice from an established national health agency",
+    "Promises of a miracle cure for many unrelated problems",
+    "Reference to a large randomized trial with a control group"
+   ]
+  },
+  {
+   "id": "med-g68.l12.q2",
+   "lessonId": "med-g68.l12",
+   "kind": "mcq",
+   "prompt": "What does the phrase \"correlation is not causation\" mean?",
+   "choices": [
+    "Two things occurring together always means that one of them causes the other",
+    "Scientists should never look for patterns in data",
+    "Causes can only be found by asking a single person",
+    "Two things occurring together does not prove one causes the other"
+   ]
+  },
+  {
+   "id": "med-g68.l12.q3",
+   "lessonId": "med-g68.l12",
+   "kind": "mcq",
+   "prompt": "A video says, \"My cousin drank this tea and her cold vanished, so it cures colds.\" What is the main flaw?",
+   "choices": [
+    "Colds go away on their own, so the tea may get credit it did not earn",
+    "Tea can never contain any ingredient that is helpful to the human body",
+    "Colds only improve when treated with antibiotics",
+    "A story about a family member is always completely false"
+   ]
+  },
+  {
+   "id": "med-g68.l12.q4",
+   "lessonId": "med-g68.l12",
+   "kind": "mcq",
+   "prompt": "A headline says a food \"raises your risk of a disease by 50 percent.\" The disease affects 2 in 10,000 people. What should a careful reader conclude?",
+   "choices": [
+    "Percent figures can never be trusted in any health news",
+    "The absolute risk may still be very small, so more detail is needed",
+    "The food will make about half of all the people who eat it become ill",
+    "The food has been proven to cause the disease in every person"
+   ]
+  },
+  {
+   "id": "med-g68.l13.q1",
+   "lessonId": "med-g68.l13",
+   "kind": "mcq",
+   "prompt": "What should be your first step when you come across an injured person?",
+   "choices": [
+    "Move the person as quickly as possible",
+    "Give the person something to drink",
+    "Leave to find someone older",
+    "Check that the scene is safe for you"
+   ]
+  },
+  {
+   "id": "med-g68.l13.q2",
+   "lessonId": "med-g68.l13",
+   "kind": "mcq",
+   "prompt": "Where on the body do you push during hands-only CPR?",
+   "choices": [
+    "The side of the neck",
+    "The top of the shoulder",
+    "The center of the chest",
+    "The upper abdomen"
+   ]
+  },
+  {
+   "id": "med-g68.l13.q3",
+   "lessonId": "med-g68.l13",
+   "kind": "mcq",
+   "prompt": "A classmate collapses, does not respond and is not breathing normally. What is the best sequence?",
+   "choices": [
+    "Give water and ask the classmate to sit up straight",
+    "Call or have someone call emergency services, start compressions and get an AED",
+    "Wait several minutes to see whether the classmate wakes up and sits up",
+    "Shake the classmate hard and shout until they respond"
+   ]
+  },
+  {
+   "id": "med-g68.l13.q4",
+   "lessonId": "med-g68.l13",
+   "kind": "mcq",
+   "prompt": "A person gets a minor burn on the hand from a hot pan. Which choice is the best immediate action?",
+   "choices": [
+    "Cool the burn under cool running water for several minutes",
+    "Cover it with butter or oil right away to seal in the heat and protect it",
+    "Pack it in ice for as long as the pain lasts",
+    "Pop any blisters right away to relieve the pressure"
+   ]
+  },
+  {
+   "id": "med-g68.l14.q1",
+   "lessonId": "med-g68.l14",
+   "kind": "mcq",
+   "prompt": "Which health professional is an expert in medicines and checks that they are safe together?",
+   "choices": [
+    "A pharmacist",
+    "A radiologic technologist who takes X-ray images",
+    "A dietitian who plans eating programs",
+    "An epidemiologist who studies disease patterns"
+   ]
+  },
+  {
+   "id": "med-g68.l14.q2",
+   "lessonId": "med-g68.l14",
+   "kind": "mcq",
+   "prompt": "What does an epidemiologist study?",
+   "choices": [
+    "How to prepare balanced meals for hospital patients",
+    "How disease spreads and who is affected in a population",
+    "How to repair broken bones using surgery and metal plates",
+    "How to design artificial limbs and joints for patients"
+   ]
+  },
+  {
+   "id": "med-g68.l14.q3",
+   "lessonId": "med-g68.l14",
+   "kind": "mcq",
+   "prompt": "A student likes science and helping people but dislikes the idea of long years of school. Which statement is most accurate?",
+   "choices": [
+    "Health careers do not involve science",
+    "Only doctors are ever considered to be health professionals",
+    "Many health careers need shorter programs than a medical degree",
+    "Every single health career requires the same long medical school path to be completed"
+   ]
+  },
+  {
+   "id": "med-g68.l14.q4",
+   "lessonId": "med-g68.l14",
+   "kind": "mcq",
+   "prompt": "A community has dirty drinking water causing repeated illness. Which professional is most likely to design a solution at the level of the whole community?",
+   "choices": [
+    "A dentist who cleans and repairs the teeth of patients in a local clinic",
+    "An optometrist who tests vision and fits glasses",
+    "A surgeon who operates on one individual patient at a time",
+    "A public health worker who plans water and sanitation programs"
+   ]
+  }
+ ]
+}

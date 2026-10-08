@@ -1,0 +1,85 @@
+// Brakes: ABS and electrical parts. AI-draft content, generic archetypes.
+import { part, fm, hook, port, mat, ASE } from './shared';
+
+export const ABS_PARTS = [
+  part({
+    id: 'abs_hcu', name: 'ABS hydraulic control unit', category: 'hydraulic', generator: 'abs_hcu',
+    ports: [port('in1', 'hydraulic', 'in', 'From master cylinder'), port('out1', 'hydraulic', 'out', 'To wheel circuits'), port('cmd', 'signal', 'in', 'Valve commands'), port('motor', 'elec', 'in', 'Pump motor')],
+    materials: [mat('block', '#b9bec6', 0.7, 0.5)],
+    hooks: [hook('hydraulics', 'inlet/outlet valves, accumulator, pump', 'S1'), hook('tire', 'wheel slip control', 'S1')],
+    fn: 'Modulates the pressure to each wheel during a skid risk by quickly holding, releasing and re-applying pressure so the tire keeps rolling and the driver keeps steering.',
+    inside: 'An aluminum block with, for each wheel, a normally open inlet valve and a normally closed outlet valve, plus low-pressure accumulators and a motor-driven return pump. To hold pressure both valves close. To release, the outlet valve opens and fluid flows to the accumulator (the pedal may pulse). To re-apply, the outlet closes and the inlet opens. The pump returns fluid to the master cylinder side. A controller decides based on wheel speed signals, many times per second.',
+    wear: ['Valve seats and filter screens contaminate with debris.', 'Pump motor brushes wear.', 'Solenoid coils and connectors corrode.'],
+    failures: [
+      fm('hcu_valve_stuck', 'Stuck inlet/outlet valve', ['ABS light on', 'Wheel locks or fails to apply', 'Pedal drops or pulsates abnormally'], ['Debris or wet fluid', 'Weak solenoid'], ['Scan for wheel-specific valve codes', 'Use the scan-tool actuator test to cycle valves and watch pressure or wheel behavior']),
+      fm('hcu_pump_motor_failure', 'Pump motor failure', ['ABS light on', 'No pedal pulsation during ABS events', 'Motor does not run in actuation test'], ['Worn motor', 'Open relay or fuse'], ['Command the pump with a scan tool', 'Check fuse, relay and power supply']),
+      fm('hcu_internal_leak', 'Internal leak / contamination', ['Pedal sinks slowly', 'Pulsating pedal when not in ABS', 'Fluid loss with no external leak'], ['Valve seat leak', 'Corroded passages'], ['Pedal hold test and scan-tool pressure test per the manual']),
+    ],
+    diag: ['Scan for codes and freeze-frame data first.', 'Test wheel speed sensors, wiring, fuses and ground before blaming the HCU.', 'Use bidirectional tests and the manual\'s ABS bleeding procedure.'],
+    repair: {
+      summary: 'Replace the HCU (and ECU if combined), then bleed with a scan tool if the manual requires an ABS-specific bleed.',
+      steps: ['Read and save codes; disconnect the battery if specified.', 'Disconnect the connector and brake lines (label each) with line wrenches and cap them.', 'Unbolt and remove the unit; keep it upright.', 'Install the new unit and reconnect lines to the correct ports.', 'Bleed the entire system including the ABS circuit with a scan tool if required.', 'Clear codes and road-test for ABS activation.'],
+      tools: ['Scan tool with bidirectional control', 'Line wrenches', 'Bleeder kit', 'Torque wrench'], difficulty: 4, hours: [2, 4],
+      safety: ['A misplumbed HCU can send front and rear signals to the wrong wheels: label every line before disconnecting.'],
+    },
+    cost: { parts: [400, 1500], labor: [2, 4] }, ase: ASE.abs,
+  }),
+  part({
+    id: 'abs_ecu', name: 'ABS control module', category: 'electronic', generator: 'abs_ecu',
+    ports: [port('wss', 'signal', 'in', 'Wheel speed sensors'), port('valves', 'signal', 'out', 'Valve commands'), port('lamp', 'signal', 'out', 'Dash lamp'), port('pwr', 'elec', 'in', 'Power / ground')],
+    hooks: [hook('tire', 'slip estimate and apply/hold/release control', 'S1')],
+    fn: 'Reads the four wheel speed signals, decides which wheel is about to lock and commands the HCU valves. It also runs self-checks and lights the ABS lamp on faults.',
+    inside: 'A microcontroller compares each wheel\'s speed to a reference vehicle speed estimated from all wheels. When a wheel decelerates too fast or slips too much, it commands the valves to hold, release and re-apply in cycles. It disables ABS and lights the dash lamp when a sensor or circuit is implausible; the base hydraulic brakes still work.',
+    wear: ['Solder cracks and moisture damage.', 'Connector corrosion.', 'Voltage spikes after a jump-start or low battery.'],
+    failures: [
+      fm('abs_ecu_fault', 'Module fault or power loss', ['ABS and traction lamps on', 'Multiple unrelated codes', 'ABS inactive'], ['Failed driver circuit', 'Corroded connector', 'Low supply voltage'], ['Check power, ground and fuses first', 'Scan for communication codes', 'Inspect connector for corrosion']),
+      fm('abs_ecu_wrong_calibration', 'Wrong calibration / configuration', ['Lamp on after replacement', 'Brake bias or tire size errors'], ['Module not programmed to the vehicle'], ['Verify part number and configure per the manual']),
+    ],
+    diag: ['Test supply and ground voltage under load.', 'Confirm communication with other modules before condemning the ECU.'],
+    repair: { summary: 'Replace or have the module repaired, program it to the vehicle and clear codes.', steps: ['Read and record codes and configuration.', 'Disconnect the battery and the module connector.', 'Remove and replace the module (or HCU/ECU combo).', 'Program or configure as required.', 'Clear codes and road-test for ABS function.'], tools: ['Scan tool with programming', 'Multimeter'], difficulty: 4, hours: [1, 3] },
+    cost: { parts: [150, 900], labor: [1, 3] }, ase: ASE.abs,
+  }),
+  part({
+    id: 'wheel_speed_sensor', name: 'Wheel speed sensor', category: 'sensing', generator: 'wheel_speed_sensor',
+    ports: [port('ring', 'signal', 'in', 'Sees tone ring teeth'), port('sig', 'signal', 'out', 'To ABS module')],
+    hooks: [hook('tire', 'wheel speed measurement', 'S1')],
+    fn: 'Measures how fast each wheel is turning so the ABS can detect an impending lock-up.',
+    inside: 'A magnetic pickup (passive) or Hall/magnetoresistive element (active) sits a small air gap from the tone ring. As teeth pass, the sensor generates a signal whose frequency is proportional to wheel speed. Active sensors can report down to near zero speed. A dirty, damaged or mis-spaced sensor produces a weak or erratic signal.',
+    wear: ['Wiring harness flexes and chafes at the knuckle.', 'Sensor face contaminated by metal debris or rust.', 'Connector corrosion.'],
+    failures: [
+      fm('wheel_speed_sensor_failure', 'Failed or dirty wheel speed sensor', ['ABS light (and often traction control light) on', 'ABS not working', 'Speedometer or cruise erratic on some vehicles'], ['Broken wire', 'Internal sensor failure', 'Debris on the sensor face', 'Wrong air gap'], ['Scan for the wheel-specific code', 'Check resistance (passive) or signal on a scope or scan tool wheel speed data', 'Inspect the sensor face and tone ring']),
+      fm('wss_air_gap', 'Excessive air gap or damaged tone ring', ['Intermittent ABS lamp at low speed', 'ABS activates unexpectedly'], ['Loose sensor', 'Damaged tone ring teeth', 'Hub bearing play'], ['Compare wheel speed data between all four wheels on a road test']),
+    ],
+    diag: ['Compare wheel speed values for all four wheels on a scan tool during a gentle road test.', 'Inspect wiring along its full route.'],
+    repair: { summary: 'Clean or replace the sensor and repair its wiring; verify ring condition and air gap.', steps: ['Remove the wheel if needed for access.', 'Unplug the connector and remove the retaining bolt.', 'Clean the mounting bore and inspect the tone ring.', 'Install the new sensor, route and clip the harness exactly as before.', 'Clear codes and road-test for lamp-off.'], tools: ['Scan tool', 'Multimeter or scope', 'Trim tools'], difficulty: 2, hours: [0.5, 1.5] },
+    cost: { parts: [25, 150], labor: [0.5, 1.5] }, ase: ASE.abs,
+  }),
+  part({
+    id: 'tone_ring', name: 'Tone ring (reluctor)', category: 'sensing', generator: 'tone_ring', params: { teeth: 40 },
+    ports: [port('rot', 'mech', 'in', 'Turns with hub'), port('mag', 'signal', 'out', 'Teeth seen by sensor')],
+    fn: 'A toothed or magnetized ring on the hub that gives the wheel speed sensor a regular pattern to count.',
+    inside: 'Passive systems use a steel toothed ring that disturbs the magnet in the sensor. Active systems use a magnetic encoder ring with alternating poles molded into the hub seal. Missing, rusted or cracked teeth or a damaged encoder produce missing or irregular pulses.',
+    wear: ['Rust and debris fill the gaps between teeth.', 'Cracks from impact or a failed bearing.', 'Magnetic encoder loses poles or is contaminated with metal particles.'],
+    failures: [
+      fm('tone_ring_damaged', 'Damaged or rusty tone ring', ['ABS lamp on', 'Intermittent ABS at low speed', 'Wheel speed signal erratic'], ['Rust jacking', 'Impact damage', 'Failed bearing allowing contact'], ['Inspect the ring visually', 'Compare wheel speed data and waveform']),
+      fm('tone_ring_contaminated', 'Contaminated encoder', ['Intermittent signal', 'ABS lamp'], ['Metal particles on the magnetic ring'], ['Inspect for debris and clean carefully']),
+    ],
+    diag: ['Compare the waveform with a healthy wheel and look for missing pulses.'],
+    repair: { summary: 'Clean the ring if possible, otherwise replace the ring or hub assembly.', steps: ['Remove the wheel and rotor as needed.', 'Inspect the ring, clean gently.', 'Replace the ring or the hub assembly if damaged.', 'Check the sensor air gap and clear codes.'], tools: ['Scan tool', 'Brush', 'Press or puller if the ring is pressed on'], difficulty: 3, hours: [1, 3] },
+    cost: { parts: [20, 250], labor: [1, 3] }, ase: ASE.abs,
+  }),
+  part({
+    id: 'brake_light_switch', name: 'Brake light switch', category: 'sensing', generator: 'brake_light_switch',
+    ports: [port('plunger', 'mech', 'in', 'Pedal arm'), port('sig', 'signal', 'out', 'Brake lamps / ECU')],
+    fn: 'Detects when the pedal is pressed so the brake lights come on, and tells the engine computer, ABS and cruise control that the driver is braking.',
+    inside: 'A small switch mounted on the pedal bracket with a plunger or bracket-contact. At rest the pedal holds the plunger in; pressing the pedal releases it and closes the circuit. Modern vehicles use a dual-contact or Hall switch, with one circuit for the lamps and another for the ECU, for redundancy.',
+    wear: ['Plunger sticks or breaks.', 'Contacts corrode.', 'Adjustment shifts and the switch triggers late or early.'],
+    failures: [
+      fm('bls_no_lights', 'Switch fails open', ['No brake lights', 'Cruise control will not cancel', 'Shift lock does not release'], ['Broken switch', 'Blown fuse', 'Bad connection'], ['Test voltage at the switch with the pedal pressed', 'Check lamp bulbs and fuse']),
+      fm('bls_stuck_on', 'Lights stay on', ['Brake lights on with the pedal released', 'Battery drain', 'Cruise control disabled'], ['Misadjusted switch', 'Pedal return failure'], ['Check switch plunger position and pedal return']),
+    ],
+    diag: ['Verify the lights work with a helper pressing the pedal; test the switch with a multimeter.'],
+    repair: { summary: 'Replace and adjust the switch to give lights within a short pedal travel.', steps: ['Disconnect the connector.', 'Twist or unbolt the switch to remove it.', 'Install the new switch and set its position per the manual.', 'Check brake lights, cruise and shift-lock function.'], tools: ['Multimeter', 'Trim tools'], difficulty: 1, hours: [0.3, 1] },
+    cost: { parts: [10, 60], labor: [0.3, 1] }, ase: ASE.misc, inspection: ['lt_brake'],
+  }),
+];

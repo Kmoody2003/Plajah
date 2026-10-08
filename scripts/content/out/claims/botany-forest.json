@@ -1,0 +1,809 @@
+{
+ "courseId": "botany-forest",
+ "label": "Botany: The Living Forest",
+ "lessons": [
+  {
+   "id": "botany-forest.l01",
+   "title": "Plants Become a Science",
+   "body": [
+    "Around 300 BCE Theophrastus, Aristotle's student, wrote about roughly 500 plants. What made him different from earlier writers is that plants were no longer just food, medicine or omens. He asked how a plant is built, how it reproduces and why it grows where it does. Separating the study of plants from their use is what founds a science.",
+    "The next big step needed a lens. In 1665 Robert Hooke looked at a thin slice of cork under a microscope and saw tiny box-like compartments, which he called cells after the small rooms of a monastery. Cork is dead bark tissue, so what he saw were the empty walls of cells that had already died. Yet the word stuck, and it became the name for the basic unit of all living things. In 1831 Robert Brown, studying orchids, named the nucleus as a structure that is consistently present inside living cells.",
+    "A modern example is a leaf on your windowsill: under a microscope it is a tightly packed sheet of cells, each one a small working unit."
+   ]
+  },
+  {
+   "id": "botany-forest.l02",
+   "title": "Plant Anatomy: Tissues and Vessels",
+   "body": [
+    "In 1682 Nehemiah Grew and Marcello Malpighi, working independently, showed that plants have anatomy: organised tissues and vessels, not just a uniform green mass. That idea opened up the question of how a plant moves materials around.",
+    "A vascular plant has two main transport systems. Xylem carries water and dissolved minerals upward from the roots. Phloem carries sugar made in the leaves to the parts that need it, such as roots, growing tips and fruit. Katherine Esau, whose book Plant Anatomy of 1953 taught the subject to generations, became an authority on the phloem, the tissue that plants use to move sugar and that viruses use to move themselves.",
+    "The tallest trees show how demanding the job is. Water cannot be pulled much above about 120 metres because the column breaks, so a coast redwood takes up water through its roots and also drinks fog that condenses on its needles.",
+    "A celery stalk in coloured water is a simple demonstration: the colour climbs the stalk through its vessels."
+   ]
+  },
+  {
+   "id": "botany-forest.l03",
+   "title": "Photosynthesis: Plants Eat Air",
+   "body": [
+    "For two thousand years people assumed plants ate soil. In 1779 Jan Ingenhousz, a physician, placed sprigs of greenery in water under glass and found that the green parts release oxygen in sunlight and consume it in darkness. Only the green parts did it. Nicolas-Théodore de Saussure showed in 1804 that water is a raw material too, so the plant is built largely out of air and water.",
+    "The overall reaction is written in plain text as: 6 CO2 + 6 H2O + light energy gives C6H12O6 + 6 O2. Carbon dioxide and water go in, and sugar (glucose) and oxygen come out. The sugar supplies energy and the carbon for building new tissue, from leaves to wood.",
+    "The process takes place in leaf cells that contain chloroplasts, which hold the green pigment chlorophyll. Light drives the reaction, which is why a plant kept in a dark cupboard stops making sugar and slowly weakens.",
+    "A practical example is a tree growing from a seed: most of its mass comes from carbon dioxide taken from the air, not from the soil."
+   ]
+  },
+  {
+   "id": "botany-forest.l04",
+   "title": "Inside the Chloroplast",
+   "body": [
+    "Ingenhousz found that light matters. The chemistry of what happens to the carbon was worked out in 1957 by Melvin Calvin, Andrew Benson and James Bassham at Berkeley. They traced radioactive carbon-14 through a plant and mapped the path that carbon dioxide takes on its way to sugar. It is called the Calvin-Benson cycle. Calvin received the 1961 Nobel Prize, and almost every carbon atom in your body has passed through this cycle inside a plant or an alga.",
+    "The cycle runs inside chloroplasts. Light is captured by chlorophyll, which gives leaves their colour. In autumn a tree withdraws that pigment to reuse the nitrogen, and the red you see in a sugar maple comes from anthocyanin made in its place.",
+    "In 1967 Lynn Margulis proposed that chloroplasts descend from free-living bacteria absorbed by an ancestral cell. Her paper was rejected by about fifteen journals and is now textbook. The chloroplast still carries its own DNA, a leftover of an event roughly a billion years old."
+   ]
+  },
+  {
+   "id": "botany-forest.l05",
+   "title": "Reading a Tree: Form and Growth",
+   "body": [
+    "A tree can be read like a label. An oak spends its first decade building roots rather than height, which is why a young one looks like a shrub. Its wide, open crown is the shape of a tree that grew without competition; in a dense forest the same species grows tall and narrow instead.",
+    "A Scots pine leaves its trunk in tiers of branches, and each whorl is one year of growth, so the pine keeps a visible calendar of its own life. The rings inside a trunk keep a similar record, one ring per growing season in most trees.",
+    "Not everything tall is a tree in the usual sense. A date palm has no bark, no annual rings and no branches. It is a giant herb whose trunk is a bundle of fibres, and it grows from a single point at the crown, so damage there kills the whole plant. A baobab also has no growth rings to count, so dating one takes radiocarbon.",
+    "When you look at a lone tree in a field and a tree in a thick wood, the difference in shape tells you about the light each one had."
+   ]
+  },
+  {
+   "id": "botany-forest.l06",
+   "title": "Light and the Forest Layers",
+   "body": [
+    "A forest is a competition for light, and the result is layers. At the top the canopy trees spread their crowns in full sun. Beneath them the understorey and the shrub layer live in filtered shade, and at the bottom the forest floor receives only a few percent of the sunlight. Each layer is a different environment, so each supports different plants and animals.",
+    "Trees come in very different sizes. A coast redwood grows 60 to 115 metres tall and is the tallest tree alive. A mountain ash from Australia reaches 70 to 100 metres and is the tallest flowering plant. A cherry stays at 8 to 12 metres, and a quiver tree grows 3 to 9 metres.",
+    "Shade also shapes reproduction. A mountain ash cannot regenerate in its own shade, because its seed needs bare ash and full light. So a stand of mountain ash is usually all one age, germinated after a single fire. Many trees do the opposite and grow slowly under the canopy, waiting for a gap to open when an older tree falls."
+   ]
+  },
+  {
+   "id": "botany-forest.l07",
+   "title": "Pioneers, Fire and Succession",
+   "body": [
+    "Forests change over time. After a fire or a clearing, the first trees to arrive are pioneers. The paper birch is a typical one: it colonises open, burnt ground, grows fast, dies young and shelters the slower trees that replace it. Its white bark reflects sunlight and keeps the trunk from overheating and cracking on bright winter days, a useful trait when there is no canopy overhead.",
+    "Other trees are built to survive fire. A coast redwood grows a bark about a foot thick that contains almost no resin, so it survives fires that clear everything around it. Mountain ash takes the opposite route and depends on fire to open space and light for its seeds.",
+    "This gradual replacement of one community by another is called succession. Pioneers like birch give way to slower, shade-tolerant species such as oak or maple over decades to centuries.",
+    "A grassy field left unmowed for years will first fill with small plants, then shrubs, and later young trees, which is succession on a small scale."
+   ]
+  },
+  {
+   "id": "botany-forest.l08",
+   "title": "Underground Networks: Fungi and Lichens",
+   "body": [
+    "Under the forest floor, fungi are linked to the roots of almost every tree. Fungi are not plants. They form their own kingdom, and the partnership between fungus and root is called a mycorrhiza. The fungus extends thread-like filaments into the soil, and the tree supplies it with sugar from photosynthesis.",
+    "In 1997 Suzanne Simard traced carbon moving between birch and fir through shared fungal networks, using isotope labelling. That is evidence that trees are connected below ground and that resources pass between them. The popular phrase \"wood wide web\" runs ahead of the evidence, and ecologists still argue about how much transfer happens and why. The connections themselves are not in doubt.",
+    "A lichen is another partnership. Beatrix Potter, before she wrote Peter Rabbit, argued for the then-contested view that lichens are a fungus and an alga living together. Her 1897 paper went to the Linnean Society, which did not admit women, and a man read it on her behalf.",
+    "When you find a mushroom in a wood, you are seeing only the fruiting body of a much larger underground organism."
+   ]
+  },
+  {
+   "id": "botany-forest.l09",
+   "title": "Flowers, Seeds and Pollination",
+   "body": [
+    "In 1682 Grew and Malpighi argued that flowers are sexual organs. This was shocking and resisted for decades, but it made it possible to classify plants by flower structure. A flower makes pollen, the male part, and ovules, which become seeds once fertilised. Pollination is the movement of pollen to the female part, carried by wind, insects, birds or bats.",
+    "The baobab shows how specialised this can be: it flowers at night with large white flowers that are pollinated by fruit bats. Seed numbers vary widely. A mature oak can drop several thousand acorns in a good year, and perhaps one of them becomes a tree.",
+    "Not every plant uses flowers. A pine is a gymnosperm, an older lineage than the flowering trees around it, and carries its seeds in cones. Flowering plants, the angiosperms, enclose their seeds in fruit. A cherry blossoms before it leafs, but many ornamental cherries are sterile clones that make no fruit, since the point was always the blossom."
+   ]
+  },
+  {
+   "id": "botany-forest.l10",
+   "title": "Mendel's Peas: Rules of Inheritance",
+   "body": [
+    "Gregor Mendel was an Augustinian friar in Brno who grew and counted about 28,000 pea plants over eight years. From the counts he extracted the rules by which traits pass from one generation to the next. His key finding in his 1866 paper, Experiments on Plant Hybrids, was that traits are inherited in discrete units rather than blending like paint.",
+    "Mendel presented his results to a local natural history society and published them in its proceedings. He was cited only a handful of times, and the work was ignored for thirty-four years. In 1900 three botanists rediscovered his laws independently and found that he had got there first. Mendel died an abbot, unaware that he had founded genetics.",
+    "Peas were an excellent choice: they grow quickly, have clear contrasting traits such as flower colour, and can be cross-pollinated by hand. A later milestone was Barbara McClintock's 1948 discovery in maize of genes that move, called transposable elements, for which she received an unshared Nobel Prize in 1983."
+   ]
+  },
+  {
+   "id": "botany-forest.l11",
+   "title": "Clones, Cuttings and Diversity",
+   "body": [
+    "Plants can reproduce without seeds. A willow branch cut and pushed into wet ground simply becomes another willow, which is why one tree can populate a riverbank. This is cloning, and the new plant is genetically identical to its parent.",
+    "Cloning has a cost. The Lombardy poplar is a narrow, upswept form found near the Po valley in the 1700s and propagated by cuttings ever since. Every one in the world is male and effectively the same tree. With no genetic variation there is no defence, and a single canker can take out an entire avenue.",
+    "The lesson is that diversity is protection. In 1926 Nikolai Vavilov showed that crop diversity clusters in a few regions, the centres of origin, where wild relatives still live. He built the world's first seed bank. Today the Svalbard Global Seed Vault, cut into permafrost 130 metres inside a mountain, backs up crop collections. Syrian researchers withdrew seed from it in 2015 after the collection at Aleppo became unreachable."
+   ]
+  },
+  {
+   "id": "botany-forest.l12",
+   "title": "Adaptations to Heat, Cold and Drought",
+   "body": [
+    "Every adaptation in the data is a solution to a problem. In cold or dry places the problem is water loss, and trees solve it differently. A Scots pine uses needles instead of broad leaves: a small surface area, a waxy skin, and no need to rebuild the whole canopy each spring. An Italian cypress has leaves like scales pressed flat against the twig, which costs almost no water in heat.",
+    "A baobab stores water in its trunk, which holds tens of thousands of litres in soft, fibrous wood, and swells and shrinks through the seasons. The quiver tree sheds whole limbs to cut its water demand in a drought, and its trunk wears a white powdery bloom that reflects the desert sun. Eucalyptus leaves hang vertically to present their edge to the midday sun. A paper birch's white bark reflects light and keeps the trunk from overheating.",
+    "Sometimes the adaptation is an unexpected one. The quiver tree is not a tree at all: it is an aloe that grew tall enough to act like one."
+   ]
+  },
+  {
+   "id": "botany-forest.l13",
+   "title": "Ferns, Mosses and Life Cycles",
+   "body": [
+    "Before flowers existed, ferns had already solved the problem of height. A male fern has no bloom and no seed. It releases spores from rows of brown capsules on the underside of each frond. The plant those spores grow into is not another fern, but a tiny, separate, heart-shaped organism that produces the egg and sperm. The large fern you see is therefore only half of its life cycle. This pattern of two alternating forms is called alternation of generations.",
+    "The museum groups plants by lineage: bryophytes (mosses and liverworts), ferns, gymnosperms (conifers and cycads) and angiosperms (flowering plants). A spore is a single cell and a seed is a packaged embryo with a food supply, so a seed is a more elaborate way to start a new plant.",
+    "Young fern fronds uncurl from a tight spiral called a fiddlehead, which is the most compact way to store something long. Next time you see a fern in a woodland, turn a frond over: brown dots on the underside are its spore capsules."
+   ]
+  },
+  {
+   "id": "botany-forest.l14",
+   "title": "Living Fossils and the Plant Family Tree",
+   "body": [
+    "The plant family tree has a clear order of arrival. Mosses and liverworts are non-vascular. Ferns and horsetails are vascular but use spores. Gymnosperms add seeds without fruit. Angiosperms, the flowering plants, are the youngest lineage and now dominate most land habitats. The Ancient Line gallery of the museum carries mosses, ferns and cycads described as 400 million years of survivors.",
+    "The ginkgo is a living fossil with no close relatives anywhere, the last survivor of an order that was widespread when dinosaurs fed on it. Its fan-shaped leaf has veins that fork in two and never rejoin. Wild populations are endangered, and the species survives largely because Chinese monks cultivated it in temple grounds for a thousand years. Six ginkgos near the Hiroshima hypocentre regrew the following spring.",
+    "The redwood is a gymnosperm too, and old-growth coast redwood forest is down to roughly 5 percent of its former area. Its conservation status is Endangered, a reminder that ancient does not mean safe."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "botany-forest.l01.q1",
+   "lessonId": "botany-forest.l01",
+   "kind": "mcq",
+   "prompt": "Who is credited with turning plants into a subject of scientific study around 300 BCE?",
+   "choices": [
+    "Carl Linnaeus",
+    "Theophrastus",
+    "Gregor Mendel",
+    "Robert Hooke"
+   ]
+  },
+  {
+   "id": "botany-forest.l01.q2",
+   "lessonId": "botany-forest.l01",
+   "kind": "mcq",
+   "prompt": "What did Robert Hooke name \"cells\" in 1665?",
+   "choices": [
+    "The seeds inside an acorn",
+    "The veins of a leaf",
+    "The compartments he saw in a slice of cork",
+    "The rings of a tree trunk"
+   ]
+  },
+  {
+   "id": "botany-forest.l01.q3",
+   "lessonId": "botany-forest.l01",
+   "kind": "mcq",
+   "prompt": "A student studies a leaf under a microscope and sees a dense, regular pattern of small compartments, each with a dark central structure. Which structure was named by Robert Brown in 1831?",
+   "choices": [
+    "The cell wall",
+    "The chloroplast",
+    "The vein",
+    "The nucleus"
+   ]
+  },
+  {
+   "id": "botany-forest.l01.q4",
+   "lessonId": "botany-forest.l01",
+   "kind": "mcq",
+   "prompt": "Hooke saw only empty box-like compartments in cork. What best explains this?",
+   "choices": [
+    "Cork is dead tissue, so only the cell walls remained",
+    "Plant cells have no contents at all",
+    "His microscope removed the cell contents",
+    "Cork is made of minerals, not cells"
+   ]
+  },
+  {
+   "id": "botany-forest.l02.q1",
+   "lessonId": "botany-forest.l02",
+   "kind": "mcq",
+   "prompt": "Which tissue carries water and minerals upward from the roots?",
+   "choices": [
+    "Phloem",
+    "Bark",
+    "Xylem",
+    "Cork"
+   ]
+  },
+  {
+   "id": "botany-forest.l02.q2",
+   "lessonId": "botany-forest.l02",
+   "kind": "mcq",
+   "prompt": "What does phloem mainly carry?",
+   "choices": [
+    "Pollen grains",
+    "Soil particles",
+    "Chlorophyll",
+    "Sugar made in the leaves"
+   ]
+  },
+  {
+   "id": "botany-forest.l02.q3",
+   "lessonId": "botany-forest.l02",
+   "kind": "mcq",
+   "prompt": "A gardener puts a cut celery stalk in water dyed red and sees red lines climb the stalk. Which tissue is showing the dye moving?",
+   "choices": [
+    "Xylem",
+    "Phloem",
+    "Chlorophyll",
+    "Nucleus"
+   ]
+  },
+  {
+   "id": "botany-forest.l02.q4",
+   "lessonId": "botany-forest.l02",
+   "kind": "mcq",
+   "prompt": "Why does a coast redwood drink fog through its needles at the top?",
+   "choices": [
+    "Its roots cannot absorb any water",
+    "Water cannot be pulled much above about 120 metres through the trunk",
+    "Fog contains more sugar than soil water",
+    "Needles cannot lose water"
+   ]
+  },
+  {
+   "id": "botany-forest.l03.q1",
+   "lessonId": "botany-forest.l03",
+   "kind": "mcq",
+   "prompt": "Which two raw materials do plants use in photosynthesis?",
+   "choices": [
+    "Oxygen and soil",
+    "Sugar and nitrogen",
+    "Soil and sunlight only",
+    "Carbon dioxide and water"
+   ]
+  },
+  {
+   "id": "botany-forest.l03.q2",
+   "lessonId": "botany-forest.l03",
+   "kind": "mcq",
+   "prompt": "What gas do green plants release in sunlight?",
+   "choices": [
+    "Oxygen",
+    "Carbon dioxide",
+    "Nitrogen",
+    "Methane"
+   ]
+  },
+  {
+   "id": "botany-forest.l03.q3",
+   "lessonId": "botany-forest.l03",
+   "kind": "mcq",
+   "prompt": "A plant is kept in total darkness for two weeks. Based on what Ingenhousz found, what happens to its oxygen release?",
+   "choices": [
+    "It releases more oxygen than before",
+    "It stops releasing oxygen and consumes it instead",
+    "It releases only carbon dioxide-free air",
+    "Nothing changes"
+   ]
+  },
+  {
+   "id": "botany-forest.l03.q4",
+   "lessonId": "botany-forest.l03",
+   "kind": "mcq",
+   "prompt": "A tree grows from a small seed to a huge trunk. What is the main source of the carbon in its wood?",
+   "choices": [
+    "Carbon from the soil",
+    "Carbon from rainwater",
+    "Carbon dioxide from the air",
+    "Carbon from sunlight"
+   ]
+  },
+  {
+   "id": "botany-forest.l04.q1",
+   "lessonId": "botany-forest.l04",
+   "kind": "mcq",
+   "prompt": "What did Calvin, Benson and Bassham trace with radioactive carbon-14?",
+   "choices": [
+    "The path carbon dioxide takes on its way to sugar",
+    "The path of water up the trunk",
+    "The path of pollen to a flower",
+    "The path of seeds across an ocean"
+   ]
+  },
+  {
+   "id": "botany-forest.l04.q2",
+   "lessonId": "botany-forest.l04",
+   "kind": "mcq",
+   "prompt": "Where in a plant cell does photosynthesis take place?",
+   "choices": [
+    "In the nucleus",
+    "In chloroplasts",
+    "In the cell wall",
+    "In the root hairs"
+   ]
+  },
+  {
+   "id": "botany-forest.l04.q3",
+   "lessonId": "botany-forest.l04",
+   "kind": "mcq",
+   "prompt": "Which statement correctly describes Margulis's endosymbiotic theory?",
+   "choices": [
+    "Chloroplasts are made by the nucleus from scratch",
+    "Plants are descended from animals",
+    "Chloroplasts descend from free-living bacteria absorbed by an ancestral cell",
+    "Chlorophyll is a kind of mineral"
+   ]
+  },
+  {
+   "id": "botany-forest.l04.q4",
+   "lessonId": "botany-forest.l04",
+   "kind": "mcq",
+   "prompt": "What is the best evidence in a chloroplast today that it once lived independently?",
+   "choices": [
+    "It is green",
+    "It sits inside a leaf",
+    "It needs sunlight",
+    "It still contains its own DNA"
+   ]
+  },
+  {
+   "id": "botany-forest.l05.q1",
+   "lessonId": "botany-forest.l05",
+   "kind": "mcq",
+   "prompt": "What does each tier of branches (whorl) on a Scots pine represent?",
+   "choices": [
+    "One season of rainfall only",
+    "One year of growth",
+    "One generation of seeds",
+    "One animal visit"
+   ]
+  },
+  {
+   "id": "botany-forest.l05.q2",
+   "lessonId": "botany-forest.l05",
+   "kind": "tf",
+   "prompt": "True or false: a date palm has bark, annual rings and many branches like an oak.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "botany-forest.l05.q3",
+   "lessonId": "botany-forest.l05",
+   "kind": "mcq",
+   "prompt": "One oak grows alone in an open field and another grows in a dense forest. Which shape would you expect for the forest tree?",
+   "choices": [
+    "Wide and open like a crown on a short trunk",
+    "Round with no trunk",
+    "Tall and narrow",
+    "Low and spreading along the ground"
+   ]
+  },
+  {
+   "id": "botany-forest.l05.q4",
+   "lessonId": "botany-forest.l05",
+   "kind": "mcq",
+   "prompt": "Why can you not count growth rings to find the age of a baobab?",
+   "choices": [
+    "It grows only one ring every century",
+    "Its rings are underground",
+    "Baobabs never age",
+    "It has no growth rings, so radiocarbon dating is needed"
+   ]
+  },
+  {
+   "id": "botany-forest.l06.q1",
+   "lessonId": "botany-forest.l06",
+   "kind": "mcq",
+   "prompt": "What is the main resource that a forest's layers compete for?",
+   "choices": [
+    "Sugar from the soil",
+    "Light",
+    "Salt",
+    "Wind"
+   ]
+  },
+  {
+   "id": "botany-forest.l06.q2",
+   "lessonId": "botany-forest.l06",
+   "kind": "mcq",
+   "prompt": "Which tree is the tallest flowering plant on Earth?",
+   "choices": [
+    "Coast redwood",
+    "Japanese cherry",
+    "Mountain ash (Eucalyptus regnans)",
+    "Paper birch"
+   ]
+  },
+  {
+   "id": "botany-forest.l06.q3",
+   "lessonId": "botany-forest.l06",
+   "kind": "mcq",
+   "prompt": "A forest of mountain ash trees is all about the same age. What best explains that?",
+   "choices": [
+    "Every tree was planted by animals in one day",
+    "The trees grow only at night",
+    "They all came from one seed",
+    "The seeds germinated together on bare, lit ground after one fire"
+   ]
+  },
+  {
+   "id": "botany-forest.l06.q4",
+   "lessonId": "botany-forest.l06",
+   "kind": "mcq",
+   "prompt": "A seedling of a mountain ash is growing under the shade of its parent trees. What is most likely to happen?",
+   "choices": [
+    "It will fail to establish because it cannot regenerate in its own shade",
+    "It will grow faster than seedlings in sun",
+    "It will become a shrub layer species",
+    "It will produce no leaves at all"
+   ]
+  },
+  {
+   "id": "botany-forest.l07.q1",
+   "lessonId": "botany-forest.l07",
+   "kind": "mcq",
+   "prompt": "What is a pioneer tree?",
+   "choices": [
+    "A tree that lives longest of all",
+    "A tree with no leaves",
+    "A species that arrives first on open or burnt ground",
+    "A tree that grows only underground"
+   ]
+  },
+  {
+   "id": "botany-forest.l07.q2",
+   "lessonId": "botany-forest.l07",
+   "kind": "mcq",
+   "prompt": "Why does a coast redwood survive fires that kill nearby plants?",
+   "choices": [
+    "It grows underground",
+    "Its leaves are made of water",
+    "It sheds all its needles first",
+    "Its thick bark contains almost no resin"
+   ]
+  },
+  {
+   "id": "botany-forest.l07.q3",
+   "lessonId": "botany-forest.l07",
+   "kind": "mcq",
+   "prompt": "A burnt hillside is bare. Which tree is most likely to be found there first?",
+   "choices": [
+    "Paper birch",
+    "Sugar maple seedlings",
+    "Baobab",
+    "Ginkgo"
+   ]
+  },
+  {
+   "id": "botany-forest.l07.q4",
+   "lessonId": "botany-forest.l07",
+   "kind": "mcq",
+   "prompt": "What is the role of a short-lived pioneer such as birch in the sequence of forest change?",
+   "choices": [
+    "It prevents all other trees from growing",
+    "It shelters slower-growing trees that eventually replace it",
+    "It lives longest and dominates permanently",
+    "It makes fire more likely to return each year"
+   ]
+  },
+  {
+   "id": "botany-forest.l08.q1",
+   "lessonId": "botany-forest.l08",
+   "kind": "mcq",
+   "prompt": "Which kingdom do mushrooms and the threads in a mycorrhiza belong to?",
+   "choices": [
+    "Plants",
+    "Algae",
+    "Animals",
+    "Fungi"
+   ]
+  },
+  {
+   "id": "botany-forest.l08.q2",
+   "lessonId": "botany-forest.l08",
+   "kind": "mcq",
+   "prompt": "What did Beatrix Potter argue about lichens?",
+   "choices": [
+    "That a lichen is a partnership between a fungus and an alga",
+    "That a lichen is a kind of moss",
+    "That a lichen is an insect nest",
+    "That a lichen is a dead tree"
+   ]
+  },
+  {
+   "id": "botany-forest.l08.q3",
+   "lessonId": "botany-forest.l08",
+   "kind": "mcq",
+   "prompt": "In a mycorrhizal partnership, what does the tree typically supply to the fungus?",
+   "choices": [
+    "Water only",
+    "Sugar from photosynthesis",
+    "Oxygen from the soil",
+    "Pollen"
+   ]
+  },
+  {
+   "id": "botany-forest.l08.q4",
+   "lessonId": "botany-forest.l08",
+   "kind": "mcq",
+   "prompt": "Simard's work showed carbon moving between birch and fir. Which conclusion is best supported?",
+   "choices": [
+    "Trees can talk in complete sentences",
+    "All forests share one single organism",
+    "Trees are connected below ground and resources pass between them",
+    "Only conifers use fungal networks"
+   ]
+  },
+  {
+   "id": "botany-forest.l09.q1",
+   "lessonId": "botany-forest.l09",
+   "kind": "mcq",
+   "prompt": "What did Grew and Malpighi argue in 1682 about flowers?",
+   "choices": [
+    "That flowers are sexual organs",
+    "That flowers are only for decoration",
+    "That flowers make sugar",
+    "That flowers absorb water"
+   ]
+  },
+  {
+   "id": "botany-forest.l09.q2",
+   "lessonId": "botany-forest.l09",
+   "kind": "mcq",
+   "prompt": "What is pollination?",
+   "choices": [
+    "The breaking of a seed coat",
+    "The movement of pollen to the female part of a flower",
+    "The growth of roots into soil",
+    "The loss of leaves in autumn"
+   ]
+  },
+  {
+   "id": "botany-forest.l09.q3",
+   "lessonId": "botany-forest.l09",
+   "kind": "mcq",
+   "prompt": "A mature oak drops 4,000 acorns in a good year and only 1 becomes a tree. What fraction of acorns becomes a tree?",
+   "choices": [
+    "1 in 400",
+    "1 in 40",
+    "1 in 4,000",
+    "1 in 40,000"
+   ]
+  },
+  {
+   "id": "botany-forest.l09.q4",
+   "lessonId": "botany-forest.l09",
+   "kind": "mcq",
+   "prompt": "Which statement distinguishes gymnosperms such as pines from angiosperms such as cherries?",
+   "choices": [
+    "Gymnosperms have flowers and angiosperms have cones",
+    "Angiosperms are older than gymnosperms",
+    "Only gymnosperms make seeds",
+    "Angiosperms enclose their seeds in fruit, while pines carry seeds in cones"
+   ]
+  },
+  {
+   "id": "botany-forest.l10.q1",
+   "lessonId": "botany-forest.l10",
+   "kind": "mcq",
+   "prompt": "What plant did Mendel use for his experiments on inheritance?",
+   "choices": [
+    "The oak",
+    "The pea",
+    "The fern",
+    "The wheat"
+   ]
+  },
+  {
+   "id": "botany-forest.l10.q2",
+   "lessonId": "botany-forest.l10",
+   "kind": "mcq",
+   "prompt": "How long was Mendel's work ignored before being rediscovered?",
+   "choices": [
+    "About three years",
+    "About eight years",
+    "About thirty-four years",
+    "About three hundred years"
+   ]
+  },
+  {
+   "id": "botany-forest.l10.q3",
+   "lessonId": "botany-forest.l10",
+   "kind": "mcq",
+   "prompt": "Mendel counted about 28,000 pea plants over eight years. On average, about how many plants was that per year?",
+   "choices": [
+    "2,800",
+    "35,000",
+    "350",
+    "3,500"
+   ]
+  },
+  {
+   "id": "botany-forest.l10.q4",
+   "lessonId": "botany-forest.l10",
+   "kind": "mcq",
+   "prompt": "Which finding best summarises the importance of Mendel's pea counts?",
+   "choices": [
+    "Traits pass on in discrete units rather than blending",
+    "Traits are made by the environment alone",
+    "All offspring look exactly like one parent",
+    "Only flowers carry inheritance"
+   ]
+  },
+  {
+   "id": "botany-forest.l11.q1",
+   "lessonId": "botany-forest.l11",
+   "kind": "mcq",
+   "prompt": "What happens when a willow branch is pushed into wet ground?",
+   "choices": [
+    "It dies immediately",
+    "It becomes a different species",
+    "It can grow into a new willow that is identical to the parent",
+    "It grows only roots"
+   ]
+  },
+  {
+   "id": "botany-forest.l11.q2",
+   "lessonId": "botany-forest.l11",
+   "kind": "mcq",
+   "prompt": "What does the Svalbard Global Seed Vault do?",
+   "choices": [
+    "It grows forests on glaciers",
+    "It sells seed to farmers",
+    "It measures carbon dioxide",
+    "It backs up the world's crop seed collections"
+   ]
+  },
+  {
+   "id": "botany-forest.l11.q3",
+   "lessonId": "botany-forest.l11",
+   "kind": "mcq",
+   "prompt": "A city plants a long avenue of Lombardy poplars, all cloned from one tree. A disease arrives that one poplar cannot resist. What is the likely outcome?",
+   "choices": [
+    "All of the trees are at risk, because they are genetically identical",
+    "Only half will be affected",
+    "None will be affected",
+    "Trees with taller crowns will resist"
+   ]
+  },
+  {
+   "id": "botany-forest.l11.q4",
+   "lessonId": "botany-forest.l11",
+   "kind": "mcq",
+   "prompt": "Why does Vavilov's idea of crop centres of origin matter for farming today?",
+   "choices": [
+    "It proves clones are always stronger",
+    "It tells breeders where to look for genes that can protect a harvest",
+    "It means seed banks are unnecessary",
+    "It shows crops have no wild relatives"
+   ]
+  },
+  {
+   "id": "botany-forest.l12.q1",
+   "lessonId": "botany-forest.l12",
+   "kind": "mcq",
+   "prompt": "Which feature helps a baobab survive dry seasons?",
+   "choices": [
+    "Needles with a waxy skin",
+    "Leaves that hang vertically",
+    "Roots that grow above ground",
+    "A trunk that stores tens of thousands of litres of water"
+   ]
+  },
+  {
+   "id": "botany-forest.l12.q2",
+   "lessonId": "botany-forest.l12",
+   "kind": "mcq",
+   "prompt": "Why do conifers such as pine have needles rather than broad leaves?",
+   "choices": [
+    "Needles have a small surface area and waxy skin that reduce water loss",
+    "Needles make more oxygen",
+    "Needles are heavier",
+    "Needles help seeds fly"
+   ]
+  },
+  {
+   "id": "botany-forest.l12.q3",
+   "lessonId": "botany-forest.l12",
+   "kind": "mcq",
+   "prompt": "A eucalyptus leaf hangs vertically. How does this reduce heat stress at midday?",
+   "choices": [
+    "It collects more sunlight on its flat surface",
+    "It presents only its edge to the strong overhead sun",
+    "It makes the leaf absorb more water",
+    "It stops photosynthesis for the day"
+   ]
+  },
+  {
+   "id": "botany-forest.l12.q4",
+   "lessonId": "botany-forest.l12",
+   "kind": "mcq",
+   "prompt": "A paper birch growing on open, burnt ground has white bark while a shaded forest tree has darker bark. Which advantage best explains the white bark?",
+   "choices": [
+    "It makes the tree grow taller",
+    "It stores more water",
+    "It reflects sunlight and prevents the trunk overheating and cracking",
+    "It absorbs more light for photosynthesis"
+   ]
+  },
+  {
+   "id": "botany-forest.l13.q1",
+   "lessonId": "botany-forest.l13",
+   "kind": "mcq",
+   "prompt": "How does a fern spread to new places?",
+   "choices": [
+    "By releasing spores from capsules on its fronds",
+    "By releasing seeds from flowers",
+    "By dropping acorns",
+    "By sending out pollen from cones"
+   ]
+  },
+  {
+   "id": "botany-forest.l13.q2",
+   "lessonId": "botany-forest.l13",
+   "kind": "mcq",
+   "prompt": "What is a fiddlehead?",
+   "choices": [
+    "A kind of moss",
+    "A young fern frond curled into a tight spiral",
+    "A fungal fruiting body",
+    "A type of pine cone"
+   ]
+  },
+  {
+   "id": "botany-forest.l13.q3",
+   "lessonId": "botany-forest.l13",
+   "kind": "mcq",
+   "prompt": "A spore from a fern lands on damp soil and grows. What does it produce first?",
+   "choices": [
+    "A full-sized fern frond",
+    "A seed",
+    "A tiny, separate, heart-shaped organism that makes egg and sperm",
+    "A flower"
+   ]
+  },
+  {
+   "id": "botany-forest.l13.q4",
+   "lessonId": "botany-forest.l13",
+   "kind": "mcq",
+   "prompt": "Why is a seed considered a more elaborate way to start a plant than a spore?",
+   "choices": [
+    "A seed is smaller than a spore",
+    "A spore contains an embryo and a seed does not",
+    "A seed does not grow",
+    "A seed is a packaged embryo with a food supply, while a spore is a single cell"
+   ]
+  },
+  {
+   "id": "botany-forest.l14.q1",
+   "lessonId": "botany-forest.l14",
+   "kind": "mcq",
+   "prompt": "Which of these plant groups appeared most recently?",
+   "choices": [
+    "Mosses",
+    "Angiosperms (flowering plants)",
+    "Ferns",
+    "Gymnosperms"
+   ]
+  },
+  {
+   "id": "botany-forest.l14.q2",
+   "lessonId": "botany-forest.l14",
+   "kind": "mcq",
+   "prompt": "What makes the ginkgo a \"living fossil\"?",
+   "choices": [
+    "It is found only in fossils",
+    "It is smaller than moss",
+    "It has no close relatives and is the last survivor of an ancient order",
+    "It produces no seeds"
+   ]
+  },
+  {
+   "id": "botany-forest.l14.q3",
+   "lessonId": "botany-forest.l14",
+   "kind": "mcq",
+   "prompt": "A leaf has fan-shaped blades with veins that fork in two and never rejoin. Which tree is it most likely from?",
+   "choices": [
+    "Oak",
+    "Maple",
+    "Palm",
+    "Ginkgo"
+   ]
+  },
+  {
+   "id": "botany-forest.l14.q4",
+   "lessonId": "botany-forest.l14",
+   "kind": "mcq",
+   "prompt": "How did the ginkgo survive after its wild populations declined?",
+   "choices": [
+    "It was cultivated in temple grounds for around a thousand years",
+    "It was planted by dinosaurs",
+    "It reproduces only by spores",
+    "It was grown as a food crop worldwide"
+   ]
+  }
+ ]
+}

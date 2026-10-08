@@ -7,7 +7,10 @@ export interface FaceFrame {
   blendshapes: Record<string, number>; // categoryName -> score (0..1), e.g. jawOpen, eyeBlinkLeft
   matrix: Float32Array | null;          // 4x4 column-major facial transform (head pose)
   bbox: { x: number; y: number; w: number; h: number } | null; // face box, normalized [0..1] video coords
+  faces?: FaceEyes[];                   // per-face eye geometry (lens engine); absent on older callers
 }
+
+import { facesFromLandmarks, type FaceEyes } from './eyeGeometry';
 
 export const VTUBER_MP_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 export const VTUBER_FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
@@ -18,11 +21,15 @@ export class FaceTracker {
   private fl: any = null;
   private ready = false;
   private loading = false;
+  private blend = true;
 
-  async init(): Promise<boolean> {
+  /** `numFaces`/`blendshapes` default to the VTuber's needs (1 face, full blendshapes). The lens
+   *  engine asks for several faces and no blendshapes — a cheaper model graph. */
+  async init(opts: { numFaces?: number; blendshapes?: boolean } = {}): Promise<boolean> {
     if (this.ready) return true;
     if (this.loading) return false;
     this.loading = true;
+    this.blend = opts.blendshapes !== false;
     try {
       const vision: any = await import(
         // @ts-ignore — resolved at runtime from CDN, not bundled
@@ -35,9 +42,9 @@ export class FaceTracker {
           this.fl = await vision.FaceLandmarker.createFromOptions(fileset, {
             baseOptions: { modelAssetPath: MODEL, delegate },
             runningMode: 'VIDEO',
-            numFaces: 1,
-            outputFaceBlendshapes: true,
-            outputFacialTransformationMatrixes: true,
+            numFaces: opts.numFaces ?? 1,
+            outputFaceBlendshapes: this.blend,
+            outputFacialTransformationMatrixes: this.blend,
           });
           break;
         } catch (e) {
@@ -60,9 +67,9 @@ export class FaceTracker {
     try {
       const res = this.fl.detectForVideo(video, tsMs);
       const cats = res?.faceBlendshapes?.[0]?.categories;
-      if (!cats || !cats.length) return null;
+      if (this.blend ? (!cats || !cats.length) : !res?.faceLandmarks?.[0]?.length) return null;
       const blendshapes: Record<string, number> = {};
-      for (const c of cats) blendshapes[c.categoryName] = c.score;
+      for (const c of cats ?? []) blendshapes[c.categoryName] = c.score;
       const m = res?.facialTransformationMatrixes?.[0]?.data;
       // Face bounding box from the landmark cloud (normalized video coords) — used to
       // position/scale the avatar onto the real face for the face-swap overlay.
@@ -73,7 +80,8 @@ export class FaceTracker {
         for (const p of lm) { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; }
         bbox = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
       }
-      return { blendshapes, matrix: m ? new Float32Array(m) : null, bbox };
+      const aspect = ((video as any).videoWidth || (video as any).width || 1) / Math.max(1, (video as any).videoHeight || (video as any).height || 1);
+      return { blendshapes, matrix: m ? new Float32Array(m) : null, bbox, faces: facesFromLandmarks(res?.faceLandmarks, aspect) };
     } catch {
       return null;
     }

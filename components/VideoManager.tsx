@@ -11,9 +11,12 @@ import { motion, AnimatePresence } from 'motion/react';
 interface VideoManagerProps {
   user: any;
   onBack: () => void;
+  /** A file chosen elsewhere (e.g. a local video the user wants to share). Opens the rights declaration, then the upload form with it filled in. */
+  seedFile?: File | null;
+  onSeedConsumed?: () => void;
 }
 
-const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
+const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onSeedConsumed }) => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [playlists, setPlaylists] = useState<VideoPlaylist[]>([]);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
@@ -48,6 +51,16 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack }) => {
   useEffect(() => {
     loadData();
   }, [user.uid]);
+
+  // A video handed over from the local player: pre-fill the upload and ask for the rights declaration first.
+  useEffect(() => {
+    if (!seedFile) return;
+    setUploadFile(seedFile);
+    setUploadForm(f => ({ ...f, title: f.title || seedFile.name.replace(/\.[^/.]+$/, '') }));
+    setRightsConfirmed(false);
+    setShowRightsModal(true);
+    onSeedConsumed?.();
+  }, [seedFile]);
 
   // Videos that would benefit from a Mux transcode: a raw upload with a URL, not already on Mux,
   // not an external embed Mux can't ingest.

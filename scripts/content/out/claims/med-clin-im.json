@@ -1,0 +1,1408 @@
+{
+ "courseId": "med-clin-im",
+ "label": "Internal Medicine",
+ "lessons": [
+  {
+   "id": "med-clin-im.l01",
+   "title": "Chest Pain and Acute Coronary Syndromes",
+   "body": [
+    "Acute coronary syndrome (ACS) results from rupture or erosion of an atherosclerotic plaque with thrombus formation that limits myocardial blood flow. The syndrome has three forms. ST-elevation myocardial infarction (STEMI) means a thrombus has occluded the artery, producing transmural ischemia and persistent ST elevation. Non-ST-elevation MI (NSTEMI) means partial or transient occlusion with myocyte necrosis, shown by a rise of cardiac troponin. Unstable angina has the same ischemic symptoms and no troponin rise. Troponin is released from injured myocytes within a few hours and stays elevated for days, so serial values matter more than a single one.",
+    "In any adult with chest pain the first step is a 12-lead ECG, ideally within ten minutes of arrival, while asking what could kill the patient quickly: ACS, aortic dissection, pulmonary embolism, tension pneumothorax, esophageal rupture and cardiac tamponade. Tearing pain radiating to the back with unequal arm pressures points to dissection, where anticoagulants and thrombolytics are dangerous, so a pulse and blood pressure check in both arms precedes reperfusion. Pleuritic pain that improves leaning forward with diffuse ST elevation and PR depression suggests pericarditis.",
+    "For STEMI the decisive variable is time to reperfusion. Guidelines from the ACC/AHA favor primary percutaneous coronary intervention (PCI) with a door-to-balloon goal of about 90 minutes, and fibrinolysis if PCI cannot be reached within roughly 120 minutes of first contact, ideally within 30 minutes of arrival at a non-PCI center. Everyone gets aspirin chewed early, a P2Y12 inhibitor and parenteral anticoagulation as part of reperfusion. Nitroglycerin relieves pain but is contraindicated with recent phosphodiesterase-5 inhibitor use and in right ventricular infarction, where the failing preload-dependent right ventricle depends on volume. Inferior ST elevation with hypotension and clear lungs should prompt right-sided leads and cautious fluids. Morphine is no longer routine.",
+    "Location predicts the culprit vessel: ST elevation in V1 to V4 means left anterior descending, II, III and aVF means usually the right coronary artery, and I, aVL with V5 and V6 means circumflex. Posterior infarction shows ST depression with tall R waves in V1 to V3 and is confirmed with posterior leads. Early complications include ventricular fibrillation within the first hours, papillary muscle rupture with acute mitral regurgitation at several days, free wall rupture with tamponade, and Dressler syndrome weeks later. Long-term secondary prevention includes high-intensity statin, antiplatelet therapy, beta-blocker and ACE inhibitor, particularly with reduced ejection fraction, and cardiac rehabilitation."
+   ]
+  },
+  {
+   "id": "med-clin-im.l02",
+   "title": "Heart Failure",
+   "body": [
+    "Heart failure is a clinical syndrome of dyspnea, fatigue and congestion caused by structural or functional cardiac abnormality. It is classified by ejection fraction (EF). Heart failure with reduced EF (HFrEF) is an EF at or below about 40 percent and usually reflects systolic dysfunction from ischemia, prior infarction or dilated cardiomyopathy. Heart failure with preserved EF (HFpEF) is an EF of about 50 percent or more with stiff, poorly relaxing ventricles, common in older women with hypertension, diabetes and obesity. Left-sided failure causes orthopnea, paroxysmal nocturnal dyspnea, crackles and an S3. Right-sided failure causes raised jugular venous pressure, hepatomegaly and edema. B-type natriuretic peptide (BNP) is released with ventricular wall stretch and is useful to separate cardiac from pulmonary dyspnea, although obesity lowers it and renal failure, age and atrial fibrillation raise it. Echocardiography is the central test.",
+    "For HFrEF the ACC/AHA/HFSA guideline of 2022 emphasizes four foundational drug classes that reduce mortality and hospitalization. These are an angiotensin receptor-neprilysin inhibitor (or an ACE inhibitor or ARB), an evidence-based beta-blocker (carvedilol, metoprolol succinate or bisoprolol), a mineralocorticoid receptor antagonist and an SGLT2 inhibitor. Loop diuretics relieve congestion but do not improve survival. Hydralazine with isosorbide dinitrate helps self-identified Black patients with persistent symptoms and also those who cannot take ACE inhibitors. Ivabradine lowers heart rate in sinus rhythm when rate remains elevated despite beta-blockade. Do not combine an ACE inhibitor with sacubitril-valsartan because of angioedema risk, so a 36-hour washout is required. Devices matter: an implantable defibrillator is considered for EF at or below 35 percent despite at least three months of therapy, and cardiac resynchronization for EF at or below 35 percent with a wide left bundle branch block QRS.",
+    "SGLT2 inhibitors have also been shown to reduce hospitalization in HFpEF, and diuretics treat congestion in both. Drugs that harm in systolic dysfunction include non-dihydropyridine calcium channel blockers, thiazolidinediones, and NSAIDs, which cause sodium retention.",
+    "Acute decompensated heart failure presents with pulmonary edema. The usual approach is intravenous loop diuretic, oxygen if hypoxic, noninvasive positive-pressure ventilation for respiratory distress and vasodilators if blood pressure is high. A cold and wet patient with hypotension may need inotropes. Look for the trigger: ischemia, arrhythmia, nonadherence, infection or a high-sodium meal.",
+    "A worked example: a 64-year-old man with prior anterior infarction presents with two weeks of worsening exertional dyspnea and leg swelling, has an S3, an elevated jugular venous pressure and an EF of 25 percent. The reasoning is to confirm congestion, start a loop diuretic, then build the four foundational classes at tolerated steps over weeks, check potassium and creatinine after starting an aldosterone antagonist, and reassess the EF after three months to decide about a defibrillator."
+   ]
+  },
+  {
+   "id": "med-clin-im.l03",
+   "title": "Atrial Fibrillation and Arrhythmia Logic",
+   "body": [
+    "Atrial fibrillation (AF) is chaotic atrial activity with an irregularly irregular ventricular response and no discernible P waves. The principal harm is cardioembolic stroke from clot in the left atrial appendage, plus tachycardia-mediated cardiomyopathy. Triggers include hypertension, heart failure, valve disease, thyrotoxicosis, alcohol, sleep apnea, pericarditis and surgery, so a first episode warrants TSH, echocardiography and a search for these.",
+    "The first question is stability. A patient with hypotension, ischemic chest pain, acute pulmonary edema or altered mentation caused by the rhythm needs synchronized cardioversion. A stable patient receives rate control with a beta-blocker or a non-dihydropyridine calcium channel blocker such as diltiazem, though the latter is avoided in reduced ejection fraction. Digoxin is a second-line add-on. Rhythm control with cardioversion or ablation is favored for symptoms despite rate control, tachycardia-mediated cardiomyopathy and early disease, and the ACC/AHA/ACCP/HRS guideline of 2023 increased emphasis on early rhythm control and risk-factor modification.",
+    "Stroke prevention is separate from rate or rhythm decisions. The CHA2DS2-VASc score assigns points for heart failure, hypertension, age 75 or older (two points), diabetes, prior stroke or TIA (two points), vascular disease, age 65 to 74, and female sex. Anticoagulation is generally recommended at a score of 2 or more in men and 3 or more in women. Direct oral anticoagulants such as apixaban, rivaroxaban, dabigatran and edoxaban are preferred over warfarin, except in moderate to severe mitral stenosis or a mechanical valve, where warfarin remains the choice. Cardioversion in AF lasting more than 48 hours, or of unknown duration, requires either three weeks of anticoagulation first or transesophageal echocardiography to exclude atrial thrombus. Anticoagulation continues for at least four weeks afterward.",
+    "Other rhythms follow the same stability-first logic. Narrow-complex regular tachycardia suggests supraventricular tachycardia, treated with vagal maneuvers then adenosine. Wide-complex tachycardia should be treated as ventricular tachycardia until proven otherwise, with cardioversion if unstable. Pulseless ventricular tachycardia and fibrillation need defibrillation. Wolff-Parkinson-White with AF and a wide irregular rapid rhythm is dangerous because AV-nodal blockers can accelerate conduction down the accessory pathway, so procainamide or cardioversion is used.",
+    "A worked example: a 74-year-old woman with hypertension presents with palpitations and a heart rate of 130, irregularly irregular, with a blood pressure of 128/76 and no chest pain. She is stable, so she needs rate control, a thyroid test, an echocardiogram and a CHA2DS2-VASc score, which here is at least 3 for age and sex and hypertension, so a DOAC is started. Cardioversion is not needed urgently."
+   ]
+  },
+  {
+   "id": "med-clin-im.l04",
+   "title": "Hypertension, Valve Disease and Endocarditis",
+   "body": [
+    "The 2025 AHA/ACC guideline, which replaced the 2017 guideline, keeps the definition of hypertension as a sustained blood pressure of 130/80 mmHg or higher, with confirmation by out-of-office or home readings, whereas many other bodies, such as the European guidelines, still use 140/90 for diagnosis. First-line agents are thiazide-type diuretics, ACE inhibitors or ARBs, and dihydropyridine calcium channel blockers, with a single-pill combination of two agents often needed for stage 2. The 2025 guideline also uses the PREVENT risk calculator to guide drug treatment of stage 1 disease. Choice follows comorbidity. Diabetes with albuminuria or chronic kidney disease favors an ACE inhibitor or ARB. Heart failure with reduced EF favors beta-blocker, ACE inhibitor or ARB, and mineralocorticoid antagonist. Pregnancy excludes ACE inhibitors and ARBs because of fetal harm and favors labetalol, nifedipine or methyldopa. Resistant hypertension with hypokalemia and metabolic alkalosis should prompt testing for primary aldosteronism with an aldosterone to renin ratio. A hypertensive emergency is severe elevation with acute end-organ injury, such as encephalopathy, aortic dissection or pulmonary edema, and is treated with an intravenous titratable agent and a controlled reduction, not a rapid drop to normal.",
+    "Valve disease is recognized by timing and radiation of murmurs. Aortic stenosis causes a crescendo-decrescendo systolic murmur radiating to the carotids, and the classic symptom triad is angina, syncope and heart failure, with survival falling sharply once symptoms appear. Treatment is valve replacement, surgical or transcatheter, since medical therapy does not alter the course. Aortic regurgitation yields a blowing early diastolic murmur with wide pulse pressure. Mitral regurgitation produces a holosystolic murmur radiating to the axilla. Mitral stenosis, usually from rheumatic disease, produces an opening snap and diastolic rumble and predisposes to atrial fibrillation. Hypertrophic cardiomyopathy gives a systolic murmur that gets louder with Valsalva or standing, because reduced preload narrows the outflow tract, and softer with squatting or handgrip.",
+    "Infective endocarditis presents with fever and a new regurgitant murmur, plus emboli: splinter hemorrhages, Janeway lesions, Osler nodes and Roth spots. Staphylococcus aureus dominates in injection drug use and acute disease, viridans streptococci in subacute disease on abnormal native valves, and coagulase-negative staphylococci with prosthetic valves. Obtain at least three sets of blood cultures from separate sites before antibiotics, then echocardiography, interpreted with the Duke criteria, whose modified version was updated in 2023 as the Duke-ISCVID criteria. Surgery is indicated for heart failure, abscess, persistent bacteremia or large mobile vegetations with emboli. Prophylaxis before dental procedures is now reserved for the highest-risk cardiac conditions: prosthetic valves, prior endocarditis, certain unrepaired congenital heart disease and cardiac transplant valvulopathy, a narrowing set out by the AHA from 2007 onward."
+   ]
+  },
+  {
+   "id": "med-clin-im.l05",
+   "title": "Asthma and COPD",
+   "body": [
+    "Asthma is a chronic inflammatory airway disease with variable, largely reversible airflow obstruction and bronchial hyperresponsiveness, typically with eosinophilic or type 2 inflammation. Chronic obstructive pulmonary disease (COPD) is persistent, usually progressive airflow limitation from emphysema and chronic bronchitis, caused mainly by smoking and sometimes by alpha-1 antitrypsin deficiency in a young nonsmoker with basal emphysema. Spirometry separates them from restrictive disease. In obstruction the ratio of forced expiratory volume in one second to forced vital capacity (FEV1/FVC) is reduced, below 0.70 after bronchodilator for COPD. A bronchodilator response of 12 percent and 200 mL supports asthma. In restriction the ratio is normal or high and total lung capacity is low. The diffusing capacity for carbon monoxide is reduced in emphysema and interstitial disease but normal or high in asthma.",
+    "The GINA report (2026 edition is current; the Global Initiative for Asthma, updated yearly) recommends that even mild asthma should not be treated with a short-acting beta agonist alone, because that leaves the inflammation untreated. Preferred controller or reliever approaches include an inhaled corticosteroid taken with formoterol, a fast-acting long-acting beta agonist, as needed. Treatment steps up to a combination controller, then to a long-acting muscarinic antagonist, and then to biologics for severe eosinophilic or allergic phenotypes. Cough variant asthma, aspirin-exacerbated respiratory disease with nasal polyps, and triggers such as nonselective beta-blockers should be recognized.",
+    "The GOLD report (2026 edition) for COPD groups patients by symptoms and exacerbation history. A long-acting bronchodilator, either a long-acting muscarinic antagonist or a beta agonist, is the base treatment, with the two combined when symptoms persist, and an inhaled corticosteroid added when exacerbations continue with eosinophils of about 300 cells per microliter or more. Three interventions prolong survival: smoking cessation, long-term oxygen when resting arterial oxygen partial pressure is 55 mmHg or below or saturation 88 percent or below, and lung volume reduction in selected upper-lobe emphysema. Vaccinations are essential. Oxygen should target a saturation of 88 to 92 percent in patients who retain carbon dioxide.",
+    "An acute exacerbation of either disease is treated with inhaled short-acting bronchodilators, a short course of systemic corticosteroid, and oxygen as needed. In COPD, antibiotics are given when there is increased sputum purulence with increased volume or dyspnea, or when ventilation is needed, and noninvasive positive-pressure ventilation is indicated for acute hypercapnic respiratory acidosis with a pH below about 7.35. A silent chest, rising carbon dioxide in a tiring asthmatic and inability to speak signal impending respiratory failure."
+   ]
+  },
+  {
+   "id": "med-clin-im.l06",
+   "title": "Pulmonary Embolism and Pneumonia",
+   "body": [
+    "Pulmonary embolism (PE) usually arises from deep venous thrombosis in the legs, driven by Virchow triad of stasis, endothelial injury and hypercoagulability. Risk factors include recent surgery or immobilization, cancer, pregnancy and the postpartum period, estrogen therapy, inherited thrombophilia such as factor V Leiden, and prior thromboembolism. Presentations range from pleuritic chest pain and dyspnea to syncope or shock. Tachycardia and hypoxemia are common, and the ECG is most often just sinus tachycardia. Reasoning starts with pretest probability using a validated score such as the Wells score. With low or intermediate probability a negative D-dimer rules PE out, whereas a positive one leads to imaging. High probability goes straight to imaging. CT pulmonary angiography is the standard test, and ventilation-perfusion scanning is used when contrast is contraindicated, such as in renal failure or contrast allergy, and often in pregnancy.",
+    "Treatment is anticoagulation, with direct oral anticoagulants preferred for most patients and low-molecular-weight heparin often used in cancer and pregnancy. The ESC guideline of 2019 stratifies risk: hemodynamic instability, meaning shock or sustained hypotension, defines high-risk PE and calls for systemic thrombolysis unless contraindicated, with catheter-directed or surgical embolectomy as alternatives. Anticoagulation for an unprovoked event is often extended indefinitely, while a provoked event by a major transient factor gets about three months. An inferior vena cava filter is reserved for those with acute venous thromboembolism who cannot be anticoagulated.",
+    "Community-acquired pneumonia is diagnosed by compatible symptoms with a new infiltrate. The ATS and IDSA guideline of 2019 (ATS issued a 2025 update, which among other changes now recommends systemic corticosteroids for severe pneumonia) advises that outpatients without comorbidity receive amoxicillin, doxycycline or a macrolide where local resistance is low, and that outpatients with comorbidities receive a combination or a respiratory fluoroquinolone. Inpatients on a ward receive a beta-lactam plus a macrolide, or a respiratory fluoroquinolone alone. Severity scores such as CURB-65, which counts confusion, urea elevation, respiratory rate of 30 or more, low blood pressure and age 65 or older, guide the site of care. Typical organisms are Streptococcus pneumoniae, Haemophilus influenzae and, for atypical pneumonia, Mycoplasma, Chlamydophila and Legionella. Legionella is suggested by hyponatremia, diarrhea and exposure to contaminated water, and is diagnosed by urinary antigen.",
+    "Complications to recognize are parapneumonic effusion, which is sampled when it is large or the patient is not improving, empyema drained when pH is below 7.2 or pus is present, and lung abscess in aspiration. Failure to improve after 48 to 72 hours should prompt a search for resistant organisms, empyema or an alternative diagnosis such as pulmonary embolism or malignancy."
+   ]
+  },
+  {
+   "id": "med-clin-im.l07",
+   "title": "Gastrointestinal Bleeding, IBD and Luminal Disease",
+   "body": [
+    "Gastrointestinal bleeding is upper when it arises proximal to the ligament of Treitz and lower when it arises distal to it. Upper bleeding presents as hematemesis, coffee-ground emesis or melena, and lower as hematochezia, though brisk upper bleeding can look like hematochezia with hemodynamic instability. Resuscitation comes first: two large-bore intravenous lines, crystalloid, and transfusion with a restrictive threshold of about 7 g/dL hemoglobin in most patients, and a somewhat higher threshold in cardiovascular disease. Suspected upper bleeding receives a proton pump inhibitor and endoscopy within 24 hours. Variceal bleeding in cirrhosis adds octreotide, antibiotic prophylaxis such as ceftriaxone and endoscopic band ligation, and balloon tamponade or TIPS if bleeding continues. Peptic ulcers are caused by Helicobacter pylori and NSAIDs, and a positive test for H. pylori is followed by eradication therapy and later confirmation of cure. A bleeding source with a visible vessel is treated endoscopically.",
+    "Lower bleeding in older adults is commonly diverticular, painless and often self-limited, or from angiodysplasia, ischemic colitis, colorectal cancer or hemorrhoids. Colonoscopy is the main diagnostic step after preparation, with CT angiography or tagged red cell scan for brisk bleeding.",
+    "Inflammatory bowel disease has two main forms. Crohn disease is transmural and can affect any segment from mouth to anus, most often the terminal ileum, with skip lesions, granulomas, fistulas, strictures and perianal disease. Ulcerative colitis is mucosal, begins in the rectum and extends continuously proximally, producing bloody diarrhea and an increased risk of colorectal cancer and primary sclerosing cholangitis. Smoking worsens Crohn disease and appears protective in ulcerative colitis. Treatment is stepped, from aminosalicylates in mild ulcerative colitis, to corticosteroids for flares, and to immunomodulators or biologic agents such as anti-TNF antibodies, vedolizumab and ustekinumab. Toxic megacolon in severe colitis is a surgical emergency, and a plain abdominal film showing a colon wider than 6 cm with systemic toxicity should prompt surgical consultation. Colonoscopic surveillance for dysplasia begins after about eight years of colitis.",
+    "Celiac disease is an immune reaction to gluten that causes villous atrophy, diarrhea, iron deficiency anemia and dermatitis herpetiformis. Diagnosis is by tissue transglutaminase IgA with confirmation by small bowel biopsy while the patient is still eating gluten, and by checking total IgA because IgA deficiency gives false negatives. Barrett esophagus, a columnar metaplasia from chronic reflux, predisposes to adenocarcinoma and is monitored endoscopically."
+   ]
+  },
+  {
+   "id": "med-clin-im.l08",
+   "title": "Liver Disease and Pancreatitis",
+   "body": [
+    "Liver injury is first sorted by the pattern of enzymes. A hepatocellular pattern, with markedly raised aminotransferases, suggests viral hepatitis, ischemia, toxins such as acetaminophen or alcohol, and autoimmune disease. A cholestatic pattern, with raised alkaline phosphatase and bilirubin, suggests biliary obstruction, primary biliary cholangitis or primary sclerosing cholangitis. In alcoholic hepatitis the AST to ALT ratio is above 2 with AST rarely above 400 U/L. Acetaminophen overdose causes centrilobular necrosis, and the antidote N-acetylcysteine is given using a nomogram timed from ingestion.",
+    "Hepatitis A and E are fecal-oral and acute only. Hepatitis B is interpreted by serology: surface antigen indicates current infection, surface antibody with core IgG indicates resolved infection, surface antibody alone indicates vaccination, and core IgM can mark the window period. Chronic hepatitis B and C raise the risk of cirrhosis and hepatocellular carcinoma. Hepatitis C is now curable with oral direct-acting antivirals in most patients over 8 to 12 weeks, and screening is recommended once for all adults aged 18 to 79 by the USPSTF of 2020. Surveillance with ultrasound, with or without alpha-fetoprotein, every six months is advised for patients with cirrhosis.",
+    "Cirrhosis produces portal hypertension and synthetic failure. Complications to anticipate include ascites, treated with sodium restriction and spironolactone with furosemide, and diagnostic paracentesis of any patient admitted with ascites because spontaneous bacterial peritonitis is diagnosed by an ascitic neutrophil count of at least 250 cells per microliter and treated with a third-generation cephalosporin plus albumin. Hepatic encephalopathy is treated with lactulose, with rifaximin added to prevent recurrence, after precipitants such as bleeding, infection, constipation and sedatives are corrected. Varices need nonselective beta-blockers or band ligation for prophylaxis. Hepatorenal syndrome is a functional renal failure managed with albumin and vasoconstrictors, and the definitive treatment of end-stage disease is transplantation, prioritized by the MELD score.",
+    "Acute pancreatitis is diagnosed when two of three criteria are present: epigastric pain radiating to the back, lipase or amylase at three times the upper limit of normal, and characteristic imaging. Gallstones and alcohol are the leading causes, followed by hypertriglyceridemia above about 1000 mg/dL, hypercalcemia and drugs. Early management centers on goal-directed intravenous fluids, analgesia and early oral feeding as tolerated, with antibiotics reserved for infected necrosis. Urgent endoscopic retrograde cholangiopancreatography is considered only if there is concomitant cholangitis or persistent biliary obstruction. Gallstone pancreatitis is followed by cholecystectomy during the same admission for mild disease."
+   ]
+  },
+  {
+   "id": "med-clin-im.l09",
+   "title": "Acute Kidney Injury and Chronic Kidney Disease",
+   "body": [
+    "Acute kidney injury (AKI) is a rapid rise in serum creatinine or fall in urine output, classified by KDIGO criteria as a rise of 0.3 mg/dL within 48 hours or a 1.5-fold rise from baseline within a week. The reasoning framework sorts causes into prerenal, intrinsic and postrenal. Prerenal azotemia results from reduced renal perfusion in hypovolemia, heart failure, cirrhosis or from drugs that blunt the efferent or afferent tone, such as ACE inhibitors and NSAIDs. The kidney retains salt and water, so urine sodium is low (below about 20 mEq/L), the fractional excretion of sodium is below 1 percent, the blood urea nitrogen to creatinine ratio exceeds 20, and the urine is concentrated. It reverses with volume or hemodynamic correction.",
+    "Intrinsic injury is most often acute tubular necrosis from prolonged ischemia or toxins, including aminoglycosides, contrast and rhabdomyolysis. The tubules lose the ability to reabsorb sodium, so fractional excretion of sodium exceeds 2 percent, the urine is isosthenuric, and muddy brown granular casts are seen. Acute interstitial nephritis from drugs such as penicillins, proton pump inhibitors and NSAIDs is suggested by fever, rash, eosinophilia and white cell casts. Glomerulonephritis presents with hematuria, red cell casts, proteinuria and hypertension. Postrenal injury is obstruction, from prostatic enlargement, stones or tumors, shown by hydronephrosis on ultrasound and relieved by a bladder catheter or ureteral decompression. Ultrasound is therefore an early test, and a bladder scan should be done at once in older men.",
+    "Complications drive urgent dialysis: refractory hyperkalemia, fluid overload, metabolic acidosis, uremic pericarditis or encephalopathy, and dialyzable toxins, remembered by the mnemonic AEIOU.",
+    "Chronic kidney disease (CKD) is defined by an estimated glomerular filtration rate below 60 mL/min/1.73 m2 or markers of kidney damage, such as albuminuria, for more than three months, and is staged by both. Diabetes and hypertension are the leading causes. The KDIGO guideline of 2024 emphasizes treatment with an ACE inhibitor or ARB in patients with albuminuria and hypertension, an SGLT2 inhibitor in diabetic and many nondiabetic kidney disease patients with adequate eGFR, and finerenone in diabetic kidney disease with persistent albuminuria. Blood pressure control, glycemic control, avoiding nephrotoxins and cardiovascular risk reduction form the rest. Complications include anemia from reduced erythropoietin, secondary hyperparathyroidism with hyperphosphatemia and low calcitriol, metabolic acidosis and hyperkalemia. Referral for renal replacement planning begins when eGFR approaches 30, and indications for dialysis are symptomatic uremia and the complications above."
+   ]
+  },
+  {
+   "id": "med-clin-im.l10",
+   "title": "Sodium, Potassium and Acid-Base Disorders",
+   "body": [
+    "Hyponatremia is serum sodium below about 135 mEq/L and reflects excess water relative to sodium, so the work-up asks about plasma osmolality, urine osmolality and volume status. Hypotonic hyponatremia with hypovolemia arises from diuretics or gastrointestinal losses with a low urine sodium in the latter. Euvolemic hyponatremia in the syndrome of inappropriate antidiuretic hormone secretion (SIADH) shows low plasma osmolality, inappropriately concentrated urine, a urine sodium above about 40 mEq/L and normal thyroid and adrenal function. Causes include small cell lung cancer, central nervous system disease, pulmonary disease and drugs such as SSRIs and carbamazepine. Hypervolemic forms accompany heart failure, cirrhosis and nephrotic syndrome. Primary polydipsia has very dilute urine. Treatment depends on symptoms: seizures or severe confusion call for a small bolus of hypertonic saline, whereas chronic asymptomatic cases get fluid restriction, treatment of the cause and sometimes salt tablets, loop diuretics, or vasopressin antagonists. Chronic hyponatremia must be corrected slowly, not more than 8 mEq/L in 24 hours in high-risk patients, because overly rapid correction causes osmotic demyelination, with dysarthria, quadriparesis and locked-in syndrome days later.",
+    "Hypernatremia reflects water deficit, often with impaired thirst or diabetes insipidus. Central diabetes insipidus responds to desmopressin and nephrogenic does not, so a water deprivation test with desmopressin separates them.",
+    "Hyperkalemia is dangerous because of arrhythmia. ECG changes progress from peaked T waves to a prolonged PR, a wide QRS and a sine-wave pattern. Emergency management begins with intravenous calcium to stabilize the myocardial membrane, followed by insulin with glucose and inhaled beta agonists to shift potassium into cells, and then removal through diuretics, binders or dialysis. Causes include renal failure, ACE inhibitors, potassium-sparing diuretics, tissue breakdown and hypoaldosteronism. Hypokalemia accompanies diuretics, vomiting, and hyperaldosteronism, and it causes weakness, ileus and U waves, and must be repleted along with magnesium.",
+    "Acid-base analysis starts with pH, then decides whether bicarbonate or carbon dioxide explains it, and checks compensation. For metabolic acidosis calculate the anion gap, sodium minus chloride and bicarbonate, normal near 8 to 12. A high gap acidosis is recalled with the mnemonic MUDPILES: methanol, uremia, diabetic or alcoholic ketoacidosis, propylene glycol, isoniazid or iron, lactate, ethylene glycol and salicylates. Non-gap acidosis arises from diarrhea or renal tubular acidosis. Metabolic alkalosis with low urinary chloride suggests vomiting or diuretics, and responds to saline."
+   ]
+  },
+  {
+   "id": "med-clin-im.l11",
+   "title": "Diabetes Mellitus and Its Emergencies",
+   "body": [
+    "Diabetes mellitus is diagnosed by a fasting glucose of 126 mg/dL or higher, a two-hour glucose of 200 or higher on an oral glucose tolerance test, hemoglobin A1c of 6.5 percent or higher, or a random glucose of 200 with classic symptoms, with confirmation by a second abnormal test when unequivocal hyperglycemia is absent. Type 1 diabetes is autoimmune destruction of beta cells and needs insulin. Type 2 diabetes combines insulin resistance and progressive beta-cell failure. The ADA Standards of Care, updated annually (the 2026 edition is current), set out an approach in which the choice of medication follows the patient, not only glucose. Metformin remains a common first drug because of cost, weight neutrality and safety, though it is held in advanced renal impairment and around iodinated contrast. For patients with established atherosclerotic cardiovascular disease, heart failure or chronic kidney disease, a GLP-1 receptor agonist or an SGLT2 inhibitor is favored independent of A1c. GLP-1 agonists also treat obesity and carry warnings about thyroid C-cell tumors, pancreatitis and gastrointestinal effects. SGLT2 inhibitors cause genital mycotic infections and can provoke euglycemic ketoacidosis. Sulfonylureas cause hypoglycemia, thiazolidinediones cause edema and heart failure, and DPP-4 inhibitors are weight neutral.",
+    "Complications are microvascular, meaning retinopathy, nephropathy and neuropathy, and macrovascular. Screening includes a dilated eye examination, annual urine albumin to creatinine ratio with eGFR, and a foot examination with monofilament testing. Blood pressure targets and statin therapy are central.",
+    "Diabetic ketoacidosis (DKA) occurs mainly in type 1 disease with insulin deficiency, producing hyperglycemia (the 2024 consensus lowered the glucose criterion to 200 mg/dL or higher, or a known history of diabetes),  ketonemia and a high anion gap metabolic acidosis, with Kussmaul respirations, abdominal pain and dehydration. The total body potassium is depleted even when the serum level is normal or high, because acidosis shifts potassium out of cells. The key sequence is isotonic fluids first, then intravenous insulin only after confirming that potassium is above 3.5 mEq/L (below that, replace potassium first and delay insulin), replacing potassium once it is in a safe range, monitoring glucose and the gap, and looking for the precipitant such as infection, missed insulin or myocardial infarction. Cerebral edema is a feared complication in children.",
+    "Hyperosmolar hyperglycemic state occurs in type 2 disease with extreme glucose, often above 600 mg/dL, effective osmolality above 300 mOsm/kg (or total osmolality above 320, per the 2024 consensus), severe dehydration and altered consciousness without significant ketosis. Treatment is aggressive fluids and insulin. Hypoglycemia is treated with oral glucose when the patient is awake and with intravenous dextrose or glucagon when not."
+   ]
+  },
+  {
+   "id": "med-clin-im.l12",
+   "title": "Thyroid and Adrenal Disorders",
+   "body": [
+    "Thyroid disease is approached by starting with thyroid-stimulating hormone (TSH). A suppressed TSH with high free thyroxine indicates primary hyperthyroidism, and the cause is sorted by uptake scan: diffuse increased uptake in Graves disease, which has thyroid-stimulating antibodies, ophthalmopathy and pretibial myxedema, patchy uptake in toxic multinodular goiter, and low uptake in thyroiditis or exogenous hormone. Management is with a beta-blocker for symptoms, a thionamide such as methimazole (propylthiouracil is preferred in the first trimester of pregnancy), radioactive iodine or surgery. Agranulocytosis is a rare dangerous effect of thionamides, so a patient with fever and sore throat should be tested at once. Thyroid storm is a life-threatening state with fever, tachycardia and agitation, treated with beta-blockers, a thionamide, iodine given after the thionamide, and glucocorticoids.",
+    "Hypothyroidism with a high TSH and low free thyroxine is most often Hashimoto thyroiditis, with anti-thyroid peroxidase antibodies, and is treated with levothyroxine titrated to TSH. Myxedema coma is a rare emergency with hypothermia, hypoventilation and altered mentation. A thyroid nodule is evaluated first with TSH and ultrasound, and fine-needle aspiration is performed based on size and suspicious features. A low TSH points to a hot nodule that rarely needs aspiration.",
+    "Adrenal disorders follow the physiology of the pituitary-adrenal axis. Cushing syndrome is cortisol excess, most commonly from exogenous glucocorticoids, otherwise from a pituitary adenoma, adrenal tumor or ectopic ACTH. Screening uses late-night salivary cortisol, 24-hour urine free cortisol or a low-dose dexamethasone suppression test, and then plasma ACTH distinguishes ACTH-dependent from independent disease. Adrenal insufficiency causes fatigue, hypotension, hyponatremia and hyperkalemia, plus hyperpigmentation in primary disease. Primary disease in the United States is usually autoimmune, and the diagnosis is made with a cosyntropin stimulation test. An adrenal crisis presents with shock and is treated at once with intravenous hydrocortisone and saline, before testing is finished. Secondary adrenal insufficiency from abrupt withdrawal of long-term glucocorticoids does not cause hyperkalemia, since the renin-aldosterone axis remains intact.",
+    "Pheochromocytoma causes paroxysmal hypertension, headache, sweating and palpitations, diagnosed by plasma free or urinary fractionated metanephrines. Before surgery an alpha-blocker such as phenoxybenzamine is started first, and a beta-blocker is added only afterwards, to avoid unopposed alpha stimulation and a hypertensive crisis. Primary aldosteronism causes hypertension with hypokalemia and is screened with an aldosterone to renin ratio. An incidentally found adrenal mass, an incidentaloma, should always prompt two questions: is it hormonally active, which means checking metanephrines (the 2023 European Society of Endocrinology guideline omits them when unenhanced CT attenuation is 10 Hounsfield units or less, a typical benign adenoma), an aldosterone to renin ratio if hypertensive, and a dexamethasone suppression test, and is it likely malignant, judged by size and unenhanced CT attenuation."
+   ]
+  },
+  {
+   "id": "med-clin-im.l13",
+   "title": "Approach to Anemia",
+   "body": [
+    "Anemia is a reduced hemoglobin concentration, below about 13 g/dL in men and 12 g/dL in women, with lab-specific ranges. The most useful first sorting is by mean corpuscular volume (MCV) and the reticulocyte count. A low reticulocyte response means the marrow is not keeping up. A high one means loss or destruction, with a compensatory marrow response, in hemorrhage or hemolysis.",
+    "Microcytic anemia (MCV below about 80 fL) comes from iron deficiency, thalassemia, anemia of chronic disease and sideroblastic anemia. Iron deficiency shows low ferritin, high total iron-binding capacity and a high red cell distribution width, and in an adult man or postmenopausal woman it demands a search for gastrointestinal blood loss, including colonoscopy and endoscopy. Ferritin is an acute phase reactant, so a normal value does not exclude deficiency in inflammation. Anemia of chronic disease has low serum iron, low iron-binding capacity and normal or high ferritin because hepcidin traps iron in macrophages. Thalassemia trait shows a very low MCV with a normal or high red cell count, a normal ferritin and a Mentzer index below 13, and hemoglobin electrophoresis helps with beta-thalassemia. Lead poisoning and sideroblastic anemia show basophilic stippling or ringed sideroblasts.",
+    "Macrocytic anemia (MCV above about 100 fL) divides into megaloblastic and nonmegaloblastic types. Vitamin B12 and folate deficiency impair DNA synthesis, producing macro-ovalocytes and hypersegmented neutrophils. Only B12 deficiency causes neurologic damage, with subacute combined degeneration of the dorsal columns and lateral corticospinal tracts, so folate must never be given alone to a patient who might be B12 deficient. Pernicious anemia is autoimmune loss of intrinsic factor, confirmed by antibodies, and treated with parenteral or high-dose oral B12. Methylmalonic acid is raised in B12 deficiency but not folate deficiency. Alcohol, liver disease, hypothyroidism, myelodysplasia and drugs such as methotrexate and hydroxyurea give nonmegaloblastic macrocytosis.",
+    "Normocytic anemia with high reticulocytes suggests hemolysis, supported by high lactate dehydrogenase and indirect bilirubin, low haptoglobin and a peripheral smear. A positive direct antiglobulin (Coombs) test indicates immune hemolysis. Hereditary spherocytosis shows spherocytes with a negative Coombs test and an increased osmotic fragility. G6PD deficiency shows bite cells and Heinz bodies after oxidant stress such as infection, fava beans or drugs, mostly in males. Sickle cell disease causes vaso-occlusive pain, acute chest syndrome and functional asplenia, and hydroxyurea raises fetal hemoglobin. Normocytic anemia with a low reticulocyte count and renal failure points to erythropoietin deficiency."
+   ]
+  },
+  {
+   "id": "med-clin-im.l14",
+   "title": "Bleeding, Clotting and Anticoagulation",
+   "body": [
+    "Bleeding disorders are sorted by pattern. Platelet and vessel disorders cause mucocutaneous bleeding with petechiae, epistaxis and menorrhagia. Coagulation factor deficiencies cause deep bleeding, hemarthrosis and hematomas. The first tests are the platelet count, prothrombin time (PT), which reflects the extrinsic and common pathways and the vitamin K dependent factors, and activated partial thromboplastin time (aPTT), which reflects the intrinsic pathway. A prolonged aPTT with normal PT in a bleeding male suggests hemophilia A or B, which is X-linked, or an inhibitor, and a prolonged PT alone suggests early warfarin effect or factor VII deficiency. A mixing study separates a factor deficiency, which corrects, from an inhibitor, which does not. Von Willebrand disease, the most common inherited bleeding disorder, causes mucosal bleeding with a normal or mildly prolonged aPTT, and desmopressin is used in mild type 1 disease.",
+    "Immune thrombocytopenia (ITP) is isolated low platelets with otherwise normal blood counts and smear, treated with corticosteroids, immunoglobulin and thrombopoietin agonists. Thrombotic thrombocytopenic purpura (TTP) is caused by deficiency of the protease ADAMTS13, giving microangiopathic hemolytic anemia with schistocytes, thrombocytopenia, neurologic signs, fever and renal dysfunction, and it needs urgent plasma exchange because untreated mortality is high, with platelet transfusion avoided. Hemolytic uremic syndrome follows Shiga toxin-producing Escherichia coli with renal failure predominating. In both, PT and aPTT are normal. Disseminated intravascular coagulation, in contrast, has a prolonged PT and aPTT, low fibrinogen and high D-dimer, triggered by sepsis, malignancy, obstetric catastrophes or trauma, and is managed by treating the cause and replacing products as needed.",
+    "Heparin-induced thrombocytopenia (HIT) is an immune reaction to platelet factor 4 and heparin complexes causing a fall in platelets of more than 50 percent, typically 5 to 10 days after starting heparin, with paradoxical thrombosis. The management is to stop all heparin and start a nonheparin anticoagulant such as argatroban or fondaparinux, after scoring pretest probability, for example with the 4Ts score. Warfarin should not be started until platelets recover.",
+    "Warfarin inhibits vitamin K epoxide reductase and is monitored by the international normalized ratio. Its effect is reversed for life-threatening bleeding with four-factor prothrombin complex concentrate and vitamin K. Heparin is reversed with protamine. For life-threatening bleeding on apixaban or rivaroxaban, four-factor prothrombin complex concentrate is the option in the United States, because andexanet alfa was withdrawn from the US market on December 22, 2025 over thrombosis risk (it remains available in some other countries); dabigatran is reversed with idarucizumab. Warfarin-induced skin necrosis occurs early in protein C deficiency because protein C has the shortest half-life of the vitamin K dependent factors."
+   ]
+  },
+  {
+   "id": "med-clin-im.l15",
+   "title": "Cancer Screening and Solid Tumor Reasoning",
+   "body": [
+    "Screening aims to find disease early enough that treatment changes outcomes, and it must account for lead-time bias, length bias and overdiagnosis, which can make a test look beneficial when it only advances the date of diagnosis. In the United States the USPSTF issues graded recommendations that anchor most teaching. For colorectal cancer, screening is recommended from age 45 to 75 (2021) by colonoscopy every 10 years, annual fecal immunochemical testing, stool DNA testing or CT colonography at intervals. For breast cancer, biennial mammography is recommended for women 40 to 74 (2024 update). For cervical cancer, cytology every three years from 21 to 29, with cytology, high-risk HPV testing or both at older ages up to 65 (2018). Lung cancer screening uses annual low-dose CT for adults 50 to 80 with at least a 20 pack-year history who currently smoke or quit within 15 years (2021). Prostate-specific antigen screening is an individual decision for men 55 to 69 (2018), reflecting that benefit is small and harms such as overtreatment are real. A single abdominal ultrasound for abdominal aortic aneurysm is recommended for men 65 to 75 who have ever smoked. Hepatocellular carcinoma surveillance applies to cirrhosis.",
+    "Tumor markers are used mainly for monitoring, not for screening. Alpha-fetoprotein tracks hepatocellular carcinoma and yolk sac tumor, CA-125 ovarian epithelial cancer response, CEA colorectal cancer recurrence, PSA prostate disease, beta-hCG gestational trophoblastic disease and germ cell tumors, and calcitonin medullary thyroid cancer. Elevated levels have limited specificity.",
+    "Paraneoplastic syndromes arise from tumor products or immune responses. Small cell lung cancer causes SIADH, ectopic ACTH and Lambert-Eaton myasthenic syndrome. Squamous cell lung cancer causes hypercalcemia through parathyroid hormone-related peptide. Renal cell carcinoma is linked to erythrocytosis and hypercalcemia. Pancreatic cancer and other mucinous adenocarcinomas are associated with migratory thrombophlebitis, called Trousseau syndrome. Thymoma is linked to myasthenia gravis. New dermatomyositis in an older adult prompts a malignancy search.",
+    "Staging uses the tumor, node and metastasis (TNM) system, which dictates curative versus palliative intent. Management reasoning combines stage with performance status, as measured by ECOG or Karnofsky scales, and the patient's goals. Targeted therapy requires a molecular marker, such as an EGFR mutation in lung adenocarcinoma, HER2 in breast cancer, BRAF V600E in melanoma and BCR-ABL in chronic myeloid leukemia, whereas immune checkpoint inhibitors cause immune-related colitis, pneumonitis, hepatitis and endocrinopathies, which are treated with corticosteroids."
+   ]
+  },
+  {
+   "id": "med-clin-im.l16",
+   "title": "Hematologic Malignancy and Oncologic Emergencies",
+   "body": [
+    "Acute leukemia presents with cytopenias: fatigue and pallor from anemia, infection from neutropenia and bleeding from thrombocytopenia, with circulating blasts. Auer rods and myeloid markers identify acute myeloid leukemia, and the promyelocytic subtype, with t(15;17) and the PML-RARA fusion, is a medical emergency because of disseminated intravascular coagulation, treated at the first suspicion with all-trans retinoic acid. Acute lymphoblastic leukemia is most common in children, with TdT positive lymphoblasts. Chronic lymphocytic leukemia is the commonest adult leukemia in the West, found in older patients as lymphocytosis with smudge cells and may associate with autoimmune hemolytic anemia. Chronic myeloid leukemia has the Philadelphia chromosome, t(9;22), producing BCR-ABL, treated with tyrosine kinase inhibitors such as imatinib.",
+    "Lymphomas present with painless lymphadenopathy and sometimes B symptoms: fever, drenching night sweats and weight loss. Hodgkin lymphoma is defined by Reed-Sternberg cells and often involves contiguous nodes in young adults. Diffuse large B-cell lymphoma is the most common aggressive non-Hodgkin lymphoma. Burkitt lymphoma with the c-MYC translocation has a very high proliferation rate and a starry-sky pattern. Multiple myeloma is a plasma cell malignancy that causes hypercalcemia, renal injury, anemia and bone lesions, abbreviated CRAB, with a monoclonal protein detected by serum protein electrophoresis, rouleaux on smear and lytic lesions on skeletal imaging. Bence Jones proteins are free light chains in urine.",
+    "Oncologic emergencies are recognized from the setting. Febrile neutropenia is a temperature of 38.3 C or higher with an absolute neutrophil count below about 500 cells per microliter, and needs broad antipseudomonal beta-lactam antibiotics within an hour, without waiting for culture results. Tumor lysis syndrome follows chemotherapy of highly proliferative tumors, with hyperkalemia, hyperphosphatemia, hypocalcemia and hyperuricemia, and is prevented with hydration and allopurinol or rasburicase, the latter avoided in G6PD deficiency. Spinal cord compression presents with back pain and then weakness, sensory level and sphincter loss, and needs urgent MRI of the whole spine and high-dose dexamethasone followed by radiation or surgery. Superior vena cava syndrome causes facial swelling, dyspnea and distended neck and chest veins, usually from lung cancer or lymphoma, and is evaluated by CT with biopsy and treated for the cause. Hypercalcemia of malignancy is treated with saline hydration, then bisphosphonate or denosumab, and calcitonin for rapid effect. A worked example: a patient with known breast cancer and thirst, constipation, confusion and a corrected calcium of 13.5 mg/dL has hypercalcemia of malignancy, usually from bone destruction or parathyroid hormone-related peptide, with a suppressed parathyroid hormone that separates it from primary hyperparathyroidism."
+   ]
+  },
+  {
+   "id": "med-clin-im.l17",
+   "title": "Sepsis, Meningitis and Common Serious Infections",
+   "body": [
+    "Sepsis is life-threatening organ dysfunction caused by a dysregulated host response to infection, and septic shock is sepsis with persistent hypotension requiring vasopressors and a lactate above 2 mmol/L despite fluid resuscitation. Time matters. The Surviving Sepsis Campaign guideline (2026 edition; first published 2021) advises obtaining blood cultures before antimicrobials when this causes no meaningful delay, giving broad-spectrum antimicrobials within one hour in suspected shock or high likelihood of sepsis, identifying and controlling the source, giving balanced crystalloid resuscitation of about 30 mL/kg for hypotension or elevated lactate, and starting norepinephrine as the first-line vasopressor, targeting a mean arterial pressure of 65 mmHg. Source control, such as draining an abscess, relieving an obstructed infected kidney or removing an infected device, can matter more than the choice of antibiotic. Antibiotics are then narrowed according to cultures.",
+    "Bacterial meningitis presents with fever, headache, neck stiffness and altered mentation, though the classic triad is incomplete in many. Lumbar puncture reveals the pattern: bacterial meningitis shows many neutrophils, low glucose, high protein and a raised opening pressure, whereas viral meningitis shows lymphocytes, normal glucose and a mildly raised protein. If there is a delay to lumbar puncture, for example for CT scanning in a patient with focal deficits, papilledema, severe immunocompromise or decreased consciousness, blood cultures are drawn and treatment starts first. The empiric regimen in adults is vancomycin with a third-generation cephalosporin, ceftriaxone, with ampicillin added for adults over 50 or immunocompromised patients to cover Listeria monocytogenes. Dexamethasone is given with or just before the first antibiotic dose because it lowers hearing loss and mortality in pneumococcal disease. Close contacts of meningococcal meningitis receive prophylaxis with rifampin, ciprofloxacin or ceftriaxone. Herpes simplex encephalitis, with fever, behavioral change, seizures and temporal lobe abnormality, is treated empirically with acyclovir while the PCR is pending.",
+    "Urinary tract infection is a clinical diagnosis supported by pyuria and bacteriuria. Uncomplicated cystitis in a woman is managed with a short oral course chosen by local resistance rates, while pyelonephritis, with fever, flank pain and costovertebral tenderness, needs a longer course and imaging if the patient does not improve within 48 to 72 hours to look for obstruction or abscess. Asymptomatic bacteriuria should not be treated, except in pregnancy and before urologic procedures that breach mucosa.",
+    "Clostridioides difficile infection follows antibiotics such as clindamycin and fluoroquinolones and presents with watery diarrhea, leukocytosis and sometimes colonic dilatation. Diagnosis is by stool toxin or PCR in patients with unformed stools. The IDSA and SHEA focused update of 2021 prefers fidaxomicin over oral vancomycin for an initial episode, and fulminant disease with shock or megacolon is treated with high-dose oral vancomycin plus intravenous metronidazole, with surgical consultation. Stopping the inciting antibiotic is essential, and antimotility drugs should be avoided."
+   ]
+  },
+  {
+   "id": "med-clin-im.l18",
+   "title": "HIV, Tuberculosis and Sexually Transmitted Infections",
+   "body": [
+    "Human immunodeficiency virus (HIV) infects CD4 T cells, and untreated infection leads to acquired immunodeficiency syndrome. Screening uses a fourth-generation antigen and antibody combination assay, which detects p24 antigen as well as antibodies, followed by an HIV-1 and HIV-2 differentiation assay and a viral load when needed. Acute infection presents as a mononucleosis-like illness with fever, rash and pharyngitis, and antibody tests may still be negative, so an RNA test is needed. Current US guidance from the Department of Health and Human Services recommends antiretroviral therapy for everyone with HIV, started as soon as possible, with a regimen built around an integrase strand transfer inhibitor plus two nucleoside reverse transcriptase inhibitors. The aim is sustained viral suppression, which stops progression and prevents sexual transmission, summarized as undetectable equals untransmittable. Pre-exposure prophylaxis with tenofovir-based combinations is recommended for people at substantial risk, after a negative HIV test and with renal monitoring.",
+    "Opportunistic infection risk depends on the CD4 count. Pneumocystis jirovecii pneumonia presents with dry cough, hypoxemia on exertion, bilateral ground-glass opacities, and a high lactate dehydrogenase, usually when CD4 is below 200 cells per microliter. It is treated with trimethoprim-sulfamethoxazole, and adjunctive corticosteroids are given when oxygenation is significantly impaired. Prophylaxis with the same drug is started at CD4 below 200, and it also covers Toxoplasma gondii, which causes ring-enhancing brain lesions at CD4 below 100. Mycobacterium avium complex prophylaxis is no longer routine when antiretroviral therapy is started promptly. Cryptococcal meningitis presents with headache and raised pressure and is diagnosed by cryptococcal antigen. Immune reconstitution inflammatory syndrome is paradoxical worsening of an infection after starting therapy.",
+    "Tuberculosis spreads by the airborne route and presents with cough, fever, night sweats, weight loss and upper lobe cavitary lesions in reactivation disease. Diagnosis uses sputum acid-fast smear, culture and nucleic acid amplification. Latent infection is detected by tuberculin skin test or interferon-gamma release assay in an asymptomatic patient with a normal chest radiograph, and treated with a rifamycin-based regimen or isoniazid. Active disease is treated with isoniazid, rifampin, pyrazinamide and ethambutol for two months, then isoniazid and rifampin to complete six months. Key adverse effects are hepatitis from isoniazid, rifampin and pyrazinamide, peripheral neuropathy from isoniazid, prevented with pyridoxine, orange body fluids and drug interactions with rifampin, hyperuricemia with pyrazinamide and optic neuritis with ethambutol. A negative test does not exclude tuberculosis in advanced HIV infection.",
+    "Sexually transmitted infections follow syndromes. Urethritis or cervicitis is treated for gonorrhea with ceftriaxone and for chlamydia with doxycycline under the CDC guidelines of 2021, and pelvic inflammatory disease with cervical motion tenderness needs coverage of both plus anaerobes. Primary syphilis presents with a painless chancre and is treated with benzathine penicillin G, which is also the preferred therapy in pregnancy."
+   ]
+  },
+  {
+   "id": "med-clin-im.l19",
+   "title": "Rheumatology: Arthritis, Lupus and Vasculitis",
+   "body": [
+    "A hot swollen joint is septic until proven otherwise, and the first step is arthrocentesis with cell count, Gram stain, culture and crystal analysis. Septic arthritis typically shows a synovial white cell count above 50,000 per microliter with neutrophils, and requires prompt antibiotics and joint drainage. Gout results from monosodium urate crystals, which are needle-shaped and negatively birefringent under polarized light, and presents as acute monoarthritis of the first metatarsophalangeal joint. Pseudogout results from calcium pyrophosphate crystals that are rhomboid and positively birefringent. Acute gout is treated with an NSAID, colchicine or a glucocorticoid, depending on comorbidity, and urate-lowering therapy with allopurinol, the first-line agent, is started to prevent recurrence in patients with frequent flares or tophi, as in the ACR guideline of 2020, with flare prophylaxis during initiation. Loop and thiazide diuretics, low-dose aspirin and pyrazinamide raise uric acid.",
+    "Rheumatoid arthritis is symmetric inflammatory polyarthritis of small joints, with morning stiffness longer than an hour, and positive rheumatoid factor or anti-cyclic citrullinated peptide antibodies, the latter being more specific. Methotrexate is the anchor disease-modifying drug, requiring folate and monitoring of liver tests and blood counts, and biologics or targeted agents are added for inadequate response, after screening for latent tuberculosis and hepatitis B. Osteoarthritis, in contrast, is mechanical, has brief stiffness and involves the distal interphalangeal joints with Heberden nodes. Spondyloarthritis, including ankylosing spondylitis, causes inflammatory back pain in young men that improves with activity and is associated with HLA-B27.",
+    "Systemic lupus erythematosus is multisystem autoimmunity, mainly in young women, with malar rash, photosensitivity, arthritis, serositis, cytopenias and nephritis. Antinuclear antibody is sensitive but not specific, so a negative test makes lupus unlikely, while anti-double-stranded DNA and anti-Smith antibodies are specific. Complement levels fall with active disease. Hydroxychloroquine is recommended for nearly all patients and requires retinal screening, and lupus nephritis is diagnosed by biopsy and treated with immunosuppression. Drug-induced lupus, from agents such as hydralazine and procainamide, features anti-histone antibodies. Systemic sclerosis with anticentromere antibodies shows limited skin disease with pulmonary hypertension, whereas anti-Scl-70 marks diffuse disease with pulmonary fibrosis, and scleroderma renal crisis is treated with ACE inhibitors.",
+    "Giant cell arteritis in a patient over 50 presents with new headache, scalp tenderness, jaw claudication and visual symptoms, with a very high ESR. Because blindness can be sudden and permanent, high-dose glucocorticoids are started before the temporal artery biopsy. Polymyalgia rheumatica gives shoulder and hip girdle stiffness with high inflammatory markers, and responds quickly to low-dose steroid. Granulomatosis with polyangiitis causes sinus disease, lung nodules and glomerulonephritis with c-ANCA and anti-proteinase 3 antibodies."
+   ]
+  },
+  {
+   "id": "med-clin-im.l20",
+   "title": "Geriatrics and Chronic Disease Management",
+   "body": [
+    "Geriatric medicine shifts the aim from single-disease cure to function, safety and what the patient values. Delirium is an acute fluctuating disturbance of attention and cognition, driven by an underlying medical cause, commonly infection, medications, metabolic disturbance, urinary retention, constipation, pain, hospitalization or surgery, and screened with the Confusion Assessment Method. Treatment is to find and correct causes, with nonpharmacologic measures such as reorientation, sleep, mobility, glasses and hearing aids, avoiding deliriogenic drugs such as benzodiazepines and anticholinergics, and reserving low-dose antipsychotics for dangerous agitation. Dementia, in contrast, is a gradual decline with a clear sensorium until late. Alzheimer disease causes insidious memory loss, vascular dementia a stepwise course, Lewy body dementia visual hallucinations, parkinsonism and fluctuation with neuroleptic sensitivity, and frontotemporal dementia early behavior or language change. Normal pressure hydrocephalus gives the triad of gait apraxia, urinary incontinence and cognitive decline with ventriculomegaly. Reversible contributors such as hypothyroidism, vitamin B12 deficiency, depression and medications are checked. Cholinesterase inhibitors give modest symptomatic benefit in Alzheimer disease, and anti-amyloid antibodies are newer therapies as of this writing with modest effects and a risk of amyloid-related imaging abnormalities.",
+    "Falls are a leading cause of injury, and evaluation includes the history of the fall, orthostatic blood pressure, vision, feet, gait and balance testing, medication review and home hazards. Exercise programs that include balance training prevent falls, as does stopping sedatives. Polypharmacy increases adverse events, and the American Geriatrics Society Beers Criteria, updated in 2023, lists potentially inappropriate drugs in older adults, including first-generation antihistamines, benzodiazepines, long-acting sulfonylureas such as glyburide, and NSAIDs with kidney disease or heart failure. Deprescribing means reviewing each drug for ongoing indication and harm. Drug dosing, absorption and renal clearance change with age, so a normal creatinine can hide a low glomerular filtration rate in a frail older adult with low muscle mass.",
+    "Osteoporosis is diagnosed by a bone mineral density T-score of minus 2.5 or lower, or by a fragility fracture of the hip or vertebra. The USPSTF of 2025 recommends screening in women 65 and older and in younger postmenopausal women at increased risk. Calcium, vitamin D, weight-bearing exercise and bisphosphonates are first-line, and adverse effects include esophagitis and rare osteonecrosis of the jaw and atypical femoral fractures.",
+    "Chronic disease management also means aligning treatment with life expectancy. Prognosis, frailty and patient priorities guide screening, glycemic targets and statin decisions. Advance care planning includes naming a health care proxy and clarifying code status, and pressure injury prevention depends on repositioning and nutrition. Capacity is decision-specific: the patient must understand, appreciate, reason and express a choice."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-clin-im.l01.q1",
+   "lessonId": "med-clin-im.l01",
+   "kind": "mcq",
+   "prompt": "Which finding most clearly distinguishes NSTEMI from unstable angina?",
+   "choices": [
+    "Elevated serum cardiac troponin indicating necrosis",
+    "Chest pain that occurs at rest rather than on exertion alone",
+    "Transient ST depression seen on the presenting ECG tracing",
+    "Relief of pain within minutes of sublingual nitroglycerin use"
+   ]
+  },
+  {
+   "id": "med-clin-im.l01.q2",
+   "lessonId": "med-clin-im.l01",
+   "kind": "mcq",
+   "prompt": "A man with chest pain has ST elevation in leads II, III and aVF, a blood pressure of 82/50 mmHg, clear lungs and distended neck veins. What should be avoided?",
+   "choices": [
+    "Intravenous fluids, because added volume would worsen pulmonary edema",
+    "Nitroglycerin, since the preload-dependent right ventricle may fail",
+    "Aspirin, because of the bleeding risk during active myocardial ischemia",
+    "Primary PCI, because inferior infarcts are so rarely fully occluded"
+   ]
+  },
+  {
+   "id": "med-clin-im.l01.q3",
+   "lessonId": "med-clin-im.l01",
+   "kind": "mcq",
+   "prompt": "Which ECG territory pairing is correct for a typical culprit vessel in STEMI?",
+   "choices": [
+    "ST elevation in I, aVL and V5 to V6 reflects the right coronary",
+    "ST depression in V1 to V3 with tall R waves reflects the LAD",
+    "ST elevation in V1 to V4 reflects the left anterior descending",
+    "ST elevation in II, III and aVF reflects the left circumflex"
+   ]
+  },
+  {
+   "id": "med-clin-im.l01.q4",
+   "lessonId": "med-clin-im.l01",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has 40 minutes of crushing chest pain, and the ECG shows 3 mm ST elevation in V2 to V5. The nearest hospital has no catheterization laboratory, and transfer to a PCI center would take about three hours. What is the next best step?",
+   "choices": [
+    "Obtain serial troponins and then repeat the ECG in three hours",
+    "Order an urgent echocardiogram before making any reperfusion plan",
+    "Start a heparin infusion alone and arrange a routine transfer",
+    "Give aspirin and start fibrinolysis at the local hospital"
+   ]
+  },
+  {
+   "id": "med-clin-im.l01.q5",
+   "lessonId": "med-clin-im.l01",
+   "kind": "mcq",
+   "prompt": "A 62-year-old hypertensive man has sudden tearing chest pain radiating to the back, a blood pressure of 190/100 in the right arm and 150/80 in the left, and ST elevation is absent. Which therapy should be avoided before the diagnosis is secured?",
+   "choices": [
+    "Fibrinolytic and anticoagulant drugs for presumed coronary occlusion",
+    "Intravenous beta-blocker aimed at lowering heart rate and wall shear stress",
+    "Opioid analgesia titrated for pain control while imaging is being arranged",
+    "Computed tomography angiography of the chest, abdomen and pelvis together"
+   ]
+  },
+  {
+   "id": "med-clin-im.l02.q1",
+   "lessonId": "med-clin-im.l02",
+   "kind": "mcq",
+   "prompt": "Which heart failure medication class has been shown to improve survival in HFrEF?",
+   "choices": [
+    "Loop diuretics such as furosemide given for fluid overload",
+    "Dihydropyridine calcium channel blockers such as amlodipine",
+    "Thiazolidinediones such as pioglitazone for glycemic control",
+    "Mineralocorticoid receptor antagonists such as spironolactone"
+   ]
+  },
+  {
+   "id": "med-clin-im.l02.q2",
+   "lessonId": "med-clin-im.l02",
+   "kind": "mcq",
+   "prompt": "A patient with HFrEF is on a stable ACE inhibitor and the team wants to start sacubitril-valsartan. What is the required precaution?",
+   "choices": [
+    "Stop the beta-blocker first because of the additive bradycardia risk seen",
+    "Add a potassium supplement because neprilysin inhibition lowers potassium levels",
+    "Stop the ACE inhibitor at least 36 hours beforehand to avoid angioedema",
+    "Start both drugs together to maximize the neurohormonal blockade achieved"
+   ]
+  },
+  {
+   "id": "med-clin-im.l02.q3",
+   "lessonId": "med-clin-im.l02",
+   "kind": "mcq",
+   "prompt": "Which drug can worsen heart failure with reduced ejection fraction and should generally be avoided?",
+   "choices": [
+    "Eplerenone, a selective mineralocorticoid receptor antagonist for remodeling",
+    "Diltiazem, a calcium channel blocker with negative inotropy",
+    "Carvedilol, a beta-blocker with alpha-blocking vasodilating properties",
+    "Dapagliflozin, a sodium-glucose cotransporter 2 inhibitor used for diabetes"
+   ]
+  },
+  {
+   "id": "med-clin-im.l02.q4",
+   "lessonId": "med-clin-im.l02",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man with ischemic cardiomyopathy and an EF of 28 percent has stable class II symptoms on guideline-directed medicines for six months, and QRS duration is 100 ms. Which intervention addresses his risk of sudden death?",
+   "choices": [
+    "An implantable defibrillator placed for primary prevention of death",
+    "Cardiac resynchronization therapy to narrow a prolonged QRS interval",
+    "Scheduled amiodarone given to suppress asymptomatic ventricular ectopy",
+    "A left ventricular assist device as destination therapy for symptoms"
+   ]
+  },
+  {
+   "id": "med-clin-im.l02.q5",
+   "lessonId": "med-clin-im.l02",
+   "kind": "mcq",
+   "prompt": "A 66-year-old woman with orthopnea, jugular venous distension and bibasilar crackles has an EF of 60 percent and a markedly enlarged left atrium on echocardiography. She has hypertension and diabetes. Which therapy has been shown to reduce heart failure hospitalization in her condition?",
+   "choices": [
+    "A cardioverter-defibrillator implanted to reduce sudden death",
+    "Long-term digoxin therapy to increase myocardial contractility",
+    "A non-dihydropyridine calcium channel blocker to lengthen filling",
+    "An SGLT2 inhibitor added to diuretic therapy for congestion"
+   ]
+  },
+  {
+   "id": "med-clin-im.l03.q1",
+   "lessonId": "med-clin-im.l03",
+   "kind": "mcq",
+   "prompt": "Which feature of the ECG defines atrial fibrillation?",
+   "choices": [
+    "A progressively lengthening PR interval before a dropped beat",
+    "A wide regular rhythm with fusion beats and AV dissociation",
+    "An irregularly irregular rhythm without discernible P waves",
+    "A regular narrow-complex rhythm with sawtooth flutter waves"
+   ]
+  },
+  {
+   "id": "med-clin-im.l03.q2",
+   "lessonId": "med-clin-im.l03",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman with AF has hypertension, diabetes and a prior TIA. Which approach best prevents stroke?",
+   "choices": [
+    "Aspirin alone because she is not yet taking antiplatelet therapy",
+    "Rhythm control with cardioversion and then stopping anticoagulation",
+    "Warfarin only if the heart rate cannot be controlled with a beta-blocker",
+    "A direct oral anticoagulant such as apixaban for long-term use"
+   ]
+  },
+  {
+   "id": "med-clin-im.l03.q3",
+   "lessonId": "med-clin-im.l03",
+   "kind": "mcq",
+   "prompt": "A patient with AF of unknown duration is stable and scheduled for cardioversion. Which step is needed beforehand?",
+   "choices": [
+    "Transesophageal echocardiography to exclude atrial thrombus",
+    "A stress test to exclude ischemia as the trigger for the rhythm",
+    "Intravenous adenosine to confirm the atrial origin of the rhythm",
+    "Discontinuation of every antithrombotic drug to limit bleeding risk"
+   ]
+  },
+  {
+   "id": "med-clin-im.l03.q4",
+   "lessonId": "med-clin-im.l03",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man with known Wolff-Parkinson-White syndrome presents with palpitations. His rhythm is irregular and wide-complex at 220 beats per minute, and he is hemodynamically stable. Which drug is most dangerous?",
+   "choices": [
+    "Intravenous ibutilide with continuous rhythm monitoring",
+    "Intravenous verapamil that slows AV nodal conduction",
+    "Intravenous procainamide that slows accessory pathway conduction",
+    "Synchronized electrical cardioversion under sedation"
+   ]
+  },
+  {
+   "id": "med-clin-im.l03.q5",
+   "lessonId": "med-clin-im.l03",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman with atrial fibrillation and moderate rheumatic mitral stenosis needs stroke prevention. Which choice is best?",
+   "choices": [
+    "Dabigatran because renal clearance avoids hepatic interactions",
+    "Aspirin plus clopidogrel because valve disease raises bleeding risk",
+    "Warfarin with an INR target in the therapeutic range",
+    "Apixaban at the standard fixed-dose regimen for AF"
+   ]
+  },
+  {
+   "id": "med-clin-im.l04.q1",
+   "lessonId": "med-clin-im.l04",
+   "kind": "mcq",
+   "prompt": "Which blood pressure threshold defines hypertension in the 2025 AHA/ACC guideline?",
+   "choices": [
+    "120/70 mmHg or higher on repeated measurements",
+    "130/80 mmHg or higher on repeat measurements",
+    "140/90 mmHg or higher on repeated measurements",
+    "150/90 mmHg or higher on repeated measurements"
+   ]
+  },
+  {
+   "id": "med-clin-im.l04.q2",
+   "lessonId": "med-clin-im.l04",
+   "kind": "mcq",
+   "prompt": "A 72-year-old has a harsh crescendo-decrescendo systolic murmur radiating to the carotids and recent exertional syncope. What is the best definitive treatment?",
+   "choices": [
+    "Aortic valve replacement, surgical or transcatheter",
+    "Long-term beta-blocker therapy to lengthen ejection time",
+    "Chronic ACE inhibitor therapy to reduce afterload",
+    "Serial echocardiography until the murmur becomes diastolic"
+   ]
+  },
+  {
+   "id": "med-clin-im.l04.q3",
+   "lessonId": "med-clin-im.l04",
+   "kind": "mcq",
+   "prompt": "Which maneuver makes the murmur of hypertrophic cardiomyopathy louder?",
+   "choices": [
+    "Squatting from a standing position with leg flexion",
+    "Sustained handgrip with both hands for several seconds",
+    "Passive leg raising while lying supine on the table",
+    "Standing up quickly or performing a Valsalva maneuver"
+   ]
+  },
+  {
+   "id": "med-clin-im.l04.q4",
+   "lessonId": "med-clin-im.l04",
+   "kind": "mcq",
+   "prompt": "A 34-year-old man who injects heroin has a fever for five days, a new holosystolic murmur at the left lower sternal border, and multiple pulmonary nodules on chest imaging. What is the most likely organism?",
+   "choices": [
+    "Enterococcus faecalis involving the aortic valve",
+    "Staphylococcus epidermidis involving a native valve",
+    "Staphylococcus aureus on the tricuspid valve",
+    "Streptococcus viridans involving the mitral valve"
+   ]
+  },
+  {
+   "id": "med-clin-im.l04.q5",
+   "lessonId": "med-clin-im.l04",
+   "kind": "mcq",
+   "prompt": "A 58-year-old woman with resistant hypertension on three drugs has a potassium of 2.9 mEq/L and mild metabolic alkalosis, and she is not taking a diuretic. What is the next best step?",
+   "choices": [
+    "Perform an MRI of the brain to assess for a pituitary tumor",
+    "Measure plasma aldosterone and renin to screen for aldosteronism",
+    "Obtain a renal arteriogram to rule out fibromuscular dysplasia",
+    "Start a thiazide diuretic and recheck the potassium in a month"
+   ]
+  },
+  {
+   "id": "med-clin-im.l05.q1",
+   "lessonId": "med-clin-im.l05",
+   "kind": "mcq",
+   "prompt": "Which spirometry result is expected in COPD?",
+   "choices": [
+    "A reduced FEV1/FVC ratio persisting after bronchodilator",
+    "A normal FEV1/FVC with reduced total lung capacity found",
+    "A markedly increased diffusing capacity for carbon monoxide",
+    "A reversible FEV1 improvement of more than 12 percent"
+   ]
+  },
+  {
+   "id": "med-clin-im.l05.q2",
+   "lessonId": "med-clin-im.l05",
+   "kind": "mcq",
+   "prompt": "A man with COPD and chronic hypoxemia has a resting saturation of 86 percent on room air despite maximal inhaled therapy. Which intervention improves survival?",
+   "choices": [
+    "Prophylactic nebulized antibiotics given twice a week at home",
+    "Long-term oxygen used for more than 15 hours a day",
+    "An oral theophylline preparation titrated to a serum level",
+    "A scheduled low-dose oral corticosteroid taken every morning"
+   ]
+  },
+  {
+   "id": "med-clin-im.l05.q3",
+   "lessonId": "med-clin-im.l05",
+   "kind": "mcq",
+   "prompt": "Which approach to newly diagnosed mild persistent asthma reflects current GINA direction?",
+   "choices": [
+    "An oral leukotriene antagonist given as the sole controller drug",
+    "A long-acting beta agonist given as monotherapy at bedtime",
+    "An inhaled corticosteroid with formoterol as needed or daily",
+    "A short-acting beta agonist alone used only when symptoms arise"
+   ]
+  },
+  {
+   "id": "med-clin-im.l05.q4",
+   "lessonId": "med-clin-im.l05",
+   "kind": "mcq",
+   "prompt": "A 64-year-old long-term smoker with COPD arrives with three days of increased dyspnea and purulent sputum. His pH is 7.28, PaCO2 is 68 mmHg and he is drowsy but protecting his airway. Which intervention best reduces his need for intubation?",
+   "choices": [
+    "High-flow oxygen titrated to a saturation of 100 percent for comfort",
+    "An intravenous benzodiazepine to relieve anxiety and air hunger",
+    "Immediate endotracheal intubation under rapid sequence induction",
+    "Noninvasive ventilation along with bronchodilators and steroids"
+   ]
+  },
+  {
+   "id": "med-clin-im.l05.q5",
+   "lessonId": "med-clin-im.l05",
+   "kind": "mcq",
+   "prompt": "A 38-year-old nonsmoker develops progressive dyspnea, and his chest imaging shows hyperlucent lower lobes. His FEV1/FVC is 0.55 and his father died of cirrhosis. Which test is most useful?",
+   "choices": [
+    "Serum alpha-1 antitrypsin level to confirm deficiency",
+    "A sweat chloride level to diagnose cystic fibrosis",
+    "A serum IgE and skin tests for allergic aspergillosis",
+    "A methacholine challenge to look for airway reactivity"
+   ]
+  },
+  {
+   "id": "med-clin-im.l06.q1",
+   "lessonId": "med-clin-im.l06",
+   "kind": "mcq",
+   "prompt": "What does a negative D-dimer allow in a patient with low pretest probability of PE?",
+   "choices": [
+    "A reduction of anticoagulant intensity to half the standard",
+    "Confirmation of the diagnosis of a deep venous thrombosis",
+    "A switch to ventilation-perfusion scanning as first test",
+    "Exclusion of pulmonary embolism without any imaging study"
+   ]
+  },
+  {
+   "id": "med-clin-im.l06.q2",
+   "lessonId": "med-clin-im.l06",
+   "kind": "mcq",
+   "prompt": "A pregnant woman at 20 weeks has pleuritic chest pain and a normal chest film. She is hemodynamically stable. Which approach to imaging is acceptable?",
+   "choices": [
+    "Digital subtraction angiography of the legs as the first test",
+    "A repeat chest film in a week because imaging is contraindicated",
+    "A V/Q scan or CT pulmonary angiography after risk discussion",
+    "No imaging, with empiric thrombolysis given for any pleuritic pain"
+   ]
+  },
+  {
+   "id": "med-clin-im.l06.q3",
+   "lessonId": "med-clin-im.l06",
+   "kind": "mcq",
+   "prompt": "Which pneumonia clue suggests Legionella?",
+   "choices": [
+    "Rust-colored sputum with lobar consolidation in a healthy adult",
+    "Hyponatremia with diarrhea after exposure to contaminated water systems",
+    "Currant jelly sputum in a malnourished alcoholic with upper lobe disease",
+    "Cold agglutinins with a patchy infiltrate in a college student"
+   ]
+  },
+  {
+   "id": "med-clin-im.l06.q4",
+   "lessonId": "med-clin-im.l06",
+   "kind": "mcq",
+   "prompt": "A 55-year-old woman is admitted 10 days after hip replacement with sudden dyspnea. Her heart rate is 128 beats per minute, blood pressure is 78/40 mmHg, and her oxygen saturation is 86 percent. Bedside echocardiography shows a dilated right ventricle, and she is too unstable for CT. What is the next best step?",
+   "choices": [
+    "Systemic thrombolysis with immediate anticoagulation",
+    "Therapeutic anticoagulation only with admission to the ward for observation",
+    "Placement of an inferior vena cava filter before any other therapy",
+    "Intravenous fluid boluses titrated until the right ventricle shrinks"
+   ]
+  },
+  {
+   "id": "med-clin-im.l06.q5",
+   "lessonId": "med-clin-im.l06",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man hospitalized with pneumonia has no improvement after three days on a beta-lactam and a macrolide. A chest radiograph now shows a large pleural effusion with a pH of 7.05 on sampling. What is the next best step?",
+   "choices": [
+    "A change to an oral fluoroquinolone",
+    "Observation with repeated radiographs",
+    "A diuretic trial to reduce the effusion",
+    "Chest tube drainage of the effusion"
+   ]
+  },
+  {
+   "id": "med-clin-im.l07.q1",
+   "lessonId": "med-clin-im.l07",
+   "kind": "mcq",
+   "prompt": "Which condition is most characteristically transmural, with skip lesions and granulomas?",
+   "choices": [
+    "Collagenous colitis in an older woman",
+    "Ischemic colitis near the splenic flexure",
+    "Crohn disease of the terminal ileum",
+    "Ulcerative colitis involving the rectum"
+   ]
+  },
+  {
+   "id": "med-clin-im.l07.q2",
+   "lessonId": "med-clin-im.l07",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man with alcohol-related cirrhosis vomits blood and is hypotensive. Along with resuscitation and endoscopy, which drugs should be given?",
+   "choices": [
+    "Propranolol and a potassium-sparing diuretic at full dose",
+    "Vasopressin alone, with no antibiotic coverage for infection",
+    "Intravenous lactulose and platelet transfusion to a normal count",
+    "Octreotide and a prophylactic antibiotic such as ceftriaxone"
+   ]
+  },
+  {
+   "id": "med-clin-im.l07.q3",
+   "lessonId": "med-clin-im.l07",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman has iron deficiency anemia that does not respond to oral iron, along with bloating and an itchy blistering rash on the elbows. Which test should be ordered first?",
+   "choices": [
+    "Serum tissue transglutaminase IgA with a total IgA measurement",
+    "A urea breath test to detect Helicobacter pylori infection",
+    "A fecal calprotectin to screen for ulcerative colitis",
+    "A hydrogen breath test for small intestinal overgrowth"
+   ]
+  },
+  {
+   "id": "med-clin-im.l07.q4",
+   "lessonId": "med-clin-im.l07",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man with ulcerative colitis on mesalamine has 12 bloody stools daily, fever, heart rate 120 and diffuse abdominal tenderness. An abdominal film shows a transverse colon of 7 cm. What is the next best step?",
+   "choices": [
+    "Discharge on a higher dose of mesalamine with close follow-up",
+    "IV steroids, broad antibiotics and urgent surgical consultation",
+    "A colonoscopy with full bowel preparation to assess disease activity",
+    "An oral antidiarrheal to slow stool output and relieve cramping"
+   ]
+  },
+  {
+   "id": "med-clin-im.l07.q5",
+   "lessonId": "med-clin-im.l07",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man with long-standing reflux has an esophagogastroduodenoscopy showing salmon-colored mucosa extending above the gastroesophageal junction, and biopsy shows intestinal metaplasia without dysplasia. What is the main cancer risk?",
+   "choices": [
+    "Gastric lymphoma of MALT type",
+    "Gastrointestinal stromal tumor",
+    "Esophageal adenocarcinoma",
+    "Esophageal squamous cell carcinoma"
+   ]
+  },
+  {
+   "id": "med-clin-im.l08.q1",
+   "lessonId": "med-clin-im.l08",
+   "kind": "mcq",
+   "prompt": "Which hepatitis B serology indicates immunity from vaccination only?",
+   "choices": [
+    "Negative surface antibody with positive core IgG antibody",
+    "Positive surface antibody with negative core antibody",
+    "Positive surface antigen with positive core IgM antibody",
+    "Positive surface antibody with positive core IgG antibody"
+   ]
+  },
+  {
+   "id": "med-clin-im.l08.q2",
+   "lessonId": "med-clin-im.l08",
+   "kind": "mcq",
+   "prompt": "A cirrhotic patient with ascites is admitted with fever and abdominal pain, and paracentesis shows 600 neutrophils per microliter. What is the correct treatment?",
+   "choices": [
+    "A third-generation cephalosporin plus intravenous albumin",
+    "Large volume paracentesis alone, without antibiotics given",
+    "Spironolactone dose escalation to reduce ascitic fluid",
+    "Emergency laparotomy to search for a perforated viscus"
+   ]
+  },
+  {
+   "id": "med-clin-im.l08.q3",
+   "lessonId": "med-clin-im.l08",
+   "kind": "mcq",
+   "prompt": "What is the first-line therapy for acute hepatic encephalopathy in cirrhosis, after correcting precipitants?",
+   "choices": [
+    "Protein restriction to the lowest level tolerable",
+    "Intravenous flumazenil to reverse sedative effects",
+    "Neomycin as the long-term preferred treatment option",
+    "Lactulose to acidify the colon and trap ammonia"
+   ]
+  },
+  {
+   "id": "med-clin-im.l08.q4",
+   "lessonId": "med-clin-im.l08",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman with gallstones has severe epigastric pain, vomiting and a lipase five times normal. She has no fever, a normal bilirubin and stable vital signs. What is the next best step?",
+   "choices": [
+    "Prophylactic broad-spectrum antibiotics to prevent pancreatic necrosis",
+    "Strict fasting for at least a week with total parenteral nutrition",
+    "Early intravenous fluids, analgesia and oral feeding as tolerated",
+    "Urgent ERCP to remove stones from the common bile duct at once"
+   ]
+  },
+  {
+   "id": "med-clin-im.l08.q5",
+   "lessonId": "med-clin-im.l08",
+   "kind": "mcq",
+   "prompt": "A 36-year-old woman takes acetaminophen for a headache for several days, then presents after an overdose of unknown timing. Her aminotransferases are in the thousands and her INR is 2.4. What should be given?",
+   "choices": [
+    "Observation alone until liver enzymes begin to fall again",
+    "N-acetylcysteine, even if the ingestion time is uncertain",
+    "Activated charcoal only, because over 24 hours have passed",
+    "Intravenous vitamin K to correct the elevated INR value"
+   ]
+  },
+  {
+   "id": "med-clin-im.l09.q1",
+   "lessonId": "med-clin-im.l09",
+   "kind": "mcq",
+   "prompt": "Which urine finding supports acute tubular necrosis rather than prerenal azotemia?",
+   "choices": [
+    "Fractional excretion of sodium above 2 percent with muddy brown casts",
+    "Fractional excretion of sodium below 1 percent with hyaline casts only",
+    "Urine osmolality above 500 mOsm/kg with a low urine sodium value",
+    "Red blood cell casts with dysmorphic erythrocytes and proteinuria"
+   ]
+  },
+  {
+   "id": "med-clin-im.l09.q2",
+   "lessonId": "med-clin-im.l09",
+   "kind": "mcq",
+   "prompt": "A hospitalized patient receiving a penicillin for several days develops fever, a rash, rising creatinine, eosinophilia and urinary white cell casts. What is the most likely diagnosis?",
+   "choices": [
+    "Prerenal azotemia from dehydration",
+    "Acute interstitial nephritis",
+    "Acute tubular necrosis from sepsis",
+    "Postinfectious glomerulonephritis"
+   ]
+  },
+  {
+   "id": "med-clin-im.l09.q3",
+   "lessonId": "med-clin-im.l09",
+   "kind": "mcq",
+   "prompt": "Which drug class slows progression of diabetic kidney disease with albuminuria by lowering intraglomerular pressure?",
+   "choices": [
+    "Loop diuretics at maximum tolerated doses daily",
+    "Thiazolidinediones for improving insulin sensitivity",
+    "ACE inhibitors or angiotensin receptor blockers",
+    "Nonsteroidal anti-inflammatory drugs for pain control"
+   ]
+  },
+  {
+   "id": "med-clin-im.l09.q4",
+   "lessonId": "med-clin-im.l09",
+   "kind": "mcq",
+   "prompt": "A 72-year-old man with benign prostatic hyperplasia has 12 hours of anuria after starting an antihistamine and a cold remedy. His creatinine has doubled and a suprapubic mass is palpable. What is the next best step?",
+   "choices": [
+    "Intravenous saline bolus and repeat laboratory tests tonight",
+    "Immediate nephrology consultation for urgent hemodialysis",
+    "A renal biopsy to determine the cause of renal injury",
+    "Bladder catheterization with a post-void residual measurement"
+   ]
+  },
+  {
+   "id": "med-clin-im.l09.q5",
+   "lessonId": "med-clin-im.l09",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man with CKD stage 4 has a low calcium, a high phosphate and a high parathyroid hormone. Which mechanism explains the elevated parathyroid hormone?",
+   "choices": [
+    "Reduced renal calcitriol synthesis and phosphate retention",
+    "Autonomous overproduction from a single parathyroid adenoma",
+    "Excess dietary vitamin D with intestinal calcium absorption",
+    "Ectopic secretion of parathyroid hormone by a lung tumor"
+   ]
+  },
+  {
+   "id": "med-clin-im.l10.q1",
+   "lessonId": "med-clin-im.l10",
+   "kind": "mcq",
+   "prompt": "What is the urine and serum profile of SIADH?",
+   "choices": [
+    "Low serum osmolality with maximally dilute urine and heavy water intake",
+    "Normal serum osmolality with raised glucose and low serum sodium",
+    "Low serum osmolality with inappropriately concentrated urine and euvolemia",
+    "High serum osmolality with maximally dilute urine and hypovolemia"
+   ]
+  },
+  {
+   "id": "med-clin-im.l10.q2",
+   "lessonId": "med-clin-im.l10",
+   "kind": "mcq",
+   "prompt": "Which emergency treatment is first for hyperkalemia with peaked T waves and a widening QRS?",
+   "choices": [
+    "Oral sodium polystyrene to remove potassium over several hours",
+    "Furosemide given by mouth to increase renal potassium losses",
+    "Intravenous potassium-free fluid to dilute the plasma level",
+    "Intravenous calcium gluconate to stabilize the cardiac membrane"
+   ]
+  },
+  {
+   "id": "med-clin-im.l10.q3",
+   "lessonId": "med-clin-im.l10",
+   "kind": "mcq",
+   "prompt": "Which cause of a high anion gap metabolic acidosis is correctly paired with its distinguishing finding?",
+   "choices": [
+    "Ethylene glycol with calcium oxalate crystals in the urine",
+    "Diarrhea with an elevated urine anion gap on testing",
+    "Renal tubular acidosis with a markedly high serum chloride",
+    "Vomiting with hypochloremia and a low urine chloride level"
+   ]
+  },
+  {
+   "id": "med-clin-im.l10.q4",
+   "lessonId": "med-clin-im.l10",
+   "kind": "mcq",
+   "prompt": "A 62-year-old malnourished alcoholic with sodium of 108 mEq/L is treated and over 24 hours his sodium rises to 126 mEq/L. Days later he develops dysarthria and flaccid quadriparesis. What is the most likely mechanism?",
+   "choices": [
+    "Hypertensive encephalopathy from the fluid administration",
+    "Osmotic demyelination from overly rapid sodium correction",
+    "Cerebral edema from continued free water retention",
+    "Wernicke encephalopathy from untreated thiamine deficiency"
+   ]
+  },
+  {
+   "id": "med-clin-im.l10.q5",
+   "lessonId": "med-clin-im.l10",
+   "kind": "mcq",
+   "prompt": "A 25-year-old woman with bulimia has serum potassium 2.8, bicarbonate 36 and urine chloride 8 mEq/L. What is the best therapy for her alkalosis?",
+   "choices": [
+    "Spironolactone to reverse mineralocorticoid excess",
+    "Dilute hydrochloric acid infused through a central line",
+    "Intravenous normal saline with potassium replacement",
+    "Acetazolamide given to promote bicarbonate excretion"
+   ]
+  },
+  {
+   "id": "med-clin-im.l11.q1",
+   "lessonId": "med-clin-im.l11",
+   "kind": "mcq",
+   "prompt": "Which hemoglobin A1c value meets the diagnostic threshold for diabetes mellitus?",
+   "choices": [
+    "5.7 percent or higher",
+    "7.5 percent or higher",
+    "8.0 percent or higher",
+    "6.5 percent or higher"
+   ]
+  },
+  {
+   "id": "med-clin-im.l11.q2",
+   "lessonId": "med-clin-im.l11",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man with type 2 diabetes has established coronary disease and an A1c slightly above goal. Which addition best lowers his cardiovascular risk?",
+   "choices": [
+    "A thiazolidinedione to improve peripheral sensitivity",
+    "An additional dose of long-acting basal insulin each night",
+    "A GLP-1 receptor agonist or an SGLT2 inhibitor",
+    "A sulfonylurea given with the largest meal of the day"
+   ]
+  },
+  {
+   "id": "med-clin-im.l11.q3",
+   "lessonId": "med-clin-im.l11",
+   "kind": "mcq",
+   "prompt": "A young patient with DKA has a glucose of 520, pH 7.1 and serum potassium 2.9 mEq/L. What should be done before insulin?",
+   "choices": [
+    "Hold fluids to prevent cerebral edema from forming",
+    "Replace potassium and give isotonic fluids first",
+    "Give insulin at once, because glucose is very high",
+    "Give bicarbonate until the pH is above 7.4"
+   ]
+  },
+  {
+   "id": "med-clin-im.l11.q4",
+   "lessonId": "med-clin-im.l11",
+   "kind": "mcq",
+   "prompt": "A 19-year-old man with type 1 diabetes has two days of vomiting and abdominal pain. His glucose is 460 mg/dL, bicarbonate is 9 mEq/L and he breathes deeply and rapidly. Which finding explains the breathing?",
+   "choices": [
+    "Respiratory compensation for anion gap metabolic acidosis",
+    "Primary respiratory alkalosis from anxiety and pain",
+    "Pulmonary embolism causing hypoxemia and tachypnea",
+    "Pneumonia causing restrictive ventilatory impairment"
+   ]
+  },
+  {
+   "id": "med-clin-im.l11.q5",
+   "lessonId": "med-clin-im.l11",
+   "kind": "mcq",
+   "prompt": "A 78-year-old man has glucose 920 mg/dL, calculated osmolality 350 mOsm/kg, a normal pH and negative ketones, and is stuporous. What is the correct first intervention?",
+   "choices": [
+    "Rapid intravenous insulin bolus",
+    "Subcutaneous long-acting insulin",
+    "Oral sulfonylurea at double dose",
+    "Aggressive isotonic fluid resuscitation"
+   ]
+  },
+  {
+   "id": "med-clin-im.l12.q1",
+   "lessonId": "med-clin-im.l12",
+   "kind": "mcq",
+   "prompt": "Which antibody is associated with Hashimoto thyroiditis?",
+   "choices": [
+    "Anti-thyroid peroxidase antibody",
+    "Thyroid-stimulating immunoglobulin",
+    "Anti-acetylcholine receptor antibody",
+    "Anti-mitochondrial antibody"
+   ]
+  },
+  {
+   "id": "med-clin-im.l12.q2",
+   "lessonId": "med-clin-im.l12",
+   "kind": "mcq",
+   "prompt": "A woman taking methimazole for Graves disease develops fever and a sore throat. What is the next best step?",
+   "choices": [
+    "Order a radioiodine uptake scan to assess for relapse",
+    "Check a complete blood count with differential for agranulocytosis",
+    "Increase the methimazole dose to control the hyperthyroidism",
+    "Add a beta-blocker to treat the tachycardia and fever"
+   ]
+  },
+  {
+   "id": "med-clin-im.l12.q3",
+   "lessonId": "med-clin-im.l12",
+   "kind": "mcq",
+   "prompt": "Which sequence is correct before surgery for a pheochromocytoma?",
+   "choices": [
+    "A diuretic first, then an ACE inhibitor if needed",
+    "A calcium blocker first, then a thiazide if needed",
+    "Alpha-blockade first, then a beta-blocker if needed",
+    "Beta-blockade first, then an alpha-blocker if needed"
+   ]
+  },
+  {
+   "id": "med-clin-im.l12.q4",
+   "lessonId": "med-clin-im.l12",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman on long-term prednisone for asthma stops it abruptly and a week later has nausea, fatigue and hypotension. Potassium is normal, sodium is 130 mEq/L. What is the most likely cause?",
+   "choices": [
+    "Primary adrenal failure from autoimmune adrenalitis",
+    "Pituitary apoplexy from hemorrhage into an adenoma",
+    "Hyperaldosteronism from an aldosterone-producing adenoma",
+    "Secondary adrenal insufficiency from suppression of ACTH"
+   ]
+  },
+  {
+   "id": "med-clin-im.l12.q5",
+   "lessonId": "med-clin-im.l12",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman has heat intolerance, weight loss, a diffuse goiter, exophthalmos and a low TSH. Radioactive iodine uptake is diffusely increased. Which finding is likely present?",
+   "choices": [
+    "Thyroid-stimulating immunoglobulins",
+    "Low serum thyroglobulin levels",
+    "Anti-thyroid peroxidase only",
+    "A solitary hot nodule on scan"
+   ]
+  },
+  {
+   "id": "med-clin-im.l13.q1",
+   "lessonId": "med-clin-im.l13",
+   "kind": "mcq",
+   "prompt": "Which laboratory pattern best fits iron deficiency anemia?",
+   "choices": [
+    "High ferritin with ringed sideroblasts on marrow",
+    "Low ferritin with high total iron-binding capacity",
+    "High ferritin with low total iron-binding capacity",
+    "Normal ferritin with a markedly high MCV level"
+   ]
+  },
+  {
+   "id": "med-clin-im.l13.q2",
+   "lessonId": "med-clin-im.l13",
+   "kind": "mcq",
+   "prompt": "A man with a megaloblastic anemia has numbness in the feet and loss of vibration sense. What should be avoided as monotherapy?",
+   "choices": [
+    "Folic acid given without vitamin B12 replacement",
+    "Parenteral cyanocobalamin given with intrinsic factor testing",
+    "Dietary counseling combined with B12 level monitoring",
+    "Treatment of the underlying pernicious anemia process"
+   ]
+  },
+  {
+   "id": "med-clin-im.l13.q3",
+   "lessonId": "med-clin-im.l13",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has microcytic anemia with low ferritin. What is the most important next step?",
+   "choices": [
+    "Start empiric oral iron and recheck the counts in a year",
+    "Order hemoglobin electrophoresis to exclude thalassemia",
+    "Begin vitamin B12 replacement and recheck counts later",
+    "Evaluate the gastrointestinal tract for a bleeding source"
+   ]
+  },
+  {
+   "id": "med-clin-im.l13.q4",
+   "lessonId": "med-clin-im.l13",
+   "kind": "mcq",
+   "prompt": "A 22-year-old man has sudden jaundice and dark urine two days after starting a sulfa antibiotic for infection. His smear shows bite cells and Heinz bodies, and Coombs test is negative. What is the most likely diagnosis?",
+   "choices": [
+    "Warm autoimmune hemolytic anemia from an antibody",
+    "Paroxysmal nocturnal hemoglobinuria with thrombosis",
+    "Glucose-6-phosphate dehydrogenase deficiency",
+    "Hereditary spherocytosis with an aplastic crisis"
+   ]
+  },
+  {
+   "id": "med-clin-im.l13.q5",
+   "lessonId": "med-clin-im.l13",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman of Mediterranean descent has an MCV of 62 fL, a red cell count of 6.1 million per microliter, a normal ferritin and no symptoms. What is the most likely diagnosis?",
+   "choices": [
+    "Sideroblastic anemia",
+    "Beta-thalassemia trait",
+    "Iron deficiency anemia",
+    "Anemia of chronic disease"
+   ]
+  },
+  {
+   "id": "med-clin-im.l14.q1",
+   "lessonId": "med-clin-im.l14",
+   "kind": "mcq",
+   "prompt": "Which disorder causes a prolonged aPTT with a normal PT and X-linked inheritance?",
+   "choices": [
+    "Vitamin K deficiency with low factor VII levels",
+    "Immune thrombocytopenia with a low platelet count",
+    "Hemophilia A due to factor VIII deficiency",
+    "Von Willebrand disease with low factor VIII activity"
+   ]
+  },
+  {
+   "id": "med-clin-im.l14.q2",
+   "lessonId": "med-clin-im.l14",
+   "kind": "mcq",
+   "prompt": "Which treatment is specific for thrombotic thrombocytopenic purpura?",
+   "choices": [
+    "Platelet transfusion",
+    "Splenectomy alone",
+    "Oral prednisone alone",
+    "Urgent plasma exchange"
+   ]
+  },
+  {
+   "id": "med-clin-im.l14.q3",
+   "lessonId": "med-clin-im.l14",
+   "kind": "mcq",
+   "prompt": "A patient bleeds on warfarin with an INR of 9. Which reversal gives the fastest effect for life-threatening bleeding?",
+   "choices": [
+    "Four-factor prothrombin complex concentrate with vitamin K",
+    "Vitamin K given alone by the oral route",
+    "Protamine sulfate given by slow intravenous infusion",
+    "Platelet transfusion given as a rapid single unit"
+   ]
+  },
+  {
+   "id": "med-clin-im.l14.q4",
+   "lessonId": "med-clin-im.l14",
+   "kind": "mcq",
+   "prompt": "A 62-year-old woman on heparin after surgery has her platelet count fall from 280,000 to 90,000 on day 7, and she develops a new leg deep venous thrombosis. What is the next best step?",
+   "choices": [
+    "Transfuse fresh frozen plasma to replace factors",
+    "Stop heparin and begin argatroban or fondaparinux",
+    "Continue heparin and add a platelet transfusion",
+    "Switch to warfarin immediately as monotherapy"
+   ]
+  },
+  {
+   "id": "med-clin-im.l14.q5",
+   "lessonId": "med-clin-im.l14",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman has fever, confusion, a platelet count of 18,000, a hemoglobin of 8 g/dL, and schistocytes. Her PT and aPTT are normal and her creatinine is mildly raised. What is the likely mechanism?",
+   "choices": [
+    "Antibodies against platelet glycoprotein IIb/IIIa receptors",
+    "Antibodies against heparin and platelet factor 4 complexes",
+    "Severely deficient ADAMTS13 activity causing platelet-rich microthrombi",
+    "Consumption of clotting factors with a very low fibrinogen"
+   ]
+  },
+  {
+   "id": "med-clin-im.l15.q1",
+   "lessonId": "med-clin-im.l15",
+   "kind": "mcq",
+   "prompt": "At what ages does the USPSTF recommend routine colorectal cancer screening for average-risk adults (2021)?",
+   "choices": [
+    "50 to 80 years",
+    "40 to 70 years",
+    "55 to 85 years",
+    "45 to 75 years"
+   ]
+  },
+  {
+   "id": "med-clin-im.l15.q2",
+   "lessonId": "med-clin-im.l15",
+   "kind": "mcq",
+   "prompt": "A 62-year-old woman has a lung mass, hyponatremia with concentrated urine, and proximal muscle weakness that improves with repeated use. What is the likely tumor?",
+   "choices": [
+    "Lung adenocarcinoma in situ",
+    "Large cell neuroendocrine tumor",
+    "Small cell lung carcinoma",
+    "Squamous cell lung carcinoma"
+   ]
+  },
+  {
+   "id": "med-clin-im.l15.q3",
+   "lessonId": "med-clin-im.l15",
+   "kind": "mcq",
+   "prompt": "A 56-year-old man smoked 30 pack-years and quit 5 years ago. Which screening is recommended?",
+   "choices": [
+    "No screening because he stopped smoking",
+    "Annual low-dose CT of the chest",
+    "A yearly chest radiograph with sputum cytology",
+    "A single PSA level without discussion"
+   ]
+  },
+  {
+   "id": "med-clin-im.l15.q4",
+   "lessonId": "med-clin-im.l15",
+   "kind": "mcq",
+   "prompt": "A 66-year-old man with pancreatic adenocarcinoma has recurrent migratory superficial venous thromboses and a new swollen calf. What is the best explanation?",
+   "choices": [
+    "Trousseau syndrome from a tumor-related hypercoagulable state",
+    "Paroxysmal nocturnal hemoglobinuria with intravascular hemolysis",
+    "Lambert-Eaton syndrome from antibodies to calcium channels",
+    "Antiphospholipid syndrome from inherited protein C deficiency"
+   ]
+  },
+  {
+   "id": "med-clin-im.l15.q5",
+   "lessonId": "med-clin-im.l15",
+   "kind": "mcq",
+   "prompt": "A screening test advances the time of diagnosis of a cancer by two years but does not change the date of death. Which bias explains the apparent improvement in survival?",
+   "choices": [
+    "Length-time bias",
+    "Recall bias",
+    "Selection bias",
+    "Lead-time bias"
+   ]
+  },
+  {
+   "id": "med-clin-im.l16.q1",
+   "lessonId": "med-clin-im.l16",
+   "kind": "mcq",
+   "prompt": "Which translocation produces BCR-ABL in chronic myeloid leukemia?",
+   "choices": [
+    "t(9;22), the Philadelphia chromosome",
+    "t(15;17) of acute promyelocytic leukemia",
+    "t(8;14) of Burkitt lymphoma",
+    "t(14;18) of follicular lymphoma"
+   ]
+  },
+  {
+   "id": "med-clin-im.l16.q2",
+   "lessonId": "med-clin-im.l16",
+   "kind": "mcq",
+   "prompt": "A man with a high-grade lymphoma receives chemotherapy and develops potassium 6.4, phosphate 8.5, calcium 6.5 and uric acid 14 within two days. What is the diagnosis?",
+   "choices": [
+    "Adrenal crisis from chemotherapy",
+    "Tumor lysis syndrome",
+    "Hypercalcemia of malignancy",
+    "Syndrome of inappropriate ADH"
+   ]
+  },
+  {
+   "id": "med-clin-im.l16.q3",
+   "lessonId": "med-clin-im.l16",
+   "kind": "mcq",
+   "prompt": "Which feature defines febrile neutropenia management?",
+   "choices": [
+    "Oral antibiotics only for all stable patients at home",
+    "Antifungal therapy as the sole first-line empiric agent",
+    "Empiric antipseudomonal beta-lactam started within an hour",
+    "Waiting for cultures to guide the first antibiotic dose"
+   ]
+  },
+  {
+   "id": "med-clin-im.l16.q4",
+   "lessonId": "med-clin-im.l16",
+   "kind": "mcq",
+   "prompt": "A 64-year-old man with prostate cancer has two weeks of back pain, and now has leg weakness and urinary retention. What is the next best step?",
+   "choices": [
+    "Outpatient physical therapy for the weakness and pain",
+    "A bone scan to be scheduled during the next week",
+    "Opioid analgesia with follow-up in a clinic visit",
+    "High-dose dexamethasone and urgent MRI of the entire spine"
+   ]
+  },
+  {
+   "id": "med-clin-im.l16.q5",
+   "lessonId": "med-clin-im.l16",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman with fever, gingival bleeding and pancytopenia has blasts with Auer rods, a prolonged PT and aPTT, low fibrinogen and a t(15;17). What should be given immediately?",
+   "choices": [
+    "All-trans retinoic acid",
+    "Intravenous imatinib",
+    "Platelet transfusion alone",
+    "Rituximab with cyclophosphamide"
+   ]
+  },
+  {
+   "id": "med-clin-im.l17.q1",
+   "lessonId": "med-clin-im.l17",
+   "kind": "mcq",
+   "prompt": "Which vasopressor is recommended first-line for septic shock?",
+   "choices": [
+    "Vasopressin",
+    "Norepinephrine",
+    "Dopamine",
+    "Phenylephrine"
+   ]
+  },
+  {
+   "id": "med-clin-im.l17.q2",
+   "lessonId": "med-clin-im.l17",
+   "kind": "mcq",
+   "prompt": "A 68-year-old with meningitis symptoms needs empiric treatment. Which regimen covers the likely organisms?",
+   "choices": [
+    "Vancomycin, ceftriaxone and ampicillin plus dexamethasone",
+    "Ceftriaxone alone given with oral acyclovir therapy",
+    "Ampicillin alone with a delayed lumbar puncture result",
+    "Vancomycin alone with an oral fluoroquinolone added"
+   ]
+  },
+  {
+   "id": "med-clin-im.l17.q3",
+   "lessonId": "med-clin-im.l17",
+   "kind": "mcq",
+   "prompt": "Cerebrospinal fluid shows 1,200 neutrophils per microliter, glucose 20 mg/dL, and protein 280 mg/dL. What is the likely diagnosis?",
+   "choices": [
+    "Viral meningitis",
+    "Tuberculous meningitis",
+    "Guillain-Barre syndrome",
+    "Bacterial meningitis"
+   ]
+  },
+  {
+   "id": "med-clin-im.l17.q4",
+   "lessonId": "med-clin-im.l17",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman with fever, confusion and neck stiffness has a papilledema on fundoscopy. What should happen first?",
+   "choices": [
+    "CT of the head with antibiotics delayed until results return",
+    "Admission for observation with antibiotics only if cultures grow",
+    "Blood cultures, then antibiotics and dexamethasone before CT",
+    "Lumbar puncture immediately in the emergency department room"
+   ]
+  },
+  {
+   "id": "med-clin-im.l17.q5",
+   "lessonId": "med-clin-im.l17",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman has profuse watery diarrhea, a white count of 25,000 and fever after treatment for pneumonia with clindamycin. Stool toxin is positive. What is the preferred initial treatment?",
+   "choices": [
+    "Oral vancomycin only for the second week of therapy",
+    "Oral fidaxomicin and stopping the inciting antibiotic",
+    "Oral loperamide to slow stool output and relieve cramping",
+    "Intravenous metronidazole alone for first episode disease"
+   ]
+  },
+  {
+   "id": "med-clin-im.l18.q1",
+   "lessonId": "med-clin-im.l18",
+   "kind": "mcq",
+   "prompt": "Which test is recommended first for HIV screening?",
+   "choices": [
+    "A CD4 count and flow cytometry panel",
+    "A qualitative urine antibody test for HIV",
+    "A fourth-generation antigen and antibody assay",
+    "A western blot assay for HIV antibodies"
+   ]
+  },
+  {
+   "id": "med-clin-im.l18.q2",
+   "lessonId": "med-clin-im.l18",
+   "kind": "mcq",
+   "prompt": "A man with HIV has a CD4 count of 90 cells per microliter, and a headache with ring-enhancing brain lesions on MRI and positive Toxoplasma IgG. What is the best therapy?",
+   "choices": [
+    "Amphotericin B for presumed cryptococcal meningitis",
+    "Whole-brain radiation for suspected primary lymphoma",
+    "Isoniazid-based therapy for a presumed tuberculoma",
+    "Pyrimethamine and sulfadiazine for toxoplasmosis"
+   ]
+  },
+  {
+   "id": "med-clin-im.l18.q3",
+   "lessonId": "med-clin-im.l18",
+   "kind": "mcq",
+   "prompt": "Which adverse effect of isoniazid can be prevented with a vitamin supplement?",
+   "choices": [
+    "Peripheral neuropathy prevented with pyridoxine",
+    "Optic neuritis prevented with riboflavin",
+    "Hyperuricemia prevented with folic acid",
+    "Orange secretions prevented with vitamin C"
+   ]
+  },
+  {
+   "id": "med-clin-im.l18.q4",
+   "lessonId": "med-clin-im.l18",
+   "kind": "mcq",
+   "prompt": "A 38-year-old man with HIV and a CD4 count of 120 has three weeks of dry cough and exertional dyspnea. Oxygen saturation drops on walking, LDH is high, and the chest film shows bilateral interstitial infiltrates. Which is the best treatment?",
+   "choices": [
+    "Fluconazole for suspected disseminated histoplasmosis",
+    "TMP-SMX with corticosteroids if hypoxemic",
+    "Azithromycin and ceftriaxone for typical pneumonia only",
+    "Isoniazid, rifampin, pyrazinamide and ethambutol"
+   ]
+  },
+  {
+   "id": "med-clin-im.l18.q5",
+   "lessonId": "med-clin-im.l18",
+   "kind": "mcq",
+   "prompt": "A man receiving rifampin, isoniazid, pyrazinamide and ethambutol for active tuberculosis reports that his vision appears blurry, with trouble seeing red and green. Which drug is responsible?",
+   "choices": [
+    "Pyrazinamide",
+    "Isoniazid",
+    "Ethambutol",
+    "Rifampin"
+   ]
+  },
+  {
+   "id": "med-clin-im.l19.q1",
+   "lessonId": "med-clin-im.l19",
+   "kind": "mcq",
+   "prompt": "What do crystals of monosodium urate look like under polarized light?",
+   "choices": [
+    "Rhomboid-shaped and positively birefringent",
+    "Needle-shaped and positively birefringent",
+    "Rhomboid-shaped and negatively birefringent",
+    "Needle-shaped and negatively birefringent"
+   ]
+  },
+  {
+   "id": "med-clin-im.l19.q2",
+   "lessonId": "med-clin-im.l19",
+   "kind": "mcq",
+   "prompt": "Which antibody is most specific for systemic lupus erythematosus?",
+   "choices": [
+    "Anti-histone antibody",
+    "Rheumatoid factor",
+    "Anti-Smith antibody",
+    "Antinuclear antibody"
+   ]
+  },
+  {
+   "id": "med-clin-im.l19.q3",
+   "lessonId": "med-clin-im.l19",
+   "kind": "mcq",
+   "prompt": "Before starting a biologic for rheumatoid arthritis, which infection should be screened for?",
+   "choices": [
+    "Helicobacter pylori and Giardia lamblia",
+    "Latent tuberculosis and hepatitis B",
+    "Cytomegalovirus and parvovirus B19",
+    "Lyme disease and cat scratch disease"
+   ]
+  },
+  {
+   "id": "med-clin-im.l19.q4",
+   "lessonId": "med-clin-im.l19",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman has a new headache, scalp tenderness, jaw pain on chewing and an ESR of 95 mm/hour. She has transient blurred vision in the left eye. What is the next best step?",
+   "choices": [
+    "High-dose glucocorticoids now, then temporal artery biopsy",
+    "Temporal artery biopsy first, then glucocorticoids",
+    "Oral NSAIDs and a follow-up visit in one week",
+    "A brain MRI and treatment only if results are abnormal"
+   ]
+  },
+  {
+   "id": "med-clin-im.l19.q5",
+   "lessonId": "med-clin-im.l19",
+   "kind": "mcq",
+   "prompt": "A 56-year-old man has an acutely hot swollen knee, a temperature of 38.7 C and a synovial white cell count of 85,000 per microliter. Crystals are negative. What is the next best step?",
+   "choices": [
+    "Intra-articular corticosteroid injection for symptom relief",
+    "Oral colchicine for a presumed gout flare of the knee",
+    "Allopurinol started to lower the serum uric acid level",
+    "Intravenous antibiotics and joint drainage after cultures"
+   ]
+  },
+  {
+   "id": "med-clin-im.l20.q1",
+   "lessonId": "med-clin-im.l20",
+   "kind": "mcq",
+   "prompt": "Which bone mineral density T-score defines osteoporosis?",
+   "choices": [
+    "Minus 1.0 or lower",
+    "Minus 1.5 or lower",
+    "Minus 4.0 or lower",
+    "Minus 2.5 or lower"
+   ]
+  },
+  {
+   "id": "med-clin-im.l20.q2",
+   "lessonId": "med-clin-im.l20",
+   "kind": "mcq",
+   "prompt": "An 84-year-old woman becomes confused and agitated over two days of hospitalization for pneumonia. Which approach is best?",
+   "choices": [
+    "Give a high-dose antipsychotic regularly for sleep",
+    "Attribute the change to dementia and observe quietly",
+    "Seek causes and use nonpharmacologic measures first",
+    "Start a scheduled benzodiazepine for the agitation"
+   ]
+  },
+  {
+   "id": "med-clin-im.l20.q3",
+   "lessonId": "med-clin-im.l20",
+   "kind": "mcq",
+   "prompt": "Which drug is a typical Beers Criteria example of a potentially inappropriate agent in older adults?",
+   "choices": [
+    "Donepezil for Alzheimer disease",
+    "Diphenhydramine for insomnia",
+    "Acetaminophen for osteoarthritis",
+    "Low-dose lisinopril for hypertension"
+   ]
+  },
+  {
+   "id": "med-clin-im.l20.q4",
+   "lessonId": "med-clin-im.l20",
+   "kind": "mcq",
+   "prompt": "A 77-year-old man has progressive memory decline, a broad-based shuffling gait and urinary urgency with incontinence. CT shows enlarged ventricles without prominent sulcal atrophy. What is the likely diagnosis?",
+   "choices": [
+    "Normal pressure hydrocephalus",
+    "Alzheimer disease at a typical stage",
+    "Lewy body dementia with parkinsonism",
+    "Vascular dementia after multiple strokes"
+   ]
+  },
+  {
+   "id": "med-clin-im.l20.q5",
+   "lessonId": "med-clin-im.l20",
+   "kind": "mcq",
+   "prompt": "A frail 88-year-old with advanced dementia and a life expectancy under a year is due for repeat colonoscopy. What is the best reasoning?",
+   "choices": [
+    "Screening should continue because age alone is not a factor",
+    "A colonoscopy is needed for any patient who is due on time",
+    "A stool test should be repeated each month to compensate",
+    "Benefit takes years, so screening is generally not advised"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,217 @@
+{
+ "cols": 4,
+ "rows": 4,
+ "cell": 256,
+ "source": "chora_mouths_raw.png",
+ "side": null,
+ "states": [
+  {
+   "name": "rest_frown",
+   "col": 0,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "smile_small",
+   "col": 1,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "smile_wide",
+   "col": 2,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "smirk",
+   "col": 3,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.8867
+   ]
+  },
+  {
+   "name": "sad",
+   "col": 0,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "flat",
+   "col": 1,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "viseme_A",
+   "col": 2,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "viseme_E",
+   "col": 3,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "viseme_I",
+   "col": 0,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "viseme_O",
+   "col": 1,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "viseme_U",
+   "col": 2,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "viseme_FV",
+   "col": 3,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "viseme_L",
+   "col": 0,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9141
+   ]
+  },
+  {
+   "name": "laugh",
+   "col": 1,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "shout",
+   "col": 2,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.9219
+   ]
+  },
+  {
+   "name": "tongue_out",
+   "col": 3,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9062,
+    0.9219
+   ]
+  }
+ ]
+}

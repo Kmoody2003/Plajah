@@ -1,0 +1,410 @@
+{
+  "schema": "plajah-kjv-alignment-metadata-v1",
+  "title": "CrossWire KJV 3.1 OSIS word tags",
+  "source": "https://gitlab.com/crosswire-bible-society/kjv",
+  "sourceFile": "kjv.osis.xml",
+  "sourceSha256": "4bcbfe45722fca396adbeac9c81025bbb173cb1e30296da90864f0400cb0e3f5",
+  "checked": "2026-10-06",
+  "rights": "CrossWire Bible Society © 2003–2023. Distribution marked GPL; source notice grants use of this text for any purpose. Complete original OSIS source and attribution retained alongside derived files.",
+  "verses": 31102,
+  "strongIds": 14075,
+  "counting": "Counts are tagged English segments containing a Strong identifier, not original-language token frequency. Multi-word and multi-lemma groups remain intact.",
+  "files": [
+    {
+      "file": "kjv-1.json",
+      "verses": 1533,
+      "bytes": 1771284,
+      "sha256": "f22944a7a42c609b5cff6214116a90504bf15a47ca57e77a7dc21c2cfeb4502a"
+    },
+    {
+      "file": "kjv-2.json",
+      "verses": 1213,
+      "bytes": 1443947,
+      "sha256": "8eb178f2226b38ffde5ed41eaf85f00155acf5c03f3357cb9ebb5d58b2db3fa2"
+    },
+    {
+      "file": "kjv-3.json",
+      "verses": 859,
+      "bytes": 994619,
+      "sha256": "8ae4f390dcdd08ceefb43af71ef23ada3228912a341d67e1f87fde2fa5b3cd89"
+    },
+    {
+      "file": "kjv-4.json",
+      "verses": 1288,
+      "bytes": 1478247,
+      "sha256": "308c7cf22d15fbfe535a8483bb06bd2e2fea5dc89965b08e78db93eb939c6f9a"
+    },
+    {
+      "file": "kjv-5.json",
+      "verses": 959,
+      "bytes": 1181248,
+      "sha256": "8eaad16b38ed3604a855d75bb541da3866e69afbd07d3ae2ceb82320f8af8e86"
+    },
+    {
+      "file": "kjv-6.json",
+      "verses": 658,
+      "bytes": 854295,
+      "sha256": "db9954c5a9905b3b1349ef248408b403f947ed3771a4d52706c8f4c580dfb6ab"
+    },
+    {
+      "file": "kjv-7.json",
+      "verses": 618,
+      "bytes": 853948,
+      "sha256": "8d967a153d8938d308524f8686b0a7c77858b5c5335651e15bd34533cd1a62d2"
+    },
+    {
+      "file": "kjv-8.json",
+      "verses": 85,
+      "bytes": 109272,
+      "sha256": "c4ecf749da7749a8a38e0aab96a5aedbe5330d14a27179a61a16fa96702d1308"
+    },
+    {
+      "file": "kjv-9.json",
+      "verses": 810,
+      "bytes": 1138699,
+      "sha256": "73f8c76189564933e4f281a06fa76f1aef3ff8c09145982b1d9f612d7395ea66"
+    },
+    {
+      "file": "kjv-10.json",
+      "verses": 695,
+      "bytes": 948623,
+      "sha256": "51599b9f22fe317a44dec2057390731f6e2047c8951c04ca30133e1690e16e39"
+    },
+    {
+      "file": "kjv-11.json",
+      "verses": 816,
+      "bytes": 1133983,
+      "sha256": "a183cd4889a456c7ff8d031021471bd02f8c826730805286cb2461b2ff405ffa"
+    },
+    {
+      "file": "kjv-12.json",
+      "verses": 719,
+      "bytes": 1069109,
+      "sha256": "e9694858dba5668300ee9b7a054422fc275a45cc019ec5a17cb5ed730c4ed6ca"
+    },
+    {
+      "file": "kjv-13.json",
+      "verses": 942,
+      "bytes": 1002479,
+      "sha256": "fab41f1fb6f9e0c7ffe4f04a57bc0e67e78ed40dc7fc412e6737fa73890baa89"
+    },
+    {
+      "file": "kjv-14.json",
+      "verses": 822,
+      "bytes": 1199686,
+      "sha256": "7c7d481e5e5d3e1de59c38bbc2cd4ee5645337f37b8bbfb438174ed5f2c85d55"
+    },
+    {
+      "file": "kjv-15.json",
+      "verses": 280,
+      "bytes": 371601,
+      "sha256": "6b359042e71483afc1d05a3b34bfdbd9039aa544288253e58756964e87bd6622"
+    },
+    {
+      "file": "kjv-16.json",
+      "verses": 406,
+      "bytes": 493952,
+      "sha256": "0f1f093ea247f06ecc48471b02b10cd9fa4758cd37da870121896859570fcc50"
+    },
+    {
+      "file": "kjv-17.json",
+      "verses": 167,
+      "bytes": 266469,
+      "sha256": "884f686f5e5ce4d1929f5579b7563fc70c30a860284141a325a4a1c9e21d5136"
+    },
+    {
+      "file": "kjv-18.json",
+      "verses": 1070,
+      "bytes": 767069,
+      "sha256": "9e2e217685b2bea193dedea7a7cef211dd1f0f4c70d6fb730ca67dbcd3741eea"
+    },
+    {
+      "file": "kjv-19.json",
+      "verses": 2461,
+      "bytes": 1873309,
+      "sha256": "52c1b2ed678e2de36bdcb9b8f79018f6d6585812fcd90a10131685f10545dcc4"
+    },
+    {
+      "file": "kjv-20.json",
+      "verses": 915,
+      "bytes": 705443,
+      "sha256": "792152c6db8791529e18e0d572a7aef1d1b34050a8c1868216dde683ae1b01aa"
+    },
+    {
+      "file": "kjv-21.json",
+      "verses": 222,
+      "bytes": 242945,
+      "sha256": "a41436d587e092c1899bc5938cad6a405f8315505abf8e9c0340b11a1f8bad89"
+    },
+    {
+      "file": "kjv-22.json",
+      "verses": 117,
+      "bytes": 117433,
+      "sha256": "400f7672444ddaa98b6476a8049cf5849e55ae1ab0340536176522abc938f961"
+    },
+    {
+      "file": "kjv-23.json",
+      "verses": 1292,
+      "bytes": 1578693,
+      "sha256": "3380cf57584e5627ba0b966cdf3f8a925559d4632e8a666429686bb66090ad19"
+    },
+    {
+      "file": "kjv-24.json",
+      "verses": 1364,
+      "bytes": 1842479,
+      "sha256": "2db5366750283d623684549c5303eb2484f5fc0922536838b7a04219b2de5a8e"
+    },
+    {
+      "file": "kjv-25.json",
+      "verses": 154,
+      "bytes": 149626,
+      "sha256": "be8c5fb20e0fd5ab533306811f70f039393d3737563017f3eeec117000800fac"
+    },
+    {
+      "file": "kjv-26.json",
+      "verses": 1273,
+      "bytes": 1640803,
+      "sha256": "268a3df7dc6bca611dd0067080203cd2ffa4ab0bccfe91c7faafb91fb41f7f60"
+    },
+    {
+      "file": "kjv-27.json",
+      "verses": 357,
+      "bytes": 583668,
+      "sha256": "bae04cab34a8eaf4d579d547197887be94ca7cde51f444b335d44f4df0b078b9"
+    },
+    {
+      "file": "kjv-28.json",
+      "verses": 197,
+      "bytes": 215176,
+      "sha256": "9e03f9193f51ea1a6d5816db9122e62dc9203b6ef8328771a4bc77e1bf3db8a2"
+    },
+    {
+      "file": "kjv-29.json",
+      "verses": 73,
+      "bytes": 89891,
+      "sha256": "4865598e46297ac41b89d0f95725dc7dd18f7b5f7bff8167a879633946a137cc"
+    },
+    {
+      "file": "kjv-30.json",
+      "verses": 146,
+      "bytes": 185191,
+      "sha256": "7d386866fde1dbe19751e599a6ffe5a064049b8ee3048906d447e66b32409e4c"
+    },
+    {
+      "file": "kjv-31.json",
+      "verses": 21,
+      "bytes": 26277,
+      "sha256": "16de910c11624395e9298645688fcd14b76f9397386adf38c06b43a83bbbeba4"
+    },
+    {
+      "file": "kjv-32.json",
+      "verses": 48,
+      "bytes": 58926,
+      "sha256": "6c56f170614068b748b500aa36a7c6fccf2e562e021dd84e3e2ba17776dd4832"
+    },
+    {
+      "file": "kjv-33.json",
+      "verses": 105,
+      "bytes": 129760,
+      "sha256": "2007da6f9cb1a7e0da5bb22f30bf39a0f175d091a582f1cba14b61ad97cd3fa3"
+    },
+    {
+      "file": "kjv-34.json",
+      "verses": 47,
+      "bytes": 55352,
+      "sha256": "69da0ccbbf7d09416528a7b301b649de958086e1447a8efa9d6e60c847ffbda4"
+    },
+    {
+      "file": "kjv-35.json",
+      "verses": 56,
+      "bytes": 63967,
+      "sha256": "d3856cfce53fcc7d88071b0ecf666491ed2165a9a7e3f4b9be21fba12d65a4df"
+    },
+    {
+      "file": "kjv-36.json",
+      "verses": 53,
+      "bytes": 69607,
+      "sha256": "1aea85ba21f4d634934200dc3d4810ff60e68ea25878efa9ac444d3717bc1bc2"
+    },
+    {
+      "file": "kjv-37.json",
+      "verses": 38,
+      "bytes": 51786,
+      "sha256": "26b6b10e80181e5bd8428096535292707713cc880d012538cd0063a974850a87"
+    },
+    {
+      "file": "kjv-38.json",
+      "verses": 211,
+      "bytes": 272339,
+      "sha256": "da743856b9449904592665433a4b0ce9c78b03773e173ae34e03a64ba41bf10b"
+    },
+    {
+      "file": "kjv-39.json",
+      "verses": 55,
+      "bytes": 75614,
+      "sha256": "08aac5bce308fcade2e4a0d75f2bf26d1c21cfd52c6ccf1772d76dd31ad84096"
+    },
+    {
+      "file": "kjv-40.json",
+      "verses": 1071,
+      "bytes": 2551059,
+      "sha256": "224c37f8b8f2319898156c38db32ec862dc530cb7d3573c27e788be56f16f6d8"
+    },
+    {
+      "file": "kjv-41.json",
+      "verses": 678,
+      "bytes": 1576382,
+      "sha256": "dae9d249e2587d15a457e1dda5d4cc2c90e1cefc5224fad3e361c0e7707403e0"
+    },
+    {
+      "file": "kjv-42.json",
+      "verses": 1151,
+      "bytes": 2723564,
+      "sha256": "1393c2e3c434e9aadb621b4af311a2526d66cb934087ac869816b9ccae06d4e4"
+    },
+    {
+      "file": "kjv-43.json",
+      "verses": 879,
+      "bytes": 2122211,
+      "sha256": "b4ca638d875972914456fb37f849bbd78d9e30167f4a6b2d0d81b64be52a5dff"
+    },
+    {
+      "file": "kjv-44.json",
+      "verses": 1007,
+      "bytes": 2544986,
+      "sha256": "42fbd6fe12d4efed110ba99c8ad101091372ffd1cdc4d1198274c1fafc6a38d5"
+    },
+    {
+      "file": "kjv-45.json",
+      "verses": 433,
+      "bytes": 982887,
+      "sha256": "9ff06fa97bfb47b4ccbfa2c1c4b82c0c4207263117f67fd610b7dd3c7ef94d08"
+    },
+    {
+      "file": "kjv-46.json",
+      "verses": 437,
+      "bytes": 950852,
+      "sha256": "fe80eb22857ebd6d557fb1d54f40ed63fc1dfc511e7731ce29be03a64fa019c1"
+    },
+    {
+      "file": "kjv-47.json",
+      "verses": 257,
+      "bytes": 618143,
+      "sha256": "1d970cdd8384178552b4d6b14af4193847b445e0e6a8275a14eb63183e854d31"
+    },
+    {
+      "file": "kjv-48.json",
+      "verses": 149,
+      "bytes": 313620,
+      "sha256": "778c15be41eefe85120c536d74cc15d4d57ec77e54fabbe52d76a72608c1f161"
+    },
+    {
+      "file": "kjv-49.json",
+      "verses": 155,
+      "bytes": 325409,
+      "sha256": "3c601c261f51ce71843ddc109052c70b735ca85b7dd6e2d7d637f23ce13407d6"
+    },
+    {
+      "file": "kjv-50.json",
+      "verses": 104,
+      "bytes": 228648,
+      "sha256": "b1f50644f907e9de72d951213c81f7a5d1997546d5bbb4ba067a85feead0a4a5"
+    },
+    {
+      "file": "kjv-51.json",
+      "verses": 95,
+      "bytes": 215546,
+      "sha256": "3634ef559a985d383911cfd59d605fb77c0462202b926743c3c7c5562d73962d"
+    },
+    {
+      "file": "kjv-52.json",
+      "verses": 89,
+      "bytes": 203324,
+      "sha256": "25cef3b532807ef4ca713e6caf0b7efd011982c86ebc4577cc030771962f2bef"
+    },
+    {
+      "file": "kjv-53.json",
+      "verses": 47,
+      "bytes": 113105,
+      "sha256": "6d43ba8d9bb3b51696848a459a08959d296b23c71ad3a233226a0eb1c8ab5694"
+    },
+    {
+      "file": "kjv-54.json",
+      "verses": 113,
+      "bytes": 230174,
+      "sha256": "d0950176f2ff5327888bf5344a3fcca3c2fdfd984c322ab65efc55d762bc32cd"
+    },
+    {
+      "file": "kjv-55.json",
+      "verses": 83,
+      "bytes": 173726,
+      "sha256": "e2cb0a897b84f236dec3fbc99be2438138e8e2e3706245b27e625a379a8ee096"
+    },
+    {
+      "file": "kjv-56.json",
+      "verses": 46,
+      "bytes": 94451,
+      "sha256": "ea6883bf6563017928af4b3ad2ecfbe45a99e14254d83b0a48fb0938a5fb2f9e"
+    },
+    {
+      "file": "kjv-57.json",
+      "verses": 25,
+      "bytes": 47437,
+      "sha256": "c424cc0a243f339d8414a4c2610adfcc4228d86b75543a530e1d6ce5c43db123"
+    },
+    {
+      "file": "kjv-58.json",
+      "verses": 303,
+      "bytes": 704982,
+      "sha256": "d35f4fff0928d3aef031796737f9bf9d3268ba8597255d378a2728492fa1794b"
+    },
+    {
+      "file": "kjv-59.json",
+      "verses": 108,
+      "bytes": 239718,
+      "sha256": "dd31a55ff3e6fdd4f4563c445d434919a018f33f228e54e6b2d994c6ba5554da"
+    },
+    {
+      "file": "kjv-60.json",
+      "verses": 105,
+      "bytes": 240851,
+      "sha256": "c3d8d167a2a13b80d292d253c70c967901427a0355777c08fb9cd6651e651537"
+    },
+    {
+      "file": "kjv-61.json",
+      "verses": 61,
+      "bytes": 157207,
+      "sha256": "9ee8282df024edd8e452cdb97bd2e24c2d27a5baca7625871169375a5d887715"
+    },
+    {
+      "file": "kjv-62.json",
+      "verses": 105,
+      "bytes": 282545,
+      "sha256": "0b29ecd17662e354d8ec1386fd11b5b184519b273533adec866884829542547a"
+    },
+    {
+      "file": "kjv-63.json",
+      "verses": 13,
+      "bytes": 33391,
+      "sha256": "ab390968494a3754c253b62d5dc17df41096981f07b15435e4f27c11ed810bfb"
+    },
+    {
+      "file": "kjv-64.json",
+      "verses": 14,
+      "bytes": 30385,
+      "sha256": "3f9be47e21fc49032463b8da90cf95425ba332bf300e691c74f6e9b9c416a8a0"
+    },
+    {
+      "file": "kjv-65.json",
+      "verses": 25,
+      "bytes": 65884,
+      "sha256": "81ca9d00344a0e17557e0353eb314356b23b7a68efc8cc6a41c146dcd1645179"
+    },
+    {
+      "file": "kjv-66.json",
+      "verses": 404,
+      "bytes": 1291887,
+      "sha256": "8463bdfb242d759e02ce8491166e7685d4183f3e7884abedbdba259659a51c59"
+    }
+  ]
+}

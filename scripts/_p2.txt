@@ -1,0 +1,50 @@
+Probable cause that a crime has been or is being committed by the person stopped ||| Probable cause to believe the person stopped has committed, or is about to commit, a specific crime
+An unparticularized hunch that is sufficient to warrant a brief question ||| An inchoate hunch of wrongdoing, which suffices for a brief detention so long as the stop stays short
+A reasonable belief that the person is armed and dangerous to officers or others ||| A reasonable belief that the person is armed and dangerous, which is required before any stop may begin
+Lawful, because a short delay is de minimis and a dog sniff is not a search ||| Lawful, because a brief extension of a few minutes is a de minimis intrusion and a dog sniff is not a search
+Lawful, because the officer had probable cause for the initial traffic violation ||| Lawful, because probable cause for the initial traffic violation lets the officer hold the car as long as needed
+Unlawful, only if the driver objected to the delay and asked to leave ||| Unlawful, only if the driver objected to the delay and expressly asked to be allowed to leave
+Denied, because a report of a firearm always justifies an immediate frisk to protect public safety ||| Denied, because any report that a person is carrying a firearm justifies an immediate frisk, regardless of how reliable the tipster is
+Denied, because the officers confirmed that the man matched the description in the tip ||| Denied, because the officers confirmed that the man matched the description of his clothing and location in the tip
+Granted, because a frisk requires probable cause when it follows an anonymous tip ||| Granted, because a frisk that follows an anonymous tip requires probable cause that the person is armed, not mere suspicion
+Granted, because only the driver may be seized for a traffic violation ||| Granted, because only the driver is seized during a traffic stop, so officers had no authority over the passenger at all
+Granted, because a frisk of a passenger always requires probable cause ||| Granted, because frisking a passenger requires probable cause rather than reasonable suspicion, even when armed danger is believed
+Denied, because a passenger has no standing to complain of any aspect of the stop ||| Denied, because a passenger has no standing to complain about any aspect of the stop or the frisk that followed
+Suppression of only the item first seized unlawfully and nothing discovered afterward ||| Suppression of only the item first seized unlawfully, with no reach to anything discovered afterward as a result
+Admission of any evidence that the police would eventually have found by chance ||| Admission of any evidence that police might have stumbled onto eventually, even without a causal link to the illegality
+A bar on the use of tainted evidence to impeach a defendant who testifies ||| A bar on using tainted evidence to impeach a defendant who chooses to testify at his own trial
+Saves the evidence, because the judge, not the officers, made the probable cause decision ||| Saves the evidence, because the judge, not the officers, made the probable cause decision and officers may always rely on that
+Saves the evidence, because the officers did not themselves draft the affidavit ||| Saves the evidence, because the officers did not themselves draft the affidavit and had no reason to doubt its source
+Does not save the evidence, because Leon applies only to arrests made on a warrant ||| Does not save the evidence, because Leon applies only to arrests made on a warrant and never to searches of premises
+The officers acted in objectively reasonable reliance on binding appellate precedent ||| The officers acted in objectively reasonable reliance on binding appellate precedent authorizing the stop that was later overruled
+The drugs would inevitably have been discovered through the unrelated warrant process ||| The drugs would inevitably have been discovered through the ordinary process of serving the unrelated warrant on her
+Dee lacks standing because she had no expectation of privacy in the street ||| Dee lacks standing, because a person walking on a public street has no reasonable expectation of privacy at all
+Exclude it entirely, because suppressed evidence may never be used for any purpose ||| Exclude it entirely, because suppressed evidence may never be used against the defendant for any purpose at trial
+Allow it as substantive evidence, because Hal opened the door to the whole subject ||| Allow it as substantive evidence of guilt, because Hal opened the door to the whole subject of drugs by testifying
+Exclude it, because impeachment use applies only to unwarned statements and not to physical items ||| Exclude it, because the impeachment exception reaches only unwarned statements and never physical evidence
+Any conversation between a police officer and a person suspected of a crime ||| Any questioning by an officer of a person suspected of a crime, wherever the conversation takes place
+Any arrest, even when no questions are asked afterward ||| Any custodial arrest, even when officers never ask the suspect a question or seek a statement afterward
+Any questioning that occurs after a formal charge has been filed ||| Any questioning that occurs after a formal charge has been filed, whether or not the person is in custody
+Inadmissible, because any mention of a lawyer requires immediate cessation of questioning ||| Inadmissible, because any mention of a lawyer requires officers to stop questioning immediately and permanently
+Inadmissible, because police must first ask clarifying questions in writing ||| Inadmissible, because police must first ask clarifying questions to learn what the suspect meant
+Admissible, only if Quan had previously spoken to a lawyer about another case ||| Admissible, but only if Quan had previously spoken to a lawyer about some other pending case
+Inadmissible, because silence invokes the right and any later statement must be suppressed ||| Inadmissible, because prolonged silence unambiguously invokes the right and any later statement must be suppressed
+Inadmissible, because a written waiver is required for custodial questioning ||| Inadmissible, because a signed written waiver is required before any custodial questioning may begin
+Admissible, because Miranda does not apply to statements made after a lengthy interview ||| Admissible, because Miranda protections lapse once an interview has run for a lengthy period of time
+Admissible, because properly warned statements are always voluntary and untainted ||| Admissible, because a statement made after proper warnings is always voluntary and untainted by earlier questioning
+Admissible, because the first statement was voluntary and the second followed a valid waiver ||| Admissible, because under Elstad the first statement was voluntary and the second followed a valid waiver
+Inadmissible, because the first unwarned confession was involuntary as a matter of due process ||| Inadmissible, because the first unwarned confession was coerced and therefore involuntary under the Due Process Clause
+Omar had impliedly waived his rights by answering without objection ||| Omar impliedly waived his rights by answering the question without objection, so no warnings were needed
+Because the question was asked without hostility, it was not interrogation ||| Because the question was asked without hostility or threats, it was not interrogation under Miranda
+The Edwards rule permits police to question an arrestee about weapons at any time ||| The Edwards rule permits police to question an arrestee about weapons at any time, warnings or not
+A suspect is first questioned by police in any setting ||| A suspect is first questioned by police in any setting, whether or not that questioning is custodial
+A suspect first receives Miranda warnings at the station ||| A suspect first receives Miranda warnings at the station house before any interrogation begins
+A grand jury begins investigating a case, even if no one has been charged ||| A grand jury begins investigating the case, even if no one has yet been charged or arraigned
+He may not be compelled, because only transactional immunity can replace the privilege ||| He may not be compelled, because only transactional immunity is broad enough to replace the Fifth Amendment privilege
+He may not be compelled, because the privilege may never be overcome by a court order ||| He may not be compelled, because a court order cannot override the Fifth Amendment privilege once it is asserted
+He may be compelled, but the prosecutor may still use the testimony to prosecute him for the same events ||| He may be compelled, but the prosecutor remains free to use the testimony itself to prosecute him for the same events
+Victor was in custody, so Miranda warnings were required before the informant spoke ||| Victor was in custody when he spoke with the informant, so Miranda warnings were required before the conversation began
+The informant's deception rendered the statements involuntary under due process ||| The informant's deception overbore Victor's will and rendered the statements involuntary under the Due Process Clause
+The recording was a search because Victor had a reasonable expectation of privacy in the conversation ||| The recording was a Fourth Amendment search because Victor had a reasonable expectation that his words would stay private
+Inadmissible, because an arraignment invocation bars any later police contact ||| Inadmissible, because an invocation of counsel at arraignment bars all later police contact about any crime
+Admissible, because uncharged crimes are never covered by any right to counsel ||| Admissible, because uncharged crimes are never covered by any right to counsel once the person has been warned

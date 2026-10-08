@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Mascot2D, { type Mascot2DHandle, type Mood2D } from '../mascots/Mascot2D';
 import { VOCA_LEVELS, levelInfo, passagesForLevel, type VocaPassage } from '../../data/vocaPassages';
-import { createAlign, feedWord, judge, markHelped, moveOn, summarize, syllabify, type AlignEvent, type AlignState, type ReadingSummary } from '../../services/voca/vocaAlign';
+import { createAlign, endsSentence, feedWord, judge, leniencyFor, sentenceStart, markHelped, moveOn, summarize, syllabify, type AlignEvent, type AlignState, type ReadingSummary } from '../../services/voca/vocaAlign';
 import { applySession, defaultProgress, dueReview, nextPassage, reviewResult, starsFor, startLevelFor, loadLocal, saveLocal, ZONE, type LevelChange, type VocaProgress, type VocaSession } from '../../services/voca/vocaProgress';
 import { loadCloud, saveCloud, pickNewer, recordToLedger } from '../../services/voca/vocaCloud';
-import { MicMeter, createRecognizer, listeningAvailable, isEmbeddedWebView, type Recognizer, type RecError, type RecState } from '../../services/voca/vocaSpeech';
+import { MicMeter, WebSpeechRecognizer, createRecognizer, listeningAvailable, isEmbeddedWebView, type Recognizer, type RecError, type RecState } from '../../services/voca/vocaSpeech';
+import { wordChime, tryAgain, sentenceChime, celebrate, sfxEnabled, setSfxEnabled } from '../../services/voca/vocaSfx';
 import { initVoice, speak, modelWord, cancelSpeech, ttsSupported } from '../../services/voca/vocaVoice';
 
 /**
@@ -71,9 +72,17 @@ const CSS = `
 .vx .w{display:inline-block;position:relative;padding:0 .1em;border-radius:8px;transition:background .2s,color .2s;color:rgba(246,241,245,.86)}
 .vx .w.cur{box-shadow:inset 0 -3px 0 var(--cyan);color:#fff}
 .vx .w.good{color:#fff;background:linear-gradient(transparent 58%,rgba(6,214,160,.42) 58%)}
-.vx .w.miss{color:#fff;background:rgba(255,90,110,.24);text-decoration:underline wavy var(--miss) 2px;text-underline-offset:6px}
+.vx .w.miss{color:#fff;background:rgba(255,179,92,.2);text-decoration:underline dotted rgba(255,179,92,.8) 2px;text-underline-offset:6px}
 .vx .w.coached{color:#fff;background:linear-gradient(transparent 58%,rgba(255,140,0,.45) 58%)}
-.vx .w.shake{animation:vxshake .42s cubic-bezier(.36,.07,.19,.97)}
+.vx .w.shake{animation:vxnudge .7s ease-in-out}
+.vx .w.pulse{animation:vxwordpulse 1.1s ease-in-out 3;box-shadow:inset 0 -3px 0 var(--cyan),0 0 0 0 rgba(0,218,243,.55);background:rgba(0,218,243,.14)}
+.vx .w.sentdone{animation:vxsent .9s ease-out}
+@keyframes vxwordpulse{0%,100%{transform:scale(1);box-shadow:inset 0 -3px 0 var(--cyan),0 0 0 0 rgba(0,218,243,.5)}50%{transform:scale(1.1);box-shadow:inset 0 -3px 0 var(--cyan),0 0 0 10px rgba(0,218,243,0)}}
+@keyframes vxnudge{0%,100%{transform:translateX(0)}35%{transform:translateX(-2px)}70%{transform:translateX(2px)}}
+@keyframes vxsent{0%{background:rgba(6,214,160,.45)}100%{background:linear-gradient(transparent 58%,rgba(6,214,160,.42) 58%)}}
+.vx .confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50}
+.vx .confetti i{position:absolute;top:-12px;width:9px;height:14px;border-radius:2px;opacity:.9;animation:vxfall 2.6s ease-in forwards}
+@keyframes vxfall{to{transform:translateY(105vh) rotate(540deg);opacity:0}}
 .vx .w .syl{position:absolute;left:50%;top:-1.2em;transform:translateX(-50%);font-family:var(--fm);font-size:.48em;white-space:nowrap;color:var(--coach);letter-spacing:.05em}
 @keyframes vxshake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(3px)}30%,50%,70%{transform:translateX(-5px)}40%,60%{transform:translateX(5px)}}
 .vx .side{display:grid;gap:12px;justify-items:center;position:sticky;top:16px}
@@ -100,7 +109,7 @@ const CSS = `
 .vx select{background:#15101f;color:var(--ink);border:1px solid var(--bd);border-radius:10px;height:34px;padding:0 10px;font-family:var(--fd);font-weight:700}
 .vx :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 @media (max-width:860px){.vx .grid2,.vx .reader{grid-template-columns:1fr}.vx .side{position:static;grid-template-columns:auto 1fr;justify-items:start;align-items:center}.vx .kpis{grid-template-columns:1fr 1fr}}
-@media (prefers-reduced-motion:reduce){.vx .w.shake,.vx .dot.live{animation:none}}
+@media (prefers-reduced-motion:reduce){.vx .w.shake,.vx .dot.live,.vx .w.sentdone,.vx .w.pulse{animation:none}.vx .confetti{display:none}}
 `;
 
 function useFonts() {
@@ -199,7 +208,7 @@ const VocaView: React.FC<Props> = ({ onBack, user, profile }) => {
         )}
         {screen === 'read' && (
           <Reader key={passage.id + (warmup ? ':w' : '')} passage={warmup ? warmupPassage(warmup) : passage} mode={mode} warmup={!!warmup}
-            onDone={onReadDone} onFallback={() => setMode('listener')} />
+            sessions={progress.totals.sessions} onDone={onReadDone} onFallback={() => setMode('listener')} />
         )}
         {screen === 'question' && pendingSum && (
           <Question passage={passage} onAnswer={onAnswered} />
@@ -306,7 +315,7 @@ const MicCheck: React.FC<{ onPass: () => void; onListener: () => void }> = ({ on
     rec.onWords = ws => alive && setHeard(h => [...h, ...ws.map(w => w.text)].slice(-20));
     (async () => {
       // native engines meter themselves; opening a second mic stream would compete with them
-      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setErr(e); return; } }
+      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setErr(e); return; } if (rec instanceof WebSpeechRecognizer) rec.inputTrack = meter.boostedTrack; }
       await speak('Say: ' + CHECK_LINE + '!'); if (!alive) return;
       rec.start();
     })();
@@ -348,18 +357,24 @@ const MicCheck: React.FC<{ onPass: () => void; onListener: () => void }> = ({ on
 
 // ======================================================================= reader
 const LINES = {
-  try1: ['So close! Try that one again.', 'Almost! One more try.', 'Nice try. Say it again.'],
-  comeback: ['You got it!', 'Yes! That one was tricky.', 'There it is!'],
-  moveOn: ["We'll practice that one later.", "Let's keep going. We'll come back to it."],
-  stuck: ['Take your time. You can do it.', 'Need help? Tap "Hear it".'],
+  try1: ["Let's look at that word again. Take your time.", "Nice try. Whenever you're ready, say it once more.", "You're close. Have another go when you like."],
+  comeback: ['There it is. Nicely done.', 'Yes. That was a tricky one.', 'You got it.'],
+  moveOn: ["That one is tricky. We'll practice it together later.", "Let's keep going. We'll come back to it."],
+  stuck: ['Take your time. I am right here.', 'No rush. You can tap "Hear it" if you like.'],
+  trouble: ["I'm having a little trouble hearing. That's me, not you. Take your time."],
 };
 const pick = (a: string[]) => a[Math.floor(Math.random() * a.length)];
 
-const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDone: (s: ReadingSummary) => void; onFallback: () => void }> = ({ passage, mode, warmup, onDone, onFallback }) => {
-  const align = useRef<AlignState>(createAlign(passage.text, passage.level));
+const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; sessions: number; onDone: (s: ReadingSummary) => void; onFallback: () => void }> = ({ passage, mode, warmup, sessions, onDone, onFallback }) => {
+  // forgiving ears + patience start generous and tighten as level AND experience grow (leniencyFor)
+  const align = useRef<AlignState>((() => { const a = createAlign(passage.text, passage.level); const l = leniencyFor(passage.level, sessions); a.gentle = l.gentle; a.attemptGapMs = l.attemptGapMs; return a; })());
   const [, force] = useState(0); const rerender = () => force(x => x + 1);
   const [shakeIdx, setShakeIdx] = useState<number | null>(null);
   const [sylIdx, setSylIdx] = useState<number | null>(null);
+  const [pulseIdx, setPulseIdx] = useState<number | null>(null);
+  const [doneSent, setDoneSent] = useState<number | null>(null);
+  const [party, setParty] = useState(false);
+  const [sound, setSound] = useState(sfxEnabled());
   const [line, setLine] = useState(warmup ? 'Warm-up! Read each word out loud.' : 'Read it out loud, nice and clear.');
   const [mood, setMood] = useState<Mood2D>('listen');
   const [energy, setEnergy] = useState(0);
@@ -383,10 +398,12 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
   const cur = s.words[s.i];
 
   /** Chora speaks with the listener suspended, so she is never heard as the reader. */
-  const say = useCallback(async (text: string, fn?: () => Promise<void>) => {
+  const say = useCallback(async (text: string, fn?: () => Promise<void>, beatMs = 0) => {
     speaking.current = true; recRef.current?.suspend();
     const t0 = Date.now();
     setLine(text);
+    // a quiet beat first (the word pulses meanwhile) so coaching never lands on top of the child
+    if (beatMs) await new Promise(r => setTimeout(r, beatMs));
     if (fn) await fn(); else await speak(text);
     pausedMs.current += Date.now() - t0;
     speaking.current = false;
@@ -398,28 +415,36 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
     if (doneRef.current) return; doneRef.current = true;
     recRef.current?.stop(); meterRef.current?.stop();
     const sum = summarize(align.current, pausedMs.current);
-    setMood('excited'); coach.current?.react('cheer');
-    setTimeout(() => onDoneRef.current(sum), 1400);
+    setMood('excited'); coach.current?.react('cheer'); celebrate(); setParty(true);
+    setTimeout(() => onDoneRef.current(sum), 2800);
   }, []);
 
   const handle = useCallback((evs: AlignEvent[]) => {
     for (const e of evs) {
       if (e.type === 'noise') { recent.current = [...recent.current, false].slice(-20); continue; }
       recent.current = [...recent.current, true].slice(-20);
+      if (e.type === 'reread') { setPulseIdx(null); lastProgressAt.current = Date.now(); continue; }
       if (e.type === 'good') {
-        lastProgressAt.current = Date.now(); setSylIdx(null);
+        lastProgressAt.current = Date.now(); setSylIdx(null); setPulseIdx(null);
         const w = s.words[e.index];
         streak.current = w.attempts === 0 && !w.helped ? streak.current + 1 : 0;
         setEnergy(Math.min(1, streak.current / 12));
-        if (e.comeback) { coach.current?.react('nod_yes'); setMood('listen'); void say(pick(LINES.comeback)); }
+        // sound: a soft chime per word; a little sparkle when a whole sentence was read without a stumble
+        const from = sentenceStart(s, e.index);
+        const clean = endsSentence(s, e.index) && s.words.slice(from, e.index + 1).every(x => x.status === 'good' && x.attempts === 0);
+        if (clean && e.index + 1 < s.words.length) { sentenceChime(); setDoneSent(from); setTimeout(() => setDoneSent(null), 1000); } else wordChime();
+        if (e.comeback) { coach.current?.react('nod_yes'); setMood('listen'); void say(pick(LINES.comeback), undefined, 350); }
         else if (streak.current > 0 && streak.current % 8 === 0) coach.current?.react('nod_yes');
       } else if (e.type === 'attempt') {
         const w = s.words[e.index]; streak.current = 0; setEnergy(0);
-        setShakeIdx(e.index); setTimeout(() => setShakeIdx(null), 450);
-        if (e.attempt === 1) { coach.current?.react('almost'); void say(pick(LINES.try1)); }
-        else if (e.attempt === 2) { setSylIdx(e.index); setMood('encourage'); const syl = syllabify(w.display, passage.syllables); void say(syl.length > 1 ? 'Break it up.' : 'Look at each sound.', () => speak(syl.length > 1 ? syl.join(' … ') : w.display.replace(/[^\w']/g, ''), { rate: 0.6 })); }
-        else if (e.attempt === 3) { markHelped(s); setMood('encourage'); void say('Listen…', () => modelWord(w.display.replace(/[^\w'-]/g, ''), syllabify(w.display, passage.syllables))); }
-        else { setSylIdx(null); setMood('listen'); void say(pick(LINES.moveOn)); }
+        tryAgain();
+        setShakeIdx(e.index); setTimeout(() => setShakeIdx(null), 700);
+        setPulseIdx(e.index); setTimeout(() => setPulseIdx(p => (p === e.index ? null : p)), 3600);
+        // coaching waits a beat while the word pulses, so the child sees where to go back to before hearing anything
+        if (e.attempt === 1) { coach.current?.react('almost'); void say(pick(LINES.try1), undefined, 1400); }
+        else if (e.attempt === 2) { setSylIdx(e.index); setMood('encourage'); const syl = syllabify(w.display, passage.syllables); void say(syl.length > 1 ? "Let's break it into parts." : "Let's look at each sound.", () => speak(syl.length > 1 ? syl.join(' … ') : w.display.replace(/[^\w']/g, ''), { rate: 0.6 }), 1500); }
+        else if (e.attempt === 3) { markHelped(s); setMood('encourage'); void say("Here, I'll say it for you.", () => modelWord(w.display.replace(/[^\w'-]/g, ''), syllabify(w.display, passage.syllables)), 1500); }
+        else { setSylIdx(null); setPulseIdx(null); setMood('listen'); void say(pick(LINES.moveOn), undefined, 900); }
       } else if (e.type === 'done') { finish(); }
     }
     const q = recent.current.length ? recent.current.filter(Boolean).length / recent.current.length : 1;
@@ -438,7 +463,7 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
     const level = (l: number, sp: boolean) => { if (!alive) return; setLvl(l); if (sp && !speaking.current) { rec.noteVoiceActivity(); lastVoiceAt.current = Date.now(); if (align.current.startedAt === null) align.current.startedAt = Date.now(); } };
     meter.onLevel = level; rec.onLevel = level;
     (async () => {
-      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setRecErr(e); setLine(e.message); return; } }
+      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setRecErr(e); setLine(e.message); return; } if (rec instanceof WebSpeechRecognizer) rec.inputTrack = meter.boostedTrack; }
       rec.start();
     })();
     const onVis = () => { if (document.hidden) rec.suspend(); else if (!pauseStart.current && !speaking.current) rec.resume(); };
@@ -454,8 +479,10 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
       if (a.i !== lastIdx.current) { lastIdx.current = a.i; lastProgressAt.current = Date.now(); return; }
       const idle = Date.now() - lastProgressAt.current;
       const w = a.words[a.i]; if (!w) return;
-      if (idle > 14000) { markHelped(a); lastProgressAt.current = Date.now(); void say('This word is…', () => modelWord(w.display.replace(/[^\w'-]/g, ''), syllabify(w.display, passage.syllables))); }
-      else if (idle > 8000 && idle < 9100) setLine(pick(LINES.stuck));
+      if (a.reread && Date.now() - a.reread.at < 12000) { lastProgressAt.current = Date.now(); return; }   // mid re-read: never nudge
+      // patient by design: first a silent pulse on the word, then a soft offer — never an auto-model
+      if (idle > 8000 && idle < 9100) { setPulseIdx(a.i); setLine(pick(LINES.stuck)); setTimeout(() => setPulseIdx(p => (p === a.i ? null : p)), 3600); }
+      else if (idle > 20000) { lastProgressAt.current = Date.now(); void say('Whenever you like, tap "Hear it" and I will help.'); }
     }, 1000);
     return () => clearInterval(t);
   }, [mode, passage.syllables, say]);
@@ -477,10 +504,20 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
 
   const live = mode === 'voice' && recState === 'listening' && !paused;
   const status = mode === 'listener' ? 'Listener mode' : recErr ? 'mic problem' : paused ? 'paused' : speaking.current || recState === 'suspended' ? 'Chora is talking' : recState === 'listening' ? 'listening' : 'starting…';
+  const [trouble, setTrouble] = useState(false);
+  useEffect(() => {
+    if (mode !== 'voice') return;
+    const t = setInterval(() => {
+      const a = align.current; if (doneRef.current || speaking.current || pauseStart.current || a.startedAt === null) return;
+      setTrouble(Date.now() - lastVoiceAt.current < 2500 && Date.now() - lastProgressAt.current > 5000);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [mode]);
   const quiet = live && s.startedAt === null && Date.now() - (lastVoiceAt.current || Date.now()) > 6000;
 
   return (
     <div className="reader">
+      {party && <div className="confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, k) => <i key={k} style={{ left: `${(k * 97) % 100}%`, background: ['#00daf3', '#06d6a0', '#ffd24a', '#ff8c00', '#c77dff'][k % 5], animationDelay: `${(k % 9) * 0.12}s`, animationDuration: `${2.2 + (k % 5) * 0.25}s` }} />)}</div>}
       <div className="stage">
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div><span className="eyebrow">{warmup ? 'Warm-up' : `Level ${passage.level} · ${passage.kind}`}</span><h2 className="h2" style={{ fontSize: '1.15rem', marginTop: 4 }}>{passage.title}</h2></div>
@@ -492,7 +529,7 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
         </div>
         <div className="passage" aria-live="polite">
           {s.words.map((w, k) => {
-            const cls = ['w', k === s.i ? 'cur' : '', w.status === 'good' ? 'good' : w.status === 'miss' ? 'miss' : w.status === 'coached' ? 'coached' : '', shakeIdx === k ? 'shake' : ''].join(' ');
+            const cls = ['w', k === s.i ? 'cur' : '', w.status === 'good' ? 'good' : w.status === 'miss' ? 'miss' : w.status === 'coached' ? 'coached' : '', shakeIdx === k ? 'shake' : '', pulseIdx === k ? 'pulse' : '', doneSent !== null && s.words[k].status === 'good' && sentenceStart(s, k) === doneSent ? 'sentdone' : ''].join(' ');
             return (
               <React.Fragment key={k}>
                 <span className={cls}>{w.display}{sylIdx === k && <span className="syl">{syllabify(w.display, passage.syllables).join('·')}</span>}</span>
@@ -504,6 +541,7 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
         {recErr && mode === 'voice' && (
           <div className="notice warn" style={{ marginTop: 8 }}>{recErr.message} <button className="pill" type="button" style={{ background: '#fff', color: '#12091b', marginLeft: 6 }} onClick={onFallback}>Switch to Listener mode</button></div>
         )}
+        {trouble && <div className="notice" style={{ marginTop: 8 }}>{LINES.trouble[0]}</div>}
         {quiet && <div className="notice" style={{ marginTop: 8 }}>I can't hear you yet. Check the microphone, or come a little closer.</div>}
         {mode === 'voice' && quality < 0.6 && s.tokens > 10 && <div className="notice" style={{ marginTop: 8 }}>It's noisy here. Other voices won't count against you, but a quieter spot or a headset helps.</div>}
         <div className="row" style={{ marginTop: 14 }}>
@@ -516,6 +554,7 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; onDo
             </>
           ) : (
             <>
+              <button className="btn ghost" type="button" aria-pressed={sound} onClick={() => { setSfxEnabled(!sound); setSound(!sound); }}>{sound ? '🔔 Sounds on' : '🔕 Sounds off'}</button>
               <button className="btn ghost" type="button" onClick={togglePause}>{paused ? '▶ Resume' : '⏸ Pause'}</button>
               <button className="btn ghost" type="button" onClick={hearIt} disabled={!cur}>🔊 Hear it</button>
               <button className="btn ghost" type="button" onClick={skip} disabled={!cur}>Skip word</button>

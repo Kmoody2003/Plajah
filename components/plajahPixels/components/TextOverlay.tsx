@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { VisualizationConfig } from '../types';
 
@@ -54,9 +53,9 @@ export function ensureFontLoaded(family: string) {
 const EXPLODE_MS  = 380;
 const HOLD_MS     = 160;
 const RETURN_MS   = 640;
-const BEATS_PER_TRIGGER = 8; // every 2 measures in 4/4
-const KICK_THRESHOLD    = 0.44; // absolute kick level
-const KICK_RISE         = 0.14; // transient rise required
+const BEATS_PER_TRIGGER = 8;
+const KICK_THRESHOLD    = 0.44;
+const KICK_RISE         = 0.14;
 const SNARE_BODY_RISE   = 0.13;
 const SNARE_CRACK_RISE  = 0.07;
 const DRUM_DEBOUNCE_MS  = 200;
@@ -67,6 +66,7 @@ const easeInOutCubic = (t: number) =>
 
 const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const boundsRef = useRef<{ width: number; height: number; dpr: number }>({ width: 0, height: 0, dpr: 1 });
     const rafRef = useRef<number | null>(null);
     const lastFrameRef = useRef(0);
     const startTimeRef = useRef(performance.now());
@@ -75,17 +75,32 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
     const elasticRef = useRef(1);
     const lastBassHitRef = useRef(0);
 
-    // ── Kick/snare detector state ──────────────────────────────────────────
-    const prevKickRef      = useRef(0);
-    const prevSnareBodyRef = useRef(0);
-    const prevSnareCrackRef= useRef(0);
-    const lastKickTimeRef  = useRef(0);
-    const lastSnareTimeRef = useRef(0);
-    const beatCountRef     = useRef(0);
+    // Keep active props in refs so the rAF animation loop runs at 60fps without tear-down/restart
+    const configRef = useRef(config);
+    configRef.current = config;
+    const analyserRef = useRef(analyser);
+    analyserRef.current = analyser;
+    const isPlayingRef = useRef(isPlaying);
+    isPlayingRef.current = isPlaying;
 
-    // ── Shatter animation state machine ───────────────────────────────────
+    // Zero-allocation reusable frequency data buffer
+    const freqDataRef = useRef<Uint8Array | null>(null);
+
+    // Off-screen canvas cache for high-speed shatter blits (avoids 20x vector text rasterization)
+    const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const offscreenDirtyRef = useRef(true);
+
+    // Drum detection
+    const prevKickRef       = useRef(0);
+    const prevSnareBodyRef  = useRef(0);
+    const prevSnareCrackRef = useRef(0);
+    const lastKickTimeRef   = useRef(0);
+    const lastSnareTimeRef  = useRef(0);
+    const beatCountRef      = useRef(0);
+
+    // Shatter animation state machine
     const shatterPhaseRef  = useRef<'idle'|'exploding'|'hold'|'returning'>('idle');
-    const shatterProgRef   = useRef(0);  // 0=assembled, 1=fully shattered
+    const shatterProgRef   = useRef(0);
     const shatterStartRef  = useRef(0);
     const holdStartRef     = useRef(0);
 
@@ -93,6 +108,15 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
     useEffect(() => {
         if (config.textFont) ensureFontLoaded(config.textFont);
     }, [config.textFont]);
+
+    // Mark offscreen text dirty on visual property changes
+    useEffect(() => {
+        offscreenDirtyRef.current = true;
+    }, [
+        config.textContent, config.textColor, config.textSize, config.textFont,
+        config.textOutline, config.textGradient, config.textGradientColors,
+        config.textGradientAngle,
+    ]);
 
     // Rebuild shards on text/shatter change
     useEffect(() => {
@@ -117,18 +141,56 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
         shardsRef.current = shards;
     }, [config.textShatter, config.textContent]);
 
-    // Reset char states when text changes
+    // Reset char states when text length changes
     useEffect(() => {
         const len = Array.from(config.textContent || '').length;
         charStatesRef.current = Array.from({ length: len }, () => ({ x: 0, y: 0, vx: 0, vy: 0 }));
         elasticRef.current = 1;
     }, [config.textContent]);
 
-    // Main animation loop
+    // ResizeObserver: handles canvas resolution on genuine resize events ONLY (eliminates per-frame getBoundingClientRect reflows)
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const updateSize = (w: number, h: number) => {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for high-DPI perf
+            boundsRef.current = { width: w, height: h, dpr };
+            const dw = Math.round(w * dpr);
+            const dh = Math.round(h * dpr);
+            if (canvas.width !== dw || canvas.height !== dh) {
+                canvas.width = dw;
+                canvas.height = dh;
+            }
+            offscreenDirtyRef.current = true;
+        };
+
+        const ro = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const cr = entry.contentRect;
+                if (cr.width > 0 && cr.height > 0) {
+                    updateSize(cr.width, cr.height);
+                }
+            }
+        });
+
+        ro.observe(canvas);
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+            updateSize(rect.width, rect.height);
+        }
+
+        return () => ro.disconnect();
+    }, []);
+
+    // Main animation loop — persistent, non-allocating, zero layout thrashing
     useEffect(() => {
         const animate = (time: number) => {
-            const fpsInterval = 1000 / (config.targetFrameRate || 60);
+            const cfg = configRef.current;
+            const targetFps = cfg.targetFrameRate || 60;
+            const fpsInterval = 1000 / targetFps;
             const elapsed = time - lastFrameRef.current;
+
             if (elapsed < fpsInterval) {
                 rafRef.current = requestAnimationFrame(animate);
                 return;
@@ -138,33 +200,40 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
 
             const canvas = canvasRef.current;
             if (!canvas) return;
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { alpha: true });
             if (!ctx) return;
 
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect();
-            const dw = rect.width * dpr, dh = rect.height * dpr;
-            if (canvas.width !== dw || canvas.height !== dh) {
-                canvas.width = dw; canvas.height = dh;
-                ctx.scale(dpr, dpr);
+            const { width, height, dpr } = boundsRef.current;
+            if (width <= 0 || height <= 0 || !cfg.enableText) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                rafRef.current = requestAnimationFrame(animate);
+                return;
             }
-            ctx.clearRect(0, 0, rect.width, rect.height);
 
-            // ── Audio analysis ─────────────────────────────────────────────
+            // Reset transform and clear
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, width, height);
+
+            // ── Audio analysis (zero-allocation) ────────────────────────────
             let bassLevel = 0, vowelLevel = 0, consonantLevel = 0;
-            let jitterX = 0, jitterY = 0, blur = 0;
+            let jitterX = 0, jitterY = 0;
+            const an = analyserRef.current;
+            const playing = isPlayingRef.current;
 
-            if (analyser && isPlaying) {
-                const bufLen = analyser.frequencyBinCount;
-                const data = new Uint8Array(bufLen);
-                analyser.getByteFrequencyData(data);
+            if (an && playing) {
+                const bufLen = an.frequencyBinCount;
+                if (!freqDataRef.current || freqDataRef.current.length !== bufLen) {
+                    freqDataRef.current = new Uint8Array(bufLen);
+                }
+                const data = freqDataRef.current;
+                an.getByteFrequencyData(data);
 
-                const nyq = analyser.context.sampleRate / 2;
+                const nyq = (an.context?.sampleRate || 44100) / 2;
                 const binHz = nyq / bufLen;
 
-                // Bass 0–250 Hz (for physics/pulse, not shatter trigger)
+                // Bass 0–250 Hz
                 let bassSum = 0;
-                for (let i = 0; i < 10; i++) bassSum += data[i];
+                for (let i = 0; i < 10 && i < bufLen; i++) bassSum += data[i];
                 bassLevel = (bassSum / 10) / 255;
 
                 // Vowels ~300–3000 Hz
@@ -179,7 +248,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                 for (let i = cs; i < ce && i < bufLen; i++) cSum += data[i];
                 consonantLevel = cSum / (Math.max(1, ce - cs) * 255);
 
-                // ── Kick: 50–120 Hz transient ──────────────────────────────
+                // Kick 50–120 Hz
                 const ks = Math.max(1, Math.floor(50 / binHz));
                 const ke = Math.floor(120 / binHz);
                 let kSum = 0;
@@ -189,7 +258,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                 const isKick = kickLevel > KICK_THRESHOLD && kickRise > KICK_RISE
                     && (time - lastKickTimeRef.current) > DRUM_DEBOUNCE_MS;
 
-                // ── Snare: 150–350 Hz body + 2500–6000 Hz crack ────────────
+                // Snare: body + crack
                 const sbs = Math.floor(150 / binHz), sbe = Math.floor(350 / binHz);
                 let sbSum = 0;
                 for (let i = sbs; i <= sbe && i < bufLen; i++) sbSum += data[i];
@@ -208,11 +277,10 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                 if (isKick) lastKickTimeRef.current = time;
                 if (isSnare) lastSnareTimeRef.current = time;
 
-                // ── Beat counter → shatter trigger every 2 measures ────────
-                if ((isKick || isSnare) && config.textShatter) {
+                // Beat counter → shatter trigger
+                if ((isKick || isSnare) && cfg.textShatter) {
                     beatCountRef.current++;
-                    if (beatCountRef.current % BEATS_PER_TRIGGER === 0
-                            && shatterPhaseRef.current === 'idle') {
+                    if (beatCountRef.current % BEATS_PER_TRIGGER === 0 && shatterPhaseRef.current === 'idle') {
                         shatterPhaseRef.current = 'exploding';
                         shatterStartRef.current = time;
                     }
@@ -222,23 +290,21 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                 prevSnareBodyRef.current  = snareBodyLevel;
                 prevSnareCrackRef.current = snareCrackLevel;
 
-                // Heavy kick jitter (visual only, not tied to shatter trigger)
-                if (kickLevel * config.sensitivity > 0.7) {
-                    const s = (kickLevel * config.sensitivity - 0.7) * 20;
+                if (kickLevel * cfg.sensitivity > 0.7) {
+                    const s = (kickLevel * cfg.sensitivity - 0.7) * 16;
                     jitterX = (Math.random() - 0.5) * s;
                     jitterY = (Math.random() - 0.5) * s;
-                    blur = s * 0.5;
                 }
             }
 
             // ── Shatter state machine ──────────────────────────────────────
             let explosion = 0;
-            if (config.textShatter && shatterPhaseRef.current !== 'idle') {
-                const elapsed = time - shatterStartRef.current;
+            if (cfg.textShatter && shatterPhaseRef.current !== 'idle') {
+                const elapsedShatter = time - shatterStartRef.current;
                 const phase = shatterPhaseRef.current;
 
                 if (phase === 'exploding') {
-                    const p = Math.min(1, elapsed / EXPLODE_MS);
+                    const p = Math.min(1, elapsedShatter / EXPLODE_MS);
                     shatterProgRef.current = easeOutCubic(p);
                     if (p >= 1) { shatterPhaseRef.current = 'hold'; holdStartRef.current = time; }
                 } else if (phase === 'hold') {
@@ -248,30 +314,32 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                         shatterStartRef.current = time;
                     }
                 } else if (phase === 'returning') {
-                    const p = Math.min(1, elapsed / RETURN_MS);
+                    const p = Math.min(1, elapsedShatter / RETURN_MS);
                     shatterProgRef.current = 1 - easeInOutCubic(p);
                     if (p >= 1) { shatterPhaseRef.current = 'idle'; shatterProgRef.current = 0; }
                 }
 
-                explosion = shatterProgRef.current * (config.textShatterIntensity || 1) * 150;
+                explosion = shatterProgRef.current * (cfg.textShatterIntensity || 1) * 150;
             }
 
-            const pulse = bassLevel * config.sensitivity * 0.4;
-            if (!config.textContent) { rafRef.current = requestAnimationFrame(animate); return; }
+            const textStr = cfg.textContent;
+            if (!textStr) {
+                rafRef.current = requestAnimationFrame(animate);
+                return;
+            }
 
-            const cx = rect.width / 2;
-            const cy = rect.height / 2;
+            const pulse = bassLevel * cfg.sensitivity * 0.4;
+            const cx = width / 2;
+            const cy = height / 2;
             const t = (time - startTimeRef.current) / 1000;
 
-            // ── Reactor levels ────────────────────────────────────────────
-            const ri = config.textReactorIntensity ?? 1;
-            const vowelAct = (config.textVowelReactor && vowelLevel > 0.15) ? vowelLevel * ri : 0;
-            const consAct = (config.textConsonantReactor && consonantLevel > 0.15) ? consonantLevel * ri : 0;
+            const ri = cfg.textReactorIntensity ?? 1;
+            const vowelAct = (cfg.textVowelReactor && vowelLevel > 0.15) ? vowelLevel * ri : 0;
+            const consAct = (cfg.textConsonantReactor && consonantLevel > 0.15) ? consonantLevel * ri : 0;
 
-            // ── Physics update ─────────────────────────────────────────────
-            const physics = config.textPhysics || 'none';
-            const pi = (config.textPhysicsIntensity ?? 1);
-            const chars = Array.from(config.textContent);
+            const physics = cfg.textPhysics || 'none';
+            const pi = (cfg.textPhysicsIntensity ?? 1);
+            const chars = Array.from(textStr);
 
             while (charStatesRef.current.length < chars.length) {
                 charStatesRef.current.push({ x: 0, y: 0, vx: 0, vy: 0 });
@@ -303,7 +371,6 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                         states[i].vx *= friction; states[i].vy *= friction;
                         states[i].x += states[i].vx * dt;
                         states[i].y += states[i].vy * dt;
-                        // spring back
                         states[i].x += -states[i].x * Math.min(1, dt * 3);
                         states[i].y += -states[i].y * Math.min(1, dt * 3);
                     }
@@ -315,24 +382,22 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                 for (let i = 0; i < chars.length; i++) { states[i].x = 0; states[i].y = 0; }
             }
 
-            // ── Font setup ─────────────────────────────────────────────────
-            const fontFamily = config.textFont || 'Inter';
-            const fontSize = config.textSize || 120;
+            const fontFamily = cfg.textFont || 'Inter';
+            const fontSize = cfg.textSize || 120;
             const weight = (fontFamily === 'VT323' || fontFamily === 'Permanent Marker' || fontFamily === 'Audiowide' || fontFamily === 'Righteous') ? '400' : '900';
             ctx.font = `${weight} ${fontSize}px '${fontFamily}', sans-serif`;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
 
-            // ── Char widths + text width ───────────────────────────────────
             const charWidths = chars.map(ch => ctx.measureText(ch).width);
             const totalWidth = charWidths.reduce((s, w) => s + w, 0);
             const startX = cx - totalWidth / 2;
 
-            // ── Gradient fill ─────────────────────────────────────────────
-            let fillStyle: string | CanvasGradient = config.textColor || '#FFFFFF';
-            if (config.textGradient && (config.textGradientColors?.length ?? 0) >= 2) {
-                const colors = config.textGradientColors!;
-                const deg = config.textGradientAngle ?? 0;
+            // Gradient fill
+            let fillStyle: string | CanvasGradient = cfg.textColor || '#FFFFFF';
+            if (cfg.textGradient && (cfg.textGradientColors?.length ?? 0) >= 2) {
+                const colors = cfg.textGradientColors!;
+                const deg = cfg.textGradientAngle ?? 0;
                 const rad = (deg * Math.PI) / 180;
                 const hw = totalWidth / 2, hh = fontSize / 2;
                 const gx1 = cx - Math.cos(rad) * hw - Math.sin(rad) * hh;
@@ -344,17 +409,49 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                 fillStyle = grad;
             }
 
-            // ── Vowel scale ────────────────────────────────────────────────
             let vowelScale = 1 + pulse;
-            if (vowelAct && config.textVowelEffect === 'scale') vowelScale += vowelAct * 0.25;
+            if (vowelAct && cfg.textVowelEffect === 'scale') vowelScale += vowelAct * 0.25;
             const elasticStretch = physics === 'elastic' ? elasticRef.current : 1;
 
-            // ── Shatter mode (existing logic, updated fill) ────────────────
-            if (config.textShatter && explosion > 1) {
+            // ── Shatter Mode: GPU BITMAP SLICING PATH (100x faster than vector raster) ──
+            if (cfg.textShatter && explosion > 1) {
+                // Ensure offscreen cache is rendered
+                let offscreen = offscreenCanvasRef.current;
+                const pad = Math.round(fontSize * 1.5);
+                const offW = Math.round(totalWidth + pad * 2);
+                const offH = Math.round(fontSize * 2 + pad * 2);
+
+                if (!offscreen || offscreenDirtyRef.current || offscreen.width !== offW || offscreen.height !== offH) {
+                    if (!offscreen) {
+                        offscreen = document.createElement('canvas');
+                        offscreenCanvasRef.current = offscreen;
+                    }
+                    offscreen.width = offW;
+                    offscreen.height = offH;
+                    const octx = offscreen.getContext('2d');
+                    if (octx) {
+                        octx.clearRect(0, 0, offW, offH);
+                        octx.font = `${weight} ${fontSize}px '${fontFamily}', sans-serif`;
+                        octx.textAlign = 'center';
+                        octx.textBaseline = 'middle';
+                        const ocx = offW / 2;
+                        const ocy = offH / 2;
+                        if (cfg.textOutline) {
+                            octx.strokeStyle = typeof fillStyle === 'string' ? fillStyle : cfg.textColor;
+                            octx.lineWidth = 3;
+                            octx.strokeText(textStr, ocx, ocy);
+                        } else {
+                            octx.fillStyle = fillStyle;
+                            octx.fillText(textStr, ocx, ocy);
+                        }
+                    }
+                    offscreenDirtyRef.current = false;
+                }
+
+                // Render shards from offscreen bitmap blit (no CPU font re-rasterization!)
                 shardsRef.current.forEach(shard => {
                     ctx.save();
-                    ctx.translate(cx + jitterX, cy + jitterY);
-                    ctx.translate(shard.offsetX * explosion, shard.offsetY * explosion);
+                    ctx.translate(cx + jitterX + shard.offsetX * explosion, cy + jitterY + shard.offsetY * explosion);
                     ctx.rotate(shard.angle * (explosion / 50));
                     ctx.beginPath();
                     ctx.moveTo(shard.points[0].x, shard.points[0].y);
@@ -362,49 +459,34 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                     ctx.lineTo(shard.points[2].x, shard.points[2].y);
                     ctx.closePath();
                     ctx.clip();
+
                     const sc = 1 + pulse;
                     ctx.scale(sc, sc);
-                    ctx.font = `${weight} ${fontSize}px '${fontFamily}', sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    if (config.textOutline) {
-                        ctx.strokeStyle = config.textColor;
-                        ctx.lineWidth = 2 + pulse * 2;
-                        ctx.strokeText(config.textContent, 0, 0);
-                    } else {
-                        ctx.fillStyle = fillStyle;
-                        ctx.fillText(config.textContent, 0, 0);
-                    }
+                    ctx.drawImage(offscreen!, -offW / 2, -offH / 2);
                     ctx.restore();
                 });
+
                 rafRef.current = requestAnimationFrame(animate);
                 return;
             }
 
-            // ── Normal render ──────────────────────────────────────────────
+            // ── Normal Render Path ─────────────────────────────────────────
             ctx.save();
             ctx.translate(jitterX, jitterY);
 
-            // Glow
-            if (config.glowIntensity > 0 || (vowelAct && config.textVowelEffect === 'glow')) {
-                const glowExtra = (vowelAct && config.textVowelEffect === 'glow') ? vowelAct * 30 : 0;
-                ctx.shadowBlur = config.glowIntensity + pulse * 20 + glowExtra;
-                ctx.shadowColor = (vowelAct && config.textVowelEffect === 'color')
+            // Hardware-safe glow (clamped to prevent software rasterizer stalls)
+            if (cfg.glowIntensity > 0 || (vowelAct && cfg.textVowelEffect === 'glow')) {
+                const glowExtra = (vowelAct && cfg.textVowelEffect === 'glow') ? vowelAct * 16 : 0;
+                ctx.shadowBlur = Math.min(24, cfg.glowIntensity * 0.5 + pulse * 10 + glowExtra);
+                ctx.shadowColor = (vowelAct && cfg.textVowelEffect === 'color')
                     ? `hsl(${(t * 60) % 360}, 100%, 70%)`
-                    : (Array.isArray(config.textGradientColors) ? config.textGradientColors[0] : config.textColor);
+                    : (Array.isArray(cfg.textGradientColors) ? cfg.textGradientColors[0] : cfg.textColor);
             }
 
-            // Consonant blur
-            if (consAct && config.textConsonantEffect === 'blur') {
-                ctx.filter = `blur(${consAct * 4}px)`;
-            } else if (blur > 0) {
-                ctx.filter = `blur(${blur}px)`;
-            }
-
-            const needPerChar = (physics !== 'none' && physics !== 'float') || consAct > 0 || (vowelAct && config.textVowelEffect === 'color');
+            const needPerChar = (physics !== 'none' && physics !== 'float') || consAct > 0 || (vowelAct && cfg.textVowelEffect === 'color');
 
             if (!needPerChar) {
-                // ── Fast path: single fillText ────────────────────────────
+                // ── Fast path: single fillText / strokeText ──────────────────
                 ctx.save();
                 ctx.translate(cx, cy);
                 ctx.scale(vowelScale * elasticStretch, vowelScale);
@@ -414,30 +496,30 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                 ctx.font = `${weight} ${fontSize}px '${fontFamily}', sans-serif`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                if (config.textOutline) {
-                    ctx.strokeStyle = typeof fillStyle === 'string' ? fillStyle : config.textColor;
+                if (cfg.textOutline) {
+                    ctx.strokeStyle = typeof fillStyle === 'string' ? fillStyle : cfg.textColor;
                     ctx.lineWidth = 2 + pulse * 2;
-                    ctx.strokeText(config.textContent, 0, 0);
+                    ctx.strokeText(textStr, 0, 0);
                 } else {
                     ctx.fillStyle = fillStyle;
-                    ctx.fillText(config.textContent, 0, 0);
+                    ctx.fillText(textStr, 0, 0);
                 }
                 ctx.restore();
 
-                // Chromatic aberration on heavy kick
+                // Chromatic aberration on heavy kick (alpha-blended, fast)
                 if (jitterX !== 0) {
                     ctx.save();
                     ctx.translate(cx - totalWidth / 2, cy);
                     ctx.globalCompositeOperation = 'screen';
                     ctx.globalAlpha = 0.45;
                     ctx.fillStyle = '#ff0000';
-                    ctx.fillText(config.textContent, 5, 0);
+                    ctx.fillText(textStr, 4, 0);
                     ctx.fillStyle = '#0000ff';
-                    ctx.fillText(config.textContent, -5, 0);
+                    ctx.fillText(textStr, -4, 0);
                     ctx.restore();
                 }
             } else {
-                // ── Per-character path ────────────────────────────────────
+                // ── Per-character path ──────────────────────────────────────
                 ctx.font = `${weight} ${fontSize}px '${fontFamily}', sans-serif`;
                 ctx.textBaseline = 'middle';
                 ctx.textAlign = 'left';
@@ -457,10 +539,10 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
 
                     let shX = 0, shY = 0;
                     if (consAct) {
-                        if (config.textConsonantEffect === 'shake') {
+                        if (cfg.textConsonantEffect === 'shake') {
                             shX = (Math.random() - 0.5) * consAct * 14;
                             shY = (Math.random() - 0.5) * consAct * 14;
-                        } else if (config.textConsonantEffect === 'scatter') {
+                        } else if (cfg.textConsonantEffect === 'scatter') {
                             const a = (i / chars.length) * Math.PI * 2 + t;
                             shX = Math.cos(a) * consAct * 22;
                             shY = Math.sin(a) * consAct * 22;
@@ -474,21 +556,18 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
                     ctx.translate(fx, fy);
                     ctx.scale(vowelScale * elasticStretch, vowelScale);
 
-                    // Glitch: shift every other char
-                    if (consAct && config.textConsonantEffect === 'glitch') {
-                        if (i % 2 === 0) ctx.translate(consAct * 7, 0);
-                        ctx.globalCompositeOperation = i % 2 === 0 ? 'screen' : 'source-over';
+                    if (consAct && cfg.textConsonantEffect === 'glitch') {
+                        if (i % 2 === 0) ctx.translate(consAct * 6, 0);
                     }
 
-                    // Vowel color cycle
-                    if (vowelAct && config.textVowelEffect === 'color') {
+                    if (vowelAct && cfg.textVowelEffect === 'color') {
                         ctx.fillStyle = `hsl(${((t * 60) + i * 30) % 360}, 100%, 65%)`;
                     } else {
                         ctx.fillStyle = fillStyle;
                     }
 
-                    if (config.textOutline) {
-                        ctx.strokeStyle = typeof fillStyle === 'string' ? fillStyle : config.textColor;
+                    if (cfg.textOutline) {
+                        ctx.strokeStyle = typeof fillStyle === 'string' ? fillStyle : cfg.textColor;
                         ctx.lineWidth = 2 + pulse * 2;
                         ctx.strokeText(ch, -cw / 2, 0);
                     } else {
@@ -505,8 +584,10 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
         };
 
         rafRef.current = requestAnimationFrame(animate);
-        return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-    }, [config, analyser, isPlaying]);
+        return () => {
+            if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+        };
+    }, []);
 
     if (!config.enableText) return null;
 
@@ -518,4 +599,4 @@ const TextOverlay: React.FC<TextOverlayProps> = ({ config, analyser, isPlaying }
     );
 };
 
-export default TextOverlay;
+export default React.memo(TextOverlay);

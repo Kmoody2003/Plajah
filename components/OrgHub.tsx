@@ -4,14 +4,13 @@
 // create form, and a public org profile. Brand accounts are Organizations
 // (orgType 'BRAND'); the same page will serve churches (orgType 'CHURCH') in Part 3.
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
   Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Megaphone,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
-import MarketingKit from './MarketingKit';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
@@ -20,29 +19,39 @@ import {
 } from '../services/organizationService';
 import { uploadFile, searchUserProfiles, auth } from '../services/backendService';
 import { connectStripe } from '../services/stripeService';
-import ContentHQ from './ContentHQ';
-import EmployeeManager from './business/EmployeeManager';
-import HiringBoard from './business/HiringBoard';
 import ApplyModal from './business/ApplyModal';
 import CareersView from './business/CareersView';
 import { fetchOrgPostings } from '../services/hiringService';
 import { orgCan } from '../services/orgPermissions';
-import type { JobPosting } from '../types';
+import type { JobPosting, Video, Album, LiveFeed } from '../types';
+import ElevateSetupWizard from './elevate/ElevateSetupWizard';
+import DeleteOrgDialog from './elevate/DeleteOrgDialog';
+import IdentityEditor from './elevate/IdentityEditor';
 import ChurchGive from './ChurchGive';
-import SermonStudio from './SermonStudio';
-import ChurchMasterControl from './ChurchMasterControl';
-import ChurchConsole from './ChurchConsole';
 import ChurchDemoView from './ChurchDemoView';
 import BusinessDemoView from './BusinessDemoView';
 import { DEMO_BUSINESS_ORG, DEMO_BUSINESS_ID } from '../data/demoBusiness';
 import ChurchPrayerWall from './ChurchPrayerWall';
 import ChurchAnnouncements from './ChurchAnnouncements';
+import ChurchEducation from './church/ChurchEducation';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
+import { elevateCan } from '../services/elevateRoles';
+import { isElevateOrg, isFaithOrg } from '../services/elevateTemplates';
+import { followOrg, unfollowOrg, listenFollowedState } from '../services/orgFollowService';
+import MinistryPage from './elevate/MinistryPage';
+import OrgStoreSection from './elevate/OrgStoreSection';
+import OrgThread from './elevate/OrgThread';
+import OrgLiveNow from './elevate/OrgLiveNow';
+import OrgMediaShelves from './elevate/OrgMediaShelves';
+// Operations side + public rosters (built alongside; lazy so the public page never blocks on them).
+const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
+const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
   { type: 'BUSINESS',     label: 'Business',     blurb: 'A local or online business page with hours + storefront.' },
   { type: 'CHURCH',       label: 'Church',       blurb: 'A ministry with sub-groups, giving, and streaming.' },
+  { type: 'RELIGIOUS',    label: 'Religious',    blurb: 'A mosque, temple, synagogue, or other faith community.' },
   { type: 'NONPROFIT',    label: 'Nonprofit',    blurb: 'A cause or charity with members and fundraising.' },
   { type: 'CULTURAL',     label: 'Cultural',     blurb: 'A museum, cultural center, or heritage institution.' },
   { type: 'LABEL',        label: 'Label',        blurb: 'A music/film label managing multiple artists.' },
@@ -52,15 +61,24 @@ const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-interface OrgHubProps { user: any; onBack: () => void; initialOrgId?: string; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void }
+interface OrgHubProps extends OrgMediaOpeners { user: any; onBack: () => void; /** Open straight into the Elevate setup wizard ("List your institution"). */ initialCreate?: boolean; initialOrgId?: string; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void }
 
-const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive, initialContentHq, onVisitUser }) => {
-  const [mode, setMode] = useState<'list' | 'create' | 'view'>(initialOrgId ? 'view' : 'list');
+/** Navigation handlers for the live/media blocks on an org page (wired from App). */
+interface OrgMediaOpeners {
+  onOpenVideo?: (video: Video) => void;
+  onOpenAlbum?: (album: Album) => void;
+  onOpenLive?: (feed: LiveFeed) => void;
+  onOpenChannel?: (channelOwnerId: string, sourceId?: string) => void;
+}
+
+const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialCreate, initialOrgId, initialGive, initialContentHq, onVisitUser, onOpenVideo, onOpenAlbum, onOpenLive, onOpenChannel }) => {
+  const [mode, setMode] = useState<'list' | 'create' | 'view'>(initialOrgId ? 'view' : initialCreate ? 'create' : 'list');
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Organization | null>(null);
   const [legacyCount, setLegacyCount] = useState(0);
   const [importing, setImporting] = useState(false);
+  const [createFlow, setCreateFlow] = useState<null | 'elevate' | 'brand'>(initialCreate && !initialOrgId ? 'elevate' : null);
 
   const loadOrgs = useCallback(async () => {
     if (!user?.uid) return;
@@ -94,7 +112,30 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
   }, [initialOrgId]);
 
   if (mode === 'create') {
-    return <OrgCreator onCancel={() => setMode('list')} onCreated={(o) => { setActive(o); setMode('view'); loadOrgs(); }} />;
+    if (createFlow === 'elevate') {
+      return <ElevateSetupWizard user={user} onCancel={() => { if (initialCreate) { onBack(); return; } setCreateFlow(null); setMode('list'); }} onCreated={(o) => { setCreateFlow(null); setActive(o); setMode('view'); loadOrgs(); }} />;
+    }
+    if (createFlow === null) {
+      return (
+        <div className="min-h-full p-4 sm:p-6 lg:p-12 max-w-2xl mx-auto">
+          <button onClick={() => setMode('list')} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest mb-8"><ArrowLeft size={14} /> Cancel</button>
+          <h1 className="text-3xl font-black uppercase tracking-tight text-white mb-8">New organization</h1>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <button onClick={() => setCreateFlow('elevate')} className={`${card} p-6 text-left hover:bg-white/[0.06] transition-all`}>
+              <Church size={22} className="text-small-orange mb-3" />
+              <span className="block text-sm font-black uppercase tracking-widest text-white mb-1">Elevate</span>
+              <span className="text-xs text-white/40">Church, religious, cultural, non-profit or other — with departments, roles and invites.</span>
+            </button>
+            <button onClick={() => setCreateFlow('brand')} className={`${card} p-6 text-left hover:bg-white/[0.06] transition-all`}>
+              <Building2 size={22} className="text-small-orange mb-3" />
+              <span className="block text-sm font-black uppercase tracking-widest text-white mb-1">Brand / Business</span>
+              <span className="text-xs text-white/40">Brand, business, label or team page.</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <OrgCreator onCancel={() => { setCreateFlow(null); setMode('list'); }} onCreated={(o) => { setCreateFlow(null); setActive(o); setMode('view'); loadOrgs(); }} />;
   }
   if (mode === 'view' && active) {
     // Demo orgs open a fully-populated tour. Church → ministry tour; everything else
@@ -106,7 +147,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
         ? <ChurchDemoView onBack={back} onCreate={create} onVisitUser={onVisitUser} />
         : <BusinessDemoView onBack={back} onCreate={create} />;
     }
-    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} initialContentHq={initialContentHq} onBack={() => { setActive(null); setMode('list'); }} />;
+    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} initialContentHq={initialContentHq} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} onBack={() => { setActive(null); setMode('list'); if (initialOrgId) onBack(); }} onDeleted={() => { setActive(null); setMode('list'); loadOrgs(); if (initialCreate || initialOrgId) onBack(); }} />;
   }
 
   // ── List ────────────────────────────────────────────────────────────────
@@ -260,27 +301,26 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
 );
 
 // ── Public / owner org profile ──────────────────────────────────────────────
-const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; initialGive?: boolean; initialContentHq?: boolean }> = ({ org: initialOrg, isOwner, onBack, initialGive, initialContentHq }) => {
+const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; onDeleted?: () => void; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void } & OrgMediaOpeners> = ({ org: initialOrg, isOwner, onBack, onDeleted, initialGive, initialContentHq, onVisitUser, onOpenVideo, onOpenAlbum, onOpenLive, onOpenChannel }) => {
   const [org, setOrg] = useState<Organization>(initialOrg);
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
   const [giving, setGiving] = useState(!!initialGive);
-  const [studio, setStudio] = useState(false);
-  const [master, setMaster] = useState(false);
-  const [showConsole, setShowConsole] = useState(false);
-  const [contentHq, setContentHq] = useState(!!initialContentHq);
-  const [showEmployees, setShowEmployees] = useState(false);
-  const [showHiring, setShowHiring] = useState(false);
   const [openings, setOpenings] = useState<JobPosting[]>([]);
   const [applyFor, setApplyFor] = useState<JobPosting | null>(null);
   const [showCareers, setShowCareers] = useState(false);
-  const [marketing, setMarketing] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
+  // Elevate: Public view | Operations split, follow state, ministry pages, community thread.
+  const [view, setView] = useState<'public' | 'ops'>(initialContentHq ? 'ops' : 'public');
+  const [following, setFollowing] = useState(false);
+  const [openMinistry, setOpenMinistry] = useState<string | null>(null);
+  const [showThread, setShowThread] = useState(false);
+  useEffect(() => listenFollowedState(org.id, s => setFollowing(s.org)), [org.id]);
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
-  useEffect(() => { fetchOrgPostings(org.id).then(ps => setOpenings(ps.filter(p => p.status === 'OPEN'))).catch(() => {}); }, [org.id, showHiring]);
+  useEffect(() => { fetchOrgPostings(org.id).then(ps => setOpenings(ps.filter(p => p.status === 'OPEN'))).catch(() => {}); }, [org.id]);
   useEffect(() => {
-    if (org.orgType === 'CHURCH') fetchChurchDonations(org.id).then(d => setFundGiven(sumDonationsByFund(d))).catch(() => {});
+    if (isElevateOrg(org.orgType)) fetchChurchDonations(org.id).then(d => setFundGiven(sumDonationsByFund(d))).catch(() => {});
   }, [org.id, org.orgType]);
 
   // Content HQ access (Wave 1 — open to org staff). Owners/admins and any member holding
@@ -292,38 +332,35 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
       : null);
   const canManageHq = isOwner || orgCan(myMembership, org, 'MANAGE_CONTENT');
   const canReadHq = canManageHq || myMembership?.status === 'ACTIVE';
+  // Elevate gates: real membership roles, not just owner.
+  const elevate = isElevateOrg(org.orgType);
+  const faith = isFaithOrg(org.orgType);
+  const can = (p: Parameters<typeof elevateCan>[2]) => isOwner || elevateCan(myMembership, org, p);
+  const hasOps = elevate && (isOwner || (['MANAGE_ROSTER', 'MANAGE_MINISTRIES', 'MANAGE_INVITES', 'MANAGE_GIVING', 'VIEW_GIVING', 'VIEW_PRAYER', 'MANAGE_SERMONS', 'MANAGE_MEDIA', 'MODERATE_THREADS', 'MANAGE_STORE', 'MANAGE_EMPLOYEES', 'POST_AS_ORG'] as const).some(p => elevateCan(myMembership, org, p)));
+  const toggleFollow = async () => {
+    if (!auth.currentUser) { alert('Sign in to follow.'); return; }
+    try { following ? await unfollowOrg(org.id) : await followOrg(org.id); } catch (e: any) { alert(e?.message || 'Could not update follow.'); }
+  };
 
   if (managing && isOwner) {
-    return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} />;
+    return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} onDeleted={onDeleted} />;
   }
   if (giving) {
     return <ChurchGive org={org} fundGiven={fundGiven} onClose={() => setGiving(false)} />;
   }
-  if (studio && isOwner) {
-    return <SermonStudio church={org} onClose={() => setStudio(false)} />;
-  }
-  if (master && isOwner) {
-    return <ChurchMasterControl church={org} onClose={() => setMaster(false)} />;
-  }
-  if (showConsole && isOwner) {
-    return <ChurchConsole church={org} onClose={() => setShowConsole(false)} />;
-  }
-  if (contentHq && canReadHq) {
-    return <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }} canEdit={canManageHq} mediaOwnerUid={org.creatorId} onClose={() => setContentHq(false)} />;
-  }
   if (showCareers) {
     return <CareersView org={org} onBack={() => setShowCareers(false)} />;
   }
-  if (marketing && isOwner) {
+  if (view === 'ops' && hasOps) {
     return (
-      <div className="min-h-full">
-        <MarketingKit
-          scope={{ kind: 'ORG', id: org.id, name: org.name }}
-          currentUser={{ uid: auth.currentUser?.uid || user?.uid || '', displayName: org.name } as UserProfile}
-          onClose={() => setMarketing(false)}
-        />
-      </div>
+      <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
+        <ElevateOps org={org} isOwner={isOwner} onClose={() => setView('public')} onOrgChange={setOrg} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} />
+      </Suspense>
     );
+  }
+  const ministryOpen = openMinistry ? org.ministries?.find(m => m.id === openMinistry) : undefined;
+  if (ministryOpen) {
+    return <MinistryPage org={org} ministry={ministryOpen} myMembership={myMembership} onBack={() => setOpenMinistry(null)} onVisitUser={onVisitUser} onOrgChange={setOrg} />;
   }
 
   return (
@@ -348,6 +385,15 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             </div>
             <p className="text-[10px] font-black uppercase tracking-widest text-small-orange/80 mt-1">{org.orgType}{org.category ? ` · ${org.category}` : ''}</p>
           </div>
+          {hasOps && (
+            <div className="pb-2 flex items-center rounded-full bg-white/5 border border-white/10 p-0.5 shrink-0">
+              <button onClick={() => setView('public')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${view === 'public' ? 'bg-white text-black' : 'text-white/50'}`}>Public view</button>
+              <button onClick={() => setView('ops')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${view === 'ops' ? 'bg-white text-black' : 'text-white/50'}`}>Operations</button>
+            </div>
+          )}
+          {elevate && !isOwner && (
+            <button onClick={toggleFollow} className={`pb-2 shrink-0 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${following ? 'bg-white/10 text-white border border-white/15' : 'bg-small-orange text-black'}`}>{following ? 'Following' : 'Follow'}</button>
+          )}
           {isOwner && (
             <button onClick={() => setManaging(true)} className="pb-2 flex items-center gap-1.5 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0"><Pencil size={11} /> Manage</button>
           )}
@@ -363,45 +409,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           {org.location?.city && <span className="flex items-center gap-1.5"><MapPin size={13} /> {org.location.city}</span>}
         </div>
 
-        {/* Staff tools. Content HQ opens to any member who can read it (staff/moderators manage,
-            other active members read-only); Employees/Hiring stay owner/admin-only. */}
-        {(canReadHq || isOwner) && (
-          <div className="mt-6 flex flex-wrap gap-2">
-            {canReadHq && (
-              <button onClick={() => setContentHq(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                <HardDrive size={14} className="text-small-orange" /> Content HQ{!canManageHq && <span className="text-white/30">· read-only</span>}
-              </button>
-            )}
-            {isOwner && (
-              <button onClick={() => setMarketing(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                <Megaphone size={14} className="text-small-orange" /> Marketing
-              </button>
-            )}
-            {isOwner && (
-              <button onClick={() => setShowEmployees(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                <Users size={14} className="text-[#0070FF]" /> Employees
-              </button>
-            )}
-            {isOwner && (
-              <button onClick={() => setShowHiring(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                <Briefcase size={14} className="text-[#0070FF]" /> {(org.orgType === 'CHURCH' || org.orgType === 'NONPROFIT' || org.orgType === 'CULTURAL') ? 'Volunteers' : 'Hiring'}
-              </button>
-            )}
-          </div>
-        )}
-
-        {showHiring && (
-          <HiringBoard
-            org={org}
-            myMembership={
-              staff.find(m => m.userId === auth.currentUser?.uid) ||
-              (isOwner && auth.currentUser
-                ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER', status: 'ACTIVE', displayName: '', joinedAt: 0 }
-                : null)
-            }
-            onClose={() => setShowHiring(false)}
-          />
-        )}
+        {/* On air now (live stream / TV channel) — top of the page; renders nothing when off air. */}
+        <OrgLiveNow org={org} viewerIsOrgMember={myMembership?.status === 'ACTIVE'} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} />
+        <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
 
         {/* Public "Careers / Get Involved" — anyone can see open roles and apply in one tap */}
         {openings.length > 0 && (
@@ -429,21 +439,8 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         )}
         {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
 
-        {showEmployees && (
-          <EmployeeManager
-            org={org}
-            myMembership={
-              staff.find(m => m.userId === auth.currentUser?.uid) ||
-              (isOwner && auth.currentUser
-                ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER', status: 'ACTIVE', displayName: '', joinedAt: 0 }
-                : null)
-            }
-            onClose={() => setShowEmployees(false)}
-          />
-        )}
-
-        {/* Church vertical — plan your visit + ministries + give */}
-        {org.orgType === 'CHURCH' && (
+        {/* Elevate vertical (church / faith / cultural / nonprofit) — visit, ministries, rosters, give */}
+        {elevate && (
           <>
             <div className="mt-6 flex flex-wrap gap-2">
               <button onClick={() => setGiving(true)}
@@ -453,24 +450,14 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               <span className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/50">
                 <Church size={14} /> Plan a visit
               </span>
-              {isOwner && (
-                <button onClick={() => setStudio(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                  <Sparkles size={14} className="text-small-orange" /> Sermon Studio
-                </button>
-              )}
-              {isOwner && (
-                <button onClick={() => setMaster(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                  <MonitorPlay size={14} className="text-small-orange" /> Master Control
-                </button>
-              )}
-              {isOwner && (
-                <button onClick={() => setShowConsole(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                  <Mail size={14} className="text-small-orange" /> Console
-                </button>
-              )}
             </div>
 
-            <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} isOwner={isOwner} />
+            <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} isOwner={isOwner} canPost={can('POST_AS_ORG')} />
+
+            <div className="mt-6">
+              <button onClick={() => setShowThread(v => !v)} className="text-[10px] font-black uppercase tracking-widest text-small-orange/80 hover:text-small-orange">{showThread ? 'Hide community thread' : 'Open community thread →'}</button>
+              {showThread && <div className="mt-4"><OrgThread org={org} myMembership={myMembership} onVisitUser={onVisitUser} onOrgChange={setOrg} readOnly /></div>}
+            </div>
 
             {org.givingFunds && org.givingFunds.length > 0 && (
               <section className="mt-10">
@@ -512,22 +499,33 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               </section>
             )}
 
-            {org.ministries && org.ministries.length > 0 && (
+            {org.ministries && org.ministries.some(m => !m.isInternal) && (
               <section className="mt-10">
                 <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Church size={12} className="text-small-orange" /> Ministries</h2>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {org.ministries.map(m => (
-                    <div key={m.id} className="p-4 rounded-2xl bg-white/[0.04] border border-white/10">
+                  {org.ministries.filter(m => !m.isInternal && !m.parentId).map(m => (
+                    <button key={m.id} onClick={() => setOpenMinistry(m.id)} className="text-left p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-all">
                       <p className="text-sm font-black text-white flex items-center gap-2">{m.iconEmoji && <span>{m.iconEmoji}</span>}{m.name}</p>
                       {m.description && <p className="text-[11px] text-white/40 mt-1">{m.description}</p>}
                       {m.meetingTime && <p className="text-[9px] font-black uppercase tracking-widest text-small-orange/70 mt-2">{m.meetingTime}</p>}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </section>
             )}
 
-            <ChurchPrayerWall orgId={org.id} isOwner={isOwner} />
+            <Suspense fallback={null}><ElevateRosters org={org} onVisitUser={onVisitUser} /></Suspense>
+
+            <OrgStoreSection org={org} mode="public" onVisitUser={onVisitUser} />
+
+            {faith && <ChurchPrayerWall orgId={org.id} isOwner={isOwner} canSeePrivate={can('VIEW_PRAYER')} canManage={can('MANAGE_PRAYER')} />}
+
+            {faith && (
+              <section className="mt-8" aria-label="Classes and studies">
+                <h2 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/50 mb-3">Classes and studies</h2>
+                <ChurchEducation church={org} canEdit={false} />
+              </section>
+            )}
           </>
         )}
 
@@ -571,7 +569,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
 // ── Owner management: edit details + staff/roles ────────────────────────────
 const ROLES: OrgRole[] = ['OWNER', 'ADMIN', 'STAFF', 'MODERATOR', 'MEMBER'];
 
-const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: () => void; onSaved: (o: Organization) => void; reloadStaff: () => void }> = ({ org, staff, onClose, onSaved, reloadStaff }) => {
+const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: () => void; onSaved: (o: Organization) => void; reloadStaff: () => void; onDeleted?: () => void }> = ({ org, staff, onClose, onSaved, reloadStaff, onDeleted }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const canDelete = !org.isDemo && org.creatorId === auth.currentUser?.uid;
   const [name, setName] = useState(org.name);
   const [tagline, setTagline] = useState(org.tagline || '');
   const [about, setAbout] = useState(org.about || '');
@@ -633,6 +633,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
 
       <section className="space-y-4 mb-10">
         <h2 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Details</h2>
+        <IdentityEditor org={org} onSaved={onSaved} />
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" className={field} />
         <input value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Tagline" className={field} />
         <textarea value={about} onChange={e => setAbout(e.target.value)} rows={3} placeholder="About" className={`${field} resize-none`} />
@@ -760,6 +761,14 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
           ))}
         </div>
       </section>
+      {canDelete && (
+        <section className="mt-12 rounded-3xl border border-red-500/25 bg-red-500/[0.04] p-5">
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1 flex items-center gap-2"><Trash2 size={12} /> Danger zone</h2>
+          <p className="text-xs text-white/50 mb-4 leading-relaxed">Permanently delete {org.name}: its page, members, roles, invites and community. Financial records are sealed, not erased. You'll be asked to confirm.</p>
+          <button onClick={() => setConfirmDelete(true)} className="px-5 py-2.5 rounded-full border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-black uppercase tracking-widest transition-all">Delete this organization</button>
+        </section>
+      )}
+      {confirmDelete && <DeleteOrgDialog org={org} onClose={() => setConfirmDelete(false)} onDeleted={() => { setConfirmDelete(false); onDeleted ? onDeleted() : onClose(); }} />}
       <div className="h-16" />
     </div>
   );

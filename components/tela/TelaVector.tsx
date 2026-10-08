@@ -18,14 +18,18 @@
  */
 import React, { useRef, useState } from 'react';
 import {
-  MousePointer2, MousePointerClick, Scan, Square, Circle, Minus, PenTool, Type,
+  MousePointer2, MousePointerClick, Scan, Square, Circle, Minus, PenTool, Type, Brush, Pen, Pencil, Highlighter, Eraser, Lasso,
   ChevronUp, ChevronDown, Trash2, Link2, Unlink,
 } from 'lucide-react';
 import type { TelaVectorDevice, TelaVectorObject, TelaVectorObjectKind } from '../../types';
 import { pathDataFromNodes } from '../../services/telaImageTrace';
 import { layoutTextLines } from '../../services/tela/telaText';
+import { InkLayer, type NoteTool } from '../ink';
+import { strokeInBox, pathData, type InkStyle } from '../../services/inkMath';
+import { TelaLottieCanvas, TelaLottieInspector } from './TelaLottie';
+import { TelaMotionTemplateCanvas, TelaMotionTemplateInspector } from './TelaMotionTemplate';
 
-export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text';
+export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text' | 'ink';
 
 const newObjId = () => `obj_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -73,12 +77,14 @@ const ObjectEl: React.FC<{
   o: TelaVectorObject;
   writerTexts?: Record<string, string>;
   interactive: boolean;
+  /** Thumbnails/galleries: LOTTIE shows its poster frame instead of a live player. */
+  staticRender?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onPointerMove?: (e: React.PointerEvent) => void;
   onPointerUp?: (e: React.PointerEvent) => void;
   onPointerCancel?: (e: React.PointerEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
-}> = ({ o, writerTexts, interactive, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
+}> = ({ o, writerTexts, interactive, staticRender, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
   const b = objBounds(o);
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   const gradientId = `tela_gradient_${o.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
@@ -112,6 +118,37 @@ const ObjectEl: React.FC<{
     const c = o.sourceCrop;
     return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>);
   }
+  if (o.kind === 'LOTTIE') {
+    // Live player in a foreignObject; static renders (thumbnails) use the cached poster
+    // frame, or a labelled placeholder — never a broken image.
+    const L = o.lottie;
+    const w = Math.max(1, o.w), h = Math.max(1, o.h);
+    const par = !L || L.fit === 'contain' ? 'xMidYMid meet' : L.fit === 'cover' ? 'xMidYMid slice' : 'none';
+    const body = L && !staticRender
+      ? <foreignObject x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden', pointerEvents: 'none' }}><TelaLottieCanvas spec={L} objectId={o.id} label={o.objectLabel} /></foreignObject>
+      : L?.posterSrc
+        ? <svg x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden' }}><image href={L.posterSrc} x={0} y={0} width={w} height={h} preserveAspectRatio={par} /></svg>
+        : <g><rect x={o.x} y={o.y} width={w} height={h} rx={6} fill="rgba(0,218,243,.08)" stroke="rgba(0,163,184,.6)" strokeWidth={1.5} strokeDasharray="6 4" /><text x={o.x + w / 2} y={o.y + h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(10, Math.min(28, Math.min(w, h) / 6))} fontWeight={800} fontFamily="system-ui, sans-serif" fill="rgba(0,120,140,.85)">Lottie{o.objectLabel ? ` · ${o.objectLabel}` : ''}</text></g>;
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="LOTTIE">
+      {body}
+      <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
+    </g>);
+  }
+  if (o.kind === 'MOTION_TEMPLATE') {
+    // Ambo slide template / scripture look drawn live from the platform code; static
+    // renders (thumbnails) use the cached poster, or a labelled placeholder.
+    const M = o.motionTemplate;
+    const w = Math.max(1, o.w), h = Math.max(1, o.h);
+    const body = M && !staticRender
+      ? <foreignObject x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden', pointerEvents: 'none' }}><TelaMotionTemplateCanvas spec={M} width={w} height={h} objectId={o.id} label={o.objectLabel} /></foreignObject>
+      : M?.posterSrc
+        ? <svg x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden' }}><image href={M.posterSrc} x={0} y={0} width={w} height={h} preserveAspectRatio="none" /></svg>
+        : <g><rect x={o.x} y={o.y} width={w} height={h} rx={6} fill="rgba(255,140,0,.08)" stroke="rgba(200,110,0,.6)" strokeWidth={1.5} strokeDasharray="6 4" /><text x={o.x + w / 2} y={o.y + h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(10, Math.min(28, Math.min(w, h) / 6))} fontWeight={800} fontFamily="system-ui, sans-serif" fill="rgba(160,90,0,.85)">Motion{o.objectLabel ? ` · ${o.objectLabel}` : ''}</text></g>;
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="MOTION_TEMPLATE">
+      {body}
+      <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
+    </g>);
+  }
   if (o.kind === 'PATH' && o.svgPathData) {
     const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y;
     const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h);
@@ -122,6 +159,8 @@ const ObjectEl: React.FC<{
   if (o.kind === 'PATH' && o.points) {
     const pts = [];
     for (let i = 0; i + 1 < o.points.length; i += 2) pts.push(`${o.points[i]},${o.points[i + 1]}`);
+    // Open freehand strokes render smoothed (quadratic through midpoints), matching Notes ink.
+    if (!o.pathClosed && o.points.length >= 6) return decorate(<path d={pathData(o.points)} {...common} />);
     return decorate(o.pathClosed ? <polygon points={pts.join(' ')} {...common} /> : <polyline points={pts.join(' ')} {...common} />);
   }
   if (o.kind === 'TEXT') {
@@ -164,7 +203,7 @@ export const TelaVectorObjectProps: React.FC<{
   compact?: boolean;
 }> = ({ object: o, writers, onUpdate, onDelete, onForward, onBack, compact }) => {
   const isText = o.kind === 'TEXT';
-  const isImage = o.kind === 'IMAGE';
+  const isImage = o.kind === 'IMAGE' || o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE';
   const isLine = o.kind === 'LINE' || o.kind === 'PATH';
   const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 3 };
   const rowCls = 'flex items-center gap-2 mb-2';
@@ -172,6 +211,8 @@ export const TelaVectorObjectProps: React.FC<{
   const swatch: React.CSSProperties = { width: 30, height: 28, padding: 0, border: '1px solid rgba(255,255,255,0.18)', borderRadius: 7, background: 'transparent', cursor: 'pointer' };
   return (
     <div style={{ color: '#fff' }}>
+      {o.kind === 'LOTTIE' && <TelaLottieInspector object={o} onUpdate={onUpdate} />}
+      {o.kind === 'MOTION_TEMPLATE' && <TelaMotionTemplateInspector object={o} onUpdate={onUpdate} />}
       {isText && (
         <div style={{ marginBottom: 10 }}>
           <div style={lbl}>Text</div>
@@ -328,7 +369,7 @@ export const TelaVectorObjectProps: React.FC<{
 // never a CSS approximation of it.
 export const TelaStaticSvg: React.FC<{ objects: TelaVectorObject[]; width: number; height: number; className?: string; style?: React.CSSProperties; writerTexts?: Record<string, string> }> = ({ objects, width, height, className, style, writerTexts }) => (
   <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" className={className} style={{ display: 'block', ...style }} aria-hidden>
-    {objects.map(o => <ObjectEl key={o.id} o={o} writerTexts={writerTexts} interactive={false} />)}
+    {objects.map(o => <ObjectEl key={o.id} o={o} writerTexts={writerTexts} interactive={false} staticRender />)}
   </svg>
 );
 
@@ -365,7 +406,17 @@ const TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }[] = [
   { id: 'line', icon: <Minus size={15} />, label: 'Line' },
   { id: 'pen', icon: <PenTool size={15} />, label: 'Pen / polyline' },
   { id: 'text', icon: <Type size={15} />, label: 'Text' },
+  { id: 'ink', icon: <Brush size={15} />, label: 'Ink — freehand pen, pencil, highlighter' },
 ];
+
+const INK_TOOLS: { id: NoteTool; icon: React.ReactNode; label: string }[] = [
+  { id: 'pen', icon: <Pen size={14} />, label: 'Pen' },
+  { id: 'pencil', icon: <Pencil size={14} />, label: 'Pencil' },
+  { id: 'highlighter', icon: <Highlighter size={14} />, label: 'Highlighter' },
+  { id: 'eraser', icon: <Eraser size={14} />, label: 'Eraser (whole strokes)' },
+  { id: 'lasso', icon: <Lasso size={14} />, label: 'Lasso select' },
+];
+const INK_COLORS = ['#16131f', '#D40055', '#6B0099', '#00A3B8', '#E07A00', '#2E7D32', '#ffffff'];
 
 const TelaVector: React.FC<TelaVectorProps> = (props) => {
   const {
@@ -387,6 +438,13 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
     setSelIdsI(next); setSelI(primary); props.onSelectionChange?.(next); props.onSelect?.(primary);
   };
   const select = (id: string | null) => selectMany(id ? [id] : []);
+
+  // Ink tool: sub-tool + style live here; strokes are ordinary PATH objects in the device.
+  const [inkTool, setInkTool] = useState<NoteTool>('pen');
+  const [inkStyle, setInkStyle] = useState<InkStyle>({ color: INK_COLORS[0], size: 2.4, tool: 'pen' });
+  const pickInk = (t: NoteTool) => { setInkTool(t); if (t === 'pen' || t === 'pencil' || t === 'highlighter') setInkStyle(st => ({ ...st, tool: t, size: t === 'highlighter' ? 3 : t === 'pencil' ? 2 : 2.4 })); };
+  const inkStrokes = device.objects.filter(o => o.kind === 'PATH' && o.points && !o.svgPathData);
+  const inkErased = useRef<Set<string>>(new Set());
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [draft, setDraft] = useState<TelaVectorObject | null>(null);
@@ -420,6 +478,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   const onBgPointerDown = (e: React.PointerEvent) => {
     if (readOnly) return;
     const p = svgPoint(e);
+    if (tool === 'ink') return; // the ink layer owns pointer input
     if (tool === 'select' || tool === 'direct') { select(null); return; }
     if (tool === 'marquee') {
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -635,6 +694,22 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
         </div>
       )}
 
+      {/* Ink options — shown whenever the Ink tool is active (Studio hides the palette but not these). */}
+      {!readOnly && tool === 'ink' && (
+        <div onPointerDown={e => e.stopPropagation()} style={{ position: 'absolute', top: chrome ? 46 : 8, left: 8, zIndex: 4, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', padding: 4, maxWidth: 'calc(100% - 16px)', background: 'rgba(18,13,28,0.92)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, backdropFilter: 'blur(6px)' }}>
+          {INK_TOOLS.map(t => (
+            <button key={t.id} title={t.label} aria-label={t.label} aria-pressed={inkTool === t.id} onClick={() => pickInk(t.id)}
+              style={{ display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', color: inkTool === t.id ? '#fff' : 'rgba(255,255,255,0.55)', background: inkTool === t.id ? 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' : 'transparent' }}>{t.icon}</button>
+          ))}
+          <span style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.15)' }} />
+          {INK_COLORS.map(c => (
+            <button key={c} aria-label={`Ink colour ${c}`} aria-pressed={inkStyle.color === c} onClick={() => { setInkStyle(st => ({ ...st, color: c })); if (inkTool === 'eraser' || inkTool === 'lasso') pickInk('pen'); }}
+              style={{ width: 18, height: 18, borderRadius: 9, cursor: 'pointer', background: c, border: `2px solid ${inkStyle.color === c ? '#fff' : 'rgba(255,255,255,0.25)'}` }} />
+          ))}
+          <input type="range" min={1} max={12} step={0.5} value={inkStyle.size} onChange={e => setInkStyle(st => ({ ...st, size: +e.target.value }))} aria-label="Ink thickness" style={{ width: 70 }} />
+        </div>
+      )}
+
       <svg
         ref={svgRef}
         width={device.width}
@@ -702,6 +777,22 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
           </g>
         )}
       </svg>
+
+      {/* Freehand ink: a pressure-aware canvas over the artboard; each stroke is committed as a PATH object. */}
+      {!readOnly && tool === 'ink' && (
+        <InkLayer
+          width={device.width} height={device.height} tool={inkTool} style={inkStyle} fingerDraws
+          strokes={inkStrokes} hiddenIds={new Set()}
+          onStroke={o => onAddObject(o)}
+          onErase={ids => {
+            const live = new Set(device.objects.map(o => o.id));
+            for (const id of [...inkErased.current]) if (!live.has(id)) inkErased.current.delete(id);
+            for (const id of ids) if (live.has(id) && !inkErased.current.has(id)) { inkErased.current.add(id); onDeleteObject(id); }
+          }}
+          onLasso={box => selectMany(box ? inkStrokes.filter(s => strokeInBox(s.points!, box)).map(s => s.id) : [])}
+          onTap={() => {}}
+        />
+      )}
 
       {/* Inline properties popover — hidden when Studio hosts the panel. */}
       {chrome && !readOnly && selected && (

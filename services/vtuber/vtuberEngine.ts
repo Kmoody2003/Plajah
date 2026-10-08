@@ -17,6 +17,7 @@ import { FaceRetargeter, type RetargetResult } from './retarget';
 import { VrmRig } from './vrmRig';
 import { Puppet2DDriver } from './puppet2D';
 import type { AvatarDescriptor } from './avatarFactory';
+import type { KaijuAvatarDriver } from './kaijuAvatar';
 
 export type VTuberMode = 'AVATAR_ONLY' | 'PIP' | 'FACE_OVERLAY' | 'BODY_OVERLAY' | 'FACE_SWAP';
 export interface VTuberBackground { type: 'transparent' | 'color'; value?: string }
@@ -72,8 +73,11 @@ function easeFace(shown: RetargetResult, target: RetargetResult, dtMs: number): 
     const from = shown.expressions[k] ?? 0;
     expressions[k] = from + (target.expressions[k] - from) * ke;
   }
+  let blend: Record<string, number> | undefined;
+  if (target.blend) { blend = {}; for (const k in target.blend) { const from = shown.blend?.[k] ?? 0; blend[k] = from + (target.blend[k] - from) * ke; } }
   return {
     expressions,
+    blend,
     head: {
       x: shown.head.x + (target.head.x - shown.head.x) * kh,
       y: shown.head.y + (target.head.y - shown.head.y) * kh,
@@ -195,10 +199,19 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
   const isPuppet = opts.avatar?.kind === 'PUPPET2D';
   let rig: VrmRig | null = null;
   let puppet: Puppet2DDriver | null = null;
+  let kaiju: KaijuAvatarDriver | null = null;
   let avatarCanvas: HTMLCanvasElement;
   let avatarCtx: CanvasRenderingContext2D | null = null;
 
-  if (isPuppet && opts.avatar?.kind === 'PUPPET2D') {
+  if (opts.avatar?.kind === 'KAIJU2D') {
+    // Kaiju characters: a canvas puppet with a full continuous face rig (lazy — only loaded when picked).
+    opts.onStatus?.('Loading the kaiju…');
+    const { KaijuAvatarDriver } = await import('./kaijuAvatar');
+    kaiju = await KaijuAvatarDriver.create(opts.avatar.character, { framing: opts.avatar.framing, props: opts.avatar.props });
+    avatarCanvas = kaiju.canvas;
+    avatarCtx = null;
+    opts.onStatus?.('Kaiju ready');
+  } else if (isPuppet && opts.avatar?.kind === 'PUPPET2D') {
     puppet = new Puppet2DDriver(opts.avatar.rig);
     // The avatar canvas keeps the RIG's aspect (capped for speed) — drawing the sprite into
     // the output-shaped canvas stretched/squished the character.
@@ -307,6 +320,7 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
     // render the avatar to its canvas (at the avatar canvas's own aspect)
     if (rig) rig.render();
     if (puppet && avatarCtx) puppet.render(avatarCtx, avatarCanvas.width, avatarCanvas.height, lastFace);
+    if (kaiju) kaiju.render(lastFace, !!lastBbox);
 
     // composite per mode
     ctx.clearRect(0, 0, W, H);
@@ -373,6 +387,7 @@ export async function createVTuberStream(input: MediaStream, opts: VTuberOptions
       asyncTracker.dispose();
       rig?.dispose();
       puppet?.dispose();
+      kaiju?.dispose();
       stream.getVideoTracks().forEach(track => track.stop());
       try { (video as any).srcObject = null; } catch { /* */ }
     },
