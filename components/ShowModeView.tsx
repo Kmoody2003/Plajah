@@ -5,9 +5,16 @@
 //              artist's Project Promo kit (trailer → teaser → key art → cover).
 //   2. Countdown — 3·2·1 over the same promo material, then the release starts playing.
 //   3. Show  — fullscreen stage. Three modes:
-//        FX      the Mixes auto-show (MixPixelsStage — audio-reactive generators, energy-aware)
+//        FX      the Mixes auto-show (MixPixelsStage — generators + the whole shader library +
+//                MilkDrop, audio-reactive and energy-aware)
 //        SLIDES  the artist's slideshow / promo stills (AnimatedSlideshow)
 //        DEFAULT opens on FX, then cycles Slides ⇄ Auto-Show
+//   Never black: the release's art sits under every scene (dim, blurred, drifting) and the FX layer
+//   is SCREEN-blended over it, so any dark or dead frame (shader still compiling, analyser not yet
+//   tapped, a visual that failed and is being skipped) reveals the art instead of a black screen.
+//   The FX layer stays mounted under the slides, so scene changes cross-fade instead of remounting.
+//   Lyrics: synced lines over the stage. A track without timeCodedLyrics is synced server-side on
+//   the spot (POST /api/lyrics/ensure, no sign-in needed), current track first, then the rest.
 //   4. Always-on CTAs — Join Plajah (signed-out), Support this artist, Plajah+ invite — plus an exit
 //      into the regular album view so the visitor can keep exploring.
 //
@@ -17,7 +24,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Album, PromoKit } from '../types';
-import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
+import { useGlobalPlayer, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { resolveSlideshowImages } from '../services/slideshow';
 import MixPixelsStage from './MixPixelsStage';
 import AnimatedSlideshow from './AnimatedSlideshow';
@@ -52,6 +59,32 @@ function pickPromoBackdrop(kit: PromoKit | undefined, cover: string) {
   return { kind: 'image' as const, url: still };
 }
 
+type Line = { time: number; text: string };
+const isInstrumental = (t?: string) => !!t && /^\(?\s*instrumental\s*\)?$/i.test(t.trim());
+
+/** Current + next synced line. Its own component so progress ticks re-render only this. */
+const ShowLyrics: React.FC<{ lines: Line[]; lifted: boolean }> = ({ lines, lifted }) => {
+  const { currentTime } = useGlobalPlayerProgress();
+  const sorted = useMemo(() => [...lines].sort((a, b) => a.time - b.time), [lines]);
+  let i = -1;
+  for (let k = 0; k < sorted.length; k++) { if (sorted[k].time <= (currentTime || 0) + 0.15) i = k; else break; }
+  const cur = i >= 0 ? sorted[i] : null;
+  const next = sorted[i + 1];
+  if (!cur && !next) return null;
+  return (
+    <div className={`absolute inset-x-0 z-[15] px-6 text-center pointer-events-none transition-[bottom] duration-500 ${lifted ? 'bottom-[30%] sm:bottom-[24%]' : 'bottom-[14%]'}`}>
+      <p key={cur ? `${i}:${cur.time}` : 'pre'}
+        className="mx-auto max-w-4xl text-2xl sm:text-4xl lg:text-5xl font-black leading-tight"
+        style={{ animation: 'showLine .45s ease-out', textShadow: '0 2px 24px rgba(0,0,0,.85), 0 0 2px rgba(0,0,0,.9)' }}>
+        {cur && !isInstrumental(cur.text) ? cur.text : '♪'}
+      </p>
+      {next && !isInstrumental(next.text) && (
+        <p className="mx-auto mt-2 max-w-3xl text-base sm:text-xl font-bold text-white/45 truncate" style={{ textShadow: '0 2px 12px rgba(0,0,0,.8)' }}>{next.text}</p>
+      )}
+    </div>
+  );
+};
+
 const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initialMode = 'DEFAULT', user, onExit, onSignUp }) => {
   const gp = useGlobalPlayer();
   const [mode, setMode] = useState<ShowMode>(initialMode);
@@ -79,6 +112,50 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
     const all = [...promo, ...own].filter(Boolean);
     return Array.from(new Set(all.length ? all : [cover].filter(Boolean)));
   }, [album, kit, cover, gp.currentTrack]);
+
+  // ── Lyrics: use what the album carries; sync anything missing server-side, current track first ──
+  const [showLyrics, setShowLyrics] = useState(true);
+  const [synced, setSynced] = useState<Record<string, Line[]>>({});
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const focusId = focusTrack?.id;
+  useEffect(() => {
+    if (phase !== 'show' || !album.id || album.isPrivate) return;
+    const music = (album.tracks || []).filter(t => t?.id && t.mediaKind !== 'VIDEO' && /^https?:/i.test(String(t.url || '')));
+    const missing = music.filter(t => !(t.timeCodedLyrics?.length) && !synced[t.id]);
+    if (!missing.length) return;
+    // Current track first, then the rest of the release in order.
+    missing.sort((a, b) => (a.id === focusId ? -1 : b.id === focusId ? 1 : 0));
+    let cancelled = false;
+    (async () => {
+      for (const t of missing) {
+        for (let attempt = 0; attempt < 6 && !cancelled; attempt++) {
+          setSyncing(t.id);
+          let status = 'failed';
+          try {
+            const res = await fetch('/api/lyrics/ensure', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ albumId: album.id, trackId: t.id }),
+            });
+            const data = res.ok ? await res.json().catch(() => ({})) : {};
+            // 429 = rate limited; 502/504 = Firebase Hosting's 60 s proxy cut-off on a long song,
+            // while the server keeps transcribing. Both mean "look again shortly", not "failed".
+            status = data?.status || (res.status === 429 || res.status === 502 || res.status === 504 ? 'running' : 'failed');
+            if (status === 'done' && Array.isArray(data.captions) && data.captions.length && !cancelled) {
+              setSynced(m => ({ ...m, [t.id]: data.captions }));
+            }
+          } catch { status = 'failed'; }
+          // Another viewer's request is transcribing it (or we're rate limited): look again shortly.
+          if (status !== 'running') break;
+          await new Promise(res => setTimeout(res, 20000));
+        }
+        if (cancelled) return;
+      }
+      if (!cancelled) setSyncing(null);
+    })();
+    return () => { cancelled = true; setSyncing(null); };
+  }, [phase, album.id, focusId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const focusLines: Line[] | null =
+    (focusId && synced[focusId]) || (focusTrack?.timeCodedLyrics?.length ? focusTrack.timeCodedLyrics : null);
 
   // ── Gate → countdown → play ──
   const enter = useCallback(() => {
@@ -167,11 +244,27 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
       {/* ── stage ── */}
       {phase === 'show' && (
         <div className="absolute inset-0">
-          {scene === 'FX' ? (
-            <MixPixelsStage analyser={gp.analyser} isPlaying={gp.isPlaying} visualMode="AUTO" ownerId={album.ownerId} />
-          ) : (
-            <AnimatedSlideshow images={slides} isPlaying={gp.isPlaying} themeColor="#D40055" artistNotes={[]} presentation="ambient" />
+          {/* Floor: the release's own art, dim + drifting. Nothing above can leave the stage black. */}
+          <div className="absolute inset-0 overflow-hidden" aria-hidden>
+            {(kit?.keyArtUrl || cover || slides[0]) && (
+              <img src={kit?.keyArtUrl || cover || slides[0]} alt="" className="absolute inset-[-6%] w-[112%] h-[112%] max-w-none object-cover show-drift"
+                style={{ filter: 'blur(28px) saturate(1.25) brightness(.42)' }} />
+            )}
+            <div className="absolute inset-0 show-glow" style={{ background: 'radial-gradient(120% 90% at 50% 40%, rgba(107,0,153,.35), rgba(212,0,85,.18) 45%, rgba(0,0,0,.55) 100%)' }} />
+          </div>
+          {/* FX stays mounted under the slides (no remount flash, no WebGL context churn). Screen
+              blend: its black pixels show the art floor, its light pixels play on top. */}
+          {mode !== 'SLIDES' && (
+            <div className="absolute inset-0 transition-opacity duration-[1200ms]" style={{ mixBlendMode: 'screen', opacity: scene === 'FX' ? 1 : 0 }}>
+              <MixPixelsStage analyser={gp.analyser} isPlaying={gp.isPlaying} visualMode="AUTO" ownerId={album.ownerId} />
+            </div>
           )}
+          {mode !== 'FX' && (
+            <div className="absolute inset-0 transition-opacity duration-[1200ms]" style={{ opacity: scene === 'SLIDES' ? 1 : 0, pointerEvents: scene === 'SLIDES' ? 'auto' : 'none' }}>
+              <AnimatedSlideshow images={slides} isPlaying={gp.isPlaying} themeColor="#D40055" artistNotes={[]} presentation="ambient" />
+            </div>
+          )}
+          {showLyrics && focusLines && <ShowLyrics lines={focusLines} lifted={chromeVisible} />}
           <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/85 to-transparent pointer-events-none" />
           <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
         </div>
@@ -233,7 +326,13 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
               {album.ownerId && <Button variant="primary" size="sm" onClick={() => setSheet('gift')}>Gift this artist</Button>}
               {offers.any && <Button variant="accent" size="sm" onClick={() => setSheet('buy')}>Buy from ${lowestPrice % 1 === 0 ? lowestPrice.toFixed(0) : lowestPrice.toFixed(2)}</Button>}
               <Button variant="secondary" size="sm" onClick={() => setSheet('plus')}>Plajah+ · Invite</Button>
-              <div className="ml-auto flex gap-1.5">
+              <div className="ml-auto flex gap-1.5 items-center">
+                {syncing && syncing === focusId && !focusLines && (
+                  <span className="text-[10px] uppercase tracking-widest text-white/50 mr-1">Syncing lyrics…</span>
+                )}
+                {focusLines && (
+                  <Chip interactive selected={showLyrics} onClick={() => setShowLyrics(v => !v)}>Lyrics</Chip>
+                )}
                 {([['DEFAULT', 'Show'], ['FX', 'FX Stage'], ['SLIDES', 'Slides']] as [ShowMode, string][]).map(([m, label]) => (
                   <Chip key={m} interactive selected={mode === m} onClick={() => setMode(m)}>{label}</Chip>
                 ))}
@@ -248,6 +347,12 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
       <style>{`
         @keyframes showPop { 0% { transform: scale(1.5); opacity: 0 } 25% { opacity: 1 } 100% { transform: scale(.85); opacity: .55 } }
         @keyframes showKen { from { transform: scale(1) } to { transform: scale(1.08) } }
+        @keyframes showDrift { from { transform: scale(1) translate(0,0) } to { transform: scale(1.1) translate(-2%,1.5%) } }
+        @keyframes showGlow { from { opacity: .7 } to { opacity: 1 } }
+        @keyframes showLine { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+        .show-drift { animation: showDrift 38s ease-in-out infinite alternate }
+        .show-glow { animation: showGlow 9s ease-in-out infinite alternate }
+        @media (prefers-reduced-motion: reduce) { .show-drift, .show-glow { animation: none } }
       `}</style>
     </div>
   );

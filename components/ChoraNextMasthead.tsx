@@ -30,6 +30,8 @@ interface ChoraNextMastheadProps {
   onSelectAlbum: (album: Album) => void;
   /** Rendered beside the title (Chora's kaiju duo). */
   mascots?: React.ReactNode;
+  /** Layer that peeks from behind the title's "Chora" (e.g. <KaijuLetterPeek/>). */
+  behindTitle?: React.ReactNode;
 }
 
 /** Preview url for hover-unmute: promo kit sample first, then the first audio track. */
@@ -54,7 +56,7 @@ const SKY_SPOTS = [
 const fmtPlays = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n));
 
 const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
-  albums, upcomingAlbums, isNight, mode, onCycleMode, onExit, onFeedback, onSelectAlbum, mascots,
+  albums, upcomingAlbums, isNight, mode, onCycleMode, onExit, onFeedback, onSelectAlbum, mascots, behindTitle,
 }) => {
   const intentRef = useRef<number | null>(null);
   const reduceMotion = useReducedMotion();
@@ -98,7 +100,14 @@ const ChoraNextMasthead: React.FC<ChoraNextMastheadProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-end gap-3">
-            <h1>Plajah <span className="cn-grad">Chora</span></h1>
+            {behindTitle ? (
+              <div className="relative">
+                {behindTitle}
+                <h1 className="relative z-[1]" style={{ paddingTop: '0.42em' }}>Plajah <span className="cn-grad">Chora</span></h1>
+              </div>
+            ) : (
+              <h1>Plajah <span className="cn-grad">Chora</span></h1>
+            )}
             {mascots}
           </div>
           <div className="cn-issue">

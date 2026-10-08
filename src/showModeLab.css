@@ -1,0 +1,9 @@
+/* Show Mode lab only. Scoped Tailwind sources: the app's index.css auto-scans the whole repo
+   (including large untracked media folders), which wedges a standalone dev server. */
+@import "tailwindcss" source(none);
+@source "../components/ShowModeView.tsx";
+@source "../components/ArtistSupportSheet.tsx";
+@source "../components/AnimatedSlideshow.tsx";
+@source "../components/FxStageVisualizers.tsx";
+@source "../components/ui";
+@import "../styles/plajah-ds.css";

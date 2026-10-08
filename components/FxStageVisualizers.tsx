@@ -201,12 +201,15 @@ const Loading = () => (
 );
 
 export default function FxStageVisualizers({
-  engine, presetIndex, analyser, isPlaying,
+  engine, presetIndex, analyser, isPlaying, onVisualError,
 }: {
   engine: FxEngine;
   presetIndex: number;
   analyser: AnalyserNode | null;
   isPlaying: boolean;
+  /** A visual that cannot run on this device (shader compile/link error, no WebGL2). Hosts that
+   *  auto-advance (MixPixelsStage) skip it, so the stage never sits on a dead canvas. */
+  onVisualError?: (reason: string) => void;
 }) {
   // Reactivity is requested HERE, by the thing that needs it, rather than by each surface that
   // happens to host it. Every Pixels visual — album FX Stage, Mixes, the TV surface — goes through
@@ -257,7 +260,7 @@ export default function FxStageVisualizers({
     <Suspense fallback={<Loading />}>
       {engine === 'MILKDROP' && <ButterchurnLayer analyser={analyser} presetIndex={presetIndex} fpsCap={fps} renderScale={renderScale} />}
       {engine === 'SHADER' && (shader
-        ? <ShaderLayer analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} renderScale={renderScale} />
+        ? <ShaderLayer analyser={analyser} source={shader.source} startTimeMs={startTimeMs} params={shader.params} fpsCap={fps} renderScale={renderScale} onError={msg => { if (msg) onVisualError?.(msg); }} />
         : <Loading />)}
       {engine === 'GENERATOR' && (
         isStudioMode(genConfig.mode)

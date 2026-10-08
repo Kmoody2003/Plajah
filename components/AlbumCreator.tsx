@@ -631,10 +631,11 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
 
   /**
    * Transcribe + time-code an album's music tracks AFTER publish, when each track has a real
-   * https URL the server can fetch. Uses the same `/api/ai/captions` endpoint as the player's
-   * "Sync Lyrics" (windowed transcription — short audio windows anchored by ffmpeg, so timings
-   * can't accumulate drift). Best-effort and fully non-fatal: a track that fails simply keeps
-   * its plain lyrics, which is far better than confidently wrong timings.
+   * https URL. The work happens SERVER-side (POST /api/lyrics/ensure → services/lyricSyncWorker):
+   * the server picks the compressed rendition when there is one, writes the result straight into
+   * the album, and records the attempt, so nothing depends on this page staying open. Anything this
+   * page doesn't get to (tab closed, network drop, a huge WAV) is picked up by the lyric cron, which
+   * is the same path the catalogue backfill uses. Here we only nudge it along and reflect results.
    */
   const syncCaptionsAfterPublish = useCallback(async (album: any) => {
     const list: Track[] = Array.isArray(album?.tracks) ? album.tracks : [];
@@ -643,36 +644,33 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       (t.mediaKind !== 'VIDEO') &&
       (!t.timeCodedLyrics || t.timeCodedLyrics.length === 0)
     );
-    if (targets.length === 0 || !album?.id) return;
+    // Private releases aren't reachable by the public ensure route; the cron covers them.
+    if (targets.length === 0 || !album?.id || album.isPrivate) return;
 
-    const token = auth.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
     const updated = [...list];
     let changed = false;
-
-    for (const track of targets) {
-      try {
-        const res = await fetch('/api/ai/captions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ audioUrl: track.url, title: track.title, artist: album.artist }),
-        });
-        if (!res.ok) continue;
-        const data = await res.json().catch(() => ({}));
-        const captions = data?.captions;
-        if (Array.isArray(captions) && captions.length > 0) {
-          const i = updated.findIndex(t => t.id === track.id);
-          if (i >= 0) { updated[i] = { ...updated[i], timeCodedLyrics: captions }; changed = true; }
-        }
-      } catch { /* leave this track unsynced rather than fabricate timings */ }
-    }
-
-    if (changed) {
-      try {
-        const { updateAlbum } = await import('../services/backendService');
-        await updateAlbum(album.id, { tracks: updated } as any);
-        onCreated({ ...album, tracks: updated });
-      } catch { /* best-effort */ }
-    }
+    const queue = [...targets];
+    // Two at a time: fast enough for an EP, gentle on the AI rate limit for a 30-track album.
+    const worker = async () => {
+      for (let track = queue.shift(); track; track = queue.shift()) {
+        try {
+          const res = await fetch('/api/lyrics/ensure', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ albumId: album.id, trackId: track.id }),
+          });
+          if (!res.ok) continue;
+          const data = await res.json().catch(() => ({}));
+          if (data?.status === 'done' && Array.isArray(data.captions) && data.captions.length > 0) {
+            const i = updated.findIndex(t => t.id === track!.id);
+            if (i >= 0) { updated[i] = { ...updated[i], timeCodedLyrics: data.captions }; changed = true; }
+          }
+        } catch { /* the server-side cron retries it */ }
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    // The server already persisted each result; this only refreshes the creator's view.
+    if (changed) onCreated({ ...album, tracks: updated });
   }, [onCreated]);
 
   const openTapSync = useCallback((track: Track) => {

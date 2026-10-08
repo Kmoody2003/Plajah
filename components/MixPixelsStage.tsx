@@ -1,28 +1,43 @@
-// MixPixelsStage — the Pixels visual for a Chora Mix.
+// MixPixelsStage — the Pixels visual for a Chora Mix (and Share-in-Show-Mode's FX stage).
 //
 // Two modes (per Album.mixMeta.visualMode):
-//  • AUTO (default): the intelligent, audio-reactive auto-show. It listens to the mix through the
-//    shared analyser and advances through the 22 Plajah Pixels canvas & studio generator scenes,
-//    timed musically with the track's groove and energy. Never thrashes WebGL contexts; runs at a
-//    stable 60fps with zero memory leaks.
+//  • AUTO (default): the intelligent, ENERGY-AWARE auto-show. It listens through the shared
+//    analyser and advances ONE visual at a time — never composited — switching on the music.
+//    It draws from the WHOLE Plajah Pixels library: the canvas GENERATORS, the full Signature
+//    shader library (every SHADER), and MILKDROP presets, weighted by the section's energy: calm
+//    passages lean on the gentler generators, the mids bring in shaders, drops punch in shaders/
+//    milkdrops. A real drop forces an immediate high-impact hit.
 //  • AUTHORED: the artist attached a saved Plajah Pixels project (mixMeta.pixelsProjectId).
 //    We load that cloud project and play back its full layer matrix via LayerStack. Any load
 //    failure falls back to the auto-show so the canvas is never dead.
+//
+// NEVER BLACK. A visual that can't run (shader compile/link error on this GPU, WebGL2
+// unavailable, a lost context) reports up and is skipped at once — the stage moves to the next
+// visual instead of sitting on a dead canvas. Pick-a-generator is the floor: canvas 2D always runs.
+// (History: a 2026-10-03 checkpoint quietly cut this back to generators only, so no shader ever
+// appeared in Mixes or Show Mode. The context-leak that once blacked out the port is fixed in
+// ShaderLayer/ButterchurnLayer, which release their GL context on unmount.)
+//
+// Intentional, wanted motion: this does NOT freeze under prefers-reduced-motion. It only reacts.
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import FxStageVisualizers, { FX_ENGINE_PRESETS, fxPresetName } from './FxStageVisualizers';
+import React, { useEffect, useRef, useState } from 'react';
+import FxStageVisualizers, { FX_ENGINE_PRESETS, fxPresetName, loadMilkdropNames, loadShaderNames, type FxEngine } from './FxStageVisualizers';
 import { AudioDriverSampler } from './plajahPixels/engine/audioDrivers';
 import LayerStack from './plajahPixels/components/LayerStack';
 import { loadCloudProject } from './plajahPixels/services/projectService';
 import type { VisualizationConfig } from './plajahPixels/types';
 import type { LauncherLayer } from './plajahPixels/components/ClipLauncher';
 
-const GEN_COUNT = FX_ENGINE_PRESETS.GENERATOR.length; // 22 generator scenes
+const GEN_COUNT = FX_ENGINE_PRESETS.GENERATOR.length; // the canvas generators
+// Shaders and milkdrops load on demand, so their counts are read at runtime (a module-load read
+// of the shader count is 0 and once pinned Mixes to shader 0 forever).
+
+type Visual = { engine: FxEngine; index: number };
 
 export interface MixPixelsInfo {
   index: number;
   count: number;
-  name: string;
+  name: string;       // "Gen · Nebula" / "Shader · Hypergate" / "MilkDrop · <preset>", or the project name
   authored: boolean;
 }
 
@@ -33,34 +48,111 @@ interface MixPixelsStageProps {
   pixelsProjectId?: string;
   ownerId?: string;
   onGeneratorChange?: (info: MixPixelsInfo) => void;
+  /** Restrict the auto-show to these engines (default: all three). */
+  engines?: FxEngine[];
   className?: string;
 }
 
+const engLabel = (e: FxEngine) => (e === 'GENERATOR' ? 'Gen' : e === 'SHADER' ? 'Shader' : 'MilkDrop');
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+/** Never cut faster than this — each WebGL switch costs a context; a strobe of them helps no one. */
+const MIN_HOLD_MS = 5000;
 
 const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
-  analyser, isPlaying, visualMode = 'AUTO', pixelsProjectId, ownerId, onGeneratorChange, className,
+  analyser, isPlaying, visualMode = 'AUTO', pixelsProjectId, ownerId, onGeneratorChange, engines, className,
 }) => {
-  const [presetIndex, setPresetIndex] = useState(() => Math.floor(Math.random() * GEN_COUNT));
+  const [visual, setVisual] = useState<Visual>(() => ({ engine: 'GENERATOR', index: Math.floor(Math.random() * GEN_COUNT) }));
   const infoCb = useRef(onGeneratorChange);
   infoCb.current = onGeneratorChange;
+  const allow = useRef<Set<FxEngine>>(new Set(engines ?? ['GENERATOR', 'SHADER', 'MILKDROP']));
+  allow.current = new Set(engines ?? ['GENERATOR', 'SHADER', 'MILKDROP']);
 
-  // Shuffled generator order so all 22 scenes cycle evenly without immediate repeats
-  const orderRef = useRef<number[]>([]);
-  const curIdxRef = useRef<number>(0);
-  const nextPreset = useCallback((): number => {
-    let order = orderRef.current;
-    if (order.length === 0 || curIdxRef.current >= order.length) {
-      order = Array.from({ length: GEN_COUNT }, (_, i) => i);
-      for (let k = order.length - 1; k > 0; k--) {
-        const j = Math.floor(Math.random() * (k + 1));
-        [order[k], order[j]] = [order[j], order[k]];
-      }
-      orderRef.current = order;
-      curIdxRef.current = 0;
-    }
-    return order[curIdxRef.current++];
+  const [mdNames, setMdNames] = useState<string[]>([]);
+  const mdNamesRef = useRef<string[]>([]);
+  mdNamesRef.current = mdNames;
+  const [shaderNames, setShaderNames] = useState<string[]>([]);
+  const shaderNamesRef = useRef<string[]>([]);
+  shaderNamesRef.current = shaderNames;
+  useEffect(() => {
+    let alive = true;
+    loadMilkdropNames().then(n => { if (alive) setMdNames(n || []); }).catch(() => {});
+    loadShaderNames().then(n => { if (alive) setShaderNames(n || []); }).catch(() => {});
+    return () => { alive = false; };
   }, []);
+
+  // Visuals that failed on THIS device (bad compile, no WebGL2…) are never picked again this session.
+  const broken = useRef<Set<string>>(new Set());
+  const keyOf = (v: Visual) => `${v.engine}:${v.index}`;
+
+  // Shuffled per-engine cursors so every generator and every shader gets its turn over a set.
+  const genOrder = useRef<number[]>([]);
+  const genCur = useRef(0);
+  const shaderOrder = useRef<number[]>([]);
+  const shaderCur = useRef(0);
+  const shuffled = (n: number) => {
+    const o = Array.from({ length: n }, (_, i) => i);
+    for (let k = o.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [o[k], o[j]] = [o[j], o[k]]; }
+    return o;
+  };
+  const nextGen = (): Visual => {
+    for (let tries = 0; tries < GEN_COUNT * 2; tries++) {
+      if (genCur.current >= genOrder.current.length) { genOrder.current = shuffled(GEN_COUNT); genCur.current = 0; }
+      const v: Visual = { engine: 'GENERATOR', index: genOrder.current[genCur.current++] };
+      if (!broken.current.has(keyOf(v))) return v;
+    }
+    return { engine: 'GENERATOR', index: 0 };
+  };
+  const nextShader = (): Visual | null => {
+    const n = shaderNamesRef.current.length;
+    if (!n || !allow.current.has('SHADER')) return null;
+    for (let tries = 0; tries < n; tries++) {
+      if (shaderOrder.current.length !== n || shaderCur.current >= n) { shaderOrder.current = shuffled(n); shaderCur.current = 0; }
+      const v: Visual = { engine: 'SHADER', index: shaderOrder.current[shaderCur.current++] };
+      if (!broken.current.has(keyOf(v))) return v;
+    }
+    return null;
+  };
+  const nextMilkdrop = (): Visual | null => {
+    const n = mdNamesRef.current.length;
+    if (!n || !allow.current.has('MILKDROP') || broken.current.has('MILKDROP:*')) return null;
+    return { engine: 'MILKDROP', index: Math.floor(Math.random() * n) };
+  };
+  // Energy e (0..1): low = mostly generators, high = shaders + milkdrops (milkdrops ~e², so they read as drop hits).
+  const pickByEnergy = (e: number): Visual => {
+    const genW = allow.current.has('GENERATOR') ? 1 - 0.55 * e : 0;
+    const shaderW = shaderNamesRef.current.length && allow.current.has('SHADER') ? 0.45 + 0.6 * e : 0;
+    const mdW = mdNamesRef.current.length && allow.current.has('MILKDROP') ? e * e * 1.4 : 0;
+    let r = Math.random() * (genW + shaderW + mdW || 1);
+    if ((r -= genW) < 0) return nextGen();
+    if ((r -= shaderW) < 0) return nextShader() ?? nextGen();
+    return nextMilkdrop() ?? nextShader() ?? nextGen();
+  };
+  const applyVisual = (v: Visual) => setVisual(prev => (prev.engine === v.engine && prev.index === v.index ? prev : v));
+  const pickRef = useRef(pickByEnergy);
+  pickRef.current = pickByEnergy;
+  const lastSwitchRef = useRef(0);
+
+  // A visual that can't run on this device → mark it and move on immediately.
+  const skipBroken = (why: string) => {
+    setVisual(cur => {
+      broken.current.add(keyOf(cur));
+      if (cur.engine === 'MILKDROP' && /webgl|context/i.test(why)) broken.current.add('MILKDROP:*');
+      if (cur.engine === 'SHADER' && /webgl2 unavailable/i.test(why)) allow.current.delete('SHADER');
+      lastSwitchRef.current = performance.now();
+      const next = pickRef.current(0.5);
+      return next.engine === cur.engine && next.index === cur.index ? nextGen() : next;
+    });
+  };
+
+  // Lost GL contexts (GPU reset, tab memory pressure) arrive as non-bubbling canvas events; a
+  // capture listener on the wrapper still sees them.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = wrapRef.current; if (!el) return;
+    const onLost = () => skipBroken('context lost');
+    el.addEventListener('webglcontextlost', onLost, true);
+    return () => el.removeEventListener('webglcontextlost', onLost, true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Authored show: load the artist's saved Pixels project (best-effort) ──
   const [authored, setAuthored] = useState<{ layers: LauncherLayer[]; config: VisualizationConfig; name: string } | null>(null);
@@ -80,64 +172,59 @@ const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
   }, [wantAuthored, ownerId, pixelsProjectId]);
   const authoredActive = !!authored;
 
-  // Report the active visual up to the player for the on-canvas badge
+  // Report the active visual up to the player (for the on-canvas badge).
   useEffect(() => {
     if (authoredActive) {
       infoCb.current?.({ index: 0, count: 0, name: authored!.name, authored: true });
     } else {
-      const name = `Pixels · ${fxPresetName('GENERATOR', presetIndex)}`;
-      infoCb.current?.({ index: presetIndex, count: GEN_COUNT, name, authored: false });
+      // Each async engine has its OWN name pool — passing the milkdrop list for a shader
+      // would label the visual with an unrelated preset name.
+      const names = visual.engine === 'MILKDROP' ? mdNamesRef.current
+        : visual.engine === 'SHADER' ? shaderNamesRef.current
+        : undefined;
+      infoCb.current?.({ index: visual.index, count: 0, name: `${engLabel(visual.engine)} · ${fxPresetName(visual.engine, visual.index, names)}`, authored: false });
     }
-  }, [presetIndex, authoredActive]);
+  }, [visual, authoredActive, mdNames, shaderNames]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Musical, groove-aligned advance loop. Auto-Show only.
+  // The energy-aware advance loop. Auto-Show only.
   useEffect(() => {
     if (authoredActive || !analyser || !isPlaying) return;
     const sampler = new AudioDriverSampler();
     let raf = 0;
-    let lastSwitch = typeof performance !== 'undefined' ? performance.now() : 0;
-    lastSwitch += 4000; // Let opening scene settle before first transition
+    lastSwitchRef.current = performance.now() + 1500; // ease in
     let energy = 0;
 
     const tick = (now: number) => {
       sampler.update(analyser, now);
-
-      // Section energy: sub-bass + drum density, smoothed so it tracks musical structure
+      // Section energy: sub-bass + drum density, smoothed so it tracks the arc, not one frame.
       const inst = clamp01(0.6 * sampler.intensity + 0.7 * sampler.density);
       const prev = energy;
-      energy = prev * 0.92 + inst * 0.08;
+      energy = prev * 0.88 + inst * 0.12;
 
       const bpm = Math.min(200, Math.max(70, sampler.bpm || 120));
       const beatMs = 60000 / bpm;
-      // 16 to 32 bars between standard transitions (18–30 seconds)
-      const grooveGap = Math.max(16000, beatMs * 32);
+      const grooveGap = beatMs * 32;                         // ~16 s at 120 bpm
+      // Higher energy → cut faster; calm sections hold longer.
+      const dynamicGap = Math.max(MIN_HOLD_MS * 1.6, grooveGap * (1 - 0.6 * Math.max(sampler.density, energy)));
+      const since = now - lastSwitchRef.current;
 
-      // Major energy drop detection: big surge from quiet section to peak (with 10s cooldown)
-      const isDrop = energy > 0.70 && energy - prev > 0.08 && now - lastSwitch > 10000;
-      // Beat-aligned transition once the groove interval has elapsed
-      const isBeatSwitch = (sampler.isKick || sampler.isSnare) && now - lastSwitch > grooveGap;
-      // Idle fallback if song is ambient/beatless
-      const isIdleSwitch = now - lastSwitch > grooveGap * 1.8;
+      const drop = energy > 0.72 && energy - prev > 0.10 && since > MIN_HOLD_MS;
+      const beatSwitch = (sampler.isKick || sampler.isSnare) && since > dynamicGap;
+      const idleSwitch = since > grooveGap * 2;
 
-      if (isDrop || isBeatSwitch || isIdleSwitch) {
-        lastSwitch = now;
-        setPresetIndex(nextPreset());
-      }
-
+      if (drop) { lastSwitchRef.current = now; applyVisual(pickRef.current(Math.max(energy, 0.85))); }
+      else if (beatSwitch || idleSwitch) { lastSwitchRef.current = now; applyVisual(pickRef.current(energy)); }
       raf = requestAnimationFrame(tick);
     };
-
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [analyser, isPlaying, authoredActive, nextPreset]);
+  }, [analyser, isPlaying, authoredActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className={className} aria-hidden="true" style={{ position: 'absolute', inset: 0 }}>
-      {authoredActive ? (
-        <LayerStack layers={authored!.layers} config={authored!.config} analyser={analyser} isPlaying={isPlaying} />
-      ) : (
-        <FxStageVisualizers engine="GENERATOR" presetIndex={presetIndex} analyser={analyser} isPlaying={isPlaying} />
-      )}
+    <div ref={wrapRef} className={className} aria-hidden="true" style={{ position: 'absolute', inset: 0 }}>
+      {authoredActive
+        ? <LayerStack layers={authored!.layers} config={authored!.config} analyser={analyser} isPlaying={isPlaying} />
+        : <FxStageVisualizers engine={visual.engine} presetIndex={visual.index} analyser={analyser} isPlaying={isPlaying} onVisualError={skipBroken} />}
     </div>
   );
 };

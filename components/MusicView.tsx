@@ -7,6 +7,8 @@ import { canUpload } from '../services/tvCapabilities';
 import PageHeader from './PageHeader';
 import { KaijuLogoDuo } from './kaiju/KaijuMascots';
 import { KaijuGlobalSignal } from './kaiju/KaijuGlobalSignal';
+// tiny wrapper; three.js + the v2 models load lazily inside it (never in this chunk)
+import KaijuLetterPeek from './kaiju/KaijuLetterPeek';
 const AlbumArt3DViewer = lazy(() => import('./AlbumArt3DViewer'));
 import {
   Play, Pause, SkipForward, SkipBack, Heart, Share2,
@@ -1694,9 +1696,10 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 onFeedback={() => window.dispatchEvent(new CustomEvent('OPEN_BUG_REPORT', { detail: { context: 'chora-next' } }))}
                 onSelectAlbum={onSelectAlbum}
                 mascots={<KaijuLogoDuo className="h-14 sm:h-16 lg:h-20" />}
+                behindTitle={<KaijuLetterPeek />}
               />
             ) : (
-              <PageHeader mark={<KaijuLogoDuo />}>Plajah Chora</PageHeader>
+              <PageHeader mark={<KaijuLogoDuo />} behind={isTvUi ? undefined : <KaijuLetterPeek />}>Plajah Chora</PageHeader>
             )}
             </KaijuGlobalSignal>
             {/* Both banners are off on TV. The Plajah+ promo belongs in the side panel, not
