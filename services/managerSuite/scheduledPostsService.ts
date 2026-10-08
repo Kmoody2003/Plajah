@@ -23,6 +23,8 @@ export interface NewScheduledPostInput {
   linkDescription?: string;
   targetAccountIds: string[];
   alsoPostToPlajah?: boolean;
+  /** Share to X via its web intent (user taps Post; never automated). */
+  shareToX?: boolean;
   /** Epoch ms; omit for a draft. */
   scheduledAt?: number;
   timezone?: string;
@@ -42,7 +44,7 @@ export async function createScheduledPost(input: NewScheduledPostInput): Promise
   if (!input.text.trim() && !(input.mediaUrls?.length)) {
     throw new Error('Add some text or media before scheduling');
   }
-  if (!input.targetAccountIds.length && !input.alsoPostToPlajah) {
+  if (!input.targetAccountIds.length && !input.alsoPostToPlajah && !input.shareToX) {
     throw new Error('Pick at least one channel to publish to');
   }
 
@@ -62,6 +64,7 @@ export async function createScheduledPost(input: NewScheduledPostInput): Promise
     linkDescription: input.linkDescription,
     targetAccountIds: input.targetAccountIds,
     alsoPostToPlajah: input.alsoPostToPlajah ?? false,
+    shareToX: input.shareToX ?? false,
     scheduledAt: input.scheduledAt,
     timezone: input.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
     status: input.scheduledAt ? 'SCHEDULED' : 'DRAFT',

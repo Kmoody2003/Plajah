@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Trash2, ShieldCheck, AlertTriangle, ChevronDown, ChevronUp, Mail, ExternalLink } from 'lucide-react';
 import { auth, logout } from '../services/backendService';
+import { listSocialAccounts, disconnectSocialAccount } from '../services/managerSuite/socialAccountsService';
 import { deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 
 interface Props {
@@ -22,6 +23,9 @@ export default function DeleteAccountPage({ onBack }: Props) {
     setDeleting(true);
     setError(null);
     try {
+      // Remove stored Facebook/Instagram/X/LinkedIn tokens first (best-effort) — the account
+      // doc's subcollections are not deleted by deleteUser, and the privacy policy promises they go.
+      try { for (const a of await listSocialAccounts()) await disconnectSocialAccount(a.id); } catch { /* none connected / offline */ }
       await deleteUser(currentUser);
       setStep('DONE');
     } catch (err: any) {

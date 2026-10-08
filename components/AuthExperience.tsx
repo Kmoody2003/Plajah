@@ -189,7 +189,7 @@ const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER', on
               {mode === 'REGISTER' ? 'Join Plajah' : mode === 'SIGN_IN' ? 'Welcome back' : 'Reset password'}
             </h3>
             <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-6">
-              {mode === 'REGISTER' ? 'One account. Every creative surface.' : mode === 'SIGN_IN' ? 'Pick up right where you left off.' : 'We’ll email you a reset link.'}
+              {mode === 'REGISTER' ? 'Everything creators make. One place.' : mode === 'SIGN_IN' ? 'Pick up right where you left off.' : 'We’ll email you a reset link.'}
             </p>
 
             {resetSent ? (

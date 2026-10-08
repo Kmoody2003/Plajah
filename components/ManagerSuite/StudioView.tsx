@@ -24,6 +24,11 @@ import {
 } from '../../services/managerSuite/scheduledPostsService';
 import type { ManagerSuiteEntitlement, ScheduledPost, ScheduledPostTargetResult } from '../../services/managerSuite/types';
 import type { FediverseProtocol } from '../../services/fediverse/types';
+import { openXShare } from '../../services/managerSuite/xShare';
+import {
+  listSocialAccounts, connectSocialProvider, publishToSocial, PROVIDER_FOR_PLATFORM,
+  type SocialAccount,
+} from '../../services/managerSuite/socialAccountsService';
 
 // ─── Platform definitions ─────────────────────────────────────────────────────
 
@@ -38,10 +43,15 @@ interface PlatformDef {
   protocol?: FediverseProtocol;
   status: PlatformStatus;
   accountId?: string;
+  /** Commercial networks can have several linked accounts (e.g. multiple Pages). */
+  accountIds?: string[];
+  /** Not natively connected: publishes through X's free web-intent share instead. */
+  shareOnly?: boolean;
 }
 
-const NET_LABEL: Record<FediverseProtocol | 'plajah', string> = {
+const NET_LABEL: Record<string, string> = {
   mastodon: 'Mastodon', bluesky: 'Bluesky', threads: 'Threads', plajah: 'Plajah',
+  x: 'X', instagram: 'Instagram', facebook: 'Facebook', linkedin: 'LinkedIn',
 };
 const NET_COLOR: Record<string, string> = {
   plajah: '#FF8C00', mastodon: '#6364FF', bluesky: '#0085FF', threads: '#aaaaaa',
@@ -87,6 +97,30 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
   const [hasPlus, setHasPlus] = useState(false);
   const [queue, setQueue] = useState<ScheduledPost[]>([]);
   const publishing = useRef<Set<string>>(new Set());
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
+  const [connectNote, setConnectNote] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const refreshSocial = useCallback(() => listSocialAccounts().then(setSocialAccounts).catch(() => {}), []);
+  useEffect(() => { refreshSocial(); }, [refreshSocial]);
+
+  // Connect a commercial network (Meta / X / LinkedIn) via the server-side OAuth popup.
+  const connectNetwork = useCallback(async (platformId: string) => {
+    const provider = PROVIDER_FOR_PLATFORM[platformId];
+    if (!provider) return;
+    try {
+      const n = await connectSocialProvider(provider);
+      await refreshSocial();
+      setConnectNote({ ok: true, msg: `Linked ${n} account${n === 1 ? '' : 's'}.` });
+    } catch (e: any) {
+      setConnectNote({ ok: false, msg: e?.message ?? 'Could not connect.' });
+    }
+    setTimeout(() => setConnectNote(null), 5000);
+  }, [refreshSocial]);
+  useEffect(() => {
+    const h = (e: Event) => connectNetwork((e as CustomEvent).detail?.network);
+    window.addEventListener('OPEN_NETWORK_CONNECT', h);
+    return () => window.removeEventListener('OPEN_NETWORK_CONNECT', h);
+  }, [connectNetwork]);
 
   // ── Managed-identity scoping ──────────────────────────────────────────────
   // A BUSINESS/ORG scope files the queue/calendar/analytics under that identity's
@@ -135,11 +169,15 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
     // Networks with built adapters (services/socialNetworks/*) are connectable —
     // they show the suite's full capability with a "link your account" path.
     // Pinterest/Snapchat have no adapter yet, so stay genuinely "coming soon".
+    const social = (net: string) => {
+      const ids = socialAccounts.filter(a => a.network === net && a.status === 'ok').map(a => a.id);
+      return ids.length ? { status: 'connected' as const, accountIds: ids } : { status: 'connect' as const };
+    };
     const externalPlatforms: PlatformDef[] = [
-      { id: 'twitter',   label: 'X (Twitter)',  color: '#000000', charLimit: 280,   abbr: 'X',  status: 'connect' },
-      { id: 'instagram', label: 'Instagram',    color: '#E1306C', charLimit: 2200,  abbr: 'IG', status: 'connect' },
-      { id: 'facebook',  label: 'Facebook',     color: '#1877F2', charLimit: 63206, abbr: 'FB', status: 'connect' },
-      { id: 'linkedin',  label: 'LinkedIn',     color: '#0A66C2', charLimit: 3000,  abbr: 'LI', status: 'connect' },
+      { id: 'twitter',   label: 'X (Twitter)',  color: '#000000', charLimit: 280,   abbr: 'X',  ...(social('x').status === 'connected' ? social('x') : { status: 'connected' as const, shareOnly: true }) },
+      { id: 'instagram', label: 'Instagram',    color: '#E1306C', charLimit: 2200,  abbr: 'IG', ...social('instagram') },
+      { id: 'facebook',  label: 'Facebook',     color: '#1877F2', charLimit: 63206, abbr: 'FB', ...social('facebook') },
+      { id: 'linkedin',  label: 'LinkedIn',     color: '#0A66C2', charLimit: 3000,  abbr: 'LI', ...social('linkedin') },
       { id: 'tiktok',    label: 'TikTok',       color: '#010101', charLimit: 2200,  abbr: 'TK', status: 'connect' },
       { id: 'youtube',   label: 'YouTube',      color: '#FF0000', charLimit: 5000,  abbr: 'YT', status: 'connect' },
       { id: 'pinterest', label: 'Pinterest',    color: '#E60023', charLimit: 500,   abbr: 'PI', status: 'coming_soon' },
@@ -151,13 +189,16 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
       ...fediPlatforms,
       ...externalPlatforms,
     ];
-  }, [accounts]);
+  }, [accounts, socialAccounts]);
 
   const channels = useMemo(() => platforms.filter(p => p.status === 'connected').map(p => ({
     id: p.id, kind: (p.protocol ?? 'plajah') as FediverseProtocol | 'plajah',
-    label: p.label, handle: accounts.find(a => a.id === p.accountId)?.handle ?? 'On-platform',
+    label: p.label,
+    handle: accounts.find(a => a.id === p.accountId)?.handle
+      ?? socialAccounts.find(a => a.id === p.accountIds?.[0])?.handle ?? 'On-platform',
     accountId: p.accountId,
-  })), [platforms, accounts]);
+    accountIds: p.accountIds,
+  })), [platforms, accounts, socialAccounts]);
 
   const publishPost = useCallback(async (post: ScheduledPost) => {
     if (publishing.current.has(post.id)) return;
@@ -165,13 +206,28 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
     try {
       await updateScheduledPost(post.id, { status: 'PUBLISHING' });
       const results: ScheduledPostTargetResult[] = [];
-      if (post.targetAccountIds.length) {
+      const socialIds = new Set(socialAccounts.map(a => a.id));
+      const fediIds = post.targetAccountIds.filter(id => !socialIds.has(id));
+      const commercialIds = post.targetAccountIds.filter(id => socialIds.has(id));
+      if (fediIds.length) {
         const br = await broadcast({
           text: post.text, uri: post.linkUri, title: post.linkTitle,
           description: post.linkDescription, thumbnail: post.mediaUrls[0],
-        }, post.targetAccountIds);
+        }, fediIds);
         br.succeeded.forEach(s => results.push({ channelKind: s.protocol, accountId: s.accountId, ok: true, postUrl: s.postUrl }));
         br.failed.forEach(f => results.push({ channelKind: f.protocol, accountId: f.accountId, ok: false, error: f.error }));
+      }
+      if (commercialIds.length) {
+        try {
+          const sr = await publishToSocial({
+            accountIds: commercialIds, text: post.text, mediaUrls: post.mediaUrls,
+            linkUri: post.linkUri, title: post.linkTitle,
+          });
+          sr.succeeded.forEach(s => results.push({ channelKind: s.network as any, accountId: s.accountId, ok: true, postUrl: s.postUrl }));
+          sr.failed.forEach(f => results.push({ channelKind: f.network as any, accountId: f.accountId, ok: false, error: f.error }));
+        } catch (e: any) {
+          commercialIds.forEach(id => results.push({ channelKind: 'plajah', accountId: id, ok: false, error: e?.message ?? 'Publish failed' }));
+        }
       }
       if (post.alsoPostToPlajah) {
         try {
@@ -193,7 +249,7 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
       const status = failCount === 0 ? 'PUBLISHED' : okCount === 0 ? 'FAILED' : 'PARTIAL';
       await updateScheduledPost(post.id, {
         status, results,
-        publishLog: results.map(r => `${r.ok ? '✓' : '✗'} ${NET_LABEL[r.channelKind as keyof typeof NET_LABEL] ?? r.channelKind}${r.error ? ': ' + r.error : ''}`).join('  '),
+        publishLog: results.map(r => `${r.ok ? '✓' : '✗'} ${NET_LABEL[r.channelKind] ?? r.channelKind}${r.error ? ': ' + r.error : ''}`).join('  '),
         lastAttemptAt: Date.now(),
       });
     } catch (e) {
@@ -201,7 +257,7 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
     } finally {
       publishing.current.delete(post.id);
     }
-  }, [broadcast, authorOrgId, authorName]);
+  }, [broadcast, authorOrgId, authorName, socialAccounts]);
 
   useEffect(() => {
     const tick = () => dueScheduledPosts(queue).forEach(publishPost);
@@ -253,6 +309,14 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
 
       {/* Honest scoping note: the data plane is per-identity, but external channels
           are not — the fediverse credential store is keyed to the authed user. */}
+      {connectNote && (
+        <div className="px-4 sm:px-6 lg:px-10 pt-3 shrink-0">
+          <div className={`px-3 py-2 rounded-xl text-[12px] font-bold border ${connectNote.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-red-500/10 border-red-500/30 text-red-300'}`}>
+            {connectNote.msg}
+          </div>
+        </div>
+      )}
+
       {managed && (
         <div className="px-4 sm:px-6 lg:px-10 pt-3 shrink-0">
           <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-[11px] text-white/50">
@@ -321,7 +385,7 @@ function PlatformBadge({ platform, size = 'sm' }: { platform: PlatformDef; size?
 
 // ─── Composer ─────────────────────────────────────────────────────────────────
 
-interface ChannelItem { id: string; kind: FediverseProtocol | 'plajah'; label: string; handle: string; accountId?: string }
+interface ChannelItem { id: string; kind: FediverseProtocol | 'plajah'; label: string; handle: string; accountId?: string; accountIds?: string[] }
 
 function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerId, ownerKind, authorOrgId }: {
   platforms: PlatformDef[];
@@ -340,6 +404,7 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerI
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
   const [composerKey, setComposerKey] = useState(0); // reset UPC after post
+  const [xPending, setXPending] = useState<ScheduledPost | null>(null); // immediate X share awaiting the user's tap
 
   const selectedChannels = channels.filter(c => selected.has(c.id));
   const queueFull = usedSlots >= limits.maxScheduledPosts;
@@ -352,7 +417,7 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerI
       // Built adapter, account not linked yet — guide to the connect flow.
       const label = platforms.find(p => p.id === id)?.label ?? 'this network';
       window.dispatchEvent(new CustomEvent('OPEN_NETWORK_CONNECT', { detail: { network: id } }));
-      flash(true, `Link your ${label} account in Settings → Networks to publish here.`);
+      flash(true, `Opening ${label} sign-in…`);
       return;
     }
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -378,19 +443,20 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerI
         }
       }
 
-      const targetAccountIds = selectedChannels.filter(c => c.accountId).map(c => c.accountId!);
+      const targetAccountIds = selectedChannels.flatMap(c => c.accountIds ?? (c.accountId ? [c.accountId] : []));
       const alsoPostToPlajah = selected.has('plajah');
+      const shareToX = selected.has('twitter') && !!platforms.find(p => p.id === 'twitter')?.shareOnly;
       const scheduledAt = when ? new Date(when).getTime() : undefined;
 
       const post = await createScheduledPost({
-        text: data.text, targetAccountIds, alsoPostToPlajah, scheduledAt,
+        text: data.text, targetAccountIds, alsoPostToPlajah, shareToX, scheduledAt,
         mediaUrls,
         // File under the managed identity's queue + attribute the Plajah copy to it.
         // Undefined for CREATOR, so the service defaults to the operator's uid.
         ownerId, ownerKind, authorOrgId,
       });
 
-      if (!when) { await onPublishNow(post); flash(true, 'Posted!'); }
+      if (!when) { await onPublishNow(post); flash(true, shareToX ? 'Posted! Finish X below.' : 'Posted!'); if (shareToX) setXPending(post); }
       else { flash(true, `Scheduled for ${new Date(when).toLocaleString()}.`); }
 
       setWhen('');
@@ -437,6 +503,9 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerI
                       <Plus size={7} className="text-black" />
                     </span>
                   )}
+                  {p.shareOnly && (
+                    <span className="absolute -top-1 -left-1 px-1 bg-[#111] border border-white/15 text-white/50 text-[5px] font-black uppercase rounded-full leading-4" title="Opens X's composer; you tap Post">Share</span>
+                  )}
                   {isConnected && on && (
                     <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: p.color }}>
                       <Check size={7} className="text-white" />
@@ -463,6 +532,17 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerI
             </div>
           )}
         </div>
+
+        {xPending && (
+          <div className="flex items-center gap-3 bg-white/[0.06] border border-white/20 rounded-xl px-3 py-2.5">
+            <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black bg-black border border-white/30 shrink-0">X</span>
+            <p className="flex-1 text-xs text-white/70 min-w-0">Your other posts are live. X needs one tap from you.</p>
+            <button
+              onClick={() => { openXShare(xPending.text, xPending.linkUri); updateScheduledPost(xPending.id, { xSharedAt: Date.now() }).catch(() => {}); setXPending(null); }}
+              className="px-3 py-1.5 rounded-lg bg-white text-black text-[11px] font-black shrink-0">Post on X</button>
+            <button onClick={() => setXPending(null)} className="text-white/30 hover:text-white/60"><X size={13} /></button>
+          </div>
+        )}
 
         {/* Schedule picker */}
         <div className="flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5">
@@ -572,6 +652,7 @@ function QueuePanel({ queue, channels, onDelete, onPublishNow }: {
   const labelFor = (p: ScheduledPost) => {
     const names = [
       ...(p.alsoPostToPlajah ? ['Plajah'] : []),
+      ...(p.shareToX ? ['X (share)'] : []),
       ...p.targetAccountIds.map(id => channels.find(c => c.accountId === id)?.label ?? 'account'),
     ];
     return names.join(' · ') || '—';
@@ -595,8 +676,17 @@ function QueuePanel({ queue, channels, onDelete, onPublishNow }: {
                 </div>
                 <p className="text-sm text-white/80 line-clamp-3 whitespace-pre-wrap">{p.text}</p>
                 {p.publishLog && <p className="text-[11px] text-white/35 mt-2">{p.publishLog}</p>}
+                {p.shareToX && (
+                  <p className="text-[11px] mt-1.5 text-white/45">{p.xSharedAt ? 'X: shared' : p.status === 'DRAFT' ? 'X: share link is ready when you publish' : 'X: awaiting your tap'}</p>
+                )}
               </div>
               <div className="flex flex-col gap-1.5 shrink-0">
+                {p.shareToX && !p.xSharedAt && p.status !== 'DRAFT' && (
+                  <button
+                    onClick={() => { openXShare(p.text, p.linkUri); updateScheduledPost(p.id, { xSharedAt: Date.now() }).catch(() => {}); }}
+                    title="Open X's composer and tap Post"
+                    className="px-2.5 py-2 rounded-lg bg-white text-black text-[10px] font-black hover:bg-white/90 transition-colors">Post on X</button>
+                )}
                 {(p.status === 'SCHEDULED' || p.status === 'DRAFT' || p.status === 'FAILED') && (
                   <button onClick={() => onPublishNow(p)} title="Publish now"
                     className="p-2 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors"><Send size={13} /></button>

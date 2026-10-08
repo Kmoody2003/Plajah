@@ -63,13 +63,13 @@ export const NETWORKS: Record<SuiteNetwork, NetworkInfo> = {
   },
   instagram: {
     id: 'instagram', label: 'Instagram', color: '#E1306C', charLimit: 2200,
-    costClass: 'FREE', minPlan: 'FREE', live: false,
+    costClass: 'FREE', minPlan: 'FREE', live: true,
     requires: 'Meta app + App Review (instagram_content_publish)',
     costNote: 'Graph API publishing is free; ~25 posts/24h per account.',
   },
   facebook: {
     id: 'facebook', label: 'Facebook', color: '#1877F2', charLimit: 63206,
-    costClass: 'FREE', minPlan: 'FREE', live: false,
+    costClass: 'FREE', minPlan: 'FREE', live: true,
     requires: 'Meta app + App Review (pages_manage_posts)',
     costNote: 'Graph API page posting is free.',
   },
@@ -81,7 +81,7 @@ export const NETWORKS: Record<SuiteNetwork, NetworkInfo> = {
   },
   linkedin: {
     id: 'linkedin', label: 'LinkedIn', color: '#0A66C2', charLimit: 3000,
-    costClass: 'FREE', minPlan: 'FREE', live: false,
+    costClass: 'FREE', minPlan: 'FREE', live: true,
     requires: 'LinkedIn app + Marketing Developer Platform approval',
     costNote: 'Posting API is free; approval is the only barrier.',
   },
@@ -93,9 +93,9 @@ export const NETWORKS: Record<SuiteNetwork, NetworkInfo> = {
   },
   x: {
     id: 'x', label: 'X (Twitter)', color: '#1DA1F2', charLimit: 280,
-    costClass: 'PAID', minPlan: 'PRO', live: false,
-    requires: 'X API plan ($200/mo Basic → $5,000/mo Pro)',
-    costNote: 'The only network with a real bill. Basic = $200/mo for 50k posts; Pro = $5,000/mo for 1M. Fixed monthly cost, so amortizes across X-active users as you scale. Pro-only so Plajah+ revenue covers it.',
+    costClass: 'PAID', minPlan: 'PRO', live: true,
+    requires: 'X API credits (pay-per-use) — or the free web-intent share, no API needed',
+    costNote: 'The only network with a real bill. Since Feb 2026 X is pay-per-use (~$0.015 per plain post, ~$0.20 per post with a link; third-party figures, verify in the X Developer Console). Default path is the free web-intent share (user taps Post); native API posting is the Pro-only upgrade.',
   },
 };
 

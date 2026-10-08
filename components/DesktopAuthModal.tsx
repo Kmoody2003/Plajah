@@ -186,13 +186,13 @@ export const DesktopAuthModal: React.FC<DesktopAuthModalProps> = ({
                   Plajah Desktop
                 </h2>
                 <span className="text-[11px] font-mono text-[#FF8C00] font-bold">
-                  Unified Workspaces & Studios
+                  Everything creators make. One place.
                 </span>
               </div>
             </div>
 
             <p className="text-xs text-white/70 leading-relaxed pt-2">
-              Sign in once to sync your creative projects, staff shifts, Tela documents, and storefront across PC and mobile.
+              Sign in once to sync your music, film, video, books, live shows and storefront across PC and mobile.
             </p>
           </div>
 

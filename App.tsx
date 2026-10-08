@@ -161,6 +161,8 @@ const TvPairClaimView = retryLazy(() => import('./components/tv/TvPairClaimView'
 // Matter casting content-app bridge (native APK only): reports playback state to the TV's Matter agent.
 const MatterPlaybackReporter = retryLazy(() => import('./services/tv/matterCastingBridge').then(m => ({ default: m.MatterPlaybackReporter as React.ComponentType<any> })));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
+// /delete-account — the public account-deletion page (linked from Help Center, the privacy policy and Meta's data-deletion requirement).
+const DeleteAccountPage = retryLazy(() => import('./components/DeleteAccountPage'));
 // Design-system gallery at /ds — every control in every theme. Lazy, so it costs
 // nothing to anyone who never opens it. See docs/PLAJAH_DESIGN_SYSTEM.md.
 const DesignSystemGallery = retryLazy(() => import('./components/ui/DesignSystemGallery'));
@@ -3915,6 +3917,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                controls (?djOut=controls). Output only — same reasoning as amboOut. */
             <Suspense fallback={null}><DjOutputWindow /></Suspense>
           ) : typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
+          ) : typeof window !== 'undefined' && /^\/delete-account\/?$/.test(window.location.pathname) ? (
+            /* Tested before view routing like /ds and /link: a fresh load computes view = 'LANDING'. */
+            <Suspense fallback={null}><DeleteAccountPage onBack={() => { window.location.href = '/'; }} /></Suspense>
             <Suspense fallback={null}><TvLinkApproval /></Suspense>
           ) : (view === 'LIVE_FX_LAB' || (typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('view') === 'live-fx-lab' || new URLSearchParams(window.location.search).get('lab') === 'livefx'))) ? (
             <Suspense fallback={<div className="min-h-screen bg-[#05060a] flex items-center justify-center text-white/40 text-xs font-mono uppercase tracking-widest">Loading Live FX Studio…</div>}>

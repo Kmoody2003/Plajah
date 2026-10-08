@@ -45,6 +45,7 @@ import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
+import { socialConnectRouter, publishToSocialAccounts, socialAccountIds } from './routes/socialConnect';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
@@ -5945,7 +5946,7 @@ Rules:
           const targetIds: string[] = Array.isArray(post.targetAccountIds) ? post.targetAccountIds : [];
           const targeted = accounts.filter((a: any) => targetIds.includes(a.id));
 
-          if (!targeted.length) {
+          if (!targeted.length && !socialIds.length && !post.shareToX) {
             await patch({
               status: { stringValue: 'FAILED' },
               publishLog: { stringValue: 'No connected accounts matched the scheduled targets (reconnect needed?).' },
@@ -5955,16 +5956,28 @@ Rules:
             continue;
           }
 
-          const result = await broadcast(
-            targeted,
-            {
+          const result = targeted.length
+            ? await broadcast(
+                targeted,
+                {
+                  text: String(post.text ?? ''),
+                  uri: post.linkUri || undefined,
+                  title: post.linkTitle || undefined,
+                  description: post.linkDescription || undefined,
+                  thumbnail: Array.isArray(post.mediaUrls) ? post.mediaUrls[0] : undefined,
+                },
+              )
+            : { succeeded: [] as any[], failed: [] as any[] };
+          if (socialIds.length) {
+            const sr = await publishToSocialAccounts(uid, socialIds, {
               text: String(post.text ?? ''),
-              uri: post.linkUri || undefined,
+              linkUri: post.linkUri || undefined,
               title: post.linkTitle || undefined,
-              description: post.linkDescription || undefined,
-              thumbnail: Array.isArray(post.mediaUrls) ? post.mediaUrls[0] : undefined,
-            },
-          );
+              mediaUrls: Array.isArray(post.mediaUrls) ? post.mediaUrls : [],
+            });
+            sr.succeeded.forEach(s => result.succeeded.push({ accountId: s.accountId, protocol: s.network, postUrl: s.postUrl }));
+            sr.failed.forEach(f => result.failed.push({ accountId: f.accountId, protocol: f.network, error: f.error }));
+          }
 
           const okCount = result.succeeded.length;
           const failCount = result.failed.length;
@@ -6085,6 +6098,8 @@ Rules:
         pending.redirectUri,
         pending.clientId,
         pending.clientSecret,
+          // Commercial networks (Meta / X / LinkedIn) live in users/{uid}/socialAccounts, not the fediverse vault.
+          const socialIds = await socialAccountIds(uid, targetIds.filter((id: string) => !targeted.some((a: any) => a.id === id)));
       );
 
       const firebaseToken = (req.headers.authorization as string).slice(7);
@@ -6113,6 +6128,7 @@ Rules:
 
   app.get('/auth/twitter/callback', async (req: any, res) => {
     const { code, state } = req.query as Record<string, string>;
+            ...(post.shareToX ? ['X: tap to share'] : []),
     const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
     // Pass the code back to the SPA so SocialGraphImport.tsx can pick it up
     res.redirect(`${appUrl}?social_import_code=${encodeURIComponent(code)}&social_import_platform=twitter&state=${state}`);
@@ -6120,6 +6136,18 @@ Rules:
 
   app.get('/api/social-import/twitter/matches', authMiddleware, async (req: any, res) => {
     const { code } = req.query as { code: string };
+          // X has no free write API, so scheduled X shares are a reminder: the post is queued and the
+          // user finishes it in X's own composer with one tap. Best-effort; never fails the publish.
+          if (post.shareToX && !post.xSharedAt) {
+            try {
+              const title = 'Your X post is ready';
+              const message = String(post.text ?? '').slice(0, 120) || 'Tap to finish sharing on X.';
+              await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-studio', senderName: 'Marketing', senderPhoto: '', type: 'SYSTEM', title, message, targetId: 'PLAJAH_STUDIO', isRead: false, timestamp: Date.now() });
+              const u = await firestoreGetDeep('users', uid);
+              const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+              if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title, body: message, link: 'PLAJAH_STUDIO', channelId: 'system', data: { type: 'SYSTEM', targetId: 'PLAJAH_STUDIO' } });
+            } catch (e: any) { console.warn('[Cron] X reminder failed:', e?.message || e); }
+          }
     const clientId = process.env.TWITTER_CLIENT_ID;
     const clientSecret = process.env.TWITTER_CLIENT_SECRET;
     if (!clientId || !clientSecret) return res.status(501).json({ error: 'Twitter not configured' });
@@ -11997,3 +12025,4 @@ startServer();
   app.use(homeHubRouter);
     // Plajah Home hub: LAN discovery beacon (_plajahhub._tcp). No-op on Cloud Run / production.
     void startHomeHub(PORT);
+  app.use('/api/social', express.json({ limit: '1mb' }), socialConnectRouter);

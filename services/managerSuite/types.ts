@@ -56,6 +56,11 @@ export interface ScheduledPost {
   targetAccountIds: string[];
   /** Also publish to the Plajah on-platform feed. */
   alsoPostToPlajah: boolean;
+  /** Share to X through its web intent (no API, no cost): the user taps Post in X's own composer.
+   *  Never auto-sent; the queue shows it as 'awaiting your tap' until xSharedAt is set. */
+  shareToX?: boolean;
+  /** Epoch ms the user finished the X share (tapped through). */
+  xSharedAt?: number;
   /** Epoch ms. null/undefined for a draft. */
   scheduledAt?: number;
   /** IANA timezone the user scheduled in, e.g. "America/New_York". */
