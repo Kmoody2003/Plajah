@@ -1,8 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Music2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Music2, Images, Speaker } from 'lucide-react';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
+import { resolveSlideshowImages } from '../../services/slideshow';
+import { useTvOverlayClaim, isTopTvOverlay } from '../../hooks/useTvOverlay';
+import { setPlayerBarAvailable, FOCUS_PLAYER_BAR_EVENT } from '../../hooks/useTvPlayerBar';
+
+/** Fired to open the "Play on" speaker picker (App listens; only where speakers are supported). */
+export const OPEN_SPEAKERS_EVENT = 'plajah:open-speakers';
+
+type BarControl = 'prev' | 'play' | 'next' | 'slideshow' | 'speakers' | 'repeat' | 'shuffle';
 
 /**
  * The always-there television transport.
@@ -30,9 +38,9 @@ const fmt = (s?: number): string => {
 
 const TvNowPlayingBar: React.FC<{ albumViewActive?: boolean }> = ({ albumViewActive }) => {
   const {
-    currentTrack, currentAlbum, audioSource, isPlaying, isSlideshowActive, isTvFxActive,
+    currentTrack, currentAlbum, audioSource, isPlaying, isSlideshowActive, isSlideshowAuto, isTvFxActive,
     currentTime, duration, togglePlay, next, prev,
-    repeatMode, setRepeatMode, isShuffle, setIsShuffle,
+    repeatMode, setRepeatMode, isShuffle, setIsShuffle, setIsSlideshowActive,
   } = useGlobalPlayer();
 
   const active = !!currentTrack && audioSource !== 'VIDEO';
@@ -57,9 +65,68 @@ const TvNowPlayingBar: React.FC<{ albumViewActive?: boolean }> = ({ albumViewAct
   }, [active, isPlaying, togglePlay, next, prev]);
 
   // Draw the bar everywhere EXCEPT where another transport already owns the screen (album view or
-  // the slideshow) or a fullscreen visual takeover is up (FX Stage).
-  const visible = active && !isSlideshowActive && !isTvFxActive && !albumViewActive;
+  // the slideshow) or a fullscreen visual takeover is up (FX Stage). An AUTO slideshow (creator
+  // toggle) never takes the TV screen — only one the viewer starts does — so it doesn't hide the bar.
+  const slideshowOnScreen = isSlideshowActive && !isSlideshowAuto;
+  const visible = active && !slideshowOnScreen && !isTvFxActive && !albumViewActive;
+
+  // ── The bar as a D-pad destination ───────────────────────────────────────────────────────────
+  // Reached by Down past a screen's last row, by holding Down, or by the Menu key (see
+  // hooks/useTvPlayerBar). While focused it owns the remote as an overlay: Left/Right walk the
+  // controls, OK presses one, Up or Back hands the remote back to the screen.
+  const hasSlides = resolveSlideshowImages(currentAlbum as any, currentTrack as any).length > 0;
+  const controls: BarControl[] = ['prev', 'play', 'next', ...(hasSlides ? ['slideshow' as const] : []), 'speakers', 'repeat', 'shuffle'];
+  const [focused, setFocused] = useState(false);
+  const [sel, setSel] = useState(1);
+  useTvOverlayClaim('player-bar', focused && visible);
+  useEffect(() => { setPlayerBarAvailable(visible); return () => setPlayerBarAvailable(false); }, [visible]);
+  useEffect(() => { if (!visible) setFocused(false); }, [visible]);
+  useEffect(() => {
+    const onFocus = () => { setSel(1); setFocused(true); };
+    window.addEventListener(FOCUS_PLAYER_BAR_EVENT, onFocus);
+    return () => window.removeEventListener(FOCUS_PLAYER_BAR_EVENT, onFocus);
+  }, []);
+
+  const runRef = useRef<(c: BarControl) => void>(() => {});
+  runRef.current = (c: BarControl) => {
+    if (c === 'prev') prev();
+    else if (c === 'play') togglePlay();
+    else if (c === 'next') next();
+    else if (c === 'slideshow') { setFocused(false); setIsSlideshowActive(true); }
+    else if (c === 'speakers') { setFocused(false); window.dispatchEvent(new CustomEvent(OPEN_SPEAKERS_EVENT)); }
+    else if (c === 'repeat') setRepeatMode(repeatMode === 'OFF' ? 'ALL' : repeatMode === 'ALL' ? 'ONE' : 'OFF');
+    else if (c === 'shuffle') setIsShuffle(!isShuffle);
+  };
+  const navRef = useRef({ focused, sel, controls });
+  navRef.current = { focused, sel, controls };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const n = navRef.current;
+      if (!n.focused || !isTopTvOverlay('player-bar')) return;
+      const kc = e.keyCode || e.which;
+      if (kc === 24 || kc === 25 || kc === 164) return;   // volume / mute stay the system's
+      const take = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+      if (e.key === 'ArrowLeft' || kc === 37 || kc === 21) { take(); setSel(i => Math.max(0, i - 1)); return; }
+      if (e.key === 'ArrowRight' || kc === 39 || kc === 22) { take(); setSel(i => Math.min(n.controls.length - 1, i + 1)); return; }
+      if (e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23) { take(); runRef.current(n.controls[Math.min(n.sel, n.controls.length - 1)]); return; }
+      if (e.key === 'ArrowUp' || kc === 38 || kc === 19 || kc === 4 || e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack' || e.key === 'BrowserBack' || e.key === 'XF86Back') {
+        take(); setFocused(false); return;
+      }
+      if (e.key === 'ArrowDown' || kc === 40 || kc === 20) { take(); return; }   // already at the bottom
+    };
+    const onHwBack = (ev: Event) => {
+      if (!navRef.current.focused || !isTopTvOverlay('player-bar')) return;
+      ev.preventDefault(); setFocused(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('plajah:hardware-back', onHwBack);
+    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('plajah:hardware-back', onHwBack); };
+  }, []);
+
   if (!visible) return null;
+  const selected = focused ? controls[Math.min(sel, controls.length - 1)] : null;
+  const ring = (c: BarControl): React.CSSProperties | undefined =>
+    selected === c ? { boxShadow: '0 0 0 4px #FF8C00, 0 0 0 7px rgba(0,0,0,0.7)', transform: 'scale(1.08)' } : undefined;
 
   const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const art = (currentTrack as any)?.albumCover || (currentAlbum as any)?.coverImage;
@@ -68,7 +135,7 @@ const TvNowPlayingBar: React.FC<{ albumViewActive?: boolean }> = ({ albumViewAct
 
   return createPortal(
     <div
-      className="fixed left-0 right-0 bottom-0 z-[120] px-10 py-4 flex items-center gap-6 bg-[#0a0510]/95 border-t border-white/10"
+      className={`fixed left-0 right-0 bottom-0 z-[120] px-10 py-4 flex items-center gap-6 bg-[#0a0510]/95 border-t transition-colors ${focused ? 'border-[#FF8C00]/60' : 'border-white/10'}`}
       role="group"
       aria-label="Now playing"
     >
@@ -92,22 +159,33 @@ const TvNowPlayingBar: React.FC<{ albumViewActive?: boolean }> = ({ albumViewAct
         <span className="text-[11px] tabular-nums text-white/45 w-11">{fmt(duration)}</span>
       </div>
 
-      {/* Transport. Not D-pad targets — the remote's media keys drive these (see the handler above),
-          which is what lets the bar stay reachable without stealing arrow focus from the screen. */}
-      <div className="flex items-center gap-4 shrink-0 text-white/85">
-        <button onClick={() => prev()} aria-label="Previous" className="p-1.5"><SkipBack size={20} fill="currentColor" /></button>
+      {/* Transport. The remote's media keys drive it from anywhere; the D-pad reaches it by Down past
+          the last row, holding Down, or Menu — then ◀ ▶ walk these and OK presses. */}
+      <div className="flex items-center gap-3 shrink-0 text-white/85">
+        <button onClick={() => prev()} aria-label="Previous" className="p-2 rounded-full transition-transform" style={ring('prev')}><SkipBack size={20} fill="currentColor" /></button>
         <button onClick={() => togglePlay()} aria-label={isPlaying ? 'Pause' : 'Play'}
-          className="w-12 h-12 rounded-full grid place-items-center" style={{ background: ACCENT, color: '#000' }}>
+          className="w-12 h-12 rounded-full grid place-items-center transition-transform" style={{ background: ACCENT, color: '#000', ...ring('play') }}>
           {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}
         </button>
-        <button onClick={() => next()} aria-label="Next" className="p-1.5"><SkipForward size={20} fill="currentColor" /></button>
-        <button onClick={cycleRepeat} aria-label="Repeat" className="p-1.5" style={{ color: repeatMode !== 'OFF' ? ACCENT : undefined }}>
+        <button onClick={() => next()} aria-label="Next" className="p-2 rounded-full transition-transform" style={ring('next')}><SkipForward size={20} fill="currentColor" /></button>
+        {hasSlides && (
+          <button onClick={() => runRef.current('slideshow')} aria-label="Slideshow" className="flex items-center gap-2 px-3 py-2 rounded-full transition-transform text-[11px] font-black uppercase tracking-widest" style={ring('slideshow')}>
+            <Images size={18} /> Slideshow
+          </button>
+        )}
+        <button onClick={() => runRef.current('speakers')} aria-label="Play on" className="flex items-center gap-2 px-3 py-2 rounded-full transition-transform text-[11px] font-black uppercase tracking-widest" style={ring('speakers')}>
+          <Speaker size={18} /> Play on
+        </button>
+        <button onClick={cycleRepeat} aria-label="Repeat" className="p-2 rounded-full transition-transform" style={{ color: repeatMode !== 'OFF' ? ACCENT : undefined, ...ring('repeat') }}>
           {repeatMode === 'ONE' ? <Repeat1 size={18} /> : <Repeat size={18} />}
         </button>
-        <button onClick={() => setIsShuffle(!isShuffle)} aria-label="Shuffle" className="p-1.5" style={{ color: isShuffle ? ACCENT : undefined }}>
+        <button onClick={() => setIsShuffle(!isShuffle)} aria-label="Shuffle" className="p-2 rounded-full transition-transform" style={{ color: isShuffle ? ACCENT : undefined, ...ring('shuffle') }}>
           <Shuffle size={17} />
         </button>
       </div>
+      {!focused && (
+        <span className="hidden xl:block text-[10px] font-black uppercase tracking-[0.2em] text-white/30 shrink-0">Hold ▼ or Menu for controls</span>
+      )}
     </div>,
     document.body,
   );

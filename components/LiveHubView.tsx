@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { LiveFeed, UserProfile, StreamArchive } from '../types';
 import PageHeader from './PageHeader';
 import { fetchAllLiveFeeds, publishLiveFeed, deleteLiveFeed, searchLiveChannels, fetchStreamArchives, fetchAllFastChannels, type FastChannelListing } from '../services/backendService';
@@ -10,13 +10,16 @@ import { User as FirebaseUser } from 'firebase/auth';
 import { ACTIVE_SCIENCE_STREAMS, SCIENCE_BAND_ENABLED, SCIENCE_CATEGORIES, ScienceCategory, ScienceStream } from './scienceStreams';
 
 import { useAchievements } from '../contexts/AchievementContext';
-import TVView from './TVView';
-import PPVEventsView from './PPVEventsView';
-import GoLiveWizard from './GoLiveWizard';
-import MobileLiveStreamer, { MobileGoLiveButton } from './MobileLiveStreamer';
 import PresenceBadge from './PresenceBadge';
 import LiveTvPlus from './LiveTvPlus';
-import PlajahEpgGuide from './tv/PlajahEpgGuide';
+// Live TV+ is the TV's home screen, so this module is on the first-paint path. The broadcaster
+// stack (Go Live wizard + the 2.5k-line streamer) and the classic guide/PPV tabs are only needed
+// when someone opens them — loading them eagerly put the whole Go Live stack in the TV's boot chunk.
+const PPVEventsView = lazy(() => import('./PPVEventsView'));
+const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
+const MobileLiveStreamer = lazy(() => import('./MobileLiveStreamer'));
+const MobileGoLiveButton = lazy(() => import('./MobileLiveStreamer').then(m => ({ default: m.MobileGoLiveButton })));
+const PlajahEpgGuide = lazy(() => import('./tv/PlajahEpgGuide'));
 import ChipRail from './ui/ChipRail';
 
 interface LiveHubViewProps {
@@ -356,7 +359,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
                   <div className="w-2 h-2 bg-white rounded-full animate-ping group-hover:animate-none" />
                   <Radio size={18} className="text-white" /> Go Live
                 </button>
-                <MobileGoLiveButton onClick={() => setShowMobileLive(true)} />
+                <Suspense fallback={null}><MobileGoLiveButton onClick={() => setShowMobileLive(true)} /></Suspense>
                 {/* Smart Director — multi-camera auto-production for amateur sports */}
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('OPEN_SMART_DIRECTOR', { detail: {} }))}
@@ -601,13 +604,13 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
 
         {activeTab === 'LIVE_TV' && (
           <div className="absolute inset-0 pb-16">
-            <PlajahEpgGuide feeds={feeds} fastChannels={fastChannels} onTune={tuneChannel} />
+            <Suspense fallback={null}><PlajahEpgGuide feeds={feeds} fastChannels={fastChannels} onTune={tuneChannel} /></Suspense>
           </div>
         )}
         
         {activeTab === 'EVENTS' && (
           <div className="absolute inset-0 overflow-y-auto">
-            <PPVEventsView onBack={() => {}} user={currentUser} onJoinPool={onJoinPool} isNested={true} />
+            <Suspense fallback={null}><PPVEventsView onBack={() => {}} user={currentUser} onJoinPool={onJoinPool} isNested={true} /></Suspense>
           </div>
         )}
 
@@ -785,18 +788,20 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
       </div>
 
 
-      {showGoLiveWizard && (
-        <GoLiveWizard
-          onClose={() => setShowGoLiveWizard(false)}
-          currentUser={currentUser}
-        />
-      )}
-      {showMobileLive && (
-        <MobileLiveStreamer
-          mode="streamer"
-          onClose={() => setShowMobileLive(false)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showGoLiveWizard && (
+          <GoLiveWizard
+            onClose={() => setShowGoLiveWizard(false)}
+            currentUser={currentUser}
+          />
+        )}
+        {showMobileLive && (
+          <MobileLiveStreamer
+            mode="streamer"
+            onClose={() => setShowMobileLive(false)}
+          />
+        )}
+      </Suspense>
 
       {fullScreenFeed && (
         <div className="fixed inset-0 z-[1000] bg-black">

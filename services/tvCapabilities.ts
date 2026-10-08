@@ -126,7 +126,7 @@ export const canGoLive = (): boolean => isFeatureAvailable('liveStream');
 // keep resident — and on a 2GB TV with a 192MB per-app heap, "not loaded" is a feature.
 
 /** Destinations shown in the TV's top tab bar, in order. */
-export const TV_NAV_VIEWS = ['MOVIES_TV', 'MUSIC', 'VIDEOS', 'LIVE_HUB', 'USER_PROFILE'] as const;
+export const TV_NAV_VIEWS = ['LIVE_HUB', 'MOVIES_TV', 'MUSIC', 'VIDEOS', 'USER_PROFILE'] as const;
 
 /**
  * Views a TV may REACH but which are not tabs — playback, detail pages, the things a viewer
@@ -141,18 +141,24 @@ export const TV_NAV_VIEWS = ['MOVIES_TV', 'MUSIC', 'VIDEOS', 'LIVE_HUB', 'USER_P
 const TV_REACHABLE_VIEWS = [
   'PLAYER', 'MOVIE_UX', 'PREVIEW', 'BOOK_READER', 'SEARCH',
   'GLOBAL_PHOTOS', 'ART_GALLERY', 'PODCAST_LISTEN', 'RADIO', 'LIVE_HUB', 'LIVE_TV',
+  // TV-only screens the shell opens directly. They were missing here, so the setView choke point
+  // silently rewrote them to the home screen — Search, Purchases and Plajah+ looked dead.
+  'TV_SEARCH', 'CREATOR_PAYMENTS', 'SANCTUARY_HUB',
 ] as const;
 
-/** Where a television opens. Taleo behaves like a streaming service, so it leads. */
-export type TvHomeView = 'MOVIES_TV' | 'MUSIC' | 'VIDEOS';
-const TV_HOME_KEY = 'plajah:tvHome';
+/** Where a television opens. Live Hub TV+ leads: the set is on and playing in one press, like
+ *  turning on a TV — the streaming verticals are one rail away. */
+export type TvHomeView = 'LIVE_HUB' | 'MOVIES_TV' | 'MUSIC' | 'VIDEOS';
+// v2: Live became the default home (2026-10-08). The old key held the Taleo-first default for every
+// set that ever opened Settings, so it is retired rather than migrated.
+const TV_HOME_KEY = 'plajah:tvHome:v2';
 
 export function getTvHome(): TvHomeView {
   try {
     const v = localStorage.getItem(TV_HOME_KEY);
-    if (v === 'MUSIC' || v === 'VIDEOS' || v === 'MOVIES_TV') return v;
+    if (v === 'LIVE_HUB' || v === 'MUSIC' || v === 'VIDEOS' || v === 'MOVIES_TV') return v;
   } catch { /* private mode */ }
-  return 'MOVIES_TV';
+  return 'LIVE_HUB';
 }
 
 export function setTvHome(v: TvHomeView): void {

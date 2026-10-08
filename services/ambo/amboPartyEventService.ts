@@ -39,6 +39,10 @@ export type EventDeviceDutyType =
   | 'CHORA_PLAYLIST'
   | 'REELLO_VIDEO'
   | 'AMBIENT_SIGNAGE'
+  // Receiver-only duties (TV receivers — components/tv/TvReceiverHost). A browser receiver
+  // (?partyDisplay=1) that does not know them shows nothing for them.
+  | 'PROGRAM_FEED'    // a Plajah live 'stage' stream (switcher / Ambo program) — sourceData.streamId
+  | 'PARTY_DISPLAY'   // a synchronized watch/listen party — sourceData.partyId
   | 'STANDBY';
 
 export interface EventDeviceDuty {
@@ -60,6 +64,14 @@ export interface EventDeviceDuty {
     theme?: string;
     headline?: string;
     subheadline?: string;
+    /** PROGRAM_FEED: the streams/{id} doc + rtc 'stage' session of the program feed. */
+    streamId?: string;
+    /** PARTY_DISPLAY: parties/{id}. */
+    partyId?: string;
+    /** AMBIENT_SIGNAGE: business page id whose signageSlides rotate full screen. */
+    signagePageId?: string;
+    /** Who is sending (shown in the receiver's "Receiving from …" badge). */
+    sourceLabel?: string;
   };
   volume?: number;
   isMuted?: boolean;
@@ -156,6 +168,12 @@ export function getOrCreateDeviceId(): string {
 
 export function detectDeviceType(): EventDeviceType {
   if (typeof window === 'undefined') return 'DESKTOP';
+  // Explicit override — set by services/tv/tvReceiverService on a detected TV (Android TV's UA has
+  // none of the tokens below, so it would otherwise register as a TABLET).
+  try {
+    const forced = localStorage.getItem('plajah_party_device_type');
+    if (forced === 'TV' || forced === 'DESKTOP' || forced === 'TABLET' || forced === 'MOBILE' || forced === 'PROJECTOR' || forced === 'BROWSER') return forced;
+  } catch { /* storage blocked */ }
   const ua = navigator.userAgent.toLowerCase();
   if (ua.includes('smart-tv') || ua.includes('tizen') || ua.includes('webos') || ua.includes('viera') || ua.includes('crkey') || ua.includes('appletv')) {
     return 'TV';

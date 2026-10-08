@@ -28,11 +28,13 @@ const fmt = (s?: number): string => {
 
 const TvSlideshowSurface: React.FC = () => {
   const {
-    currentAlbum, currentTrack, isPlaying, isSlideshowActive, setIsSlideshowActive,
+    currentAlbum, currentTrack, isPlaying, isSlideshowActive, isSlideshowAuto, setIsSlideshowActive,
     currentTime, duration, togglePlay, next, prev,
   } = useGlobalPlayer();
   const images = resolveSlideshowImages(currentAlbum as any, currentTrack as any);
-  const showing = isSlideshowActive && images.length > 0;
+  // Only a slideshow the viewer STARTED takes the TV screen. An auto one (the creator's toggle) is
+  // for the ambient surfaces elsewhere — on the TV it used to cover Chora while people browsed.
+  const showing = isSlideshowActive && !isSlideshowAuto && images.length > 0;
 
   const [controls, setControls] = useState(false);
   const hideTimer = useRef<any>(null);
@@ -158,7 +160,9 @@ const TvSlideshowSurface: React.FC = () => {
       {/* Transport overlay — wakes on a press, auto-hides. Progress + prev / play-pause / next. */}
       <div
         className="absolute left-0 right-0 bottom-0 px-12 pb-9 pt-24 bg-gradient-to-t from-black/85 via-black/45 to-transparent transition-opacity duration-300"
-        style={{ opacity: controls ? 1 : 0 }}
+        // Always on screen (dimmed when idle): the viewer asked for lyrics AND the player controls
+        // to stay visible over the slideshow, not to vanish until a key is pressed.
+        style={{ opacity: controls ? 1 : 0.72 }}
       >
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/[0.06] shrink-0 grid place-items-center">

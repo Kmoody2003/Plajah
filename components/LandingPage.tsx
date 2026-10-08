@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, fetchRandomActiveUser, fetchLandingBgConfig, auth } from '../services/backendService';
 import { ArrowRight, Sparkles, Mail, GraduationCap, User as UserIcon, Rocket, Loader2, AlertCircle, LogIn } from 'lucide-react';
 import { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon } from './ui/ProviderIcons';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
-import EarthGlobe from './EarthGlobe';
+// Lazy: EarthGlobe pulls three + @react-three/fiber/drei into whatever chunk imports it.
+const EarthGlobe = lazy(() => import('./EarthGlobe'));
 import Logo from './Logo';
 import SignInPrompt from './SignInPrompt';
 import AuthExperience from './AuthExperience';
@@ -38,7 +39,7 @@ const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) =>
   if (config.mode === 'EARTH' || selected.length === 0) {
     return (
       <>
-        <EarthGlobe />
+        <Suspense fallback={null}><EarthGlobe /></Suspense>
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#1a0026]/30 to-[#020202]" />
       </>
     );

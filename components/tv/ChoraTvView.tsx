@@ -1,15 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Music2, Radio as RadioIcon, Library, Users, Disc3, Sparkles, Archive, Mic2, BookOpen, ListMusic, GraduationCap, Crown, Play, ArrowLeft, Waves } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Music2, Radio as RadioIcon, Library, Users, Disc3, Sparkles, Archive, Mic2, BookOpen, ListMusic, GraduationCap, Crown, Play, ArrowLeft, Waves, Layers } from 'lucide-react';
 import type { Album, UserProfile } from '../../types';
-import { fetchAllPublicAlbums, fetchUpcomingAlbums, searchUsers, fetchFollowingIds } from '../../services/backendService';
+import { fetchFollowingIds } from '../../services/backendService';
+import { getTvPublicAlbums, getTvUpcomingAlbums, getTvArtists, peekResource, subscribeResource, TV_KEYS } from '../../services/tv/tvCatalogCache';
+import TvWindowedRail, { scrollRowIntoView, scrollBehaviorForMove } from './TvWindowedRail';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
-import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
+import { useTvGrid } from '../../hooks/useTvGrid';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
 import TvBrandBackdrop from './TvBrandBackdrop';
 import TvHeroCarousel from './TvHeroCarousel';
-import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
+import { tvCardRing } from './tvFocusRing';
 import { asyncRails, syncRails, MUSIC_HISTORY_ERAS, type BaseData, type TvItem, type TvRail } from './choraTvSections';
+import { CHORA_TV_RAILS, composeSection, hasRegisteredRails, spliceRegistered } from './tvRailRegistry';
 
 /**
  * Chora for television — built for the ten-foot view, not adapted to it.
@@ -35,6 +38,7 @@ const SECTIONS = [
   { id: 'NEW',         label: 'New',         icon: Sparkles },
   { id: 'FOR_YOU',     label: 'For You',     icon: Music2 },
   { id: 'RADIO',       label: 'Radio',       icon: RadioIcon },
+  { id: 'MIXES',       label: 'Mixes',       icon: Layers },
   { id: 'MY_LIBRARY',  label: 'My Library',  icon: Library },
   { id: 'AUDIUS',      label: 'Audius',      icon: Waves },
   { id: 'ARTISTS',     label: 'Artists',     icon: Users },
@@ -49,6 +53,10 @@ const SECTIONS = [
 
 type SectionId = typeof SECTIONS[number]['id'];
 
+/** Chora's base list: music + native podcasts out of the shared public-album catalogue. */
+const musicOnly = (all?: Album[]) =>
+  (all || []).filter(a => a.type === 'MUSIC' || (a as any).subType === 'PODCAST');
+
 const ACCENT = '#22D3AA';           // Chora's teal, from the platform's service palette
 const ACCENT_WARM = '#FF8C00';      // Plajah orange, used for the focus ring
 // The house gradient. Used at low opacity as atmosphere, and at full strength only on the two
@@ -62,12 +70,14 @@ const ChoraTvView: React.FC<{
   onOpenSection?: (id: SectionId) => void;
   onOpenPlus?: () => void;
 }> = ({ userProfile, onSelectAlbum, onOpenSection, onOpenPlus }) => {
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [upcoming, setUpcoming] = useState<Album[]>([]);
-  const [artists, setArtists] = useState<UserProfile[]>([]);
+  // Seeded from the shared TV catalogue cache, so returning to Chora renders instantly instead of
+  // re-downloading the album list (see services/tv/tvCatalogCache.ts).
+  const [albums, setAlbums] = useState<Album[]>(() => musicOnly(peekResource<Album[]>(TV_KEYS.albums)));
+  const [upcoming, setUpcoming] = useState<Album[]>(() => peekResource<Album[]>(TV_KEYS.upcoming) || []);
+  const [artists, setArtists] = useState<UserProfile[]>(() => peekResource<UserProfile[]>(TV_KEYS.artists) || []);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [section, setSection] = useState<SectionId>('NEW');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => peekResource<Album[]>(TV_KEYS.albums) === undefined);
   const [sectionLoading, setSectionLoading] = useState(false);
   /** Fetched sections, kept so returning to one is instant rather than another spinner. */
   const [cache, setCache] = useState<Record<string, TvRail[]>>({});
@@ -85,17 +95,21 @@ const ChoraTvView: React.FC<{
     let alive = true;
     (async () => {
       const [all, up, people] = await Promise.all([
-        fetchAllPublicAlbums().catch(() => [] as Album[]),
-        fetchUpcomingAlbums().catch(() => [] as Album[]),
-        searchUsers('').catch(() => [] as UserProfile[]),
+        getTvPublicAlbums().catch(() => [] as Album[]),
+        getTvUpcomingAlbums().catch(() => [] as Album[]),
+        getTvArtists().catch(() => [] as UserProfile[]),
       ]);
       if (!alive) return;
-      setAlbums((all || []).filter(a => a.type === 'MUSIC' || (a as any).subType === 'PODCAST'));
+      setAlbums(musicOnly(all));
       setUpcoming(up || []);
-      setArtists((people || []).filter(u => (u as any).isArtist));
+      setArtists(people || []);
       setLoading(false);
     })();
-    return () => { alive = false; };
+    // Stale-while-revalidate: a background refresh of the shared cache lands here.
+    const offA = subscribeResource<Album[]>(TV_KEYS.albums, v => { if (alive) setAlbums(musicOnly(v)); });
+    const offU = subscribeResource<Album[]>(TV_KEYS.upcoming, v => { if (alive) setUpcoming(v || []); });
+    const offP = subscribeResource<UserProfile[]>(TV_KEYS.artists, v => { if (alive) setArtists(v || []); });
+    return () => { alive = false; offA(); offU(); offP(); };
   }, []);
 
   useEffect(() => {
@@ -119,6 +133,8 @@ const ChoraTvView: React.FC<{
   // fetched, nothing there". An empty result is now left uncached so revisiting retries, guarded
   // by inFlight so staying on the section does not spin.
   const inFlight = useRef<Record<string, boolean>>({});
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
   // `cache` is read through a ref rather than closed over, and is NOT a dependency. Publishing a
   // partial calls setCache, and if cache were a dep that would tear this effect down mid-flight —
   // cancelling the very fetch that was about to deliver the full result. The symptom was a
@@ -126,19 +142,29 @@ const ChoraTvView: React.FC<{
   const cacheRef = useRef(cache); cacheRef.current = cache;
   useEffect(() => {
     if (loading) return;
-    if (syncRails(section, base)) return;              // resolved locally, nothing to fetch
+    const local = syncRails(section, base);
+    const registered = hasRegisteredRails(CHORA_TV_RAILS, section);
+    if (local && !registered) return;                   // resolved locally, nothing to fetch
     if (cacheRef.current[section] || inFlight.current[section]) return;
     let alive = true;
     inFlight.current[section] = true;
     setSectionLoading(true);
-    asyncRails(section, { ...base, albums }, partial => {
+    // Built-in rails + rails registered for this section in tvRailRegistry (web-parity rails).
+    // A locally-resolved section caches ONLY its registered rails; the built-ins stay live and are
+    // spliced in at render time (see `rails` below), so they still follow data refreshes.
+    const ctx = { ...base, albums };
+    composeSection(CHORA_TV_RAILS, section, ctx,
+      onP => (local ? Promise.resolve([] as TvRail[]) : asyncRails(section, ctx, onP)), partial => {
       // Publish rails as they arrive so a slow archive does not hold up the fast ones.
-      if (alive && partial.length) {
+      // Cache writes are keyed by section and gated on MOUNTED, not on this effect run: base
+      // changing mid-fetch (followingIds landing, a cache revalidation) tears the effect down, and
+      // gating on `alive` threw the in-flight result away while inFlight blocked the retry.
+      if (mountedRef.current && partial.length) {
         setCache(c => ({ ...c, [section]: partial }));
-        setSectionLoading(false);
+        if (alive) setSectionLoading(false);
       }
     })
-      .then(r => { if (alive && r.length) setCache(c => ({ ...c, [section]: r })); })
+      .then(r => { if (mountedRef.current && r.length) setCache(c => ({ ...c, [section]: r })); })
       .catch(() => { /* leave uncached: revisiting the section retries */ })
       .finally(() => {
         inFlight.current[section] = false;
@@ -156,11 +182,15 @@ const ChoraTvView: React.FC<{
                                     action: { kind: 'ALBUM' as const, album: a } })) }]
         : [];
     }
-    return syncRails(section, base) ?? cache[section] ?? [];
+    const local = syncRails(section, base);
+    if (local) return spliceRegistered(CHORA_TV_RAILS, section, local, cache[section]);
+    return cache[section] ?? [];
   }, [drillArtist, albums, section, base, cache]);
 
   const rows = useMemo(() => rails.map(r => ({ id: r.id, count: r.items.length })), [rails]);
 
+  // Read through refs by the stable grid callbacks below: useTvGrid re-binds its key listener
+  // whenever onSelect/onBack change identity, so they must not change on every focus move.
   const run = (item: TvItem) => {
     const a = item.action;
     if (a.kind === 'ALBUM') { onSelectAlbum(a.album); return; }
@@ -185,31 +215,49 @@ const ChoraTvView: React.FC<{
       return;
     }
     if (a.kind === 'ARTIST') { setDrillArtist(a.artist); return; }
+    if (a.kind === 'LOAD_ALBUM') {
+      if (loadingAlbumRef.current) return;     // guard a double-press while the fetch is out
+      loadingAlbumRef.current = true;
+      a.load().then(alb => { if (alb) onSelectAlbum(alb); }).catch(() => {}).finally(() => { loadingAlbumRef.current = false; });
+      return;
+    }
     if (a.kind === 'ERA' && a.eraId) setOpenEra(a.eraId);
   };
+
+  const runRef = useRef(run); runRef.current = run;
+  const loadingAlbumRef = useRef(false);
+  const railsRef = useRef(rails); railsRef.current = rails;
+  const drillRef = useRef(drillArtist); drillRef.current = drillArtist;
+  const onOpenPlusRef = useRef(onOpenPlus); onOpenPlusRef.current = onOpenPlus;
+  const onOpenSectionRef = useRef(onOpenSection); onOpenSectionRef.current = onOpenSection;
+  const setZoneRef = useRef<(z: 'PANEL' | 'CONTENT') => void>(() => {});
+
+  const onGridSelect = useCallback((p: { row: number; col: number }, rowId: string) => {
+    if (rowId === 'PANEL') {
+      if (p.col === SECTIONS.length) { onOpenPlusRef.current?.(); return; }   // the pinned entry
+      const s = SECTIONS[p.col];
+      setDrillArtist(null);
+      setSection(s.id);
+      onOpenSectionRef.current?.(s.id);
+      setZoneRef.current('CONTENT');
+      return;
+    }
+    const item = railsRef.current.find(r => r.id === rowId)?.items[p.col];
+    if (item) runRef.current(item);
+  }, []);
+  const onGridBack = useCallback(() => {
+    if (drillRef.current) { setDrillArtist(null); return true; }
+    return false;
+  }, []);
 
   const { pos, zone, panelIndex, setPanelIndex, setZone } = useTvGrid({
     rows,
     enabled: !openEra,                       // the reader owns the remote while it is open
     panelCount: SECTIONS.length + 1,         // + the Plajah+ entry pinned at the bottom
-    onSelect: (p, rowId) => {
-      if (rowId === 'PANEL') {
-        if (p.col === SECTIONS.length) { onOpenPlus?.(); return; }   // the pinned entry
-        const s = SECTIONS[p.col];
-        setDrillArtist(null);
-        setSection(s.id);
-        onOpenSection?.(s.id);
-        setZone('CONTENT');
-        return;
-      }
-      const item = rails.find(r => r.id === rowId)?.items[p.col];
-      if (item) run(item);
-    },
-    onBack: () => {
-      if (drillArtist) { setDrillArtist(null); return true; }
-      return false;
-    },
+    onSelect: onGridSelect,
+    onBack: onGridBack,
   });
+  setZoneRef.current = setZone;
 
   // The era reader takes the remote entirely: Back or OK closes it. Bound only while open, so it
   // cannot interfere with the grid the rest of the time.
@@ -232,120 +280,45 @@ const ChoraTvView: React.FC<{
     return () => window.removeEventListener('keydown', onKey, true);
   }, [openEra]);
 
-  // Keep the focused card on screen. Scrolls the RAIL horizontally and the page vertically,
-  // rather than relying on the browser to guess which axis mattered.
-  const cellRefs = useRef<Record<string, HTMLElement | null>>({});
+  // Keep the focused rail on screen vertically. The rail itself keeps its card in view
+  // horizontally (TvWindowedRail) — no scrollIntoView, no getBoundingClientRect per press.
+  const mainRef = useRef<HTMLElement>(null);
+  const focusedRailId = zone === 'CONTENT' ? rails[pos.row]?.id : undefined;
   useEffect(() => {
-    if (zone !== 'CONTENT') return;
-    cellRefs.current[`${pos.row}:${pos.col}`]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  }, [pos, zone]);
+    const main = mainRef.current;
+    if (!main || !focusedRailId) return;
+    const behavior = scrollBehaviorForMove();
+    // Row 0 sits under the hero — scroll right to the top so the hero comes back into view.
+    if (pos.row === 0) { main.scrollTo({ top: 0, behavior }); return; }
+    scrollRowIntoView(main, main.querySelector<HTMLElement>(`[data-tv-rail="${CSS.escape(focusedRailId)}"]`), behavior);
+  }, [focusedRailId, pos.row]);
 
   const panelRefs = useRef<Record<number, HTMLElement | null>>({});
   useEffect(() => {
     if (zone !== 'PANEL') return;
-    panelRefs.current[panelIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    panelRefs.current[panelIndex]?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
   }, [panelIndex, zone]);
 
-  const isItemPlaying = (item: TvItem) => {
+  // One stable card renderer for every rail. It only changes identity when what is PLAYING
+  // changes, so an ordinary focus move re-renders just the two rails whose focusedCol changed.
+  const playingAlbumId = currentAlbum?.id;
+  const playingTrackId = currentTrack?.id;
+  const renderCard = useCallback((item: TvItem, _i: number, focused: boolean, variant?: string) => {
     const a = item.action;
-    if (a.kind === 'ALBUM') return !!currentAlbum && currentAlbum.id === a.album.id;
-    if (a.kind === 'TRACK') return !!currentTrack && currentTrack.id === a.track.id;
-    return false;
-  };
+    const playing = a.kind === 'ALBUM' ? !!playingAlbumId && playingAlbumId === a.album.id
+      : a.kind === 'TRACK' ? !!playingTrackId && playingTrackId === a.track.id : false;
+    return <ChoraCard item={item} focused={focused} large={variant === 'large'} playing={playing} isPlaying={!!isPlaying && playing} />;
+  }, [playingAlbumId, playingTrackId, isPlaying]);
 
-  const Card: React.FC<{ item: TvItem; focused: boolean; large?: boolean; refKey: string }> = ({ item, focused, large, refKey }) => {
-    const playing = isItemPlaying(item);
-    return (
-      <div
-        ref={el => { cellRefs.current[refKey] = el; }}
-        className={`shrink-0 transition-transform duration-150 ${large ? 'w-64' : 'w-40'} ${focused ? 'scale-105' : ''}`}
-      >
-        <div
-          className="relative rounded-2xl overflow-hidden bg-white/[0.05]"
-          style={{
-            aspectRatio: '1',
-            // Shared with Taleo — see tvFocusRing.ts. Focus outranks the playing ring:
-            // seeing where you are matters more than what is playing.
-            boxShadow: tvCardRing(focused, playing, ACCENT),
-          }}
-        >
-          {item.image
-            ? <img src={thumb(item.image, large ? THUMB.card : 224)} alt="" className="w-full h-full object-cover" loading="lazy" />
-            : <div className="w-full h-full grid place-items-center" style={{ background: item.action.kind === 'ERA' ? BRAND : undefined }}>
-                {item.action.kind === 'ERA'
-                  ? <GraduationCap size={30} className="text-white/85" />
-                  : <Music2 size={28} className="text-white/20" />}
-              </div>}
-          {focused && (
-            <span className="absolute bottom-2 right-2 w-9 h-9 rounded-full grid place-items-center" style={{ background: ACCENT_WARM }}>
-              <Play size={16} className="text-black ml-0.5" fill="black" />
-            </span>
-          )}
-          {playing && !focused && (
-            // Three bars rather than a label: at ten feet the shape reads before any word does.
-            <span className="absolute bottom-2 left-2 flex items-center gap-[3px] h-6 px-2 rounded-full bg-black/70">
-              {[0, 1, 2].map(b => (
-                <span
-                  key={b}
-                  className="w-[3px] rounded-full"
-                  style={{
-                    background: ACCENT,
-                    height: isPlaying ? undefined : '5px',
-                    animation: isPlaying ? `choraTvBar 0.9s ease-in-out ${b * 0.18}s infinite alternate` : 'none',
-                  }}
-                />
-              ))}
-            </span>
-          )}
-        </div>
-        <p className={`mt-2 font-bold truncate ${focused ? 'text-white' : 'text-white/65'} ${large ? 'text-sm' : 'text-xs'}`}>
-          {item.title}
-        </p>
-        <p className="text-[11px] text-white/40 truncate">{item.subtitle || ''}</p>
-      </div>
-    );
-  };
-
-  // A short rule under each rail title, tinted with the brand gradient. It gives the rails a
-  // spine without adding another box, and it is the one place the full gradient repeats.
-  const RailHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="mb-3">
-      <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/45">{children}</h2>
-      <span className="block mt-1.5 h-[2px] w-11 rounded-full" style={{ background: BRAND }} />
-    </div>
-  );
-
-  // A grey rail in the shape of the real thing. On a television a spinner in the middle of a
-  // black screen gives no sense of whether anything is coming; a rail that is already the right
-  // size and position tells you what is about to appear and stops the layout jumping when it does.
-  const SkeletonRail: React.FC<{ large?: boolean }> = ({ large }) => (
-    <section className="mb-8">
-      <div className="mb-3">
-        <div className="h-2 w-28 rounded-full bg-white/[0.07] animate-pulse" />
-        <span className="block mt-1.5 h-[2px] w-11 rounded-full bg-white/10" />
-      </div>
-      <div className="flex gap-4">
-        {Array.from({ length: large ? 6 : 8 }).map((_, i) => (
-          <div key={i} className={`shrink-0 ${large ? 'w-64' : 'w-40'}`}>
-            <div
-              className="rounded-2xl bg-white/[0.05] animate-pulse"
-              style={{ aspectRatio: '1', animationDelay: `${i * 90}ms` }}
-            />
-            <div className="mt-2 h-2.5 w-3/4 rounded-full bg-white/[0.06]" />
-            <div className="mt-1.5 h-2 w-1/2 rounded-full bg-white/[0.04]" />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-
-  const Skeleton: React.FC = () => (
-    <>
-      <SkeletonRail large />
-      <SkeletonRail />
-      <SkeletonRail />
-    </>
-  );
+  // Hero items memoised — computing them inline handed the carousel a fresh array on every
+  // focus move, re-rendering (and re-filtering) it for nothing.
+  const heroItems = useMemo(() => {
+    if (section === 'RADIO' || drillArtist) return [];
+    const seen = new Set<string>();
+    return rails.flatMap(r => r.items)
+      .filter(i => i.image && i.id && !seen.has(i.id) && (seen.add(i.id), true))
+      .slice(0, 8).map(i => ({ id: i.id, title: i.title, subtitle: i.subtitle, image: i.image }));
+  }, [rails, section, drillArtist]);
 
   const era = openEra ? MUSIC_HISTORY_ERAS.find(e => e.id === openEra) : null;
 
@@ -416,7 +389,7 @@ const ChoraTvView: React.FC<{
       </aside>
 
       {/* ── Content ── */}
-      <main className="relative flex-1 overflow-y-auto px-10 py-7">
+      <main ref={mainRef} className="relative flex-1 overflow-y-auto no-scrollbar px-10 py-7">
         {drillArtist && (
           <button
             onClick={() => setDrillArtist(null)}
@@ -440,13 +413,7 @@ const ChoraTvView: React.FC<{
           <>
           {/* Chora's own hero — featured cover art from the current section, its own perspective on
               the marquee (Radio keeps the On Air hero below instead). */}
-          {section !== 'RADIO' && !drillArtist && (() => {
-            const seen = new Set<string>();
-            const heroItems = rails.flatMap(r => r.items)
-              .filter(i => (i as any).image && i.id && !seen.has(i.id) && (seen.add(i.id), true))
-              .slice(0, 8).map(i => ({ id: i.id, title: i.title, subtitle: (i as any).subtitle, image: (i as any).image }));
-            return heroItems.length ? <div className="mb-8"><TvHeroCarousel items={heroItems} accent="#7C5CFF" eyebrow="Featured on Chora" /></div> : null;
-          })()}
+          {heroItems.length > 0 && <div className="mb-8"><TvHeroCarousel items={heroItems} accent="#7C5CFF" eyebrow="Featured on Chora" /></div>}
           {/* Radio, like the web, leads with a NOW-PLAYING hero — the station on air, big, with a
               live pulse — instead of dropping straight into browse rails. The station picker (Chora
               Radio / Artist Stations / Live) stays below as the rails. No blur: TV fill-rate. */}
@@ -480,24 +447,20 @@ const ChoraTvView: React.FC<{
             );
           })()}
           {rails.map((rail, rIdx) => (
-            <section key={rail.id} className="mb-8">
-              <RailHeading>{rail.title}</RailHeading>
-              {/* The gutter exists because `overflow-x` clips BOTH axes: without it a focused
-                  card's 4% growth AND its focus ring get shaved off at the rail's edge, exactly
-                  when you need to see them. RAIL_GUTTER is sized to the ring (see tvFocusRing.ts);
-                  the negative margin keeps the rail aligned with the heading above it. */}
-              <div className={`flex gap-4 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
-                {rail.items.map((item, i) => (
-                  <Card
-                    key={`${rail.id}-${item.id}-${i}`}
-                    item={item}
-                    large={rIdx === 0}
-                    refKey={`${rIdx}:${i}`}
-                    focused={zone === 'CONTENT' && isFocused(pos, rIdx, i)}
-                  />
-                ))}
-              </div>
-            </section>
+            // Windowed + memoised (TvWindowedRail): only the rails whose focused column changed
+            // re-render on a press, and only ~25 cards per rail are ever mounted.
+            <TvWindowedRail
+              key={rail.id}
+              id={rail.id}
+              title={rail.title}
+              heading={railHeading}
+              items={rail.items}
+              variant={rIdx === 0 ? 'large' : undefined}
+              focusedCol={zone === 'CONTENT' && pos.row === rIdx ? pos.col : -1}
+              renderItem={renderCard}
+              estimateStride={rIdx === 0 ? 256 + 16 : 160 + 16}
+              estimateHeight={rIdx === 0 ? 340 : 240}
+            />
           ))}
           </>
         )}
@@ -546,5 +509,100 @@ const ChoraTvView: React.FC<{
     </div>
   );
 };
+
+// ── Module-level pieces ───────────────────────────────────────────────────────
+// These used to be declared INSIDE the screen component, which gave them a new component
+// identity on every render — so every D-pad press unmounted and remounted every card on the
+// screen (and re-requested its <img>). Hoisted and memoised, a press now touches two cards.
+
+const ChoraCard = React.memo<{ item: TvItem; focused: boolean; large?: boolean; playing: boolean; isPlaying: boolean }>(
+  ({ item, focused, large, playing, isPlaying }) => (
+    <div className={`transition-transform duration-150 ${large ? 'w-64' : 'w-40'} ${focused ? 'scale-105' : ''}`}>
+      <div
+        className="relative rounded-2xl overflow-hidden bg-white/[0.05]"
+        style={{
+          aspectRatio: '1',
+          // Shared with Taleo — see tvFocusRing.ts. Focus outranks the playing ring:
+          // seeing where you are matters more than what is playing.
+          boxShadow: tvCardRing(focused, playing, ACCENT),
+        }}
+      >
+        {item.image
+          ? <img src={thumb(item.image, large ? THUMB.card : 224)} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          : <div className="w-full h-full grid place-items-center" style={{ background: item.action.kind === 'ERA' ? BRAND : undefined }}>
+              {item.action.kind === 'ERA'
+                ? <GraduationCap size={30} className="text-white/85" />
+                : <Music2 size={28} className="text-white/20" />}
+            </div>}
+        {focused && (
+          <span className="absolute bottom-2 right-2 w-9 h-9 rounded-full grid place-items-center" style={{ background: ACCENT_WARM }}>
+            <Play size={16} className="text-black ml-0.5" fill="black" />
+          </span>
+        )}
+        {playing && !focused && (
+          // Three bars rather than a label: at ten feet the shape reads before any word does.
+          <span className="absolute bottom-2 left-2 flex items-center gap-[3px] h-6 px-2 rounded-full bg-black/70">
+            {[0, 1, 2].map(b => (
+              <span
+                key={b}
+                className="w-[3px] rounded-full"
+                style={{
+                  background: ACCENT,
+                  height: isPlaying ? undefined : '5px',
+                  animation: isPlaying ? `choraTvBar 0.9s ease-in-out ${b * 0.18}s infinite alternate` : 'none',
+                }}
+              />
+            ))}
+          </span>
+        )}
+      </div>
+      <p className={`mt-2 font-bold truncate ${focused ? 'text-white' : 'text-white/65'} ${large ? 'text-sm' : 'text-xs'}`}>
+        {item.title}
+      </p>
+      <p className="text-[11px] text-white/40 truncate">{item.subtitle || ''}</p>
+    </div>
+  ),
+);
+
+// A short rule under each rail title, tinted with the brand gradient. It gives the rails a
+// spine without adding another box, and it is the one place the full gradient repeats.
+const railHeading = (title: string) => (
+  <div className="mb-3">
+    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/45">{title}</h2>
+    <span className="block mt-1.5 h-[2px] w-11 rounded-full" style={{ background: BRAND }} />
+  </div>
+);
+
+// A grey rail in the shape of the real thing. On a television a spinner in the middle of a
+// black screen gives no sense of whether anything is coming; a rail that is already the right
+// size and position tells you what is about to appear and stops the layout jumping when it does.
+const SkeletonRail: React.FC<{ large?: boolean }> = ({ large }) => (
+  <section className="mb-8">
+    <div className="mb-3">
+      <div className="h-2 w-28 rounded-full bg-white/[0.07] animate-pulse" />
+      <span className="block mt-1.5 h-[2px] w-11 rounded-full bg-white/10" />
+    </div>
+    <div className="flex gap-4">
+      {Array.from({ length: large ? 6 : 8 }).map((_, i) => (
+        <div key={i} className={`shrink-0 ${large ? 'w-64' : 'w-40'}`}>
+          <div
+            className="rounded-2xl bg-white/[0.05] animate-pulse"
+            style={{ aspectRatio: '1', animationDelay: `${i * 90}ms` }}
+          />
+          <div className="mt-2 h-2.5 w-3/4 rounded-full bg-white/[0.06]" />
+          <div className="mt-1.5 h-2 w-1/2 rounded-full bg-white/[0.04]" />
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
+const Skeleton: React.FC = () => (
+  <>
+    <SkeletonRail large />
+    <SkeletonRail />
+    <SkeletonRail />
+  </>
+);
 
 export default ChoraTvView;

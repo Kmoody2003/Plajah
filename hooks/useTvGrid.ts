@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isShellFocused, setShellFocus, subscribeShellFocus } from './useTvShellFocus';
+import { isTvOverlayOpen } from './useTvOverlay';
+import { focusPlayerBar } from './useTvPlayerBar';
+
+/** Holding Down this long (a continuous run of repeat presses) lands on the player bar. */
+const HOLD_DOWN_TO_PLAYER_MS = 650;
+/** Presses further apart than this end a run (Android remote repeat is ~50ms). */
+const RUN_BREAK_MS = 180;
+
+/** Minimum gap between accepted arrow presses (ms) — see the held-key note in the handler. */
+const REPEAT_GAP_MS = 70;
 
 /**
  * Deterministic D-pad navigation for a TV screen.
@@ -80,6 +90,9 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
   rowsRef.current = rows;
   const posRef = useRef(pos);
   posRef.current = pos;
+  const lastMoveAtRef = useRef(0);
+  const downRunStartRef = useRef(0);
+  const downRunLastRef = useRef(0);
 
   // Remember the column per row, so moving down a rail and back up returns you to where you
   // were rather than snapping to the first item — the single biggest quality-of-life
@@ -133,7 +146,8 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
     let r = cur.row + step;
     while (r >= 0 && r < list.length && (list[r]?.count ?? 0) === 0) r += step;
     if (r < 0) { onExitTopRef.current?.(); return; }   // above the first row: hand focus up
-    if (r >= list.length) return;
+    // Below the last row: the player bar (when music is playing) is the next thing down.
+    if (r >= list.length) { focusPlayerBar(); return; }
     const targetRow = list[r];
     // Carry the current column into the new row, clamped to its length — moving down should keep
     // you roughly where you were horizontally, which is what every TV app does and what the eye
@@ -152,6 +166,7 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
       if (shellFocusedRef.current) return;   // the tab bar has the remote
+      if (isTvOverlayOpen()) return;         // an overlay (speakers, ambient, receiver…) has it
       const kc = e.keyCode || e.which;
       const target = e.target as HTMLElement | null;
       const active = document.activeElement as HTMLElement | null;
@@ -168,6 +183,24 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
       if (dir) {
         e.preventDefault();
         e.stopImmediatePropagation();   // the global spatial layer must not also act on this
+        // Held-key throttle. Android remotes deliver auto-repeat as discrete keydowns (repeat is
+        // false), ~every 50ms; each move re-renders the screen's rails, so unthrottled the queue
+        // outruns the renderer and focus keeps sliding after the key is released.
+        const now = performance.now();
+        // Track a held Down: a sustained run ends on the player bar, so the transport is one long
+        // press away from anywhere instead of one press per rail.
+        if (dir === 'down') {
+          if (now - downRunLastRef.current > RUN_BREAK_MS) downRunStartRef.current = now;
+          downRunLastRef.current = now;
+          if (now - downRunStartRef.current > HOLD_DOWN_TO_PLAYER_MS && focusPlayerBar()) {
+            downRunStartRef.current = Number.POSITIVE_INFINITY;   // one hand-off per hold
+            return;
+          }
+        } else {
+          downRunLastRef.current = 0;
+        }
+        if (now - lastMoveAtRef.current < REPEAT_GAP_MS) return;
+        lastMoveAtRef.current = now;
         move(dir);
         return;
       }
@@ -204,7 +237,7 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
     // shallow history, dropped the viewer on LANDING/login. Run the same one-level-out logic and
     // preventDefault() to consume it so the screen walks out step by step instead.
     const onHwBack = (e: Event) => {
-      if (!enabled || shellFocusedRef.current) return;
+      if (!enabled || shellFocusedRef.current || isTvOverlayOpen()) return;
       if (doBack()) e.preventDefault();
     };
     // Capture phase, so this wins before the global layer sees the key.

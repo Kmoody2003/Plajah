@@ -20,7 +20,7 @@ import LdLightingController from './home/LdLightingController';
 import VideoMeetDashboard from './home/VideoMeetDashboard';
 import CreatorSpotlight from './home/CreatorSpotlight';
 import HomeLayoutView from './home/HomeLayoutView';
-import HomeAssistantLink from './home/HomeAssistantLink';
+import HomeHubPanel from './home/HomeHubPanel';
 import realNetworkDiscoveryService, { RealDevice, DiscoveredRoomGroup } from '../services/home/realNetworkDiscoveryService';
 import { DetailedDeviceType } from '../services/home/deviceFingerprint';
 
@@ -102,13 +102,7 @@ const PairMatterModal: React.FC<PairMatterModalProps> = ({ isOpen, onClose, onPa
 
     setIsSubmitting(true);
     setStep('pairing');
-    setProgressMsg('Discovering commissionable device on Wi-Fi / Thread...');
-
-    await new Promise(r => setTimeout(r, 500));
-    setProgressMsg('Establishing PASE session (Password Authenticated Session Establishment)...');
-
-    await new Promise(r => setTimeout(r, 600));
-    setProgressMsg('Generating Node Operational Credentials on Plajah Fabric 1...');
+    setProgressMsg('Looking for the device and commissioning it onto the Plajah Home fabric. This can take up to a minute...');
 
     const res = await realNetworkDiscoveryService.pairMatterDevice({
       code: code.trim() || undefined,
@@ -119,7 +113,7 @@ const PairMatterModal: React.FC<PairMatterModalProps> = ({ isOpen, onClose, onPa
     });
 
     if (res.success) {
-      setProgressMsg('Device commissioned successfully! Added to Plajah Home Fabric.');
+      setProgressMsg(`Paired: ${res.node?.name || 'Matter device'}.`);
       setStep('success');
       onPaired();
       setTimeout(() => {
@@ -1018,8 +1012,8 @@ export default function PlajahHomeView({ currentUser, onBack }: PlajahHomeViewPr
               </div>
             </motion.section>
 
-            {/* HOME ASSISTANT LINK: real thermostat + cameras for the TV ambient dash */}
-            <HomeAssistantLink />
+            {/* PLAJAH HOME HUB: real Matter / Hue / camera devices, pairing, and the TV ambient feed */}
+            <HomeHubPanel />
 
             {/* 3-COLUMN COMMAND BRIDGE LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

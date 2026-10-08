@@ -4983,3 +4983,31 @@ service cloud.firestore {
     }
   }
 }
+
+    // ── Ambo party/event mesh + TV receivers (services/ambo/amboPartyEventService.ts,
+    //    services/tv/tvReceiverService.ts). A user's own screens and the session that drives them.
+    match /users/{userId}/event_devices/{deviceId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/ambo_party_event/{docId} {
+      allow read, write: if isOwner(userId);
+    }
+    // TV pairing codes: the TV creates a short-lived code; one other signed-in user may claim it
+    // (only the claim fields), and only that claimer may then push duties (only duty fields).
+    match /tv_pairings/{code} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && code.matches('^[A-Z0-9]{6}$')
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid
+        || (!('claimedBy' in resource.data)
+            && resource.data.expiresAt > request.time.toMillis()
+            && request.resource.data.claimedBy == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimedBy', 'claimedByName', 'claimedAt']))
+        || (resource.data.get('claimedBy', '') == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['duty', 'dutySeq']))
+      );
+      allow delete: if isAuthenticated()
+        && (resource.data.uid == request.auth.uid || resource.data.get('claimedBy', '') == request.auth.uid);
+    }

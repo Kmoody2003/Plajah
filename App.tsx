@@ -130,18 +130,19 @@ const LiveAudioFxAuditionLab = retryLazy(() => import('./components/labs/LiveAud
 const ReelloUniversalVideoPlayer = retryLazy(() => import('./components/reello/ReelloUniversalVideoPlayer'));
 
 import ExperiencePicker from './components/ExperiencePicker';
-import GlobalPlayer from './components/GlobalPlayer';
+// Lazy: desktop/mobile floating player (never mounted on TV) — carries mux-player/media-chrome.
+const GlobalPlayer = retryLazy(() => import('./components/GlobalPlayer'));
 import InAppBrowserPrompt from './components/InAppBrowserPrompt';
 import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
 import { getPlatformInfo } from './hooks/usePlatform';
 import PlatformBumperPlayer from './components/tv/PlatformBumperPlayer';
 import LiveFollowPills from './components/LiveFollowPills';
-import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import { useLiveAlertsPref } from './hooks/useLiveAlertsPref';
+import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
-import TvSpine, { TV_SPINE_W } from './components/tv/TvSpine';
+import TvSpine, { useTvSpineInset } from './components/tv/TvSpine';
 import { useTvLineup } from './hooks/useTvLineup';
 const TvSignInView = retryLazy(() => import('./components/TvSignInView'));
 const ChoraTvView = retryLazy(() => import('./components/tv/ChoraTvView'));
@@ -151,6 +152,14 @@ const TvNowPlayingBar = retryLazy(() => import('./components/tv/TvNowPlayingBar'
 const TvFxSurface = retryLazy(() => import('./components/tv/TvFxSurface'));
 const ReelloTvView = retryLazy(() => import('./components/tv/ReelloTvView'));
 const TvSlideshowSurface = retryLazy(() => import('./components/tv/TvSlideshowSurface'));
+const TvSpeakerPicker = retryLazy(() => import('./components/tv/TvSpeakerPicker'));
+const TvAmbientScreen = retryLazy(() => import('./components/tv/ambient/TvAmbientScreen'));
+// This TV as an output: Ambo / switcher / party / signage duties take over the screen when assigned.
+const TvReceiverHost = retryLazy(() => import('./components/tv/TvReceiverHost'));
+// Phone side of "pair a TV by code" (the TV's QR opens plajah.com/?tvPair=CODE).
+const TvPairClaimView = retryLazy(() => import('./components/tv/TvPairClaimView'));
+// Matter casting content-app bridge (native APK only): reports playback state to the TV's Matter agent.
+const MatterPlaybackReporter = retryLazy(() => import('./services/tv/matterCastingBridge').then(m => ({ default: m.MatterPlaybackReporter as React.ComponentType<any> })));
 const TvLinkApproval = retryLazy(() => import('./components/TvLinkApproval'));
 // Design-system gallery at /ds — every control in every theme. Lazy, so it costs
 // nothing to anyone who never opens it. See docs/PLAJAH_DESIGN_SYSTEM.md.
@@ -162,18 +171,20 @@ const OraRail = retryLazy(() => import('./components/ora/OraRail'));
 const TvSettingsView = retryLazy(() => import('./components/TvSettingsView'));
 import { type TvDisabledFeature, TV_NAV_VIEWS, getTvHome, isViewAllowedOnTv, themesAllowed } from './services/tvCapabilities';
 import { useTvShellFocus, setShellFocus } from './hooks/useTvShellFocus';
+import { isSpeakerPickerSupported } from './services/speakerGroupsBridge';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
-import SanctuaryDemoView from './components/sanctuary/SanctuaryDemoView';
-import StoreDemoView from './components/StoreDemoView';
+// Off the boot path (TV first paint parses everything eager): desktop/rare-only surfaces load on demand.
+const StoreDemoView = retryLazy(() => import('./components/StoreDemoView'));
 import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
-import PlajahAgent from './components/PlajahAgent';
+const PlajahAgent = retryLazy(() => import('./components/PlajahAgent'));
 import AriaHalo from './components/aria/AriaHalo';
 import AriaMark from './components/aria/AriaMark';
 import { resolveAgentTier } from './services/agentService';
 
 import NebulaBackground from './components/NebulaBackground';
-import NebulaVisualizer from './components/NebulaVisualizer';
+// Lazy: NebulaVisualizer pulls three + @react-three/fiber + drei (~900 KB) into the boot chunk.
+const NebulaVisualizer = retryLazy(() => import('./components/NebulaVisualizer'));
 import BackgroundFrequencyGraph from './components/BackgroundFrequencyGraph';
 const VideoTab = retryLazy(() => import('./components/VideoTab'));
 const VideoPlayer = retryLazy(() => import('./components/VideoPlayer'));
@@ -462,9 +473,11 @@ const PersistentChatDrawer = retryLazy(() => import('./components/PersistentChat
 const CitrusWaterDrops = retryLazy(() => import('./components/CitrusWaterDrops'));
 const DiscussionView = retryLazy(() => import('./components/DiscussionView'));
 const DebateView     = retryLazy(() => import('./components/DebateView'));
-import { ChallengeVsController } from './components/ChallengeVsScreen';
-import { TrackBreakdownController } from './components/TrackBreakdownModal';
-import { LoreaScoresController } from './components/LoreaScoresModal';
+// Event-driven overlay controllers — lazy so their modals (html2canvas, notation, debate) stay
+// out of the boot chunk. They mount (and start listening) as soon as their chunk lands.
+const ChallengeVsController = retryLazy(() => import('./components/ChallengeVsScreen').then(m => ({ default: m.ChallengeVsController })));
+const TrackBreakdownController = retryLazy(() => import('./components/TrackBreakdownModal').then(m => ({ default: m.TrackBreakdownController })));
+const LoreaScoresController = retryLazy(() => import('./components/LoreaScoresModal').then(m => ({ default: m.LoreaScoresController })));
 import { initLoreaScoreListener } from './services/loreaScoreService';
 import { fetchAudiusArtistById, fetchAudiusPlaylistTracks, audiusAlbumToNativeAlbum, type AudiusArtist } from './services/audiusService';
 import { completeAudiusRedirect } from './services/audiusAuth';
@@ -592,8 +605,8 @@ import SystemMessageBanner from './components/SystemMessageBanner';
 import { User as FirebaseUser } from 'firebase/auth';
 import PayItForwardModal from './components/PayItForwardModal';
 import PayItForwardNotification from './components/PayItForwardNotification';
-import LiveFeedPlayer from './components/LiveFeedPlayer';
-import OnboardingTour from './components/OnboardingTour';
+const LiveFeedPlayer = retryLazy(() => import('./components/LiveFeedPlayer')); // pulls MobileLiveStreamer + emotes/lenses
+const OnboardingTour = retryLazy(() => import('./components/OnboardingTour'));
 import Tooltip from './components/Tooltip';
 import { UserProfile, PayItForwardWinner, Article, PitchDeck, ExperienceMode } from './types';
 import { UploadProvider } from './contexts/UploadContext';
@@ -620,13 +633,15 @@ import SpatialToggle from './components/SpatialToggle';
 import SpatialImage from './components/SpatialImage';
 import { useSpatial } from './contexts/SpatialContext';
 import ArchiveItemCard from './components/ArchiveItemCard';
-import GlobalArchiveHero, { ArchiveRails } from './components/GlobalArchiveHero';
+// Lazy: archiveContentService + its interview/speech data tables (~240 KB) ride along.
+const GlobalArchiveHero = retryLazy(() => import('./components/GlobalArchiveHero'));
+const ArchiveRails = retryLazy(() => import('./components/GlobalArchiveHero').then(m => ({ default: m.ArchiveRails })));
 import ArchiveTabRow, { type ArchiveTabId } from './components/ArchiveTabRow';
 import LiveHubShowcase from './components/dashboard/LiveHubShowcase';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
 import SidebarSearch from './components/SidebarSearch';
-import SmartGuide from './components/SmartGuide';
+const SmartGuide = retryLazy(() => import('./components/SmartGuide'));
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 import { loadRoster, upsertAccount } from './services/accountRoster';
 import { buildShareUrl } from './services/deepLinkService';
@@ -645,7 +660,7 @@ import CommandSplitNav from './components/CommandSplitNav';
 import CommandSplitBar from './components/CommandSplitBar';
 import CommandPlayer from './components/CommandPlayer';
 import { ChoraNavBar, NavLayoutSwitcher, type NavPage } from './components/ChoraCompactNav';
-import DesktopGlobalToolbar from './components/DesktopGlobalToolbar';
+const DesktopGlobalToolbar = retryLazy(() => import('./components/DesktopGlobalToolbar'));
 import { onNativeMessage, requestWindowState, toggleNativeFullscreen } from './services/windowsBridgeService';
 
 const App: React.FC = () => {
@@ -1167,6 +1182,59 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Owned by hooks/useTvShellFocus so every capture screen can hand the remote up without
   // each one having to be wired for it individually.
   const tvTabsFocused = useTvShellFocus();
+  // TV overlays opened from the shell. The speaker picker only exists where the native Cast
+  // route plugin does (the Android APK); elsewhere the "Play on" entry is simply not offered.
+  const [tvSpeakersOpen, setTvSpeakersOpen] = useState(false);
+  const tvSpeakersSupported = useMemo(() => getPlatformInfo().isTV && isSpeakerPickerSupported(), []);
+  const openTvSpeakers = useCallback(() => { setShellFocus(false); setTvSpeakersOpen(true); }, []);
+  // The ambient home dashboard — opened from the shell's Home button or by clicking the pillar.
+  const [tvAmbientOpen, setTvAmbientOpen] = useState(false);
+  const openTvAmbient = useCallback(() => { setShellFocus(false); setTvAmbientOpen(true); }, []);
+  const closeTvAmbient = useCallback(() => setTvAmbientOpen(false), []);
+  useEffect(() => {
+    if (!getPlatformInfo().isTV) return;
+    const onOpen = () => openTvAmbient();
+    // "Play on" from the player bar — only where the native speaker picker exists.
+    const onSpeakers = () => { if (tvSpeakersSupported) openTvSpeakers(); };
+    window.addEventListener('plajah:open-ambient', onOpen);
+    window.addEventListener('plajah:open-speakers', onSpeakers);
+    return () => {
+      window.removeEventListener('plajah:open-ambient', onOpen);
+      window.removeEventListener('plajah:open-speakers', onSpeakers);
+    };
+  }, [openTvAmbient, openTvSpeakers, tvSpeakersSupported]);
+  // Matter casting: commands from a Matter casting client (via the TV OS's Matter agent, where one
+  // exists) arrive through the native PlajahMatter plugin. Inert on TVs without an agent.
+  useEffect(() => {
+    if (!getPlatformInfo().isTV || !getPlatformInfo().isNative) return;
+    let stop: (() => void) | undefined; let dead = false;
+    import('./services/tv/matterCastingBridge').then(m => { if (!dead) stop = m.startMatterCasting(); }).catch(() => {});
+    const onSearch = () => setView('TV_SEARCH' as AppView);
+    window.addEventListener('plajah:tv-search', onSearch);
+    return () => { dead = true; stop?.(); window.removeEventListener('plajah:tv-search', onSearch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // The TV's own smart-home hub (Matter controller + Hue + cameras) runs in an embedded Node runtime
+  // in the APK. Started after first paint so it never competes with boot; the ambient dash reaches it
+  // at http://127.0.0.1:8786. Foreground mode keeps it alive for always-on/signage TVs.
+  useEffect(() => {
+    if (!getPlatformInfo().isTV || !getPlatformInfo().isNative) return;
+    const t = window.setTimeout(() => {
+      import('./services/home/plajahHubNative')
+        .then(m => (m.embeddedHubAvailable() ? m.ensureEmbeddedHub({ foreground: true, timeoutMs: 45000 }) : null))
+        .catch(() => {});
+    }, 6000);
+    return () => window.clearTimeout(t);
+  }, []);
+  // ?tvPair=CODE — a phone scanned a TV's pairing QR. Checked inline (not via the receiver service)
+  // so the service stays out of the boot chunk.
+  const [tvPairCode, setTvPairCode] = useState<string | null>(() => {
+    try { const c = new URLSearchParams(window.location.search).get('tvPair'); return c && /^[A-Za-z0-9]{6}$/.test(c) ? c.toUpperCase() : null; } catch { return null; }
+  });
+  const closeTvPair = useCallback(() => {
+    setTvPairCode(null);
+    try { const u = new URL(window.location.href); u.searchParams.delete('tvPair'); window.history.replaceState(window.history.state, '', u.toString()); } catch { /* ignore */ }
+  }, []);
   const [showBrandActivation, setShowBrandActivation] = useState(false);
   const [licenseForFilm, setLicenseForFilm] = useState<{ track: any; album: any } | null>(null);
   const [audiusArtist, setAudiusArtist] = useState<AudiusArtist | null>(null);
@@ -1176,6 +1244,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
   const [isProjectTrayOpen, setIsProjectTrayOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
+  const [liveAlertsOn] = useLiveAlertsPref();
   const [dashboardInitialTab, setDashboardInitialTab] = useState<string | undefined>(undefined);
   // The phone's fixed bottom tab bar paints above every full-screen surface (z-150), so anything
   // pinned to the bottom of the screen — Live TV+'s channel guide — ended up underneath it. Publish
@@ -1238,7 +1307,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     if (!user || !new URLSearchParams(window.location.search).get('productionInvite')) return;
     localStorage.setItem('plajah_pm_discipline_v1', 'film');
-  const [liveAlertsOn] = useLiveAlertsPref();
     setView('ARTIST_MANAGER');
   }, [user]);
 
@@ -1508,6 +1576,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const navLayout = useNavLayout();
   const shellNext = useShellNext();
   const tvLineup = useTvLineup();
+  // Lineup rail's live inset (it slides away while you browse) — see useTvSpineInset.
+  const tvSpineInset = useTvSpineInset(getPlatformInfo().isTV && tvLineup.enabled);
   // Transient red warning toast (e.g. nano view isn't available in bar mode).
   const [navWarning, setNavWarning] = useState<string | null>(null);
   const navWarnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3775,6 +3845,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <CallProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
         <TVNavigationLayer />
+        {/* Mounted early and outside the view switch so its key listener registers once, before any
+            screen's, and so an assigned duty survives navigation. Renders nothing in standby. */}
+        {getPlatformInfo().isTV && <Suspense fallback={null}><TvReceiverHost /></Suspense>}
+        {tvPairCode && !getPlatformInfo().isTV && <Suspense fallback={null}><TvPairClaimView code={tvPairCode} onClose={closeTvPair} /></Suspense>}
         <TooltipSuppressor />
         <ResumeUploadPrompt />
         {/* Plajah TV-app opening ident — a random bumper from the platform library, once per launch. */}
@@ -3965,13 +4039,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <>
                 {shouldEnableEffect('parallax') && <NebulaBackground />}
                 {view !== 'VIDEOS' && view !== 'MOVIES_TV' && view !== 'MOVIE_UX' && view !== 'PLAYER' && view !== 'AVATAR_STUDIO' && (
-                  shouldEnableEffect('visualizer') && <NebulaVisualizer analyser={analyser} isPlaying={isPlaying} />
+                  shouldEnableEffect('visualizer') && <Suspense fallback={null}><NebulaVisualizer analyser={analyser} isPlaying={isPlaying} /></Suspense>
                 )}
               </>
             )}
 
             {/* ── Persistent Universal Global Toolbar (Desktop) ── */}
             {(!getPlatformInfo().isTV && !isMobile && theme !== 'PHONE' && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'PLAJAH_FSE') && (
+              <Suspense fallback={null}>
               <DesktopGlobalToolbar
                 view={view}
                 onNavigate={(v) => setView(v as any)}
@@ -3983,7 +4058,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 isFullscreen={isFullscreen}
                 onToggleFullscreen={handleToggleFullscreen}
                 isWindowsNative={isWindowsApp()}
+                onOpenNotification={handleNotificationNavigate}
+                onOpenNetworkHealth={() => { setDashboardInitialTab('NETWORK_DIAGNOSTICS' as any); setView('CREATOR'); }}
               />
+              </Suspense>
             )}
 
             {/* ── Main Application Workspace (billboard + navigation rail + platform application viewport) ── */}
@@ -4052,8 +4130,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         album={currentSlot.album}
                         profile={currentSlot.profile}
                         onOpenAlbum={album => { setSelectedAlbum(album); setView('PLAYER'); }}
-                onOpenNotification={handleNotificationNavigate}
-                onOpenNetworkHealth={() => { setDashboardInitialTab('NETWORK_DIAGNOSTICS' as any); setView('CREATOR'); }}
                         dotCount={dotTotal}
                         dotIdx={dotActive}
                       />
@@ -6085,10 +6161,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {view === 'STORE' && viewedUserId === DEMO_STORE_ID && (
+              <Suspense fallback={null}>
               <StoreDemoView
                 onBack={() => setView('STORE_HUB')}
                 onCreate={() => { if (user) { setViewedUserId(user.uid); setView('STORE'); } else loginWithGoogle(); }}
               />
+              </Suspense>
             )}
             {view === 'STORE' && viewedUserId !== DEMO_STORE_ID && (
               <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><div className="w-10 h-10 border-2 border-[--small-orange]/30 border-t-[--small-orange] rounded-full animate-spin" /></div>}>
@@ -6141,6 +6219,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </div>
                 <div className="relative z-10 flex-1 p-6 lg:p-12 max-w-[1440px] mx-auto w-full">
                   {/* ── Panorama wall + issue line + live ticker (the "Front Row" hero) ── */}
+                  <Suspense fallback={null}>
                   <GlobalArchiveHero
                     albums={albums}
                     liveFeeds={dashLiveFeeds}
@@ -6152,6 +6231,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   />
                   {/* ── Premiere rails — per-service new releases + Lorea classics ── */}
                   <ArchiveRails albums={albums} onSelectItem={handleSelectItem} onOpenBooks={() => setView('BOOKS' as any)} />
+                  </Suspense>
                   {/* Floating tab dock — wayfinding once the real tab row scrolls above the viewport */}
                   {showTabDock && (
                     <div className="fixed top-3 inset-x-0 z-[90] flex justify-center px-3 pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
@@ -6361,6 +6441,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onSelect={(v) => setView(v as AppView)}
                   focused={tvTabsFocused}
                   onExitDown={() => setShellFocus(false)}
+                  onOpenSpeakers={tvSpeakersSupported ? openTvSpeakers : undefined}
+                  onOpenAmbient={openTvAmbient}
                   onOpenSearch={() => { setShellFocus(false); setView('TV_SEARCH' as AppView); }}
                   onOpenNowPlaying={() => {
                     setShellFocus(false);
@@ -6379,6 +6461,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onSelect={(v) => setView(v as AppView)}
                   focused={tvTabsFocused}
                   onExitDown={() => setShellFocus(false)}
+                  onOpenSpeakers={tvSpeakersSupported ? openTvSpeakers : undefined}
+                  onOpenAmbient={openTvAmbient}
                   onOpenSearch={() => { setShellFocus(false); setView('TV_SEARCH' as AppView); }}
                   onOpenNowPlaying={() => {
                     setShellFocus(false);
@@ -6403,7 +6487,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 the sticky top bar — it just needs to know not to run underneath the rail's width.
                 Nothing about ReelloTvView's own D-pad logic changes. */}
             {view === 'VIDEOS' && getPlatformInfo().isTV && (
-              <div style={tvLineup.enabled ? { paddingLeft: TV_SPINE_W } : undefined}>
+              <div style={tvSpineInset ? { paddingLeft: tvSpineInset, transition: 'padding-left 220ms ease' } : undefined}>
                 <Suspense fallback={null}>
                   <ReelloTvView
                     userProfile={userProfile}
@@ -6418,7 +6502,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 universal router (album→player, film→MOVIE_UX, video→player), so all three catalogues
                 open exactly where their own home screens would send them. */}
             {view === 'TV_SEARCH' && getPlatformInfo().isTV && (
-              <div style={tvLineup.enabled ? { paddingLeft: TV_SPINE_W } : undefined}>
+              <div style={tvSpineInset ? { paddingLeft: tvSpineInset, transition: 'padding-left 220ms ease' } : undefined}>
                 <Suspense fallback={null}>
                   <TvSearchView
                     onBack={() => setView('MOVIES_TV' as AppView)}
@@ -6434,7 +6518,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {getPlatformInfo().isTV && view === 'USER_PROFILE' && (
               <Suspense fallback={null}>
                 <TvSettingsView
-                  railInset={tvLineup.enabled ? TV_SPINE_W : 0}
+                  railInset={tvSpineInset}
                   tvLineupEnabled={tvLineup.enabled}
                   onSetTvLineupEnabled={tvLineup.setEnabled}
                   userProfile={userProfile}
@@ -6467,6 +6551,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <Suspense fallback={null}>
                 <TvNowPlayingBar albumViewActive={view === 'PLAYER' || view === 'PREVIEW'} />
               </Suspense>
+            )}
+
+            {/* "Play on" — speakers and Google Home speaker groups via native Cast routes. Stays
+                mounted while closed: it also feeds the player into the cast sync, which must keep
+                running after the sheet closes. */}
+            {tvSpeakersSupported && (
+              <Suspense fallback={null}>
+                <TvSpeakerPicker open={tvSpeakersOpen} onClose={() => setTvSpeakersOpen(false)} />
+              </Suspense>
+            )}
+
+            {getPlatformInfo().isTV && getPlatformInfo().isNative && (
+              <Suspense fallback={null}><MatterPlaybackReporter /></Suspense>
+            )}
+
+            {getPlatformInfo().isTV && tvAmbientOpen && (
+              <Suspense fallback={null}><TvAmbientScreen onClose={closeTvAmbient} /></Suspense>
             )}
 
             {/* A view we deliberately don't run on TV — say so, and say where it does live. */}
@@ -6598,7 +6699,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 geometric inference, which is what made the adapted version unpredictable.
                 Album playback still uses the existing TV album/player layout. */}
             {view === 'MUSIC' && getPlatformInfo().isTV && (
-              <div style={tvLineup.enabled ? { paddingLeft: TV_SPINE_W } : undefined}>
+              <div style={tvSpineInset ? { paddingLeft: tvSpineInset, transition: 'padding-left 220ms ease' } : undefined}>
                 <Suspense fallback={<div className="h-full grid place-items-center text-white/30 text-xs font-black uppercase tracking-[0.3em]">Loading Chora…</div>}>
                   <ChoraTvView
                     userProfile={userProfile}
@@ -6847,7 +6948,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {/* Taleo on a TV gets the purpose-built declarative-grid screen (like Chora/Reello);
                 pointer/desktop keeps the geometric MoviesTVView. Selection is identical. */}
             {view === 'MOVIES_TV' && getPlatformInfo().isTV && (
-              <div style={tvLineup.enabled ? { paddingLeft: TV_SPINE_W } : undefined}>
+              <div style={tvSpineInset ? { paddingLeft: tvSpineInset, transition: 'padding-left 220ms ease' } : undefined}>
                 <Suspense fallback={null}>
                   <MoviesTvView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} />
                 </Suspense>
@@ -7541,6 +7642,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           // desktop floating nano / bottom bar in view over the TV's TvTopTabs UI whenever
           // something was playing. TV's own screens (LiveTvPlus, the TV Music view) own
           // playback chrome on TV; this component should never reach a television at all.
+          <Suspense fallback={null}>
           <GlobalPlayer
             onNavigate={handleGlobalNavigate}
             bottomOffset={(isMobile || theme === 'PHONE') ? "0px" : "0px"} 
@@ -7569,6 +7671,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             setUserProfile(prev => prev ? { ...prev, ...updates } : prev);
           }}
         />
+          </Suspense>
           )}
 
         {!isMobile && !getPlatformInfo().isTV && (
@@ -7607,6 +7710,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
         />
         <AriaEventBridge onOpen={() => setIsMuseOpen(true)} />
+        <Suspense fallback={null}>
         <PlajahAgent
           isOpen={isMuseOpen}
           onClose={() => setIsMuseOpen(false)}
@@ -7623,6 +7727,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             console.log('[Aria] Build applied:', build);
           }}
         />
+        </Suspense>
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[300] flex items-center justify-center p-6">
             <div className="max-w-md w-full bg-[#0a0a0a] border border-white/10 p-10 rounded-[2.5rem] text-center shadow-3xl">
@@ -7744,10 +7849,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         onRestoreCreator={() => { setIsCreatorMinimized(false); setIsProjectTrayOpen(false); }}
         recentAlbums={albums.filter(a => a.ownerId === user?.uid).slice(0, 6)}
       />
-      <LiveFeedPlayer
-        feed={activeLiveFeed}
-        onClose={() => setActiveLiveFeed(null)}
-      />
+      {/* LiveFeedPlayer renders null without a feed — mount (and fetch its chunk) only when one is set. */}
+      {activeLiveFeed && (
+        <Suspense fallback={null}>
+          <LiveFeedPlayer
+            feed={activeLiveFeed}
+            onClose={() => setActiveLiveFeed(null)}
+          />
+        </Suspense>
+      )}
 
       {/* Release Countdown Page — shown when a scheduled album is opened before its release date */}
       {countdownAlbumId && (
@@ -7813,10 +7923,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       </AnimatePresence>
 
       {/* Challenge VS screen — fires on CHALLENGE_VS custom event */}
-      {user && <ChallengeVsController />}
+      {user && <Suspense fallback={null}><ChallengeVsController /></Suspense>}
 
       {/* The Breakdown — fires on OPEN_BREAKDOWN custom event */}
-      <TrackBreakdownController onOpenTheoryStudio={() => setView('MUSIC_THEORY')} />
+      <Suspense fallback={null}><TrackBreakdownController onOpenTheoryStudio={() => setView('MUSIC_THEORY')} /></Suspense>
 
       {/* License a Chora song for a Fabula film — fires on OPEN_LICENSE_FOR_FILM */}
       {licenseForFilm && (
@@ -7831,10 +7941,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       )}
 
       {/* Lorea Scores — saves transcribed notation; opens on OPEN_LOREA_SCORES */}
-      <LoreaScoresController />
+      <Suspense fallback={null}><LoreaScoresController /></Suspense>
 
       {/* Onboarding Tour */}
       {showOnboarding && user && (
+        <Suspense fallback={null}>
         <OnboardingTour
           onComplete={async () => {
             setShowOnboarding(false);
@@ -7849,6 +7960,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             setUserProfile(p);
           }}
         />
+        </Suspense>
       )}
       {/* Not on a television: the drawer's pull-tab floats over every screen at the right edge,
           no D-pad can reach it, and chat without a keyboard is not something anyone wants from a
@@ -7866,6 +7978,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       {/* Smart Guide */}
       {user && (
+        <Suspense fallback={null}>
         <SmartGuide
           view={view}
           enabled={smartGuideEnabled}
@@ -7880,6 +7993,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             updateUserProfile(user.uid, { hasSeenSmartGuide: true, smartGuideEnabled: true } as any).catch(() => {});
           }}
         />
+        </Suspense>
       )}
 
       {/* Account Switcher */}

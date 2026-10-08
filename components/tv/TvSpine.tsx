@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Film, Music2, Video, User, Play, Pause, Search, Radio } from 'lucide-react';
+import { useTvShellFocus } from '../../hooks/useTvShellFocus';
+import { Film, Music2, Video, User, Play, Pause, Search, Radio, Speaker, LayoutGrid } from 'lucide-react';
 import { TV_NAV_VIEWS } from '../../services/tvCapabilities';
+import { isTvOverlayOpen } from '../../hooks/useTvOverlay';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import Logo from '../Logo';
@@ -55,10 +57,11 @@ export interface LineupRow {
  *  and Settings. Exported so App.tsx's global number-entry handoff can check
  *  "is this number one of the known static rows" without duplicating the list. */
 export const LINEUP_ROWS: LineupRow[] = [
+  // Live leads the rail because it is the home screen (getTvHome) — what you land on is first.
+  { num: '41+', name: 'Live TV+', view: 'LIVE_HUB', group: 'live' },
   { num: '1', name: 'Taleo', view: 'MOVIES_TV', group: 'apps' },
   { num: '2', name: 'Chora', view: 'MUSIC', group: 'apps' },
   { num: '3', name: 'Reello', view: 'VIDEOS', group: 'apps' },
-  { num: '41+', name: 'Live Channels', view: 'LIVE_HUB', group: 'live' },
   { num: '90', name: 'Settings', view: 'USER_PROFILE', group: 'system' },
 ];
 
@@ -83,6 +86,37 @@ const ROW_ICON: Record<string, React.ComponentType<{ size?: number; className?: 
  *  wrappers, so it can never drift out of sync with what's actually drawn. */
 export const TV_SPINE_W = 224;
 
+/** Settle time before a rail flip mounts its screen — long enough to skip rows you flick past,
+ *  short enough to feel immediate when you stop. */
+const FLIP_SETTLE_MS = 240;
+
+type SpineUtil = 'SEARCH' | 'NOW_PLAYING' | 'SPEAKERS' | 'AMBIENT';
+
+/** How long the rail lingers after the remote moves into the content before sliding away. */
+const SPINE_HIDE_MS = 2500;
+
+/**
+ * The rail's current left inset: TV_SPINE_W while it's shown, 0 once it has slid away.
+ *
+ * The rail used to be permanently 224px wide, and screens that position themselves (Chora's
+ * now-playing, fixed overlays) ran underneath it. Now it shows while the shell owns the remote and
+ * slides off SPINE_HIDE_MS after focus moves into the content, so the content gets the full screen
+ * while you browse. Up at a screen's first row (or Back on Live) brings it back. Every consumer
+ * (the rail itself, App's content wrappers, LiveTvPlus) calls this same hook with the same inputs,
+ * so they all agree on the inset without a shared timer.
+ */
+export function useTvSpineInset(enabled: boolean): number {
+  const shellFocused = useTvShellFocus();
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    if (!enabled) return;
+    if (shellFocused) { setShown(true); return; }
+    const t = setTimeout(() => setShown(false), SPINE_HIDE_MS);
+    return () => clearTimeout(t);
+  }, [enabled, shellFocused]);
+  return enabled && shown ? TV_SPINE_W : 0;
+}
+
 const TvSpine: React.FC<{
   activeView: string;
   onSelect: (view: string) => void;
@@ -93,17 +127,24 @@ const TvSpine: React.FC<{
   /** Global number entry resolved to something other than a known static row
    *  (1/2/3/90) — hand it to Live Hub's existing channel deep-link. */
   onTuneChannel?: (num: string) => void;
-}> = ({ activeView, onSelect, onOpenNowPlaying, onOpenSearch, focused = false, onExitDown, onTuneChannel }) => {
+  /** "Play on" — the speaker / speaker-group chooser. Row hidden when not provided. */
+  onOpenSpeakers?: () => void;
+  /** The ambient home dashboard (weather, cameras, notes, notifications). Row hidden when not provided. */
+  onOpenAmbient?: () => void;
+}> = ({ activeView, onSelect, onOpenNowPlaying, onOpenSearch, focused = false, onExitDown, onTuneChannel, onOpenSpeakers, onOpenAmbient }) => {
   const { currentTrack, currentAlbum, isPlaying } = useGlobalPlayer();
   const art = (currentTrack as any)?.albumCover || (currentAlbum as any)?.coverImage;
+  const railInset = useTvSpineInset(true);
 
   // Utility rows (Search, Now Playing) sit outside the numbered lineup — they
   // are app chrome, not channels, so giving them a number would break the
   // clean 1/2/3/41+/90 addressing the whole point of Lineup is to keep.
-  const items: Array<{ kind: 'util'; key: 'SEARCH' | 'NOW_PLAYING' } | { kind: 'row'; row: LineupRow }> = [
+  const items: Array<{ kind: 'util'; key: SpineUtil } | { kind: 'row'; row: LineupRow }> = [
     { kind: 'util', key: 'SEARCH' },
     ...LINEUP_ROWS.map(row => ({ kind: 'row' as const, row })),
     ...(currentTrack ? [{ kind: 'util' as const, key: 'NOW_PLAYING' as const }] : []),
+    ...(onOpenSpeakers ? [{ kind: 'util' as const, key: 'SPEAKERS' as const }] : []),
+    ...(onOpenAmbient ? [{ kind: 'util' as const, key: 'AMBIENT' as const }] : []),
   ];
   const [idx, setIdx] = useState(0);
   const itemRefs = useRef(new Map<number, HTMLButtonElement>());
@@ -112,6 +153,11 @@ const TvSpine: React.FC<{
   const idxRef = useRef(idx); idxRef.current = idx;
   const itemsRef = useRef(items); itemsRef.current = items;
   const onSelectRef = useRef(onSelect); onSelectRef.current = onSelect;
+  // Callbacks App passes inline change identity every render; reading them through a ref keeps the
+  // capture listener bound once instead of re-binding on every App render.
+  const cbRef = useRef({ onOpenNowPlaying, onOpenSearch, onExitDown, onOpenSpeakers, onOpenAmbient });
+  cbRef.current = { onOpenNowPlaying, onOpenSearch, onExitDown, onOpenSpeakers, onOpenAmbient };
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!focused) return;
@@ -134,30 +180,47 @@ const TvSpine: React.FC<{
   // not hundreds of channels to scroll past.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!focusedRef.current) return;
+      if (!focusedRef.current || isTvOverlayOpen()) return;
       const kc = e.keyCode || e.which;
       const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
       const go = (next: number) => {
         stop();
         const clamped = Math.max(0, Math.min(itemsRef.current.length - 1, next));
         setIdx(clamped);
+        // The highlight moves on THIS frame; the screen behind it is only mounted once the
+        // viewer settles. Committing on every press mounted a whole lazy screen (and its
+        // catalogue fetch) per step, so flicking past two rows cost three screen loads.
+        if (commitTimer.current) clearTimeout(commitTimer.current);
         const item = itemsRef.current[clamped];
+        if (item.kind === 'row') {
+          commitTimer.current = setTimeout(() => { commitTimer.current = null; onSelectRef.current(item.row.view); }, FLIP_SETTLE_MS);
+        }
+      };
+      const commitNow = () => {
+        if (!commitTimer.current) return;
+        clearTimeout(commitTimer.current); commitTimer.current = null;
+        const item = itemsRef.current[idxRef.current];
         if (item.kind === 'row') onSelectRef.current(item.row.view);
       };
       if (e.key === 'ArrowDown' || kc === 40 || kc === 20) { go(idxRef.current + 1); return; }
       if (e.key === 'ArrowUp'   || kc === 38 || kc === 19) { go(idxRef.current - 1); return; }
-      if (e.key === 'ArrowRight' || kc === 39 || kc === 22) { stop(); onExitDown?.(); return; }
+      if (e.key === 'ArrowRight' || kc === 39 || kc === 22) { stop(); commitNow(); cbRef.current.onExitDown?.(); return; }
       if (e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23) {
         stop();
         const item = itemsRef.current[idxRef.current];
-        if (item.kind === 'util' && item.key === 'NOW_PLAYING') onOpenNowPlaying?.();
-        else if (item.kind === 'util' && item.key === 'SEARCH') { onOpenSearch?.(); onExitDown?.(); }
-        else onExitDown?.();   // a row: already navigated on the way here, just enter its content
+        const cb = cbRef.current;
+        if (item.kind === 'util') {
+          if (item.key === 'NOW_PLAYING') cb.onOpenNowPlaying?.();
+          else if (item.key === 'SEARCH') { cb.onOpenSearch?.(); cb.onExitDown?.(); }
+          else if (item.key === 'SPEAKERS') cb.onOpenSpeakers?.();
+          else if (item.key === 'AMBIENT') cb.onOpenAmbient?.();
+        }
+        else { commitNow(); cb.onExitDown?.(); }   // a row: navigate (if still pending) and enter its content
       }
     };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onOpenNowPlaying, onOpenSearch, onExitDown]);
+    return () => { window.removeEventListener('keydown', onKey, true); if (commitTimer.current) clearTimeout(commitTimer.current); };
+  }, []);
 
   // ── Global Channel Up/Down + number entry — "from anywhere", per the
   // mockup, working whether the rail or the content below it holds focus. ──
@@ -184,11 +247,13 @@ const TvSpine: React.FC<{
 
     const onKey = (e: KeyboardEvent) => {
       if (activeViewRef.current === 'LIVE_HUB') return;   // LiveTvPlus owns channel keys here
+      if (isTvOverlayOpen()) return;
       const kc = e.keyCode || e.which;
       const isChUp = kc === 166 || e.key === 'ChannelUp' || e.key === 'PageUp' || e.key === ']';
       const isChDown = kc === 167 || e.key === 'ChannelDown' || e.key === 'PageDown' || e.key === '[';
-      if (isChUp) { e.preventDefault(); stepApp(1); return; }
-      if (isChDown) { e.preventDefault(); stepApp(-1); return; }
+      // Same direction rule as Live's dial: Channel Up moves UP the rail.
+      if (isChUp) { e.preventDefault(); stepApp(-1); return; }
+      if (isChDown) { e.preventDefault(); stepApp(1); return; }
 
       if (/^[0-9.]$/.test(e.key)) {
         // Never fight a text field (e.g. the channel-rename input elsewhere on TV).
@@ -214,7 +279,8 @@ const TvSpine: React.FC<{
   return (
     <nav
       className="fixed left-0 top-0 bottom-0 z-[70] flex flex-col gap-0.5 py-4 px-2.5 bg-[#0a0a0c] border-r border-white/10 overflow-hidden"
-      style={{ width: TV_SPINE_W }}
+      // Slides away while you browse (transform only — composited, no relayout of the rail).
+      style={{ width: TV_SPINE_W, transform: railInset ? 'none' : 'translateX(-100%)', transition: 'transform 220ms ease' }}
       data-tv-navbar
       role="tablist"
       aria-orientation="vertical"
@@ -239,7 +305,9 @@ const TvSpine: React.FC<{
       </button>
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col [scrollbar-width:none]">
-        {(['apps', 'live', 'system'] as const).map((group) => {
+        {/* Render order MUST match LINEUP_ROWS order — Up/Down walks `items`, so a different visual
+            order makes the highlight jump around. */}
+        {(['live', 'apps', 'system'] as const).map((group) => {
           const rows = LINEUP_ROWS.filter(r => r.group === group);
           const meta = GROUP_META[group];
           return (
@@ -311,6 +379,34 @@ const TvSpine: React.FC<{
             <span className="block text-[10px] font-bold truncate">{(currentTrack as any)?.title || 'Now playing'}</span>
           </span>
         </button>
+      )}
+
+      {/* Play on (speaker groups) + Home dashboard — utilities, unnumbered. */}
+      {(onOpenSpeakers || onOpenAmbient) && (
+        <div className="flex gap-1.5 shrink-0 mt-2">
+          {([
+            onOpenSpeakers && { key: 'SPEAKERS' as const, label: 'Play on', Icon: Speaker, fn: onOpenSpeakers },
+            onOpenAmbient && { key: 'AMBIENT' as const, label: 'Home', Icon: LayoutGrid, fn: onOpenAmbient },
+          ].filter(Boolean) as Array<{ key: SpineUtil; label: string; Icon: typeof Speaker; fn: () => void }>).map(({ key, label, Icon, fn }) => {
+            const hi = active.kind === 'util' && active.key === key;
+            const itemIndex = items.findIndex(it => it.kind === 'util' && it.key === key);
+            return (
+              <button
+                key={key}
+                ref={(node) => { if (node) itemRefs.current.set(itemIndex, node); else itemRefs.current.delete(itemIndex); }}
+                data-tv-focusable
+                onClick={fn}
+                className={`flex-1 flex items-center justify-center gap-2 h-11 rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors ${
+                  hi ? 'bg-white/[0.12] text-white' : 'bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.08]'
+                }`}
+                style={focused && hi ? { boxShadow: '0 0 0 4px #FF8C00, 0 0 0 7px rgba(0,0,0,0.7)' } : undefined}
+              >
+                <Icon size={15} className="shrink-0" />
+                <span className="whitespace-nowrap">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       )}
     </nav>
   );

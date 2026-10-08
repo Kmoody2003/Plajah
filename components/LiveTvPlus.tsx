@@ -7,7 +7,7 @@
 // Channels merge live streams (live_feeds), creator FAST channels, and the curated Science Live
 // channels into one numbered lineup.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2, Pencil, Check, X, Heart, ImagePlus, Settings2, Link2, Star } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { ACTIVE_SCIENCE_STREAMS } from './scienceStreams';
@@ -25,8 +25,9 @@ const CHANNEL_FADE_MS = 2000;
 import EndlessHourPlayer from './tv/EndlessHourPlayer';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { isShellFocused, setShellFocus } from '../hooks/useTvShellFocus';
+import { isTvOverlayOpen } from '../hooks/useTvOverlay';
 import { useTvLineup } from '../hooks/useTvLineup';
-import { TV_SPINE_W } from './tv/TvSpine';
+import { useTvSpineInset } from './tv/TvSpine';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, legacyMajors, plajahNumber, type NumberRegistry } from '../services/fast/channelNumbers';
 import { findSharedChannel, canManageChannel } from '../services/fast/channelSharing';
 import { isChannelFeed } from '../services/fast/guideLineup';
@@ -39,6 +40,13 @@ import { useContextMenu } from './ui';
 import { subKeyFor, favoriteKey, resolveChannelLogo, type OwnerBranding } from '../services/fast/channelBranding';
 import { getFavoriteChannels, subscribeFavoriteChannels, toggleFavoriteChannel, syncFavoriteChannelsFromProfile } from '../services/favoriteChannelsService';
 import type { FavoriteChannel } from '../types';
+import type { GuideChannel } from './tv/PlajahEpgGuide';
+
+// The full grid guide opens over Live TV+ (OK / Guide key on a remote). Loaded on first open only.
+const PlajahEpgGuide = lazy(() => import('./tv/PlajahEpgGuide'));
+// Glanceable home pillar (clock, weather, cameras, notes, notifications) — TV only, shown with the guide.
+const TvAmbientPillar = lazy(() => import('./tv/ambient/TvAmbientPillar'));
+const openAmbient = () => window.dispatchEvent(new CustomEvent('plajah:open-ambient'));
 
 export interface TvChannel {
   id: string;
@@ -89,6 +97,11 @@ function computeEpg(schedule: FastChannelSchedule | null, now: number, count = 6
   }
   return out;
 }
+/** Bottom-guide card pitch: w-52 (208px) + gap-2 (8px). Spacers use it to stand in for unmounted cards. */
+const GUIDE_CARD_STRIDE = 216;
+/** Cards mounted either side of the selected one — comfortably more than fit on a 1600px screen. */
+const GUIDE_HALF_WINDOW = 10;
+
 const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 const isHlsUrl = (u: string) => u.toLowerCase().includes('.m3u8');
@@ -597,45 +610,112 @@ const LiveTvPlus: React.FC<{
   // happened to already hold focus. The fix is the `data-tv-capture` attribute on the root div below
   // (see TVNavigationLayer.inCaptureZone), which makes the geometric layer yield unconditionally
   // while this screen is showing — the same mechanism MoviesTvView and TvSearchView already use.
+  //
+  // Bound ONCE: the handler reads index/channels through refs. It used to depend on [index,
+  // channels], so every channel step tore the listener down and re-added it — and `channels` is
+  // rebuilt on every feed/registry update, so a press could land in the gap mid-rebind.
+  // It stays BUBBLE-phase on purpose: overlays on top of Live (speaker picker, ambient screen,
+  // receiver) listen in the capture phase and stop the event, so they always win over the dial.
+  const [guideOpen, setGuideOpen] = useState(false);
+  const keyStateRef = useRef({ index, channels, setIdx, onWatchWebrtc });
+  keyStateRef.current = { index, channels, setIdx, onWatchWebrtc };
+  const [tuneBuf, setTuneBuf] = useState('');
   useEffect(() => {
+    let numBuf = '';
+    let numTimer: ReturnType<typeof setTimeout> | null = null;
+    const tune = () => {
+      const want = numBuf; numBuf = ''; setTuneBuf('');
+      const { channels: list, setIdx: go } = keyStateRef.current;
+      // Exact sub-channel ("42.1") first, then the first sub of a major ("42" → 42.1).
+      let i = list.findIndex(c => String(c.number) === want);
+      if (i < 0) i = list.findIndex(c => String(c.number).split('.')[0] === want);
+      if (i >= 0) go(i);
+    };
     const onKey = (e: KeyboardEvent) => {
       // On the TV the shell's tab bar can own the remote — go inert so one press never moves two things.
-      if (isShellFocused()) return;
+      if (isShellFocused() || isTvOverlayOpen()) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const { index: idx, channels: list, setIdx: go, onWatchWebrtc: watchRtc } = keyStateRef.current;
+      const last = list.length - 1;
       const kc = (e as any).keyCode || 0;
       const isUp = e.key === 'ArrowUp' || kc === 38 || kc === 19;
       const isDown = e.key === 'ArrowDown' || kc === 40 || kc === 20;
+      // Left/Right walk the bottom guide, which runs left-to-right — the arrows match what you see.
+      const isLeft = e.key === 'ArrowLeft' || kc === 37 || kc === 21;
+      const isRight = e.key === 'ArrowRight' || kc === 39 || kc === 22;
       // A physical remote's dedicated Channel Up/Down buttons. Different vendors deliver them
       // differently — Android TV's consumer-electronics keycodes (166/167), a named key
       // ('ChannelUp'/'ChannelDown'), or the bracket/PageUp/PageDown keys used for the same purpose
       // in a browser — so all of them are accepted rather than guessing which one a given remote or
-      // keyboard sends. They page the channel from anywhere on this surface, independent of the
-      // dial's up/down stepping above.
+      // keyboard sends.
       const isChUp = kc === 166 || e.key === 'ChannelUp' || e.key === 'PageUp' || e.key === ']';
       const isChDown = kc === 167 || e.key === 'ChannelDown' || e.key === 'PageDown' || e.key === '[';
-      if (isChUp) { e.preventDefault(); setIdx(Math.min(channels.length - 1, index + 1)); return; }
-      if (isChDown) { e.preventDefault(); setIdx(Math.max(0, index - 1)); return; }
+      // Channel Up/Down follow the on-screen dial: Up moves UP the dial, exactly like the Up arrow.
+      // (They were the other way round — Ch+ stepped to the next list entry, which is DOWN the dial —
+      // and on the TCL that read as backwards.)
+      if (isChUp) { e.preventDefault(); go(Math.max(0, idx - 1)); return; }
+      if (isChDown) { e.preventDefault(); go(Math.min(last, idx + 1)); return; }
+      if (isRight) { e.preventDefault(); go(Math.min(last, idx + 1)); return; }
+      if (isLeft) { e.preventDefault(); go(Math.max(0, idx - 1)); return; }
       if (isUp) {
         // At the top of the dial, UP hands focus back to the TV tab bar instead of trapping the viewer.
-        if (index === 0 && getPlatformInfo().isTV) { e.preventDefault(); setShellFocus(true); return; }
-        e.preventDefault(); setIdx(Math.max(0, index - 1));
+        if (idx === 0 && getPlatformInfo().isTV) { e.preventDefault(); setShellFocus(true); return; }
+        e.preventDefault(); go(Math.max(0, idx - 1));
       }
-      else if (isDown) { e.preventDefault(); setIdx(Math.min(channels.length - 1, index + 1)); }
+      else if (isDown) { e.preventDefault(); go(Math.min(last, idx + 1)); }
+      // Number entry, like any TV: type 4 2 (or 4 2 . 1) and it tunes after a short pause, or on OK.
+      // Android remotes send KEYCODE_0..9 = 7..16 and the sub-channel dot as 158 (NUMPAD_DOT).
+      else if (/^[0-9.]$/.test(e.key) || (kc >= 7 && kc <= 16) || kc === 158) {
+        const ch = /^[0-9.]$/.test(e.key) ? e.key : kc === 158 ? '.' : String(kc - 7);
+        e.preventDefault();
+        numBuf = (numBuf + ch).slice(0, 6); setTuneBuf(numBuf);
+        if (numTimer) clearTimeout(numTimer);
+        numTimer = setTimeout(tune, 1100);
+      }
       // A remote's own mute key, and 'm' for a keyboard. Previously the only mute control was a
       // pointer-only button in a bar that hides itself after 15s on TV, so once it vanished the
       // audio could not be reached at all — Enter could unmute but nothing could mute again.
       else if (kc === 164 || e.key === 'AudioVolumeMute' || e.key === 'VolumeMute' || e.key === 'm' || e.key === 'M') {
         e.preventDefault(); setMuted(m => !m); setImmersive(false);
       }
-      else if (e.key === 'Enter' || kc === 13 || kc === 23) { const ch = channels[index]; if (ch?.kind === 'webrtc') onWatchWebrtc?.(ch.feed); setMuted(false); }
+      // The remote's GUIDE key (KEYCODE_GUIDE 172), or G on a keyboard, opens the full grid guide.
+      else if (kc === 172 || e.key === 'Guide' || e.key === 'g' || e.key === 'G') { e.preventDefault(); setGuideOpen(true); }
+      else if (e.key === 'Enter' || kc === 13 || kc === 23) {
+        if (numBuf) { e.preventDefault(); if (numTimer) clearTimeout(numTimer); tune(); return; }
+        const ch = list[idx];
+        if (ch?.kind === 'webrtc') { watchRtc?.(ch.feed); setMuted(false); return; }
+        setMuted(false);
+        // On a TV, OK is the way into the full guide — most remotes have no Guide button.
+        if (getPlatformInfo().isTV) { e.preventDefault(); setGuideOpen(true); }
+      }
+    };
+    // Back on Live (the TV's home) brings the navigation back instead of leaving the app — the rail
+    // slides away while you watch, and this is the one-press way to it from anywhere on the dial.
+    const onHwBack = (ev: Event) => {
+      if (!getPlatformInfo().isTV || isTvOverlayOpen() || isShellFocused()) return;
+      ev.preventDefault();
+      setShellFocus(true);
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [index, channels, setIdx, onWatchWebrtc]);
+    window.addEventListener('plajah:hardware-back', onHwBack);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('plajah:hardware-back', onHwBack);
+      if (numTimer) clearTimeout(numTimer);
+    };
+  }, []);
 
   // Keep the bottom guide's selected card in view.
+  // A held/rapid remote fires a press every ~80-120ms; a smooth scroll per press never finishes and
+  // the browser keeps restarting the animation (the "rubber band" lag). Smooth only for lone presses.
+  const lastGuideMoveRef = useRef(0);
   useEffect(() => {
+    const now = performance.now();
+    const burst = now - lastGuideMoveRef.current < 260;
+    lastGuideMoveRef.current = now;
     const el = guideRef.current?.querySelector<HTMLElement>(`[data-ch="${index}"]`);
-    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    el?.scrollIntoView({ behavior: burst ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
   }, [index]);
 
   const selected = channels[index] || null;
@@ -645,7 +725,7 @@ const LiveTvPlus: React.FC<{
   // a fixed left rail instead — same idea, different edge. Spine's own width constant is imported
   // rather than duplicated, so the two can never drift out of sync.
   const tvInset = isTv && !tvLineup.enabled;                 // classic: inset from the top
-  const tvRailInset = isTv && tvLineup.enabled ? TV_SPINE_W : 0;   // spine: inset from the left
+  const tvRailInset = useTvSpineInset(isTv && tvLineup.enabled);   // spine: inset from the left (0 while it's hidden)
 
   const beginRename = useCallback((channel: TvChannel) => {
     const ownerId = channel.scheduleOwner || channel.ownerId;
@@ -1074,6 +1154,40 @@ const LiveTvPlus: React.FC<{
     );
   }
 
+  // Height of the bottom guide panel, so the pillar can sit above it rather than over it.
+  const guidePanelRef = useRef<HTMLDivElement>(null);
+  const [guidePanelH, setGuidePanelH] = useState(260);
+  useEffect(() => {
+    const el = guidePanelRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setGuidePanelH(Math.round(el.getBoundingClientRect().height)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [immersive]);
+
+  const guideMatchesPlaying = useCallback((g: GuideChannel) => {
+    const cur = channels[loadedIndex];
+    if (!cur) return false;
+    if (cur.plajahId) return g.plajahId === cur.plajahId;
+    if (cur.feed?.id && g.feed?.id) return g.feed.id === cur.feed.id;
+    return !!cur.ownerId && g.ownerId === cur.ownerId;
+  }, [channels, loadedIndex]);
+
+  const tuneFromGuide = useCallback((g: GuideChannel) => {
+    setGuideOpen(false);
+    let i = -1;
+    if (g.kind === 'live' && g.feed?.id) i = channels.findIndex(c => c.feed?.id === g.feed.id);
+    if (i < 0 && (g.ownerId || g.plajahId)) i = findSharedChannel(channels, { ownerId: g.ownerId, plajahId: g.plajahId });
+    if (i >= 0) { setIndex(i); setLoadedIndex(i); setMuted(false); }
+  }, [channels]);
+
+  // Bottom-guide window: on the horizontal (non-compact) guide, only ±GUIDE_HALF_WINDOW cards around
+  // the selection are mounted. Favorites-only and the phone's vertical list stay unwindowed (they
+  // are short, and the favorites filter would make index arithmetic lie about widths).
+  const guideWindow = !compact && !favOnly && channels.length > GUIDE_HALF_WINDOW * 2 + 1
+    ? { start: Math.max(0, index - GUIDE_HALF_WINDOW), end: Math.min(channels.length - 1, index + GUIDE_HALF_WINDOW) }
+    : null;
+
   return (
     // On the TV this sits BELOW the shell's tab bar (which is 64px tall) so the Live tab never covers
     // the navigation — the viewer can always press up and move across to another tab.
@@ -1081,6 +1195,10 @@ const LiveTvPlus: React.FC<{
       // data-tv-capture: see the comment above the keydown effect — without this the geometric
       // TVNavigationLayer eats arrow keys before this screen's own handler ever runs.
       data-tv-capture
+      // A full-screen PAGE, not a dialog: without this TVNavigationLayer classified the fixed z-60
+      // root as a modal, and remote Back "closed" it by clicking the first small top-right icon
+      // (Share / Mute) instead of going back.
+      data-tv-no-trap
       ref={rootRef}
       className={`${isFs && immersive ? 'cursor-none ' : ''}fixed ${tvInset ? 'inset-x-0 bottom-0 top-16' : tvRailInset ? 'inset-y-0 right-0 bottom-0' : 'inset-0'} z-[60] bg-[#04050a] text-white flex flex-col`}
       style={{
@@ -1206,6 +1324,7 @@ const LiveTvPlus: React.FC<{
       {/* Bottom EPG guide (hidden in full-screen viewing) */}
       {!immersive && (
       <div
+        ref={guidePanelRef}
         className={compact ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain border-t border-white/10 bg-black/50 px-3 pt-3' : 'shrink-0 border-t border-white/10 bg-black/50 backdrop-blur px-3 py-3'}
         style={compact ? { paddingBottom: '1rem' } : undefined}
       >
@@ -1262,6 +1381,7 @@ const LiveTvPlus: React.FC<{
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Channels</span>
           <span className="text-[9px] font-bold text-white/30">{favOnly ? `${channels.filter(isFav).length} favorites` : `${channels.length} channels`}</span>
+          {isTv && <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest text-white/30">· OK guide · 0–9 tune · ◀ ▶ CH ± change</span>}
           <button
             type="button"
             aria-pressed={favOnly}
@@ -1279,8 +1399,12 @@ const LiveTvPlus: React.FC<{
           </p>
         )}
         <div ref={guideRef} className={compact ? 'flex flex-col gap-2 pb-2' : 'flex gap-2 overflow-x-auto no-scrollbar pb-1'}>
+          {/* Windowed: only cards near the selection are real DOM; spacers hold the scroll width.
+              Every channel step used to re-render 300+ cards (logos, menus, buttons) on a 2 GB TV. */}
+          {guideWindow && guideWindow.start > 0 && <div aria-hidden className="shrink-0" style={{ width: guideWindow.start * GUIDE_CARD_STRIDE - 8 }} />}
           {channels.map((ch, i) => {
             const on = i === index;
+            if (guideWindow && (i < guideWindow.start || i > guideWindow.end)) return null;
             if (favOnly && !isFav(ch)) return null;
             const mine = canManageChannel(ch, currentUser);
             const fav = isFav(ch);
@@ -1372,8 +1496,42 @@ const LiveTvPlus: React.FC<{
               </div>
             );
           })}
+          {guideWindow && guideWindow.end < channels.length - 1 && <div aria-hidden className="shrink-0" style={{ width: (channels.length - 1 - guideWindow.end) * GUIDE_CARD_STRIDE - 8 }} />}
         </div>
       </div>
+      )}
+
+      {/* Full grid guide over the player (OK / Guide). Tuning picks the matching Live TV+ channel. */}
+      {guideOpen && (
+        <Suspense fallback={null}>
+          <PlajahEpgGuide
+            feeds={feeds || []}
+            fastChannels={fastChannels}
+            onClose={() => setGuideOpen(false)}
+            initialMatch={guideMatchesPlaying}
+            onTune={tuneFromGuide}
+          />
+        </Suspense>
+      )}
+
+      {/* Home pillar, right edge, between the top bar and the bottom guide. Fades with the guide. */}
+      {isTv && !compact && (
+        <Suspense fallback={null}>
+          <TvAmbientPillar
+            visible={!immersive && !guideOpen}
+            onExpand={openAmbient}
+            top={(tvInset ? 64 : 0) + 64}
+            bottom={guidePanelH + 16}
+          />
+        </Suspense>
+      )}
+
+      {/* Number entry readout — what you've typed so far, like a TV's channel OSD. */}
+      {tuneBuf && (
+        <div className="absolute top-6 right-8 z-50 rounded-2xl px-6 py-3 bg-black/75 border border-white/15 font-mono font-black text-5xl tabular-nums text-white"
+          style={{ boxShadow: '0 0 0 3px #FF8C00' }} aria-live="polite">
+          {tuneBuf}<span className="animate-pulse text-[#FF8C00]">_</span>
+        </div>
       )}
 
       {/* Owner-only logo picker (opened from the logo button or the right-click menu). */}

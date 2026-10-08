@@ -40,11 +40,13 @@ export type TvAction =
   | { kind: 'ALBUM'; album: Album }
   | { kind: 'TRACK'; track: Track; album: Album | null; source: 'LIBRARY' | 'RADIO' }
   | { kind: 'ERA'; eraId: string }
-  | { kind: 'ARTIST'; artist: UserProfile };
+  | { kind: 'ARTIST'; artist: UserProfile }
+  /** Resolve the album lazily on OK (e.g. an Audius playlist whose tracks are fetched on open). */
+  | { kind: 'LOAD_ALBUM'; load: () => Promise<Album | null> };
 
 export interface TvRail { id: string; title: string; items: TvItem[] }
 
-const albumItem = (a: Album): TvItem => ({
+export const albumItem = (a: Album): TvItem => ({
   id: a.id,
   title: a.title || 'Untitled',
   subtitle: a.artist,
@@ -57,7 +59,7 @@ const albumItem = (a: Album): TvItem => ({
 /** Audius track → TV card. Distinct from archiveItem: it must keep the `audius:` id scheme that
  *  audiusTrackToNativeAlbum produces, since the player routes on it, and must NOT be flagged
  *  isGlobalArchive or titled as the Vault. */
-const audiusItem = (t: ArchiveTrack): TvItem => {
+export const audiusItem = (t: ArchiveTrack): TvItem => {
   const album = audiusTrackToNativeAlbum(t);
   return {
     id: t.id,
@@ -95,7 +97,7 @@ const archiveItem = (t: ArchiveTrack): TvItem => {
   };
 };
 
-const stationItem = (s: RadioStation): TvItem => {
+export const stationItem = (s: RadioStation): TvItem => {
   const track: Track = {
     id: `station-${s.uuid}`,
     title: s.name,
@@ -119,7 +121,7 @@ const stationItem = (s: RadioStation): TvItem => {
   };
 };
 
-const trackItem = (t: Track, source: 'LIBRARY' | 'RADIO' = 'LIBRARY'): TvItem => ({
+export const trackItem = (t: Track, source: 'LIBRARY' | 'RADIO' = 'LIBRARY'): TvItem => ({
   id: t.id,
   title: t.title || 'Untitled',
   subtitle: t.artist,
@@ -127,7 +129,7 @@ const trackItem = (t: Track, source: 'LIBRARY' | 'RADIO' = 'LIBRARY'): TvItem =>
   action: { kind: 'TRACK', track: t, album: null, source },
 });
 
-const playlistItem = (p: Playlist): TvItem => ({
+export const playlistItem = (p: Playlist): TvItem => ({
   id: p.id,
   title: p.title || 'Playlist',
   subtitle: `${p.trackIds?.length || 0} tracks`,
@@ -135,7 +137,7 @@ const playlistItem = (p: Playlist): TvItem => ({
   action: { kind: 'ALBUM', album: { ...(p as any), tracks: p.tracks || [] } as Album },
 });
 
-const artistItem = (u: UserProfile): TvItem => ({
+export const artistItem = (u: UserProfile): TvItem => ({
   id: u.uid,
   title: (u as any).displayName || 'Artist',
   subtitle: `${(u as any).followerCount || 0} followers`,
@@ -196,6 +198,16 @@ export function syncRails(section: string, base: BaseData): TvRail[] | null {
         title: g,
         items: byPlays(albums.filter(a => a.genre?.toLowerCase() === g.toLowerCase())).map(albumItem),
       })));
+
+    case 'MIXES': {
+      // Web Chora's Mixes tab (MusicView: albums.filter(a => a.subType === 'MIX')). Opening one goes
+      // through onSelectAlbum → App.handleSelectItem, which routes subType MIX to MixPlayerView.
+      const mixes = albums.filter(a => (a as any).subType === 'MIX');
+      return nonEmpty([
+        { id: 'mixes-new', title: 'New Mixes', items: byRecent(mixes).slice(0, 40).map(albumItem) },
+        { id: 'mixes-top', title: 'Most Played Mixes', items: byPlays(mixes).filter(a => (a.playCount || 0) > 0).slice(0, 20).map(albumItem) },
+      ]);
+    }
 
     case 'CONSERVATORY':
       // History lives here now rather than as a separate top-level route. The Music Theory Studio

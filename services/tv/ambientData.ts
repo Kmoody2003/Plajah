@@ -12,24 +12,23 @@
  *  · Notes     — services/notesService.loadNotes (the user's notebook: Firestore + this device).
  *  · Alerts    — contexts/NotificationContext (the app's existing live `notifications` listener;
  *                reading it adds no subscription).
- *  · Lights    — services/smartLightingService (Hue / Nanoleaf via /api/lights/proxy), reconnected
- *                from the credentials LightingDesigner saved on THIS device.
- *  · Thermostat / cameras — Home Assistant (services/home/homeAssistantService), linked from the
- *                Plajah app (components/home/HomeAssistantLink) and stored at
- *                users/{uid}/private/homeAssistant. Not linked → status 'unlinked'; the tiles show their
- *                empty states. (plajahHomeService / matterCameraService MOCK_* fixtures are NOT used.)
+ *  · Lights / thermostat / cameras — the Plajah Home hub running on the user's PC
+ *                (services/home/plajahHubClient → routes/homeHubRoutes.ts): Matter devices on the hub's
+ *                own fabric, the Hue bridge (local API) and RTSP cameras. One shared hub-state store,
+ *                polled every 30s while a tile is visible. No hub found → status 'unlinked'; the
+ *                tiles show "Connect the Plajah Home hub". (plajahHomeService / matterCameraService
+ *                MOCK_* fixtures are NOT used.)
  */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { loadNotes } from '../notesService';
-import { smartLightingService, useLightingService, type SmartLight } from '../smartLightingService';
 import { useNotifications } from '../../contexts/NotificationContext';
 import type { AppNotification } from '../../types';
 import {
-  loadHaConfig, getStates, climateEntities, cameraEntities, cameraSnapshotUrl, setTemperature, setHvacMode,
-  onHaConfigChange, haErrorMessage, type HaClimate, type HaCamera,
-} from '../home/homeAssistantService';
+  getHubState, sendHubCommand, fetchCameraSnapshot, releaseSnapshotUrl, onHubConfigChange, HubError,
+  type HubState, type HubDevice,
+} from '../home/plajahHubClient';
 
 // ─── Ref-counted polled store ─────────────────────────────────────────────────
 
@@ -242,107 +241,149 @@ export function useAmbientNotifications(): AmbientNotifications {
   };
 }
 
+// ─── Plajah Home hub (lights, thermostat, cameras) ────────────────────────────
+
+interface HubSnapshot { status: 'loading' | 'unlinked' | 'ok' | 'error'; state?: HubState; error?: string }
+
+const hubErrorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+let lastHub: HubSnapshot = { status: 'loading' };
+async function loadHub(): Promise<HubSnapshot> {
+  try {
+    const state = await getHubState();
+    lastHub = { status: 'ok', state };
+  } catch (e) {
+    const notFound = e instanceof HubError && e.kind === 'not-found';
+    // A hub that answered before keeps its last reading (with the error) through a blip.
+    lastHub = lastHub.status === 'ok' && lastHub.state
+      ? { status: 'ok', state: lastHub.state, error: hubErrorMessage(e) }
+      : { status: notFound ? 'unlinked' : 'error', error: hubErrorMessage(e) };
+  }
+  return lastHub;
+}
+
+const hubStore = createPolledStore<HubSnapshot>({ status: 'loading' }, loadHub, 30_000);
+// Saving a hub address / token on THIS device refreshes the tiles at once.
+onHubConfigChange(() => { void hubStore.refresh(); });
+
+const useHub = (active: boolean) => usePolled(hubStore, active);
+
+/** After a command: re-read the hub so the tiles show what the device now reports. */
+function afterCommand() { void hubStore.refresh(); }
+
 // ─── Lights ───────────────────────────────────────────────────────────────────
 
-export interface AmbientLight { id: string; name: string; room?: string; on: boolean; platform: SmartLight['platform'] }
+export interface AmbientLight { id: string; name: string; room?: string; on: boolean; platform: 'hue' | 'matter' }
 
-let reconnectTried = false;
-/** Reconnect the lighting platforms LightingDesigner saved on this device (once per session). */
-function reconnectSavedLights() {
-  if (reconnectTried) return;
-  reconnectTried = true;
-  try {
-    const hue = localStorage.getItem('hue_access_token');
-    if (hue && !smartLightingService.connected.hue) void smartLightingService.connectHue({ accessToken: hue });
-    const nano = localStorage.getItem('nanoleaf_config');
-    if (nano && !smartLightingService.connected.nanoleaf) {
-      try { void smartLightingService.connectNanoleaf(JSON.parse(nano)); } catch { /* bad saved config */ }
-    }
-    const govee = localStorage.getItem('govee_api_key');
-    if (govee && !smartLightingService.connected.govee) void smartLightingService.connectGovee({ apiKey: govee });
-  } catch { /* storage blocked */ }
-}
-
-/**
- * Lights the viewer can actually switch from here. Only Hue and Nanoleaf: smartLightingService's
- * toggleLight sends nothing for Govee (it only updates local state), so offering a Govee toggle
- * would show a switch that does not switch anything. Govee lights are counted in `colorOnly`.
- */
+/** Lights the hub can actually switch (Hue bridge + Matter lights on the hub's own fabric). */
 export function useAmbientLights(active: boolean) {
-  const svc = useLightingService();
-  useEffect(() => { if (active) reconnectSavedLights(); }, [active]);
-  const roomOf = (id: string) => svc.rooms.find(r => r.lightIds.includes(id))?.name;
-  const lights: AmbientLight[] = svc.lights
-    .filter(l => l.platform === 'hue' || l.platform === 'nanoleaf')
-    .map(l => ({ id: l.id, name: l.name, room: roomOf(l.id), on: l.on, platform: l.platform }))
+  const hub = useHub(active);
+  const lights: AmbientLight[] = (hub.state?.devices || [])
+    .filter(d => d.kind === 'light' && d.online && typeof d.state.on === 'boolean' && (d.source === 'hue' || d.source === 'matter'))
+    .map(d => ({ id: d.id, name: d.name, room: d.room, on: !!d.state.on, platform: d.source as 'hue' | 'matter' }))
     .sort((a, b) => (a.room || '~').localeCompare(b.room || '~') || a.name.localeCompare(b.name));
-  const colorOnly = svc.lights.filter(l => l.platform === 'govee').length;
-  const anyConnected = !!(svc.connected.hue || svc.connected.nanoleaf || svc.connected.govee);
+  const anyConnected = hub.status === 'ok';
   const toggle = useCallback((id: string) => {
-    const l = smartLightingService.lights.find(x => x.id === id);
-    if (!l) return;
-    smartLightingService.toggleLight(id, !l.on).catch(() => {});
+    sendHubCommand(id, 'toggle').then(afterCommand, () => {});
   }, []);
-  return { lights, colorOnly, anyConnected, toggle };
+  return { lights, colorOnly: 0, anyConnected, hubStatus: hub.status, toggle };
 }
 
-// ─── Home Assistant: thermostat + cameras ─────────────────────────────────────
+// ─── Thermostat + cameras ─────────────────────────────────────────────────────
+
+export type HvacMode = 'off' | 'heat' | 'cool' | 'auto' | string;
+
+/** Thermostat reading in the viewer's unit (°F in the US, °C elsewhere). */
+export interface AmbientClimate {
+  entityId: string;
+  name: string;
+  /** off / heat / cool / auto, or 'unavailable' when the hub cannot reach the device */
+  hvacMode: HvacMode;
+  hvacModes: HvacMode[];
+  /** heating / cooling / fan / idle (null when the device does not report it) */
+  hvacAction: string | null;
+  currentTemperature: number | null;
+  /** Single setpoint. null in auto (dual setpoint) mode. */
+  targetTemperature: number | null;
+  targetLow: number | null;
+  targetHigh: number | null;
+  minTemp: number | null;
+  maxTemp: number | null;
+  step: number;
+  unit: '°F' | '°C';
+}
+
+export interface AmbientCamera {
+  /** hub device id, e.g. camera:ab12cd34ef */
+  entityId: string;
+  name: string;
+  state: string;
+  available: boolean;
+}
+
+const toUnit = (c: number | null | undefined, f: boolean): number | null =>
+  c == null ? null : f ? Math.round((c * 9) / 5 + 32) : Math.round(c * 2) / 2;
+const fromUnit = (v: number, f: boolean): number => (f ? ((v - 32) * 5) / 9 : v);
+
+function climateOf(d: HubDevice): AmbientClimate {
+  const f = usesFahrenheit();
+  const s = d.state;
+  const mode = d.online ? (s.mode || 'unknown') : 'unavailable';
+  const heat = toUnit(s.heatSetpointC, f);
+  const cool = toUnit(s.coolSetpointC, f);
+  const dual = mode === 'auto' && heat != null && cool != null;
+  return {
+    entityId: d.id,
+    name: d.name,
+    hvacMode: mode,
+    hvacModes: s.modes || [],
+    hvacAction: s.action ?? null,
+    currentTemperature: toUnit(s.temperatureC, f),
+    targetTemperature: dual ? null : mode === 'cool' ? cool : (heat ?? cool),
+    targetLow: dual ? heat : null,
+    targetHigh: dual ? cool : null,
+    minTemp: toUnit(s.minC, f),
+    maxTemp: toUnit(s.maxC, f),
+    step: f ? 1 : 0.5,
+    unit: f ? '°F' : '°C',
+  };
+}
 
 export interface AmbientThermostat {
   status: 'loading' | 'unlinked' | 'none' | 'ok' | 'error';
-  climate?: HaClimate;
+  climate?: AmbientClimate;
   /** Set when the last poll failed; with status 'ok', `climate` is then the last good reading. */
   error?: string;
 }
 
-let lastClimate: HaClimate | undefined;
-async function loadThermostat(): Promise<AmbientThermostat> {
-  let cfg;
-  try { cfg = await loadHaConfig(); } catch (e) { return lastClimate ? { status: 'ok', climate: lastClimate, error: haErrorMessage(e) } : { status: 'error', error: haErrorMessage(e) }; }
-  if (!cfg) { lastClimate = undefined; return { status: 'unlinked' }; }
-  try {
-    const climate = (await climateEntities(cfg))[0];
-    lastClimate = climate;
-    return climate ? { status: 'ok', climate } : { status: 'none' };
-  } catch (e) {
-    return lastClimate ? { status: 'ok', climate: lastClimate, error: haErrorMessage(e) } : { status: 'error', error: haErrorMessage(e) };
-  }
+function thermostatFrom(h: HubSnapshot): AmbientThermostat {
+  if (h.status !== 'ok' || !h.state) return { status: h.status, error: h.error };
+  const d = h.state.devices.find(x => x.kind === 'thermostat');
+  return d ? { status: 'ok', climate: climateOf(d), error: h.error } : { status: 'none', error: h.error };
 }
 
-const thermoStore = createPolledStore<AmbientThermostat>({ status: 'loading' }, loadThermostat, 60_000);
+export interface AmbientCameras { status: 'loading' | 'unlinked' | 'none' | 'ok' | 'error'; cameras: AmbientCamera[]; error?: string }
 
-export interface AmbientCameras { status: 'loading' | 'unlinked' | 'none' | 'ok' | 'error'; cameras: HaCamera[]; error?: string }
-
-async function loadCameras(): Promise<AmbientCameras> {
-  let cfg;
-  try { cfg = await loadHaConfig(); } catch (e) { return { status: 'error', cameras: [], error: haErrorMessage(e) }; }
-  if (!cfg) return { status: 'unlinked', cameras: [] };
-  try {
-    const all = await cameraEntities(cfg, await getStates(cfg));
-    // Prefer cameras HA can currently reach; fall back to the rest so the tile can say they are offline.
-    const cams = [...all.filter(c => c.available), ...all.filter(c => !c.available)].slice(0, 2);
-    return cams.length ? { status: 'ok', cameras: cams } : { status: 'none', cameras: [] };
-  } catch (e) {
-    return { status: 'error', cameras: [], error: haErrorMessage(e) };
-  }
+function camerasFrom(h: HubSnapshot): AmbientCameras {
+  if (h.status !== 'ok' || !h.state) return { status: h.status, cameras: [], error: h.error };
+  const all = h.state.devices.filter(d => d.kind === 'camera').map(d => ({
+    entityId: d.id, name: d.name, state: d.state.available === false ? 'unavailable' : 'idle', available: d.online,
+  }));
+  // Reachable cameras first; the rest still show so the tile can say they are offline.
+  const cams = [...all.filter(c => c.available), ...all.filter(c => !c.available)].slice(0, 2);
+  return cams.length ? { status: 'ok', cameras: cams } : { status: 'none', cameras: [] };
 }
-
-const cameraListStore = createPolledStore<AmbientCameras>({ status: 'loading', cameras: [] }, loadCameras, 5 * 60_000);
-
-// Linking or unlinking on THIS device refreshes the tiles at once. Other devices pick the change up
-// on their next poll (the config cache lives about 2 minutes).
-onHaConfigChange(() => { void thermoStore.refresh(); void cameraListStore.refresh(); });
 
 const HVAC_CYCLE = ['heat', 'cool', 'off'] as const;
 const SETPOINT_DEBOUNCE_MS = 800;
 
 /**
- * The first Home Assistant climate entity, polled every 60s while `active`.
- * nudge(+1 / -1) moves a local pending setpoint and sends climate.set_temperature about 800ms after
- * the last press. cycleMode() steps hvac_mode heat, cool, off (only the modes the device lists).
+ * The hub's first thermostat, refreshed with the hub state (30s) while `active`.
+ * nudge(+1 / -1) moves a local pending setpoint and sends it about 800ms after the last press.
+ * cycleMode() steps heat, cool, off (only the modes the device supports).
  */
 export function useAmbientThermostat(active: boolean) {
-  const t = usePolled(thermoStore, active);
+  const t = thermostatFrom(useHub(active));
   const climate = t.status === 'ok' ? t.climate : undefined;
   const climateRef = useRef(climate); climateRef.current = climate;
 
@@ -359,11 +400,11 @@ export function useAmbientThermostat(active: boolean) {
     const entity = entityRef.current;
     if (v == null || !entity) return;
     try {
-      await setTemperature(entity, v);
+      await sendHubCommand(entity, 'setpoint', Math.round(fromUnit(v, usesFahrenheit()) * 10) / 10);
       setControlError(null);
-      await thermoStore.refresh();
+      await hubStore.refresh();
     } catch (e) {
-      setControlError(haErrorMessage(e));
+      setControlError(hubErrorMessage(e));
     } finally {
       if (pendingRef.current === v) { pendingRef.current = null; setPending(null); }
     }
@@ -393,11 +434,11 @@ export function useAmbientThermostat(active: boolean) {
     const next = modes[(cur + 1) % modes.length];
     setPendingMode(next);
     try {
-      await setHvacMode(c.entityId, next);
+      await sendHubCommand(c.entityId, 'mode', next);
       setControlError(null);
-      await thermoStore.refresh();
+      await hubStore.refresh();
     } catch (e) {
-      setControlError(haErrorMessage(e));
+      setControlError(hubErrorMessage(e));
     } finally {
       setPendingMode(null);
     }
@@ -411,15 +452,15 @@ export function useAmbientThermostat(active: boolean) {
   return { ...t, climate, pendingTarget: pending, pendingMode, controlError, nudge, cycleMode };
 }
 
-/** Up to two Home Assistant cameras (reachable ones first). The list refreshes every 5 minutes. */
-export const useAmbientCameras = (active: boolean) => usePolled(cameraListStore, active);
+/** Up to two hub cameras (reachable ones first). */
+export const useAmbientCameras = (active: boolean): AmbientCameras => camerasFrom(useHub(active));
 
 /**
- * A camera snapshot as a blob: object URL, refetched every `intervalMs` while `active` and the page
- * is visible. A replaced URL is revoked shortly after the swap; the current one on unmount or camera
- * change. Fetches never overlap: the next one is scheduled after the previous one finishes.
+ * A camera snapshot from the hub as an image URL, refetched every `intervalMs` while `active` and
+ * the page is visible. A replaced blob: URL is revoked shortly after the swap; the current one on
+ * unmount or camera change. Fetches never overlap: the next one is scheduled after the previous one.
  */
-export function useHaSnapshot(entityId: string | null | undefined, intervalMs: number, active: boolean) {
+export function useCameraSnapshot(entityId: string | null | undefined, intervalMs: number, active: boolean) {
   const [snap, setSnap] = useState<{ url: string | null; error: string | null; at: number }>({ url: null, error: null, at: 0 });
   const urlRef = useRef<string | null>(null);
 
@@ -435,14 +476,14 @@ export function useHaSnapshot(entityId: string | null | undefined, intervalMs: n
       if (typeof document !== 'undefined' && document.hidden) { schedule(); return; }
       running = true;
       try {
-        const url = await cameraSnapshotUrl(entityId);
-        if (cancelled) { URL.revokeObjectURL(url); return; }
+        const url = await fetchCameraSnapshot(entityId);
+        if (cancelled) { releaseSnapshotUrl(url); return; }
         const old = urlRef.current;
         urlRef.current = url;
         setSnap({ url, error: null, at: Date.now() });
-        if (old) setTimeout(() => URL.revokeObjectURL(old), 1_000);
+        if (old) setTimeout(() => releaseSnapshotUrl(old), 1_000);
       } catch (e) {
-        if (!cancelled) setSnap(s => ({ ...s, error: haErrorMessage(e) }));
+        if (!cancelled) setSnap(s => ({ ...s, error: hubErrorMessage(e) }));
       } finally {
         running = false;
       }
@@ -460,7 +501,7 @@ export function useHaSnapshot(entityId: string | null | undefined, intervalMs: n
       document.removeEventListener('visibilitychange', onVisible);
       const cur = urlRef.current;
       urlRef.current = null;
-      if (cur) URL.revokeObjectURL(cur);
+      releaseSnapshotUrl(cur);
       setSnap({ url: null, error: null, at: 0 });
     };
   }, [entityId, intervalMs, active]);

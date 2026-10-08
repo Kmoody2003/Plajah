@@ -10,6 +10,8 @@ import {
   makeCardsFocusable,
 } from '../hooks/useDpadNavigation';
 import { isShellFocused } from '../hooks/useTvShellFocus';
+import { isTvOverlayOpen } from '../hooks/useTvOverlay';
+import { focusPlayerBar } from '../hooks/useTvPlayerBar';
 
 // ── Modal detection (for focus-trapping + Back-to-close) ──────────────────────
 // A "modal scope" is an explicit dialog, or a heuristic full-screen fixed overlay
@@ -421,6 +423,15 @@ const TVNavigationLayer = () => {
     // editors that own the arrows), then stop propagation for keys we consume so
     // the app's handlers don't double-act.
     const onKey = (e: KeyboardEvent) => {
+      // A full-screen TV overlay (speakers, ambient, receiver, guide) owns every key — including
+      // Back, which this layer would otherwise consume before the overlay's own listener ran.
+      if (isTvOverlayOpen()) return;
+      // The remote's Menu key jumps to the player bar while music plays (otherwise it keeps its old
+      // meaning below — Back on remotes like the Apple TV's, which label Back "Menu").
+      const kcMenu = e.keyCode || e.which;
+      if ((kcMenu === 82 || e.key === 'ContextMenu' || e.key === 'Menu') && focusPlayerBar()) {
+        e.preventDefault(); e.stopImmediatePropagation(); return;
+      }
       const t = e.target instanceof HTMLElement ? e.target : null;
       const tag = t?.tagName;
       const inField =

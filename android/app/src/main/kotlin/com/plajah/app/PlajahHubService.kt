@@ -9,7 +9,9 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.util.Log
@@ -38,7 +40,8 @@ import java.net.URL
  *   app/      copy of assets/plajah-hub/ (refreshed when the APK is updated); main.js is the entry
  *   data/     persistent hub storage (Matter fabrics, Hue keys, ...)  -> env PLAJAH_HUB_DATA + PLAJAH_HOME_DIR
  *   tmp/      os.tmpdir()
- *   hub.log   Node stdout+stderr (truncated at start when > 1 MB)
+ *   hub.log   Node stdout+stderr (truncated at start when > 1 MB; nodejs-mobile may also echo to logcat tag `nodejs`)
+ *   fatal.txt written by the bootstrap (main.js) when hub.js fails to load
  *   status.json  {state, pid, port, startedAt, exitCode, error} written by this service
  *
  * The web layer talks to the hub over http://127.0.0.1:<port> (PlajahHubPlugin.status probes
@@ -108,6 +111,7 @@ class PlajahHubService : Service() {
                 val entry = syncAssets(root)
                 val data = File(root, "data").apply { mkdirs() }
                 val tmp = File(root, "tmp").apply { mkdirs() }
+                File(root, "fatal.txt").delete()
                 val log = File(root, "hub.log")
                 if (log.length() > 1_000_000) log.delete()
                 exit = runNode(
@@ -120,6 +124,7 @@ class PlajahHubService : Service() {
                         // services/home/hubStorage.ts root (matter fabric, hue.json, hub.json, ...)
                         "PLAJAH_HOME_DIR" to data.absolutePath,
                         "PLAJAH_HUB_PLATFORM" to "android",
+                        "PLAJAH_HUB_ROOT" to root.absolutePath, // bootstrap writes fatal.txt here
                         "HOME" to data.absolutePath,
                         "TMPDIR" to tmp.absolutePath,
                     ),
@@ -135,23 +140,40 @@ class PlajahHubService : Service() {
             writeStatus(this, JSONObject().put("state", "exited").put("port", port)
                 .put("exitCode", exit).put("error", error ?: if (exit != 0) "node exited with code $exit" else JSONObject.NULL)
                 .put("exitedAt", System.currentTimeMillis()))
-            // node::Start cannot be called again in this process — end it so the next start is clean.
-            Process.killProcess(Process.myPid())
+            // node::Start cannot be called again in this process — stop the service (so ActivityManager
+            // does not treat the exit as a crash and restart it) and let onDestroy end the process.
+            endProcess()
         }, "plajah-hub-node", 16L * 1024 * 1024).start()
     }
 
     private fun stopHub(port: Int) {
-        // Give the hub a chance to close fabrics/sockets/storage cleanly, then end the process.
-        try {
-            val c = URL("http://127.0.0.1:$port/__shutdown").openConnection() as HttpURLConnection
-            c.requestMethod = "POST"; c.connectTimeout = 800; c.readTimeout = 2500
-            c.responseCode; c.disconnect()
-            Thread.sleep(400)
-        } catch (_: Exception) { /* not running or no route — kill anyway */ }
-        writeStatus(this, JSONObject().put("state", "stopped").put("port", port).put("exitedAt", System.currentTimeMillis()))
+        // onStartCommand runs on the main thread — no network there.
+        Thread {
+            requestJsShutdown(port)
+            writeStatus(this, JSONObject().put("state", "stopped").put("port", port).put("exitedAt", System.currentTimeMillis()))
+            endProcess()
+        }.start()
+    }
+
+    /** stopSelf() on the main thread -> onDestroy -> process exit; hard fallback after 3 s. */
+    private fun endProcess() {
+        Handler(Looper.getMainLooper()).post {
+            try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {}
+            stopSelf()
+        }
+        Handler(Looper.getMainLooper()).postDelayed({ Process.killProcess(Process.myPid()) }, 3000)
+    }
+
+    override fun onDestroy() {
         try { multicastLock?.release() } catch (_: Exception) {}
-        stopSelf()
-        Process.killProcess(Process.myPid())
+        val st = readStatus(this)
+        if (st?.optString("state") == "running" || st?.optString("state") == "starting") {
+            writeStatus(this, JSONObject().put("state", "stopped").put("port", st.optInt("port", DEFAULT_PORT))
+                .put("exitedAt", System.currentTimeMillis()))
+        }
+        super.onDestroy()
+        // A Node runtime can't be restarted in-process; the next start gets a fresh :hub process.
+        if (nodeStarted) Process.killProcess(Process.myPid())
     }
 
     /** Copies assets/plajah-hub/ into files/plajah-hub/app when the APK changed. Returns main.js. */
@@ -230,6 +252,15 @@ class PlajahHubService : Service() {
         private val Native_POINTER_SIZE = com.sun.jna.Native.POINTER_SIZE
         private val lock = Any()
         @Volatile private var nodeStarted = false
+
+        /** Lets the JS hub close fabrics/sockets/storage (hubEntry POST /__shutdown). Best effort. */
+        fun requestJsShutdown(port: Int) {
+            try {
+                val c = URL("http://127.0.0.1:$port/__shutdown").openConnection() as HttpURLConnection
+                c.requestMethod = "POST"; c.connectTimeout = 800; c.readTimeout = 6000
+                c.responseCode; c.disconnect()
+            } catch (_: Exception) { /* not running */ }
+        }
 
         fun hubRoot(ctx: Context): File = File(ctx.filesDir, "plajah-hub").apply { mkdirs() }
 

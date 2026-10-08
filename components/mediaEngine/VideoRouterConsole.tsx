@@ -12,6 +12,7 @@ import { SourceKind, KIND_LABEL, NATIVE_ONLY, TransitionType, MasterClock, PROGR
 import { NativeSourceInfo, getNdiStatus } from '../../services/mediaEngine/bridge';
 import { SwitcherRouterReceiver } from './SwitcherRouterReceiver';
 import { BlackmagicPanel } from './BlackmagicPanel';
+import TvSendTargets from '../tv/TvSendTargets';
 
 interface Props {
   onBack: () => void;
@@ -174,6 +175,19 @@ const OutputsPanel: React.FC<{ engine: MediaEngine; state: EngineState }> = ({ e
           </div>
         )}
         {live.error && <p className="text-[10px]" style={{ color: PGM }}>{live.error}</p>}
+      </div>
+
+      {/* TV receivers on this account (or paired by code) — "Show program" plays the STREAM output's
+          Plajah live feed full screen on the TV (components/tv/TvReceiverHost). */}
+      <div className="lg:col-span-2">
+        <TvSendTargets
+          streamId={live.active && live.kind === 'plajah' ? live.streamId : null}
+          ensureStreamId={async () => {
+            await engine.goLive({ kind: 'plajah', title: title.trim() || 'Program to TV', isPublic: false });
+            const l = engine.getState().outputs.live;
+            return l.active && l.kind === 'plajah' ? l.streamId || null : null;
+          }}
+        />
       </div>
     </div>
   );

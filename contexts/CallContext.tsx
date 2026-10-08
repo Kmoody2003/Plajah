@@ -7,7 +7,7 @@
 //   • add-a-caller     — inviteToCall(userId) rings someone into the live call.
 // There is a single <VideoChat> mount here, so a call persists across navigation.
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { Suspense, createContext, lazy, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Phone, PhoneOff, Video as VideoIcon, User, Voicemail, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatRoom, CallSession } from '../types';
@@ -15,7 +15,9 @@ import {
   auth, startCall, listenToCalls, updateCallStatus, listenToCall, fetchChatRooms, fetchUserProfile,
   sendMessage, uploadFile, createNotification,
 } from '../services/backendService';
-import VideoChat, { CallContact } from '../components/VideoChat';
+import type { CallContact } from '../components/VideoChat';
+// Lazy: the call UI + rtcCore only load when a call actually becomes active.
+const VideoChat = lazy(() => import('../components/VideoChat'));
 import VoiceRecorder from '../components/VoiceRecorder';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -353,6 +355,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       </AnimatePresence>
       <AnimatePresence>
         {active && (
+          <Suspense key={active.room.id} fallback={null}>
           <VideoChat
             key={active.room.id}
             room={active.room}
@@ -363,6 +366,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             onInvite={(userId) => inviteToCall(active.room, userId)}
             onClose={endActive}
           />
+          </Suspense>
         )}
       </AnimatePresence>
     </CallContext.Provider>

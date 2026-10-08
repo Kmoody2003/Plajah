@@ -58,6 +58,7 @@ import { fseGamesRouter } from './routes/fseGames';
 import { threatProtectionRouter } from './routes/threatProtection';
 import { homeDiscoveryRouter } from './routes/homeDiscovery';
 import { matterRouter } from './routes/matterRoutes';
+import { homeHubRouter, HOME_HUB_ORIGINS, startHomeHub } from './routes/homeHubRoutes';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 // Fabula generation agent — server-side only (these carry the user's provider API key).
 import {
@@ -2726,13 +2727,29 @@ async function startServer() {
     return origin && (allowedOrigins.includes(origin) || isDevLocalOrigin(origin)) ? origin : configured;
   };
 
-  app.use(cors({
+  // Plajah Home hub (this server on the user's PC, called by the TV app / web app over the LAN):
+  // its own CORS — plajah.com and the Capacitor WebView origins, plus Chrome's Private Network
+  // Access preflight header. No cookies/credentials; access control is in routes/homeHubRoutes.ts.
+  const isHomeHubPath = (p: string) => p.startsWith('/api/home/') || p.startsWith('/api/matter/');
+  const homeHubCors = cors({
+    origin: (origin, callback) => callback(null, !origin || HOME_HUB_ORIGINS.includes(origin) || allowedOrigins.includes(origin) || isDevLocalOrigin(origin)),
+    credentials: false,
+    allowedHeaders: ['Content-Type', 'X-Plajah-Hub-Token'],
+  });
+  app.use((req, res, next) => {
+    if (!isHomeHubPath(req.path)) return next();
+    if (req.method === 'OPTIONS' && req.headers['access-control-request-private-network']) res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    return homeHubCors(req, res, next);
+  });
+
+  const appCors = cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin) || isDevLocalOrigin(origin)) return callback(null, true);
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
-  }));
+  });
+  app.use((req, res, next) => (isHomeHubPath(req.path) && req.path !== '/api/home/discover' ? next() : appCors(req, res, next)));
 
   // A distributed edge/WAF is still required for volumetric DDoS protection;
   // this limiter protects application capacity from ordinary floods and bots.
@@ -11977,3 +11994,6 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 }
 
 startServer();
+  app.use(homeHubRouter);
+    // Plajah Home hub: LAN discovery beacon (_plajahhub._tcp). No-op on Cloud Run / production.
+    void startHomeHub(PORT);

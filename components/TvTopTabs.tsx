@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Film, Music2, Video, User, Play, Pause, Search, Radio } from 'lucide-react';
+import { Film, Music2, Video, User, Play, Pause, Search, Radio, Speaker, LayoutGrid } from 'lucide-react';
 import { TV_NAV_VIEWS } from '../services/tvCapabilities';
+import { isTvOverlayOpen } from '../hooks/useTvOverlay';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 import { thumb, THUMB } from '../src/lib/imageThumb';
 import Logo from './Logo';
@@ -17,7 +18,7 @@ const TAB_META: Record<string, { label: string; icon: React.ComponentType<{ size
   MOVIES_TV:    { label: 'Taleo',   icon: Film },
   MUSIC:        { label: 'Chora',   icon: Music2 },
   VIDEOS:       { label: 'Reello',  icon: Video },
-  LIVE_HUB:     { label: 'Live',    icon: Radio },
+  LIVE_HUB:     { label: 'Live TV+', icon: Radio },
   USER_PROFILE: { label: 'Profile', icon: User },
 };
 
@@ -32,13 +33,22 @@ const TvTopTabs: React.FC<{
   focused?: boolean;
   /** Focus is leaving downward, back into the screen below. */
   onExitDown?: () => void;
-}> = ({ activeView, onSelect, onOpenNowPlaying, onOpenSearch, focused = false, onExitDown }) => {
+  /** "Play on" — the speaker / speaker-group chooser. Button hidden when not provided. */
+  onOpenSpeakers?: () => void;
+  /** The ambient home dashboard. Button hidden when not provided. */
+  onOpenAmbient?: () => void;
+}> = ({ activeView, onSelect, onOpenNowPlaying, onOpenSearch, focused = false, onExitDown, onOpenSpeakers, onOpenAmbient }) => {
   const { currentTrack, currentAlbum, isPlaying } = useGlobalPlayer();
   const art = (currentTrack as any)?.albumCover || (currentAlbum as any)?.coverImage;
 
   // Left-to-right focus order: the four tabs, then Search, then Now Playing (only when something is
   // playing). The brand cluster on the far left is decoration — not a focus stop.
-  const items = [...TV_NAV_VIEWS, 'SEARCH', ...(currentTrack ? ['NOW_PLAYING'] : [])];
+  const items = [
+    ...TV_NAV_VIEWS, 'SEARCH',
+    ...(onOpenSpeakers ? ['SPEAKERS'] : []),
+    ...(onOpenAmbient ? ['AMBIENT'] : []),
+    ...(currentTrack ? ['NOW_PLAYING'] : []),
+  ];
   const [idx, setIdx] = useState(0);
 
   // Refs so the handler can stay bound and read current values. Rebinding on every change of
@@ -47,6 +57,10 @@ const TvTopTabs: React.FC<{
   const focusedRef = useRef(focused); focusedRef.current = focused;
   const idxRef = useRef(idx); idxRef.current = idx;
   const itemsRef = useRef(items); itemsRef.current = items;
+  // App passes these inline, so their identity changes on every App render; a ref keeps the
+  // capture listener bound exactly once.
+  const cbRef = useRef({ onSelect, onOpenNowPlaying, onOpenSearch, onExitDown, onOpenSpeakers, onOpenAmbient });
+  cbRef.current = { onSelect, onOpenNowPlaying, onOpenSearch, onExitDown, onOpenSpeakers, onOpenAmbient };
 
   // Start on the tab you're already in, so arriving here doesn't lose your place.
   useEffect(() => {
@@ -57,23 +71,26 @@ const TvTopTabs: React.FC<{
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!focusedRef.current) return;
+      if (!focusedRef.current || isTvOverlayOpen()) return;
       const kc = e.keyCode || e.which;
       const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
       if (e.key === 'ArrowRight' || kc === 39 || kc === 22) { stop(); setIdx(i => Math.min(itemsRef.current.length - 1, i + 1)); return; }
       if (e.key === 'ArrowLeft'  || kc === 37 || kc === 21) { stop(); setIdx(i => Math.max(0, i - 1)); return; }
-      if (e.key === 'ArrowDown'  || kc === 40 || kc === 20) { stop(); onExitDown?.(); return; }
+      const cb = cbRef.current;
+      if (e.key === 'ArrowDown'  || kc === 40 || kc === 20) { stop(); cb.onExitDown?.(); return; }
       if (e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23) {
         stop();
         const target = itemsRef.current[idxRef.current];
-        if (target === 'NOW_PLAYING') onOpenNowPlaying?.();
-        else if (target === 'SEARCH') { onOpenSearch?.(); onExitDown?.(); }
-        else { onSelect(target); onExitDown?.(); }
+        if (target === 'NOW_PLAYING') cb.onOpenNowPlaying?.();
+        else if (target === 'SEARCH') { cb.onOpenSearch?.(); cb.onExitDown?.(); }
+        else if (target === 'SPEAKERS') cb.onOpenSpeakers?.();
+        else if (target === 'AMBIENT') cb.onOpenAmbient?.();
+        else { cb.onSelect(target); cb.onExitDown?.(); }
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [onSelect, onOpenNowPlaying, onOpenSearch, onExitDown]);
+  }, []);
 
   const ringStyle = (key: string) =>
     focused && items[idx] === key
@@ -152,6 +169,34 @@ const TvTopTabs: React.FC<{
         <Search size={16} />
         <span className="hidden md:inline">Search</span>
       </button>
+
+      {onOpenSpeakers && (
+        <button
+          data-tv-focusable
+          onClick={onOpenSpeakers}
+          title="Choose speakers"
+          aria-label="Play on speakers"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full font-black uppercase tracking-widest text-[11px] text-white/55 hover:text-white hover:bg-white/10 transition-all shrink-0"
+          style={ringStyle('SPEAKERS')}
+        >
+          <Speaker size={16} />
+          <span className="hidden lg:inline">Play on</span>
+        </button>
+      )}
+
+      {onOpenAmbient && (
+        <button
+          data-tv-focusable
+          onClick={onOpenAmbient}
+          title="Home dashboard"
+          aria-label="Home dashboard"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full font-black uppercase tracking-widest text-[11px] text-white/55 hover:text-white hover:bg-white/10 transition-all shrink-0"
+          style={ringStyle('AMBIENT')}
+        >
+          <LayoutGrid size={16} />
+          <span className="hidden lg:inline">Home</span>
+        </button>
+      )}
 
       {/* Now Playing: once you leave the player to browse, this is the way back, and on a remote the
           way back must be somewhere you can always reach. Only appears when something is playing. */}

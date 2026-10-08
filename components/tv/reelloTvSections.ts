@@ -52,7 +52,7 @@ export interface TvVideoRail { id: string; title: string; items: TvVideoItem[] }
  */
 export const videoThumb = (v: Video): string | undefined =>
   (v as any).muxPlaybackId
-    ? `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=640&time=5`
+    ? `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.jpg?width=480&time=5`
     : v.thumbnailUrl || (v as any).coverImageUrl || (v as any).coverImage;
 
 const views = (n?: number) => {
@@ -72,7 +72,7 @@ export const videoItem = (v: Video): TvVideoItem => ({
   action: { kind: 'VIDEO', video: v },
 });
 
-const channelItem = (u: UserProfile): TvVideoItem => ({
+export const channelItem = (u: UserProfile): TvVideoItem => ({
   id: u.uid,
   title: (u as any).displayName || 'Channel',
   subtitle: `${(u as any).followerCount || 0} subscribers`,

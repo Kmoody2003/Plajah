@@ -137,7 +137,7 @@ export const updatePrivateBoard = async (boardId: string, updates: Partial<Priva
 export const deletePrivateBoard = async (boardId: string) => {
   await deleteDoc(doc(db, 'privateBoards', boardId));
 };
-import { generateDemoWorlds } from './geminiService';
+// geminiService pulls in @google/genai (~250 KB); load it only when demo worlds are seeded.
 
 // --- LIVE TALK ---
 export const createLiveTalk = async (talk: Partial<LiveTalk>) => {
@@ -588,6 +588,7 @@ export const seedDemoWorlds = async () => {
     const existing = await fetchUserWorlds(uid);
     if (existing.length > 0) return;
 
+    const { generateDemoWorlds } = await import('./geminiService');
     const demoData = await generateDemoWorlds();
     if (!demoData || demoData.length === 0) return;
 

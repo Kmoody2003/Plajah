@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1,
   Volume2, VolumeX, Volume1, ListMusic, Maximize2, Minus, Search, X,
@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useUnifiedCasting } from '../hooks/useUnifiedCasting';
-import { CastingHubModal } from './casting/CastingHubModal';
+const CastingHubModal = lazy(() => import('./casting/CastingHubModal').then(m => ({ default: m.CastingHubModal })));
 
 /**
  * CommandPlayer — the redesigned 2026 music player shell.
@@ -701,6 +701,7 @@ const CommandPlayer: React.FC<CommandPlayerProps> = (props) => {
           onOpenCast={openCast}
         />
       )}
+      <Suspense fallback={null}>
       <CastingHubModal
         isOpen={castOpen}
         onClose={closeCast}
@@ -713,6 +714,7 @@ const CommandPlayer: React.FC<CommandPlayerProps> = (props) => {
           mediaType: p.currentVideo ? 'video' : 'audio',
         }}
       />
+      </Suspense>
     </>
   );
 };

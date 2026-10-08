@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { Film, Play, Radio } from 'lucide-react';
 import type { Video, Album, UserProfile, ChannelSource } from '../../types';
-import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
-import { tvCardRing, RAIL_GUTTER } from './tvFocusRing';
+import { useTvGrid } from '../../hooks/useTvGrid';
+import { tvCardRing } from './tvFocusRing';
+import TvWindowedRail, { scrollRowIntoView, scrollBehaviorForMove } from './TvWindowedRail';
+import { TALEO_TV_RAILS, loadTaleoCuratedCollections } from './tvRailRegistry';
 import { thumb, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import TvBrandBackdrop from './TvBrandBackdrop';
-import { loadPlatformRails, loadArchiveRails, loadLiveRail, type TaleoRail } from './moviesTvSections';
+import { loadPlatformRails, loadArchiveRails, loadLiveRail, type TaleoRail, type TaleoItem } from './moviesTvSections';
 import TvHeroCarousel from './TvHeroCarousel';
 import { fetchVideoById, syncPublicDomainAsset } from '../../services/backendService';
 import { getArchiveItemFiles, getBestVideoUrl } from '../../services/archiveContentService';
@@ -28,7 +30,15 @@ const MoviesTvView: React.FC<{
   onBack: () => void;
   onSelectMovie: (item: Video | Album) => void;
 }> = ({ onBack, onSelectMovie }) => {
-  const [rails, setRails] = useState<TaleoRail[]>([]);
+  // Each source lands in its own slot and the screen is assembled in a FIXED order below. Splicing
+  // into one array as each promise resolved meant a fast Live rail could be overwritten by the
+  // platform rails landing after it.
+  const [platform, setPlatform] = useState<TaleoRail[]>([]);
+  const [liveRail, setLiveRail] = useState<TaleoRail | null>(null);
+  const [archive, setArchive] = useState<TaleoRail[]>([]);
+  const [curated, setCurated] = useState<TaleoRail[]>([]);
+  /** Web-parity rails declared in tvRailRegistry (TALEO_TV_RAILS), keyed by def id. */
+  const [registered, setRegistered] = useState<Record<string, TaleoRail>>({});
   const [loading, setLoading] = useState(true);
   const [channel, setChannel] = useState<UserProfile | null>(null);   // open FAST channel, if any
   const [livePlaying, setLivePlaying] = useState<{ ownerId: string; source: ChannelSource } | null>(null);
@@ -36,19 +46,46 @@ const MoviesTvView: React.FC<{
 
   useEffect(() => {
     let alive = true;
-    // Platform rails first (fast) so the screen appears immediately; then prepend the Live channels
-    // rail and append the ~20 Internet Archive genre rails as they arrive — the screen never blocks.
+    // Platform rails first (fast) so the screen appears immediately; Live, curated, registered and
+    // the ~20 Internet Archive genre rails fill in as they arrive — the screen never blocks.
     loadPlatformRails()
-      .then(r => { if (alive) { setRails(r); setLoading(false); } })
+      .then(r => { if (alive) { setPlatform(r); setLoading(false); } })
       .catch(() => { if (alive) setLoading(false); });
     loadLiveRail()
-      .then(live => { if (alive && live) setRails(prev => [live, ...prev.filter(r => r.id !== 'live')]); })
+      .then(live => { if (alive) setLiveRail(live); })
       .catch(() => {});
+    loadTaleoCuratedCollections()
+      .then(c => { if (alive) setCurated(c); })
+      .catch(() => {});
+    TALEO_TV_RAILS.forEach(def => {
+      Promise.resolve()
+        .then(() => def.load())
+        .then(items => {
+          if (alive && items?.length) setRegistered(prev => ({ ...prev, [def.id]: { id: def.id, title: def.title, items } }));
+        })
+        .catch(() => {});
+    });
     loadArchiveRails(50)
-      .then(a => { if (alive && a.length) setRails(prev => [...prev, ...a]); })
+      .then(a => { if (alive && a.length) setArchive(a); })
       .catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  const rails: TaleoRail[] = useMemo(() => {
+    const reg = (pos: 'start' | 'end') => TALEO_TV_RAILS
+      .filter(d => (d.position || 'end') === pos).map(d => registered[d.id]).filter(Boolean);
+    const cont = platform.filter(r => r.id === 'continue');
+    const rest = platform.filter(r => r.id !== 'continue');
+    return [
+      ...cont,
+      ...(liveRail ? [liveRail] : []),
+      ...reg('start'),
+      ...rest,
+      ...curated,
+      ...reg('end'),
+      ...archive,
+    ];
+  }, [platform, liveRail, curated, registered, archive]);
 
   // Hardware Back closes the FAST channel player (consume it, else it navigates the app to login).
   useEffect(() => {
@@ -141,34 +178,38 @@ const MoviesTvView: React.FC<{
     }
   };
 
+  // Stable grid callbacks (through refs): useTvGrid re-binds its key listener when these change.
+  const runRef = useRef(run); runRef.current = run;
+  const onBackRef = useRef(onBack); onBackRef.current = onBack;
+  const onGridSelect = useCallback((p: { row: number; col: number }, rowId: string) => runRef.current(rowId, p.col), []);
+  const onGridBack = useCallback(() => { onBackRef.current(); return true; }, []);
+
   const { pos, zone } = useTvGrid({
     rows,
-    onSelect: (p, rowId) => run(rowId, p.col),
-    onBack: () => { onBack(); return true; },
+    onSelect: onGridSelect,
+    onBack: onGridBack,
     enabled: !channel && !livePlaying,   // a fullscreen player owns the remote while it's open
   });
 
-  // Keep the focused card in view — but only actually scroll when it is near an edge.
-  //
-  // This used to re-centre on EVERY press with block:'center', so a one-card hop restarted a
-  // smooth-scroll of the whole grid and each press landed on a still-moving surface, which is
-  // most of why the wall felt heavy. Now it matches the safe-area approach useDpadNavigation
-  // already takes: inside the pad, nothing moves and focus is instant; at the edge, the rail
-  // brings the next card in. block:'nearest' also stops a horizontal hop from scrolling
-  // vertically for no reason.
-  const cellRef = useRef<HTMLDivElement>(null);
+  // Vertical: keep the focused rail in view with offset arithmetic (no getBoundingClientRect per
+  // press). Horizontal is the rail's own job (TvWindowedRail), which only scrolls at the edges.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const focusedRowId = zone === 'CONTENT' ? rows[pos.row]?.id : undefined;
   useEffect(() => {
-    const el = cellRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const padX = Math.max(48, window.innerWidth * 0.12);
-    const padY = Math.max(48, window.innerHeight * 0.12);
-    const outside =
-      r.left < padX || r.right > window.innerWidth - padX ||
-      r.top < padY || r.bottom > window.innerHeight - padY;
-    if (!outside) return;
-    el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-  }, [pos]);
+    const sc = scrollerRef.current;
+    if (!sc || !focusedRowId) return;
+    const behavior = scrollBehaviorForMove();
+    if (pos.row === 0) { sc.scrollTo({ top: 0, behavior }); return; }
+    scrollRowIntoView(sc, sc.querySelector<HTMLElement>(`[data-tv-rail="${CSS.escape(focusedRowId)}"]`), behavior);
+  }, [focusedRowId, pos.row]);
+
+  // Pointer support without a per-card closure (which would defeat the card memo): one delegated
+  // click handler resolves the rail + column from data attributes TvWindowedRail already sets.
+  const onClickDelegated = useCallback((e: React.MouseEvent) => {
+    const cell = (e.target as HTMLElement).closest<HTMLElement>('[data-tv-col]');
+    const rail = cell?.closest<HTMLElement>('[data-tv-rail]');
+    if (cell && rail) runRef.current(rail.dataset.tvRail || '', Number(cell.dataset.tvCol));
+  }, []);
 
   return (
     <div className="relative h-[100dvh] text-white flex flex-col overflow-hidden" data-tv-capture>
@@ -179,11 +220,11 @@ const MoviesTvView: React.FC<{
         <h1 className="text-2xl font-black tracking-tight">Taleo</h1>
       </div>
 
-      <div className="relative flex-1 overflow-y-auto no-scrollbar px-12 pb-16 space-y-9">
+      <div ref={scrollerRef} onClick={onClickDelegated} className="relative flex-1 overflow-y-auto no-scrollbar px-12 pb-16 space-y-9">
         {heroItems.length > 0 && (() => {
           const heroFocused = zone === 'CONTENT' && pos.row === 0;
           return (
-            <div ref={heroFocused ? cellRef : undefined}>
+            <div>
               <TvHeroCarousel
                 items={heroItems as any}
                 accent="#FF8C00"
@@ -210,39 +251,17 @@ const MoviesTvView: React.FC<{
         )}
 
         {rails.map((rail, rIdx) => (
-          <section key={rail.id}>
-            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white/60 mb-4">{rail.title}</h2>
-            <div className={`flex gap-6 overflow-x-auto no-scrollbar ${RAIL_GUTTER}`}>
-              {rail.items.map((it, col) => {
-                const focused = zone === 'CONTENT' && isFocused(pos, rIdx + heroRowOffset, col);
-                return (
-                  <div
-                    key={it.id || col}
-                    ref={focused ? cellRef : undefined}
-                    onClick={() => run(rail.id, col)}
-                    className="shrink-0 w-48 cursor-pointer transition-transform"
-                    style={focused ? { transform: 'scale(1.05)' } : undefined}
-                  >
-                    <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-white/[0.05]" style={{ boxShadow: tvCardRing(focused) }}>
-                      {it.image
-                        ? <img src={thumb(it.image, THUMB.card)} onError={onThumbError(it.image)} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                        : <div className="w-full h-full grid place-items-center"><Film size={30} className="text-white/15" /></div>}
-                      {focused && (
-                        <div className="absolute inset-0 grid place-items-center bg-black/25">
-                          <span className="w-12 h-12 rounded-full grid place-items-center" style={{ background: '#FF8C00', color: '#000' }}><Play size={22} fill="currentColor" className="ml-0.5" /></span>
-                        </div>
-                      )}
-                      {typeof it.progress === 'number' && it.progress > 0 && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20"><div className="h-full bg-[#FF8C00]" style={{ width: `${Math.round(it.progress * 100)}%` }} /></div>
-                      )}
-                    </div>
-                    <p className={`mt-2 text-sm font-bold truncate ${focused ? 'text-white' : 'text-white/80'}`}>{it.title}</p>
-                    {it.subtitle && <p className="text-xs text-white/40 truncate">{it.subtitle}</p>}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <TvWindowedRail
+            key={rail.id}
+            id={rail.id}
+            title={rail.title}
+            items={rail.items}
+            focusedCol={zone === 'CONTENT' && pos.row === rIdx + heroRowOffset ? pos.col : -1}
+            renderItem={renderTaleoCard}
+            gapClass="gap-6"
+            estimateStride={192 + 24}
+            estimateHeight={400}
+          />
         ))}
       </div>
 
@@ -261,5 +280,28 @@ const MoviesTvView: React.FC<{
     </div>
   );
 };
+
+// Hoisted + memoised so a D-pad press re-renders two cards, not the whole wall.
+const TaleoCard = React.memo<{ it: TaleoItem; focused: boolean }>(({ it, focused }) => (
+  <div className="w-48 cursor-pointer transition-transform" style={focused ? { transform: 'scale(1.05)' } : undefined}>
+    <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-white/[0.05]" style={{ boxShadow: tvCardRing(focused) }}>
+      {it.image
+        ? <img src={thumb(it.image, THUMB.card)} onError={onThumbError(it.image)} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+        : <div className="w-full h-full grid place-items-center"><Film size={30} className="text-white/15" /></div>}
+      {focused && (
+        <div className="absolute inset-0 grid place-items-center bg-black/25">
+          <span className="w-12 h-12 rounded-full grid place-items-center" style={{ background: '#FF8C00', color: '#000' }}><Play size={22} fill="currentColor" className="ml-0.5" /></span>
+        </div>
+      )}
+      {typeof it.progress === 'number' && it.progress > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20"><div className="h-full bg-[#FF8C00]" style={{ width: `${Math.round(it.progress * 100)}%` }} /></div>
+      )}
+    </div>
+    <p className={`mt-2 text-sm font-bold truncate ${focused ? 'text-white' : 'text-white/80'}`}>{it.title}</p>
+    {it.subtitle && <p className="text-xs text-white/40 truncate">{it.subtitle}</p>}
+  </div>
+));
+
+const renderTaleoCard = (it: TaleoItem, _i: number, focused: boolean) => <TaleoCard it={it} focused={focused} />;
 
 export default MoviesTvView;

@@ -17,7 +17,7 @@ export interface TvHeroItem { id: string; title: string; subtitle?: string; imag
 
 const isHls = (u?: string) => !!u && u.toLowerCase().includes('.m3u8');
 
-const TvHeroCarousel: React.FC<{
+const TvHeroCarouselImpl: React.FC<{
   items: TvHeroItem[];
   accent?: string;
   eyebrow?: string;
@@ -28,6 +28,10 @@ const TvHeroCarousel: React.FC<{
 }> = ({ items, accent = '#FF8C00', eyebrow, focused = false, activeIndex }) => {
   const list = items.filter(i => i.image || i.videoUrl).slice(0, 8);
   const [auto, setAuto] = useState(0);
+  // The slide we are fading FROM. Only it and the active slide are mounted: stacking all eight
+  // 1600px backdrops cost ~45MB of decoded bitmaps on a 2GB TV for slides nobody could see.
+  const prevRef = useRef<number>(-1);
+  const shownRef = useRef<number>(-1);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
@@ -43,6 +47,8 @@ const TvHeroCarousel: React.FC<{
   }, [list.length, focused]);
 
   const it = list.length ? list[i] : null;
+  if (shownRef.current !== i) { prevRef.current = shownRef.current; shownRef.current = i; }
+  const prev = prevRef.current;
 
   // Silent autoplay preview for the active slide (muted + looped). HLS via hls.js with the shared
   // per-panel rendition cap so the TV never decodes more than its panel; plain urls play natively.
@@ -69,14 +75,15 @@ const TvHeroCarousel: React.FC<{
       className="relative h-[42vh] min-h-[260px] w-full overflow-hidden rounded-3xl bg-black shrink-0 transition-all"
       style={{ boxShadow: focused ? `0 0 0 3px ${accent}, 0 0 34px -6px ${accent}` : undefined }}
     >
+      <style>{`@keyframes tvHeroFadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
       {/* Crossfade backdrops (opacity only — cheap on the TV GPU). */}
-      {list.map((x, k) => (
+      {list.map((x, k) => (k === i || k === prev) && (
         <img
           key={x.id}
           src={heroImage(x.image) || undefined}
           alt=""
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-          style={{ opacity: k === i && !it.videoUrl ? 1 : 0 }}
+          style={{ opacity: k === i && !it.videoUrl ? 1 : 0, animation: k === i ? 'tvHeroFadeIn 0.7s ease-out' : undefined }}
           decoding="async"
         />
       ))}
@@ -119,4 +126,7 @@ const TvHeroCarousel: React.FC<{
   );
 };
 
+// Memoised: the parent screens re-render on every D-pad press; the hero only needs to when its
+// items, focus or active slide change. Callers should pass a memoised `items` array.
+const TvHeroCarousel = React.memo(TvHeroCarouselImpl);
 export default TvHeroCarousel;

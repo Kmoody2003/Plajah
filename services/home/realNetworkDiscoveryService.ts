@@ -22,6 +22,7 @@ export interface RealDevice extends ParsedLocation {
   volume?: number;
   inputSource?: string;
   matterNodeId?: string;
+  matterEndpointId?: number;
   matterClusterState?: {
     onOff?: boolean;
     level?: number;
@@ -148,7 +149,8 @@ class RealNetworkDiscoveryService {
         const mData = await mRes.json();
         if (mData.success && Array.isArray(mData.nodes)) {
           for (const node of mData.nodes) {
-            const ep = node.endpoints?.[1] || node.endpoints?.[0];
+            // Real controller state (routes/matterRoutes.ts): first endpoint that switches.
+            const ep = (node.endpoints || []).find((e: any) => typeof e.onOff === 'boolean') || node.endpoints?.[0];
             const fp = fingerprintDevice({
               rawName: node.name || 'Matter Device',
               vendor: node.vendorName,
@@ -178,15 +180,16 @@ class RealNetworkDiscoveryService {
               typeLabel: fp.typeLabel,
               detailedType: fp.deviceType,
               protocolBadge: fp.protocolBadge,
-              ip: node.ip,
+              ip: undefined,
               deviceClass: (fp.deviceType as any) || parsed.category,
               protocol: 'MATTER',
-              status: node.status === 'ONLINE' ? 'ONLINE' : 'STANDBY',
-              lastSeen: node.lastSeen || new Date().toISOString(),
-              powerOn: ep?.clusterState?.onOff ?? true,
+              status: node.connection === 'connected' ? 'ONLINE' : 'STANDBY',
+              lastSeen: new Date().toISOString(),
+              powerOn: ep?.onOff ?? false,
               matterNodeId: node.nodeId,
-              matterClusterState: ep?.clusterState,
-              volume: ep?.clusterState?.level ? Math.round((ep.clusterState.level / 254) * 100) : undefined
+              matterEndpointId: ep?.endpointId,
+              matterClusterState: ep ? { onOff: ep.onOff, level: ep.level ?? undefined, colorTemperature: ep.colorTempMireds ?? undefined, locked: ep.lock ? ep.lock.state === 'locked' : undefined } : undefined,
+              volume: typeof ep?.level === 'number' ? Math.round((ep.level / 254) * 100) : undefined
             });
           }
         }
@@ -210,28 +213,22 @@ class RealNetworkDiscoveryService {
 
     if (dev.protocol === 'MATTER' && dev.matterNodeId) {
       try {
-        const nextState = !dev.powerOn;
-        dev.powerOn = nextState;
-        dev.status = nextState ? 'ONLINE' : 'STANDBY';
-        this.notify();
-
-        await fetch('/api/matter/control', {
+        const res = await fetch('/api/matter/control', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nodeId: dev.matterNodeId,
-            cluster: 'OnOff',
-            command: 'toggle'
-          })
+          body: JSON.stringify({ nodeId: dev.matterNodeId, endpointId: dev.matterEndpointId, command: 'toggle' })
         });
+        const data = await res.json();
+        // Show what the device reports back, never a guessed state.
+        if (data.success && typeof data.endpoint?.onOff === 'boolean') {
+          dev.powerOn = data.endpoint.onOff;
+          this.notify();
+        }
       } catch (err) {
         console.error('[RealNetworkDiscovery] Failed to toggle Matter device:', err);
       }
-    } else {
-      dev.powerOn = !dev.powerOn;
-      dev.status = dev.powerOn ? 'ONLINE' : 'STANDBY';
-      this.notify();
     }
+    // Other devices found by discovery have no control path from here: nothing to flip.
   }
 
   public async pairMatterDevice(params: {
@@ -246,7 +243,7 @@ class RealNetworkDiscoveryService {
       const res = await fetch('/api/matter/commission', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
+        body: JSON.stringify({ code: params.code, knownAddress: params.ip })
       });
       const data = await res.json();
       if (data.success) {
@@ -265,19 +262,20 @@ class RealNetworkDiscoveryService {
     value?: any;
   }): Promise<boolean> {
     try {
+      const command = params.command === 'setLevel' ? 'level' : params.command === 'setColor' ? 'colorTemp' : params.command;
+      const value = params.command === 'setColor' ? params.value?.temperature : params.value;
+      const dev = this.devices.find(d => d.matterNodeId === params.nodeId);
       const res = await fetch('/api/matter/control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
+        body: JSON.stringify({ nodeId: params.nodeId, endpointId: dev?.matterEndpointId, command, value })
       });
       const data = await res.json();
       if (data.success) {
-        const dev = this.devices.find(d => d.matterNodeId === params.nodeId);
-        if (dev && data.clusterState) {
-          dev.matterClusterState = data.clusterState;
-          if (typeof data.clusterState.onOff === 'boolean') {
-            dev.powerOn = data.clusterState.onOff;
-          }
+        const ep = data.endpoint;
+        if (dev && ep) {
+          dev.matterClusterState = { onOff: ep.onOff, level: ep.level ?? undefined, colorTemperature: ep.colorTempMireds ?? undefined, locked: ep.lock ? ep.lock.state === 'locked' : undefined };
+          if (typeof ep.onOff === 'boolean') dev.powerOn = ep.onOff;
           this.notify();
         }
         return true;

@@ -3,7 +3,9 @@
  * 
  * Supports:
  *  1. Google Cast (Chromecast, Google Nest Hub, Nest Audio, Android TV, Google Home Groups)
- *  2. Matter Casting (CSA Matter 1.3+ Content Launcher & Media Playback clusters, Smart Displays, Speaker Groups)
+ *  2. Matter Casting — NOT IMPLEMENTED as a sender here. A browser cannot speak Matter; the code below
+ *     only posts to a same-browser BroadcastChannel. Real Matter casting lives on the RECEIVING side, in
+ *     the Android TV APK (PlajahMatterPlugin / MatterCommandReceiver), and needs the TV OS's Matter agent.
  *  3. Samsung Casting (Samsung Smart View WebSocket API, DIAL Launcher, Tizen TV Companion, Samsung Multiroom Audio)
  *  4. W3C Presentation API & 2nd-Screen AirPlay/DLNA fallbacks
  */
@@ -286,7 +288,9 @@ class UnifiedCastingService {
   }
 
   /**
-   * Matter 1.3 Content Launcher & Media Playback Cluster sender flow
+   * Placeholder "Matter" sender. It never reaches a device (see the header), so it reports failure
+   * instead of a cast that didn't happen. Kept so a same-browser test harness can still observe the
+   * message on the BroadcastChannel.
    */
   private async castToMatterEndpoint(target: CastDevice, media: any) {
     // Construct CSA Matter Content Launcher payload (Cluster 0x0504)
@@ -320,11 +324,7 @@ class UnifiedCastingService {
     }
 
     // Persist Matter active endpoint
-    try {
-      localStorage.setItem('plajah_matter_last_endpoint', JSON.stringify({ id: target.id, name: target.name }));
-    } catch { }
-
-    return true;
+    throw new Error('Matter casting from the browser is not supported — use Google Cast, or cast from a Matter casting app to a TV that has a Matter agent.');
   }
 
   /**

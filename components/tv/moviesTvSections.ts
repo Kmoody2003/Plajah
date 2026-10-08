@@ -4,7 +4,8 @@
 // Taleo nav jump). Selection returns the raw Video / VIDEO-Album that MovieUXView expects.
 
 import type { Album, Video, UserProfile, ChannelSource } from '../../types';
-import { fetchAllPublicAlbums, fetchAllVideos, fetchAllFastChannels, fetchActiveLiveSources } from '../../services/backendService';
+import { fetchAllFastChannels, fetchActiveLiveSources } from '../../services/backendService';
+import { getTvPublicAlbums, getTvVideos } from '../../services/tv/tvCatalogCache';
 import { getContinueWatching } from '../../services/watchHistoryService';
 import { fetchArchiveByAllGenres, type ArchiveVideo } from '../../services/archiveContentService';
 
@@ -32,7 +33,7 @@ export interface TaleoItem {
 export interface TaleoRail { id: string; title: string; items: TaleoItem[]; }
 
 const imgV = (v: any) => v?.thumbnailUrl || v?.coverImageUrl || v?.coverImage;
-const vItem = (v: Video): TaleoItem => ({
+export const vItem = (v: Video): TaleoItem => ({
   id: v.id, title: v.title, subtitle: (v as any).genre || (v as any).artist || '',
   image: imgV(v), action: { kind: 'ITEM', item: v },
 });
@@ -41,7 +42,7 @@ const aItem = (a: Album): TaleoItem => ({
   image: (a as any).coverImage || (a as any).coverImageUrl, action: { kind: 'ITEM', item: a },
 });
 const ts = (x: any) => x?.timestamp || x?.createdAt || 0;
-const archItem = (v: ArchiveVideo): TaleoItem => ({
+export const archItem = (v: ArchiveVideo): TaleoItem => ({
   id: v.identifier, title: v.title, subtitle: v.genre || v.year || '',
   image: v.thumbnailUrl, action: { kind: 'ARCHIVE', archive: v },
 });
@@ -53,8 +54,10 @@ const dedupe = (rails: TaleoRail[]): TaleoRail[] =>
 /** The platform rails — fast (Firestore). Loaded first so the screen appears immediately. */
 export async function loadPlatformRails(): Promise<TaleoRail[]> {
   const [albums, videos, cont] = await Promise.all([
-    fetchAllPublicAlbums().catch(() => [] as Album[]),
-    fetchAllVideos().catch(() => [] as Video[]),
+    // Shared, cached, bounded TV catalogue (services/tv/tvCatalogCache) — the same list Chora and
+    // Search read, so switching tabs no longer re-downloads the whole public album collection.
+    getTvPublicAlbums().catch(() => [] as Album[]),
+    getTvVideos().catch(() => [] as Video[]),
     getContinueWatching('TALEO').catch(() => [] as any[]),
   ]);
 

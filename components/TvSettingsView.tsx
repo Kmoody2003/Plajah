@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-import { LogOut, Users, CreditCard, Receipt, Home, Monitor, Check, RotateCw, PanelLeft } from 'lucide-react';
+import React, { lazy, Suspense, useState } from 'react';
+import { LogOut, Users, CreditCard, Receipt, Home, Monitor, Check, RotateCw, PanelLeft, Cast } from 'lucide-react';
+
+// Output/receiver controls (display name, available-as-display, pairing code, joinable sessions).
+const TvReceiverPanel = lazy(() => import('./tv/TvReceiverPanel'));
 import { getTvHome, setTvHome, type TvHomeView } from '../services/tvCapabilities';
 
 /**
@@ -14,6 +17,7 @@ import { getTvHome, setTvHome, type TvHomeView } from '../services/tvCapabilitie
  */
 
 const HOME_OPTIONS: { id: TvHomeView; label: string; blurb: string }[] = [
+  { id: 'LIVE_HUB',  label: 'Live TV+', blurb: 'Channels, on the moment you turn on' },
   { id: 'MOVIES_TV', label: 'Taleo',  blurb: 'Films and series' },
   { id: 'MUSIC',     label: 'Chora',  blurb: 'Music and radio' },
   { id: 'VIDEOS',    label: 'Reello', blurb: 'Videos and shorts' },
@@ -58,6 +62,7 @@ const TvSettingsView: React.FC<{
   onSetTvLineupEnabled?: (v: boolean) => void;
 }> = ({ userProfile, subscriptionLabel, onSignOut, onSwitchAccount, onOpenPurchases, railInset = 0, tvLineupEnabled, onSetTvLineupEnabled }) => {
   const [home, setHome] = useState<TvHomeView>(getTvHome);
+  const [receiverOpen, setReceiverOpen] = useState(false);
 
   const chooseHome = (v: TvHomeView) => { setTvHome(v); setHome(v); };
 
@@ -84,7 +89,7 @@ const TvSettingsView: React.FC<{
       <section className="space-y-3">
         <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 px-1">Opens on</h2>
         <p className="text-white/35 text-xs px-1 -mt-1">Which experience this TV starts in.</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {HOME_OPTIONS.map(opt => {
             const active = home === opt.id;
             return (
@@ -105,6 +110,12 @@ const TvSettingsView: React.FC<{
             );
           })}
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 px-1">This TV</h2>
+        <p className="text-white/35 text-xs px-1 -mt-1">Let Ambo, the switcher, watch parties and signage send to this screen.</p>
+        <Row icon={Cast} label="Use this TV as a display" onClick={() => setReceiverOpen(true)} />
       </section>
 
       <section className="space-y-3">
@@ -160,6 +171,9 @@ const TvSettingsView: React.FC<{
         </p>
       </div>
     </div>
+    {receiverOpen && (
+      <Suspense fallback={null}><TvReceiverPanel onClose={() => setReceiverOpen(false)} /></Suspense>
+    )}
     </div>
   );
 };

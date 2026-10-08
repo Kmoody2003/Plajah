@@ -11,6 +11,9 @@ import { ACTIVE_SCIENCE_STREAMS } from '../scienceStreams';
 import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, plajahNumber } from '../../services/fast/channelNumbers';
 import { isChannelFeed } from '../../services/fast/guideLineup';
 import { isFeedLive } from '../../services/liveFeedLiveness';
+import { isShellFocused, setShellFocus } from '../../hooks/useTvShellFocus';
+import { useTvOverlayClaim, isTopTvOverlay, isTvOverlayOpen } from '../../hooks/useTvOverlay';
+import { getPlatformInfo } from '../../hooks/usePlatform';
 
 /**
  * PlajahEpgGuide — a full traditional cable-TV programme guide, in the Plajah aesthetic. Channels run
@@ -47,13 +50,26 @@ interface Program { title: string; startMs: number; endMs: number; isNow: boolea
 const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const isOnPlatform = (f: any) => f?.streamSource === 'webrtc' || /[?&]stream=/.test(f?.url || '');
 
+export type { GuideChannel };
+
 interface Props {
   feeds: LiveFeed[];
   fastChannels: FastChannelListing[];
   onTune: (ch: GuideChannel) => void;
+  /** Overlay use (Live TV+ on a TV): Back closes the guide instead of leaving the screen. */
+  onClose?: () => void;
+  /** Start the selection on this channel (e.g. what Live TV+ is currently playing). */
+  initialMatch?: (ch: GuideChannel) => boolean;
 }
 
-const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
+/** Rows are a fixed 74px, which is what makes windowing them exact. */
+const ROW_H = 74;
+/** Rows mounted above/below the selection; the rest are spacer height. */
+const ROWS_ABOVE = 10, ROWS_BELOW = 16;
+/** Schedules are fetched only for channels near the selection, this many at a time. */
+const SCHED_CONCURRENCY = 6;
+
+const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune, onClose, initialMatch }) => {
   const [nowTick, setNowTick] = useState(clockNow());
   useEffect(() => { const t = setInterval(() => setNowTick(clockNow()), 30000); return () => clearInterval(t); }, []);
 
@@ -90,8 +106,16 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
   }, [fastChannels, feeds]);
 
   // ── Per-channel programme rows (FAST schedules fetched + cached lazily) ──────
-  const [rows, setRows] = useState<Record<string, Program[]>>({});
+  //
+  // Previously this awaited schedule+videos for EVERY FAST channel in sequence on mount (two
+  // requests × hundreds of channels, one after another) before showing any row. Now only the
+  // channels around the selection are fetched, SCHED_CONCURRENCY at a time, and rows fill in as
+  // each lands. Scrolling the guide pulls in the next screenful.
   const schedCache = useRef<Map<string, any>>(new Map());
+  const inflight = useRef<Set<string>>(new Set());
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+  const [schedVersion, setSchedVersion] = useState(0);
 
   const buildFastRow = useCallback((sched: any): Program[] => {
     const slots = activeDaySlots(sched, windowStart);
@@ -116,38 +140,72 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
     return out;
   }, [windowStart, windowEnd, nowTick]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const next: Record<string, Program[]> = {};
-      for (const ch of channels) {
-        if (ch.kind === 'fast' && ch.ownerId) {
-          let sched = schedCache.current.get(ch.ownerId);
-          if (sched === undefined) {
-            const [s, vids] = await Promise.all([
-              fetchFastChannelSchedule(ch.ownerId).catch(() => null),
-              fetchFastChannelVideos(ch.ownerId).catch(() => [] as any[]),
-            ]);
-            const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(exactDurationSec(v))]));
-            sched = s ? backfillScheduleDurations(s, durMap) : null;
-            schedCache.current.set(ch.ownerId, sched);
-          }
-          next[ch.id] = buildFastRow(sched);
-        } else if (ch.kind === 'live') {
-          next[ch.id] = [{ title: ch.feed?.title || 'Live now', startMs: windowStart, endMs: windowEnd + DAY_MS, isNow: true, kind: 'LIVE' }];
-        } else {
-          next[ch.id] = [{ title: ch.name, startMs: windowStart, endMs: windowEnd + DAY_MS, isNow: true, kind: 'SCIENCE' }];
+  const loadSchedules = useCallback(async (ownerIds: string[]) => {
+    const queue = [...ownerIds];
+    const worker = async () => {
+      while (queue.length) {
+        const ownerId = queue.shift()!;
+        try {
+          const [sch, vids] = await Promise.all([
+            fetchFastChannelSchedule(ownerId).catch(() => null),
+            fetchFastChannelVideos(ownerId).catch(() => [] as any[]),
+          ]);
+          const durMap = new Map((vids as any[]).map(v => [v.id, Math.round(exactDurationSec(v))]));
+          schedCache.current.set(ownerId, sch ? backfillScheduleDurations(sch, durMap) : null);
+        } finally {
+          inflight.current.delete(ownerId);
+          if (mountedRef.current) setSchedVersion(v => v + 1);
         }
       }
-      if (alive) setRows(next);
-    })();
-    return () => { alive = false; };
-  }, [channels, buildFastRow, windowStart, windowEnd]);
+    };
+    await Promise.all(Array.from({ length: Math.min(SCHED_CONCURRENCY, queue.length) }, worker));
+  }, []);
+
+  // Rows for every channel whose schedule is known; live/science rows are synthetic and free.
+  const rows = useMemo<Record<string, Program[]>>(() => {
+    const next: Record<string, Program[]> = {};
+    for (const ch of channels) {
+      if (ch.kind === 'fast' && ch.ownerId) {
+        if (schedCache.current.has(ch.ownerId)) next[ch.id] = buildFastRow(schedCache.current.get(ch.ownerId));
+      } else if (ch.kind === 'live') {
+        next[ch.id] = [{ title: ch.feed?.title || 'Live now', startMs: windowStart, endMs: windowEnd + DAY_MS, isNow: true, kind: 'LIVE' }];
+      } else {
+        next[ch.id] = [{ title: ch.name, startMs: windowStart, endMs: windowEnd + DAY_MS, isNow: true, kind: 'SCIENCE' }];
+      }
+    }
+    return next;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channels, buildFastRow, windowStart, windowEnd, schedVersion]);
 
   // ── Selection + preview ─────────────────────────────────────────────────────
   const [chIdx, setChIdx] = useState(0);
   const [progIdx, setProgIdx] = useState(0);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  // Open on the channel the caller is watching — once, when the lineup first arrives.
+  const initialAppliedRef = useRef(false);
+  useEffect(() => {
+    if (initialAppliedRef.current || !initialMatch || !channels.length) return;
+    initialAppliedRef.current = true;
+    const i = channels.findIndex(initialMatch);
+    if (i >= 0) setChIdx(i);
+  }, [channels, initialMatch]);
+
+  // Fetch schedules for the screenful around the selection (debounced so a held key doesn't fire
+  // a request burst for every row it passes).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const lo = Math.max(0, chIdx - ROWS_ABOVE), hi = Math.min(channels.length, chIdx + ROWS_BELOW + 1);
+      const need: string[] = [];
+      for (const ch of channels.slice(lo, hi)) {
+        if (ch.kind !== 'fast' || !ch.ownerId) continue;
+        if (schedCache.current.has(ch.ownerId) || inflight.current.has(ch.ownerId)) continue;
+        inflight.current.add(ch.ownerId); need.push(ch.ownerId);
+      }
+      if (need.length) void loadSchedules(need);
+    }, 140);
+    return () => clearTimeout(t);
+  }, [channels, chIdx, loadSchedules]);
 
   const selChannel = channels[chIdx] || null;
   const selRow = selChannel ? (rows[selChannel.id] || []) : [];
@@ -170,25 +228,68 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
     return () => { alive = false; };
   }, [selProgram?.videoId]);
 
-  const onKey = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setChIdx(i => Math.min(channels.length - 1, i + 1)); setProgIdx(0); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setChIdx(i => Math.max(0, i - 1)); setProgIdx(0); }
-    else if (e.key === 'ArrowRight') { e.preventDefault(); setProgIdx(i => Math.min((selRow.length || 1) - 1, i + 1)); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); setProgIdx(i => Math.max(0, i - 1)); }
-    else if (e.key === 'Enter' && selChannel) { e.preventDefault(); onTune(selChannel); }
-  }, [channels.length, selRow.length, selChannel, onTune]);
-  useEffect(() => { window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [onKey]);
-
+  // Remote/keyboard. Bound once and read through a ref. On the real TV, keys arrive from native code
+  // with keyCode 0, so e.key is matched as well as the Android keycodes. As an overlay (onClose set)
+  // it listens in the CAPTURE phase and stops the event, so the Live TV+ dial underneath never also
+  // moves; embedded in Live Hub it stays bubble-phase like before.
+  const keyRef = useRef({ chCount: channels.length, rowLen: selRow.length, selChannel, chIdx, onTune, onClose });
+  keyRef.current = { chCount: channels.length, rowLen: selRow.length, selChannel, chIdx, onTune, onClose };
+  const overlay = !!onClose;
+  useTvOverlayClaim('guide', overlay);
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (overlay ? !isTopTvOverlay('guide') : (isShellFocused() || isTvOverlayOpen())) return;
+      const k = keyRef.current;
+      const kc = (e as any).keyCode || 0;
+      const handled = () => { e.preventDefault(); if (overlay) e.stopImmediatePropagation(); };
+      if (e.key === 'ArrowDown' || kc === 40 || kc === 20) { handled(); setChIdx(i => Math.min(k.chCount - 1, i + 1)); setProgIdx(0); }
+      else if (e.key === 'ArrowUp' || kc === 38 || kc === 19) {
+        handled();
+        if (k.chIdx === 0 && !overlay && getPlatformInfo().isTV) { setShellFocus(true); return; }
+        setChIdx(i => Math.max(0, i - 1)); setProgIdx(0);
+      }
+      else if (kc === 166 || e.key === 'ChannelUp' || e.key === 'PageUp') { handled(); setChIdx(i => Math.max(0, i - 8)); setProgIdx(0); }
+      else if (kc === 167 || e.key === 'ChannelDown' || e.key === 'PageDown') { handled(); setChIdx(i => Math.min(k.chCount - 1, i + 8)); setProgIdx(0); }
+      else if (e.key === 'ArrowRight' || kc === 39 || kc === 22) { handled(); setProgIdx(i => Math.min((k.rowLen || 1) - 1, i + 1)); }
+      else if (e.key === 'ArrowLeft' || kc === 37 || kc === 21) { handled(); setProgIdx(i => Math.max(0, i - 1)); }
+      else if ((e.key === 'Enter' || e.key === 'Select' || kc === 13 || kc === 23) && k.selChannel) { handled(); k.onTune(k.selChannel); }
+      else if (overlay && (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack' || e.key === 'BrowserBack' || e.key === 'XF86Back' || kc === 4 || e.key === 'Guide' || kc === 172)) {
+        handled(); k.onClose?.();
+      }
+      // Overlay: swallow everything else too, so nothing behind the guide reacts to the remote.
+      else if (overlay && !e.ctrlKey && !e.metaKey && !e.altKey) { e.stopImmediatePropagation(); }
+    };
+    window.addEventListener('keydown', onKey, overlay);
+    // Hardware Back (Capacitor) arrives as an event, not a key.
+    const onHwBack = (ev: Event) => { if (overlay && isTopTvOverlay('guide')) { ev.preventDefault(); keyRef.current.onClose?.(); } };
+    window.addEventListener('plajah:hardware-back', onHwBack);
+    return () => { window.removeEventListener('keydown', onKey, overlay); window.removeEventListener('plajah:hardware-back', onHwBack); };
+  }, [overlay]);
+
+  // Smooth scroll only for lone presses; a held key would restart the animation every ~100ms.
+  const lastMoveRef = useRef(0);
+  useEffect(() => {
+    const now = performance.now();
+    const burst = now - lastMoveRef.current < 260;
+    lastMoveRef.current = now;
     const el = gridRef.current?.querySelector<HTMLElement>(`[data-ch="${chIdx}"]`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (el) el.scrollIntoView({ behavior: burst ? 'auto' : 'smooth', block: 'nearest' });
+    else if (gridRef.current) gridRef.current.scrollTop = Math.max(0, chIdx * ROW_H - 2 * ROW_H);
   }, [chIdx]);
+
+  const winLo = Math.max(0, chIdx - ROWS_ABOVE);
+  const winHi = Math.min(channels.length - 1, chIdx + ROWS_BELOW);
 
   const timeCols = Array.from({ length: cols }, (_, k) => windowStart + k * SLOT_MIN * 60000);
   const nowPct = pctOf(nowTick);
 
   return (
-    <div className="absolute inset-0 flex flex-col md:flex-row overflow-hidden" style={{ background: 'radial-gradient(140% 120% at 15% -10%, #1a0033 0%, #0a0512 55%, #04030a 100%)' }}>
+    <div
+      // Own the remote on a TV: the geometric nav layer yields to capture zones, and this is a page
+      // (or a full-screen overlay page), not a dialog to focus-trap.
+      data-tv-capture
+      data-tv-no-trap
+      className={`${overlay ? 'fixed inset-0 z-[120]' : 'absolute inset-0'} flex flex-col md:flex-row overflow-hidden`} style={{ background: 'radial-gradient(140% 120% at 15% -10%, #1a0033 0%, #0a0512 55%, #04030a 100%)' }}>
       {/* ── Far-left fade PREVIEW ─────────────────────────────────────────── */}
       <div className="relative w-full md:w-[34%] lg:w-[30%] shrink-0 overflow-hidden border-b md:border-b-0 md:border-r border-white/10">
         {selProgram?.thumbnail || selChannel?.logo ? (
@@ -226,6 +327,11 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
         <div className="shrink-0 flex items-center gap-3 px-5 pt-5 pb-3">
           <Tv size={16} style={{ color: ORANGE }} />
           <span className="text-[12px] font-black uppercase tracking-[0.4em]">Programme Guide</span>
+          {overlay && (
+            <span className="ml-auto text-[10px] font-black uppercase tracking-widest text-white/40">
+              OK tune · ◀ ▶ shows · CH ± page · Back close
+            </span>
+          )}
         </div>
         {/* time ruler */}
         <div className="shrink-0 flex items-stretch pr-4 pl-[136px] border-b border-white/10">
@@ -242,7 +348,9 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
               <div className="w-px h-full" style={{ background: ORANGE, boxShadow: `0 0 12px ${ORANGE}` }} />
             </div>
 
+            {winLo > 0 && <div aria-hidden style={{ height: winLo * ROW_H }} />}
             {channels.map((ch, ci) => {
+              if (ci < winLo || ci > winHi) return null;
               const row = rows[ch.id] || [];
               const isSelRow = ci === chIdx;
               return (
@@ -257,7 +365,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
                   </button>
                   {/* programme track */}
                   <div className="relative flex-1 min-w-0">
-                    {row.length === 0 && <div className="absolute inset-1.5 rounded-xl bg-white/[0.03] border border-white/5 grid place-items-center"><span className="text-[9px] font-black uppercase tracking-widest text-white/20">No schedule</span></div>}
+                    {row.length === 0 && <div className="absolute inset-1.5 rounded-xl bg-white/[0.03] border border-white/5 grid place-items-center"><span className="text-[9px] font-black uppercase tracking-widest text-white/20">{ch.kind === 'fast' && ch.ownerId && !schedCache.current.has(ch.ownerId) ? 'Loading…' : 'No schedule'}</span></div>}
                     {row.map((p, pi) => {
                       const left = pctOf(p.startMs);
                       const width = Math.max(0, pctOf(p.endMs) - left);
@@ -276,6 +384,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
                 </div>
               );
             })}
+            {winHi < channels.length - 1 && <div aria-hidden style={{ height: (channels.length - 1 - winHi) * ROW_H }} />}
             {channels.length === 0 && (
               <div className="py-32 text-center text-white/30 flex flex-col items-center gap-3">
                 <Radio size={40} /> <p className="text-[11px] font-black uppercase tracking-widest">No channels on air right now</p>

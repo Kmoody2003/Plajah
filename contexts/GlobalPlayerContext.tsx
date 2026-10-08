@@ -1991,26 +1991,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setIsSlideshowAuto(on);
   }, [currentAlbum?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // On a TV, music with nothing on screen is a black rectangle. After 20 seconds of continuous
-  // playback the album's slideshow takes over on its own — the lean-back equivalent of the
-  // creator toggle above, but for every album rather than only opted-in ones.
-  //
-  // Marked as an AUTO start, so it drives the ambient surfaces and never the full-screen
-  // takeover, and so any deliberate flip by the viewer permanently wins over it.
-  useEffect(() => {
-    const platform = getPlatformInfo();
-    if (!platform.isTV) return;                       // lean-back behaviour only
-    if (!isPlaying || audioSource !== 'LIBRARY') return;
-    if (isSlideshowActive || isTvFxActive) return;    // already showing, or FX Stage owns the screen
-    if (!currentAlbum || !hasRealSlides(currentAlbum, currentAlbum.tracks)) return;
-    const t = setTimeout(() => {
-      // Re-check on fire: 20s is long enough for the listener to have paused, skipped, or
-      // turned the slideshow on themselves.
-      setSlideshowActiveRaw(true);
-      setIsSlideshowAuto(true);
-    }, 20_000);
-    return () => clearTimeout(t);
-  }, [isPlaying, audioSource, currentAlbum?.id, isSlideshowActive]); // eslint-disable-line react-hooks/exhaustive-deps
+  // (Removed 2026-10-08: a TV-only effect that auto-started the slideshow after 20s of playback. On
+  // the TV it took over the whole screen while people browsed Chora with music on. The slideshow is
+  // now started only on purpose — the player bar's Slideshow control.)
 
   // Live quality switch: when the listener changes their audio-quality tier (data/high/lossless),
   // re-resolve the CURRENTLY-playing track at the new tier and seek back to where they were — but
