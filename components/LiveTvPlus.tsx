@@ -34,6 +34,7 @@ import ShareButton from './ShareButton';
 import { buildShareUrl } from '../services/deepLinkService';
 import { createPost } from '../services/backendService';
 import ChannelLogo from './tv/ChannelLogo';
+import { isWindowsApp, setNativeFullscreen } from '../services/windowsBridgeService';
 import { useContextMenu } from './ui';
 import { subKeyFor, favoriteKey, resolveChannelLogo, type OwnerBranding } from '../services/fast/channelBranding';
 import { getFavoriteChannels, subscribeFavoriteChannels, toggleFavoriteChannel, syncFavoriteChannelsFromProfile } from '../services/favoriteChannelsService';
@@ -816,17 +817,33 @@ const LiveTvPlus: React.FC<{
   // Swipe the picture up/down to change channel (compact only; the dial isn't shown there).
   const swipeRef = useRef<{ y: number; x: number } | null>(null);
   const fsRef = useRef(false);
+  const fsEnteredAtRef = useRef(0);
+  // The Windows app is a WebView2 shell. HTML element full screen there only fills the web view —
+  // the window itself (title bar, taskbar) stays — unless the host also switches the WINDOW to full
+  // screen, which the shell exposes as a bridge command. So in the app we do both: window full screen
+  // for the real thing, element full screen so the surface covers the app's own sidebars too.
+  const nativeFsRef = useRef(false);
   const fsElement = () => (document as any).fullscreenElement || (document as any).webkitFullscreenElement || null;
+  const syncFs = () => {
+    const on = !!fsElement() || nativeFsRef.current;
+    fsRef.current = on;
+    setIsFs(on);
+    return on;
+  };
+  const leaveFullscreen = () => {
+    if (fsElement()) (document.exitFullscreen || (document as any).webkitExitFullscreen)?.call(document);
+    if (nativeFsRef.current) { nativeFsRef.current = false; setNativeFullscreen(false); }
+    syncFs();
+  };
   const toggleFullscreen = useCallback(() => {
     const el = rootRef.current as any;
-    if (fsElement()) {
-      (document.exitFullscreen || (document as any).webkitExitFullscreen)?.call(document);
-      return;
-    }
+    if (fsElement() || nativeFsRef.current) { leaveFullscreen(); return; }
     setImmersive(true);
+    fsEnteredAtRef.current = Date.now();
+    if (isWindowsApp()) { nativeFsRef.current = true; setNativeFullscreen(true); syncFs(); }
     const req = el?.requestFullscreen || el?.webkitRequestFullscreen;
     if (!req || getPlatformInfo().isTV) return;          // no API (e.g. iPhone Safari): in-page full screen only
-    Promise.resolve(req.call(el)).catch(() => { /* denied → stay in the in-page full screen */ });
+    Promise.resolve(req.call(el)).catch(() => { /* denied → stay in the in-page / window full screen */ });
   }, []);
 
   useEffect(() => {
@@ -836,16 +853,30 @@ const LiveTvPlus: React.FC<{
       if (!ms) return;
       idleRef.current = setTimeout(() => setImmersive(true), ms);
     };
-    const wake = () => { setImmersive(false); armIdle(); };
+    const wake = (e?: Event) => {
+      // Browsers fire a synthetic mousemove (no movement) when the layout changes under a resting
+      // cursor — which is exactly what entering full screen does — and that used to bring the whole
+      // guide straight back. Only a real movement counts, and never in the moment we just went full.
+      if (e && e.type === 'mousemove') {
+        const m = e as MouseEvent;
+        if (Math.abs(m.movementX || 0) + Math.abs(m.movementY || 0) < 2) return;
+        if (Date.now() - fsEnteredAtRef.current < 700) return;
+      }
+      setImmersive(false); armIdle();
+    };
     const onFsChange = () => {
-      const on = !!fsElement();
-      fsRef.current = on;
-      setIsFs(on);
+      // The element left full screen (Esc, browser UI, another page took it): drop the window out too.
+      if (!fsElement() && nativeFsRef.current) { nativeFsRef.current = false; setNativeFullscreen(false); }
+      const on = syncFs();
       if (on) armIdle();
       else { setImmersive(false); armIdle(); }            // Esc / browser exit → bring the guide back
     };
+    // If the browser refused element full screen but the window is full (app), Esc has nothing to
+    // exit natively — so Esc leaves it ourselves.
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape' && nativeFsRef.current && !fsElement()) leaveFullscreen(); };
     armIdle();
     window.addEventListener('keydown', wake);
+    window.addEventListener('keydown', onEsc);
     window.addEventListener('pointerdown', wake);
     window.addEventListener('mousemove', wake);
     document.addEventListener('fullscreenchange', onFsChange);
@@ -853,11 +884,12 @@ const LiveTvPlus: React.FC<{
     return () => {
       if (idleRef.current) clearTimeout(idleRef.current);
       window.removeEventListener('keydown', wake);
+      window.removeEventListener('keydown', onEsc);
       window.removeEventListener('pointerdown', wake);
       window.removeEventListener('mousemove', wake);
       document.removeEventListener('fullscreenchange', onFsChange);
       document.removeEventListener('webkitfullscreenchange', onFsChange);
-      if (fsElement()) (document.exitFullscreen || (document as any).webkitExitFullscreen)?.call(document);
+      leaveFullscreen();
     };
   }, []);
 
@@ -1350,7 +1382,7 @@ const LiveTvPlus: React.FC<{
 
       {/* Full-screen: a quiet hint that any press brings the guide back. */}
       {immersive && (
-        <button onClick={() => { if (fsElement()) toggleFullscreen(); else setImmersive(false); }}
+        <button onClick={() => { if (fsElement() || nativeFsRef.current) toggleFullscreen(); else setImmersive(false); }}
           className="absolute bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-black/55 border border-white/15 backdrop-blur text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white">
           <Minimize2 size={14} /> {isFs ? 'Exit full screen · Esc' : 'Show guide'}
         </button>
