@@ -6,7 +6,7 @@
   "description": "LAN agent: finds Blackmagic cameras/ATEMs, controls them, and hands them to the Plajah live switcher.",
   "scripts": {
     "start": "tsx src/index.ts",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test --test-force-exit test/*.test.ts"
   },
   "dependencies": {
     "atem-connection": "^3.10.3",

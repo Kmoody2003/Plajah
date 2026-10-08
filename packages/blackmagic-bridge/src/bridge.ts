@@ -5,12 +5,22 @@
 // pairing token, (2) a browser Origin that is not on the allow-list is refused (stops a random web page from
 // driving the bridge through the visitor's browser), (3) camera paths are validated.
 
-import { WebSocketServer, type WebSocket } from 'ws';
-import type { IncomingMessage } from 'node:http';
+import { WebSocketServer } from 'ws';
+import { hmacHex, randomNonce, safeEqualHex } from '../../../services/mediaEngine/blackmagic/auth.ts';
 import {
   BRIDGE_PROTOCOL_VERSION, deviceId, type AtemSnapshot, type BmDevice, type BmDeviceKind, type BridgeEvent, type BridgeReply,
   type BridgeRequest, type CameraSnapshot, type IngestInfo, type IngestStream, type WithReqId,
 } from '../../../services/mediaEngine/blackmagic/protocol.ts';
+
+/** The slice of a WebSocket the bridge uses; relay clients implement it too. */
+export interface SocketLike {
+  readonly readyState: number;
+  readonly OPEN: number;
+  send(data: string): void;
+  close(code?: number, reason?: string): void;
+  on(ev: 'message', cb: (raw: unknown) => void): unknown;
+  on(ev: 'close', cb: () => void): unknown;
+}
 
 export interface AtemLike {
   connect(): Promise<void>; close(): Promise<void>; snapshot(): AtemSnapshot | null;
@@ -43,7 +53,8 @@ export class Bridge {
   readonly devices = new Map<string, BmDevice>();
   private atems = new Map<string, AtemLike>();
   private cameras = new Map<string, CameraLike>();
-  private clients = new Set<WebSocket>();
+  private clients = new Set<SocketLike>();
+  private nonces = new WeakMap<SocketLike, string>();
   private wss: WebSocketServer | null = null;
   private ingest: { streams: IngestStream[]; info: IngestInfo } = { streams: [], info: { available: false, reason: 'Not checked yet' } };
 
@@ -56,7 +67,7 @@ export class Bridge {
         port: this.o.port, host: this.o.host ?? '0.0.0.0',
         verifyClient: ({ origin }: { origin?: string }) => this.originOk(origin),
       }, () => resolve((this.wss!.address() as any).port));
-      this.wss.on('connection', (ws, req) => this.onConnection(ws, req));
+      this.wss.on('connection', ws => this.attach(ws as unknown as SocketLike, 'direct'));
     });
   }
   async close() {
@@ -118,10 +129,13 @@ export class Bridge {
     for (const c of this.clients) if ((c as any).authed && c.readyState === c.OPEN) c.send(s);
   }
 
-  private onConnection(ws: WebSocket, _req: IncomingMessage) {
+  /** Serve one client socket (a direct WebSocket or a virtual one from the relay). */
+  attach(ws: SocketLike, via: 'direct' | 'relay') {
     (ws as any).authed = false;
     this.clients.add(ws);
-    ws.send(JSON.stringify({ evt: 'hello', version: BRIDGE_PROTOCOL_VERSION, bridge: this.o.name ?? 'Plajah Bridge', host: this.o.host ?? '', authRequired: true } satisfies BridgeEvent));
+    const nonce = randomNonce();
+    this.nonces.set(ws, nonce);
+    ws.send(JSON.stringify({ evt: 'hello', version: BRIDGE_PROTOCOL_VERSION, bridge: this.o.name ?? 'Plajah Bridge', nonce, via } satisfies BridgeEvent));
     // An unauthenticated socket gets a short window, then is dropped.
     const t = setTimeout(() => { if (!(ws as any).authed) ws.close(4401, 'auth timeout'); }, 5000);
     ws.on('close', () => { clearTimeout(t); this.clients.delete(ws); });
@@ -133,12 +147,15 @@ export class Bridge {
     });
   }
 
-  async handle(ws: WebSocket | null, req: WithReqId<BridgeRequest>): Promise<BridgeReply> {
+  async handle(ws: SocketLike | null, req: WithReqId<BridgeRequest>): Promise<BridgeReply> {
     const rid = req.rid;
     const fail = (error: string): BridgeReply => ({ rid, ok: false, error });
     try {
       if (req.op === 'hello') {
-        if (!tokenEquals(req.token, this.o.token)) { if (ws) setTimeout(() => ws.close(4401, 'bad token'), 50); return fail('Pairing token rejected'); }
+        const nonce = ws ? this.nonces.get(ws) : undefined;
+        const want = nonce ? await hmacHex(this.o.token, nonce) : '';
+        if (!nonce || typeof req.proof !== 'string' || !safeEqualHex(req.proof, want)) { if (ws) setTimeout(() => ws.close(4401, 'bad token'), 50); return fail('Pairing token rejected'); }
+        this.nonces.delete(ws!);
         if (ws) {
           (ws as any).authed = true;
           ws.send(JSON.stringify({ evt: 'devices', devices: this.deviceList() }));
@@ -182,10 +199,3 @@ export class Bridge {
 }
 
 function int(n: unknown) { const v = Number(n); if (!Number.isInteger(v) || v < 0 || v > 65535) throw new Error('Bad number'); return v; }
-
-import { timingSafeEqual } from 'node:crypto';
-export function tokenEquals(a: string | undefined, b: string): boolean {
-  if (!a) return false;
-  const x = Buffer.from(a), y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}

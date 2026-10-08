@@ -11958,6 +11958,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     console.log('[Config] VITE_APP_URL:', process.env.VITE_APP_URL ?? '(not set)');
   });
   // Bound slow-client resource consumption (slowloris/request smuggling class).
+  // Rendezvous relay for phones to reach a LAN Blackmagic bridge (see services/bmRelayServer.ts).
+  if (process.env.BM_RELAY_DISABLED !== '1') {
+    import('./services/bmRelayServer.js').then(m => m.attachBmRelay(server)).catch(e => console.warn('[bm-relay] not started:', e?.message));
+  }
   server.requestTimeout = 120_000;
   server.headersTimeout = 65_000;
   server.keepAliveTimeout = 60_000;

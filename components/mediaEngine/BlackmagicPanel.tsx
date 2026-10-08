@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Camera, Radio, PlugZap, Circle, Link2 } from 'lucide-react';
 import { getBlackmagicService, type BlackmagicEngine } from '../../services/mediaEngine/blackmagic/blackmagicService';
+import { relayUrlForOrigin, isRelayUrl } from '../../services/mediaEngine/blackmagic/bridgeClient';
 import type { SurfaceMode } from '../../services/mediaEngine/blackmagic/surfaceSync';
 import type { BmDevice } from '../../services/mediaEngine/blackmagic/protocol';
 
@@ -35,7 +36,7 @@ export const BlackmagicPanel: React.FC<{ engine: BlackmagicEngine }> = ({ engine
         <Camera size={11} className="text-white/50" />
         <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Blackmagic cameras &amp; ATEM</span>
         <span className="ml-auto text-[9px] font-bold" style={{ color: ready ? '#22C55E' : snap.client === 'rejected' ? '#EF4444' : '#ffd166' }}>
-          {ready ? 'Bridge connected' : snap.client === 'rejected' ? 'Token rejected' : snap.client === 'idle' ? 'Bridge not connected' : snap.client === 'retrying' ? 'Bridge unreachable' : 'Connecting...'}
+          {ready ? 'Bridge connected' : snap.client === 'rejected' ? 'Not paired' : snap.client === 'waiting-bridge' ? 'Waiting for bridge' : snap.client === 'idle' ? 'Bridge not connected' : snap.client === 'retrying' ? 'Bridge unreachable' : 'Connecting...'}
         </span>
       </div>
 
@@ -51,9 +52,15 @@ export const BlackmagicPanel: React.FC<{ engine: BlackmagicEngine }> = ({ engine
             <button onClick={() => svc.connect({ url: url.trim(), token: token.trim() })} className="px-3 py-1.5 rounded-lg bg-white/10 text-[10px] font-black uppercase tracking-wider text-white flex items-center justify-center gap-1"><PlugZap size={10} /> Pair</button>
           </div>
           {snap.detail && <p className="text-[9.5px]" style={{ color: '#ffd166' }}>{snap.detail}</p>}
-          {location.protocol === 'https:' && !/^wss?:\/\/(127\.0\.0\.1|localhost)/.test(url) && (
-            <p className="text-[9.5px] text-white/35">A page served over https can only reach a bridge on this same computer (ws://127.0.0.1) or one using wss. Phones need a relay, which is not built yet.</p>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setUrl(relayUrlForOrigin(location.origin))} className="px-2 py-1 rounded-lg bg-white/10 text-[10px] font-bold text-white">Use Plajah relay (phones &amp; remote)</button>
+            <button onClick={() => setUrl('ws://127.0.0.1:8787')} className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-white/60">This computer</button>
+          </div>
+          {isRelayUrl(url)
+            ? <p className="text-[9.5px] text-white/35">Relay: start the bridge with <span className="font-mono">PLAJAH_RELAY={relayUrlForOrigin(location.origin)}</span>. The token stays on your devices; the relay forwards commands and stores nothing.</p>
+            : location.protocol === 'https:' && !/^wss?:\/\/(127\.0\.0\.1|localhost)/.test(url) && (
+              <p className="text-[9.5px] text-white/35">A page served over https can only reach a bridge on this same computer, or through the relay.</p>
+            )}
         </div>
       )}
 

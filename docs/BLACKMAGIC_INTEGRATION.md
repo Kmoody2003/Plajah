@@ -7,7 +7,7 @@ Built 2026-10-08. Code: `packages/blackmagic-bridge/` (LAN agent), `services/med
 
 | Piece | Status |
 |---|---|
-| Bridge pairing/auth/origin checks, device registry, ATEM command routing | Tested with fake links over a real WebSocket (14 tests) |
+| Bridge pairing/auth/origin checks, device registry, ATEM command routing | Tested with fake links over a real WebSocket (19 tests, including the relay) |
 | Camera REST/WS client | Tested against a fake camera that speaks the documented message shapes; **never run on a physical camera** |
 | ATEM link (`atem-connection`) | Compiles and starts; **never connected to a physical ATEM** |
 | mDNS discovery (`_blackmagic._tcp`, `_http._tcp` filtered by name) | Classifier tested; **which models announce what is unconfirmed** |
@@ -52,14 +52,20 @@ Anyone who can reach the bridge could cut a show or start camera recording. Requ
 (plajah.com/.app, localhost, Capacitor), camera paths validated, 5 s auth window. The bridge listens on all interfaces so other LAN
 machines can pair; bind it to `127.0.0.1` via `PLAJAH_BRIDGE_HOST` if you want it local-only.
 
-## Mobile
+## Mobile (phones and remote browsers)
 
 * **Phone as a camera source:** works through the same ingest (the Blackmagic Camera phone app streams RTMP/SRT).
-* **Phone as controller: not working yet.** The Android app is a thin shell over `https://plajah.com` with `allowMixedContent:false`,
-  so the page cannot open `ws://192.168.x.x`. Fix options: a cloud relay (bridge dials out), or a Capacitor plugin that does the socket natively
-  (also the place for NSD/mDNS discovery of `_plajah-bridge._tcp`, which the bridge already advertises).
+* **Phone as controller: relay built, not yet tried from a real phone.** The Android app is a thin shell over `https://plajah.com`
+  with `allowMixedContent:false`, so a page cannot open `ws://192.168.x.x`. Instead both sides dial out to `wss://<host>/api/bm-relay`
+  (`services/bmRelayServer.ts`, attached in `server.ts`). Start the bridge with `PLAJAH_RELAY=wss://plajah.com/api/bm-relay`, then in the
+  panel press "Use Plajah relay" and enter the same token. The room id is `sha256(token)`; pairing is a nonce + HMAC-SHA256 proof
+  the bridge checks itself, so the token never leaves your devices and knowing a room id grants nothing. The relay forwards in memory and
+  stores nothing, but it can see commands (inside TLS). Limits: 64 KB frames, 4 phones per room, 1000 rooms, 40 msg/s, origin allow-list,
+  `BM_RELAY_DISABLED=1` switches it off. Weakness: an attacker can fill the 1000-room cap with junk rooms; add per-IP limits if that matters.
+* **Still missing for phones:** mDNS discovery of `_plajah-bridge._tcp` (needs a Capacitor NSD plugin). The relay does not need it.
+  The relay endpoint is untested on Cloud Run itself (WebSocket upgrade behind the Google front end); tested over plain http in-process.
 
 ## Next
 
-HyperDeck + Videohub control, ATEM tally/macro UI, camera control surface (iris/ISO/WB) in the switcher, the relay for phones,
+HyperDeck + Videohub control, ATEM tally/macro UI, camera control surface (iris/ISO/WB) in the switcher, NSD discovery on Android,
 MediaMTX bundled and launched by the bridge, and real-hardware passes.

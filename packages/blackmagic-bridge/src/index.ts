@@ -3,6 +3,7 @@
 //   PLAJAH_BRIDGE_PORT    default 8787
 //   PLAJAH_BRIDGE_HOST    LAN address cameras can reach (auto-detected if unset)
 //   PLAJAH_MEDIAMTX_API   default http://127.0.0.1:9997
+//   PLAJAH_RELAY          wss://plajah.com/api/bm-relay  lets phones / remote browsers reach this bridge (opt-in)
 //   PLAJAH_ATEM           comma list of ATEM addresses to add at startup (for networks without mDNS)
 
 import { randomBytes } from 'node:crypto';
@@ -14,6 +15,7 @@ import { AtemLink } from './atemLink.ts';
 import { CameraLink } from './cameraLink.ts';
 import { Discovery } from './discovery.ts';
 import { IngestWatcher } from './ingest.ts';
+import { RelayLink } from './relayLink.ts';
 import { DEFAULT_BRIDGE_PORT, deviceId } from '../../../services/mediaEngine/blackmagic/protocol.ts';
 
 function lanAddress(): string {
@@ -50,8 +52,14 @@ for (const host of (process.env.PLAJAH_ATEM ?? '').split(',').map(s => s.trim())
   bridge.upsertDevice({ id: deviceId('atem', host), kind: 'atem', name: `ATEM ${host}`, host, origin: 'manual', link: 'discovered', lastSeen: Date.now() });
 }
 
+let relay: RelayLink | null = null;
+if (process.env.PLAJAH_RELAY) {
+  relay = new RelayLink(bridge, process.env.PLAJAH_RELAY, token, (st, d) => console.log(`Relay: ${st}${d ? ` (${d})` : ''}`));
+  await relay.start();
+}
+
 console.log(`Plajah Bridge listening on ws://${publicHost}:${actual}`);
 console.log(`Pairing token: ${token}`);
 console.log(`Cameras that push RTMP/SRT: ${ingest.info.rtmpUrl}  |  ${ingest.info.srtUrl}`);
 
-process.on('SIGINT', async () => { ingest.stop(); discovery.stop(); await bridge.close(); process.exit(0); });
+process.on('SIGINT', async () => { relay?.stop(); ingest.stop(); discovery.stop(); await bridge.close(); process.exit(0); });

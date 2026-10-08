@@ -6,6 +6,7 @@ import { Bridge, type AtemLike } from '../src/bridge.ts';
 import { CameraLink } from '../src/cameraLink.ts';
 import { buildStreams } from '../src/ingest.ts';
 import { deviceFromService, pickIPv4 } from '../src/discovery.ts';
+import { hmacHex } from '../../../services/mediaEngine/blackmagic/auth.ts';
 import { classifyBlackmagic, deviceId, type AtemSnapshot } from '../../../services/mediaEngine/blackmagic/protocol.ts';
 
 const SNAP: AtemSnapshot = { deviceId: 'atem:10.0.0.9', model: 'ATEM Mini', inputs: [], macros: [], me: [{ program: 1, preview: 2, inTransition: false, position: 0, style: 'mix', ftbBlack: false }] };
@@ -35,7 +36,8 @@ function client(port: number, origin?: string) {
   });
   let rid = 0;
   const call = async (body: any) => { const id = ++rid; ws.send(JSON.stringify({ rid: id, ...body })); return next(m => m.rid === id); };
-  return { ws, call, next, open: new Promise<void>((res, rej) => { ws.on('open', res); ws.on('error', rej); }) };
+  const pair = async (token: string) => { const h = await next(m => m.evt === 'hello'); return call({ op: 'hello', proof: await hmacHex(token, h.nonce), client: 't' }); };
+  return { ws, call, next, pair, open: new Promise<void>((res, rej) => { ws.on('open', res); ws.on('error', rej); }) };
 }
 
 test('an unpaired client cannot drive anything; a paired one can', async () => {
@@ -46,10 +48,10 @@ test('an unpaired client cannot drive anything; a paired one can', async () => {
   const c = client(port); await c.open;
   assert.equal((await c.call({ op: 'atem.cut', id: 'atem:10.0.0.9' })).ok, false);
   assert.equal(calls.length, 0);
-  assert.equal((await c.call({ op: 'hello', token: 'wrong', client: 't' })).ok, false);
+  assert.equal((await c.pair('wrong')).ok, false);
   c.ws.close();
   const d = client(port); await d.open;
-  assert.equal((await d.call({ op: 'hello', token: 'secret', client: 't' })).ok, true);
+  assert.equal((await d.pair('secret')).ok, true);
   const snap = await d.next(m => m.evt === 'atem');
   assert.equal(snap.snapshot.model, 'ATEM Mini');
   assert.equal((await d.call({ op: 'atem.program', id: 'atem:10.0.0.9', input: 3 })).ok, true);
@@ -68,7 +70,7 @@ test('a web page from a foreign origin is refused even with the right token', as
 
 test('device.add validates the host and a bad id fails cleanly', async () => {
   const { bridge, port } = await start();
-  const c = client(port); await c.open; await c.call({ op: 'hello', token: 'secret', client: 't' });
+  const c = client(port); await c.open; await c.pair('secret');
   assert.equal((await c.call({ op: 'device.add', host: 'a b;rm -rf' })).ok, false);
   assert.equal((await c.call({ op: 'atem.cut', id: 'nope' })).ok, false);
   c.ws.close(); await bridge.close();

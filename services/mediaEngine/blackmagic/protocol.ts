@@ -82,7 +82,7 @@ export interface IngestStream {
 
 // ── Messages ─────────────────────────────────────────────────────────────────
 export type BridgeRequest =
-  | { op: 'hello'; token?: string; client: string }
+  | { op: 'hello'; proof: string; client: string }
   | { op: 'devices.list' }
   | { op: 'device.add'; host: string; kind?: BmDeviceKind }
   | { op: 'device.remove'; id: string }
@@ -104,11 +104,14 @@ export type WithReqId<T> = T & { rid: number };
 export type BridgeReply = { rid: number; ok: true; result?: unknown } | { rid: number; ok: false; error: string };
 
 export type BridgeEvent =
-  | { evt: 'hello'; version: number; bridge: string; host: string; authRequired: boolean }
+  | { evt: 'hello'; version: number; bridge: string; nonce: string; via: 'direct' | 'relay' }
   | { evt: 'devices'; devices: BmDevice[] }
   | { evt: 'atem'; snapshot: AtemSnapshot }
   | { evt: 'camera'; snapshot: CameraSnapshot }
   | { evt: 'ingest'; streams: IngestStream[]; info: IngestInfo };
+
+/** Frames the relay puts around traffic (see services/bmRelayServer.ts). */
+export type RelayNotice = { relay: 'bridge-up' | 'bridge-down' };
 
 export type BridgeMessage = BridgeReply | BridgeEvent;
 

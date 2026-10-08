@@ -5,11 +5,16 @@
 import {
   isReply, type BridgeEvent, type BridgeMessage, type BridgeRequest, type WithReqId, DEFAULT_BRIDGE_PORT,
 } from './protocol';
+import { hmacHex, roomIdFor } from './auth';
 
-export type ClientState = 'idle' | 'connecting' | 'pairing' | 'ready' | 'retrying' | 'rejected';
+export type ClientState = 'idle' | 'connecting' | 'pairing' | 'ready' | 'retrying' | 'rejected' | 'waiting-bridge';
 
 export interface BridgeConfig { url: string; token: string }
 export const defaultBridgeUrl = () => `ws://127.0.0.1:${DEFAULT_BRIDGE_PORT}`;
+/** The hosted relay path: a url ending in this is a relay, not a bridge, and gets room/role params appended. */
+export const RELAY_SUFFIX = '/api/bm-relay';
+export const relayUrlForOrigin = (origin: string) => origin.replace(/^http/, 'ws') + RELAY_SUFFIX;
+export const isRelayUrl = (u: string) => u.split('?')[0].endsWith(RELAY_SUFFIX);
 
 /** Remove a distribution of "Omit" over a union so each request keeps its own shape. */
 type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never;
@@ -40,6 +45,8 @@ export class BridgeClient {
   private stateCbs = new Set<(s: ClientState, detail?: string) => void>();
   private attempt = 0;
   private retryTimer: unknown = null;
+  private opening = false;
+  private relay = false;
   private wanted = false;
   state: ClientState = 'idle';
   detail?: string;
@@ -55,29 +62,66 @@ export class BridgeClient {
 
   connect() {
     this.wanted = true;
-    if (this.ws) return;
+    if (this.ws || this.opening) return;
+    this.opening = true;
     this.setState('connecting');
+    void this.resolveUrl().then(url => {
+      this.opening = false;
+      if (!this.wanted) return;
+      this.openSocket(url);
+    }, (e: Error) => { this.opening = false; this.setState('rejected', e.message); this.wanted = false; });
+  }
+
+  private async resolveUrl(): Promise<string> {
+    if (!isRelayUrl(this.cfg.url)) return this.cfg.url;
+    if (!this.cfg.token) throw new Error('Enter the pairing token first; it selects your relay room.');
+    this.relay = true;
+    const room = await roomIdFor(this.cfg.token);
+    return `${this.cfg.url}${this.cfg.url.includes('?') ? '&' : '?'}room=${room}&role=app`;
+  }
+
+  private openSocket(url: string) {
     let ws: WsLike;
-    try { ws = (this.deps.makeSocket ?? (u => new WebSocket(u) as unknown as WsLike))(this.cfg.url); }
+    try { ws = (this.deps.makeSocket ?? (u => new WebSocket(u) as unknown as WsLike))(url); }
     catch (e: any) { this.setState('retrying', e?.message ?? 'Could not open the connection'); this.scheduleRetry(); return; }
     this.ws = ws;
-    ws.onopen = () => {
-      this.setState('pairing');
-      this.request({ op: 'hello', token: this.cfg.token, client: 'plajah-app' }).then(
-        () => { this.attempt = 0; this.setState('ready'); },
-        (e: Error) => { this.setState('rejected', e.message); this.wanted = false; ws.close(); },
-      );
-    };
+    ws.onopen = () => { this.setState(this.relay ? 'waiting-bridge' : 'pairing', this.relay ? 'Connected to the relay; waiting for the bridge' : undefined); };
     ws.onmessage = e => {
-      let m: BridgeMessage; try { m = JSON.parse(String(e.data)); } catch { return; }
-      if (isReply(m)) {
-        const p = this.pending.get(m.rid); if (!p) return;
-        this.pending.delete(m.rid); this.clearT(p.timer);
-        if (m.ok) p.res(m.result); else p.rej(new Error((m as { error: string }).error));
-      } else this.eventCbs.forEach(cb => cb(m as BridgeEvent));
+      let m: any; try { m = JSON.parse(String(e.data)); } catch { return; }
+      if (this.relay) {
+        if (m.relay === 'bridge-down') { this.pending.forEach(p => { this.clearT(p.timer); p.rej(new Error('Bridge went offline')); }); this.pending.clear(); this.setState('waiting-bridge', 'The relay is up but the bridge is not connected to it'); return; }
+        if (m.relay === 'bridge-up') return;
+        if (typeof m.m !== 'string') return;
+        try { m = JSON.parse(m.m); } catch { return; }
+      }
+      this.onBridgeMessage(m as BridgeMessage);
     };
     ws.onclose = () => this.onClosed();
     ws.onerror = () => { /* onclose follows; the retry path reports it */ };
+  }
+
+  private onBridgeMessage(m: BridgeMessage) {
+    if (isReply(m)) {
+      const p = this.pending.get(m.rid); if (!p) return;
+      this.pending.delete(m.rid); this.clearT(p.timer);
+      if (m.ok) p.res(m.result); else p.rej(new Error((m as { error: string }).error));
+      return;
+    }
+    const ev = m as BridgeEvent;
+    if (ev.evt === 'hello') { void this.pair(ev.nonce); return; }
+    this.eventCbs.forEach(cb => cb(ev));
+  }
+
+  /** Answer the bridge's nonce with HMAC(token, nonce); the token itself is never sent. */
+  private async pair(nonce: string) {
+    this.setState('pairing');
+    try {
+      const proof = await hmacHex(this.cfg.token, nonce);
+      await this.request({ op: 'hello', proof, client: 'plajah-app' });
+      this.attempt = 0; this.setState('ready');
+    } catch (e: any) {
+      this.setState('rejected', e?.message ?? 'Pairing failed'); this.wanted = false; this.ws?.close();
+    }
   }
 
   private onClosed() {
