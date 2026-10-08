@@ -6,6 +6,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, MessageCircle, Heart, Sparkles, Bell, BellOff, Send, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useLiveAlertsPref } from '../hooks/useLiveAlertsPref';
+import { Radio } from 'lucide-react';
 import { auth, getNotificationPrefs, updateNotificationPrefs, sendTestPush } from '../services/backendService';
 
 interface NotificationSettingsProps {
@@ -76,6 +78,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onClose }) 
   const toggle = (k: PrefKey) => save({ ...prefs, [k]: !isOn(k) });
 
   const masterOn = isOn('push');
+  const [liveAlertsOn, setLiveAlertsOn] = useLiveAlertsPref();
 
   return (
     <motion.div
@@ -111,6 +114,16 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onClose }) 
             <Toggle on={masterOn && isOn(c.key)} disabled={!masterOn} onChange={() => toggle(c.key)} />
           </div>
         ))}
+
+        {/* Live pop-ups are per-device and independent of push. */}
+        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+          <div className="shrink-0"><Radio size={15} className="text-red-400" /></div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-wider text-white">Live pop-ups</p>
+            <p className="text-[10px] text-white/50 leading-snug">Banner when someone you follow goes live — this device only</p>
+          </div>
+          <Toggle on={liveAlertsOn} onChange={() => setLiveAlertsOn(!liveAlertsOn)} />
+        </div>
 
         {loading && <p className="text-center text-[9px] font-black uppercase tracking-widest text-white/20 py-4">Loading…</p>}
 

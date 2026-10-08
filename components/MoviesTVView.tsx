@@ -38,6 +38,7 @@ import TaleoUniverseBrowser from './TaleoUniverseBrowser';
 import TaleoFilmCurator from './TaleoFilmCurator';
 import { Landmark } from 'lucide-react';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { coverGridSrc } from '../services/imageDerivatives';
 
 interface MoviesTVViewProps {
   onBack: () => void;
@@ -928,7 +929,7 @@ const HomeView: React.FC<{
                 >
                   <div className="aspect-[3/2] rounded-2xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-[#D0BCFF]/40 transition-all relative mb-3">
                     {club.coverImage ? (
-                      <img src={thumb(club.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.coverImage)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={club.name} />
+                      <img src={thumb(coverGridSrc(club), THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.coverImage)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={club.name} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#2A2040] to-[#131314]">
                         <Users size={28} className="text-white/20" />
@@ -1071,7 +1072,7 @@ const LibraryView: React.FC<{
             className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 border border-white/8 hover:border-[#D0BCFF]/30 transition-all cursor-pointer"
             onClick={() => onSelectMovie(video)}
           >
-            <img src={thumb(video.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(video.coverImage)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={video.title} />
+            <img src={thumb(coverGridSrc(video), THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(video.coverImage)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={video.title} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
             <div className="absolute bottom-0 p-4 w-full">
               <h4 className="text-sm font-black truncate uppercase tracking-tight">{video.title}</h4>
@@ -1124,7 +1125,7 @@ const FilmClubsView: React.FC<{
           >
             <div className="aspect-[3/2] relative overflow-hidden">
               {club.coverImage ? (
-                <img src={thumb(club.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.coverImage)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt={club.name} />
+                <img src={thumb(coverGridSrc(club), THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(club.coverImage)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt={club.name} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#2A2040] to-[#131314]">
                   <Users size={32} className="text-white/15" />

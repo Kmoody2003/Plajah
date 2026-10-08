@@ -71,7 +71,7 @@ const GalleryModern: React.FC<{ photos: Photo[] }> = ({ photos }) => {
         <div key={ri} className={`pjg-mrow ${row.wide ? 'one' : ''}`}>
           {row.photos.map(p => (
             <div key={p.id} className="pjg-mph">
-              <img src={p.url} alt={p.title || ''} referrerPolicy="no-referrer" loading="lazy" />
+              <img src={p.url} alt={p.title || ''} referrerPolicy="no-referrer" loading="lazy" decoding="async" />
               <Plate p={p} />
             </div>
           ))}

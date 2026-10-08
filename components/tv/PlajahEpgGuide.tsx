@@ -1,3 +1,4 @@
+import { thumb, heroImage, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cleanDescription } from '../../utils/description';
 import { Radio, Tv, Play, ChevronLeft, ChevronRight, FlaskConical, Clock } from 'lucide-react';
@@ -191,7 +192,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune }) => {
       {/* ── Far-left fade PREVIEW ─────────────────────────────────────────── */}
       <div className="relative w-full md:w-[34%] lg:w-[30%] shrink-0 overflow-hidden border-b md:border-b-0 md:border-r border-white/10">
         {selProgram?.thumbnail || selChannel?.logo ? (
-          <img src={selProgram?.thumbnail || selChannel?.logo} className="absolute inset-0 w-full h-full object-cover" alt="" onError={e => { (e.target as HTMLImageElement).style.opacity = '0'; }} />
+          <img src={heroImage(selProgram?.thumbnail || selChannel?.logo)} decoding="async" className="absolute inset-0 w-full h-full object-cover" alt="" onError={e => { (e.target as HTMLImageElement).style.opacity = '0'; }} />
         ) : (
           <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${selChannel?.accent || PURPLE}55, #04030a)` }} />
         )}

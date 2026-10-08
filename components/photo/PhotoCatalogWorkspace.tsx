@@ -1,3 +1,4 @@
+import FastImage from '../ui/FastImage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CircleDot,
@@ -328,11 +329,7 @@ export default function PhotoCatalogWorkspace({
                     }`}
                   >
                     <div className="aspect-[4/3] bg-black overflow-hidden relative">
-                      <img
-                        src={photo.url || ''}
-                        alt=""
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
+                      <FastImage item={photo} className="group-hover:scale-105 transition-transform" />
                       <span className="absolute top-2 right-2 px-1.5 py-1 rounded bg-black/60 text-[7px] font-black flex items-center gap-1">
                         {isVideo ? <><Film size={9} className="text-amber-400"/> VIDEO</> : '2D'}
                       </span>
@@ -373,7 +370,7 @@ export default function PhotoCatalogWorkspace({
                       selected?.id === photo.id ? 'bg-[#FF8C00]/15 border border-[#FF8C00]/30' : 'hover:bg-white/5'
                     }`}
                   >
-                    <img src={photo.url || ''} alt="" className="w-12 h-10 object-cover rounded-lg"/>
+                    <span className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0"><FastImage item={photo} width={128} /></span>
                     <span className="text-xs font-bold truncate">{photo.title || 'Untitled'}</span>
                     <span className="text-[9px] text-white/35">{new Date(photo.timestamp).toLocaleDateString()}</span>
                     <span className="text-[8px] text-white/30">{isVideo ? 'Video' : 'Original'}</span>

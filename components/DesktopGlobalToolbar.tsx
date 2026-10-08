@@ -9,6 +9,7 @@ import {
   Radio, Ticket, Shield, Heart, Landmark, Minus, Square, X,
 } from 'lucide-react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import { TopBarTicker, useTopBarSignals, glowStyle, type TopBarNotice } from './TopBarTicker';
 import { isWindowsApp, startWindowDrag, minimizeWindow, maximizeWindow, closeWindow } from '../services/windowsBridgeService';
 
 export interface DesktopGlobalToolbarProps {
@@ -22,6 +23,8 @@ export interface DesktopGlobalToolbarProps {
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   isWindowsNative?: boolean;
+  onOpenNotification?: (notif: any) => void;
+  onOpenNetworkHealth?: () => void;
 }
 
 interface AppDestination {
@@ -81,7 +84,14 @@ export const DesktopGlobalToolbar: React.FC<DesktopGlobalToolbarProps> = ({
   isFullscreen,
   onToggleFullscreen,
   isWindowsNative = false,
+  onOpenNotification,
+  onOpenNetworkHealth,
 }) => {
+  const { notice, glowTone, dismiss } = useTopBarSignals();
+  const openNotice = (n: TopBarNotice) => {
+    if (n.kind === 'network') onOpenNetworkHealth?.();
+    else if (n.notif) { onOpenNotification?.(n.notif); dismiss(); }
+  };
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
 
@@ -143,6 +153,8 @@ export const DesktopGlobalToolbar: React.FC<DesktopGlobalToolbarProps> = ({
       }`}
       style={{
         WebkitAppRegion: 'drag',
+        transition: 'box-shadow 400ms ease, border-color 400ms ease',
+        ...glowStyle(glowTone),
       } as React.CSSProperties}
     >
       {/* ── Left: Brand + Breadcrumb + App Switcher ── */}
@@ -247,6 +259,8 @@ export const DesktopGlobalToolbar: React.FC<DesktopGlobalToolbarProps> = ({
             ⌘K
           </kbd>
         </button>
+
+        <TopBarTicker notice={notice} onDismiss={dismiss} onOpen={openNotice} />
 
         {/* Now Playing Pill (when audio is active) */}
         {currentTrack && (

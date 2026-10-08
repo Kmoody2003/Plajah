@@ -2485,6 +2485,9 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
       const metadata = {
         contentType: contentType,
       };
+        // Every upload path is content-addressed by a unique id; edits write new objects.
+        // Immutable caching makes second views instant on web, Android and TV webviews.
+        cacheControl: 'public,max-age=31536000,immutable',
 
       const uploadTask = uploadBytesResumable(storageRef, blobOrFile, metadata);
       

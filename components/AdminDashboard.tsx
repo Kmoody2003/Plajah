@@ -190,14 +190,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   const [backfillLog, setBackfillLog] = useState<string[]>([]);
   const backfillStopRef = useRef(false);
 
-  const runImageBackfill = async (kind: 'albums' | 'photos', dryRun: boolean) => {
+  const runImageBackfill = async (kind: 'albums' | 'photos' | 'cache', dryRun: boolean) => {
     setBackfillBusy(true);
     backfillStopRef.current = false;
     setBackfillLog([`${dryRun ? 'Dry run' : 'Optimising'} — ${kind}…`]);
     const push = (m: string) => setBackfillLog(l => [...l.slice(-200), m]);
     try {
       const bf = await import('../services/imageBackfill');
-      const run = kind === 'albums' ? bf.backfillAlbumCovers : bf.backfillPhotos;
+      const run = kind === 'albums' ? bf.backfillAlbumCovers : kind === 'cache' ? bf.applyImageCacheHeaders : bf.backfillPhotos;
       const rep = await run({ dryRun, onProgress: push, shouldStop: () => backfillStopRef.current });
       push(bf.summarize(rep));
       if (dryRun) push('Nothing was written. Re-run without "dry" to apply.');
@@ -2061,6 +2061,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                       { label: 'Dry run — photos', kind: 'photos', dry: true },
                       { label: 'Optimise covers', kind: 'albums', dry: false },
                       { label: 'Optimise photos', kind: 'photos', dry: false },
+                      { label: 'Dry run — cache headers', kind: 'cache', dry: true },
+                      { label: 'Apply cache headers', kind: 'cache', dry: false },
                     ] as const).map(b => (
                       <button
                         key={b.label}

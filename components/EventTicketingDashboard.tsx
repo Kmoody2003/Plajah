@@ -1429,7 +1429,7 @@ const EventTicketingDashboard: React.FC<Props> = ({
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                   {poolMedia.map((photo, i) => (
                     <div key={photo.id || i} className="group relative aspect-square rounded-2xl overflow-hidden bg-black/40 border border-white/10">
-                      <img src={photo.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                      <img src={photo.thumbUrl || photo.url} decoding="async" loading="lazy" alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
                         <span className="text-[9px] text-white/70 font-mono truncate">{photo.title || 'Live Capture'}</span>
                       </div>

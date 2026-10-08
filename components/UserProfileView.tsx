@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+﻿import FastImage from './ui/FastImage';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { createPortal } from 'react-dom';
 import { 
@@ -2628,7 +2629,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
                       {profile.photos.slice(0, 14).map((photo, i) => (
                         <div key={i} className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/5 hover:border-white/20 transition-all cursor-pointer group">
-                          <img loading="lazy" decoding="async" src={gridSrc(photo)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                          <FastImage item={photo} className="group-hover:scale-105 transition-transform duration-500" />
                         </div>
                       ))}
                       <div

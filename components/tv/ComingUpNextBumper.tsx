@@ -1,3 +1,4 @@
+import { thumb, heroImage, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import React from 'react';
 import { Tv } from 'lucide-react';
 
@@ -60,7 +61,7 @@ const ComingUpNextBumper: React.FC<Props> = ({ channelName, logoUrl, items, acce
               <span className="text-3xl md:text-4xl font-black tabular-nums w-8 text-center shrink-0" style={{ color: i === 0 ? accent : 'rgba(255,255,255,0.35)' }}>{i + 1}</span>
               <div className="w-24 md:w-36 aspect-video rounded-xl overflow-hidden bg-black/40 shrink-0 border border-white/10">
                 {it.thumbnail
-                  ? <img src={it.thumbnail} className="w-full h-full object-cover" alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  ? <img src={thumb(it.thumbnail, THUMB.card)} onError={onThumbError(it.thumbnail)} decoding="async" className="w-full h-full object-cover" alt="" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   : <div className="w-full h-full grid place-items-center"><Tv size={20} className="text-white/20" /></div>}
               </div>
               <div className="flex-1 min-w-0">

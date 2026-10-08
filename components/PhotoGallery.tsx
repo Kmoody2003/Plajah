@@ -1,3 +1,4 @@
+import FastImage from './ui/FastImage';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Image, Play, Pause, Music, Plus, X, ChevronLeft, ChevronRight, Maximize2, Sparkles, Layout, Globe, Palette, Aperture } from 'lucide-react';
@@ -243,11 +244,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner, onOpenArtGall
             onClick={() => openLightbox(photo, displayedPhotos, index)}
             className="group aspect-square rounded-[2.5rem] overflow-hidden border border-white/10 bg-white/[0.02] relative"
           >
-            <img
-              src={photo.url || null}
-              className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700"
-              alt={photo.title}
-            />
+            <FastImage item={photo} alt={photo.title} priority={index < 8} className="opacity-80 group-hover:opacity-100" />
             {photo.worldId && (
               <div className="absolute top-3 right-3 p-1.5 bg-black/50 rounded-full">
                 <Globe size={10} className="text-primary" />
@@ -423,7 +420,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner, onOpenArtGall
                   exit={{ opacity: 0, x: -100 }}
                   className="w-full h-full max-w-5xl rounded-[4rem] overflow-hidden border-4 border-white/10 shadow-2xl relative"
                 >
-                  <img src={photos[activePhotoIndex].url || null} className="w-full h-full object-cover" alt="Slideshow" />
+                  <FastImage item={photos[activePhotoIndex]} variant="hero" priority alt="Slideshow" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent p-12 flex flex-col justify-end">
                     <h4 className="text-4xl font-black uppercase tracking-tightest mb-2">{photos[activePhotoIndex].title}</h4>
                     <p className="text-white/40 max-w-xl">{photos[activePhotoIndex].description}</p>

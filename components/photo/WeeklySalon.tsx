@@ -14,6 +14,8 @@
  * exhibition; Firestore down → "no entries yet"; empty library → an honest empty state.
  */
 
+import FastImage from '../ui/FastImage';
+import { thumb, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -297,7 +299,8 @@ const WeeklySalon: React.FC = () => {
                 >
                   <button onClick={() => setRoomStart(i)} className="block w-full text-left">
                     <img
-                      src={entry.photoUrl}
+                      src={thumb(entry.photoUrl, THUMB.large)}
+                      onError={onThumbError(entry.photoUrl)}
                       alt={entry.title || ''}
                       loading="lazy"
                       decoding="async"
@@ -395,8 +398,7 @@ const WeeklySalon: React.FC = () => {
                             selected ? 'border-small-orange scale-[0.97]' : 'border-white/5 hover:border-white/25'
                           }`}
                         >
-                          <img src={photo.url} alt="" loading="lazy" decoding="async"
-                            className="w-full h-full object-cover" />
+                          <FastImage item={photo as any} />
                           {selected && (
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                               <Check size={22} className="text-small-orange" />

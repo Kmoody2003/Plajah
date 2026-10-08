@@ -13,7 +13,7 @@
  * Orientation is measured from the decoded image, not guessed from metadata, so
  * it works for Mux stills, uploaded posters and external URLs alike.
  */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ThreeDImage from '../ThreeDImage';
 
 /** A source only a hair narrower than its frame still crops cleanly — don't letterbox 16:10 in 16:9. */
@@ -58,6 +58,18 @@ const MediaThumb: React.FC<MediaThumbProps> = ({
   const boxRef = useRef<HTMLDivElement>(null);
   // Keyed by src so a recycled card doesn't inherit the previous clip's orientation.
   const [narrowSrc, setNarrowSrc] = useState<string | null>(null);
+  // Reveal only once decoded so a big image fades in whole instead of painting in horizontal strips.
+  const [shownSrc, setShownSrc] = useState<string | null>(null);
+  const fgRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const el = fgRef.current;
+    if (!el || !src) return;
+    if (el.complete && el.naturalWidth > 0) { setShownSrc(src); return; }
+    let live = true;
+    el.decode?.().then(() => live && setShownSrc(src)).catch(() => live && setShownSrc(src));
+    return () => { live = false; };
+  }, [src]);
+  const revealed = shownSrc === src;
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -69,6 +81,7 @@ const MediaThumb: React.FC<MediaThumbProps> = ({
       const frameAR = Math.min(measured, MAX_FRAME_AR);
       setNarrowSrc(iw / ih < frameAR * NARROW_TOLERANCE ? (src ?? null) : null);
     }
+    setShownSrc(src ?? null);
     onLoad?.(e);
   }, [src, onLoad]);
 
@@ -110,11 +123,14 @@ const MediaThumb: React.FC<MediaThumbProps> = ({
           )
           : (
             <img
+              ref={fgRef}
               src={src}
               alt={alt}
+              decoding="async"
               onLoad={handleLoad}
               referrerPolicy="no-referrer"
-              className={`relative w-full h-full ${fitClass} ${className}`}
+              className={`relative w-full h-full ${fitClass} transition-opacity duration-200 ${className}`}
+              style={revealed ? undefined : { opacity: 0 }}
               {...imgProps}
             />
           )

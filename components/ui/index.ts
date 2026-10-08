@@ -39,3 +39,4 @@ export {
 } from '../../src/lib/designSystem';
 
 export { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon, PROVIDER_ICON } from './ProviderIcons';
+export { default as FastImage } from './FastImage';

@@ -53,7 +53,7 @@ const GalleryPortfolio: React.FC<{ photos: Photo[]; title?: string }> = ({ photo
             <div className="pjg-pgrid">
               {c.grid.map(p => (
                 <div key={p.id} className="cell">
-                  <img src={p.url} alt={p.title || ''} referrerPolicy="no-referrer" loading="lazy" />
+                  <img src={p.url} alt={p.title || ''} referrerPolicy="no-referrer" loading="lazy" decoding="async" />
                 </div>
               ))}
             </div>

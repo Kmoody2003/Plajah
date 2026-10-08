@@ -137,6 +137,45 @@ export function backfillPhotos(opts: BackfillOptions = {}): Promise<BackfillRepo
   }, opts);
 }
 
+/**
+ * Stamp a one-year immutable Cache-Control on image objects already in Storage (uploads before
+ * 2026-10-08 have none, so browsers and TV webviews revalidate them constantly). Metadata-only:
+ * no bytes move. Safe because every image write creates a new object path.
+ */
+export async function applyImageCacheHeaders(opts: BackfillOptions = {}): Promise<BackfillReport> {
+  const { ref } = await import('firebase/storage');
+  const { updateMetadata, getMetadata } = await import('firebase/storage');
+  const { storage } = await import('./firebase');
+  const rep = empty();
+  const specs: Array<{ path: string; fields: string[] }> = [
+    { path: 'photos', fields: ['url', 'thumbUrl', 'originalUrl'] },
+    { path: 'albums', fields: ['coverImage', 'coverThumb', 'coverOriginal'] },
+  ];
+  for (const spec of specs) {
+    const snap = await getDocs(opts.limit ? query(collection(db, spec.path), qLimit(opts.limit)) : collection(db, spec.path));
+    for (const d of snap.docs) {
+      if (opts.shouldStop?.()) return rep;
+      for (const f of spec.fields) {
+        const url: string = (d.data() as any)?.[f] || '';
+        const m = url.match(/\/o\/([^?]+)/);
+        if (!m || !url.includes('firebasestorage.googleapis.com')) continue;
+        rep.scanned++;
+        try {
+          const r = ref(storage, decodeURIComponent(m[1]));
+          const meta = await getMetadata(r);
+          if (meta.cacheControl?.includes('immutable')) { rep.skipped++; continue; }
+          if (!opts.dryRun) await updateMetadata(r, { cacheControl: 'public,max-age=31536000,immutable' });
+          rep.converted++;
+        } catch (e: any) {
+          rep.failed++;
+          opts.onProgress?.(`${d.id}.${f}: ${e?.code || e?.message || e}`);
+        }
+      }
+    }
+  }
+  return rep;
+}
+
 export function summarize(r: BackfillReport): string {
   const saved = r.bytesBefore - r.bytesAfter;
   const mb = (n: number) => `${(Math.max(0, n) / 1e6).toFixed(1)} MB`;

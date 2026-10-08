@@ -69,6 +69,9 @@ export function thumb(url?: string | null, width: number = THUMB.card, quality =
   if (!url) return '';
   if (!/^https?:\/\//i.test(url)) return url;     // data: / blob: / relative
   if (shouldBypassCdn(url)) return url;
+  // Our own upload-time derivative (…_thumb.webp, ~320px) is already the right size: skip the
+  // third-party CDN hop entirely — one less DNS lookup, TLS handshake and cold-cache resize.
+  if (width <= 340 && /\/o\/[^?]*_thumb\.(webp|jpg)/.test(url)) return url;
 
   let isTV = false;
   try { isTV = getPlatformInfo().isTV; } catch { /* pre-boot / SSR — assume not a TV */ }

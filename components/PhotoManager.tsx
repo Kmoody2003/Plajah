@@ -1,3 +1,4 @@
+import FastImage from './ui/FastImage';
 import React, { useState, useRef } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { Photo, PhotoAlbum, UserProfile } from '../types';
@@ -274,7 +275,7 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
                     }
                   }}
                 >
-                  <img src={gridSrc(photo) || null} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <FastImage item={photo} />
                   
                   {/* Selection Check */}
                   {isSelectionMode && selectedPhotos.includes(photo.id) && (

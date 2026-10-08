@@ -138,6 +138,7 @@ import { getPlatformInfo } from './hooks/usePlatform';
 import PlatformBumperPlayer from './components/tv/PlatformBumperPlayer';
 import LiveFollowPills from './components/LiveFollowPills';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
+import { useLiveAlertsPref } from './hooks/useLiveAlertsPref';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
 import TvSpine, { TV_SPINE_W } from './components/tv/TvSpine';
@@ -1237,6 +1238,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   useEffect(() => {
     if (!user || !new URLSearchParams(window.location.search).get('productionInvite')) return;
     localStorage.setItem('plajah_pm_discipline_v1', 'film');
+  const [liveAlertsOn] = useLiveAlertsPref();
     setView('ARTIST_MANAGER');
   }, [user]);
 
@@ -4050,6 +4052,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         album={currentSlot.album}
                         profile={currentSlot.profile}
                         onOpenAlbum={album => { setSelectedAlbum(album); setView('PLAYER'); }}
+                onOpenNotification={handleNotificationNavigate}
+                onOpenNetworkHealth={() => { setDashboardInitialTab('NETWORK_DIAGNOSTICS' as any); setView('CREATOR'); }}
                         dotCount={dotTotal}
                         dotIdx={dotActive}
                       />
@@ -4343,20 +4347,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </div>
           )}
 
-          {/* Network degradation toast — severity-colored */}
-          {netAlert && (
+          {/* Network state is shown as a glow on the desktop top bar (see TopBarTicker). Layouts
+              without that bar get a thin glow line along the top edge instead of a popup. */}
+          {netAlert && (getPlatformInfo().isTV || isMobile || theme === 'PHONE') && (
             <div
-              className={`fixed left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-4 py-2.5 rounded-full backdrop-blur-xl border shadow-2xl animate-in fade-in slide-in-from-top-2 ${
-                netAlert.severity === 'critical' ? 'bg-red-600/90 border-red-400/40'
-                : netAlert.severity === 'warning' ? 'bg-amber-500/90 border-amber-300/40'
-                : 'bg-sky-600/90 border-sky-400/40'
-              }`}
-              role="alert"
-              style={{ top: 'calc(3.5rem + env(safe-area-inset-top) + 0.5rem)' }}
-            >
-              <AlertTriangle size={13} className="text-white shrink-0" />
-              <span className="text-[11px] font-black uppercase tracking-widest text-white">{netAlert.msg}</span>
-            </div>
+              className="fixed top-0 inset-x-0 h-[3px] z-[300] pointer-events-none animate-in fade-in"
+              style={{ background: netAlert.severity === 'critical' ? '#ef4444' : netAlert.severity === 'warning' ? '#fbbf24' : '#38bdf8',
+                       boxShadow: `0 0 14px 2px ${netAlert.severity === 'critical' ? '#ef4444' : netAlert.severity === 'warning' ? '#fbbf24' : '#38bdf8'}` }}
+              role="status"
+              aria-label={netAlert.msg}
+            />
           )}
 
           {/* Early Access badge — pinned to the upper-left corner across EVERY shell (classic sidebar,
@@ -7654,7 +7654,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       </Suspense>
 
       {/* Someone you follow is live → stackable pop-up pill with a Watch jump (below the notification). */}
-      {user && !getPlatformInfo().isTV && (
+      {user && !getPlatformInfo().isTV && liveAlertsOn && (
         <LiveFollowPills uid={user.uid} isMobile={isMobile || theme === 'PHONE'} onWatch={(feed) => setActiveLiveFeed(feed as any)} />
       )}
 

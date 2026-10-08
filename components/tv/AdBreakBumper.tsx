@@ -1,3 +1,4 @@
+import { thumb, heroImage, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import React, { useEffect, useRef, useState } from 'react';
 import { Heart, Plus, HeartHandshake, Radio, Check } from 'lucide-react';
 import { Track, AdConfig } from '../../types';
@@ -210,14 +211,14 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       ) : (
         // ── Plajah FM "back shortly" now-playing over full-screen cover art ──
         <>
-          {cover && <img src={cover} className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" alt="" />}
+          {cover && <img src={thumb(cover, THUMB.small)} decoding="async" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" alt="" />}
           <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 100% at 50% 0%, rgba(34,0,63,0.6) 0%, rgba(4,3,10,0.85) 70%)' }} />
 
           <div className="relative h-full flex flex-col md:flex-row items-center justify-center gap-8 px-[6%] py-[5%]">
             {/* cover art */}
             <div className="w-[46vh] max-w-[46%] aspect-square rounded-[2rem] overflow-hidden shrink-0 border border-white/15 shadow-2xl bg-white/5">
               {cover
-                ? <img src={cover} className="w-full h-full object-cover" alt="" />
+                ? <img src={thumb(cover, THUMB.large)} onError={onThumbError(cover)} decoding="async" className="w-full h-full object-cover" alt="" />
                 : <div className="w-full h-full grid place-items-center" style={{ background: `linear-gradient(135deg, ${PURPLE}, ${MAGENTA})` }}><Radio size={64} className="text-white/70" /></div>}
             </div>
 
