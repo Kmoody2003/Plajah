@@ -8,7 +8,7 @@ import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabu
 import { resolveMediaSource, setAudioProxyPreference, setLocalOnly, isLocalOnly, setSyncMode, isSyncMode, downloadMissingAsset, mediaOriginOf, subscribeMediaOrigin, onAssetDownloaded } from "../../services/fabula/mediaSource";
 import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended, conformNow, autoSyncProjectMedia } from "../../services/fabula/prefetch";
 import { nextShuttleRate } from "../../services/fabula/shuttle";
-import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
+import { useState, useEffect, useRef, useMemo, memo, Fragment, lazy, Suspense } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
   Sparkles, ChevronLeft, Wand2, Users, Globe, Trash2, MonitorPlay, X, ListVideo,
@@ -116,6 +116,9 @@ import { motionTemplateName, motionTemplateDurations } from "../../services/tela
 import { findLowerThird } from "../../services/fabula/lowerThirdRegistry";
 import { openLowerThirdInTela } from "../../services/fabula/lowerThirdToTela";
 import ViewerFpsBadge from "./ViewerFpsBadge";
+// Film Production (Development → Release pipeline) lives as a page inside the editor; lazy so the
+// editor boot doesn't pay for the production suite until the tab is opened.
+const FabulaStudio = lazy(() => import("./FabulaStudio"));
 
 // Read a drag-and-drop into { path, name, file } items, recursively walking dropped FOLDERS via the
 // webkitGetAsEntry directory API (mirroring their structure into `path`). This is a picker-free way to
@@ -633,7 +636,7 @@ function CopyBtn({ text, label = "COPY", small }) {
 }
 
 /* ════════════════════════ APP ════════════════════════ */
-export default function Fabula() {
+export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenWritersDesk } = {}) {
   /* ----- splash ----- */
   const [splash, setSplash] = useState(true);
   const [splashOut, setSplashOut] = useState(false);
@@ -645,7 +648,8 @@ export default function Fabula() {
   }, [splash]);
   const skipSplash = () => { setSplashOut(true); setTimeout(() => setSplash(false), 400); };
 
-  const [page, setPage] = useState("productions"); // productions | slate | edit
+  const [page, setPage] = useState("edit"); // productions | slate | edit — Fabula opens straight into the NLE
+  const [landingTab, setLandingTab] = useState("productions"); // landing page tabs: productions | film
   const [index, setIndex] = useState([]);
   const [prod, setProd] = useState(null);
   const [syncGrants, setSyncGrants] = useState(() => new Set()); // "trackId::editId" keys the buyer holds
@@ -1163,6 +1167,22 @@ export default function Fabula() {
       autoSyncProjectMedia(mp.mediaPool).catch(() => {});   // explicit Sync-to-Local only
     }
   };
+  // In-session handoffs (e.g. Film Production › Take Logger "Assemble in Fabula") stash a project
+  // then fire OPEN_FABULA while the editor is already mounted — the boot consumer above only runs
+  // once, so consume the handoff here and jump into that edit.
+  useEffect(() => {
+    const onOpen = async () => {
+      try {
+        const h = await stGet("studio:handoff");
+        if (!h?.prodId) return;
+        await stDel("studio:handoff");
+        await openProduction(h.prodId);
+        if (h.editId) { setEditSel(h.editId); setSceneSel(null); setPage("edit"); }
+      } catch { /* no handoff */ }
+    };
+    window.addEventListener("OPEN_FABULA", onOpen);
+    return () => window.removeEventListener("OPEN_FABULA", onOpen);
+  }, []);
   const deleteProduction = async (id) => {
     if (!window.confirm("Delete this production and everything inside it?")) return;
     await stDel("studio:prod:" + id);
@@ -6846,6 +6866,24 @@ export default function Fabula() {
         {/* ════════ PRODUCTIONS PAGE ════════ */}
         {page === "productions" && !prod && (
           <div className="scroll pad">
+            {/* Landing tabs — Film Production (Development → Release) sits beside the productions list. */}
+            <div className="ptabs">
+              {[["productions", "PRODUCTIONS", Layers], ["film", "FILM PRODUCTION", Camera]].map(([id, lab, Ic]) => (
+                <button key={id} className={`ptab ${landingTab === id ? "on" : ""}`} onClick={() => setLandingTab(id)}><Ic size={13} /> {lab}</button>
+              ))}
+            </div>
+            {landingTab === "film" ? (
+              <Suspense fallback={<div className="dim center big-empty">Loading Film Production…</div>}>
+                <FabulaStudio
+                  embedded
+                  currentUser={currentUser}
+                  initialStage="post"
+                  onOpenEditor={() => setPage("edit")}
+                  onOpenChoraManager={onOpenChoraManager}
+                  onOpenWritersDesk={onOpenWritersDesk}
+                />
+              </Suspense>
+            ) : (<>
             <h1 className="mega">PRODUCTIONS</h1>
             <p className="lede">The knowledge layer. Everything SLATE breaks down and everything the editor cuts is informed by what lives here — cast, world, themes.</p>
             <div className="glass-card newprod">
@@ -6878,6 +6916,7 @@ export default function Fabula() {
                 <button className="minibtn" onClick={onRecover} title="Rescan this browser's storage for a project that fell off the list">↻ Recover projects from this browser</button>
               </div>
             )}
+            </>)}
           </div>
         )}
 

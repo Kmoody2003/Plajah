@@ -84,6 +84,10 @@ interface Props {
   onOpenChoraManager?: () => void;
   onOpenWritersDesk?: () => void;
   onBack?: () => void;
+  /** Hosted as the Film Production tab inside the Fabula editor. */
+  embedded?: boolean;
+  /** When embedded, Post-Production › NLE hands back to the host editor instead of nesting one. */
+  onOpenEditor?: () => void;
 }
 
 export const FabulaStudio: React.FC<Props> = ({
@@ -93,6 +97,8 @@ export const FabulaStudio: React.FC<Props> = ({
   onOpenChoraManager,
   onOpenWritersDesk,
   onBack,
+  embedded,
+  onOpenEditor,
 }) => {
   return (
     <FilmProductionProvider
@@ -106,6 +112,8 @@ export const FabulaStudio: React.FC<Props> = ({
           onOpenChoraManager={onOpenChoraManager}
           onOpenWritersDesk={onOpenWritersDesk}
           onBack={onBack}
+          embedded={embedded}
+          onOpenEditor={onOpenEditor}
           bar={bar}
           clock={clock}
           emptyState={hasProd ? null : content}
@@ -124,10 +132,14 @@ const FabulaStudioInner: React.FC<Props> = ({
   onOpenChoraManager,
   onOpenWritersDesk,
   onBack,
+  embedded,
+  onOpenEditor,
 }) => {
   const { prod, scenes } = useProd();
   const [currentStage, setCurrentStage] = useState<StudioStage>(initialStage);
-  const [activeSubtab, setActiveSubtab] = useState<string>(FIRST_TAB[initialStage]);
+  // Embedded, the NLE tab only jumps back to the host editor — so Post opens on Set-to-Cut.
+  const [activeSubtab, setActiveSubtab] = useState<string>(
+    onOpenEditor && initialStage === 'post' ? 'edit_bridge' : FIRST_TAB[initialStage]);
   // Calculate shoot progress
   const shootDays = useMemo(() => {
     return scenes.length > 0 ? Math.max(...scenes.map(s => s.shootDay)) : 0;
@@ -174,16 +186,18 @@ const FabulaStudioInner: React.FC<Props> = ({
   // remount it (nonce key) so its boot consumer re-reads the freshly stashed project.
   const [nleNonce, setNleNonce] = useState(0);
   useEffect(() => {
+    if (embedded) return; // the host editor consumes the handoff itself
     const onOpen = () => { setCurrentStage('post'); setActiveSubtab('nle'); setNleNonce((n) => n + 1); };
     window.addEventListener('OPEN_FABULA', onOpen);
     return () => window.removeEventListener('OPEN_FABULA', onOpen);
-  }, []);
+  }, [embedded]);
 
   // Sync active subtab when switching stage
   const switchStage = (s: StudioStage) => {
     setCurrentStage(s);
-    const tabs = subtabsByStage[s];
-    if (tabs && tabs.length > 0) {
+    // Embedded in the editor, the NLE tab is a jump back to it — land on Set-to-Cut instead.
+    const tabs = (subtabsByStage[s] || []).filter(t => !(onOpenEditor && t.id === 'nle'));
+    if (tabs.length > 0) {
       setActiveSubtab(tabs[0].id);
     }
   };
@@ -271,7 +285,7 @@ const FabulaStudioInner: React.FC<Props> = ({
         <div className="fs-tabs" role="tablist" aria-label={`${stageMeta.label} tools`}>
           {(subtabsByStage[currentStage] || []).map(tab => (
             <button key={tab.id} type="button" role="tab" className="fs-tab" style={{ ['--stage' as any]: stageMeta.color }}
-              aria-selected={activeSubtab === tab.id} onClick={() => setActiveSubtab(tab.id)}>
+              aria-selected={activeSubtab === tab.id} onClick={() => (tab.id === 'nle' && onOpenEditor ? onOpenEditor() : setActiveSubtab(tab.id))}>
               {tab.icon}<span>{tab.label}</span>
             </button>
           ))}

@@ -79,7 +79,7 @@ export interface UseRtcSession {
 
 export function useRtcSession(
   config: RtcSessionConfig | null,
-  opts: { autoJoin?: boolean; onData?: (peerId: string, msg: RtcDataMessage) => void; excludePeerIds?: string[]; onRecordingStopped?: (blob: Blob) => void } = { autoJoin: true },
+  opts: { autoJoin?: boolean; onData?: (peerId: string, msg: RtcDataMessage) => void; excludePeerIds?: string[]; allowedPeerIds?: string[]; onRecordingStopped?: (blob: Blob) => void } = { autoJoin: true },
 ): UseRtcSession {
   // Keep the latest onData without re-keying the session.
   const onDataRef = useRef(opts.onData);
@@ -137,6 +137,7 @@ export function useRtcSession(
     });
     sessionRef.current = session;
     session.setExcludedPeers(opts.excludePeerIds || []);
+    session.setAllowedPeers(opts.allowedPeerIds);
     session.join().catch(e => {
       session.leave();
       if (!cancelled) { setLocalStream(null); setScreenStream(null); setRemoteStreams(new Map()); setParticipants([]); setError(e?.message || 'Failed to join'); }
@@ -163,6 +164,7 @@ export function useRtcSession(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   useEffect(() => { sessionRef.current?.setExcludedPeers(opts.excludePeerIds || []); }, [opts.excludePeerIds]);
+  useEffect(() => { sessionRef.current?.setAllowedPeers(opts.allowedPeerIds); }, [opts.allowedPeerIds]);
 
   const toggleAudio = useCallback(() => {
     setAudioEnabled(prev => { const next = !prev; sessionRef.current?.setAudioEnabled(next); return next; });

@@ -14,15 +14,18 @@ function grab(pattern) {
   throw new Error('Unbalanced rules');
 }
 const helpers = ['meetingMember', 'meetingControl', 'hasMeetingControl', 'meetingScope', 'meetingManager', 'validMeeting'];
-const parentUpdate = full.slice(full.indexOf('match /chat_rooms/{roomId}')).match(/allow update: if isAuthenticated\(\) && \([\s\S]*?\n\s*\);/)?.[0];
+const parentBlock = full.slice(full.indexOf('match /chat_rooms/{roomId}'));
+const parentUpdate = parentBlock.match(/allow update: if isAuthenticated\(\) && classroomMeetingRoomUpdate[\s\S]*?\n\s*\);/)?.[0];
+const parentCreate = parentBlock.match(/allow create: if isAuthenticated\(\) && isValidChatRoom[\s\S]*?\n\s*\);/)?.[0];
 if (!parentUpdate) throw new Error('Parent room update rule missing');
 // Unrelated production/schema helpers are stubbed only for the parent ownership boundary tests.
-const source = "rules_version = '2';\nservice cloud.firestore { match /databases/{database}/documents {\n" + grab(/function isAuthenticated\(\)/) + '\nfunction isAdmin() { return false; }\nfunction isValidChatRoom(data) { return true; }\nfunction canManageProductionChatById(id) { return false; }\nmatch /chat_rooms/{roomId} {\n' + parentUpdate + '\n' + helpers.map(name => grab(new RegExp(`function ${name}\\(`))).join('\n') + '\n' + grab(/match \/meetings\/\{controlId\}/) + '\n' + grab(/match \/meeting_rtc\/\{scope\}/) + '\n}}}';
+const classHelpers = ['classroomMeetingReader', 'classroomMeetingActive', 'validClassroomMeetingRoom', 'classroomMeetingRoomUpdate', 'validLiveClassSession'].map(name => grab(new RegExp(`function ${name}\\(`))).join('\n');
+const source = "rules_version = '2';\nservice cloud.firestore { match /databases/{database}/documents {\n" + grab(/function isAuthenticated\(\)/) + '\nfunction isAdmin() { return false; }\nfunction isValidChatRoom(data) { return true; }\nfunction canManageProductionChatById(id) { return false; }\nfunction dmPairAllowed(ids) { return true; }\nfunction isBlockedPair(a, b) { return false; }\n' + classHelpers + '\n' + grab(/match \/liveClassSessions\/\{sessionId\}/) + '\nmatch /chat_rooms/{roomId} {\n' + parentUpdate + '\n' + parentCreate + '\n' + helpers.map(name => grab(new RegExp(`function ${name}\\(`))).join('\n') + '\n' + grab(/match \/meetings\/\{controlId\}/) + '\n' + grab(/match \/meeting_rtc\/\{scope\}/) + '\n}}}';
 const root = '/databases/(default)/documents/chat_rooms/test';
 const parent = { ownerId: 'host', participants: ['host', 'mod', 'guest', 'removed'] };
 const control = { hostId: 'host', moderatorIds: ['mod'], breakoutRooms: { breakout_a: 'Design' }, assignments: { guest: 'breakout_a' }, removedIds: ['removed'], muteRequests: {}, revision: 1 };
 const cases = [];
-function test(name, expect, uid, method, path, data, existing, state = control) { cases.push({ name, expect, uid, method, path: root + path, data, existing, state }); }
+function test(name, expect, uid, method, path, data, existing, state = control) { cases.push({ name, expect, uid, method, path: path.startsWith('/databases/') ? path : root + path, data, existing, state }); }
 const changed = { ...control, revision: 2 };
 test('host creates controls', 'ALLOW', 'host', 'create', '/meetings/control', control, undefined, null);
 test('guest cannot create controls', 'DENY', 'guest', 'create', '/meetings/control', { ...control, hostId: 'guest' }, undefined, null);
@@ -62,6 +65,30 @@ test('member cannot take room ownership to bootstrap meeting authority', 'DENY',
 test('member cannot change legacy moderator roles', 'DENY', 'guest', 'update', '', { ...parent, meetingModeratorIds: ['guest'] }, parent);
 test('host can update legacy moderator roles', 'ALLOW', 'host', 'update', '', { ...parent, meetingModeratorIds: ['mod'] }, parent);
 test('member can still update ordinary room settings', 'ALLOW', 'guest', 'update', '', { ...parent, name: 'Design' }, parent);
+const database = '/databases/(default)/documents';
+const school = { ownerId: 'host', enrolledStudents: ['guest', 'mod'] };
+const classSession = { classroomId: 'school', hostId: 'host', title: 'Biology', scheduledAt: 1, durationMinutes: 60, status: 'LIVE', attendeeIds: [], createdAt: 1 };
+const classRoom = { ownerId: 'host', participants: ['host', 'guest', 'mod'], type: 'GROUP', workspaceType: 'CLASSROOM_MEETING', classroomId: 'school', liveClassSessionId: 'study', nibblesEnabled: false };
+function classTest(...args) { test(...args); cases.at(-1).parent = classRoom; cases.at(-1).session = classSession; }
+classTest('teacher schedules session', 'ALLOW', 'host', 'create', database + '/liveClassSessions/study', { ...classSession, status: 'SCHEDULED' });
+classTest('student cannot schedule session', 'DENY', 'guest', 'create', database + '/liveClassSessions/study', { ...classSession, status: 'SCHEDULED', hostId: 'guest' });
+classTest('enrolled student reads session', 'ALLOW', 'guest', 'get', database + '/liveClassSessions/study', undefined, classSession);
+classTest('outsider cannot read session', 'DENY', 'outsider', 'get', database + '/liveClassSessions/study', undefined, classSession);
+classTest('teacher starts session', 'ALLOW', 'host', 'update', database + '/liveClassSessions/study', classSession, { ...classSession, status: 'SCHEDULED' });
+classTest('student cannot start session', 'DENY', 'guest', 'update', database + '/liveClassSessions/study', classSession, { ...classSession, status: 'SCHEDULED' });
+classTest('host cannot revive ended session', 'DENY', 'host', 'update', database + '/liveClassSessions/study', classSession, { ...classSession, status: 'ENDED' });
+classTest('teacher creates native room with exact roster', 'ALLOW', 'host', 'create', database + '/chat_rooms/class_meeting_study', classRoom);
+classTest('teacher cannot add outsider to classroom meeting', 'DENY', 'host', 'create', database + '/chat_rooms/class_meeting_study', { ...classRoom, participants: [...classRoom.participants, 'outsider'] });
+classTest('student cannot forge classroom room', 'DENY', 'guest', 'create', database + '/chat_rooms/class_meeting_study', { ...classRoom, ownerId: 'guest' });
+classTest('student cannot drop classroom scope', 'DENY', 'guest', 'update', '', { ...classRoom, workspaceType: 'ORGANIZATION' }, classRoom);
+classTest('teacher cannot retarget existing meeting classroom', 'DENY', 'host', 'update', '', { ...classRoom, classroomId: 'different' }, classRoom);
+classTest('enrolled student accesses active meeting controls', 'ALLOW', 'guest', 'get', '/meetings/control', undefined, control);
+classTest('unenrolled copied member cannot access meeting', 'DENY', 'removed', 'get', '/meetings/control', undefined, control);
+cases.at(-1).parent = { ...classRoom, participants: [...classRoom.participants, 'removed'] };
+classTest('student cannot join before host starts', 'DENY', 'guest', 'create', '/meeting_rtc/breakout_a/participants/guest', presence);
+cases.at(-1).session = { ...classSession, status: 'SCHEDULED' };
+classTest('student cannot rejoin ended meeting', 'DENY', 'guest', 'create', '/meeting_rtc/breakout_a/participants/guest', presence);
+cases.at(-1).session = { ...classSession, status: 'ENDED' };
 const tokens = JSON.parse(fs.readFileSync(os.homedir() + '/.config/configstore/firebase-tools.json', 'utf8')).tokens;
 if (!tokens?.access_token || tokens.expires_at < Date.now() + 60000) { console.error('Firebase CLI login needs refreshing before rules verification.'); process.exit(2); }
 const testCases = cases.map(c => {
@@ -69,7 +96,10 @@ const testCases = cases.map(c => {
   if (c.uid) request.auth = { uid: c.uid, token: {} };
   if (c.data) request.resource = { data: c.data };
   const result = { expectation: c.expect, request, functionMocks: [
-    { function: 'get', args: [{ exactValue: root }], result: { value: { data: parent } } },
+    { function: 'get', args: [{ exactValue: root }], result: { value: { data: c.parent || parent } } },
+    { function: 'get', args: [{ exactValue: database + '/classrooms/school' }], result: { value: { data: school } } },
+    { function: 'get', args: [{ exactValue: database + '/liveClassSessions/study' }], result: { value: { data: c.session || classSession } } },
+    { function: 'getAfter', args: [{ exactValue: database + '/liveClassSessions/study' }], result: { value: { data: c.session || classSession } } },
     { function: 'exists', args: [{ exactValue: root + '/meetings/control' }], result: { value: !!c.state } },
     { function: 'get', args: [{ exactValue: root + '/meetings/control' }], result: { value: { data: c.state || {} } } },
   ] };

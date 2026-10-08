@@ -489,7 +489,6 @@ const CareerImportStudio = retryLazy(() => import('./components/CareerImportStud
 const StudioView = retryLazy(() => import('./components/ManagerSuite/StudioView'));
 const MarketingKit = retryLazy(() => import('./components/MarketingKit'));
 const Fabula = retryLazy(() => import('./components/Fabula/Fabula'));
-const FabulaStudio = retryLazy(() => import('./components/Fabula/FabulaStudio'));
 const ArtistBoards = retryLazy(() => import('./components/ArtistBoards'));
 const EventProductionStudio = retryLazy(() => import('./components/EventProductionStudio'));
 const TicketDesigner = retryLazy(() => import('./components/TicketDesigner'));
@@ -6487,11 +6486,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'FABULA' && user && !tvBlocked && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <FabulaStudio
+                {/* Fabula opens on the editor; Film Production is a tab inside it. */}
+                <Fabula
                   currentUser={userProfile}
                   onOpenChoraManager={() => setView('ARTIST_MANAGER')}
                   onOpenWritersDesk={() => setView('BOOKS')}
-                  onBack={() => setView('CREATOR')}
                 />
               </Suspense>
             )}

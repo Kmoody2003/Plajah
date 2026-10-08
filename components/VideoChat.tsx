@@ -106,10 +106,11 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     displayName: auth.currentUser?.displayName || 'You',
   } : null, {
     excludePeerIds: excludedMeetingPeers,
+    allowedPeerIds: room.participants,
     onRecordingStopped: blob => { saveSessionRecording({ blob, title: `${room.name || 'Call'} — recording` }); },
     // Data-channel reactions — instant, peer-to-peer (no Firestore round-trip).
     onData: (peer, msg) => {
-      if (!meetingPeerAllowed(meeting, selfId || '', peer)) return;
+      if (!room.participants.includes(peer) || !meetingPeerAllowed(meeting, selfId || '', peer)) return;
       if (msg.type === 'reaction' && msg.payload?.emoji) addFloat(msg.payload.emoji);
       if (msg.type === 'meeting:hand') setRaisedHands(prev => { const next = new Set(prev); if (msg.payload?.raised === true) next.add(peer); else next.delete(peer); return next; });
       if (msg.type === 'production:consent') setConsentingPeers(prev => { const next = new Set(prev); if (msg.payload?.allowed === true) next.add(peer); else next.delete(peer); return next; });
@@ -143,9 +144,9 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     const moderators = new Set([room.ownerId, meeting?.hostId, ...(room.meetingModeratorIds || []), ...(meeting?.moderatorIds || [])]);
     producer.current?.update([
       ...(rtc.localStream && selfId ? [{ id: selfId, name: 'You', stream: rtc.localStream, moderator: moderators.has(selfId), allowed: productionConsent }] : []),
-      ...[...rtc.remoteStreams].filter(([id]) => meetingPeerAllowed(meeting, selfId || '', id)).map(([id, stream]) => ({ id, name: rtc.participants.find(p => p.id === id)?.name || 'Participant', stream, moderator: moderators.has(id), allowed: consentingPeers.has(id) })),
+      ...[...rtc.remoteStreams].filter(([id]) => room.participants.includes(id) && meetingPeerAllowed(meeting, selfId || '', id)).map(([id, stream]) => ({ id, name: rtc.participants.find(p => p.id === id)?.name || 'Participant', stream, moderator: moderators.has(id), allowed: consentingPeers.has(id) })),
     ]);
-  }, [productionEnabled, isProducer, room.isIntimate, rtc.localStream, rtc.remoteStreams, rtc.participants, consentingPeers, productionConsent, room.ownerId, room.meetingModeratorIds, selfId, meeting]);
+  }, [productionEnabled, isProducer, room.isIntimate, rtc.localStream, rtc.remoteStreams, rtc.participants, consentingPeers, productionConsent, room.ownerId, room.meetingModeratorIds, room.participants, selfId, meeting]);
 
   const react = (emoji: string) => { addFloat(emoji); rtc.sendData('reaction', { emoji }); };
 
@@ -187,7 +188,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     finally { setSendingChat(false); }
   };
 
-  const remotes = [...rtc.remoteStreams.entries()].filter(([id]) => meetingPeerAllowed(meeting, selfId || '', id));
+  const remotes = [...rtc.remoteStreams.entries()].filter(([id]) => room.participants.includes(id) && meetingPeerAllowed(meeting, selfId || '', id));
   const hasScreen = !!rtc.screenStream;
   const total = remotes.length + 1;
   const tiles = total + (hasScreen ? 1 : 0);

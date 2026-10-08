@@ -59,3 +59,12 @@ test('moderation disconnects existing peers and stale presence cannot reconnect 
   h.session.setExcludedPeers([]); onParticipants(snapshot()); assert.equal(h.connections.length, 2);
   await h.session.leave(); assert.ok(h.connections[1].closed); assert.equal(h.stopped(), 1);
 });
+test('roster removal disconnects a peer and rejects stale presence without a moderator removal', async () => {
+  const h = harness(); h.session.setAllowedPeers(['host', 'guest']); await h.session.join();
+  const onParticipants = h.subscriptions.get('chat_rooms/test/meeting_rtc/main/participants')!;
+  const snapshot = { docs: [{ id: 'guest', data: () => ({ role: 'participant' }) }, { id: 'outsider', data: () => ({ role: 'participant' }) }] };
+  onParticipants(snapshot); assert.equal(h.connections.length, 1);
+  h.session.setAllowedPeers(['host']); assert.ok(h.connections[0].closed);
+  onParticipants(snapshot); assert.equal(h.connections.length, 1);
+  await h.session.leave();
+});

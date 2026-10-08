@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "liveClassSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classroomId", "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "scheduled_posts",
       "queryScope": "COLLECTION",
       "fields": [

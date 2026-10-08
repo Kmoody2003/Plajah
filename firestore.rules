@@ -2024,9 +2024,39 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    function classroomMeetingReader(data, uid) {
+      let classroom = get(/databases/$(database)/documents/classrooms/$(data.classroomId)).data;
+      return classroom.ownerId == uid || uid in classroom.enrolledStudents;
+    }
+    function classroomMeetingActive(data) {
+      return data.get('workspaceType', '') != 'CLASSROOM_MEETING' || (
+        classroomMeetingReader(data, request.auth.uid) &&
+        get(/databases/$(database)/documents/liveClassSessions/$(data.liveClassSessionId)).data.status == 'LIVE'
+      );
+    }
+    function validClassroomMeetingRoom(data) {
+      let classroom = get(/databases/$(database)/documents/classrooms/$(data.classroomId)).data;
+      let session = getAfter(/databases/$(database)/documents/liveClassSessions/$(data.liveClassSessionId)).data;
+      return data.ownerId == classroom.ownerId && request.auth.uid == classroom.ownerId &&
+        session.classroomId == data.classroomId && session.hostId == classroom.ownerId &&
+        data.type == 'GROUP' && data.nibblesEnabled == false &&
+        data.participants.hasAll(classroom.enrolledStudents) && classroom.ownerId in data.participants &&
+        data.participants.toSet().difference(classroom.enrolledStudents.toSet()).hasOnly([classroom.ownerId]);
+    }
+    function classroomMeetingRoomUpdate(before, after) {
+      return (before.get('workspaceType', '') != 'CLASSROOM_MEETING' && after.get('workspaceType', '') != 'CLASSROOM_MEETING') ||
+        (before.get('workspaceType', '') == 'CLASSROOM_MEETING' && after.get('workspaceType', '') == 'CLASSROOM_MEETING' &&
+         before.classroomId == after.classroomId && before.liveClassSessionId == after.liveClassSessionId && validClassroomMeetingRoom(after));
+    }
     match /chat_rooms/{roomId} {
       function meetingMember() {
-        return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants;
+        return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants &&
+          classroomMeetingActive(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data);
+      }
+      function classroomThreadAccess() {
+        return !exists(/databases/$(database)/documents/chat_rooms/$(roomId)) ||
+          get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('workspaceType', '') != 'CLASSROOM_MEETING' ||
+          classroomMeetingReader(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data, request.auth.uid);
       }
       function meetingControl() {
         return get(/databases/$(database)/documents/chat_rooms/$(roomId)/meetings/control).data;
@@ -2107,11 +2137,13 @@ service cloud.firestore {
       );
       // Education DM policy: a student-involving PRIVATE 1:1 must pass dmPairAllowed.
       allow create: if isAuthenticated() && isValidChatRoom(request.resource.data) && (
+        (request.resource.data.get('workspaceType', '') == 'CLASSROOM_MEETING' &&
+         roomId == 'class_meeting_' + request.resource.data.liveClassSessionId && validClassroomMeetingRoom(request.resource.data)) ||
         (request.resource.data.get('workspaceType', '') == 'PRODUCTION' &&
          request.resource.data.get('productionId', '') is string &&
          request.resource.data.get('nibblesEnabled', true) == false &&
          canManageProductionChatById(request.resource.data.productionId)) ||
-        (request.resource.data.get('workspaceType', '') != 'PRODUCTION' && (
+        (request.resource.data.get('workspaceType', '') != 'PRODUCTION' && request.resource.data.get('workspaceType', '') != 'CLASSROOM_MEETING' && (
           request.resource.data.type != 'PRIVATE' ||
           request.resource.data.participants.size() != 2 ||
           (dmPairAllowed(request.resource.data.participants)
@@ -2119,7 +2151,7 @@ service cloud.firestore {
            && !isBlockedPair(request.resource.data.participants[0], request.resource.data.participants[1]))
         ))
       );
-      allow update: if isAuthenticated() && (
+      allow update: if isAuthenticated() && classroomMeetingRoomUpdate(resource.data, request.resource.data) && (
         (resource.data.get('workspaceType', '') == 'PRODUCTION' &&
          request.resource.data.get('workspaceType', '') == 'PRODUCTION' &&
          request.resource.data.get('productionId', '') == resource.data.get('productionId', '') &&
@@ -2137,7 +2169,7 @@ service cloud.firestore {
         // Hardened read logic for messages:
         // 1. If the room is identified as a live chat via naming convention, allow reading (lax fallback)
         // 2. OR if the parent room doc exists AND user is participant or type is PUBLIC_LIVE
-        allow read: if isAuthenticated() && (
+        allow read: if isAuthenticated() && classroomThreadAccess() && (
           roomId.matches("^live_chat_.*") || 
           (exists(/databases/$(database)/documents/chat_rooms/$(roomId)) && (
             request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants ||
@@ -2145,7 +2177,7 @@ service cloud.firestore {
           )) ||
           isAdmin()
         );
-        allow create: if isAuthenticated() && isValidChatMessage(request.resource.data) &&
+        allow create: if isAuthenticated() && classroomThreadAccess() && isValidChatMessage(request.resource.data) &&
           request.resource.data.senderId == request.auth.uid && !dmRoomBlocked(roomId) && (
             get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('workspaceType', '') != 'PRODUCTION' ||
             canPostProductionChat(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data)
@@ -2231,6 +2263,27 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
+    function validLiveClassSession(data) {
+      return data.keys().hasOnly(['classroomId', 'hostId', 'title', 'scheduledAt', 'durationMinutes', 'meetingUrl', 'status', 'recordingUrl', 'attendeeIds', 'createdAt']) &&
+        data.classroomId is string && data.hostId is string && data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+        data.scheduledAt is number && data.durationMinutes is number && data.durationMinutes > 0 && data.durationMinutes <= 1440 &&
+        data.status in ['SCHEDULED', 'LIVE', 'ENDED'] && data.attendeeIds is list && data.attendeeIds.size() <= 1000 && data.createdAt is number &&
+        (!('meetingUrl' in data) || (data.meetingUrl is string && data.meetingUrl.size() <= 2000 && data.meetingUrl.matches('^https://.*')));
+    }
+    match /liveClassSessions/{sessionId} {
+      allow read: if isAuthenticated() && classroomMeetingReader(resource.data, request.auth.uid);
+      allow create: if isAuthenticated() && validLiveClassSession(request.resource.data) &&
+        request.resource.data.hostId == request.auth.uid &&
+        get(/databases/$(database)/documents/classrooms/$(request.resource.data.classroomId)).data.ownerId == request.auth.uid &&
+        request.resource.data.status == 'SCHEDULED';
+      allow update: if isAuthenticated() && validLiveClassSession(request.resource.data) &&
+        resource.data.hostId == request.auth.uid &&
+        get(/databases/$(database)/documents/classrooms/$(resource.data.classroomId)).data.ownerId == request.auth.uid &&
+        request.resource.data.classroomId == resource.data.classroomId && request.resource.data.hostId == resource.data.hostId &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        (resource.data.status != 'ENDED' || request.resource.data.status == 'ENDED');
+      allow delete: if isAuthenticated() && resource.data.hostId == request.auth.uid;
+    }
     match /classrooms/{classId} {
       allow read: if true;
       allow create: if isAuthenticated() && isValidClassroom(request.resource.data) && request.resource.data.ownerId == request.auth.uid;

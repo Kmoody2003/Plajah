@@ -4229,7 +4229,9 @@ export interface ChatRoom {
   /** Marks a normal group room as a governed workspace channel: a Film/Business
    *  production channel, or a native org workspace channel (business pages,
    *  churches, labels — the Organization backbone). */
-  workspaceType?: 'PRODUCTION' | 'ORGANIZATION';
+  workspaceType?: 'PRODUCTION' | 'ORGANIZATION' | 'CLASSROOM_MEETING';
+  classroomId?: string;
+  liveClassSessionId?: string;
   productionId?: string;
   productionTitle?: string;
   productionChannelKey?: string;

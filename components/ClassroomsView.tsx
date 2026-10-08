@@ -34,7 +34,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Classroom, Lesson, Assignment, Submission, ProgressReport, ClassroomModule, LiveClassSession, StudentGrade } from '../types';
 import { fetchClassrooms, enrollInClassroom, createClassroom, auth, fetchClassroomModules, createClassroomModule, deleteClassroomModule, submitAssignment, gradeSubmission } from '../services/backendService';
-import { collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { scheduleClassroomMeeting, joinClassroomMeeting, endClassroomMeeting } from '../services/classroomMeetings';
+import { useCall } from '../contexts/CallContext';
 import { db } from '../services/firebase';
 import SolarSystemModule from './SolarSystemModule';
 import PlantBiologyModule from './PlantBiologyModule';
@@ -1295,6 +1297,9 @@ function gradeColor(pct: number) {
 // ── CLASSROOM DETAIL ──────────────────────────────────────────────────────────
 
 const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user: any }> = ({ classroom, onBack, user }) => {
+  const { joinMeeting, inCall } = useCall();
+  const [meetingError, setMeetingError] = useState('');
+  const [joiningMeeting, setJoiningMeeting] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'SYLLABUS' | 'LESSONS' | 'ASSIGNMENTS' | 'LIVE' | 'GRADES'>('SYLLABUS');
   const [isEnrolled, setIsEnrolled] = useState(classroom.enrolledStudents.includes(user?.uid || ''));
   const [isOwner] = useState(classroom.ownerId === user?.uid);
@@ -1362,6 +1367,18 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
       setSessions(snap.docs.map(d => ({ id: d.id, ...d.data() } as LiveClassSession)));
     } catch {}
   };
+  useEffect(() => {
+    if (activeTab !== 'LIVE' || (!isEnrolled && !isOwner)) return;
+    return onSnapshot(query(collection(db, 'liveClassSessions'), where('classroomId', '==', classroom.id), orderBy('scheduledAt', 'desc')), snapshot => {
+      setSessions(snapshot.docs.map(entry => ({ id: entry.id, ...entry.data() } as LiveClassSession)));
+    }, error => setMeetingError(error.message));
+  }, [activeTab, classroom.id, isEnrolled, isOwner]);
+  const enterMeeting = async (sessionId: string) => {
+    setJoiningMeeting(sessionId); setMeetingError('');
+    try { joinMeeting(await joinClassroomMeeting(sessionId)); }
+    catch (error) { setMeetingError((error as Error).message); }
+    finally { setJoiningMeeting(null); }
+  };
 
   const handleSubmitAssignment = async (assignment: Assignment) => {
     if (!submitText.trim() && !submitUrl.trim()) return setSubmitError('Add text or a link to your submission');
@@ -1412,21 +1429,16 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
     if (!sessionForm.title || !sessionForm.scheduledAt) return;
     setSavingSession(true);
     try {
-      await addDoc(collection(db, 'liveClassSessions'), {
-        classroomId: classroom.id,
-        hostId: user?.uid,
+      await scheduleClassroomMeeting(classroom.id, {
         title: sessionForm.title,
         scheduledAt: new Date(sessionForm.scheduledAt).getTime(),
         durationMinutes: sessionForm.durationMinutes,
         meetingUrl: sessionForm.meetingUrl || undefined,
-        status: 'SCHEDULED',
-        attendeeIds: [],
-        createdAt: Date.now(),
       });
       setShowScheduleModal(false);
       setSessionForm({ title: '', scheduledAt: '', durationMinutes: 60, meetingUrl: '' });
       await loadSessions();
-    } catch {}
+    } catch (error) { setMeetingError((error as Error).message); }
     setSavingSession(false);
   };
 
@@ -1434,8 +1446,8 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
   const totalMaxPoints   = grades.reduce((s, g) => s + g.maxPoints, 0);
   const overallPct = totalMaxPoints > 0 ? Math.round((totalGradePoints / totalMaxPoints) * 100) : null;
 
-  const upcomingSessions = sessions.filter(s => s.status !== 'ENDED' && s.scheduledAt > Date.now()).sort((a, b) => a.scheduledAt - b.scheduledAt);
-  const pastSessions = sessions.filter(s => s.status === 'ENDED' || s.scheduledAt <= Date.now());
+  const upcomingSessions = sessions.filter(s => s.status === 'LIVE' || (s.status === 'SCHEDULED' && s.scheduledAt + s.durationMinutes * 60_000 > Date.now())).sort((a, b) => a.scheduledAt - b.scheduledAt);
+  const pastSessions = sessions.filter(s => !upcomingSessions.some(upcoming => upcoming.id === s.id) && (s.status === 'ENDED' || s.scheduledAt <= Date.now()));
 
   return (
     <div className="min-h-screen bg-[var(--bg-color)] text-[var(--text-primary)]">
@@ -1756,7 +1768,7 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
                               </select>
                             </div>
                             <input value={sessionForm.meetingUrl} onChange={e => setSessionForm(p => ({ ...p, meetingUrl: e.target.value }))}
-                              placeholder="Meeting URL (Zoom, Google Meet...)" className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none" />
+                              placeholder="Optional external link · blank uses Plajah" className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none" />
                           </div>
                           <div className="flex gap-3">
                             <button onClick={() => setShowScheduleModal(false)}
@@ -1766,12 +1778,14 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
                               {savingSession ? 'Saving…' : 'Schedule'}
                             </button>
                           </div>
+                          {meetingError && <p role="alert" className="text-sm text-amber-300">{meetingError}</p>}
                         </motion.div>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
                   {/* Upcoming sessions */}
+                  {meetingError && <p role="alert" className="text-sm text-amber-300">{meetingError}</p>}
                   {upcomingSessions.length > 0 && (
                     <div className="space-y-3">
                       <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Upcoming</p>
@@ -1800,6 +1814,10 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
                                   <Video size={12} /> {isLive ? 'Join Live' : 'Join'}
                                 </a>
                               )}
+                              {!session.meetingUrl && <div className="flex flex-wrap gap-2">
+                                <button disabled={inCall || !!joiningMeeting || (!isOwner && !isLive)} onClick={() => void enterMeeting(session.id)} className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-small-orange text-black text-xs font-bold disabled:opacity-40"><Video size={12} />{joiningMeeting === session.id ? 'Joining…' : isOwner && !isLive ? 'Start in Plajah' : isLive ? 'Join in Plajah' : 'Waiting for teacher'}</button>
+                                {isOwner && isLive && <button onClick={() => { void endClassroomMeeting(session.id).catch(error => setMeetingError(error.message)); }} className="px-4 py-2 rounded-2xl bg-red-500/15 text-red-300 text-xs font-bold">End for everyone</button>}
+                              </div>}
                             </div>
                           </div>
                         );

@@ -224,6 +224,11 @@ export class RtcSession {
   private participantsUnsub: (() => void) | null = null;
   private closed = false;
   private excludedPeers = new Set<string>();
+  private allowedPeers: Set<string> | null = null;
+  setAllowedPeers(ids?: string[]) {
+    this.allowedPeers = ids ? new Set(ids) : null;
+    for (const id of this.peers.keys()) if (this.allowedPeers && !this.allowedPeers.has(id)) this.removePeer(id);
+  }
   setExcludedPeers(ids: string[]) {
     this.excludedPeers = new Set(ids);
     for (const id of this.excludedPeers) if (this.peers.has(id)) this.removePeer(id);
@@ -284,7 +289,7 @@ export class RtcSession {
     // React to who is present.
     this.participantsUnsub = onSnapshot(this.participantsCol(), snap => {
       if (this.closed) return;
-      const list: RtcParticipant[] = snap.docs.filter(d => !this.excludedPeers.has(d.id)).map(d => ({ id: d.id, ...(d.data() as any) }));
+      const list: RtcParticipant[] = snap.docs.filter(d => !this.excludedPeers.has(d.id) && (!this.allowedPeers || this.allowedPeers.has(d.id))).map(d => ({ id: d.id, ...(d.data() as any) }));
       this.events.onParticipants?.(list.filter(p => p.id !== this.selfId));
 
       const others = list.filter(p => p.id !== this.selfId);
