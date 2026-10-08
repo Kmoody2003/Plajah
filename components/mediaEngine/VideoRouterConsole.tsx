@@ -11,6 +11,7 @@ import { unavailableReason } from '../../services/mediaEngine/capabilities';
 import { SourceKind, KIND_LABEL, NATIVE_ONLY, TransitionType, MasterClock, PROGRAM_SOURCE_ID } from '../../services/mediaEngine/types';
 import { NativeSourceInfo, getNdiStatus } from '../../services/mediaEngine/bridge';
 import { SwitcherRouterReceiver } from './SwitcherRouterReceiver';
+import { BlackmagicPanel } from './BlackmagicPanel';
 
 interface Props {
   onBack: () => void;
@@ -700,6 +701,8 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack, engine: externalEngine, c
                   </div>
                 )}
               </div>
+
+              <BlackmagicPanel engine={engine} />
 
               {/* Other Native kinds — shown disabled with an honest reason if not supported */}
               {NATIVE_ONLY.filter(k => k !== 'ndi' && !caps.sources[k]).length > 0 && (

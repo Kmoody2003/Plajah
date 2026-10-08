@@ -279,6 +279,16 @@ export class MediaEngine {
     return this.connectAndAdd(new WhepSource(uid('whep'), label || 'Remote Guest', endpoint));
   }
 
+  /** A WHEP feed with a caller-chosen stable id (e.g. a camera that pushes to the Blackmagic bridge's ingest).
+   *  Same id again is a no-op, so a camera dropping and re-pushing never duplicates its input. */
+  async addWhepWithId(id: string, endpoint: string, label: string, kind: SourceKind = 'webrtc'): Promise<VideoSource> {
+    const existing = this.sourceById(id);
+    if (existing) return existing;
+    const src = new WhepSource(id, label, endpoint);
+    src.kind = kind;
+    return this.connectAndAdd(src);
+  }
+
   /** Add (or refresh) a stream that arrived from elsewhere — e.g. a Sports Director phone over
    *  rtcCore. Same id again = the same input reconnecting: its stream is swapped in place, so
    *  routes, tally and program survive the reconnect. Grows the switcher if it's full. */
