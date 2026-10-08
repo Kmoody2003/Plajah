@@ -18,13 +18,16 @@ import { createPortal } from 'react-dom';
 import {
   Search, Plus, Music, ChevronLeft, Sparkles, Volume2, Play, ListPlus, ListMusic,
   Shuffle, StickyNote, LayoutGrid, List as ListIcon, FolderOpen, ArrowUp, ArrowDown,
-  Trash2, MoreHorizontal, Check, CornerDownRight, Cloud, HardDrive, Layers, Disc3,
+  Trash2, MoreHorizontal, Check, CornerDownRight, Cloud, HardDrive, Layers, Disc3, Loader2, Radio,
 } from 'lucide-react';
 import type { Album } from '../../types';
 import type { AmboDJTrack } from './AmboDJTrackPlayer';
 import type { AmboAudioPlaylist } from './AmboNewAudioPlaylistModal';
 import AmboCueEditor, { CueRowStyle } from './AmboCueEditor';
 import { useAudioBus, useCuesVersion } from './AmboAudioBus';
+import { searchAudius } from '../../services/audiusService';
+import { fetchAudiusLibrary } from '../../services/audiusLibrary';
+import { getAudiusSession } from '../../services/audiusAuth';
 import { bus, registerLocalFiles, isTrackPlayable, type BusTrack } from '../../services/ambo/audioBus';
 import {
   getCue, setCue, cueHex, groupIdsByCue, sortIdsByCue, LIBRARY_SCOPE,
@@ -34,17 +37,27 @@ const line = 'rgba(255,255,255,0.09)';
 const LOCAL_KEY = 'ambo_local_audio_v1';
 const VIEW_KEY = 'ambo_chora_view_v1';
 
-const CATALOG_CATS = [
+// The left rail is organised by WHERE music comes from, so each source is its own area.
+const CHORA_CATS = [
   { id: 'all', label: 'All Chora Music' },
   { id: 'Artists & Albums', label: 'Artists & Albums' },
-  { id: 'Personal Music Locker', label: 'Personal Locker' },
-  { id: 'Local Files', label: 'Local Files' },
-  { id: 'Audio Playlists', label: 'Audio Playlists' },
   { id: 'Worship Anthems', label: 'Worship Anthems' },
   { id: 'Anthems & Hymns', label: 'Anthems & Hymns' },
   { id: 'Ambient Pads (12 Keys)', label: 'Ambient Pads (12 Keys)' },
   { id: 'Multitrack Stems', label: 'Multitrack Stems' },
 ];
+const MINE_CATS = [
+  { id: 'Personal Music Locker', label: 'My Music Locker' },
+  { id: 'Local Files', label: 'Local Files' },
+];
+const AUDIUS_CATS = [
+  { id: 'Audius', label: 'Trending' },
+  { id: 'Audius Favorites', label: 'My Favorites' },
+  { id: 'Audius Reposts', label: 'My Reposts' },
+];
+const isAudiusArea = (id: string) => id.startsWith('Audius');
+type SearchScope = 'here' | 'everywhere';
+const SCOPE_KEY = 'ambo_chora_search_scope_v1';
 
 const toBus = (t: AmboDJTrack, cueScope?: string): BusTrack => ({
   id: t.id || `t_${t.title}`,
@@ -139,13 +152,57 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
     return next;
   });
 
+  // ── Audius: live search results + the connected user's own library ──
+  const q = p.debouncedSearch.trim();
+  const [scope0, setScope0] = useState<SearchScope>(() => {
+    try { return (localStorage.getItem(SCOPE_KEY) as SearchScope) || 'everywhere'; } catch { return 'everywhere'; }
+  });
+  useEffect(() => { try { localStorage.setItem(SCOPE_KEY, scope0); } catch { /* */ } }, [scope0]);
+  const searchAll = scope0 === 'everywhere' && q.length >= 1 && !p.selectedPlaylistId;
+
+  const toDJ = (t: any): AmboDJTrack => ({
+    id: t.id, title: t.title, artist: t.artist, url: t.url, duration: t.duration,
+    coverImage: t.thumbnailUrl, category: 'Audius', source: 'audius',
+  } as AmboDJTrack);
+
+  const [audiusHits, setAudiusHits] = useState<AmboDJTrack[]>([]);
+  const [audiusSearching, setAudiusSearching] = useState(false);
+  const wantAudiusSearch = q.length >= 2 && (searchAll || isAudiusArea(p.selectedSubcat));
+  useEffect(() => {
+    if (!wantAudiusSearch) { setAudiusHits([]); setAudiusSearching(false); return; }
+    let live = true;
+    setAudiusSearching(true);
+    searchAudius(q, 25).then(r => { if (live) setAudiusHits(r.map(toDJ)); })
+      .catch(() => { if (live) setAudiusHits([]); })
+      .finally(() => { if (live) setAudiusSearching(false); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, wantAudiusSearch]);
+
+  const [audiusFavs, setAudiusFavs] = useState<AmboDJTrack[]>([]);
+  const [audiusReposts, setAudiusReposts] = useState<AmboDJTrack[]>([]);
+  const [audiusLoading, setAudiusLoading] = useState(false);
+  const audiusConnected = !!getAudiusSession()?.userId;
+  useEffect(() => {
+    if (!audiusConnected || !(isAudiusArea(p.selectedSubcat) || searchAll)) return;
+    let live = true;
+    setAudiusLoading(true);
+    fetchAudiusLibrary().then(lib => {
+      if (!live) return;
+      setAudiusFavs(lib.favorites.map(toDJ));
+      setAudiusReposts(lib.reposts.map(toDJ));
+    }).catch(() => {}).finally(() => { if (live) setAudiusLoading(false); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.selectedSubcat, audiusConnected, searchAll]);
+
   const catalog = useMemo(() => {
     const m = new Map<string, AmboDJTrack>();
-    for (const t of [...p.choraPublicTracks, ...p.personalLockerTracks, ...p.audiusTrending, ...localTracks]) {
+    for (const t of [...p.choraPublicTracks, ...p.personalLockerTracks, ...p.audiusTrending, ...audiusFavs, ...audiusReposts, ...audiusHits, ...localTracks]) {
       if (t.id && !m.has(t.id)) m.set(t.id, t);
     }
     return m;
-  }, [p.choraPublicTracks, p.personalLockerTracks, p.audiusTrending, localTracks]);
+  }, [p.choraPublicTracks, p.personalLockerTracks, p.audiusTrending, audiusFavs, audiusReposts, audiusHits, localTracks]);
 
   const activePlaylist = p.selectedSubcat === 'Audio Playlists' && p.selectedPlaylistId
     ? p.audioPlaylists.find(x => x.id === p.selectedPlaylistId) ?? null
@@ -178,9 +235,30 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
     bus.playQueue(tracks, start, { shuffle: opts.shuffle ?? false });
   };
 
+  const matches = (t: AmboDJTrack) => {
+    const ql = q.toLowerCase();
+    if (!ql) return true;
+    const cue = getCue(LIBRARY_SCOPE, t.id);
+    return t.title?.toLowerCase().includes(ql) || t.artist?.toLowerCase().includes(ql) || t.key?.toLowerCase().includes(ql)
+      || String(t.bpm || '').includes(ql) || cue?.label?.toLowerCase().includes(ql) || cue?.note?.toLowerCase().includes(ql);
+  };
+  /** "Search everywhere": one result list per source, so it's always clear where a song lives. */
+  const sections = useMemo(() => {
+    if (!searchAll) return null;
+    const uniq = (arr: AmboDJTrack[]) => { const seen = new Set<string>(); return arr.filter(t => { const k = t.id || t.title; if (seen.has(k)) return false; seen.add(k); return true; }); };
+    return [
+      { key: 'chora', title: 'Chora', icon: <Cloud size={11} />, tracks: uniq(p.choraPublicTracks.filter(matches)) },
+      { key: 'locker', title: 'My Music Locker', icon: <Music size={11} />, tracks: uniq(p.personalLockerTracks.filter(matches)) },
+      { key: 'local', title: 'Local Files', icon: <HardDrive size={11} />, tracks: uniq(localTracks.filter(matches)) },
+      { key: 'audius', title: 'Audius', icon: <Radio size={11} />, tracks: uniq([...audiusFavs.filter(matches), ...audiusReposts.filter(matches), ...audiusHits, ...p.audiusTrending.filter(matches)]) },
+    ].filter(sct => sct.tracks.length > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchAll, q, p.choraPublicTracks, p.personalLockerTracks, p.audiusTrending, audiusFavs, audiusReposts, audiusHits, localTracks]);
+
   // ── which songs to show ──
   const shown: AmboDJTrack[] = useMemo(() => {
     if (activePlaylist) return resolve(activePlaylist);
+    if (sections) return sections.flatMap(sct => sct.tracks);
     let base: AmboDJTrack[];
     if (p.expandedAlbumId) {
       const album = p.choraPublicAlbums.find(a => a.id === p.expandedAlbumId);
@@ -188,21 +266,29 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
       base = [...p.choraPublicTracks].filter(t => ids.has(t.id || ''));
     } else if (p.selectedSubcat === 'Local Files') {
       base = localTracks;
+    } else if (p.selectedSubcat === 'Audius') {
+      base = [...audiusHits, ...p.audiusTrending.filter(t => !audiusHits.some(h => h.id === t.id))];
+    } else if (p.selectedSubcat === 'Audius Favorites') {
+      base = audiusFavs;
+    } else if (p.selectedSubcat === 'Audius Reposts') {
+      base = audiusReposts;
+    } else if (p.selectedSubcat === 'Personal Music Locker') {
+      base = p.personalLockerTracks;
     } else {
       base = [...p.choraPublicTracks, ...p.personalLockerTracks, ...p.audiusTrending];
       if (p.selectedSubcat !== 'all' && p.selectedSubcat !== 'All Chora Music') base = base.filter(t => t.category === p.selectedSubcat);
     }
-    const q = p.debouncedSearch.trim().toLowerCase();
-    if (q) {
+    const ql = p.debouncedSearch.trim().toLowerCase();
+    if (ql && p.selectedSubcat !== 'Audius') {
       base = base.filter(t => {
         const cue = getCue(LIBRARY_SCOPE, t.id);
-        return t.title?.toLowerCase().includes(q) || t.artist?.toLowerCase().includes(q) || t.key?.toLowerCase().includes(q)
-          || String(t.bpm || '').includes(q) || cue?.label?.toLowerCase().includes(q) || cue?.note?.toLowerCase().includes(q);
+        return t.title?.toLowerCase().includes(ql) || t.artist?.toLowerCase().includes(ql) || t.key?.toLowerCase().includes(ql)
+          || String(t.bpm || '').includes(ql) || cue?.label?.toLowerCase().includes(ql) || cue?.note?.toLowerCase().includes(ql);
       });
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePlaylist, p.expandedAlbumId, p.selectedSubcat, p.debouncedSearch, p.choraPublicTracks, p.personalLockerTracks, p.audiusTrending, p.choraPublicAlbums, localTracks, catalog]);
+  }, [activePlaylist, sections, audiusHits, audiusFavs, audiusReposts, p.expandedAlbumId, p.selectedSubcat, p.debouncedSearch, p.choraPublicTracks, p.personalLockerTracks, p.audiusTrending, p.choraPublicAlbums, localTracks, catalog]);
 
   const scope = activePlaylist?.id ?? LIBRARY_SCOPE;
   const showPlaylistGallery = p.selectedSubcat === 'Audio Playlists' && !p.selectedPlaylistId;
@@ -365,18 +451,27 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
     <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* ── Left: catalogue + playlists ── */}
       <div className="w-56 border-r p-2 flex flex-col gap-1 flex-none overflow-y-auto" style={{ borderColor: line, background: 'rgba(0,0,0,0.2)' }}>
-        <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 mb-1">Chora Catalog</div>
-        {CATALOG_CATS.map(cat => (
-          <button
-            key={cat.id}
-            onClick={() => { p.setSelectedSubcat(cat.id); p.setSelectedPlaylistId(null); p.setExpandedAlbumId(null); }}
-            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all flex items-center justify-between ${
-              p.selectedSubcat === cat.id && !p.selectedPlaylistId ? 'bg-white/15 text-white font-bold' : 'text-white/60 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <span>{cat.label}</span>
-            {cat.id === 'Local Files' && localTracks.length > 0 && <span className="text-[9px] font-mono opacity-50">{localTracks.length}</span>}
-          </button>
+        {([
+          { head: 'Chora', icon: <Cloud size={10} />, cats: CHORA_CATS },
+          { head: 'My Music', icon: <Music size={10} />, cats: MINE_CATS },
+          { head: 'Audius', icon: <Radio size={10} />, cats: AUDIUS_CATS },
+        ]).map((grp, gi) => (
+          <div key={grp.head} className={gi ? 'mt-2 pt-2 border-t border-white/10 flex flex-col gap-1' : 'flex flex-col gap-1'}>
+            <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 mb-0.5 flex items-center gap-1">{grp.icon}{grp.head}</div>
+            {grp.cats.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => { p.setSelectedSubcat(cat.id); p.setSelectedPlaylistId(null); p.setExpandedAlbumId(null); }}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all flex items-center justify-between ${
+                  p.selectedSubcat === cat.id && !p.selectedPlaylistId ? 'bg-white/15 text-white font-bold' : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>{cat.label}</span>
+                {cat.id === 'Local Files' && localTracks.length > 0 && <span className="text-[9px] font-mono opacity-50">{localTracks.length}</span>}
+                {cat.id === 'Personal Music Locker' && p.personalLockerTracks.length > 0 && <span className="text-[9px] font-mono opacity-50">{p.personalLockerTracks.length}</span>}
+              </button>
+            ))}
+          </div>
         ))}
 
         <div className="mt-3 pt-2 border-t border-white/10 flex flex-col gap-1">
@@ -408,11 +503,15 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40" />
             <input
               type="text"
-              placeholder="Search title, artist, key, BPM or cue..."
+              placeholder={scope0 === 'everywhere' ? 'Search Chora, My Locker, Audius & local files…' : 'Search this area — title, artist, key, BPM or cue…'}
               value={p.searchQuery}
               onChange={e => p.setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1 rounded-lg bg-white/5 border border-white/10 focus:border-[#D0BCFF] text-white text-[11px] outline-none placeholder:text-white/30"
             />
+          </div>
+          <div className="flex rounded-lg border border-white/10 overflow-hidden flex-none" role="group" aria-label="Search scope">
+            <button onClick={() => setScope0('everywhere')} className={`px-2 py-1 text-[10px] font-bold ${scope0 === 'everywhere' ? 'bg-[#D0BCFF]/20 text-[#D0BCFF]' : 'text-white/50 hover:text-white'}`} title="Search every source at once">Everywhere</button>
+            <button onClick={() => setScope0('here')} className={`px-2 py-1 text-[10px] font-bold ${scope0 === 'here' ? 'bg-[#D0BCFF]/20 text-[#D0BCFF]' : 'text-white/50 hover:text-white'}`} title="Search only the area selected on the left">This area</button>
           </div>
           <div className="flex items-center gap-1.5 flex-none">
             <div className="flex rounded-lg border border-white/10 overflow-hidden" role="group" aria-label="View">
@@ -535,6 +634,19 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
             );
           })()}
 
+          {searchAll && (audiusSearching || audiusLoading) && sections && (
+            <div className="px-2 text-[10px] text-white/40 flex items-center gap-1.5"><Loader2 size={10} className="animate-spin" /> Still searching Audius…</div>
+          )}
+
+          {isAudiusArea(p.selectedSubcat) && !searchAll && !activePlaylist && (
+            <div className="px-1 text-[10px] text-white/45 flex items-center gap-2">
+              <Radio size={11} className="text-[#7E1BCC]" />
+              {p.selectedSubcat === 'Audius' ? (q ? 'Live Audius search results, then trending.' : 'Trending on Audius — type above to search all of Audius.')
+                : audiusConnected ? 'From your connected Audius account.' : 'Connect your Audius account in Chora to see this.'}
+              {audiusLoading && <Loader2 size={10} className="animate-spin" />}
+            </div>
+          )}
+
           {p.selectedSubcat === 'Local Files' && !activePlaylist && (
             <div
               className="p-3 rounded-xl border border-dashed border-white/15 text-center text-[10.5px] text-white/45"
@@ -555,9 +667,27 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
             ) : songsList.length === 0 ? (
               <div className="h-40 flex flex-col items-center justify-center text-white/40 text-xs">
                 <Music size={24} className="mb-2 opacity-40" />
-                <span>{activePlaylist ? 'This playlist is empty.' : 'No audio tracks found here.'}</span>
+                {(audiusSearching || audiusLoading) && <Loader2 size={14} className="mb-2 animate-spin" />}
+                <span>{activePlaylist ? 'This playlist is empty.'
+                  : searchAll ? (audiusSearching ? 'Searching Audius…' : `Nothing matches "${q}" in Chora, your locker, local files or Audius.`)
+                  : (p.selectedSubcat === 'Audius Favorites' || p.selectedSubcat === 'Audius Reposts') && !audiusConnected ? 'Connect your Audius account in Chora to see your favorites and reposts here.'
+                  : 'No audio tracks found here.'}</span>
                 <span className="text-[10px] opacity-60 mt-1">{activePlaylist ? 'Use ⋯ → Add to playlist on any song.' : 'Try searching, add local files, or upload to your Personal Music Locker.'}</span>
               </div>
+            ) : sections ? (
+              sections.map(sct => (
+                <div key={sct.key} className="space-y-1.5">
+                  <div className="flex items-center gap-2 pt-2 px-1">
+                    <span className="text-white/50">{sct.icon}</span>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/60">{sct.title}</span>
+                    <span className="text-[9px] font-mono text-white/35">{sct.tracks.length}</span>
+                    <div className="flex-1 h-px bg-white/10" />
+                  </div>
+                  {view === 'gallery'
+                    ? <div style={squareGridStyle(132, 8)}>{sct.tracks.map(renderTile)}</div>
+                    : sct.tracks.map((t, i) => renderRow(t, i, sct.tracks.length))}
+                </div>
+              ))
             ) : groups ? (
               groups.map(g => (
                 <div key={g.key} className="space-y-1.5">
