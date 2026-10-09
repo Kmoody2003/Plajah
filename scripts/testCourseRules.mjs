@@ -12,7 +12,8 @@ const cfgPath = os.homedir() + '/.config/configstore/firebase-tools.json';
 const tok = JSON.parse(fs.readFileSync(cfgPath, 'utf8')).tokens;
 if (!tok?.access_token || tok.expires_at < Date.now() + 60000) { console.error('Token expired — run `npx firebase-tools projects:list` once, then retry.'); process.exit(2); }
 
-const full = fs.readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
+// RULES_FILE lets the same cases run against any rules text (e.g. a candidate ruleset before release).
+const full = process.env.RULES_FILE ? fs.readFileSync(process.env.RULES_FILE, 'utf8') : fs.readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
 const grab = (startRe) => {
   const i = full.search(startRe);
   if (i < 0) throw new Error('not found in firestore.rules: ' + startRe);
