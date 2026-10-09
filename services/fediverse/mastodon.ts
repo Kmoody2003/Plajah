@@ -105,6 +105,42 @@ function mapAccount(a: Record<string, unknown>): FediverseProfile {
 
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 
+// ─── Media upload (v2 async) ──────────────────────────────────────────────────
+
+function assertPublicHttps(raw: string): void {
+  let u: URL;
+  try { u = new URL(raw); } catch { throw new FediverseError('mastodon', 'API_ERROR', 'Invalid media URL'); }
+  const h = u.hostname.toLowerCase();
+  if (u.protocol !== 'https:' || h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal') || /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.includes(':')) {
+    throw new FediverseError('mastodon', 'API_ERROR', 'Media URL is not allowed');
+  }
+}
+
+/** Download a public image and attach it as Mastodon media; returns the media id. Processing is async (HTTP 202). */
+export async function mastodonUploadMedia(creds: FediverseCredentials, url: string, alt?: string): Promise<string> {
+  assertPublicHttps(url);
+  const src = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+  if (!src.ok) throw new FediverseError('mastodon', 'API_ERROR', `Could not download media (${src.status})`);
+  const blob = await src.blob();
+  const form = new FormData();
+  form.append('file', blob, 'upload');
+  if (alt) form.append('description', alt);
+  const base = creds.instanceUrl!.replace(/\/$/, '');
+  const res = await fetch(`${base}/api/v2/media`, { method: 'POST', headers: { Authorization: `Bearer ${creds.accessToken}` }, body: form, signal: AbortSignal.timeout(60_000) });
+  if (res.status === 401) throw new FediverseError('mastodon', 'AUTH_EXPIRED', 'Mastodon token expired or revoked');
+  if (!res.ok) throw new FediverseError('mastodon', 'API_ERROR', `Media upload failed (${res.status})`);
+  const media = await res.json() as { id: string };
+  if (res.status === 202) {
+    // Still transcoding: poll until the media is usable (GET returns 206 while processing, 200 when ready).
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      const poll = await fetch(`${base}/api/v1/media/${media.id}`, { headers: { Authorization: `Bearer ${creds.accessToken}` } });
+      if (poll.status === 200) break;
+    }
+  }
+  return String(media.id);
+}
+
 export const mastodonAdapter: FediverseAdapter = {
   protocol: 'mastodon',
 
@@ -135,6 +171,9 @@ export const mastodonAdapter: FediverseAdapter = {
 
   async createPost(creds, content, options) {
     const body: Record<string, unknown> = { status: content };
+    if (options?.images?.length) {
+      body.media_ids = await Promise.all(options.images.slice(0, 4).map(i => mastodonUploadMedia(creds, i.url, i.alt)));
+    }
     if (options?.visibility)  body.visibility     = options.visibility;
     if (options?.inReplyToId) body.in_reply_to_id = options.inReplyToId;
     if (options?.sensitive)   body.sensitive       = true;

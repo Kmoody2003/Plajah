@@ -42,6 +42,23 @@
         window.close();
       })();
     </script>
+    <script>
+      // ── Path-style share links → the query params the app's boot handler already understands ──
+      // /c/:id → ?club=  /room/:id → ?room=  /talk/:id → ?talk=  /party/:id → ?party=  /live/:id → ?livestream=
+      // /join/:code → ?join= (and the code is stashed so the invite survives sign-up). The server renders the
+      // rich OG card for these paths (services/socialMigrationServer.ts); this runs before the app module, so
+      // it works the same whether the shell came from the server or the service worker cache.
+      // Mirror of parseSharePath in services/socialPerfCore.ts.
+      (function () {
+        var m = /^\/(c|room|talk|party|live|join)\/([A-Za-z0-9_:-]{1,128})\/?$/.exec(window.location.pathname);
+        if (!m) return;
+        var param = { c: 'club', room: 'room', talk: 'talk', party: 'party', live: 'livestream', join: 'join' }[m[1]];
+        if (m[1] === 'join') { try { localStorage.setItem('plajah_invite_code', JSON.stringify({ code: m[2].toLowerCase(), at: Date.now() })); } catch (e) { /* private mode */ } }
+        var q = new URLSearchParams(window.location.search);
+        q.set(param, m[2]);
+        try { window.history.replaceState(null, '', '/?' + q.toString() + window.location.hash); } catch (e) { /* */ }
+      })();
+    </script>
 
     <meta name="description" content="Plajah is where creators put everything they make — music, film, video, books, live shows, games and courses — and where fans find it all, from one profile.">
 

@@ -315,7 +315,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   if (loreaMode === 'WRITERS_DESK') {
     return (
       <div className="flex-1 w-full pb-32 lg:pb-40">
-        <WritersDesk onBackToLibrary={() => setLoreaMode('LIBRARY')} />
+        <WritersDesk onBackToLibrary={() => setLoreaMode('LIBRARY')} onOpenNewsroom={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'JOURNALIST_DESK' } }))} />
       </div>
     );
   }

@@ -131,7 +131,8 @@ export async function addHqAsset(
   const mimeType = contentTypeFor(file);
 
   await new Promise<void>((resolve, reject) => {
-    const task = uploadBytesResumable(storageRef, file, { contentType: mimeType });
+    // ownerUid: storage rules scope protected-hq writes to the stamped uploader.
+    const task = uploadBytesResumable(storageRef, file, { contentType: mimeType, customMetadata: { ownerUid: uid } });
     task.on('state_changed',
       (s) => onProgress?.((s.bytesTransferred / s.totalBytes) * 100),
       (err) => reject(err),

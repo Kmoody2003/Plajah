@@ -59,6 +59,8 @@ export interface ScheduledPost {
   /** Share to X through its web intent (no API, no cost): the user taps Post in X's own composer.
    *  Never auto-sent; the queue shows it as 'awaiting your tap' until xSharedAt is set. */
   shareToX?: boolean;
+  /** uid of the owner/admin who approved this post (business/org queues that require approval). */
+  approvedBy?: string;
   /** Epoch ms the user finished the X share (tapped through). */
   xSharedAt?: number;
   /** Epoch ms. null/undefined for a draft. */

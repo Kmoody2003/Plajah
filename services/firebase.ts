@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaV3Provider, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken, type AppCheck } from 'firebase/app-check';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -20,7 +20,10 @@ const app = initializeApp(firebaseConfig);
 const viteEnv = (import.meta as any).env || {};
 const isBrowser = typeof window !== 'undefined' && typeof self !== 'undefined';
 const appCheckSiteKey = viteEnv.VITE_APPCHECK_RECAPTCHA_SITE_KEY;
-if (isBrowser && appCheckSiteKey) {
+// Preferred (docs/ANTI_BOT_PLAYBOOK.md): reCAPTCHA Enterprise. Falls back to classic v3.
+const appCheckEnterpriseKey = viteEnv.VITE_APPCHECK_RECAPTCHA_ENTERPRISE_KEY;
+let appCheckInstance: AppCheck | null = null;
+if (isBrowser && (appCheckEnterpriseKey || appCheckSiteKey)) {
   // In dev, register the debug token printed to the console under
   // Firebase console → App Check → Apps → Manage debug tokens, so localhost
   // (which the reCAPTCHA site key doesn't cover) still gets valid tokens.
@@ -28,8 +31,10 @@ if (isBrowser && appCheckSiteKey) {
     (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
   }
   try {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(appCheckSiteKey),
+    appCheckInstance = initializeAppCheck(app, {
+      provider: appCheckEnterpriseKey
+        ? new ReCaptchaEnterpriseProvider(appCheckEnterpriseKey)
+        : new ReCaptchaV3Provider(appCheckSiteKey),
       isTokenAutoRefreshEnabled: true,
     });
   } catch (e) {
@@ -44,3 +49,18 @@ export { app };
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const storage = getStorage(app);
 export const auth = getAuth(app);
+
+// Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md), browser only:
+//  • attach X-Firebase-AppCheck to same-origin /api calls (server verifies; monitor mode by default)
+//  • gentle verify-your-email nudge for unverified email/password accounts
+if (isBrowser) {
+  const ac = appCheckInstance;
+  if (ac) {
+    void import('./appCheckFetch').then(m => m.installAppCheckFetch(async () => {
+      try { return (await getAppCheckToken(ac, false)).token || null; } catch { return null; }
+    })).catch(() => {});
+  }
+  void import('./emailVerifyNudge').then(m => m.startEmailVerifyNudge(auth)).catch(() => {});
+  // Trust tiers (services/trust/trustCore.ts) feed the client rate limits + composer + DM start.
+  void import('./trust/trustClient').then(m => m.installTrustSignals()).catch(() => {});
+}

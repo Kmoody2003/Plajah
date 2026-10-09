@@ -71,7 +71,7 @@ export function createAriaSpeakRouter({ authMiddleware, requireRegisteredUser, l
     res.json({ available: !!configured(), eligible: access !== null, access });
   });
 
-  r.post('/', limiter, authMiddleware, requireRegisteredUser, json({ limit: '32kb' }), async (req: any, res: any) => {
+  r.post('/', authMiddleware, limiter, requireRegisteredUser, json({ limit: '32kb' }), async (req: any, res: any) => {
     const cfg = configured();
     if (!cfg) return res.status(503).json({ error: 'Aria voice not configured' });
 

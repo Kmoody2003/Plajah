@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/bookmeta/*.ts", "components/bookSubmit/*.ts", "components/bookSubmit/*.tsx", "components/BookCreatorWizard.tsx", "routes/bookSubmissions.ts",
+    "tests/bookEpub.test.ts", "tests/bookIsbn.test.ts", "tests/bookPreflight.test.ts", "tests/bookMeta.test.ts"
+  ]
+}

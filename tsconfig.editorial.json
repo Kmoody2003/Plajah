@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/editorial/council/*.ts", "components/editorial/council/*.ts", "components/editorial/council/*.tsx",
+    "components/journalist/ArticleDesk.tsx", "components/bookSubmit/StepPreflight.tsx",
+    "tests/editorialCouncil.test.ts"
+  ]
+}

@@ -6,7 +6,7 @@
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { bskyCreateSession, bskyRefreshSession } from './bluesky.js';
+import { bskyCreateSession, bskyRefreshSession, bskyRefreshIfNeeded } from './bluesky.js';
 import { mastodonAdapter } from './mastodon.js';
 import type {
   FediverseCredentials, FediverseAccount, FediverseAccountDoc, FediverseProtocol,
@@ -351,9 +351,9 @@ export class DecentralizedAuthService {
    * Create a new Bluesky session from a handle and App Password.
    * Caches the session in memory for fast subsequent access.
    */
-  async createBlueskySession(handle: string, appPassword: string): Promise<FediverseCredentials> {
+  async createBlueskySession(handle: string, appPassword: string, pdsUrl?: string): Promise<FediverseCredentials> {
     const cleanHandle = handle.trim().replace(/^@/, '');
-    const creds = await bskyCreateSession(cleanHandle, appPassword);
+    const creds = await bskyCreateSession(cleanHandle, appPassword, pdsUrl || undefined);
     if (creds.did) blueskySessionCache.set(creds.did, creds);
     return creds;
   }
@@ -398,7 +398,7 @@ export class DecentralizedAuthService {
 
   async loadAccounts(uid: string, authToken: string): Promise<FediverseAccount[]> {
     const docs = await fsList(`users/${uid}/fediverseAccounts`, authToken);
-    return docs.flatMap(raw => {
+    const accounts = docs.flatMap(raw => {
       if (!raw.id) return [];
       const creds = this.safeDecrypt(raw.credentials);
       if (!creds) return [];
@@ -415,6 +415,33 @@ export class DecentralizedAuthService {
         profileUrl: String(raw.profileUrl ?? ''),
       } satisfies FediverseAccount];
     });
+    // Bluesky access tokens last ~2h and refresh tokens rotate — refresh here and save the new pair, so a
+    // linked account keeps working instead of dying two hours after it was connected.
+    await Promise.all(accounts.map(a => this.refreshAndPersist(uid, a, authToken)));
+    // Accounts written by the old browser-side connect flows (Threads, Mastodon token) hold their token as a plain
+    // map in Firestore. Re-save them through the vault so they're encrypted at rest from now on.
+    const legacy = new Set(docs.filter(d => d.id && d.credentials && typeof d.credentials === 'object').map(d => String(d.id)));
+    await Promise.all(accounts.filter(a => legacy.has(a.id)).map(a => this.persist(uid, a, authToken).catch(() => {})));
+    return accounts;
+  }
+
+  private persist(uid: string, account: FediverseAccount, authToken: string): Promise<void> {
+    return this.saveAccount(uid, account.id, {
+      id: account.id, protocol: account.protocol, handle: account.handle, displayName: account.displayName,
+      avatarUrl: account.avatarUrl ?? '', instanceUrl: account.instanceUrl ?? '', profileUrl: account.profileUrl,
+      credentials: account.credentials, connectedAt: account.connectedAt, isActive: account.isActive,
+    }, authToken);
+  }
+
+  /** Refresh a Bluesky session if it is (nearly) expired and persist the rotated tokens. Never throws. */
+  private async refreshAndPersist(uid: string, account: FediverseAccount, authToken: string): Promise<void> {
+    if (account.protocol !== 'bluesky') return;
+    try {
+      if (!(await bskyRefreshIfNeeded(account.credentials))) return;
+      await this.persist(uid, account, authToken);
+    } catch (e) {
+      console.warn('[Fediverse] Bluesky session refresh failed for', account.handle, '-', (e as Error).message);
+    }
   }
 
   async loadAccount(uid: string, accountId: string, authToken: string): Promise<FediverseAccount | null> {
@@ -422,7 +449,7 @@ export class DecentralizedAuthService {
     if (!raw || !raw.id) return null;
     const creds = this.safeDecrypt(raw.credentials);
     if (!creds) return null;
-    return {
+    const account: FediverseAccount = {
       id: String(raw.id),
       protocol: raw.protocol as FediverseProtocol,
       handle: String(raw.handle),
@@ -434,6 +461,8 @@ export class DecentralizedAuthService {
       isActive: Boolean(raw.isActive ?? true),
       profileUrl: String(raw.profileUrl ?? ''),
     };
+    await this.refreshAndPersist(uid, account, authToken);
+    return account;
   }
 
   async removeAccount(uid: string, accountId: string, authToken: string): Promise<void> {

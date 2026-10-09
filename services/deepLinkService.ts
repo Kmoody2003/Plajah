@@ -9,7 +9,7 @@
 
 export type ShareAsset =
   | 'album' | 'track' | 'video' | 'reello' | 'post' | 'profile' | 'release'
-  | 'room' | 'livestream' | 'callin' | 'listen'
+  | 'room' | 'livestream' | 'callin' | 'listen' | 'talk' | 'party'
   | 'book' | 'article' | 'game' | 'club' | 'clubPost' | 'pitch' | 'event' | 'invite' | 'debate' | 'archive'
   | 'videoPlaylist' | 'movie' | 'channel' | 'mix';
 
@@ -46,8 +46,13 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
     case 'post':       return `${base}/share?${qs({ type: 'feed', id })}`;
     case 'profile':    return `${base}/profile/${encodeURIComponent(id)}`;
     case 'release':    return `${base}/release/${encodeURIComponent(id)}`;
-    case 'room':       return `${base}/?${qs({ room: id })}`;
-    case 'livestream': return `${base}/?${qs({ livestream: id })}`;
+    // Path-style social links: the server renders a rich OG card (title, host, live/participant count, image —
+    // services/socialMigrationServer.ts) and index.html maps the path back to ?room= / ?livestream= / ?talk= /
+    // ?party= / ?club= for the app's existing boot handlers.
+    case 'room':       return `${base}/room/${encodeURIComponent(id)}`;
+    case 'livestream': return `${base}/live/${encodeURIComponent(id)}`;
+    case 'talk':       return `${base}/talk/${encodeURIComponent(id)}`;
+    case 'party':      return `${base}/party/${encodeURIComponent(id)}`;
     case 'callin':     return `${base}/?${qs({ callin: id })}`;
     case 'listen':     return `${base}/?${qs({ listen: id })}`;
     case 'book':       return `${base}/share?${qs({ type: 'book', id, ref: extra?.ref })}`;
@@ -59,7 +64,7 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
     // re-tune the dial. The /share route injects the channel's OG card then bounces humans into the
     // Live guide focused on it.
     case 'channel':    return `${base}/share?${qs({ type: 'channel', id, n: extra?.n, source: extra?.source })}`;
-    case 'club':       return `${base}/?${qs({ club: id })}`;
+    case 'club':       return `${base}/c/${encodeURIComponent(id)}`;
     case 'debate':     return `${base}/?${qs({ debate: id })}`;
     case 'clubPost':   return `${base}/?${qs({ club: extra?.club, post: id })}`;
     case 'pitch':      return `${base}/?${qs({ pitch: id })}`;

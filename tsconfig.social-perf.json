@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/socialPerfCore.ts", "services/socialPerf.ts", "services/sharedSubscription.ts",
+    "services/socialMigrationServer.ts", "services/inviteService.ts", "services/deepLinkService.ts", "services/partyService.ts",
+    "components/discovery/FindYourPeople.tsx", "components/discovery/OnboardingFollowStep.tsx",
+    "components/NotificationCenter.tsx", "contexts/NotificationContext.tsx", "components/PollCard.tsx",
+    "components/ChatWindow.tsx", "components/FediverseHub.tsx", "tests/socialPerf.test.ts"
+  ]
+}

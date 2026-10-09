@@ -6,6 +6,8 @@ import {
   AlarmClock, Zap, Users as UsersIcon,
 } from 'lucide-react';
 import type { Album, BookChapter } from '../types';
+import BookSubmitFlow from './bookSubmit/BookSubmitFlow';
+import type { BookFormatId } from '../services/bookmeta/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -346,6 +348,8 @@ function StepPreview({ format, title, author, genre, monetize, release, chapterC
 // ── Main wizard ────────────────────────────────────────────────────────────────
 
 interface Props {
+  /** Signed-in user id. Required for the manuscript-upload flow (drafts + submissions are per user). */
+  uid?: string;
   onLaunchCreator: (albumPartial: Partial<Album>) => void;
   onCancel: () => void;
   onOpenScriptStudio?: (format: string) => void;
@@ -353,7 +357,11 @@ interface Props {
 
 const SCRIPT_FORMATS = new Set(['FEATURE_FILM', 'TV_PILOT', 'TV_EPISODE', 'SHORT_FILM', 'WEB_SERIES', 'STAGE_PLAY']);
 
-export default function BookCreatorWizard({ onLaunchCreator, onCancel, onOpenScriptStudio }: Props) {
+export default function BookCreatorWizard({ uid, onLaunchCreator, onCancel, onOpenScriptStudio }: Props) {
+  // Books go to the manuscript-upload flow (components/bookSubmit). Scripts open Script Studio. The classic quick
+  // setup (serial drops, per-chapter pricing, fan subscription) stays available behind a toggle.
+  const [flow, setFlow]           = useState<'none' | 'new' | 'books'>('none');
+  const [classic, setClassic]     = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [dir, setDir]             = useState(1);
   const [format, setFormat]       = useState<BookFormat | null>(null);
@@ -378,7 +386,11 @@ export default function BookCreatorWizard({ onLaunchCreator, onCancel, onOpenScr
     return true;
   };
 
-  const advance = () => { if (!canAdvance()) return; setDir(1); setStepIndex(i => Math.min(i + 1, STEPS.length - 1)); };
+  const isBookFormat = !!format && !SCRIPT_FORMATS.has(format);
+  const advance = () => {
+    if (!canAdvance()) return;
+    if (currentStep === 'FORMAT' && isBookFormat && !classic && uid) { setFlow('new'); return; }
+    setDir(1); setStepIndex(i => Math.min(i + 1, STEPS.length - 1)); };
   const back    = () => { setDir(-1); setStepIndex(i => Math.max(i - 1, 0)); };
 
   const handleLaunch = () => {
@@ -406,6 +418,13 @@ export default function BookCreatorWizard({ onLaunchCreator, onCancel, onOpenScr
     };
     onLaunchCreator(albumPartial);
   };
+
+  if (flow !== 'none' && uid) {
+    return (
+      <BookSubmitFlow uid={uid} format={(format ?? 'NOVEL') as BookFormatId} startInMyBooks={flow === 'books'}
+        onLaunchCreator={onLaunchCreator} onCancel={onCancel} />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
@@ -456,7 +475,26 @@ export default function BookCreatorWizard({ onLaunchCreator, onCancel, onOpenScr
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={currentStep} initial={{ opacity: 0, x: dir * 24 }} animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -dir * 24 }} transition={{ duration: 0.2 }}>
-              {currentStep === 'FORMAT'   && <StepFormat value={format} onChange={setFormat} />}
+              {currentStep === 'FORMAT'   && (
+                <>
+                  <StepFormat value={format} onChange={setFormat} />
+                  {uid && (
+                    <div className="mt-5 space-y-3">
+                      <button type="button" onClick={() => setFlow('books')}
+                        className="w-full text-left p-4 rounded-2xl border border-amber-400/25 bg-amber-400/[0.05] hover:border-amber-400/50 transition-all">
+                        <p className="text-xs font-black uppercase tracking-widest text-amber-300">My books &amp; drafts</p>
+                        <p className="text-[10px] text-white/40 mt-0.5">Resume a draft, check review status, or finish publishing.</p>
+                      </button>
+                      {isBookFormat && (
+                        <label className="flex items-start gap-2.5 text-[10px] text-white/35 cursor-pointer">
+                          <input type="checkbox" checked={classic} onChange={e => setClassic(e.target.checked)} className="mt-0.5 accent-amber-400" />
+                          <span>Use the classic quick setup instead (no manuscript upload): serial chapter drops, per-chapter pricing, fan subscription.</span>
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
               {currentStep === 'DETAILS'  && <StepDetails title={title} setTitle={setTitle} author={author} setAuthor={setAuthor}
                 genre={genre} setGenre={setGenre} synopsis={synopsis} setSynopsis={setSynopsis}
                 hasAudio={hasAudio} setHasAudio={setHasAudio} />}

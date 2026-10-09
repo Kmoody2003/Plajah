@@ -426,6 +426,12 @@ class SmartLightingServiceClass {
     await Promise.allSettled(room.lightIds.map(lid => this.setLightColor(lid, rgb, brightness)));
   }
 
+  /** Reello Live "Crowd Light": the audience's emote colours on every connected, switched-on light. */
+  async pushCrowdColor(rgb: [number, number, number], brightness: number) {
+    if (this.reactionMode !== 'off') return;   // music/paint reaction owns the lights
+    await this.pushColor(rgb, brightness);
+  }
+
   disconnectPlatform(platform: LightPlatform) {
     if (platform === 'razer') this.razer?.disconnect();
     (this as any)[platform] = undefined;

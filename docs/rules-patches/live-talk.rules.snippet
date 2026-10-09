@@ -1,0 +1,167 @@
+// ═══════════════════════════════════════════════════════════════════════════════════════
+// Live Talk rules patch (2026-10-08) — see docs/LIVE_TALK.md
+//
+// HOW TO APPLY to the live rule set (.rules-hotfix/firestore.rules, or any set that has the
+// stock isAuthenticated() / isAdmin() / isValidLiveTalk() helpers):
+//   1. REPLACE the whole existing `match /liveTalks/{talkId} { ... }` block with BLOCK A.
+//   2. REPLACE the whole existing `match /rtc_sessions/{sessionId} { ... }` block with BLOCK B.
+//      (Rules are OR'ed across matches, so the old wide-open block must go, not just be added to.)
+// Both blocks are self-contained (their helpers are declared inside them).
+// The same blocks are already applied to the repo's firestore.rules.
+//
+// Literals that must track services/liveTalk/liveTalkCore.ts:
+//   20  = LIVE_TALK_MAX_PARTICIPANTS   10 = LIVE_TALK_MAX_SPEAKERS   60s = HOST_STALE_MS
+// ═══════════════════════════════════════════════════════════════════════════════════════
+
+    // ── BLOCK A ────────────────────────────────────────────────────────────────────────
+    // Live Talk. Talk doc = host-owned + denormalized roster; membership lives in
+    // members/{uid}. Cap: 20 people total (memberCount, bumped in the SAME batch as the member
+    // doc create/delete — checked with existsAfter/getAfter), 10 on stage (speakerUids).
+    match /liveTalks/{talkId} {
+      function ltTalkPath() { return /databases/$(database)/documents/liveTalks/$(talkId); }
+      function ltMemberPath(u) { return /databases/$(database)/documents/liveTalks/$(talkId)/members/$(u); }
+      function ltMod(d) { return request.auth.uid == d.hostId || request.auth.uid in d.get('cohostUids', []); }
+      function ltBlocked(hostId) {
+        return exists(/databases/$(database)/documents/blocks/$(hostId + '_' + request.auth.uid))
+            || exists(/databases/$(database)/documents/blocks/$(request.auth.uid + '_' + hostId));
+      }
+      function ltStageOk(d) { return !('speakerUids' in d) || (d.speakerUids is list && d.speakerUids.size() <= 10); }
+      function ltSilent(d, secs) {
+        return !('lastHeartbeat' in d) || d.lastHeartbeat == null
+          || (d.lastHeartbeat is timestamp && d.lastHeartbeat < request.time - duration.value(secs, 's'));
+      }
+      function ltChanged() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidLiveTalk(request.resource.data) && request.resource.data.hostId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        // Host: full control. May hand the room only to an existing co-host.
+        (resource.data.hostId == request.auth.uid && isValidLiveTalk(request.resource.data) && ltStageOk(request.resource.data) &&
+          (request.resource.data.hostId == resource.data.hostId || request.resource.data.hostId in resource.data.get('cohostUids', []))) ||
+        // Co-host: moderation + roster upkeep. Never identity, title or lifecycle.
+        (request.auth.uid in resource.data.get('cohostUids', []) && resource.data.isActive == true &&
+          ltChanged().hasOnly(['kicked', 'speakers', 'speakerUids', 'listeners', 'listenerCount', 'speakerCount', 'memberCount', 'raisedHandCount', 'sharedAssets']) &&
+          ltStageOk(request.resource.data)) ||
+        // Co-host takeover: host heartbeat silent > 60s.
+        (request.auth.uid in resource.data.get('cohostUids', []) && resource.data.isActive == true && ltSilent(resource.data, 60) &&
+          ltChanged().hasOnly(['hostId', 'hostName', 'hostPhoto', 'lastHeartbeat', 'cohostUids']) &&
+          request.resource.data.hostId == request.auth.uid && request.resource.data.lastHeartbeat == request.time) ||
+        // Join: +1 seat, only alongside creating MY member doc, never past 20.
+        (resource.data.isActive == true && ltChanged().hasOnly(['memberCount']) &&
+          request.resource.data.memberCount == resource.data.get('memberCount', 0) + 1 &&
+          request.resource.data.memberCount <= 20 &&
+          !exists(ltMemberPath(request.auth.uid)) && existsAfter(ltMemberPath(request.auth.uid))) ||
+        // Leave: -1 seat, only alongside deleting MY member doc.
+        (ltChanged().hasOnly(['memberCount']) &&
+          request.resource.data.memberCount == resource.data.get('memberCount', 0) - 1 &&
+          exists(ltMemberPath(request.auth.uid)) && !existsAfter(ltMemberPath(request.auth.uid))) ||
+        // Stage members may pin shared media.
+        (ltChanged().hasOnly(['sharedAssets']) && request.auth.uid in resource.data.get('speakerUids', [resource.data.hostId])) ||
+        // Anyone signed in may close a zombie room whose host has been silent > 5 min.
+        (resource.data.isActive == true && ltSilent(resource.data, 300) &&
+          ltChanged().hasOnly(['isActive', 'endedAt']) && request.resource.data.isActive == false) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.hostId == request.auth.uid || isAdmin());
+
+      match /members/{uid} {
+        function ltTalk() { return get(ltTalkPath()).data; }
+        function ltValidMember(d) {
+          return d.keys().hasOnly(['role', 'name', 'photo', 'joinedAt', 'lastSeen', 'handRaised', 'mutedByHost', 'selfMuted']) &&
+            d.role in ['host', 'cohost', 'speaker', 'listener'] &&
+            d.name is string && d.name.size() <= 100 &&
+            (!('photo' in d) || (d.photo is string && d.photo.size() <= 2048)) &&
+            (!('handRaised' in d) || d.handRaised is bool) &&
+            (!('mutedByHost' in d) || d.mutedByHost is bool) &&
+            (!('selfMuted' in d) || d.selfMuted is bool);
+        }
+        function ltMemberChanged() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+        allow read: if true;
+        // Enter: as a listener (or as host when the talk names you host); not kicked, not blocked
+        // with the host, and the talk's memberCount must rise by exactly one in the same batch.
+        allow create: if isAuthenticated() && uid == request.auth.uid && ltValidMember(request.resource.data) &&
+          ltTalk().isActive == true && !(uid in ltTalk().get('kicked', [])) && !ltBlocked(ltTalk().hostId) &&
+          request.resource.data.get('mutedByHost', false) == false &&
+          (request.resource.data.role == 'listener' || (request.resource.data.role == 'host' && ltTalk().hostId == uid)) &&
+          getAfter(ltTalkPath()).data.get('memberCount', 0) == ltTalk().get('memberCount', 0) + 1;
+        allow update: if isAuthenticated() && ltValidMember(request.resource.data) && (
+          // Self: presence, hand, own mute, name/photo. Role may only go DOWN to listener, or to
+          // host once the talk doc names you host (hand-off / takeover). Never clears a host mute.
+          (uid == request.auth.uid && !(uid in ltTalk().get('kicked', [])) &&
+            ltMemberChanged().hasOnly(['lastSeen', 'handRaised', 'selfMuted', 'name', 'photo', 'role', 'mutedByHost']) &&
+            (!ltMemberChanged().hasAny(['role', 'mutedByHost']) ||
+             (request.resource.data.role == 'listener' && !ltMemberChanged().hasAny(['mutedByHost'])) ||
+             (request.resource.data.role == 'host' && ltTalk().hostId == uid))) ||
+          // Host / co-host: stage moves, host-mute, lower hands. Only the host touches co-hosts.
+          (uid != request.auth.uid && ltMod(ltTalk()) && uid != ltTalk().hostId &&
+            ltMemberChanged().hasOnly(['role', 'mutedByHost', 'handRaised']) &&
+            request.resource.data.role in ['cohost', 'speaker', 'listener'] &&
+            ((request.resource.data.role != 'cohost' && resource.data.role != 'cohost') || request.auth.uid == ltTalk().hostId))
+        );
+        // Leave (self), remove / prune ghosts (moderators; co-hosts only by the host).
+        allow delete: if isAuthenticated() && (uid == request.auth.uid || isAdmin() ||
+          (ltMod(ltTalk()) && uid != ltTalk().hostId && (resource.data.role != 'cohost' || request.auth.uid == ltTalk().hostId)));
+      }
+
+      match /chat/{msgId} {
+        function ltTalkC() { return get(ltTalkPath()).data; }
+        allow read: if true;
+        allow create: if isAuthenticated() &&
+          request.resource.data.keys().hasOnly(['senderId', 'senderName', 'senderPhoto', 'text', 'timestamp', 'type']) &&
+          request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.senderName is string && request.resource.data.senderName.size() <= 100 &&
+          (!('senderPhoto' in request.resource.data) || (request.resource.data.senderPhoto is string && request.resource.data.senderPhoto.size() <= 2048)) &&
+          request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500 &&
+          request.resource.data.timestamp is number && request.resource.data.type == 'TEXT' &&
+          ltTalkC().isActive == true && !(request.auth.uid in ltTalkC().get('kicked', [])) && !ltBlocked(ltTalkC().hostId);
+        allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || ltMod(ltTalkC()) || isAdmin());
+      }
+
+      match /reactions/{rid} {
+        allow read: if true;
+        allow create: if isAuthenticated() &&
+          request.resource.data.keys().hasOnly(['uid', 'emoji', 'count', 'at', 'expireAt']) &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.emoji is string && request.resource.data.emoji.size() > 0 && request.resource.data.emoji.size() <= 16 &&
+          request.resource.data.count is int && request.resource.data.count >= 1 && request.resource.data.count <= 30 &&
+          request.resource.data.at == request.time && request.resource.data.expireAt is timestamp &&
+          exists(ltMemberPath(request.auth.uid));
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ── BLOCK B ────────────────────────────────────────────────────────────────────────
+    // Unified real-time backbone (rtcCore): mesh calls, video rooms, talk rooms.
+    // Generic sessions stay open to any signed-in user (several features use non-uid peer ids:
+    // telehealth, TV receivers, podcast callers). Live Talk sessions (talk_{talkId}) are locked:
+    // presence doc id == your uid and you must be a member; publishing roles only for the stage
+    // (speakerUids); every signal edge / ICE candidate must be sent FROM you.
+    match /rtc_sessions/{sessionId} {
+      function rtcIsTalk() { return sessionId.matches('^talk_[A-Za-z0-9]+$'); }
+      function rtcTalkPath() { return /databases/$(database)/documents/liveTalks/$(sessionId.split('_')[1]); }
+      function rtcTalkMember(u) {
+        return exists(/databases/$(database)/documents/liveTalks/$(sessionId.split('_')[1])/members/$(u));
+      }
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated() && !rtcIsTalk();
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isAuthenticated() && !rtcIsTalk();
+      }
+      match /participants/{pid} {
+        allow create, update: if isAuthenticated() && rtcIsTalk() && pid == request.auth.uid && rtcTalkMember(pid) &&
+          request.resource.data.keys().hasOnly(['role', 'name', 'joinedAt', 'nonce', 'lastSeen']) &&
+          request.resource.data.role in ['host', 'participant', 'viewer'] &&
+          request.resource.data.name is string && request.resource.data.name.size() <= 100 &&
+          (request.resource.data.role == 'viewer' || request.auth.uid in get(rtcTalkPath()).data.get('speakerUids', [get(rtcTalkPath()).data.hostId]));
+        allow delete: if isAuthenticated() && rtcIsTalk() && pid == request.auth.uid;
+      }
+      match /signals/{edge} {
+        function rtcEdgeFromMe() { return edge.split('__').size() == 2 && edge.split('__')[0] == request.auth.uid; }
+        allow create, update, delete: if isAuthenticated() && rtcIsTalk() && rtcEdgeFromMe() && rtcTalkMember(request.auth.uid);
+        match /candidates/{cid} {
+          allow create, delete: if isAuthenticated() && rtcIsTalk() && rtcEdgeFromMe();
+        }
+      }
+    }

@@ -8,60 +8,128 @@
  *
  * Separate from rtc_sessions on purpose — presence-only members must never be
  * mistaken for media peers by the WebRTC topology.
+ *
+ * Liveness: staleness is judged on the READER's clock from server heartbeats (see
+ * services/presenceCore), never by comparing two devices' Date.now(). Each write also
+ * carries `expireAt` (now + 10 min) so a Firestore TTL policy reaps abandoned docs:
+ *   gcloud firestore fields ttls update expireAt --collection-group=here --enable-ttl --database=plajah-prod
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../services/backendService';
 import {
   doc, collection, setDoc, deleteDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
+import {
+  StaleTracker, toMillisLoose, STALE_MS, HEARTBEAT_MS, EXPIRE_MS, REFILTER_MS,
+  type HeartbeatObservation,
+} from '../services/presenceCore';
 
-const STALE_MS = 70_000;        // drop members we haven't heard from in 70s
-const HEARTBEAT_MS = 25_000;    // refresh our own heartbeat every 25s
-
-export interface PresencePerson { uid: string; name?: string; photo?: string; ts?: number }
+export interface PresencePerson { uid: string; name?: string; photo?: string; ts?: number; heartbeatMs?: number }
 
 export function usePresence(
   key: string | null,
   opts: { publishSelf?: boolean } = { publishSelf: true },
 ): { count: number; people: PresencePerson[] } {
   const [people, setPeople] = useState<PresencePerson[]>([]);
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Track auth so a sign-in that lands after mount still publishes (was captured once).
+  const [uid, setUid] = useState<string | null>(() => auth.currentUser?.uid ?? null);
+  useEffect(() => onAuthStateChanged(auth, u => setUid(u?.uid ?? null)), []);
+  const publishSelf = opts.publishSelf !== false;
 
   useEffect(() => {
     if (!key) { setPeople([]); return; }
-    const uid = auth.currentUser?.uid;
-    const publish = opts.publishSelf !== false && !!uid;
-    const myDoc = uid ? doc(db, 'presence', key, 'here', uid) : null;
+    const publish = publishSelf && !!uid;
+    const myDoc = publish && uid ? doc(db, 'presence', key, 'here', uid) : null;
+    const tracker = new StaleTracker(STALE_MS);
+    let latest: PresencePerson[] = [];
+    let lastEmit = '';
+    let lastWriteLocal = 0;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+
+    const emit = () => {
+      const fresh = tracker.freshIds(Date.now());
+      const list = latest.filter(p => fresh.has(p.uid));
+      const sig = list.map(p => `${p.uid}|${p.name ?? ''}|${p.photo ?? ''}`).join(',');
+      if (sig === lastEmit) return;
+      lastEmit = sig;
+      setPeople(list);
+    };
 
     const write = () => {
-      if (!publish || !myDoc) return;
+      if (!myDoc || !uid) return;
+      const u = auth.currentUser;
+      if (!u || u.uid !== uid) return;
+      lastWriteLocal = Date.now();
       setDoc(myDoc, {
         uid,
-        name: auth.currentUser?.displayName || 'Guest',
-        photo: auth.currentUser?.photoURL || '',
-        ts: Date.now(),
+        name: u.displayName || 'Guest',
+        photo: u.photoURL || '',
+        ts: lastWriteLocal,
         heartbeat: serverTimestamp(),
+        expireAt: new Date(lastWriteLocal + EXPIRE_MS), // TTL policy target
       }).catch(() => {});
     };
-    write();
-    if (publish) heartbeatRef.current = setInterval(write, HEARTBEAT_MS);
+    const startBeat = () => {
+      if (!myDoc) return;
+      if (heartbeat) clearInterval(heartbeat);
+      write();
+      heartbeat = setInterval(write, HEARTBEAT_MS);
+    };
+    const stopBeat = () => { if (heartbeat) { clearInterval(heartbeat); heartbeat = null; } };
+
+    startBeat();
 
     const unsub = onSnapshot(collection(db, 'presence', key, 'here'), snap => {
       const now = Date.now();
-      const list = snap.docs
-        .map(d => d.data() as PresencePerson)
-        .filter(p => !p.ts || now - p.ts < STALE_MS);
-      setPeople(list);
+      const obs: HeartbeatObservation[] = [];
+      latest = snap.docs.map(d => {
+        const data = d.data() as Record<string, unknown>;
+        const hb = toMillisLoose(data.heartbeat);
+        const ts = typeof data.ts === 'number' ? data.ts : undefined;
+        if (uid && d.id === uid && !d.metadata.hasPendingWrites) tracker.noteOwnHeartbeat(hb, lastWriteLocal);
+        obs.push({ id: d.id, heartbeatMs: hb, legacyTs: ts ?? null });
+        const p: PresencePerson = { uid: d.id };
+        if (typeof data.name === 'string') p.name = data.name;
+        if (typeof data.photo === 'string') p.photo = data.photo;
+        if (ts !== undefined) p.ts = ts;
+        if (hb != null) p.heartbeatMs = hb;
+        return p;
+      });
+      tracker.observe(obs, now);
+      lastEmit = ''; // membership/metadata may have changed — always re-emit on a snapshot
+      emit();
     }, () => {});
 
+    // Ghosts age out on our own clock even when no new snapshot arrives.
+    const refilter = setInterval(emit, REFILTER_MS);
+
+    // Leaving the page: best-effort remove our doc; come back → re-publish immediately.
+    const onPageHide = () => { stopBeat(); if (myDoc) deleteDoc(myDoc).catch(() => {}); };
+    const onPageShow = () => { if (myDoc && !heartbeat) startBeat(); };
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && myDoc) startBeat();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', onPageHide);
+      window.addEventListener('pageshow', onPageShow);
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+
     return () => {
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      stopBeat();
+      clearInterval(refilter);
       unsub();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pagehide', onPageHide);
+        window.removeEventListener('pageshow', onPageShow);
+        document.removeEventListener('visibilitychange', onVisibility);
+      }
       if (myDoc) deleteDoc(myDoc).catch(() => {});
     };
-  }, [key, opts.publishSelf]);
+  }, [key, publishSelf, uid]);
 
   return { count: people.length, people };
 }

@@ -33,7 +33,9 @@ import { MelosPickerModal } from './MelosPickerModal';
 import LockerEditModal from './LockerEditModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useUniversalMultiSelect } from '../hooks/useUniversalMultiSelect';
-import { createParty, partyShareUrl, shouldResync } from '../services/partyService';
+import { createParty, partyShareUrl, planDriftCorrection } from '../services/partyService';
+import PartyBar from './party/PartyBar';
+import { canPlayFull, PREVIEW_SECONDS } from '../services/musicAccess';
 import { useParty } from '../hooks/useParty';
 import useContextMenu from './ui/ContextMenu';
 import { motion, AnimatePresence } from 'motion/react';
@@ -513,6 +515,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     setSpatialMode,
     dolbySupport,
     isAtmosActive,
+    setPlaybackRate,
   } = useGlobalPlayerState();
   const { currentTime: globalCurrentTime, duration: globalDuration, seek } = useGlobalPlayerProgress();
 
@@ -534,39 +537,75 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const hostStateRef = useRef<any>({});
   hostStateRef.current = { isPlaying: globalIsPlaying, positionSec: globalCurrentTime || 0, contentId: globalTrack?.id, trackIndex: currentTrackIndex };
 
-  // HOST: broadcast on play/pause/track change, plus a heartbeat that also catches seeks.
+  // HOST: broadcast on play/pause/track change, plus a 1s watcher that catches seeks — INCLUDING
+  // seeks while paused (a paused scrub must move everyone's playhead too) — and refreshes position.
   useEffect(() => {
     if (!activePartyId || !party.isHost) return;
     party.broadcast(hostStateRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePartyId, party.isHost, globalIsPlaying, globalTrack?.id, currentTrackIndex]);
   useEffect(() => {
     if (!activePartyId || !party.isHost) return;
-    const iv = setInterval(() => { if (hostStateRef.current.isPlaying) party.broadcast(hostStateRef.current); }, 3000);
+    let last = { pos: hostStateRef.current.positionSec || 0, playing: !!hostStateRef.current.isPlaying, at: Date.now() };
+    const iv = setInterval(() => {
+      const s = hostStateRef.current;
+      const expected = last.playing ? last.pos + (Date.now() - last.at) / 1000 : last.pos;
+      const jumped = Math.abs((s.positionSec || 0) - expected) > 1.5;
+      if (jumped || (s.isPlaying && Date.now() - last.at > 3000) || s.isPlaying !== last.playing) {
+        party.broadcast(s);
+        last = { pos: s.positionSec || 0, playing: !!s.isPlaying, at: Date.now() };
+      }
+    }, 1000);
     return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePartyId, party.isHost]);
 
-  // FOLLOWER: slave the local Chora player to the host's track + position.
+  // FOLLOWER: slave the local Chora player to the host's track + position. Same access rules as
+  // the normal player: a preview-only priced track the listener does not own is NOT followed past
+  // the preview — we pause and offer the buy sheet instead. Small drift → rate nudge; ≥3s → seek.
+  const [partyLockedTrack, setPartyLockedTrack] = useState<Track | null>(null);
+  const lastHardSeekRef = useRef(0);
+  const nudgedRateRef = useRef(1);
   useEffect(() => {
     if (!activePartyId || !party.isFollower) return;
+    const setRate = (r: number) => {
+      const rr = Math.round(r * 100) / 100;
+      if (Math.abs(nudgedRateRef.current - rr) < 0.005) return;
+      nudgedRateRef.current = rr;
+      setPlaybackRate(rr);
+    };
     const apply = () => {
       const pb = party.playback;
       if (!pb) return;
-      const { targetPositionSec, shouldPlay } = party.getTarget();
-      const tracks = album?.tracks || [];
-      const target = (typeof pb.trackIndex === 'number' && tracks[pb.trackIndex]) ? tracks[pb.trackIndex] : (pb.contentId ? tracks.find(t => t.id === pb.contentId) : null);
+      const t = party.getTarget();
       const local = listenLocalRef.current;
+      if (t.hold) { setRate(1); if (local.isPlaying) pause(); return; }
+      const tracks = album?.tracks || [];
+      const target = (typeof pb.trackIndex === 'number' && tracks[pb.trackIndex]) ? tracks[pb.trackIndex] : (pb.contentId ? tracks.find(tr => tr.id === pb.contentId) : null);
+      if (target && !canPlayFull(target, album, auth.currentUser?.uid) && t.targetPositionSec >= PREVIEW_SECONDS) {
+        setPartyLockedTrack(target);
+        setRate(1);
+        if (local.isPlaying) pause();
+        return;
+      }
+      setPartyLockedTrack(null);
       if (target && local.trackId !== target.id) {
-        playTrack(target, album, 'LIBRARY', targetPositionSec);         // switch track + seek in one
+        playTrack(target, album, 'LIBRARY', t.targetPositionSec);         // switch track + seek in one
+        lastHardSeekRef.current = Date.now();
         if (typeof pb.trackIndex === 'number') setCurrentTrackIndex(pb.trackIndex);
         return;
       }
-      if (shouldResync(local.time, targetPositionSec)) seek(targetPositionSec);
-      if (shouldPlay && !local.isPlaying) resume();
-      else if (!shouldPlay && local.isPlaying) pause();
+      const now = Date.now();
+      const plan = planDriftCorrection(local.time, t.targetPositionSec, { playing: t.shouldPlay, nowMs: now, lastHardSeekMs: lastHardSeekRef.current });
+      if (plan.kind === 'seek') { seek(plan.seekTo); setRate(1); lastHardSeekRef.current = now; }
+      else setRate(plan.rate);
+      if (t.shouldPlay && !local.isPlaying) resume();
+      else if (!t.shouldPlay && local.isPlaying) pause();
     };
     apply();
-    const iv = setInterval(apply, 2000);
-    return () => clearInterval(iv);
+    const iv = setInterval(apply, 1000);
+    return () => { clearInterval(iv); if (nudgedRateRef.current !== 1) { nudgedRateRef.current = 1; setPlaybackRate(1); } };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePartyId, party.isFollower, party.playback?.seq, album]);
 
   const startListeningParty = useCallback(async () => {
@@ -584,7 +623,19 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     } catch (e) { console.error('start listening party failed', e); }
   }, [album, globalTrack, globalIsPlaying, globalCurrentTime, currentTrackIndex]);
 
-  const leaveListeningParty = useCallback(() => { if (party.isHost) party.end(); setActivePartyId(null); }, [party]);
+  // HOST: "Start together" — 3-2-1 for everyone, then play the current (or first) track.
+  const startListeningTogether = useCallback(() => {
+    if (globalIsPlaying) pause();
+    party.startCountdown(() => {
+      const tr = album?.tracks?.[currentTrackIndex] || album?.tracks?.[0];
+      if (!tr) return;
+      if (globalTrack?.id === tr.id) resume(); else playTrack(tr, album, 'LIBRARY');
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [album, currentTrackIndex, globalTrack?.id, globalIsPlaying, party.startCountdown]);
+
+  // PartyBar ends the party for the host before calling this.
+  const leaveListeningParty = useCallback(() => { setPartyLockedTrack(null); setActivePartyId(null); }, []);
   const [playlistPickerTrack, setPlaylistPickerTrack] = useState<Track | null>(null);
   const [activeHUD, setActiveHUD] = useState<'INFO' | 'COMMENTS' | 'TRACKS' | 'ABOUT' | 'MEDIA' | 'LYRICS'>('TRACKS');
   // Chora Next "Gatefold" album skin (opt-in, per-device): on desktop the
@@ -3840,28 +3891,22 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      />
                    </div>
                 </div>
-                {/* Listening-party status — host/follower, live listener count, invite/leave. */}
+                {/* Listening party — shared PartyBar (status, listeners, chat, reactions, invite, remote). */}
                 {activePartyId && (
-                  <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-[#D40055]/30 bg-gradient-to-r from-[#6B0099]/20 to-[#D40055]/20">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                    <Radio size={13} className="text-[#ff5c9d] shrink-0" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white flex-1 min-w-0 truncate">
-                      {party.isHost ? 'Hosting listening party' : `Following ${party.party?.hostName || 'the host'}`}
-                      <span className="text-white/50"> · </span>
-                      <span className="inline-flex items-center gap-1 text-white/70"><Users size={11} /> {party.viewerCount} listening</span>
-                      {party.isFollower && <span className="text-white/40 normal-case tracking-normal"> — synced to host</span>}
-                    </p>
-                    {party.isHost && (
-                      <button
-                        onClick={() => { const u = partyShareUrl(activePartyId); if (navigator.share) navigator.share({ title: `Listen to “${album.title}” with me on Plajah`, url: u }).catch(() => {}); else navigator.clipboard?.writeText(u).catch(() => {}); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[9px] font-black uppercase tracking-widest transition-all shrink-0"
-                      >
-                        <Share2 size={12} /> Invite
-                      </button>
-                    )}
-                    <button onClick={leaveListeningParty} className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all shrink-0">
-                      {party.isHost ? 'End' : 'Leave'}
-                    </button>
+                  <PartyBar
+                    partyId={activePartyId}
+                    party={party}
+                    verb="listening"
+                    noun="listening party"
+                    title={album.title}
+                    onLeave={leaveListeningParty}
+                    onStartTogether={startListeningTogether}
+                  />
+                )}
+                {activePartyId && partyLockedTrack && party.isFollower && (
+                  <div className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-white" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid var(--pj-warning)' }}>
+                    <span className="flex-1">“{partyLockedTrack.title}” needs a purchase to listen along past the preview.</span>
+                    <button onClick={() => setSupportSheet('buy')} className="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: 'var(--pj-orange)' }}>Buy</button>
                   </div>
                 )}
 

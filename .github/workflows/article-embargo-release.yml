@@ -1,0 +1,26 @@
+name: Release due article embargoes
+
+# Cloud Run scales to zero, so nothing in-process can release a scheduled article on time.
+# This pings the release route every 5 minutes (GitHub's minimum; runs can be delayed under load).
+# Requires repo secrets: PLAJAH_BASE_URL (e.g. https://your-service-url, no trailing slash)
+# and ARTICLE_RELEASE_KEY (same value as the server env var). Skips quietly if either is unset.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call release-due
+        env:
+          BASE: ${{ secrets.PLAJAH_BASE_URL }}
+          KEY: ${{ secrets.ARTICLE_RELEASE_KEY }}
+        run: |
+          if [ -z "$BASE" ] || [ -z "$KEY" ]; then echo "secrets not set; skipping"; exit 0; fi
+          curl --fail --silent --show-error --max-time 60 -H "x-article-release-key: $KEY" "$BASE/feeds/release-due"

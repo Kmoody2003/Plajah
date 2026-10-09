@@ -323,6 +323,10 @@ export async function reportContent(input: {
   try {
     // A plain read of an existing report is denied (staff-only), so rely on the create-only rule.
     await setDoc(ref, { ...clean, reporterId, status: 'OPEN', createdAt: serverTimestamp() });
+    // Child-safety reports go straight to the server CSAM path (scan + csam review queue).
+    if (input.reason === 'sexual_minor_safety' && input.contentId !== 'pre-publish') {
+      void import('./safety/safetyScanClient').then(m => m.escalateChildSafetyReport(id)).catch(() => {});
+    }
     return { duplicate: false };
   } catch (e: any) {
     if (e?.code === 'permission-denied') return { duplicate: true };

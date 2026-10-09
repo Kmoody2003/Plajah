@@ -40,96 +40,16 @@ let _recentPings: SecurityGeoPing[] = [];
 let _latestAssessment: CsoAssessment | null = null;
 let _userWarnings: UserThreatWarning[] = [];
 
-// Seed baseline realistic global traffic pings (mix of suspected and benign/monitored)
-const SEED_LOCATIONS = [
+// Locations used ONLY by simulateAttack() (admin test button). There is no seed telemetry any more:
+// the previous hard-coded "baseline pings" were presented as real traffic. Real data now comes from the
+// Security & IT Council (services/securityCouncil, routes/threatProtection.ts reads it server-side).
+const SIMULATION_LOCATIONS = [
   { country: 'United States', city: 'Ashburn', lat: 39.0438, lng: -77.4874 },
   { country: 'Germany', city: 'Frankfurt', lat: 50.1109, lng: 8.6821 },
   { country: 'Japan', city: 'Tokyo', lat: 35.6762, lng: 139.6503 },
   { country: 'United Kingdom', city: 'London', lat: 51.5074, lng: -0.1278 },
-  { country: 'Singapore', city: 'Singapore', lat: 1.3521, lng: 103.8198 },
   { country: 'Brazil', city: 'São Paulo', lat: -23.5505, lng: -46.6333 },
-  { country: 'Australia', city: 'Sydney', lat: -33.8688, lng: 151.2093 },
-  { country: 'Canada', city: 'Toronto', lat: 43.6532, lng: -79.3832 },
-  { country: 'Netherlands', city: 'Amsterdam', lat: 52.3676, lng: 4.9041 },
 ];
-
-function seedInitialTelemetry() {
-  if (_threatEvents.length > 0) return;
-  const now = Date.now();
-
-  const initialPings: SecurityGeoPing[] = [
-    {
-      id: 'ping-1',
-      lat: 50.1109,
-      lng: 8.6821,
-      country: 'Germany',
-      city: 'Frankfurt',
-      ip: '185.220.101.5',
-      severity: 'SUSPECTED',
-      vector: 'BOT_SCRAPING',
-      timestamp: now - 120_000,
-      summary: 'High-frequency crawler hitting public album metadata with headless UA',
-      targetEndpoint: '/api/library/public',
-    },
-    {
-      id: 'ping-2',
-      lat: 1.3521,
-      lng: 103.8198,
-      country: 'Singapore',
-      city: 'Singapore',
-      ip: '103.21.244.12',
-      severity: 'SUSPECTED',
-      vector: 'ANOMALOUS_API_VELOCITY',
-      timestamp: now - 340_000,
-      summary: 'Sudden request burst (120 req/min) across Chora audio feed',
-      targetEndpoint: '/api/fast/epg',
-    },
-    {
-      id: 'ping-3',
-      lat: 39.0438,
-      lng: -77.4874,
-      country: 'United States',
-      city: 'Ashburn',
-      ip: '52.91.44.192',
-      severity: 'SUSPECTED',
-      vector: 'BOT_SCRAPING',
-      timestamp: now - 580_000,
-      summary: 'Automated index scan from cloud hosting provider',
-      targetEndpoint: '/api/archive',
-    },
-    {
-      id: 'ping-4',
-      lat: 52.3676,
-      lng: 4.9041,
-      country: 'Netherlands',
-      city: 'Amsterdam',
-      ip: '194.26.29.11',
-      severity: 'SUSPECTED',
-      vector: 'BOT_SCRAPING',
-      timestamp: now - 60_000,
-      summary: 'Automated crawler indexing public catalog pages',
-      targetEndpoint: '/api/browse',
-    }
-  ];
-
-  _recentPings = initialPings;
-
-  _threatEvents = initialPings.map(p => ({
-    id: 'evt-' + p.id,
-    timestamp: p.timestamp,
-    ip: p.ip,
-    geo: { lat: p.lat, lng: p.lng, country: p.country, city: p.city },
-    severity: p.severity,
-    vector: p.vector,
-    targetEndpoint: p.targetEndpoint,
-    riskScore: p.severity === 'MALICIOUS_RED' ? 94 : 58,
-    mitigated: p.severity === 'MALICIOUS_RED',
-    mitigationAction: p.severity === 'MALICIOUS_RED' ? 'BLOCKED_IP' : 'LOGGED_MONITOR',
-    details: p.summary
-  }));
-}
-
-seedInitialTelemetry();
 
 // ── CSO Agent Core Service ───────────────────────────────────────────────────
 
@@ -150,7 +70,7 @@ export class CsoAgentService {
     ];
 
     if (maliciousVectors.includes(vector)) {
-      return { severity: 'MALICIOUS_RED', riskScore: 85 + Math.floor(Math.random() * 15) };
+      return { severity: 'MALICIOUS_RED', riskScore: 90 };
     }
 
     const payloadLower = (payload || '').toLowerCase();
@@ -163,7 +83,7 @@ export class CsoAgentService {
       return { severity: 'MALICIOUS_RED', riskScore: 92 };
     }
 
-    return { severity: 'SUSPECTED', riskScore: 40 + Math.floor(Math.random() * 35) };
+    return { severity: 'SUSPECTED', riskScore: 55 };
   }
 
   /**
@@ -174,8 +94,9 @@ export class CsoAgentService {
     const event: SecurityThreatEvent = {
       id: 'sec-' + Math.random().toString(36).substring(2, 10),
       timestamp: Date.now(),
-      mitigated: eventData.severity === 'MALICIOUS_RED',
-      mitigationAction: eventData.severity === 'MALICIOUS_RED' ? 'BLOCKED_IP' : 'LOGGED_MONITOR',
+      // Nothing in this in-memory path blocks anything, so never claim BLOCKED_IP.
+      mitigated: false,
+      mitigationAction: 'LOGGED_MONITOR',
       ...eventData
     };
 
@@ -204,7 +125,8 @@ export class CsoAgentService {
     }
 
     // If a specific user account is targeted, dispatch a user threat warning
-    if (event.targetUid) {
+    // (Never for simulated events: a test button must not send a fake security warning to a real user.)
+    if (event.targetUid && !event.simulated) {
       await this.warnTargetUser(event.targetUid, event);
     }
 
@@ -217,6 +139,16 @@ export class CsoAgentService {
    */
   static async generateSecurityAssessment(): Promise<CsoAssessment> {
     const stats = this.getPlatformStats();
+    if (_threatEvents.length === 0) {
+      // Nothing to assess in this process — say so instead of generating a reassuring briefing.
+      const empty: CsoAssessment = {
+        id: 'cso-brief-' + Date.now(), timestamp: Date.now(), csoAgentName: 'Plajah Sentinel CSO', threatLevel: 'NORMAL',
+        executiveSummary: 'No threat telemetry in this process. Real monitoring runs in the Security & IT Council (Admin → Threat Protection → Council findings and daily brief).',
+        riskScore: 0, indicatorsOfCompromise: [], recommendedActions: [], activeContainments: [], engineUsed: 'SECURITY_HEURISTICS',
+      };
+      _latestAssessment = empty;
+      return empty;
+    }
     const recentMalicious = _threatEvents.filter(e => e.severity === 'MALICIOUS_RED').slice(0, 5);
     const recentSuspected = _threatEvents.filter(e => e.severity === 'SUSPECTED').slice(0, 5);
 
@@ -252,7 +184,8 @@ Provide a concise, professional executive security briefing. Formulate:
       if (localState.modelLoaded && localState.backend !== 'UNAVAILABLE') {
         try {
           const localRes = await runLocalInference(
-            `You are Chief Security Officer (CSO). Summarize platform threat posture: Health ${stats.healthScore}/100, Malicious attacks: ${recentMalicious.length}, Bot traffic: ${stats.botTrafficPercent}%.`
+            'You are a security analyst. Summarize the platform threat posture in two sentences. Do not invent numbers.',
+            `Health ${stats.healthScore}/100. Malicious events: ${recentMalicious.length}. Suspected events: ${recentSuspected.length}. Data source: ${stats.dataSource || 'unknown'}.`
           );
           if (localRes?.text) {
             summary = localRes.text;
@@ -267,7 +200,7 @@ Provide a concise, professional executive security briefing. Formulate:
     }
 
     if (!summary) {
-      summary = `Platform security posture is stable with active threat mitigation. Health score stands at ${stats.healthScore}/100. ${stats.blockedAttacks24h} malicious probes were intercepted and quarantined. Bot traffic accounts for ${stats.botTrafficPercent}% of ingress.`;
+      summary = `${_threatEvents.length} event(s) in this process (${stats.dataSource === 'SIMULATION' ? 'all SIMULATED by the admin test buttons' : 'in-memory'}): ${recentMalicious.length} malicious, ${recentSuspected.length} suspected. No AI engine was available to write a narrative.`;
     }
 
     const assessment: CsoAssessment = {
@@ -277,21 +210,11 @@ Provide a concise, professional executive security briefing. Formulate:
       threatLevel: stats.threatLevel,
       executiveSummary: summary,
       riskScore: 100 - stats.healthScore,
-      indicatorsOfCompromise: [
-        'Anomalous credential stuffing velocity on /api/auth endpoints',
-        'Direct IP scanning bypassing CDN edge caching',
-        'Repeated UNION SELECT injection attempts from European proxy subnets'
-      ],
-      recommendedActions: [
-        'Enforce Cloudflare Turnstile / App Check on public registration routes',
-        'Rotate compromised session tokens for flagged user accounts',
-        'Maintain automatic IP CIDR rate-quarantine for scores > 85'
-      ],
-      activeContainments: [
-        'WAF Rate Limiting Active (10 req/15min on auth paths)',
-        'Private Subnet SSRF Protection Enforced',
-        'Automated Bot Scraping Throttled at Ingress'
-      ],
+      // Derived from the events actually held — no canned IOCs.
+      indicatorsOfCompromise: [...recentMalicious, ...recentSuspected].slice(0, 3)
+        .map(e => `${e.simulated ? '[SIMULATION] ' : ''}${e.vector} → ${e.targetEndpoint}`),
+      recommendedActions: [],
+      activeContainments: [],
       engineUsed
     };
 
@@ -308,7 +231,7 @@ Provide a concise, professional executive security briefing. Formulate:
     // 1. Dispatch rich email communication to kmoody2003@gmail.com
     await this.sendRichAdminEmail({
       to: ADMIN_PRIMARY_EMAIL,
-      subject: `🚨 [CRITICAL RED ALERT] Malicious Attack Detected: ${event.vector}`,
+      subject: `${event.simulated ? '[SIMULATION] ' : '🚨 [CRITICAL RED ALERT] '}Malicious Attack ${event.simulated ? 'Simulated' : 'Detected'}: ${event.vector}`,
       event
     }).catch(e => console.warn('[CSO Sentinel] Email dispatch deferred:', e));
 
@@ -325,7 +248,7 @@ Provide a concise, professional executive security briefing. Formulate:
     const htmlContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0d0e12; color: #ffffff; padding: 32px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid rgba(239, 68, 68, 0.4);">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 16px;">
-          <div style="background-color: #dc2626; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 900; letter-spacing: 1px; font-size: 12px;">CRITICAL RED ALERT</div>
+          <div style="background-color: #dc2626; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 900; letter-spacing: 1px; font-size: 12px;">${event.simulated ? 'SIMULATION — NOT A REAL INCIDENT' : 'CRITICAL RED ALERT'}</div>
           <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #ffffff;">Plajah Sentinel CSO</h2>
         </div>
         
@@ -361,22 +284,37 @@ Provide a concise, professional executive security briefing. Formulate:
       </div>
     `;
 
+    // Honest delivery: the old code POSTed to a RELATIVE '/api/postman/send' (which cannot resolve on the
+    // server, and that route sends from a user's own Gmail anyway) and its catch returned true, so callers
+    // reported emailSent:true for mail that never left. Now: server-side Resend when configured, else false.
+    if (typeof window !== 'undefined') return false; // browsers never hold mail credentials
+    const key = typeof process !== 'undefined' ? process.env.RESEND_API_KEY : undefined;
+    if (!key || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+      console.warn(`[CSO Mail Dispatcher] Not sent (${key ? 'invalid recipient' : 'RESEND_API_KEY not configured'}): ${subject}`);
+      return false;
+    }
     try {
-      // Dispatch via server-side postman / mail API
-      const res = await fetch('/api/postman/send', {
+      const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>',
           to: [to],
-          subject,
-          bodyHtml: htmlContent,
-          bodyText: `[CRITICAL RED ALERT] Attack Vector: ${event.vector}\nSource IP: ${event.ip}\nLocation: ${event.geo.city}, ${event.geo.country}\nTarget: ${event.targetEndpoint}\nMitigation: ${event.mitigationAction}`
-        })
+          subject: (event.simulated && !subject.startsWith('[SIMULATION]') ? '[SIMULATION] ' : '') + subject,
+          html: htmlContent,
+          text: `${event.simulated ? '[SIMULATION] ' : ''}Attack Vector: ${event.vector}
+Source IP: ${event.ip}
+Location: ${event.geo.city}, ${event.geo.country}
+Target: ${event.targetEndpoint}
+Mitigation: ${event.mitigationAction}`,
+        }),
+        signal: AbortSignal.timeout(10_000),
       });
+      if (!res.ok) console.warn(`[CSO Mail Dispatcher] Resend HTTP ${res.status}`);
       return res.ok;
-    } catch {
-      console.log(`[CSO Mail Dispatcher] Rich incident report generated for ${to}: ${subject}`);
-      return true;
+    } catch (e: any) {
+      console.warn('[CSO Mail Dispatcher] send failed:', e?.message || e);
+      return false;
     }
   }
 
@@ -392,18 +330,15 @@ Provide a concise, professional executive security briefing. Formulate:
       const roomId = await createChatRoom([user.uid], 'PRIVATE', 'Chief Security Officer (CSO)');
       
       const text = event
-        ? `🚨 **CRITICAL RED ALERT — Malicious Attack Intercepted**\n\n` +
+        ? `${event.simulated ? '🧪 **SIMULATION — not a real incident**' : '🚨 **Security event**'}\n\n` +
           `• **Vector**: ${event.vector}\n` +
-          `• **Source IP**: \`${event.ip}\` (${event.geo.city}, ${event.geo.country})\n` +
+          `• **Source**: \`${event.ip}\`\n` +
           `• **Target**: \`${event.targetEndpoint}\`\n` +
           `• **Risk Score**: ${event.riskScore}/100\n` +
-          `• **Mitigation**: Automated Quarantine Applied (${event.mitigationAction})\n\n` +
-          `**Chief Security Officer Verdict**: The incoming payload matched known attack signatures. Subnet rate-limiting has been deployed. Please review platform logs.`
-        : `🛡️ **Chief Security Officer (CSO) — Regular Platform Security Assessment**\n\n` +
-          `• Platform Health Score: 98/100 (NORMAL)\n` +
-          `• Active Ingress Defense: Monitoring 9 global regions\n` +
-          `• Bot Rate: Controlled (<12%)\n` +
-          `• Recommendation: Turnstile App Check recommended on open media upload endpoints.`;
+          `• **Logged action**: ${event.mitigationAction || 'LOGGED_MONITOR'}\n\n` +
+          `Review in Admin → Threat Protection. No automatic block was applied by this message.`
+        : `🛡️ **Security & IT Council**\n\n` +
+          `Current findings, temporary mitigations and the daily Council Brief are in Admin → Threat Protection.`;
 
       await sendMessage(roomId, {
         senderId: 'system-cso-sentinel',
@@ -438,7 +373,9 @@ Provide a concise, professional executive security briefing. Formulate:
       detectedVector: event.vector,
       originLocation: `${event.geo.city}, ${event.geo.country}`,
       originIp: event.ip,
-      guidanceMessage: `Unusual sign-in or session attempt detected from ${event.geo.city}, ${event.geo.country} (${event.ip}). If this was not you, reset your password and terminate unknown sessions.`,
+      guidanceMessage: event.geo.country && event.geo.country !== 'n/a'
+        ? `Unusual sign-in or session attempt detected from ${event.geo.city}, ${event.geo.country}. If this was not you, reset your password and sign out of unknown sessions.`
+        : `${event.details} If this was not you, reset your password and sign out of unknown sessions.`,
       resolved: false
     };
 
@@ -452,7 +389,7 @@ Provide a concise, professional executive security briefing. Formulate:
         senderName: 'Plajah Security Sentinel',
         senderPhoto: '',
         type: 'ACTION',
-        text: `⚠️ **Security Alert for your Account**\n\n${warning.guidanceMessage}\n\nOur Chief Security Officer has placed temporary safeguards on your account.`,
+        text: `⚠️ **Security Alert for your Account**\n\n${warning.guidanceMessage}`,
         metadata: {
           action: 'USER_ACCOUNT_THREAT_WARNING',
           url: '/account/security',
@@ -492,27 +429,29 @@ Provide a concise, professional executive security briefing. Formulate:
     });
     const attackDistribution = Array.from(vectorMap.entries()).map(([vector, count]) => ({ vector, count }));
 
-    // Generate timeline (last 6 intervals)
-    const timeline = [
-      { time: '00:00', normal: 420, suspected: 14, malicious: 0 },
-      { time: '04:00', normal: 280, suspected: 9, malicious: 0 },
-      { time: '08:00', normal: 650, suspected: 22, malicious: 1 },
-      { time: '12:00', normal: 940, suspected: 38, malicious: maliciousCount > 0 ? maliciousCount : 0 },
-      { time: '16:00', normal: 890, suspected: 31, malicious: 0 },
-      { time: '20:00', normal: 720, suspected: 18, malicious: 0 },
-    ];
+    // Timeline: 6 × 4h buckets over the last 24h, counted from the events actually held. Total ("normal")
+    // traffic is not measured here, so it is 0 and listed in unavailableMetrics — never invented.
+    const now = Date.now();
+    const timeline = Array.from({ length: 6 }, (_, i) => {
+      const start = now - (6 - i) * 4 * 3_600_000, end = start + 4 * 3_600_000;
+      const inB = _threatEvents.filter(e => e.timestamp >= start && e.timestamp < end);
+      return { time: new Date(start).toISOString().slice(11, 16), normal: 0, suspected: inB.filter(e => e.severity === 'SUSPECTED').length, malicious: inB.filter(e => e.severity === 'MALICIOUS_RED').length };
+    });
 
     return {
       healthScore,
       threatLevel,
       activeThreatCount: maliciousCount,
-      blockedAttacks24h: 38 + maliciousCount * 3,
-      botTrafficPercent: 11.4,
+      blockedAttacks24h: _threatEvents.filter(e => e.mitigated && now - e.timestamp < 86_400_000).length,
+      botTrafficPercent: 0,
       csoMode: getLocalInferenceState().backend !== 'UNAVAILABLE' ? 'HYBRID_ACTIVE' : 'CLOUD_GEMINI',
-      lastAssessmentAt: _latestAssessment?.timestamp || Date.now(),
+      lastAssessmentAt: _latestAssessment?.timestamp || 0,
       recentPings: [..._recentPings],
       attackDistribution,
-      timeline
+      timeline,
+      // ingestThreat() is only fed by simulateAttack(), so anything held here is a simulation.
+      dataSource: _threatEvents.length === 0 ? 'NONE' : 'SIMULATION',
+      unavailableMetrics: ['botTrafficPercent', 'timeline.normal'],
     };
   }
 
@@ -533,8 +472,9 @@ Provide a concise, professional executive security briefing. Formulate:
    * email communications, and admin chat updates.
    */
   static async simulateAttack(isMalicious: boolean, targetUserUid?: string): Promise<SecurityThreatEvent> {
-    const loc = SEED_LOCATIONS[Math.floor(Math.random() * SEED_LOCATIONS.length)];
-    const ip = `${Math.floor(Math.random() * 200 + 20)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 254 + 1)}`;
+    const loc = SIMULATION_LOCATIONS[Math.floor(Math.random() * SIMULATION_LOCATIONS.length)];
+    // RFC 5737 documentation range — can never be mistaken for (or collide with) a real visitor.
+    const ip = `203.0.113.${Math.floor(Math.random() * 254 + 1)}`;
 
     const maliciousVectors: ThreatVector[] = ['SQLI_ATTEMPT', 'XSS_ATTEMPT', 'CREDENTIAL_STUFFING', 'SESSION_HIJACK', 'CHAT_DIRTY_DOZEN'];
     const suspectedVectors: ThreatVector[] = ['BOT_SCRAPING', 'ANOMALOUS_API_VELOCITY', 'IMPOSSIBLE_TRAVEL'];
@@ -556,9 +496,9 @@ Provide a concise, professional executive security briefing. Formulate:
       vector,
       targetEndpoint: isMalicious ? '/api/auth/login' : '/api/browse',
       targetUid: targetUserUid,
-      targetEmail: targetUserUid ? 'user@plajah.internal' : undefined,
       riskScore: isMalicious ? 95 : 55,
-      details
+      details: `[SIMULATION] ${details}`,
+      simulated: true,
     });
 
     return event;

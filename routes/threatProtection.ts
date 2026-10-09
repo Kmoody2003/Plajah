@@ -1,6 +1,16 @@
 // routes/threatProtection.ts — Backend API router for Advance Threat Protection & CSO Agent
 import { Router, Request, Response } from 'express';
 import { CsoAgentService, ADMIN_PRIMARY_EMAIL } from '../services/csoAgentService';
+import { getCouncilStore } from '../services/securityCouncil/registry';
+import { councilAssessment, councilPlatformStats, councilThreatEvents } from '../services/securityCouncil/csoBridge';
+
+/** The real data source (Security & IT Council in Firestore), or null when the server has no service account. */
+async function councilStore() {
+  const s = getCouncilStore();
+  return s && (await s.ready()) ? s : null;
+}
+/** Admin "simulate attack" events live only in this process; show them alongside real data, labelled. */
+const simulatedEvents = () => CsoAgentService.getThreatEvents().filter(e => e.simulated);
 
 export const threatProtectionRouter = Router();
 
@@ -14,9 +24,11 @@ export const threatProtectionRouter = Router();
  * GET /api/security/threat-protection/stats
  * Real-time platform security telemetry, scores, and timeline.
  */
-threatProtectionRouter.get('/stats', (req: Request, res: Response) => {
+threatProtectionRouter.get('/stats', async (req: Request, res: Response) => {
   try {
-    const stats = CsoAgentService.getPlatformStats();
+    const store = await councilStore();
+    // No council store → in-memory stats, which are explicitly dataSource 'NONE' | 'SIMULATION'.
+    const stats = store ? await councilPlatformStats(store) : CsoAgentService.getPlatformStats();
     res.json(stats);
   } catch (error: any) {
     res.status(500).json({ error: error?.message || 'Failed to fetch threat stats' });
@@ -27,10 +39,12 @@ threatProtectionRouter.get('/stats', (req: Request, res: Response) => {
  * GET /api/security/threat-protection/events
  * Recent threat and bot events.
  */
-threatProtectionRouter.get('/events', (req: Request, res: Response) => {
+threatProtectionRouter.get('/events', async (req: Request, res: Response) => {
   try {
-    const events = CsoAgentService.getThreatEvents();
-    res.json({ events });
+    const store = await councilStore();
+    const real = store ? await councilThreatEvents(store) : [];
+    const events = [...simulatedEvents(), ...real].sort((a, b) => b.timestamp - a.timestamp).slice(0, 150);
+    res.json({ events, source: store ? 'council' : 'none' });
   } catch (error: any) {
     res.status(500).json({ error: error?.message || 'Failed to fetch threat events' });
   }
@@ -42,8 +56,9 @@ threatProtectionRouter.get('/events', (req: Request, res: Response) => {
  */
 threatProtectionRouter.get('/map-data', (req: Request, res: Response) => {
   try {
+    // Real events carry only salted IP hashes (no geo-IP lookup exists), so only simulated pings can be plotted.
     const stats = CsoAgentService.getPlatformStats();
-    res.json({ pings: stats.recentPings });
+    res.json({ pings: stats.recentPings, simulatedOnly: true });
   } catch (error: any) {
     res.status(500).json({ error: error?.message || 'Failed to fetch map data' });
   }
@@ -56,6 +71,12 @@ threatProtectionRouter.get('/map-data', (req: Request, res: Response) => {
 threatProtectionRouter.get('/assessment', async (req: Request, res: Response) => {
   try {
     const refresh = req.query.refresh === 'true';
+    const store = await councilStore();
+    if (store) {
+      // The council's daily brief IS the assessment. (A new brief: POST /api/security/council/run?brief=force.)
+      const brief = await councilAssessment(store);
+      if (brief) return res.json({ assessment: brief });
+    }
     let assessment = CsoAgentService.getLatestAssessment();
     if (!assessment || refresh) {
       assessment = await CsoAgentService.generateSecurityAssessment();
@@ -89,7 +110,8 @@ threatProtectionRouter.post('/dispatch-alert', async (req: Request, res: Respons
     const { email, eventId } = req.body || {};
     const recipient = email || ADMIN_PRIMARY_EMAIL;
     
-    const events = CsoAgentService.getThreatEvents();
+    const store = await councilStore();
+    const events = [...CsoAgentService.getThreatEvents(), ...(store ? await councilThreatEvents(store) : [])];
     const event = events.find(e => e.id === eventId) || events[0];
 
     if (!event) {
@@ -102,9 +124,12 @@ threatProtectionRouter.post('/dispatch-alert', async (req: Request, res: Respons
       event
     });
 
+    // Admin chat posting uses the browser Firebase SDK session; on the server there is none, so this is false
+    // (reported honestly) unless a server-side chat path is added.
     const chatDelivered = await CsoAgentService.dispatchAssessmentToAdminChat(event);
 
-    res.json({ ok: true, emailSent, chatDelivered, recipient });
+    res.json({ ok: emailSent || chatDelivered, emailSent, chatDelivered, recipient, simulated: !!event.simulated,
+      ...(emailSent ? {} : { emailError: process.env.RESEND_API_KEY ? 'Email provider rejected the message' : 'RESEND_API_KEY not configured' }) });
   } catch (error: any) {
     res.status(500).json({ error: error?.message || 'Alert dispatch failed' });
   }
@@ -119,19 +144,20 @@ threatProtectionRouter.post('/warn-user', async (req: Request, res: Response) =>
     const { uid, vector, details, ip } = req.body || {};
     if (!uid) return res.status(400).json({ error: 'User UID is required' });
 
+    // No invented origin: the old version told users the attempt came from "San Francisco, 198.51.100.42".
     const warning = await CsoAgentService.warnTargetUser(uid, {
       id: 'evt-' + Date.now(),
       timestamp: Date.now(),
-      ip: ip || '198.51.100.42',
-      geo: { lat: 37.7749, lng: -122.4194, country: 'United States', city: 'San Francisco' },
-      severity: 'MALICIOUS_RED',
+      ip: typeof ip === 'string' && ip ? ip.slice(0, 64) : 'unknown',
+      geo: { lat: 0, lng: 0, country: 'n/a', city: 'n/a' },
+      severity: 'SUSPECTED',
       vector: vector || 'CREDENTIAL_STUFFING',
       targetEndpoint: '/api/auth/session',
       targetUid: uid,
-      riskScore: 92,
-      mitigated: true,
+      riskScore: 0,
+      mitigated: false,
       mitigationAction: 'USER_WARNED',
-      details: details || 'Suspicious login pattern detected from unauthorized geographic region.'
+      details: typeof details === 'string' && details ? details.slice(0, 500) : 'An administrator flagged unusual activity on your account.'
     });
 
     res.json({ ok: true, warning });

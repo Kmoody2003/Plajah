@@ -1,0 +1,63 @@
+name: Security audit (Security & IT Council)
+
+# Feeds the council's Auditor + Steward agents. Read-only: never commits, never deploys.
+# Daily: npm audit (prod deps), secret scan, unbounded-Firestore scan, bundle size → artifact + POST to the server.
+# PRs:   the same minus the build; stored as security_audit/pr_<branch>, never overwriting `latest`.
+#
+# Optional repo secrets / variables:
+#   secrets.SECURITY_COUNCIL_INGEST_KEY  — must equal SECURITY_COUNCIL_INGEST_KEY on Cloud Run
+#   vars.SECURITY_COUNCIL_INGEST_URL     — default https://plajah.com/api/security/council/ingest-audit
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: npm audit (production dependencies)
+        # --package-lock-only: audits the lockfile without installing; never fails the job by itself.
+        run: npm audit --json --omit=dev --package-lock-only > npm-audit.json || true
+
+      - name: Install + build (daily only, for bundle size)
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: |
+          npm ci
+          npm run build
+
+      - name: Summarise (and POST to the council if configured)
+        env:
+          SECURITY_COUNCIL_INGEST_KEY: ${{ secrets.SECURITY_COUNCIL_INGEST_KEY }}
+          SECURITY_COUNCIL_INGEST_URL: ${{ vars.SECURITY_COUNCIL_INGEST_URL || 'https://plajah.com/api/security/council/ingest-audit' }}
+        run: node scripts/security-council-audit.mjs --npm-audit npm-audit.json --dist dist --out council-audit.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-council-audit
+          path: |
+            council-audit.json
+            council-audit.full.json
+            npm-audit.json
+          retention-days: 30

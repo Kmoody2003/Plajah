@@ -605,8 +605,11 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
 
   const handleCancel = async (membership: SanctuaryMembership) => {
     if (!window.confirm('Cancel your membership? You will lose access at the end of your billing period.')) return;
-    await cancelMembership(membership.id, membership.tierId);
-    setMyMembership(null);
+    try {
+      const r = await cancelMembership(membership.creatorId);
+      // paid: still a member until the period ends (the webhook ends it); free: gone now
+      setMyMembership(r.status === 'ACTIVE' ? await checkMembership(creatorId) : null);
+    } catch (err: any) { setJoinError(err.message || 'Could not cancel'); }
   };
 
   const onPurchased = (id: string) => setPurchasedIds(prev => new Set(prev).add(id));

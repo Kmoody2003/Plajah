@@ -318,6 +318,24 @@ const AcademiaLandingView: React.FC<{
               </div></div>
             </section>
 
+            {/* ── Teach your own course ─────────────────────────────────────── */}
+            <section className="block">
+              <div className="credstrip"><div className="inner">
+                <div className="m">
+                  <h3>Teach your own course</h3>
+                  <p>
+                    You don’t need a school. Build a course in minutes, then run it with the same gradebook, roster,
+                    live classes and class chat teachers use — and fill it with Plajah’s invites, social tools,
+                    billboards and email. You keep 95% of every enrollment.
+                  </p>
+                </div>
+                <div className="ctas">
+                  <button className="btn btn-primary" onClick={() => onNavigate('CREATOR_COURSES')}>🎨 Create a course →</button>
+                  <button className="btn btn-ghost" onClick={() => onNavigate('CREATOR_COURSES')}>Browse creator courses</button>
+                </div>
+              </div></div>
+            </section>
+
             {/* ── Why educators switch ──────────────────────────────────────── */}
             <section className="block">
               <div className="block-hd">

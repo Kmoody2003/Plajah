@@ -33,7 +33,7 @@ export async function sendTransmission(fromUid: string, toUid: string, blob: Blo
   const id = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const path = `walkie/${pid}/${id}.webm`;
   const sref = storageRef(getStorage(), path);
-  await uploadBytes(sref, blob, { contentType: blob.type || 'audio/webm' });
+  await uploadBytes(sref, blob, { contentType: blob.type || 'audio/webm', customMetadata: { ownerUid: fromUid } });
   const audioUrl = await getDownloadURL(sref);
   const createdAt = Date.now();
   const tx: WalkieTransmission = { id, pairId: pid, fromUid, toUid, audioUrl, storagePath: path, durationMs, createdAt, seq: createdAt };

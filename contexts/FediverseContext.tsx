@@ -6,12 +6,8 @@ import type {
   FediverseProtocol, CreatePostOptions,
 } from '../services/fediverse/types';
 import type { BskyConversation, BskyMessage } from '../services/fediverse/bluesky';
-import {
-  removeFediverseAccount,
-  connectThreads,
-  getUnifiedNotifications,
-  type FediverseFeedResult, type CrossPostResult,
-} from '../services/fediverse/service';
+import { removeFediverseAccount } from '../services/fediverse/clientAccounts';
+import type { FediverseFeedResult, CrossPostResult } from '../services/fediverse/service';
 import type { BroadcastPayload, BroadcastResult } from '../services/fediverse/broadcast';
 
 // ─── Server fetch helper ───────────────────────────────────────────────────────
@@ -55,7 +51,9 @@ interface FediverseContextValue {
 
   connectMastodonOAuth: (instanceUrl: string) => Promise<void>;
   connectMastodonToken: (instanceUrl: string, token: string) => Promise<FediverseAccount>;
-  connectBlueskyAccount: (handle: string, appPassword: string) => Promise<FediverseAccount>;
+  connectBlueskyAccount: (handle: string, appPassword: string, pdsUrl?: string) => Promise<FediverseAccount>;
+  /** "Sign in with Bluesky" (AT Protocol OAuth) — opens Bluesky's own consent screen in a popup. */
+  connectBlueskyOAuth: (handle?: string) => Promise<void>;
   connectThreadsAccount: (token: string) => Promise<FediverseAccount>;
   disconnectAccount: (accountId: string) => Promise<void>;
 
@@ -74,6 +72,8 @@ interface FediverseContextValue {
   dmConversations: BskyConversation[];
   dmMessages: Record<string, BskyMessage[]>;
   isDmLoading: boolean;
+  /** Why DMs can't load (e.g. the app password lacks DM access) — shown instead of an empty inbox. */
+  dmError: string | null;
   loadDmConversations: () => Promise<void>;
   loadDmMessages: (convoId: string) => Promise<void>;
   sendDmMessage: (convoId: string, text: string) => Promise<void>;
@@ -95,6 +95,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [dmConversations, setDmConversations]     = useState<BskyConversation[]>([]);
   const [dmMessages, setDmMessages]               = useState<Record<string, BskyMessage[]>>({});
   const [isDmLoading, setIsDmLoading]             = useState(false);
+  const [dmError, setDmError]                     = useState<string | null>(null);
   const feedRefreshRef = useRef(false);
 
   // ─── Load accounts via server (handles encrypted credentials) ───────────────
@@ -140,6 +141,14 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts.map(a => a.id).join(',')]);
 
+  // The fediverse timeline is now woven into the main Plajah feed, so keep it fresh while the app is open and visible.
+  useEffect(() => {
+    if (!accounts.length) return;
+    const t = setInterval(() => { if (document.visibilityState === 'visible') refreshFeed(); }, 3 * 60_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts.length]);
+
   // ─── Timeline via server (server decrypts credentials and fetches) ───────────
 
   const refreshFeed = useCallback(async () => {
@@ -165,8 +174,11 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshNotifications = useCallback(async () => {
     if (!accounts.length) return;
     try {
-      const notifs = await getUnifiedNotifications(accounts);
-      setNotifications(notifs);
+      // Server-side: the browser never holds credentials, so it can't call the networks itself.
+      const token = await getToken();
+      if (!token) return;
+      const data = await serverJson<{ notifications: FediverseNotification[] }>('/api/fediverse/notifications', token);
+      setNotifications(data.notifications ?? []);
     } catch (err) {
       console.error('[Fediverse] Notifications failed:', err);
     }
@@ -219,27 +231,59 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const connectMastodonToken = useCallback(async (instanceUrl: string, accessToken: string) => {
     if (!uid) throw new Error('Not authenticated');
-    const { connectMastodon } = await import('../services/fediverse/service');
-    const account = await connectMastodon(uid, instanceUrl, accessToken);
+    // Server-side so the token is encrypted before it is stored (the old browser-side path saved it as plain text).
+    const token = await getToken();
+    if (!token) throw new Error('No Firebase token');
+    const { account } = await serverJson<{ account: FediverseAccount }>('/api/fediverse/token-connect', token, {
+      method: 'POST', body: JSON.stringify({ protocol: 'mastodon', token: accessToken, instanceUrl }),
+    });
     setAccounts(prev => [...prev, account]);
     return account;
   }, [uid]);
 
-  const connectBlueskyAccount = useCallback(async (handle: string, appPassword: string) => {
+  const connectBlueskyAccount = useCallback(async (handle: string, appPassword: string, pdsUrl?: string) => {
     if (!uid) throw new Error('Not authenticated');
     const token = await getToken();
     if (!token) throw new Error('No Firebase token');
     const { account } = await serverJson<{ account: FediverseAccount }>(
       '/api/fediverse/bluesky/connect', token,
-      { method: 'POST', body: JSON.stringify({ handle, appPassword }) }
+      { method: 'POST', body: JSON.stringify({ handle, appPassword, ...(pdsUrl?.trim() ? { pdsUrl: pdsUrl.trim() } : {}) }) }
     );
     setAccounts(prev => [...prev, account]);
     return account;
   }, [uid]);
 
+  const connectBlueskyOAuth = useCallback(async (handle?: string) => {
+    if (!uid) throw new Error('Not authenticated');
+    // Open the popup inside the click, point it at Bluesky once the server has built the authorization URL.
+    const popup = window.open('about:blank', 'plajah-bsky-oauth', 'width=520,height=720');
+    if (!popup) throw new Error('Allow pop-ups for Plajah to sign in with Bluesky.');
+    let url: string;
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('No Firebase token');
+      ({ url } = await serverJson<{ url: string }>(`/api/fediverse/bluesky/oauth/start?handle=${encodeURIComponent((handle ?? '').trim())}`, token));
+    } catch (e) { popup.close(); throw e; }
+    popup.location.href = url;
+    await new Promise<void>((resolve, reject) => {
+      const done = (fn: () => void) => { window.removeEventListener('message', onMsg); clearInterval(poll); fn(); };
+      const onMsg = (ev: MessageEvent) => {
+        if (ev.origin !== window.location.origin || ev.data?.type !== 'plajah-bsky-oauth') return;
+        done(() => (ev.data.ok ? resolve() : reject(new Error(ev.data.error || 'Bluesky sign-in failed.'))));
+      };
+      window.addEventListener('message', onMsg);
+      const poll = setInterval(() => { if (popup.closed) done(() => reject(new Error('The sign-in window was closed.'))); }, 800);
+    });
+    await loadAccounts();
+  }, [uid, loadAccounts]);
+
   const connectThreadsAccount = useCallback(async (tkn: string) => {
     if (!uid) throw new Error('Not authenticated');
-    const account = await connectThreads(uid, tkn);
+    const token = await getToken();
+    if (!token) throw new Error('No Firebase token');
+    const { account } = await serverJson<{ account: FediverseAccount }>('/api/fediverse/token-connect', token, {
+      method: 'POST', body: JSON.stringify({ protocol: 'threads', token: tkn }),
+    });
     setAccounts(prev => [...prev, account]);
     return account;
   }, [uid]);
@@ -271,6 +315,18 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const token = await getToken();
       if (!token) throw new Error('Not authenticated');
+      // A reply is NOT a broadcast: it has to carry the parent (and, on Bluesky, its cid + thread root) or it lands
+      // as an unrelated top-level post.
+      if (options?.inReplyToId || options?.inReplyToUri) {
+        const accountId = targetAccountIds?.[0];
+        if (!accountId) throw new Error('Pick the account to reply from');
+        const { post } = await serverJson<{ post: FediversePost }>('/api/fediverse/reply', token, {
+          method: 'POST', body: JSON.stringify({ accountId, text: content, options }),
+        });
+        const account = accounts.find(a => a.id === accountId);
+        setTimeout(refreshFeed, 2000);
+        return { succeeded: [{ accountId, protocol: account?.protocol ?? post.protocol, post }], failed: [] } as CrossPostResult;
+      }
       const result = await serverJson<CrossPostResult>(
         '/api/fediverse/broadcast', token,
         { method: 'POST', body: JSON.stringify({ text: content, targetAccountIds }) }
@@ -283,7 +339,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } finally {
       setIsCrossPosting(false);
     }
-  }, [refreshFeed]);
+  }, [refreshFeed, accounts]);
 
   const broadcast = useCallback(async (payload: BroadcastPayload, targetAccountIds?: string[]): Promise<BroadcastResult> => {
     setIsCrossPosting(true);
@@ -307,7 +363,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const token = await getToken();
       if (!token) throw new Error('Not authenticated');
-      await serverJson('/api/fediverse/posts/action', token, {
+      const res = await serverJson<{ update?: Partial<FediversePost> }>('/api/fediverse/posts/action', token, {
         method: 'POST',
         body: JSON.stringify({
           action: post.isLiked ? 'unlike' : 'like',
@@ -315,6 +371,8 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           accountId: post.accountId,
         }),
       });
+      // Keep the record URI the server returned — Bluesky needs it to undo the like.
+      if (res.update) setFeed(prev => prev.map(p => p.id === post.id && p.protocol === post.protocol ? { ...p, ...res.update } : p));
     } catch (err) {
       setFeed(prev => prev.map(p => p.id === post.id && p.protocol === post.protocol ? post : p));
       throw err;
@@ -329,7 +387,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const token = await getToken();
       if (!token) throw new Error('Not authenticated');
-      await serverJson('/api/fediverse/posts/action', token, {
+      const res = await serverJson<{ update?: Partial<FediversePost> }>('/api/fediverse/posts/action', token, {
         method: 'POST',
         body: JSON.stringify({
           action: post.isReposted ? 'unrepost' : 'repost',
@@ -337,6 +395,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           accountId: post.accountId,
         }),
       });
+      if (res.update) setFeed(prev => prev.map(p => p.id === post.id && p.protocol === post.protocol ? { ...p, ...res.update } : p));
     } catch (err) {
       setFeed(prev => prev.map(p => p.id === post.id && p.protocol === post.protocol ? post : p));
       throw err;
@@ -357,12 +416,14 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const token = await getToken();
     if (!token) return;
     setIsDmLoading(true);
+    setDmError(null);
     try {
       const data = await serverJson<{ conversations: BskyConversation[] }>(
         '/api/fediverse/bluesky/dm/conversations', token
       );
       setDmConversations(data.conversations ?? []);
     } catch (err) {
+      setDmError(err instanceof Error ? err.message : 'Could not load messages');
       console.error('[Fediverse] DM conversations failed:', err);
     } finally {
       setIsDmLoading(false);
@@ -398,11 +459,11 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     accounts, feed, notifications, feedErrors,
     isLoadingAccounts, isLoadingFeed, isCrossPosting,
     connectMastodonOAuth, connectMastodonToken,
-    connectBlueskyAccount, connectThreadsAccount, disconnectAccount,
+    connectBlueskyAccount, connectBlueskyOAuth, connectThreadsAccount, disconnectAccount,
     refreshFeed, refreshNotifications,
     crossPost, broadcast, toggleLike, toggleRepost,
     accountsByProtocol, hasProtocol,
-    dmConversations, dmMessages, isDmLoading,
+    dmConversations, dmMessages, isDmLoading, dmError,
     loadDmConversations, loadDmMessages, sendDmMessage,
   };
 

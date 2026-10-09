@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "liveTalks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "scheduled_posts",
       "queryScope": "COLLECTION",
       "fields": [

@@ -12,6 +12,7 @@
  * mirror CommandSplitNav's NAV_SECTIONS exactly. Guests see the whole surface;
  * only greetings and project areas swap to sign-in nudges.
  */
+import { listMyArticles } from '../services/journalist/articleService';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
@@ -51,7 +52,7 @@ type Lucide = React.ComponentType<{ size?: number; className?: string; style?: R
 /* ── "Your Projects" — the real work the user has across the creative stack.
    Every source below is a genuine per-user loader discovered in the codebase;
    nothing is fabricated. One failing source never blanks the section. ───────── */
-type ProjectKind = 'MUSIC' | 'BOOK' | 'TELA' | 'FILM' | 'SCRIPT' | 'WORLD';
+type ProjectKind = 'MUSIC' | 'BOOK' | 'TELA' | 'FILM' | 'SCRIPT' | 'WORLD' | 'ARTICLE';
 
 interface ProjectItem {
   kind: ProjectKind;
@@ -71,6 +72,7 @@ const KIND_META: Record<ProjectKind, KindMeta> = {
   BOOK:   { label: 'Book',   icon: BookOpen,       hue: '#8B5CF6', grad: 'linear-gradient(135deg,#8B5CF6,#6B0099)' },
   TELA:   { label: 'Doc',    icon: LayoutPanelTop, hue: '#14B8A6', grad: 'linear-gradient(135deg,#14B8A6,#00DAF3)' },
   WORLD:  { label: 'World',  icon: Globe,          hue: '#6366F1', grad: 'linear-gradient(135deg,#6366F1,#8B5CF6)' },
+  ARTICLE: { label: 'Article', icon: Newspaper,     hue: '#06B6D4', grad: 'linear-gradient(135deg,#06B6D4,#6366F1)' },
 };
 
 /** Which tool each project kind opens in. Item-level deep-links aren't in the
@@ -83,6 +85,7 @@ function openProject(item: ProjectItem, onNavigate: (v: string) => void): void {
     case 'SCRIPT': onNavigate('BOOKS'); break;
     case 'FILM':   onNavigate('FABULA'); break;
     case 'WORLD':  onNavigate('WORLDS'); break;
+    case 'ARTICLE': onNavigate('JOURNALIST_DESK'); break;
     case 'TELA':
       try { window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: item.id } })); }
       catch { onNavigate('TELA'); }
@@ -166,6 +169,15 @@ async function loadAllProjects(uid: string): Promise<ProjectItem[]> {
       }
       return [...byId.values()];
     }),
+    // Articles — Tela-powered articles and legacy block articles (status shown honestly).
+    listMyArticles(uid).then((rows) =>
+      rows.map((a): ProjectItem => ({
+        kind: 'ARTICLE',
+        id: a.id,
+        title: a.title,
+        updatedAt: a.updatedAt,
+        subtitle: `${a.status.charAt(0)}${a.status.slice(1).toLowerCase()}${a.notices ? ` · ${a.notices} notice${a.notices > 1 ? 's' : ''}` : ''}`,
+      }))),
     // Worlds — the user's IP universes.
     fetchUserWorlds(uid).then((worlds: IPWorld[]) =>
       (worlds || []).map((w): ProjectItem => ({
@@ -206,6 +218,8 @@ const STUDIOS: StudioDef[] = [
     kinds: ['TELA'],            grad: 'linear-gradient(135deg,#6B0099,#00DAF3)', glow: '0,218,243' },
   { key: 'Lorea',  tagline: 'The Writer’s Desk & Library',   icon: BookOpen,       navId: 'BOOKS',
     kinds: ['BOOK', 'SCRIPT'],  grad: 'linear-gradient(135deg,#FBBF24,#FF8C00)', glow: '255,140,0' },
+  { key: 'Newsroom', tagline: 'Articles, sources & fact-check', icon: Newspaper, navId: 'JOURNALIST_DESK',
+    kinds: ['ARTICLE'],         grad: 'linear-gradient(135deg,#06B6D4,#6366F1)', glow: '6,182,212' },
   { key: 'Worlds', tagline: 'Your IP universes',     icon: Globe,          navId: 'WORLDS',
     kinds: ['WORLD'],           grad: 'linear-gradient(135deg,#8B5CF6,#6366F1)', glow: '139,92,246' },
 ];
@@ -513,6 +527,7 @@ export default function CreatorHub({
     { label: 'New Film', icon: Film, hue: '#A855F7', isNew: true, run: () => onNavigate('FABULA') },
     { label: 'New Book / Article', icon: BookOpen, hue: '#06B6D4', isNew: true, run: () => onNavigate('BOOKS') },
     { label: 'New Doc', icon: PenLine, run: () => onNavigate('TELA') },
+    { label: 'Newsroom', icon: Newspaper, run: () => onNavigate('JOURNALIST_DESK') },
     { label: 'Go Live', icon: Radio, run: () => (onGoLive ? onGoLive() : onNavigate('LIVE_HUB')) },
     { label: 'New Post', icon: Plus, run: () => (onNewPost ? onNewPost() : onNavigate('FEED')) },
   ];

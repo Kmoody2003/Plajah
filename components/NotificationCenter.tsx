@@ -4,6 +4,7 @@ import { Bell, X, MessageCircle, MessageSquare, Plus, Zap, Heart, Inbox, UserPlu
 import { useNotifications } from '../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 import { AppNotification } from '../types';
+import { groupNotifications, type NotificationGroup } from '../services/socialPerfCore';
 import NotificationSettings from './NotificationSettings';
 import FollowRequestsInbox from './safety/FollowRequestsInbox';
 import { waveBack, followBack, openDmForMutualHello, FAILURE_COPY } from '../services/sayHiService';
@@ -55,6 +56,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
   const { notifications, unreadCount, markAsRead, clearAll, isLoading } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // "Ana and 9 others liked your post" — LIKE/COMMENT/FOLLOW about the same thing collapse into one row.
+  const groups = React.useMemo(() => groupNotifications(notifications), [notifications]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -67,8 +70,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
     }
   };
 
-  const handleClick = (n: AppNotification) => {
-    markAsRead(n.id);
+  const handleClick = (g: NotificationGroup<AppNotification>) => {
+    const n = g.lead;
+    g.items.forEach(i => { if (!i.isRead) markAsRead(i.id); });
     if (n.link && onNavigate) {
       onNavigate(n);
       setIsOpen(false);
@@ -120,11 +124,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
                 ) : notifications.length > 0 ? (
                   <div className="divide-y divide-white/5">
                     <FollowRequestsInbox />
-                    {notifications.map((n) => (
-                      <React.Fragment key={n.id}>
+                    {groups.map((g) => { const n = g.lead; return (
+                      <React.Fragment key={g.key}>
                       <button
-                        onClick={() => handleClick(n)}
-                        className={`w-full p-6 hover:bg-white/[0.05] transition-colors text-left group relative ${!n.isRead ? 'bg-small-orange/[0.02]' : ''} ${n.link ? 'cursor-pointer' : 'cursor-default'}`}
+                        onClick={() => handleClick(g)}
+                        className={`w-full p-6 hover:bg-white/[0.05] transition-colors text-left group relative ${!g.isRead ? 'bg-small-orange/[0.02]' : ''} ${n.link ? 'cursor-pointer' : 'cursor-default'}`}
                       >
                         <div className="flex gap-4">
                           <div className="relative shrink-0">
@@ -140,7 +144,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <p className="text-[11px] font-black uppercase tracking-wider truncate text-white">{n.title}</p>
+                              <p className="text-[11px] font-black uppercase tracking-wider truncate text-white">{g.title}</p>
                               <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter shrink-0 ml-2">
                                 {formatDistanceToNow(n.timestamp)} ago
                               </span>
@@ -152,14 +156,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
                               </p>
                             )}
                           </div>
-                          {!n.isRead && (
+                          {!g.isRead && (
                             <div className="w-1.5 h-1.5 bg-small-orange rounded-full mt-2 shrink-0" />
                           )}
                         </div>
                       </button>
                       {n.type === 'HELLO' && <HelloActions n={n} onOpenChat={() => setIsOpen(false)} />}
                       </React.Fragment>
-                    ))}
+                    ); })}
                   </div>
                 ) : (
                   <div className="p-20 flex flex-col items-center gap-4 text-white/10 text-center">

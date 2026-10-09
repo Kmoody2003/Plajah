@@ -6,8 +6,11 @@ import * as campaigns from './campaigns';
 import * as editorial from './editorial';
 import * as books from './books';
 import * as comics from './comics';
+import * as articles from './articles';
+import * as catalogs from './catalogs';
+import * as magazines from './magazines';
 
-const groups = [campaigns, editorial, books, comics];
+const groups = [campaigns, editorial, books, comics, articles, catalogs, magazines];
 export const PUBLICATION_DESIGNS: Record<string, PublicationDesigner> = Object.assign({}, ...groups.map(g => g.DESIGNS));
 export const PUBLICATION_LESSONS: Record<string, DesignLesson> = Object.assign({}, ...groups.map(g => g.LESSONS));
 export type { PublicationCtx, PublicationDesigner } from './types';

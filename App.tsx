@@ -176,6 +176,7 @@ import { useTvShellFocus, setShellFocus } from './hooks/useTvShellFocus';
 import { isSpeakerPickerSupported } from './services/speakerGroupsBridge';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
+import StandingBanner from './components/enforcement/StandingBanner';
 // Off the boot path (TV first paint parses everything eager): desktop/rare-only surfaces load on demand.
 const StoreDemoView = retryLazy(() => import('./components/StoreDemoView'));
 import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
@@ -213,6 +214,7 @@ const TelaView = retryLazy(() => import('./components/tela/TelaView'));
 // Machine Atlas — generic 3D mechanical models + simulations (pilot: brakes)
 const MachineAtlasView = retryLazy(() => import('./components/atlas/MachineAtlasView'));
 const CreatorHub = retryLazy(() => import('./components/CreatorHub'));
+const CreatorCoursesHub = retryLazy(() => import('./components/academia/creator/CreatorCoursesHub'));
 const DesktopLauncherOverlay = retryLazy(() => import('./components/DesktopLauncherOverlay'));
 // Tela reference-embed demo (P2b — live/follow-latest/pinned, lock→propagate)
 const TelaEmbedDemo = retryLazy(() => import('./components/tela/TelaEmbedDemo'));
@@ -364,6 +366,8 @@ function getBottomTabsForPersona(personaKey: PersonaKey, userProfile: any) {
 }
 const ArticleEditor = retryLazy(() => import('./components/ArticleEditor'));
 const ArticleView = retryLazy(() => import('./components/ArticleView'));
+const JournalistHub = retryLazy(() => import('./components/journalist/JournalistHub'));
+const PublicationPage = retryLazy(() => import('./components/journalist/PublicationPage'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
@@ -463,6 +467,7 @@ const AmboOperatorWindow = retryLazy(() => import('./components/scripture/AmboOp
 const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
 const AmboPartyEventReceiver = retryLazy(() => import('./components/scripture/AmboPartyEventReceiver'));
 import { registerEventDevice } from './services/ambo/amboPartyEventService';
+import PartyToastHost from './components/party/PartyToastHost';
 
 const AriaEventBridge: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
   useEffect(() => {
@@ -510,13 +515,13 @@ const ArtistBoards = retryLazy(() => import('./components/ArtistBoards'));
 const EventProductionStudio = retryLazy(() => import('./components/EventProductionStudio'));
 const TicketDesigner = retryLazy(() => import('./components/TicketDesigner'));
 const LiveEventsGallery = retryLazy(() => import('./components/LiveEventsGallery'));
+const EventsHome = retryLazy(() => import('./components/events/EventsHome'));
+const EviteStudio = retryLazy(() => import('./components/evite/EviteStudio'));
 const PlajahPlusBanner = retryLazy(() => import('./components/PlajahPlusBanner'));
 const PlajahPlusLandingModal = retryLazy(() => import('./components/PlajahPlusLanding'));
 const AlbumAdBillboard = retryLazy(() => import('./components/AlbumAdBillboard'));
 const AdBillboardRenderer = retryLazy(() => import('./components/AdBillboardRenderer'));
 const RelloView = retryLazy(() => import('./components/RelloView'));
-const EventsHome = retryLazy(() => import('./components/events/EventsHome'));
-const EviteStudio = retryLazy(() => import('./components/evite/EviteStudio'));
 
 import { useGlobalPlayer, useGlobalPlayerState, useGlobalPlayerProgress } from './contexts/GlobalPlayerContext';
 
@@ -938,11 +943,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:openTela', h as EventListener);
   }, [setView]);
 
-  // Open Project Firstlight (admin-only 3D passing lab)
-  useEffect(() => {
-    const h = () => setView('PROJECT_FIRSTLIGHT');
-    window.addEventListener('plajah:openFirstlight', h as EventListener);
-    return () => window.removeEventListener('plajah:openFirstlight', h as EventListener);
   // Create an event from anywhere: profile, org, business, school, teacher (components/events/CreateEventButton.tsx)
   useEffect(() => {
     const h = (event: Event) => {
@@ -954,6 +954,11 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:createEvent', h as EventListener);
   }, [setView]);
 
+  // Open Project Firstlight (admin-only 3D passing lab)
+  useEffect(() => {
+    const h = () => setView('PROJECT_FIRSTLIGHT');
+    window.addEventListener('plajah:openFirstlight', h as EventListener);
+    return () => window.removeEventListener('plajah:openFirstlight', h as EventListener);
   }, [setView]);
 
   // ── Windows Native Media File Launch Activation ─────────────────────────────
@@ -1192,6 +1197,50 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedBook, setSelectedBook] = useState<Album | null>(null);
   const [partyIdForReader, setPartyIdForReader] = useState<string | null>(null);
   const [partyIdForAlbum, setPartyIdForAlbum] = useState<string | null>(null);
+  // Join a synchronized watch/read/listen party. ENTITLEMENT: the party doc only holds a content
+  // reference — each guest resolves the playable item through THEIR OWN access (fetchVideoById /
+  // fetchAlbumById honour the normal read rules). Nothing playable is ever built from the party doc.
+  // Used by the ?party= deep link and by in-app opens (openPartyInApp → OPEN_PARTY_EVENT).
+  const openPartyByIdRef = useRef<(partyId: string) => Promise<void>>(async () => {});
+  openPartyByIdRef.current = async (partyId: string) => {
+    const [ps, m, toast] = await Promise.all([
+      import('./services/partyService'), import('./services/backendService'), import('./components/party/partyToast'),
+    ]);
+    const p = await ps.fetchParty(partyId).catch(() => null);
+    if (!p) { toast.partyToast('That party link is no longer valid', 'warn'); return; }
+    if (p.isActive === false) { toast.partyToast(`${p.hostName || 'The host'} already ended this party`, 'info'); return; }
+    const noAccess = () => toast.partyToast(`“${p.content?.title || 'This title'}” isn't available on your account — it may need a purchase or subscription.`, 'warn');
+    if (p.kind === 'WATCH') {
+      const vid: any = await m.fetchVideoById(p.content.id).catch(() => null);
+      if (!vid) { noAccess(); return; }
+      setPartyIdForPlayer(partyId);
+      setSelectedVideo(vid);
+      setView('PLAYER');
+      document.title = `Watch Party · ${vid.title} | Plajah`;
+    } else if (p.kind === 'READ') {
+      const book = await m.fetchAlbumById(p.content.id).catch(() => null);
+      if (!book) { noAccess(); return; }
+      setPartyIdForReader(partyId);
+      setSelectedBook(book);
+      setView('BOOK_READER');
+      document.title = `Read-Along · ${book.title} | Plajah`;
+    } else if (p.kind === 'LISTEN') {
+      const alb = await m.fetchAlbumById(p.content.id).catch(() => null);
+      if (!alb) { noAccess(); return; }
+      setPartyIdForAlbum(partyId);
+      setSelectedAlbum(alb);
+      setView('PLAYER');
+      document.title = `Listening Party · ${alb.title} | Plajah`;
+    }
+  };
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent).detail?.partyId;
+      if (typeof id === 'string' && id) openPartyByIdRef.current(id).catch(() => {});
+    };
+    window.addEventListener('plajah:open-party', onOpen);
+    return () => window.removeEventListener('plajah:open-party', onOpen);
+  }, []);
   const [selectedScriptId, setSelectedScriptId] = useState<string | undefined>(undefined);
 
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
@@ -1199,6 +1248,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedRadioArtistId, setSelectedRadioArtistId] = useState<string | undefined>(undefined);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [publicationPageId, setPublicationPageId] = useState<string>('');
   const [showCreator, setShowCreator] = useState(false);
   // True while a capture screen has handed keyboard focus up to the TV tab bar.
   // Owned by hooks/useTvShellFocus so every capture screen can hand the remote up without
@@ -1370,7 +1420,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const sp = new URLSearchParams(window.location.search);
       const isDeepLink = !!(
         sp.get('id') || sp.get('type') || sp.get('reello') || sp.get('video') || sp.get('v') ||
-        sp.get('party') || sp.get('club') || sp.get('debate') || sp.get('org') || sp.get('follow') ||
+        sp.get('party') || sp.get('club') || sp.get('course') || sp.get('debate') || sp.get('org') || sp.get('follow') ||
         sp.get('livestream') || sp.get('recap') || sp.get('play') ||
         window.location.pathname.startsWith('/share') ||
         window.location.pathname.startsWith('/reello') ||
@@ -1421,7 +1471,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const sp = new URLSearchParams(window.location.search);
       const isDeepLink = !!(
         sp.get('id') || sp.get('type') || sp.get('reello') || sp.get('video') || sp.get('v') ||
-        sp.get('party') || sp.get('club') || sp.get('debate') || sp.get('org') || sp.get('follow') ||
+        sp.get('party') || sp.get('club') || sp.get('course') || sp.get('debate') || sp.get('org') || sp.get('follow') ||
         sp.get('livestream') || sp.get('recap') || sp.get('play') ||
         window.location.pathname.startsWith('/share') ||
         window.location.pathname.startsWith('/reello') ||
@@ -1560,6 +1610,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [notifDrawerTrigger, setNotifDrawerTrigger] = useState<{ tab: string; ts: number } | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  // Plajah Evites studio: which invite to edit, which design to start from, and who is hosting (you / org / business / school / teacher)
+  const [eviteCtx, setEviteCtx] = useState<{ editId?: string; plateId?: string; host?: any } | null>(null);
   const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any; fluxScene?: string } | null>(null);
   const [melosBeatsPayload, setMelosBeatsPayload] = useState<{ grooveId?: string; productionId?: string; sampleUrl?: string; sampleName?: string } | null>(null);
   const [smartDirectorPayload, setSmartDirectorPayload] = useState<{ productionId?: string; event?: any } | null>(null);
@@ -1610,8 +1662,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     navWarnTimer.current = setTimeout(() => setNavWarning(null), 3200);
   }, []);
   // Network degradation toast — surfaced by the NetworkMonitor when the user's
-  // Plajah Evites studio: which invite to edit, which design to start from, and who is hosting (you / org / business / school / teacher)
-  const [eviteCtx, setEviteCtx] = useState<{ editId?: string; plateId?: string; host?: any } | null>(null);
   // connection drops to a warning/critical level.
   const [netAlert, setNetAlert] = useState<{ msg: string; severity: 'info' | 'warning' | 'critical' } | null>(null);
   const netAlertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1673,6 +1723,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
+  const [creatorCourseId, setCreatorCourseId] = useState<string | undefined>(undefined);
   // A shared live channel deep-link opens the Live guide focused on that channel.
   const [liveChannelFocus, setLiveChannelFocus] = useState<{ ownerId?: string; plajahId?: string; number?: string; sourceId?: string } | null>(null);
   // Account Switcher
@@ -2550,6 +2601,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ACADEMIA_LANDING');
     } else if (target === 'ACADEMIA_COURSES') {
       setView('ACADEMIA_COURSES');
+    } else if (target === 'CREATOR_COURSES') {
+      setView('CREATOR_COURSES');
+    } else if (target === 'JOURNALIST_DESK') {
+      setView('JOURNALIST_DESK');
     } else if (target === 'MACHINE_ATLAS') {
       setView('MACHINE_ATLAS');
     } else if (target === 'SCHOOL_PACKAGE') {
@@ -2984,6 +3039,37 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         return;
       }
 
+      // Deep-link: ?course={id} — a creator course's public page (shared by the course owner).
+      const courseIdParam = params.get('course');
+      if (courseIdParam) {
+        setCreatorCourseId(courseIdParam);
+        setView('CREATOR_COURSES');
+        setIsLoading(false);
+        return;
+      }
+
+      // Deep-link: ?create=evite — "Make your own" from a guest's invitation page opens the evite studio.
+      // Back from a print checkout (/?evite=<id>&print=thanks): land on that invitation's manage view.
+      const eviteParam = params.get('evite');
+      if (eviteParam && /^[a-z0-9]{6,14}$/.test(eviteParam)) {
+        setEviteCtx({ editId: eviteParam });
+        setView('EVITE_STUDIO');
+        setIsLoading(false);
+        return;
+      }
+      if (params.get('create') === 'evite') {
+        setEviteCtx({});
+        setView('EVITE_STUDIO');
+        setIsLoading(false);
+        return;
+      }
+      // Creator-theme share link / return from theme Checkout: Events home opens on its Themes tab.
+      if (params.has('evite_theme')) {
+        setView('EVENTS');
+        setIsLoading(false);
+        return;
+      }
+
       // Deep-link: ?club={id} — open the specific club.
       const clubIdParam = params.get('club');
       if (clubIdParam) {
@@ -3029,59 +3115,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       const partyParam = params.get('party');
       if (partyParam) {
-        import('./services/partyService').then(async (ps) => {
-          const p = await ps.fetchParty(partyParam).catch(() => null);
-          if (p && p.isActive !== false && p.kind === 'WATCH') {
-            const m = await import('./services/backendService');
-            let vid: any = await m.fetchVideoById(p.content.id).catch(() => null);
-            if (!vid) vid = { id: p.content.id, title: p.content.title || 'Watch Party', url: p.content.url, muxPlaybackId: p.content.muxPlaybackId, thumbnailUrl: p.content.thumbnail, ownerId: p.hostId, timestamp: Date.now() };
-            setPartyIdForPlayer(partyParam);
-            setSelectedVideo(vid);
-            setView('PLAYER');
-            document.title = `Watch Party · ${vid.title} | Plajah`;
-          } else if (p && p.isActive !== false && p.kind === 'READ') {
-            const m = await import('./services/backendService');
-            const book = await m.fetchAlbumById(p.content.id).catch(() => null);
-            if (book) {
-              setPartyIdForReader(partyParam);
-              setSelectedBook(book);
-              setView('BOOK_READER');
-              document.title = `Read-Along · ${book.title} | Plajah`;
-            }
-      // Deep-link: ?create=evite — "Make your own" from a guest's invitation page opens the evite studio.
-      // Back from a print checkout (/?evite=<id>&print=thanks): land on that invitation's manage view.
-      const eviteParam = params.get('evite');
-      if (eviteParam && /^[a-z0-9]{6,14}$/.test(eviteParam)) {
-        setEviteCtx({ editId: eviteParam });
-        setView('EVITE_STUDIO');
-        setIsLoading(false);
-        return;
-      }
-      if (params.get('create') === 'evite') {
-        setEviteCtx({});
-        setView('EVITE_STUDIO');
-        setIsLoading(false);
-        return;
-      }
-      // Creator-theme share link / return from theme Checkout: Events home opens on its Themes tab.
-      if (params.has('evite_theme')) {
-        setView('EVENTS');
-        setIsLoading(false);
-        return;
-      }
-
-          } else if (p && p.isActive !== false && p.kind === 'LISTEN') {
-            const m = await import('./services/backendService');
-            const alb = await m.fetchAlbumById(p.content.id).catch(() => null);
-            if (alb) {
-              setPartyIdForAlbum(partyParam);
-              setSelectedAlbum(alb);
-              setView('PLAYER');
-              document.title = `Listening Party · ${alb.title} | Plajah`;
-            }
-          }
-          setIsLoading(false);
-        }).catch(() => setIsLoading(false));
+        openPartyByIdRef.current(partyParam).catch(() => {}).finally(() => setIsLoading(false));
         return;
       }
 
@@ -3145,6 +3179,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           import('./services/backendService').then(async (m) => {
             try { const a = await m.fetchArticleById(projectId); if (a) { setSelectedArticle(a); setView('ARTICLE_VIEW'); setIsPublicView(true); document.title = `${a.title} | Plajah`; } } catch {}
           });
+          setIsLoading(false);
+          return;
+        } else if (shareType === 'publication') {
+          setPublicationPageId(projectId); setView('PUBLICATION_PAGE'); setIsPublicView(true);
           setIsLoading(false);
           return;
         } else if (shareType === 'game') {
@@ -3908,12 +3946,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <CallProvider>
                 <SpatialProvider initialValue={userProfile?.uiSettings?.isSpatialModeEnabled}>
         <TVNavigationLayer />
+        <PartyToastHost />
         {/* Mounted early and outside the view switch so its key listener registers once, before any
             screen's, and so an assigned duty survives navigation. Renders nothing in standby. */}
         {getPlatformInfo().isTV && <Suspense fallback={null}><TvReceiverHost /></Suspense>}
         {tvPairCode && !getPlatformInfo().isTV && <Suspense fallback={null}><TvPairClaimView code={tvPairCode} onClose={closeTvPair} /></Suspense>}
         <TooltipSuppressor />
         <ResumeUploadPrompt />
+        {/* Fair Process: calm account-standing banner + Appeal Center (renders nothing in good standing). */}
+        <StandingBanner />
         {/* Plajah TV-app opening ident — a random bumper from the platform library, once per launch. */}
         {!tvIntroDone && <PlatformBumperPlayer kind="TV_OPEN_BUMPER" onDone={() => setTvIntroDone(true)} />}
         <Suspense fallback={
@@ -3942,6 +3983,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               its job is to isolate the control layer from everything around it. */}
           {typeof window !== 'undefined' && window.location.pathname.startsWith('/ds') ? (
             <Suspense fallback={null}><DesignSystemGallery /></Suspense>
+          ) : typeof window !== 'undefined' && /^\/delete-account\/?$/.test(window.location.pathname) ? (
+            /* Tested before view routing like /ds and /link: a fresh load computes view = 'LANDING'. */
+            <Suspense fallback={null}><DeleteAccountPage onBack={() => { window.location.href = '/'; }} /></Suspense>
           ) : typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('amboOut') ? (
             /* An Ambo output window is ONLY the output — no chrome, no nav, no
                player. Short-circuits above everything else so a projector can
@@ -3956,9 +4000,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <Suspense fallback={null}><DjOutputWindow /></Suspense>
           ) : typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
             <Suspense fallback={null}><TvLinkApproval /></Suspense>
-          ) : typeof window !== 'undefined' && /^\/delete-account\/?$/.test(window.location.pathname) ? (
-            /* Tested before view routing like /ds and /link: a fresh load computes view = 'LANDING'. */
-            <Suspense fallback={null}><DeleteAccountPage onBack={() => { window.location.href = '/'; }} /></Suspense>
           ) : (view === 'LIVE_FX_LAB' || (typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('view') === 'live-fx-lab' || new URLSearchParams(window.location.search).get('lab') === 'livefx'))) ? (
             <Suspense fallback={<div className="min-h-screen bg-[#05060a] flex items-center justify-center text-white/40 text-xs font-mono uppercase tracking-widest">Loading Live FX Studio…</div>}>
               <LiveAudioFxAuditionLab onBack={() => {
@@ -5966,10 +6007,42 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 article={editingArticle || undefined}
                 user={userProfile}
                 onSave={(id) => {
+                  setEditingArticle(null);
                   setView('ARTICLES');
                 }}
-                onCancel={() => setView('ARTICLES')}
+                onCancel={() => { setEditingArticle(null); setView('ARTICLES'); }}
               />
+            )}
+
+            {view === 'PUBLICATION_PAGE' && publicationPageId && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-[#D0BCFF]/30 border-t-[#D0BCFF] rounded-full animate-spin" /></div>}>
+                <PublicationPage
+                  publicationId={publicationPageId}
+                  currentUser={userProfile}
+                  onBack={() => setView('ARTICLES')}
+                  onSelectArticle={(a) => { setSelectedArticle(a); setView('ARTICLE_VIEW'); }}
+                />
+              </Suspense>
+            )}
+
+            {view === 'JOURNALIST_DESK' && userProfile && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-[#D0BCFF]/30 border-t-[#D0BCFF] rounded-full animate-spin" /></div>}>
+                <JournalistHub
+                  user={userProfile}
+                  onBack={() => setView('CREATOR_HUB')}
+                  onNewArticle={() => { setEditingArticle(null); setView('ARTICLE_EDITOR'); }}
+                  onOpenArticle={async (articleId) => {
+                    const m = await import('./services/backendService');
+                    const a = await m.fetchArticleById(articleId);
+                    if (a) { setEditingArticle(a); setView('ARTICLE_EDITOR'); }
+                  }}
+                  onViewArticle={async (articleId) => {
+                    const m = await import('./services/backendService');
+                    const a = await m.fetchArticleById(articleId);
+                    if (a) { setSelectedArticle(a); setView('ARTICLE_VIEW'); }
+                  }}
+                />
+              </Suspense>
             )}
 
             {view === 'ARTICLE_VIEW' && selectedArticle && (
@@ -6987,6 +7060,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </div>
             )}
             {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onOpenOrg={(orgId) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); }} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
+            {view === 'CREATOR_COURSES' && (
+              <CreatorCoursesHub
+                key={creatorCourseId || 'hub'}
+                profile={userProfile}
+                user={user}
+                initialCourseId={creatorCourseId}
+                onNavigate={(v) => { if (v === 'LANDING' && !user) { loginWithGoogle(); return; } setView(v as AppView); }}
+                onVisitUser={(uid) => handleVisitUser(uid)}
+                onBack={() => { setCreatorCourseId(undefined); goBack('ACADEMIA_LANDING'); }}
+              />
+            )}
             {view === 'CREATOR_HUB' && (
               <CreatorHub
                 user={user}

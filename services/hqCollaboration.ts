@@ -46,7 +46,7 @@ export async function addHqVersion(asset: OrgAsset, file: File, changeNote?: str
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const storagePath = `protected-hq/${asset.scopeKind}/${asset.scopeId}/${asset.id}/v${number}_${safe}`;
   await new Promise<void>((resolve, reject) => {
-    const task = uploadBytesResumable(ref(storage, storagePath), file, { contentType: file.type || 'application/octet-stream' });
+    const task = uploadBytesResumable(ref(storage, storagePath), file, { contentType: file.type || 'application/octet-stream', customMetadata: { ownerUid: a.uid } });
     task.on('state_changed', s => onProgress?.((s.bytesTransferred / s.totalBytes) * 100), reject, () => resolve());
   });
   const version: HqAssetVersion = clean({ id: versionRef.id, assetId: asset.id, version: number, storagePath,

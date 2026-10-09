@@ -1,0 +1,125 @@
+// child-safety.rules.snippet — users/{userId} child-safety lock for the LIVE Firestore ruleset
+// (database plajah-prod). The repo firestore.rules carries the same change but is over the
+// 256 KiB limit; the live ruleset is the one in .rules-hotfix/firestore.rules (2026-10-07).
+//
+// Fixes:
+//  * A child (learner custom-token session, uid child_*) could set isChild:false / accountType /
+//    guardianUid / parentalControls / birthYear on its own profile and escape kids filtering.
+//  * Any adult could self-select accountType CHILD (isChild:true) and enter kids-only spaces.
+//  * Any signed-in user could create a profile doc at ANY unused uid with isChild:true and
+//    guardianUid=self (pre-squatting a future signup and becoming its "guardian").
+//  * The guardian update path allowed setting role/isAdmin/teacherVerification or un-childing.
+//  * The managed-employee create path allowed role/isAdmin/teacherVerification grabs.
+//
+// Server writes (routes/learnerAuth.ts provisioning + claim) use the service account and are
+// unaffected. Client guardian flow: services/backendService.ts createChildProfile (doc id
+// child_<6>_<rand>) and components/ParentalControlsPanel.tsx (rewrites isChild:true + same
+// guardianUid) both still pass.
+//
+// HOW TO APPLY (to .rules-hotfix/firestore.rules, line numbers as of 2026-10-07):
+//  STEP 1. Insert block A immediately after `function platformPrivilegeUnchanged(...) { ... }`
+//          (before `function canAccessDigitalWorksheet`).
+//  STEP 2. Inside `match /users/{userId} {`, replace the `allow create` + first part of
+//          `allow update` (from `allow create: if (isOwner(userId) ...` down to, not including,
+//          the comment `// A managed employee profile is managed by its creator`) — block OLD —
+//          with block B. Everything from that comment on (employee update, admin displayName
+//          fix) is unchanged.
+//  Then compile-check: firebase deploy --only firestore:rules --dry-run (from .rules-hotfix).
+
+// ───────────────────────────── A: helpers (insert) ─────────────────────────────
+    // Child safety: the fields that decide whether an account is walled as a child. A child
+    // must never be able to clear them (escaping kids filtering), and an adult must never be
+    // able to self-declare CHILD (entering kids-only spaces). Child accounts are created by
+    // the guardian create path below or by the server (/api/learner, service account).
+    function isChildAccount(d) {
+      return d.get('isChild', false) == true || d.get('accountType', '') == 'CHILD' ||
+             d.get('guardianUid', null) != null || d.get('provisionedByTeacherUid', null) != null;
+    }
+    function childIdentityUnchanged(n, o) {
+      return n.get('isChild', false) == o.get('isChild', false) &&
+             n.get('guardianUid', null) == o.get('guardianUid', null) &&
+             n.get('provisionedByTeacherUid', null) == o.get('provisionedByTeacherUid', null) &&
+             n.get('childState', null) == o.get('childState', null) &&
+             n.get('birthYear', null) == o.get('birthYear', null);
+    }
+    // Owner (self) update: identity fields frozen; a child also cannot change accountType or
+    // parentalControls (only the guardian/server can); an adult cannot become CHILD.
+    function ownerChildSafetyOk(n, o) {
+      return childIdentityUnchanged(n, o) && (
+        (isChildAccount(o) &&
+          n.get('accountType', null) == o.get('accountType', null) &&
+          n.get('parentalControls', null) == o.get('parentalControls', null)) ||
+        (!isChildAccount(o) && n.get('accountType', '') != 'CHILD')
+      );
+    }
+
+// ───────────────────────────── B: users/{userId} create/update (replacement) ────
+      allow create: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED' &&
+                       // nobody self-declares as a child at signup: child profiles come only from
+                       // the guardian path below or the server (/api/learner provisioning)
+                       !isChildAccount(request.resource.data) &&
+                       noPlatformPrivilegeGrab(request.resource.data)) ||
+                      // Guardian-created managed child: ONLY at a client-generated child_<6>_<rand> id
+                      // (createChildProfile in services/backendService.ts), which can never collide
+                      // with a real Firebase Auth uid, so nobody can pre-squat another person's profile
+                      // and make themselves its guardian. A child session cannot mint children.
+                      (isRegisteredUser() &&
+                       !request.auth.uid.matches('child_.*') &&
+                       userId.matches('child_[A-Za-z0-9]{1,6}_[a-z0-9]{1,16}') &&
+                       request.resource.data.get('uid', '') == userId &&
+                       request.resource.data.isChild == true &&
+                       request.resource.data.get('accountType', 'CHILD') == 'CHILD' &&
+                       request.resource.data.guardianUid == request.auth.uid &&
+                       !('provisionedByTeacherUid' in request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED' &&
+                       noPlatformPrivilegeGrab(request.resource.data)) ||
+                      // Managed EMPLOYEE profile: a business owner/admin provisions a Firestore-only
+                      // work identity (no login). Must be flagged isEmployee and owned by the creator.
+                      (isAuthenticated() &&
+                       request.resource.data.isEmployee == true &&
+                       request.resource.data.managedByUid == request.auth.uid &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED' &&
+                       !isChildAccount(request.resource.data) &&
+                       noPlatformPrivilegeGrab(request.resource.data));
+      allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED') &&
+                       platformPrivilegeUnchanged(request.resource.data, resource.data) &&
+                       ownerChildSafetyOk(request.resource.data, resource.data)) ||
+                      (isAuthenticated() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
+                       math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1) ||
+                      // Guardian manages their child (parentalControls, birthYear, display fields) but
+                      // can never un-child it, hand it to someone else, or grant it privilege.
+                      (isAuthenticated() &&
+                       resource.data.isChild == true &&
+                       resource.data.guardianUid == request.auth.uid &&
+                       request.resource.data.get('isChild', false) == true &&
+                       request.resource.data.get('guardianUid', null) == request.auth.uid &&
+                       request.resource.data.get('accountType', null) == resource.data.get('accountType', null) &&
+                       request.resource.data.get('provisionedByTeacherUid', null) == resource.data.get('provisionedByTeacherUid', null) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED') &&
+                       platformPrivilegeUnchanged(request.resource.data, resource.data)) ||
+// ───────────────────────────── OLD (live, to be replaced by B) ───────────────────
+/*
+      allow create: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED' &&
+                       noPlatformPrivilegeGrab(request.resource.data)) ||
+                      (isAuthenticated() &&
+                       request.resource.data.isChild == true &&
+                       request.resource.data.guardianUid == request.auth.uid) ||
+                      // Managed EMPLOYEE profile: a business owner/admin provisions a Firestore-only
+                      // work identity (no login). Must be flagged isEmployee and owned by the creator.
+                      (isAuthenticated() &&
+                       request.resource.data.isEmployee == true &&
+                       request.resource.data.managedByUid == request.auth.uid);
+      allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED') &&
+                       platformPrivilegeUnchanged(request.resource.data, resource.data)) ||
+                      (isAuthenticated() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
+                       math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1) ||
+                      (isAuthenticated() &&
+                       resource.data.isChild == true &&
+                       resource.data.guardianUid == request.auth.uid) ||
+*/

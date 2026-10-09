@@ -79,6 +79,9 @@ const VIDEO_ACCEPT = 'video/*,.mp4,.m4v,.mov,.qt,.mkv,.webm,.avi,.wmv,.flv,.ts,.
 
 const hasSubtype = (t: AssetType) => t === 'MUSIC' || t === 'VIDEO';
 
+// Book -> full Tela stack + open-format export (services/bookTela). Lazy so it never weighs on the creator bundle.
+const AlbumBookTela = lazy(() => import('./bookTela/AlbumBookTela'));
+
 const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMinimize, isMinimized, initialAlbum, initialType }) => {
   const resolvedInitialType: AssetType = (initialAlbum?.type as AssetType) || initialType || 'MUSIC';
   const [step, setStep] = useState(initialAlbum ? 3 : initialType ? 1 : 0);
@@ -167,6 +170,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [slideshow, setSlideshow] = useState<string[]>(initialAlbum?.slideshow || []);
   const [slideshowFiles, setSlideshowFiles] = useState<File[]>([]);
   const [bookChapters, setBookChapters] = useState<BookChapter[]>(initialAlbum?.bookChapters || []);
+  const [showBookTela, setShowBookTela] = useState(false);
   const [bookPreviewConfig, setBookPreviewConfig] = useState(initialAlbum?.bookPreviewConfig || { type: 'PAGES' as const, allowedPageRange: [1, 5] as [number, number] });
   const [allowPageSharing, setAllowPageSharing] = useState(initialAlbum?.allowPageSharing || false);
   const [isDeploying, setIsDeploying] = useState(false);
@@ -1675,6 +1679,22 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </button>
           </div>
         </div>
+      )}
+
+      {type === 'BOOK' && initialAlbum?.id && bookChapters.some(c => c.content?.trim()) && (
+        <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/5">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-widest text-white">Tela edition and export</p>
+            <p className="text-[11px] text-white/40 leading-snug">Give readers a richer book on Plajah, and export a normal EPUB or PDF whenever you like.</p>
+          </div>
+          <button type="button" onClick={() => setShowBookTela(true)} className="shrink-0 px-5 py-3 min-h-[44px] rounded-2xl text-[10px] font-black uppercase tracking-widest bg-small-orange text-white hover:scale-105 transition-all">Open</button>
+        </div>
+      )}
+      {showBookTela && initialAlbum?.id && (
+        <Suspense fallback={null}>
+          <AlbumBookTela albumId={initialAlbum.id} ownerId={initialAlbum.ownerId || ''} uid={auth.currentUser?.uid} title={title} artist={artist} description={description} coverImage={coverImage}
+            bookChapters={bookChapters} price={price} bookLicense={initialAlbum.bookDistribution?.license} onChaptersChange={setBookChapters} onClose={() => setShowBookTela(false)} />
+        </Suspense>
       )}
 
       {type === 'BOOK' && bookChapters.length > 0 && (

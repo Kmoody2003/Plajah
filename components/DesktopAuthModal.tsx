@@ -291,7 +291,7 @@ export const DesktopAuthModal: React.FC<DesktopAuthModalProps> = ({
           {resetSent && (
             <div className="mb-3 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
               <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
-              <span>Password reset email dispatched. Check your inbox and spam folder.</span>
+              <span>If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.</span>
             </div>
           )}
 

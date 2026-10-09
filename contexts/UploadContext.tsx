@@ -91,7 +91,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const storageRef = ref(storage, `uploads/${type.toLowerCase()}s/${Date.now()}_${fileName}`);
 
     const metadata = {
-      contentType: (file.type && file.type !== 'application/octet-stream') ? file.type : (extCt(fileName) || FALLBACK_CT[type] || 'application/octet-stream')
+      contentType: (file.type && file.type !== 'application/octet-stream') ? file.type : (extCt(fileName) || FALLBACK_CT[type] || 'application/octet-stream'),
+      // Storage rules: uploads/** is shared, so only the stamped uploader may overwrite/delete.
+      customMetadata: { ownerUid },
     };
 
     // Ledger the attempt before the first byte moves. A reload/deploy/tab-close mid-upload

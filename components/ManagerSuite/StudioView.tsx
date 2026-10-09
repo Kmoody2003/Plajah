@@ -26,8 +26,9 @@ import type { ManagerSuiteEntitlement, ScheduledPost, ScheduledPostTargetResult 
 import type { FediverseProtocol } from '../../services/fediverse/types';
 import { openXShare } from '../../services/managerSuite/xShare';
 import {
-  listSocialAccounts, connectSocialProvider, publishToSocial, PROVIDER_FOR_PLATFORM,
-  type SocialAccount,
+  listSocialAccountsWithAccess, connectSocialProvider, publishToSocial, fetchSocialAnalytics, PROVIDER_FOR_PLATFORM,
+  fetchInbox, replyToComment, fetchApprovalSettings, saveApprovalSettings, submitForApproval, listApprovals, decideApproval,
+  type SocialAccount, type SocialScope, type AccountInsights, type InboxItem, type InboxAccountStatus, type ApprovalPost, type HistoryPoint,
 } from '../../services/managerSuite/socialAccountsService';
 
 // ─── Platform definitions ─────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ const NET_ABBR: Record<string, string> = {
   tiktok: 'TK', youtube: 'YT', pinterest: 'PI', snapchat: 'SC',
 };
 
-type Tab = 'COMPOSE' | 'QUEUE' | 'CALENDAR' | 'ANALYTICS';
+type Tab = 'COMPOSE' | 'QUEUE' | 'CALENDAR' | 'ANALYTICS' | 'INBOX';
 
 // The managed identity this Studio instance is operating. Structurally compatible
 // with MarketingKit's MarketingScope. Omitted / CREATOR => the signed-in operator.
@@ -100,22 +101,41 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [connectNote, setConnectNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const refreshSocial = useCallback(() => listSocialAccounts().then(setSocialAccounts).catch(() => {}), []);
+  // A business/org keeps its OWN credential store (server: orgSocialAccounts/{orgId}); CREATOR = the user's own.
+  const socialScope = useMemo<SocialScope | undefined>(
+    () => (scope && scope.kind !== 'CREATOR' && scope.id ? { kind: scope.kind, id: scope.id } : undefined),
+    [scope?.kind, scope?.id],
+  );
+  const [canManageSocial, setCanManageSocial] = useState(true);
+  const [requireApproval, setRequireApproval] = useState(false);
+  useEffect(() => {
+    if (!socialScope) { setRequireApproval(false); return; }
+    fetchApprovalSettings(socialScope).then(r => setRequireApproval(r.requireApproval)).catch(() => {});
+  }, [socialScope]);
+
+  const refreshSocial = useCallback(() => listSocialAccountsWithAccess(socialScope)
+    .then(r => { setSocialAccounts(r.accounts); setCanManageSocial(r.canManage); })
+    .catch(() => { setSocialAccounts([]); }), [socialScope]);
   useEffect(() => { refreshSocial(); }, [refreshSocial]);
 
   // Connect a commercial network (Meta / X / LinkedIn) via the server-side OAuth popup.
   const connectNetwork = useCallback(async (platformId: string) => {
     const provider = PROVIDER_FOR_PLATFORM[platformId];
     if (!provider) return;
+    if (!canManageSocial) {
+      setConnectNote({ ok: false, msg: 'Only the owner or an admin can connect accounts for this identity.' });
+      setTimeout(() => setConnectNote(null), 5000);
+      return;
+    }
     try {
-      const n = await connectSocialProvider(provider);
+      const n = await connectSocialProvider(provider, socialScope);
       await refreshSocial();
       setConnectNote({ ok: true, msg: `Linked ${n} account${n === 1 ? '' : 's'}.` });
     } catch (e: any) {
       setConnectNote({ ok: false, msg: e?.message ?? 'Could not connect.' });
     }
     setTimeout(() => setConnectNote(null), 5000);
-  }, [refreshSocial]);
+  }, [refreshSocial, canManageSocial, socialScope]);
   useEffect(() => {
     const h = (e: Event) => connectNetwork((e as CustomEvent).detail?.network);
     window.addEventListener('OPEN_NETWORK_CONNECT', h);
@@ -212,7 +232,7 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
       if (fediIds.length) {
         const br = await broadcast({
           text: post.text, uri: post.linkUri, title: post.linkTitle,
-          description: post.linkDescription, thumbnail: post.mediaUrls[0],
+          description: post.linkDescription, thumbnail: post.mediaUrls[0], mediaUrls: post.mediaUrls.slice(0, 4),
         }, fediIds);
         br.succeeded.forEach(s => results.push({ channelKind: s.protocol, accountId: s.accountId, ok: true, postUrl: s.postUrl }));
         br.failed.forEach(f => results.push({ channelKind: f.protocol, accountId: f.accountId, ok: false, error: f.error }));
@@ -222,7 +242,7 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
           const sr = await publishToSocial({
             accountIds: commercialIds, text: post.text, mediaUrls: post.mediaUrls,
             linkUri: post.linkUri, title: post.linkTitle,
-          });
+          }, socialScope);
           sr.succeeded.forEach(s => results.push({ channelKind: s.network as any, accountId: s.accountId, ok: true, postUrl: s.postUrl }));
           sr.failed.forEach(f => results.push({ channelKind: f.network as any, accountId: f.accountId, ok: false, error: f.error }));
         } catch (e: any) {
@@ -257,7 +277,7 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
     } finally {
       publishing.current.delete(post.id);
     }
-  }, [broadcast, authorOrgId, authorName, socialAccounts]);
+  }, [broadcast, authorOrgId, authorName, socialAccounts, socialScope]);
 
   useEffect(() => {
     const tick = () => dueScheduledPosts(queue).forEach(publishPost);
@@ -287,6 +307,7 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
             ['COMPOSE',   'Compose',   Send],
             ['QUEUE',     'Queue',     ListChecks],
             ['CALENDAR',  'Calendar',  CalendarDays],
+            ['INBOX',     'Inbox',     MessageCircle],
             ['ANALYTICS', 'Analytics', BarChart3],
           ] as const).map(([id, label, Icon]) => (
             <button
@@ -323,8 +344,9 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
             <LinkIcon size={13} className="text-white/40 shrink-0 mt-0.5" />
             <span>
               Compose, queue, calendar, and analytics here belong to{' '}
-              <span className="text-white/70 font-bold">{scope?.name ?? 'this identity'}</span>. Connected external
-              channels (Bluesky, Mastodon, Threads) are managed at your account level and shared across the identities you operate.
+              <span className="text-white/70 font-bold">{scope?.name ?? 'this identity'}</span>. Facebook, Instagram, X and
+              LinkedIn connected here belong to this business, so your team can publish through them (owners and admins connect them).
+              Bluesky, Mastodon and Threads are still managed at your personal account level.
             </span>
           </div>
         </div>
@@ -336,13 +358,20 @@ export default function StudioView({ scope }: { scope?: StudioScope } = {}) {
             platforms={platforms} channels={channels} limits={limits} usedSlots={usedSlots}
             onPublishNow={publishPost}
             ownerId={ownerId} ownerKind={ownerKind} authorOrgId={authorOrgId}
+            needsApproval={requireApproval && !canManageSocial} socialScope={socialScope}
           />
         )}
         {tab === 'QUEUE' && (
-          <QueuePanel queue={queue} channels={channels} onDelete={deleteScheduledPost} onPublishNow={publishPost} />
+          <>
+            {socialScope && (
+              <ApprovalsPanel scope={socialScope} requireApproval={requireApproval} setRequireApproval={setRequireApproval} canManage={canManageSocial} />
+            )}
+            <QueuePanel queue={queue} channels={channels} onDelete={deleteScheduledPost} onPublishNow={publishPost} />
+          </>
         )}
         {tab === 'CALENDAR' && <CalendarPanel queue={queue} />}
-        {tab === 'ANALYTICS' && <AnalyticsPanel platforms={platforms} queue={queue} />}
+        {tab === 'INBOX' && <InboxPanel scope={socialScope} />}
+        {tab === 'ANALYTICS' && <AnalyticsPanel platforms={platforms} queue={queue} scope={socialScope} />}
       </div>
     </div>
   );
@@ -387,7 +416,7 @@ function PlatformBadge({ platform, size = 'sm' }: { platform: PlatformDef; size?
 
 interface ChannelItem { id: string; kind: FediverseProtocol | 'plajah'; label: string; handle: string; accountId?: string; accountIds?: string[] }
 
-function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerId, ownerKind, authorOrgId }: {
+function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerId, ownerKind, authorOrgId, needsApproval, socialScope }: {
   platforms: PlatformDef[];
   channels: ChannelItem[];
   limits: ReturnType<typeof effectiveLimits>;
@@ -397,6 +426,9 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerI
   ownerId?: string;
   ownerKind?: StudioScope['kind'];
   authorOrgId?: string;
+  /** Business requires an owner/admin to approve posts from this user. */
+  needsApproval?: boolean;
+  socialScope?: SocialScope;
 }) {
   const currentUser = getAuth().currentUser;
   const [selected, setSelected] = useState<Set<string>>(new Set(['plajah']));
@@ -447,6 +479,15 @@ function Composer({ platforms, channels, limits, usedSlots, onPublishNow, ownerI
       const alsoPostToPlajah = selected.has('plajah');
       const shareToX = selected.has('twitter') && !!platforms.find(p => p.id === 'twitter')?.shareOnly;
       const scheduledAt = when ? new Date(when).getTime() : undefined;
+
+      if (needsApproval) {
+        // This business requires approval: hand the post to the owners/admins instead of queueing it directly
+        // (the server also refuses to publish an unapproved post from this user, so this is the only path).
+        await submitForApproval({ text: data.text.trim(), mediaUrls, targetAccountIds, alsoPostToPlajah, shareToX, scheduledAt, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }, socialScope);
+        flash(true, 'Sent to an admin for approval.');
+        setWhen(''); setComposerKey(k => k + 1);
+        return;
+      }
 
       const post = await createScheduledPost({
         text: data.text, targetAccountIds, alsoPostToPlajah, shareToX, scheduledAt,
@@ -758,19 +799,136 @@ function CalendarPanel({ queue }: { queue: ScheduledPost[] }) {
 
 // ─── Analytics panel ──────────────────────────────────────────────────────────
 
-function AnalyticsPanel({ platforms, queue }: { platforms: PlatformDef[]; queue: ScheduledPost[] }) {
+const fmtN = (n?: number) => (typeof n === 'number' ? n.toLocaleString() : '—');
+const netOf = (platformId: string) => (platformId === 'twitter' ? 'x' : platformId);
+
+
+function Spark({ points, color }: { points: (number | undefined)[]; color: string }) {
+  const vals = points.filter((v): v is number => typeof v === 'number');
+  if (vals.length < 2) return <p className="text-[9px] text-white/25">Trend appears after a couple of days of data.</p>;
+  const w = 200, h = 38, min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
+  const xy = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - 3 - ((v - min) / span) * (h - 8)}`).join(' ');
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-9" preserveAspectRatio="none" aria-hidden>
+      <polyline points={xy} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+function ReachRow({ a }: { a: AccountInsights }) {
+  if (a.reachStatus === 'needs_permission') {
+    return <p className="text-[10px] text-amber-300/80 leading-relaxed">Reach and views need the insights permission. Disconnect and reconnect this account to grant it.</p>;
+  }
+  if (a.reachStatus === 'unavailable' && a.reach7d === undefined && a.views7d === undefined) {
+    return <p className="text-[10px] text-white/30 leading-relaxed">Meta isn't returning reach for this account right now{a.reachNote ? ` (${a.reachNote})` : ''}.</p>;
+  }
+  if (a.reach7d === undefined && a.views7d === undefined) return null;
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {([['Views · 7d', a.views7d, Eye, '#6366f1'], ['Reach · 7d', a.reach7d, Users, '#f59e0b']] as const).map(([label, v, Icon, color]) =>
+        typeof v === 'number' ? (
+          <div key={label} className="rounded-lg bg-white/[0.04] px-2.5 py-2">
+            <div className="flex items-center gap-1.5"><Icon size={11} style={{ color }} /><span className="text-[9px] font-bold uppercase tracking-wider text-white/35">{label}</span></div>
+            <p className="text-base font-black text-white/90 mt-0.5">{fmtN(v)}</p>
+          </div>
+        ) : null)}
+    </div>
+  );
+}
+
+function InsightsBlock({ items, loading, shareOnly }: { items: AccountInsights[]; loading: boolean; shareOnly?: boolean }) {
+  if (shareOnly) {
+    return <p className="text-[10px] text-white/35 text-center py-3 leading-relaxed">X posts go through the share window, so Plajah can't read X analytics. Connect X with API access to see them.</p>;
+  }
+  if (loading && !items.length) return <div className="py-5 flex justify-center"><Loader2 size={16} className="animate-spin text-white/30" /></div>;
+  if (!items.length) return <p className="text-[10px] text-white/30 text-center py-3">No data yet.</p>;
+  return (
+    <div className="space-y-4">
+      {items.map(a => (
+        <div key={a.accountId} className="space-y-2.5">
+          <p className="text-[11px] font-black text-white/70 truncate">{a.handle}</p>
+          {a.unavailable ? (
+            <p className="text-[10px] text-white/35 leading-relaxed">{a.unavailable}</p>
+          ) : (
+            <>
+              {a.error && <p className="text-[10px] text-red-300/80 leading-relaxed">{a.error}</p>}
+              <div className="flex items-end gap-4">
+                <div>
+                  <p className="text-xl font-black text-white leading-none">{fmtN(a.followers)}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/35 mt-1">Followers</p>
+                </div>
+                {a.growth && (
+                  <p className={`text-[11px] font-black ${a.growth.delta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {a.growth.delta >= 0 ? '+' : ''}{a.growth.delta.toLocaleString()} <span className="text-white/30 font-bold">/ {a.growth.days}d</span>
+                  </p>
+                )}
+                {typeof a.postCount === 'number' && (
+                  <div className="ml-auto text-right">
+                    <p className="text-sm font-black text-white/80 leading-none">{fmtN(a.postCount)}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/35 mt-1">Posts</p>
+                  </div>
+                )}
+              </div>
+              <ReachRow a={a} />
+              {a.history && a.history.length > 1 && (
+                <div className="space-y-1">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/30">Followers trend</p>
+                  <Spark points={a.history.map(h => h.followers)} color="#f59e0b" />
+                  {a.history.some(h => typeof h.views === 'number') && (<><p className="text-[9px] font-bold uppercase tracking-widest text-white/30 pt-1">Weekly views trend</p><Spark points={a.history.map(h => h.views)} color="#6366f1" /></>)}
+                </div>
+              )}
+              {a.recent.length > 0 && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    {([['Likes', a.totals.likes, Heart, '#ec4899'], ['Comments', a.totals.comments, MessageCircle, '#3b82f6'], ['Shares', a.totals.shares, Share2, '#10b981']] as const).map(([label, v, Icon, color]) => (
+                      <div key={label} className="rounded-lg bg-white/[0.04] px-2 py-1.5 text-center">
+                        <Icon size={11} className="mx-auto mb-0.5" style={{ color }} />
+                        <p className="text-xs font-black text-white/80">{fmtN(v)}</p>
+                        <p className="text-[8px] font-bold uppercase tracking-wider text-white/30">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[9px] text-white/25">Across the last {a.recent.length} posts{a.totals.views ? ` · ${fmtN(a.totals.views)} views` : ''}</p>
+                  {[...a.recent].sort((x, y) => (y.likes + y.comments + y.shares) - (x.likes + x.comments + x.shares)).slice(0, 2).map(r => (
+                    <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer"
+                      className="block rounded-lg border border-white/8 px-2.5 py-2 hover:bg-white/[0.04] transition-colors">
+                      <p className="text-[11px] text-white/60 line-clamp-2">{r.text || '(media post)'}</p>
+                      <p className="text-[9px] text-white/30 mt-1">{r.likes} likes · {r.comments} comments{r.shares ? ` · ${r.shares} shares` : ''}{typeof r.views === 'number' ? ` · ${fmtN(r.views)} views` : ''}{typeof r.reach === 'number' ? ` · ${fmtN(r.reach)} reach` : ''}</p>
+                    </a>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AnalyticsPanel({ platforms, queue, scope }: { platforms: PlatformDef[]; queue: ScheduledPost[]; scope?: SocialScope }) {
+  const [insights, setInsights] = useState<AccountInsights[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const load = useCallback((force = false) => {
+    setLoading(true); setLoadError(null);
+    fetchSocialAnalytics(scope, force)
+      .then(r => setInsights(r.accounts))
+      .catch(e => setLoadError(e?.message ?? 'Could not load analytics.'))
+      .finally(() => setLoading(false));
+  }, [scope]);
+  useEffect(() => { load(); }, [load]);
+  const totalFollowers = insights.reduce((n, a) => n + (a.followers ?? 0), 0);
+  const totalReach = insights.reduce((n, a) => n + (a.reach7d ?? 0), 0);
+  const totalViews = insights.reduce((n, a) => n + (a.views7d ?? 0), 0);
+  const anyReach = insights.some(a => typeof a.reach7d === 'number');
+  const anyViews = insights.some(a => typeof a.views7d === 'number');
+  const totalGrowth = insights.reduce((n, a) => n + (a.growth?.delta ?? 0), 0);
+  const anyGrowth = insights.some(a => a.growth);
   const published = queue.filter(p => p.status === 'PUBLISHED' || p.status === 'PARTIAL');
   const scheduled = queue.filter(p => p.status === 'SCHEDULED');
   const failed = queue.filter(p => p.status === 'FAILED');
 
-  const MOCK_METRICS = [
-    { label: 'Impressions', icon: Eye, plajahValue: '—', color: '#6366f1' },
-    { label: 'Engagements', icon: Heart, plajahValue: '—', color: '#ec4899' },
-    { label: 'Comments', icon: MessageCircle, plajahValue: '—', color: '#3b82f6' },
-    { label: 'Shares', icon: Share2, plajahValue: '—', color: '#10b981' },
-    { label: 'Followers', icon: Users, plajahValue: '—', color: '#f59e0b' },
-    { label: 'Link Clicks', icon: ArrowUpRight, plajahValue: '—', color: '#FF8C00' },
-  ];
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
@@ -788,8 +946,30 @@ function AnalyticsPanel({ platforms, queue }: { platforms: PlatformDef[]; queue:
         ))}
       </div>
 
-      {/* Per-platform analytics grid */}
-      <h3 className="text-sm font-black text-white/60 uppercase tracking-widest mb-4">Platform Analytics</h3>
+      {/* Live audience totals across connected accounts */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        {[
+          { label: 'Total followers', value: loading && !insights.length ? '…' : fmtN(totalFollowers), color: 'text-amber-400' },
+          { label: 'Reach · 7d', value: loading && !insights.length ? '…' : (anyReach ? fmtN(totalReach) : '—'), color: 'text-sky-400' },
+          { label: 'Views · 7d', value: loading && !insights.length ? '…' : (anyViews ? fmtN(totalViews) : '—'), color: 'text-indigo-400' },
+          { label: 'Growth this week', value: anyGrowth ? `${totalGrowth >= 0 ? '+' : ''}${totalGrowth.toLocaleString()}` : '—', color: totalGrowth >= 0 ? 'text-emerald-400' : 'text-red-400' },
+        ].map(c => (
+          <div key={c.label} className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 sm:p-5 text-center">
+            <p className={`text-2xl sm:text-3xl font-black ${c.color}`}>{c.value}</p>
+            <p className="text-[10px] font-bold text-white/40 mt-1 uppercase tracking-widest">{c.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-black text-white/60 uppercase tracking-widest">Platform Analytics</h3>
+        <button onClick={() => load(true)} disabled={loading}
+          className="px-3 py-1.5 rounded-lg bg-white/5 text-white/50 text-[10px] font-black hover:bg-white/10 transition-colors disabled:opacity-40">
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+      {loadError && <p className="text-[11px] text-red-300/80 mb-3">{loadError}</p>}
+      <p className="text-[10px] text-white/25 mb-4">Trends and growth build from daily snapshots, so they appear after the second day. Views are Meta's replacement for impressions; reach counts unique accounts. Engagement covers each account's most recent posts.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {platforms.map(p => {
           const isConnected = p.status === 'connected';
@@ -811,24 +991,11 @@ function AnalyticsPanel({ platforms, queue }: { platforms: PlatformDef[]; queue:
               </div>
 
               {isConnected ? (
-                /* Connected: show metric stubs — real data when APIs are wired */
-                <div className="space-y-2.5">
-                  {MOCK_METRICS.slice(0, 4).map(m => {
-                    const Icon = m.icon;
-                    return (
-                      <div key={m.label} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-[11px] text-white/40">
-                          <Icon size={12} style={{ color: m.color }} />
-                          {m.label}
-                        </div>
-                        <span className="text-[11px] font-bold text-white/30">—</span>
-                      </div>
-                    );
-                  })}
-                  <div className="mt-3 pt-3 border-t border-white/8 text-[9px] text-white/20 text-center">
-                    Analytics available when live API is connected
-                  </div>
-                </div>
+                <InsightsBlock
+                  items={insights.filter(a => a.network === netOf(p.id))}
+                  loading={loading}
+                  shareOnly={p.shareOnly}
+                />
               ) : (
                 /* Not connected: show lock overlay */
                 <div className="flex flex-col items-center justify-center py-4 gap-3">
@@ -877,6 +1044,144 @@ function AnalyticsPanel({ platforms, queue }: { platforms: PlatformDef[]; queue:
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+
+// ─── Inbox (comments) ─────────────────────────────────────────────────────────
+
+function InboxPanel({ scope }: { scope?: SocialScope }) {
+  const [items, setItems] = useState<InboxItem[]>([]);
+  const [statuses, setStatuses] = useState<InboxAccountStatus[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [sent, setSent] = useState<Set<string>>(new Set());
+  const load = useCallback(() => {
+    setLoading(true); setErr(null);
+    fetchInbox(scope).then(r => { setItems(r.items); setStatuses(r.accounts); }).catch(e => setErr(e?.message ?? 'Could not load the inbox.')).finally(() => setLoading(false));
+  }, [scope]);
+  useEffect(() => { load(); }, [load]);
+
+  const send = async (it: InboxItem) => {
+    const text = (drafts[it.id] ?? '').trim();
+    if (!text || busy) return;
+    setBusy(it.id);
+    try {
+      await replyToComment(it.accountId, it.id, text, scope);
+      setSent(prev => new Set(prev).add(it.id));
+      setDrafts(d => ({ ...d, [it.id]: '' }));
+    } catch (e: any) { setErr(e?.message ?? 'Reply failed.'); }
+    finally { setBusy(null); }
+  };
+
+  const blocked = statuses.filter(s => s.status !== 'ok');
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-black text-white/60 uppercase tracking-widest">Comments</h3>
+        <button onClick={load} disabled={loading} className="px-3 py-1.5 rounded-lg bg-white/5 text-white/50 text-[10px] font-black hover:bg-white/10 disabled:opacity-40">{loading ? 'Loading…' : 'Refresh'}</button>
+      </div>
+      {err && <p className="text-[11px] text-red-300/80">{err}</p>}
+      {blocked.map(b => (
+        <p key={b.accountId} className="text-[11px] text-amber-300/80 leading-relaxed">
+          {b.handle}: {b.status === 'needs_permission' ? 'comment access needs the engagement permission — disconnect and reconnect this account to grant it.' : (b.note || 'could not load comments.')}
+        </p>
+      ))}
+      {!loading && !items.length && !blocked.length && (
+        <div className="text-center py-16"><MessageCircle size={32} className="mx-auto mb-3 text-white/15" /><p className="text-white/40 font-bold">No recent comments.</p><p className="text-white/25 text-sm mt-1">Facebook and Instagram comments on your latest posts show up here.</p></div>
+      )}
+      {items.map(it => (
+        <div key={it.id} className="bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+          <div className="flex items-center gap-2 text-[10px] text-white/35 mb-1.5 flex-wrap">
+            <span className="px-1.5 py-0.5 rounded bg-white/8 font-black uppercase">{it.network === 'instagram' ? 'IG' : 'FB'}</span>
+            <span>{it.handle}</span><span>·</span><span>{it.createdAt ? new Date(it.createdAt).toLocaleString() : ''}</span>
+            {it.postUrl && <a href={it.postUrl} target="_blank" rel="noopener noreferrer" className="ml-auto text-orange-300/80 hover:text-orange-300">View post</a>}
+          </div>
+          <p className="text-[10px] text-white/30 line-clamp-1 mb-2">On: {it.postText || '(media post)'}</p>
+          <p className="text-sm text-white/85"><span className="font-black">{it.author}</span> {it.text}</p>
+          {it.replies.map((r, i) => (
+            <p key={i} className="text-[12px] text-white/50 mt-1.5 pl-3 border-l border-white/10"><span className="font-bold">{r.author || 'Reply'}</span> {r.text}</p>
+          ))}
+          {sent.has(it.id) ? (
+            <p className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1"><Check size={12} /> Reply sent</p>
+          ) : (
+            <div className="flex gap-2 mt-3">
+              <input value={drafts[it.id] ?? ''} onChange={e => setDrafts(d => ({ ...d, [it.id]: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') send(it); }}
+                placeholder="Write a reply…" className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/25" />
+              <button onClick={() => send(it)} disabled={busy === it.id || !(drafts[it.id] ?? '').trim()}
+                className="px-3 py-2 rounded-lg bg-orange-500/20 text-orange-300 text-[11px] font-black hover:bg-orange-500/30 disabled:opacity-40">{busy === it.id ? '…' : 'Reply'}</button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Approvals (team review for business/org accounts) ────────────────────────
+
+function ApprovalsPanel({ scope, requireApproval, setRequireApproval, canManage }: {
+  scope: SocialScope; requireApproval: boolean; setRequireApproval: (v: boolean) => void; canManage: boolean;
+}) {
+  const [rows, setRows] = useState<ApprovalPost[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(() => { listApprovals(scope).then(r => setRows(r.approvals)).catch(() => {}); }, [scope]);
+  useEffect(() => { load(); const t = setInterval(load, 30_000); return () => clearInterval(t); }, [load]);
+
+  const toggle = async () => {
+    setErr(null);
+    try { const r = await saveApprovalSettings(!requireApproval, scope); setRequireApproval(r.requireApproval); }
+    catch (e: any) { setErr(e?.message ?? 'Could not save.'); }
+  };
+  const decide = async (id: string, decision: 'approve' | 'reject') => {
+    setBusy(id); setErr(null);
+    try { await decideApproval(id, decision, undefined, scope); load(); }
+    catch (e: any) { setErr(e?.message ?? 'Could not record that.'); }
+    finally { setBusy(null); }
+  };
+  const pending = rows.filter(r => r.status === 'PENDING');
+  const decided = rows.filter(r => r.status !== 'PENDING').slice(0, 5);
+  if (!canManage && !requireApproval && !rows.length) return null;
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-10 pt-6 sm:pt-8">
+      <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <ListChecks size={15} className="text-orange-400" />
+          <p className="text-sm font-black text-white/80">Team approvals</p>
+          {canManage ? (
+            <button onClick={toggle} className={`ml-auto px-3 py-1.5 rounded-full text-[10px] font-black ${requireApproval ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/8 text-white/50'}`}>
+              {requireApproval ? 'Required for staff · On' : 'Staff can post directly · Off'}
+            </button>
+          ) : (
+            <span className="ml-auto text-[10px] text-white/40">{requireApproval ? 'Your posts are reviewed by an admin' : ''}</span>
+          )}
+        </div>
+        {err && <p className="text-[11px] text-red-300/80 mt-2">{err}</p>}
+        {pending.map(r => (
+          <div key={r.id} className="mt-3 rounded-xl border border-white/10 p-3">
+            <p className="text-sm text-white/80 whitespace-pre-wrap line-clamp-4">{r.text || '(media post)'}</p>
+            <p className="text-[10px] text-white/30 mt-1">Submitted {new Date(r.submittedAt).toLocaleString()}{r.scheduledAt ? ` · for ${new Date(r.scheduledAt).toLocaleString()}` : ' · to send on approval'}</p>
+            {canManage ? (
+              <div className="flex gap-2 mt-2">
+                <button disabled={busy === r.id} onClick={() => decide(r.id, 'approve')} className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 text-[11px] font-black hover:bg-emerald-500/30 disabled:opacity-40">Approve</button>
+                <button disabled={busy === r.id} onClick={() => decide(r.id, 'reject')} className="px-3 py-1.5 rounded-lg bg-white/8 text-white/50 text-[11px] font-black hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40">Reject</button>
+              </div>
+            ) : <p className="text-[10px] text-amber-300/80 mt-1.5">Waiting for review</p>}
+          </div>
+        ))}
+        {decided.map(r => (
+          <p key={r.id} className="text-[11px] text-white/35 mt-2 line-clamp-1">
+            {r.status === 'APPROVED' ? '✓ Approved' : '✗ Not approved'}: {r.text || '(media post)'}{r.note ? ` — ${r.note}` : ''}
+          </p>
+        ))}
+        {!pending.length && !decided.length && <p className="text-[11px] text-white/30 mt-2">{canManage ? 'Nothing waiting for review.' : 'You have no submissions yet.'}</p>}
       </div>
     </div>
   );

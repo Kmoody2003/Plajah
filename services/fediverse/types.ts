@@ -13,6 +13,10 @@ export interface FediverseCredentials {
   expiresAt?: number;
   // AT Protocol specific
   did?: string;
+  /** Account handle (Bluesky) — needed to resume a stored session. */
+  handle?: string;
+  /** Bluesky OAuth account: tokens live in the encrypted OAuth session store (keyed by `did`), not here. */
+  oauth?: boolean;
   pdsUrl?: string;
   // Mastodon specific
   instanceUrl?: string;
@@ -66,6 +70,15 @@ export interface FediversePost {
   likeUri?: string;               // AT-URI of the like record (Bluesky), needed to unlike
   repostUri?: string;             // AT-URI of the repost record (Bluesky), needed to unrepost
   media: FediverseMedia[];
+  /** Link preview card (Bluesky external embed / Mastodon card). */
+  card?: { uri: string; title: string; description: string; thumb?: string };
+  /** A quoted post (Bluesky record embed). */
+  quote?: { uri: string; cid?: string; authorHandle: string; authorDisplayName: string; authorAvatarUrl?: string; text: string; url: string };
+  /** Handle of who reposted this into the timeline (Bluesky feed reason). */
+  repostedBy?: string;
+  /** Thread root, needed to reply correctly on Bluesky. */
+  rootUri?: string;
+  rootCid?: string;
   inReplyToId?: string;
   inReplyToUri?: string;
   sensitive?: boolean;
@@ -122,6 +135,14 @@ export interface CreatePostOptions {
   sensitive?: boolean;
   spoilerText?: string;
   langs?: string[];
+  /** Images to attach (public https URLs, max 4). Bluesky: uploaded as blobs with alt text. */
+  images?: { url: string; alt?: string }[];
+  /** Link card (Bluesky external embed). Ignored when images are attached. */
+  link?: { uri: string; title?: string; description?: string; thumbUrl?: string };
+  /** Quote another post (Bluesky). */
+  quote?: { uri: string; cid: string };
+  /** Bluesky self-labels (`sexual`, `nudity`, `graphic-media`, `porn`) so media is blurred for viewers. */
+  labels?: string[];
 }
 
 // ─── Adapter Interface ───────────────────────────────────────────────────────

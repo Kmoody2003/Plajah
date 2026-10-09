@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": ["services/securityCouncil/**/*.ts", "routes/securityCouncil.ts", "routes/threatProtection.ts", "services/csoAgentService.ts", "components/admin/SecurityCouncilPanel.tsx", "components/admin/AdminThreatProtection.tsx", "tests/securityCouncil.test.ts", "tests/securityCouncilRoutes.test.ts"]
+}

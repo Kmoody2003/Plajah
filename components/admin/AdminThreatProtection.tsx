@@ -45,6 +45,7 @@ import {
   warnUserThreat
 } from '../../services/backendService';
 import { ADMIN_PRIMARY_EMAIL } from '../../services/csoAgentService';
+import { SecurityCouncilPanel } from './SecurityCouncilPanel';
 
 // World map SVG projection constants
 const MAP_WIDTH = 960;
@@ -108,7 +109,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
     loadData();
     const interval = setInterval(() => {
       loadData(false);
-    }, 15000);
+    }, 60000); // stats now come from Firestore-backed council queries; once a minute is plenty
     return () => clearInterval(interval);
   }, []);
 
@@ -116,14 +117,14 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
   const handleDispatchEmail = async () => {
     setDispatchingEmail(true);
     try {
-      const res = await dispatchThreatAlert(events[0]?.id, ADMIN_PRIMARY_EMAIL);
-      if (res.ok) {
-        showToast(`Rich Incident Briefing dispatched to ${ADMIN_PRIMARY_EMAIL}`);
-      } else {
-        showToast('Notice: Email queued in security logs.');
-      }
-    } catch {
-      showToast(`Incident dispatch sent to ${ADMIN_PRIMARY_EMAIL}`);
+      if (!events[0]) { showToast('No event to dispatch.'); return; }
+      const res = await dispatchThreatAlert(events[0].id, ADMIN_PRIMARY_EMAIL);
+      // Report what actually happened — the old toast claimed delivery even on failure.
+      showToast(res.emailSent
+        ? `${res.simulated ? '[SIMULATION] ' : ''}Incident email sent to ${ADMIN_PRIMARY_EMAIL}`
+        : `Email NOT sent: ${res.emailError || res.error || 'unknown error'}`);
+    } catch (e: any) {
+      showToast(`Email NOT sent: ${e?.message || 'request failed'}`);
     } finally {
       setDispatchingEmail(false);
     }
@@ -133,14 +134,11 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
   const handleDispatchChat = async () => {
     setDispatchingChat(true);
     try {
-      const res = await dispatchThreatAlert(events[0]?.id);
-      if (res.ok) {
-        showToast('Chief Security Officer assessment posted to Admin Chat room');
-      } else {
-        showToast('Assessment dispatched to Admin Chat.');
-      }
-    } catch {
-      showToast('Assessment delivered to Admin Chat.');
+      if (!events[0]) { showToast('No event to post.'); return; }
+      const res = await dispatchThreatAlert(events[0].id);
+      showToast(res.chatDelivered ? 'Posted to Admin Chat.' : 'Admin Chat NOT updated (no server-side chat delivery is configured).');
+    } catch (e: any) {
+      showToast(`Admin Chat NOT updated: ${e?.message || 'request failed'}`);
     } finally {
       setDispatchingChat(false);
     }
@@ -154,11 +152,11 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
       if (newEvent) {
         setEvents(prev => [newEvent, ...prev]);
         await loadData(false);
-        if (isMalicious) {
-          showToast('🚨 CRITICAL RED ALERT: Malicious attack simulated & quarantined!');
-        } else {
-          showToast('🟡 Suspected bot activity simulated and added to surveillance pool.');
-        }
+        showToast(isMalicious
+          ? 'SIMULATION: fake malicious event added (labelled; nothing was blocked).'
+          : 'SIMULATION: fake bot event added (labelled).');
+      } else {
+        showToast('Simulation failed.');
       }
     } catch (err) {
       console.error(err);
@@ -181,9 +179,11 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
           setWarnDetails('');
           setWarningSuccess(null);
         }, 2000);
+      } else {
+        showToast('Warning NOT sent (request failed).');
       }
     } catch {
-      showToast('Warning dispatched to user account.');
+      showToast('Warning NOT sent (request failed).');
     }
   };
 
@@ -309,7 +309,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
             </span>
             <div className="flex items-baseline gap-2">
               <span className={`text-2xl font-black ${stats && stats.healthScore > 85 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                {stats?.healthScore || 98}
+                {stats ? stats.healthScore : '—'}
               </span>
               <span className="text-xs font-bold text-white/40">/ 100</span>
             </div>
@@ -326,10 +326,10 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
 
           <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
             <span className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-1">
-              Blocked Attacks (24h)
+              {stats?.dataSource === 'COUNCIL' ? 'Active Mitigations' : 'Mitigated (24h)'}
             </span>
-            <span className="text-2xl font-black text-emerald-400">
-              {stats?.blockedAttacks24h ?? 41}
+            <span className="text-2xl font-black text-emerald-400" title={stats?.metricNotes?.blockedAttacks24h}>
+              {stats ? stats.blockedAttacks24h : '—'}
             </span>
           </div>
 
@@ -338,7 +338,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
               Bot Ingress Ratio
             </span>
             <span className="text-2xl font-black text-purple-400">
-              {stats?.botTrafficPercent ?? 11.4}%
+              {!stats || stats.unavailableMetrics?.includes('botTrafficPercent') ? 'n/a' : `${stats.botTrafficPercent}%`}
             </span>
           </div>
 
@@ -349,13 +349,29 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
             <div className="flex items-center gap-2 mt-1">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
-                {stats?.csoMode || 'HYBRID_ACTIVE'}
+                {stats?.csoMode || 'UNAVAILABLE'}
               </span>
             </div>
-            <span className="text-[9px] text-white/30 font-medium block mt-0.5">Cloud + Edge On-Device</span>
+            <span className="text-[9px] text-white/30 font-medium block mt-0.5">
+              Data: {stats?.dataSource === 'COUNCIL' ? 'Security Council (live)' : stats?.dataSource === 'SIMULATION' ? 'SIMULATION only' : 'none'}
+            </span>
           </div>
         </div>
       </div>
+
+      {!stats && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
+          Threat stats could not be loaded from the server. Nothing below is a live reading.
+        </div>
+      )}
+      {stats?.dataSource === 'SIMULATION' && (
+        <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-xs text-purple-200 font-bold">
+          SIMULATION — the numbers in the header come only from the test buttons below, not from real traffic.
+        </div>
+      )}
+
+      {/* Real monitoring: Security & IT Council (findings, daily brief, reversible mitigations) */}
+      <SecurityCouncilPanel />
 
       {/* Interactive Global Threat Map */}
       <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 backdrop-blur-2xl relative overflow-hidden">
@@ -368,7 +384,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
               </h2>
             </div>
             <p className="text-xs text-white/40 font-medium mt-0.5">
-              Real-time traffic origin points: Suspected activity stays monitored in purple/amber; only verified malicious exploits turn into Red Alerts.
+              SIMULATION ONLY: plots events created by the test buttons. Real security events store salted IP hashes and have no geolocation, so they never appear on this map.
             </p>
           </div>
 
@@ -501,7 +517,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
                 </h3>
               </div>
               <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
-                Engine: {assessment?.engineUsed || 'CLOUD_GEMINI'}
+                Engine: {assessment?.engineUsed || '—'}
               </span>
             </div>
 
@@ -509,10 +525,10 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
             <div className="p-6 rounded-2xl bg-black/40 border border-white/5 text-sm text-white/80 leading-relaxed font-mono">
               <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold mb-3">
                 <Cpu size={14} />
-                <span>SENTINEL INTELLIGENCE BRIEFING · {new Date(assessment?.timestamp || Date.now()).toLocaleTimeString()}</span>
+                <span>{assessment?.csoAgentName || 'ASSESSMENT'} · {assessment?.timestamp ? new Date(assessment.timestamp).toLocaleString() : 'none yet'}</span>
               </div>
               <p className="whitespace-pre-line text-white/90">
-                {assessment?.executiveSummary || 'Analyzing platform traffic and authentication streams...'}
+                {assessment?.executiveSummary || 'No assessment available.'}
               </p>
             </div>
 
@@ -523,10 +539,8 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
                   Key Indicators of Compromise (IOC)
                 </span>
                 <ul className="space-y-1.5 text-xs text-white/60">
-                  {(assessment?.indicatorsOfCompromise || [
-                    'Repeated credential spray from proxy cluster',
-                    'Direct origin scanning bypassing cache headers'
-                  ]).map((ioc, idx) => (
+                  {!assessment?.indicatorsOfCompromise?.length && <li className="text-white/30">None reported.</li>}
+                  {(assessment?.indicatorsOfCompromise || []).map((ioc, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <span className="text-red-500 font-bold">•</span>
                       <span>{ioc}</span>
@@ -540,10 +554,8 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
                   Active Containments & Recommendations
                 </span>
                 <ul className="space-y-1.5 text-xs text-white/60">
-                  {(assessment?.recommendedActions || [
-                    'Enforce Turnstile on open authentication gates',
-                    'Maintain automated CIDR IP quarantine'
-                  ]).map((rec, idx) => (
+                  {!assessment?.recommendedActions?.length && <li className="text-white/30">None reported.</li>}
+                  {(assessment?.recommendedActions || []).map((rec, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <span className="text-emerald-500 font-bold">✓</span>
                       <span>{rec}</span>
@@ -556,7 +568,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
 
           <div className="mt-6 pt-6 border-t border-white/5 flex items-center justify-between text-xs text-white/40">
             <span>Primary Incident Dispatch Target: <strong className="text-white font-mono">{ADMIN_PRIMARY_EMAIL}</strong></span>
-            <span>Local & Cloud Telemetry Co-Processing Enabled</span>
+            <span>Email requires RESEND_API_KEY on the server; failures are reported, not hidden.</span>
           </div>
         </div>
 
@@ -566,11 +578,11 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
             <div className="flex items-center gap-3 mb-2">
               <Zap size={20} className="text-amber-400" />
               <h3 className="text-base font-black uppercase tracking-tight text-white">
-                Live Attack Simulator
+                Attack Simulator (test only)
               </h3>
             </div>
             <p className="text-xs text-white/40 font-medium mb-6">
-              Test detection algorithms, verify that bot scans stay in yellow/purple surveillance, and trigger confirmed malicious red alerts.
+              Creates clearly labelled SIMULATION events in this server process (documentation-range IPs) to test the UI and alert email. Nothing is blocked and no user is warned.
             </p>
 
             <div className="space-y-4">
@@ -606,7 +618,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
                   </span>
                 </div>
                 <p className="text-[11px] text-white/50 mt-1">
-                  Active SQL injection and privilege escalation attempt. Triggers RED ALERT, dispatches email to kmoody2003@gmail.com, and alerts Admin Chat.
+                  Fake exploit event marked SIMULATION. Sends a "[SIMULATION]" alert email if RESEND_API_KEY is configured.
                 </p>
               </button>
             </div>
@@ -615,10 +627,10 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
           <div className="mt-8 pt-6 border-t border-white/5">
             <div className="flex items-center gap-2 text-xs font-bold text-white/60 mb-2">
               <Lock size={14} className="text-emerald-400" />
-              <span>Automated Hardening Status</span>
+              <span>What is actually enforced</span>
             </div>
             <p className="text-[11px] text-white/40 leading-relaxed">
-              Cloud Run WAF rate limits are actively enforced. Ingress SSRF protection shields cloud metadata endpoints.
+              Express rate limits in server.ts (global per-IP limit on /api plus tighter auth/AI limits) and SSRF-safe outbound fetch. There is no WAF in front of Cloud Run; Council auto-mitigation only tightens limits when SECURITY_COUNCIL_AUTO_MITIGATE=true.
             </p>
           </div>
         </div>
@@ -633,7 +645,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
               Live Security Activity Feed
             </h3>
             <p className="text-xs text-white/40 font-medium">
-              Ingested traffic logs analyzed by the CSO agent.
+              Real security_events (last 24h) plus any labelled simulations.
             </p>
           </div>
 
@@ -687,6 +699,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
                       </span>
                     </td>
                     <td className="py-3 font-bold text-white">
+                      {evt.simulated && <span className="mr-2 px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200 text-[9px] font-black">SIMULATION</span>}
                       {evt.vector}
                     </td>
                     <td className="py-3">
@@ -703,7 +716,7 @@ export const AdminThreatProtection: React.FC<AdminThreatProtectionProps> = ({ cu
                     </td>
                     <td className="py-3">
                       <span className="text-emerald-400 font-bold text-[10px] uppercase tracking-wider">
-                        {evt.mitigationAction || 'BLOCKED_IP'}
+                        {evt.mitigationAction || 'LOGGED_MONITOR'}
                       </span>
                     </td>
                   </tr>

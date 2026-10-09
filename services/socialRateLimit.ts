@@ -5,10 +5,19 @@
  * client can skip it. Rules-level enforcement is deliberately not shipped (see
  * socialSafetyService header) because it would break existing writers.
  *
- * New accounts (< NEW_ACCOUNT_AGE_MS old) get tighter limits.
+ * Which table applies is decided by the account TRUST TIER (services/trust/trustCore.ts), not a
+ * hard-coded age: a NEW-tier account gets NEW_ACCOUNT_LIMITS, BASIC+ gets ESTABLISHED_LIMITS, and
+ * the follow / cold-DM ceilings scale with the tier. With no extra signals registered (tests,
+ * server) the tier degrades to the old age-only rule (NEW until NEW_ACCOUNT_AGE_MS = 7 days).
+ * The client registers live signals (email verified, OAuth provider…) via
+ * registerTrustSignalProvider (services/trust/trustClient.ts), so a verified human leaves NEW
+ * after 2 days instead of 7.
  */
 
-export type RateAction = 'follow' | 'hello' | 'post' | 'comment' | 'report';
+import { computeTrust, BASIC_MIN_AGE_UNVERIFIED_MS, type TrustSignals, type TrustTier } from './trust/trustCore';
+
+/** 'dm_cold' = starting a NEW 1:1 conversation with someone who doesn't follow you. */
+export type RateAction = 'follow' | 'hello' | 'post' | 'comment' | 'report' | 'dm_cold';
 
 export interface RateRule {
   /** Max actions inside `windowMs`. */
@@ -22,7 +31,7 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
-export const NEW_ACCOUNT_AGE_MS = 7 * DAY;
+export const NEW_ACCOUNT_AGE_MS = BASIC_MIN_AGE_UNVERIFIED_MS; // 7 days (age-only fallback)
 
 export const ESTABLISHED_LIMITS: Record<RateAction, RateRule> = {
   follow:  { max: 60, windowMs: HOUR, cooldownMs: 500 },
@@ -30,6 +39,7 @@ export const ESTABLISHED_LIMITS: Record<RateAction, RateRule> = {
   post:    { max: 6,  windowMs: MIN,  cooldownMs: 3_000 },
   comment: { max: 20, windowMs: MIN,  cooldownMs: 1_500 },
   report:  { max: 20, windowMs: HOUR, cooldownMs: 1_000 },
+  dm_cold: { max: 20, windowMs: DAY,  cooldownMs: 2_000 },
 };
 
 export const NEW_ACCOUNT_LIMITS: Record<RateAction, RateRule> = {
@@ -38,12 +48,39 @@ export const NEW_ACCOUNT_LIMITS: Record<RateAction, RateRule> = {
   post:    { max: 2,  windowMs: MIN,  cooldownMs: 15_000 },
   comment: { max: 8,  windowMs: MIN,  cooldownMs: 5_000 },
   report:  { max: 10, windowMs: HOUR, cooldownMs: 2_000 },
+  dm_cold: { max: 5,  windowMs: DAY,  cooldownMs: 10_000 },
 };
 
-export const isNewAccount = (accountAgeMs: number) => !(accountAgeMs >= NEW_ACCOUNT_AGE_MS);
+// ── Trust-tier plumbing ──────────────────────────────────────────────────────
+type SignalProvider = (uid?: string) => Partial<TrustSignals> | null | undefined;
+let signalProvider: SignalProvider | null = null;
+/** Client installs this once (services/trust/trustClient.ts). Pass null to clear (tests). */
+export function registerTrustSignalProvider(fn: SignalProvider | null): void { signalProvider = fn; }
 
-export function limitFor(action: RateAction, accountAgeMs: number): RateRule {
-  return (isNewAccount(accountAgeMs) ? NEW_ACCOUNT_LIMITS : ESTABLISHED_LIMITS)[action];
+const YEAR_MS = 365 * DAY;
+function trustFor(accountAgeMs: number, signals?: Partial<TrustSignals> | null) {
+  // NaN/negative → brand new; Infinity (creation date unknown) → long-established (never punish missing data).
+  const age = accountAgeMs === Infinity ? 100 * YEAR_MS : (Number.isFinite(accountAgeMs) && accountAgeMs > 0 ? accountAgeMs : 0);
+  return computeTrust({ ...(signals || {}), accountAgeMs: age });
+}
+export function tierFor(accountAgeMs: number, signals?: Partial<TrustSignals> | null): TrustTier {
+  return trustFor(accountAgeMs, signals).tier;
+}
+
+export const isNewAccount = (accountAgeMs: number, signals?: Partial<TrustSignals> | null) => tierFor(accountAgeMs, signals) === 'NEW';
+
+export function limitFor(action: RateAction, accountAgeMs: number, signals?: Partial<TrustSignals> | null): RateRule {
+  const trust = trustFor(accountAgeMs, signals);
+  const tier = trust.tier;
+  const base = (tier === 'NEW' ? NEW_ACCOUNT_LIMITS : ESTABLISHED_LIMITS)[action];
+  if (trust.restricted && action === 'dm_cold') return { ...base, max: trust.limits.dmsToNonFollowersPerDay };
+  if (trust.restricted && action === 'follow') return { ...base, max: trust.limits.followsPerHour };
+  if (tier === 'NEW' || tier === 'BASIC') return base;
+  // TRUSTED / VERIFIED_CREATOR: lift the ceilings that bots care about (humans never notice).
+  const lim = trust.limits;
+  if (action === 'follow') return { ...base, max: lim.followsPerHour };
+  if (action === 'dm_cold') return { ...base, max: lim.dmsToNonFollowersPerDay };
+  return base;
 }
 
 export interface RateCheck {
@@ -103,7 +140,9 @@ export function tryConsume(
   now: number = Date.now(), store: StoreLike | null = defaultStore(),
 ): RateCheck {
   const age = accountCreatedAtMs ? now - accountCreatedAtMs : Infinity;
-  const rule = limitFor(action, age);
+  let signals: Partial<TrustSignals> | null | undefined = null;
+  try { signals = signalProvider?.(uid); } catch { signals = null; }
+  const rule = limitFor(action, age, signals);
   const hist = readHistory(uid, action, store);
   const res = checkRate(hist, rule, now);
   if (res.ok && store) {

@@ -54,7 +54,7 @@ export function probeMaster(url: string): Promise<ProbeResult> {
 export async function uploadReplacementFile(file: File, onProgress?: (pct: number) => void): Promise<string> {
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const objectRef = ref(storage, `uploads/musics/${Date.now()}_${safe}`);
-  const task = uploadBytesResumable(objectRef, file, { contentType: file.type || 'audio/mpeg' });
+  const task = uploadBytesResumable(objectRef, file, { contentType: file.type || 'audio/mpeg', customMetadata: { ownerUid: auth.currentUser?.uid || '' } });
   await new Promise<void>((resolve, reject) => {
     task.on('state_changed',
       s => onProgress?.(Math.round((s.bytesTransferred / s.totalBytes) * 100)),

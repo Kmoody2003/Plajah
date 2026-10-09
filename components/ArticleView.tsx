@@ -22,6 +22,9 @@ import { subscribeToComments, postComment, auth } from '../services/backendServi
 import CommentSection from './CommentSection';
 import The411 from './The411';
 import PlajahPlusPill from './PlajahPlusPill';
+import { ArticleNotices, ArticleTelaBody, useLiveArticle } from './journalist/ArticleTelaBody';
+import { isRetracted } from '../services/journalist/correctionLog';
+import { getJournalistBadge } from '../services/journalist/newsroomStore';
 
 interface ArticleViewProps {
   article: Article;
@@ -30,7 +33,24 @@ interface ArticleViewProps {
   currentUser: UserProfile | null;
 }
 
-const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser, currentUser }) => {
+const ArticleView: React.FC<ArticleViewProps> = ({ article: articleProp, onBack, onVisitUser, currentUser }) => {
+  // Live article doc: a correction or new Tela version published elsewhere appears without a reload.
+  const article = useLiveArticle(articleProp);
+  const [viewVersion, setViewVersion] = useState<string | undefined>(undefined);
+  const [classic, setClassic] = useState(() => { try { return localStorage.getItem('plajah_article_classic') === '1'; } catch { return false; } });
+  const [shareNote, setShareNote] = useState('');
+  // Verified-journalist badge: set only by Plajah staff after reviewing a press credential (never self-granted).
+  const [badge, setBadge] = useState<{ verified: boolean; outlet?: string } | null>(null);
+  useEffect(() => { let live = true; if (article.authorId) getJournalistBadge(article.authorId).then(b => { if (live) setBadge(b); }); return () => { live = false; }; }, [article.authorId]);
+  const useTela = !classic && !!article.blocks;
+  const toggleClassic = () => setClassic(c => { const n = !c; try { localStorage.setItem('plajah_article_classic', n ? '1' : '0'); } catch { /* storage blocked */ } return n; });
+  const shareArticle = async () => {
+    const url = `${window.location.origin}/?type=article&id=${encodeURIComponent(article.id)}`;
+    try {
+      if (navigator.share) await navigator.share({ title: article.title, text: article.subtitle || article.title, url });
+      else { await navigator.clipboard.writeText(url); setShareNote('Link copied'); setTimeout(() => setShareNote(''), 2000); }
+    } catch { /* share dismissed */ }
+  };
   useEffect(() => {
     if (currentUser) void recordHabit({ id: article.id, kind: 'ARTICLE', title: article.title, ownerName: article.authorName });
   }, [article.id, currentUser?.uid]);
@@ -61,7 +81,17 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser,
   };
 
   return (
-    <div className="fixed inset-0 bg-[var(--bg-color)] z-[90] flex flex-col overflow-hidden select-none pb-32 lg:pb-40 text-[var(--text-primary)]">
+    <div data-article-root className="fixed inset-0 bg-[var(--bg-color)] z-[90] flex flex-col overflow-hidden select-none pb-32 lg:pb-40 text-[var(--text-primary)]">
+      {/* Print / Save as PDF: the article only, full length, light paper, no chrome. */}
+      <style>{`@media print {
+        body * { visibility: hidden !important; }
+        [data-article-root], [data-article-root] * { visibility: visible !important; }
+        [data-article-root] { position: static !important; overflow: visible !important; height: auto !important; padding: 0 !important; background: #fff !important; color: #000 !important; }
+        [data-article-root] .overflow-y-auto { overflow: visible !important; }
+        [data-article-root] header, [data-article-root] footer, [data-article-root] [aria-label='Share article'], [data-article-root] button { display: none !important; }
+        [data-article-root] [data-tela-article] > * { break-inside: avoid-page; }
+        @page { margin: 14mm; }
+      }`}</style>
       {/* Top Bar */}
       <header className="h-20 bg-[var(--bg-color)]/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-8 z-50 shrink-0">
         <div className="flex items-center gap-6">
@@ -75,6 +105,7 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser,
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-[10px] font-black uppercase tracking-widest">{article.authorName}</p>
+                {badge?.verified && <span title={badge.outlet ? `Verified journalist, ${badge.outlet}` : 'Verified journalist'} className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full" style={{ color: '#06D6A0', border: '1px solid #06D6A055' }}>Verified journalist</span>}
                 <PlajahPlusPill creatorId={article.authorId} creatorName={article.authorName} size="XS" />
               </div>
               <p className="text-[8px] font-bold opacity-40 uppercase tracking-widest">{formatTime(article.timestamp)}</p>
@@ -83,7 +114,8 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser,
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="p-3 rounded-full transition-all hover:bg-white/10 opacity-40 hover:opacity-100">
+          <button onClick={() => window.print()} aria-label="Print or save as PDF" title="Print or save as PDF" className="p-3 rounded-full transition-all hover:bg-white/10 opacity-40 hover:opacity-100 text-[10px] font-black uppercase tracking-widest">PDF</button>
+          <button onClick={shareArticle} aria-label="Share article" title={shareNote || 'Share'} className="p-3 rounded-full transition-all hover:bg-white/10 opacity-40 hover:opacity-100">
             <Share2 size={20} />
           </button>
           <button className="p-3 rounded-full transition-all hover:bg-white/10 opacity-40 hover:opacity-100">
@@ -101,7 +133,7 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser,
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="max-w-4xl mx-auto px-6 lg:px-12 py-16">
           {/* Cover */}
-          {article.coverImage && (
+          {!useTela && article.coverImage && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -122,15 +154,37 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article, onBack, onVisitUser,
                 <span>{article.readTime || 5} min read</span>
               </div>
             </div>
-            <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">{article.title}</h1>
-            {article.subtitle && <p className="text-xl lg:text-2xl opacity-60 font-medium italic leading-relaxed mb-6">{article.subtitle}</p>}
+            {!useTela && <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">{article.title}</h1>}
+            {!useTela && article.subtitle && <p className="text-xl lg:text-2xl opacity-60 font-medium italic leading-relaxed mb-6">{article.subtitle}</p>}
+            {useTela && <h1 className="sr-only">{article.title}</h1>}
             
             <The411 itemId={article.id} itemType="ARTICLE" title={article.title} author={article.authorName} />
           </div>
 
-          {/* Content Blocks */}
-          <div className="space-y-12">
-            {article.blocks.map(block => (
+          {/* Public correction log: retractions pin to the top; never a silent edit */}
+          <ArticleNotices
+            notices={article.notices as any}
+            currentVersionId={article.tela?.versionId}
+            viewingVersionId={viewVersion}
+            onViewVersion={v => { setViewVersion(v); }}
+          />
+          {isRetracted(article.notices as any) && !viewVersion && <p className="text-xs mb-6 opacity-60">The text below is kept for the record.</p>}
+
+          {/* Tela-rendered body (Tela articles, and legacy block articles through the read-only bridge) */}
+          {useTela && <ArticleTelaBody article={article} versionOverride={viewVersion} />}
+          {useTela && article.disclosures && (article.disclosures.aiAssisted || article.disclosures.sponsored || article.disclosures.affiliateLinks || article.disclosures.conflictOfInterest) && (
+            <aside aria-label="Disclosures" className="mt-8 text-xs opacity-70 border-t border-white/10 pt-4 flex flex-col gap-1">
+              {article.disclosures.aiAssisted && <p>AI disclosure: {article.disclosures.aiNote || 'AI tools were used in producing this article.'}</p>}
+              {article.disclosures.sponsored && <p>Sponsored content{article.disclosures.sponsorName ? ` (${article.disclosures.sponsorName})` : ''}.</p>}
+              {article.disclosures.affiliateLinks && <p>This article contains affiliate links; the publisher may earn a commission.</p>}
+              {article.disclosures.conflictOfInterest && <p>Conflict of interest: {article.disclosures.conflictNote || 'the author disclosed a relationship relevant to this story.'}</p>}
+            </aside>
+          )}
+          <button type="button" onClick={toggleClassic} className="mt-6 text-[10px] uppercase tracking-widest opacity-30 hover:opacity-70 underline">{useTela ? 'Classic view' : 'Tela view'}</button>
+
+          {/* Content Blocks (classic view) */}
+          <div className={useTela ? 'hidden' : 'space-y-12'}>
+            {(useTela ? [] : article.blocks).map(block => (
               <div key={block.id} className="relative group">
                 {block.type === 'HEADING' && (
                   <h2 className="text-3xl lg:text-4xl font-black uppercase tracking-tight mt-20 mb-8">

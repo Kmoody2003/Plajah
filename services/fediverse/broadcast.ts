@@ -36,6 +36,8 @@ export interface BroadcastPayload {
   thumbnail?: string;
   /** BCP-47 language tags e.g. ['en']. Default: ['en']. */
   langs?: string[];
+  /** Public https image URLs to attach (max 4). Bluesky: uploaded as blobs; Mastodon: uploaded as media. */
+  mediaUrls?: string[];
 }
 
 export interface BroadcastOutcome {
@@ -50,118 +52,29 @@ export interface BroadcastResult {
   failed: { accountId: string; protocol: FediverseProtocol; error: string }[];
 }
 
-// ─── Bluesky helpers ──────────────────────────────────────────────────────────
+// ─── Bluesky / Mastodon dispatchers ───────────────────────────────────────────
+// Both go through the adapters: Bluesky gets real facets (links, @mentions, #tags), uploaded images or a link card,
+// and Mastodon gets uploaded media. Doing it here once keeps the Studio, the cron publisher and the chat share on
+// the same behaviour.
+
+const BSKY_LIMIT = 300;
+const graphemes = (t: string): string[] =>
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl
+    ? Array.from(new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' }).segment(t), (x: any) => x.segment)
+    : Array.from(t);
 
 /**
- * Compute byte-indexed facets for all URLs in a piece of text.
- * Bluesky requires these for links to be rendered clickably.
- * Uses TextEncoder so multi-byte characters are handled correctly.
+ * Fit "text + link" into Bluesky's 300-grapheme limit by trimming the TEXT (never the link), so a long caption
+ * still posts with its link instead of failing at the PDS.
  */
-function buildUrlFacets(
-  text: string,
-  urls: string[],
-): Array<{
-  index: { byteStart: number; byteEnd: number };
-  features: Array<{ $type: string; uri: string }>;
-}> {
-  const enc = new TextEncoder();
-  const facets: ReturnType<typeof buildUrlFacets> = [];
-
-  for (const url of urls) {
-    let searchFrom = 0;
-    while (true) {
-      const charIdx = text.indexOf(url, searchFrom);
-      if (charIdx === -1) break;
-      const byteStart = enc.encode(text.slice(0, charIdx)).length;
-      const byteEnd = byteStart + enc.encode(url).length;
-      facets.push({
-        index: { byteStart, byteEnd },
-        features: [{ $type: 'app.bsky.richtext.facet#link', uri: url }],
-      });
-      searchFrom = charIdx + url.length;
-    }
-  }
-  return facets;
+export function fitForBluesky(text: string, uri?: string): string {
+  const withLink = (t: string) => (uri && !t.includes(uri) ? `${t}\n\n${uri}` : t);
+  if (graphemes(withLink(text)).length <= BSKY_LIMIT) return withLink(text);
+  const reserved = uri ? graphemes(`\n\n${uri}`).length : 0;
+  const budget = Math.max(0, BSKY_LIMIT - reserved - 1);
+  const body = graphemes(text.replace(uri ?? '', '').trim()).slice(0, budget).join('').trimEnd();
+  return withLink(`${body}…`);
 }
-
-/**
- * Upload a remote image to the Bluesky PDS blob store and return the
- * blob reference for inclusion in an embed. Fails gracefully to undefined.
- */
-async function uploadThumbToBluesky(
-  thumbnailUrl: string,
-  creds: FediverseCredentials,
-): Promise<Record<string, unknown> | undefined> {
-  try {
-    const pds = (creds.pdsUrl ?? 'https://bsky.social').replace(/\/$/, '');
-    const imgRes = await fetch(thumbnailUrl, { signal: AbortSignal.timeout(8000) });
-    if (!imgRes.ok) return undefined;
-    const buffer = await imgRes.arrayBuffer();
-    const mimeType = imgRes.headers.get('content-type') ?? 'image/jpeg';
-
-    const res = await fetch(`${pds}/xrpc/com.atproto.repo.uploadBlob`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${creds.accessToken}`,
-        'Content-Type': mimeType,
-      },
-      body: buffer,
-    });
-    if (!res.ok) return undefined;
-    const data = await res.json() as { blob: Record<string, unknown> };
-    return data.blob;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Build a complete Bluesky post record (app.bsky.feed.post) from a
- * BroadcastPayload, including URL facets and an optional link card embed.
- */
-async function buildBlueskyRecord(
-  payload: BroadcastPayload,
-  creds: FediverseCredentials,
-): Promise<Record<string, unknown>> {
-  const { text, uri, title, description, thumbnail, langs } = payload;
-
-  // Append URI to text if not already present
-  const body = uri && !text.includes(uri) ? `${text}\n\n${uri}` : text;
-  const allUrls = uri ? [uri] : [];
-  const facets = buildUrlFacets(body, allUrls);
-
-  const record: Record<string, unknown> = {
-    $type: 'app.bsky.feed.post',
-    text: body,
-    createdAt: new Date().toISOString(),
-    langs: langs ?? ['en'],
-  };
-
-  if (facets.length) record.facets = facets;
-
-  // Build external link card embed when a URI is present
-  if (uri) {
-    let thumb: Record<string, unknown> | undefined;
-    if (thumbnail) {
-      thumb = await uploadThumbToBluesky(thumbnail, creds);
-    }
-
-    const externalEmbed: Record<string, unknown> = {
-      $type: 'app.bsky.embed.external',
-      external: {
-        uri,
-        title: title ?? 'Plajah',
-        description: description ?? '',
-        ...(thumb ? { thumb } : {}),
-      },
-    };
-    record.embed = externalEmbed;
-  }
-
-  return record;
-}
-
-// ─── Per-network dispatchers ──────────────────────────────────────────────────
 
 async function postToMastodon(
   account: FediverseAccount,
@@ -174,56 +87,23 @@ async function postToMastodon(
   const post = await mastodonAdapter.createPost(account.credentials, status, {
     visibility: 'public',
     langs: payload.langs,
+    images: payload.mediaUrls?.slice(0, 4).map(url => ({ url })),
   });
 
-  return {
-    accountId: account.id,
-    protocol: 'mastodon',
-    postId: post.id,
-    postUrl: post.url,
-  };
+  return { accountId: account.id, protocol: 'mastodon', postId: post.id, postUrl: post.url };
 }
 
 async function postToBluesky(
   account: FediverseAccount,
   payload: BroadcastPayload,
 ): Promise<BroadcastOutcome> {
-  const pds = (account.credentials.pdsUrl ?? 'https://bsky.social').replace(/\/$/, '');
-  const record = await buildBlueskyRecord(payload, account.credentials);
-
-  const res = await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${account.credentials.accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      repo: account.credentials.did,
-      collection: 'app.bsky.feed.post',
-      record,
-    }),
+  const images = payload.mediaUrls?.slice(0, 4).map(url => ({ url }));
+  const post = await blueskyadapter.createPost(account.credentials, fitForBluesky(payload.text, payload.uri), {
+    langs: payload.langs,
+    // Pictures win; otherwise a link gets a card (with the thumbnail uploaded as a blob).
+    ...(images?.length ? { images } : payload.uri ? { link: { uri: payload.uri, title: payload.title ?? 'Plajah', description: payload.description, thumbUrl: payload.thumbnail } } : {}),
   });
-
-  if (res.status === 400) {
-    const err = await res.json().catch(() => ({} as Record<string, unknown>)) as Record<string, unknown>;
-    if (String(err.error).includes('ExpiredToken') || String(err.error).includes('InvalidToken')) {
-      throw new FediverseError('bluesky', 'AUTH_EXPIRED', 'Bluesky session expired — reconnect');
-    }
-    throw new FediverseError('bluesky', 'API_ERROR', String(err.message ?? err.error ?? 'Post failed'));
-  }
-  if (!res.ok) {
-    throw new FediverseError('bluesky', 'API_ERROR', `HTTP ${res.status}`);
-  }
-
-  const data = await res.json() as { uri: string; cid: string };
-  const rkey = data.uri.split('/').at(-1) ?? '';
-  const handle = account.handle.replace(/^@/, '');
-  return {
-    accountId: account.id,
-    protocol: 'bluesky',
-    postId: data.cid,
-    postUrl: `https://bsky.app/profile/${handle}/post/${rkey}`,
-  };
+  return { accountId: account.id, protocol: 'bluesky', postId: post.id, postUrl: post.url };
 }
 
 async function postToThreads(

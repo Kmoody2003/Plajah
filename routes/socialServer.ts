@@ -30,6 +30,8 @@ import {
   type ScheduledRow,
 } from '../services/socialServerCore';
 import { normalizeHashtag } from '../services/postingLogic';
+import { serverSpamCheck, profileCreatedMs } from '../services/trust/serverSpamGate';
+import { recordSecurityEvent } from '../services/securityEvents';
 
 export const socialServerRouter = Router();
 
@@ -386,6 +388,13 @@ async function publishOne(row: ScheduledRow & { updateTime: string }, now: numbe
       return 'failed';
     }
     const { plan } = planned;
+    // Server-side spam gate (client heuristic + trust tier; services/trust/serverSpamGate.ts).
+    const spam = serverSpamCheck(String((plan.data as any).text || ''), { accountCreatedMs: profileCreatedMs(profile), now });
+    if (spam.block) {
+      recordSecurityEvent('spam_blocked_server', { route: 'scheduled_posts', uid: row.authorId, detail: `${spam.tier} ${spam.reasons.join(',')}` });
+      await patch(path, { status: 'FAILED', lastError: `Blocked by spam check: ${spam.reasons.join(', ')}`.slice(0, 300) });
+      return 'failed';
+    }
     // Deterministic id: a duplicate publish (client + server, or a retry) cannot create a second post.
     // Also check the sibling collection in case the author flipped private/public in between.
     const other = plan.collection === 'posts' ? 'private_posts' : 'posts';

@@ -450,3 +450,11 @@ if (deferBootSplash) {
 } else {
   dismissBootSplash();
 }
+
+// Personal invite links (/join/:code → index.html stashes the code): redeem once the visitor is signed in with a
+// new account — mutual follow + inviter credit (services/inviteService.ts). Loaded only when a code is pending.
+try {
+  if (localStorage.getItem('plajah_invite_code') || new URLSearchParams(window.location.search).get('join')) {
+    import('./services/inviteService').then(m => m.initInviteRedemption()).catch(() => { /* best effort */ });
+  }
+} catch { /* storage blocked */ }

@@ -25,6 +25,7 @@ import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
 import { parseSocialUrl, detectSocialEmbeds, extractUrlsFromText, stripUrlsFromText } from '../utils/socialEmbed';
 import { SensitiveContentGate, MutedContentGate, CleanText } from './safety/SafetyGates';
+import { ModerationGate } from './safety/ModerationGate';
 import { RenderTextWithMentions } from '../src/lib/richText';
 import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
@@ -825,8 +826,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           ) : (
             // Safety gates: muted words/topics blur the CONTENT (author stays
             // visible above); creator content labels gate behind blur+consent.
+            // Server moderation (routes/trustSafety.ts) wraps everything: hidden statuses vanish (author sees a
+            // notice), blur_interstitial forces tap-to-reveal, 'label' feeds safetyLabels into the viewer gate.
+            <ModerationGate status={(post as any).moderationStatus} labels={(post as any).safetyLabels} viewerIsAuthor={isAuthor}>
             <MutedContentGate text={post.text}>
-            <SensitiveContentGate labels={post.contentLabels as any}>
+            <SensitiveContentGate labels={((post as any).moderationStatus === 'label' ? [...(post.contentLabels || []), ...((post as any).safetyLabels || [])] : post.contentLabels) as any}>
             {displayText && (
               <p className={`${TYPE.bodyMd} leading-normal text-white/80 whitespace-pre-wrap`}>
                 <RenderTextWithMentions text={displayText} onVisitUser={onVisitUser} />
@@ -912,6 +916,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           )}
             </SensitiveContentGate>
             </MutedContentGate>
+            </ModerationGate>
           )}
 
           {/* Data Viz embed preview */}

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/bookTela/**/*.ts",
+    "components/bookTela/*.tsx",
+    "tests/bookTela.test.ts",
+    "components/BookReader.tsx",
+    "components/AlbumCreator.tsx",
+    "components/BookAuthoringStudio.tsx",
+    "components/bookSubmit/MyBooks.tsx"
+  ]
+}

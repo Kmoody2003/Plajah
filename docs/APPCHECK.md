@@ -57,6 +57,13 @@ If enforcement causes unexpected client rejections, set the affected API
 (Firestore/Storage/Auth) back to **Unenforced** in the console. It takes effect
 within minutes; no code change or redeploy needed.
 
+## Our own API (`/api/*`)
+
+Since 2026-10-08 the client also attaches `X-Firebase-AppCheck` to same-origin `/api` calls
+(`services/appCheckFetch.ts`) and the server verifies it with iss/aud bound to the project number
+(`services/appCheckServer.ts`) — **monitor mode** by default. Enforcement is env-driven
+(`APPCHECK_ENFORCE`, `APPCHECK_STRICT_ROUTES`); see [ANTI_BOT_PLAYBOOK.md](ANTI_BOT_PLAYBOOK.md).
+
 ## Dev notes
 
 - Local debug token last seen: prints fresh on each dev boot — read it from the

@@ -4,12 +4,21 @@
 
 import React, { useEffect, useState } from 'react';
 import { Radio, Users, ArrowRight } from 'lucide-react';
+import { subscribeRoom, type LiveRoom } from '../services/roomService';
 
-const RoomBanner: React.FC<{ roomId: string; title?: string; endsAt?: number }> = ({ roomId, title, endsAt }) => {
+const RoomBanner: React.FC<{ roomId: string; title?: string; endsAt?: number }> = ({ roomId, title, endsAt: postEndsAt }) => {
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30000); return () => clearInterval(t); }, []);
 
-  const live = !endsAt || Date.now() < endsAt;
+  // The post's endsAt is a snapshot from creation — a host who ends early (or a deleted room)
+  // must flip the banner, so liveness comes from the room doc itself. undefined = not loaded yet.
+  const [room, setRoom] = useState<LiveRoom | null | undefined>(undefined);
+  useEffect(() => subscribeRoom(roomId, setRoom), [roomId]);
+
+  const endsAt = room ? (room.endsAt > 0 ? room.endsAt : undefined) : postEndsAt;
+  const live = room === undefined
+    ? (!postEndsAt || Date.now() < postEndsAt)
+    : !!room && !room.endedAt && (!endsAt || Date.now() < endsAt);
   const mins = endsAt ? Math.max(0, Math.ceil((endsAt - Date.now()) / 60000)) : null;
 
   const open = (e: React.MouseEvent) => {

@@ -19,13 +19,21 @@
 //   app.use('/api/auth-methods', authLimiter)
 //   app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter)
 //
-// Enumeration trade-off, deliberately bounded: an address with NO account and an address whose
-// account we can't read both return { exists: false, providers: [] } — identical answers — so
-// this never confirms "no such user". The only thing it discloses is which provider an
-// already-existing account uses, which is exactly the help the sign-in form needs to give.
+// Enumeration hardening (2026-10-08, anti-bot pass). The previous shape returned
+// { exists:false } for a missing address and { exists:true, providers:[...] } for a real one —
+// an oracle a bot could use to test lists of emails. Now EVERY outcome has the SAME shape:
+//     { providers: string[], hasPassword: false, labels: string[] }
+// and the only case that carries data is the one the sign-in form genuinely needs: an account
+// that has NO password and signs in with Google/Facebook/Microsoft/X/Apple/GitHub. A missing
+// address, a password account, a lookup error and "not configured" are byte-identical
+// ({ providers: [], hasPassword: false, labels: [] }). The residual signal ("this address has an
+// OAuth-only account") is rate-limited per IP (authLimiter + a shared cross-instance limiter)
+// and counted in security_events.
 
 import { Router, Request, Response } from 'express';
 import { getAccessToken, adminConfig } from '../services/firebaseAdminRest';
+import { sharedRateLimit, clientIpKey } from '../services/sharedRateLimit';
+import { recordSecurityEvent } from '../services/securityEvents';
 
 export const authMethodsRouter = Router();
 
@@ -46,31 +54,29 @@ const looksLikeEmail = (v: unknown): v is string =>
   typeof v === 'string' && v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 // ── POST /lookup ─────────────────────────────────────────────────────────────────
-// Body: { email }
-// 200 → { exists, providers: string[], hasPassword, labels: string[] }
-// providers are raw providerId strings; labels are the display names for the non-password ones.
-authMethodsRouter.post('/lookup', async (req: Request, res: Response) => {
+const EMPTY = Object.freeze({ providers: [] as string[], hasPassword: false, labels: [] as string[] });
+
+authMethodsRouter.post('/lookup', sharedRateLimit({
+  name: 'auth_methods', limit: 30, windowMs: 60 * 60 * 1000,
+  key: (req: any) => `ip:${clientIpKey(req)}`,
+}), async (req: Request, res: Response) => {
   const email = (req.body?.email ?? '').toString().trim().toLowerCase();
   if (!looksLikeEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
+  recordSecurityEvent('auth_methods_lookup', { route: '/api/auth-methods/lookup' });
 
-  // Not configured (local dev without credentials) → say "unknown" rather than failing the
-  // sign-in form. The client falls back to its generic guidance.
-  if (!adminConfig.hasCredentials()) return res.json({ exists: false, providers: [], hasPassword: false, labels: [], unknown: true });
-
+  if (!adminConfig.hasCredentials()) return res.json(EMPTY);
   try {
     const token = await getAccessToken();
-    if (!token) return res.json({ exists: false, providers: [], hasPassword: false, labels: [], unknown: true });
-
+    if (!token) return res.json(EMPTY);
     const r = await fetch(LOOKUP_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: [email] }),
     });
-    if (!r.ok) return res.json({ exists: false, providers: [], hasPassword: false, labels: [], unknown: true });
-
+    if (!r.ok) return res.json(EMPTY);
     const data: any = await r.json();
     const user = Array.isArray(data?.users) ? data.users[0] : null;
-    if (!user) return res.json({ exists: false, providers: [], hasPassword: false, labels: [] });
+    if (!user) return res.json(EMPTY);
 
     const providers: string[] = Array.from(new Set(
       (user.providerUserInfo || []).map((p: any) => String(p?.providerId || '')).filter(Boolean)
@@ -78,11 +84,12 @@ authMethodsRouter.post('/lookup', async (req: Request, res: Response) => {
     // Identity Toolkit does not always list "password" in providerUserInfo; a stored hash is
     // the authoritative signal that this account CAN sign in with a password.
     const hasPassword = providers.includes('password') || !!user.passwordHash;
-    if (hasPassword && !providers.includes('password')) providers.push('password');
-
-    const labels = providers.filter(p => p !== 'password').map(p => PROVIDER_LABELS[p] || p);
-    return res.json({ exists: true, providers, hasPassword, labels });
+    // Password accounts look exactly like "no account" — the form's generic copy covers them.
+    if (hasPassword) return res.json(EMPTY);
+    const oauth = providers.filter(p => p !== 'password' && PROVIDER_LABELS[p]);
+    if (!oauth.length) return res.json(EMPTY);
+    return res.json({ providers: oauth, hasPassword: false, labels: oauth.map(p => PROVIDER_LABELS[p]) });
   } catch {
-    return res.json({ exists: false, providers: [], hasPassword: false, labels: [], unknown: true });
+    return res.json(EMPTY);
   }
 });

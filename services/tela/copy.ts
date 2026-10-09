@@ -3,7 +3,7 @@
 // Templates should never say "lorem ipsum" or "Replace this copy". A reader
 // judging a template judges its voice too, so each voice here has headlines,
 // decks, body paragraphs, captions, pull quotes and bylines that could ship.
-export type Voice = 'editorial' | 'culture' | 'science' | 'travel' | 'music' | 'fashion' | 'community' | 'faith' | 'business' | 'kids' | 'photo' | 'comic' | 'food' | 'event' | 'education' | 'personal';
+export type Voice = 'editorial' | 'culture' | 'science' | 'travel' | 'music' | 'fashion' | 'community' | 'faith' | 'business' | 'kids' | 'photo' | 'comic' | 'food' | 'event' | 'education' | 'personal' | 'journalism' | 'catalog' | 'academic';
 
 interface VoicePack { headlines: string[]; decks: string[]; body: string[]; captions: string[]; quotes: string[]; bylines: string[]; kickers: string[] }
 
@@ -186,6 +186,40 @@ const PACK: Record<Voice, VoicePack> = {
     quotes: ['“Make the thing, then make it quieter.”'],
     bylines: ['— Kenne', 'From the studio'],
     kickers: ['Profile', 'Selected work', 'Experience', 'Contact'],
+  },
+  journalism: {
+    headlines: ['Floodwater closes Riverton bridges as river crest nears record', 'The contract that wasn’t', 'Our libraries are not a luxury', 'Rents outran paychecks in 41 of 50 cities'],
+    decks: ['Mayor orders evacuation of low-lying districts as rail and road links are cut.', 'A review of 214 pages of procurement records shows a single bidder, no emergency certificate and a scoring sheet created after the contract was signed.'],
+    body: [
+      'The river gauge at Hollis Quay read 7.42 metres at 09:00 local time, 12 centimetres above the previous high, and was still rising by roughly 3 centimetres an hour, the regional water authority said.',
+      'Three current and former officials told us the panel “never really scored anything.” One called the process “a ratification.” We have seen the email that proves it.',
+      'Between 2019 and 2025 the median asking rent across 50 mid-sized cities rose 39 percent. Median hourly wages rose 19 percent.',
+    ],
+    captions: ['Volunteers carry sandbags along Hollis Quay on Wednesday.', 'Exhibit B: the memorandum of 9 April, second signature redacted by the city.', 'Fig. 1 — rent and wage growth, indexed to 2019.'],
+    quotes: ['“If you are asked to leave, leave. Property can be replaced.”', '“Nobody has ever met their neighbours on a ring road.”'],
+    bylines: ['By Priya Natarajan and Joel Adeyemi', 'By Maren Oyelaran · Photographs by Tobias Lindqvist'],
+    kickers: ['Breaking', 'Investigation', 'Opinion', 'Data story'],
+  },
+  catalog: {
+    headlines: ['The Supply Catalog 2027', 'Autumn 2026 list', 'Slow Weather, Autumn/Winter 2026', 'Parts and Hardware, No. 27'],
+    decks: ['Order by 4 p.m. and we ship today.', 'Twelve new titles in fiction, poetry, nonfiction and picture books.'],
+    body: ['Preset click-release, reversible ratchet, calibrated to ±4%. Supplied with a calibration certificate and case.', 'Double-faced wool in camel, cut long with a dropped shoulder and a single horn button.', 'Grade 8.8, zinc-plated, fully threaded. Metric coarse thread, sold by the pack.'],
+    captions: ['Prices ex. tax, per pack. Trade accounts receive net 30 terms.', 'Available in stone, charcoal and sage. Wholesale on request.', 'Free delivery over $150.'],
+    quotes: ['“A map that argues with itself, beautifully.”', '“The most considered pair we tested this year.”'],
+    bylines: ['Foundry Supply Co.', 'Harbourlight Books', 'Maison Lin'],
+    kickers: ['New for 2027', 'Lead title', 'Look 07', 'Order code'],
+  },
+  academic: {
+    headlines: ['Later school start times, longer sleep and better recall in adolescents', 'A cluster-randomised trial of delayed school start'],
+    decks: ['Moving the school day 50 minutes later added 41 minutes of sleep and raised recall by 7.2 percent.'],
+    body: [
+      'Sleep need peaks in adolescence, yet the typical teenager sleeps one to two hours less than recommended on school nights [1].',
+      'Twelve schools in three districts were matched on size and prior attainment, then randomised in pairs. Intervention schools moved the first lesson from 8:10 to 9:00.',
+    ],
+    captions: ['Figure 1. Delayed recall (percent of words) by arm; whiskers show 95% confidence intervals.', 'Table 1. Sleep, recall, absences and mood by arm.'],
+    quotes: ['A 50-minute delay lengthened sleep by 41 minutes and raised recall by 7.2 percent.'],
+    bylines: ['Petrova H, Batra S, Haugen L, Mensah K'],
+    kickers: ['Abstract', 'Methods', 'Results', 'Discussion'],
   },
 };
 

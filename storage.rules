@@ -13,31 +13,56 @@ service firebase.storage {
       return isAuth() && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
-    // NOTE: Firebase Storage cross-service Firestore lookups only support the
-    // (default) Firestore database. This project uses a named database so the
-    // firestore.exists() call always returns false. isAdmin() is kept for the
-    // existing rules that depend on it; it effectively means "deny" for those
-    // fallback branches, which was already the case before.
+    // Platform admin. Storage cross-service lookups (firestore.get/exists) can ONLY reach the
+    // (default) Firestore database, and this project uses the named database plajah-prod, so the
+    // admins/{uid} collection is unreachable from here. Admin is therefore recognised from the ID
+    // token: an `admin: true` custom claim, or the owner's verified email (mirrors firestore.rules
+    // isAdmin()). Staff listed only in Firestore admins/ need the custom claim to be admins here.
     function isAdmin() {
-      return isAuth() &&
-        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+      return isAuth() && (
+        request.auth.token.get('admin', false) == true ||
+        (request.auth.token.get('email', '') == 'kmoody2003@gmail.com' &&
+         request.auth.token.get('email_verified', false) == true)
+      );
     }
 
-    // Content-type must be a recognised media/document type. Browsers (esp. for .mov) often send
-    // application/octet-stream for valid media, so accept it (and a missing type) too — these paths
-    // are all auth-gated and app-controlled.
-    function isAllowedContentType() {
-      return request.resource.contentType == null ||
-             request.resource.contentType.matches('image/.*') ||
-             request.resource.contentType.matches('audio/.*') ||
-             request.resource.contentType.matches('video/.*') ||
-             request.resource.contentType.matches('application/pdf') ||
-             request.resource.contentType.matches('application/msword') ||
-             request.resource.contentType.matches('application/vnd.ms-.*') ||
-             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*') ||
-             request.resource.contentType.matches('application/epub.*') ||
-             request.resource.contentType.matches('application/octet-stream') ||
-             request.resource.contentType.matches('text/.*');
+    // ── Content types ─────────────────────────────────────────────────────────
+    // Allowlist only. Never accept browser-renderable active content — text/html, SVG
+    // (image/svg+xml), XML/XHTML, JavaScript — because any uploaded object gets a tokenized
+    // download URL that works regardless of read rules, which would host phishing pages/XSS.
+    // A missing content type is rejected (the SDK always sends one).
+    function isMediaType() {
+      return request.resource.contentType != null && (
+        request.resource.contentType.matches('image/(png|jpeg|jpg|pjpeg|gif|webp|avif|heic|heif|bmp|tiff)') ||
+        request.resource.contentType.matches('audio/.*') ||
+        request.resource.contentType.matches('video/.*')
+      );
+    }
+    function isDocumentType() {
+      return request.resource.contentType != null && (
+        request.resource.contentType.matches('application/pdf') ||
+        request.resource.contentType.matches('application/epub([+]zip)?') ||
+        request.resource.contentType.matches('application/msword') ||
+        request.resource.contentType.matches('application/vnd.ms-.*') ||
+        request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*') ||
+        request.resource.contentType.matches('application/(json|zip|x-zip-compressed)') ||
+        request.resource.contentType.matches('text/(plain|csv|markdown|vtt)(;.*)?') ||
+        request.resource.contentType.matches('model/gltf(-binary|[+]json)')
+      );
+    }
+    // Shared / public prefixes: media + documents only.
+    function isPublicSafeType() {
+      return isMediaType() || isDocumentType();
+    }
+    // application/octet-stream is served as a download (never rendered), so it is accepted
+    // only on owner-scoped paths, where raw project files / unknown-extension attachments
+    // (Fabula assets, production breakdown attachments, Content HQ originals) genuinely need it.
+    function isOwnerPathType() {
+      return isPublicSafeType() ||
+        (request.resource.contentType != null && request.resource.contentType.matches('application/octet-stream'));
+    }
+    function isAudioType() {
+      return request.resource.contentType != null && request.resource.contentType.matches('audio/.*');
     }
 
     // Maximum 100 GB for any creative single file. Full 4K/ProRes masters, music albums,
@@ -52,67 +77,122 @@ service firebase.storage {
       return request.resource.size < 50 * 1024 * 1024;
     }
 
+    // ── Uploader ownership for prefixes whose path does not contain the uploader uid ──
+    // Clients stamp customMetadata.ownerUid on every upload (services/backendService.ts
+    // uploadFile, contexts/UploadContext.tsx, and the direct uploadBytes call sites). Creating
+    // requires the stamp to be the caller; overwriting / metadata updates / deleting require the
+    // EXISTING object's stamp to be the caller (and the stamp can never be reassigned). Legacy
+    // objects uploaded before the stamp existed are therefore immutable except to admins.
+    function stampsSelf() {
+      return request.resource.metadata.get('ownerUid', '') == request.auth.uid;
+    }
+    function ownsExisting() {
+      return resource.metadata.get('ownerUid', '') == request.auth.uid;
+    }
+    function canCreateStamped() {
+      return isRegisteredUser() && stampsSelf();
+    }
+    function canUpdateStamped() {
+      return isRegisteredUser() && ownsExisting() && stampsSelf();
+    }
+    function canDeleteStamped() {
+      return isRegisteredUser() && ownsExisting();
+    }
+
     // ── User-scoped files (creative assets, books, audio, avatars) ───────────
+    // get stays public (avatars/covers are fetched by path); listing is owner-only so nobody can
+    // enumerate another user's files (worksheets, production attachments, drafts …).
     match /users/{uid}/{allPaths=**} {
-      allow read: if true;
-      allow write: if (isRegisteredUser() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
+      allow get: if true;
+      allow list: if isAuth() && request.auth.uid == uid;
+      allow write: if (isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && withinSizeLimit())
                    || isAdmin();
     }
 
     // ── Social post media (images/videos attached in the Universal Composer) ──
     match /posts/{uid}/{allPaths=**} {
-      allow read: if true;
-      allow write: if (isRegisteredUser() && request.auth.uid == uid && isAllowedContentType() && withinSizeLimit())
+      allow get: if true;
+      allow list: if isAuth() && request.auth.uid == uid;
+      allow write: if (isRegisteredUser() && request.auth.uid == uid && isPublicSafeType() && withinSizeLimit())
                    || isAdmin();
     }
 
     // ── Comment media (social replies: images/videos/audio attached to a comment) ─
     match /comments/{postId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSocialLimit()) || isAdmin();
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && isPublicSafeType() && withinSocialLimit();
+      allow update: if canUpdateStamped() && isPublicSafeType() && withinSocialLimit();
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
     }
 
     // ── Chat media (images/voice/gifts sent in a chat room) ───────────────────
+    // Participants view DM media through the tokenized download URL stored in the chat message
+    // (the message is protected by Firestore rules); the token bypasses these rules. Direct SDK
+    // reads are limited to the uploader (getDownloadURL right after upload) — membership cannot
+    // be checked here because the chat room lives in the named Firestore database.
     match /chat/{roomId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSocialLimit()) || isAdmin();
+      allow get: if (isAuth() && ownsExisting()) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && isPublicSafeType() && withinSocialLimit();
+      allow update: if canUpdateStamped() && isPublicSafeType() && withinSocialLimit();
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
     }
     match /chat_intimate/{roomId}/{allPaths=**} {
-      allow read: if isAuth();
-      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSocialLimit()) || isAdmin();
+      allow get: if (isAuth() && ownsExisting()) || isAdmin();
+      allow list: if false;
+      allow create: if canCreateStamped() && isPublicSafeType() && withinSocialLimit();
+      allow update: if canUpdateStamped() && isPublicSafeType() && withinSocialLimit();
+      allow delete: if canDeleteStamped();
     }
 
     // ── Album content (Music, Releases, Master Artwork, Stems) ───────────────
     match /albums/{albumId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && isPublicSafeType() && withinSizeLimit();
+      allow update: if canUpdateStamped() && isPublicSafeType() && withinSizeLimit();
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
     }
 
     // ── Video content (Films, Shorts, Fabula Ingest, Series) ──────────────────
     match /videos/{videoId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && isPublicSafeType() && withinSizeLimit();
+      allow update: if canUpdateStamped() && isPublicSafeType() && withinSizeLimit();
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
     }
 
-    // Real-time live-stream recording segments
+    // Real-time live-stream recording segments (video only)
     match /liveRecordings/{streamId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if (isRegisteredUser() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && isMediaType() && withinSizeLimit();
+      allow update: if canUpdateStamped() && isMediaType() && withinSizeLimit();
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
     }
 
-    // ── HideNSeek game assets ─────────────────────────────────────────────────
+    // ── HideNSeek game assets (alternate tracks uploaded by the album's creator) ─
     match /hideNSeek/{allPaths=**} {
-      allow read: if true;
-      allow write: if (isAuth() && isAllowedContentType() && withinSizeLimit()) || isAdmin();
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && isMediaType() && withinSizeLimit();
+      allow update: if canUpdateStamped() && isMediaType() && withinSizeLimit();
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
     }
 
-    // ── Club cover media ──────────────────────────────────────────────────────
-    // Admin-managed via the admin dashboard. Cross-service Firestore admin
-    // checks don't work with named databases, so we check auth + content type.
-    // The admin gate is enforced at the UI layer and in Firestore rules.
+    // ── Club cover media — admin-managed (admin dashboard + scripts/uploadClubCoverMedia.ts) ──
     match /club-cover-media/{fileName} {
-      allow read: if true;
-      allow write: if isAuth() && isAllowedContentType() && withinSizeLimit();
+      allow get: if true;
+      allow list: if isAdmin();
+      allow write: if isAdmin() && isMediaType() && withinSizeLimit();
     }
 
     // ── Classic books — public domain texts hosted on Plajah storage ─────────
@@ -123,37 +203,52 @@ service firebase.storage {
 
     // ── Two-way (walkie-talkie) transmissions ─────────────────────────────────
     // Short audio PTT clips, evicted by the rolling 5-buffer. Audio only, ≤10 MB.
+    // pairId = the two participants' uids sorted and joined with '__' (walkieService.pairId),
+    // so only a participant may read, send into, or evict from the pair.
     match /walkie/{pairId}/{fileName} {
-      allow read: if true;
-      allow write: if isAuth()
-                   && request.resource.contentType.matches('audio/.*')
-                   && request.resource.size < 10 * 1024 * 1024;
+      allow get: if isAuth() && request.auth.uid in pairId.split('__');
+      allow list: if false;
+      allow create: if canCreateStamped()
+                    && request.auth.uid in pairId.split('__')
+                    && isAudioType()
+                    && request.resource.size < 10 * 1024 * 1024;
+      allow delete: if canDeleteStamped();
     }
 
     // Governed production-radio PTT clips. Firestore controls who can discover
-    // the transmission URL; uploads remain authenticated, audio-only and small.
+    // the transmission URL; uploads remain registered, owner-stamped, audio-only and small.
     match /productionRadio/{productionId}/{channelKey}/{fileName} {
-      allow read: if isAuth();
-      allow write: if isAuth()
-                   && request.resource.contentType.matches('audio/.*')
-                   && request.resource.size < 10 * 1024 * 1024;
+      allow get: if isAuth();
+      allow list: if false;
+      allow create: if canCreateStamped()
+                    && isAudioType()
+                    && request.resource.size < 10 * 1024 * 1024;
+      allow delete: if canDeleteStamped();
     }
 
     // ── General uploads (UploadContext: films, videos, images, music, audio) ──
-    // Path shape: uploads/<type>s/<timestamp>_<filename>. Any signed-in user may upload here.
-    // NOTE: no content-type gate (browsers report .mov etc. as application/octet-stream, which the
-    // media-type check wrongly rejected) and a 100 GB cap (a 25 GB+ master must never be rejected).
+    // Path shape: uploads/<type>s/<timestamp>_<filename>. Shared prefix → owner-stamped.
+    // UploadContext maps extensions (.mov etc.) to a real media type before uploading, so the
+    // allowlist no longer rejects valid media; 100 GB cap (a 25 GB+ master must never be rejected).
     match /uploads/{allPaths=**} {
-      allow read: if true;
-      allow write: if isRegisteredUser() && withinSizeLimit();
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && isPublicSafeType() && withinSizeLimit();
+      allow update: if canUpdateStamped() && isPublicSafeType() && withinSizeLimit();
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
     }
 
     // Content HQ originals and revisions. Discovery and authorization are enforced by
     // Firestore plus the authenticated /api/hq/assets/:id/download endpoint. Unlike the
     // legacy uploads tree these objects are never public-readable.
     match /protected-hq/{scopeKind}/{scopeId}/{assetId}/{allPaths=**} {
+      // No client read at all → no client can mint a download token, so any file type (PSD, AI,
+      // SVG, FDX …) is acceptable here; the server scans and streams it with safe headers.
       allow read: if false;
-      allow write: if isRegisteredUser() && isAllowedContentType() && withinSizeLimit();
+      allow create: if canCreateStamped() && request.resource.contentType != null && withinSizeLimit();
+      allow update: if canUpdateStamped() && request.resource.contentType != null && withinSizeLimit();
+      allow delete: if canDeleteStamped();
     }
 
     // ── Private media locker (Chora music + Taleo movies/TV the user owns) ────

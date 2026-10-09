@@ -131,7 +131,11 @@ export function ledgerScopeFor(relation: ViewerRelation): LedgerScope {
 }
 
 // ── Child self-mutation guard ─────────────────────────────────────────────────────
-// Fields a CHILD account may never change on itself (enforced in Firestore rules too).
+// Fields a CHILD account may never change on itself. Firestore rules (users/{userId}, helpers
+// childIdentityUnchanged/ownerChildSafetyOk) enforce isChild, guardianUid, birthYear, accountType,
+// parentalControls, role and isAdmin — NOT childUids, email or tier, which this list also names.
+// NOTE: the repo firestore.rules is not what is live; the live patch is
+// docs/rules-patches/child-safety.rules.snippet and is only enforced once deployed.
 export const CHILD_LOCKED_FIELDS = new Set<string>([
   'accountType', 'isChild', 'guardianUid', 'childUids', 'email', 'parentalControls', 'role', 'tier', 'birthYear',
 ]);

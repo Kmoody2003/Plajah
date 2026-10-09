@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Repeat2, MessageCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, Repeat2, MessageCircle, ExternalLink, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { useFediverse } from '../contexts/FediverseContext';
 import type { FediversePost, FediverseProtocol } from '../services/fediverse/types';
 import { TYPE } from '../src/lib/designSystem';
@@ -63,7 +63,7 @@ function relativeTime(ms: number): string {
 
 // ─── Strip HTML (Mastodon content is HTML) ────────────────────────────────────
 
-function stripHtml(html: string): string {
+export function stripHtml(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
@@ -79,7 +79,7 @@ function stripHtml(html: string): string {
 
 // ─── Reply sheet (inline) ─────────────────────────────────────────────────────
 
-function ReplySheet({ post, onClose }: { post: FediversePost; onClose: () => void }) {
+export function ReplySheet({ post, onClose }: { post: FediversePost; onClose: () => void }) {
   const { crossPost, accounts } = useFediverse();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -94,6 +94,8 @@ function ReplySheet({ post, onClose }: { post: FediversePost; onClose: () => voi
       await crossPost(text.trim(), {
         inReplyToId: post.id,
         inReplyToUri: post.uri,
+        // Bluesky replies are record refs: the parent's cid plus the thread root (the parent itself when it IS the root).
+        ...(post.protocol === 'bluesky' ? { inReplyToCid: post.id, inReplyToRootUri: post.rootUri ?? post.uri, inReplyToRootCid: post.rootCid ?? post.id } : {}),
       }, [post.accountId]);
       setText('');
       onClose();
@@ -148,6 +150,26 @@ function ReplySheet({ post, onClose }: { post: FediversePost; onClose: () => voi
 
 // ─── Main card ────────────────────────────────────────────────────────────────
 
+/** HLS video (Bluesky). Safari plays m3u8 natively; elsewhere hls.js is loaded on demand. */
+export function BskyVideo({ src, poster }: { src: string; poster?: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const v = ref.current; if (!v || !src) return;
+    if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = src; return; }
+    let hls: { destroy: () => void } | null = null; let dead = false;
+    import('hls.js').then(({ default: Hls }) => {
+      if (dead) return;
+      if (!Hls.isSupported()) { setFailed(true); return; }
+      const h = new Hls(); hls = h; h.loadSource(src); h.attachMedia(v);
+      h.on(Hls.Events.ERROR, (_e: unknown, d: { fatal?: boolean }) => { if (d?.fatal) setFailed(true); });
+    }).catch(() => setFailed(true));
+    return () => { dead = true; hls?.destroy(); };
+  }, [src]);
+  if (failed) return <div className="w-full h-full flex items-center justify-center bg-black/60">{poster && <img src={poster} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}<Play size={28} className="relative text-white/80" /></div>;
+  return <video ref={ref} poster={poster} className="w-full h-full object-cover" controls playsInline preload="none" onClick={e => e.stopPropagation()} />;
+}
+
 interface FediversePostCardProps {
   post: FediversePost;
   compact?: boolean;
@@ -195,6 +217,9 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
         <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg, ${proto.accent}, transparent)` }} />
 
         <div className="p-4">
+          {post.repostedBy && (
+            <p className="flex items-center gap-1.5 text-[10px] font-bold text-white/35 mb-2"><Repeat2 size={11} /> Reposted by {post.repostedBy}</p>
+          )}
           {/* Header */}
           <div className="flex items-start gap-3 mb-3">
             {/* Avatar */}
@@ -258,7 +283,9 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
                   style={{ aspectRatio: post.media.length === 1 ? '16/9' : '1' }}
                   onClick={() => m.url && setLightboxImg(m.url)}>
                   {m.type === 'video' ? (
-                    <video src={m.url} poster={m.previewUrl} className="w-full h-full object-cover" muted playsInline />
+                    /\.m3u8(\?|$)/.test(m.url)
+                      ? <BskyVideo src={m.url} poster={m.previewUrl} />
+                      : <video src={m.url} poster={m.previewUrl} className="w-full h-full object-cover" controls playsInline preload="none" />
                   ) : (
                     <img src={m.previewUrl || m.url} alt={m.altText || ''} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   )}
@@ -270,6 +297,30 @@ const FediversePostCard: React.FC<FediversePostCardProps> = ({ post, compact = f
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Link card */}
+          {post.card?.uri && (
+            <a href={post.card.uri} target="_blank" rel="noopener noreferrer" className="mb-3 flex rounded-xl overflow-hidden border border-white/10 hover:bg-white/[0.04] transition-colors">
+              {post.card.thumb && <img src={post.card.thumb} alt="" className="w-24 h-24 object-cover shrink-0" />}
+              <div className="p-2.5 min-w-0">
+                <p className="text-xs font-bold text-white/85 line-clamp-2">{post.card.title || post.card.uri}</p>
+                {post.card.description && <p className="text-[11px] text-white/45 line-clamp-2 mt-0.5">{post.card.description}</p>}
+                <p className="text-[10px] text-white/30 truncate mt-1">{(() => { try { return new URL(post.card!.uri).hostname; } catch { return post.card!.uri; } })()}</p>
+              </div>
+            </a>
+          )}
+
+          {/* Quoted post */}
+          {post.quote && (
+            <a href={post.quote.url} target="_blank" rel="noopener noreferrer" className="mb-3 block rounded-xl border border-white/10 p-3 hover:bg-white/[0.04] transition-colors">
+              <div className="flex items-center gap-2 mb-1">
+                {post.quote.authorAvatarUrl && <img src={post.quote.authorAvatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" />}
+                <span className="text-[11px] font-bold text-white/70 truncate">{post.quote.authorDisplayName}</span>
+                <span className="text-[10px] text-white/30 truncate">{post.quote.authorHandle}</span>
+              </div>
+              <p className="text-xs text-white/65 line-clamp-4 whitespace-pre-wrap break-words">{post.quote.text}</p>
+            </a>
           )}
 
           {/* Actions */}

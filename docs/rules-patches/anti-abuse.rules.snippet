@@ -1,0 +1,130 @@
+// ═══════════════════════════════════════════════════════════════════════════════════════
+// Anti-abuse Firestore rules patch — 2026-10-08 (anti-bot pass)        STATUS: NOT DEPLOYED
+// ═══════════════════════════════════════════════════════════════════════════════════════
+//
+// WHY A SNIPPET: the repo `firestore.rules` already contains every change below (search for
+// "Anti-abuse"), but the repo file is >256 KB and its deploy now goes through
+// scripts/minifyRules.mjs → firestore.rules.min (firebase.json "predeploy"). The LIVE ruleset
+// differs from the repo — the last-known live copy is `.rules-hotfix/firestore.rules`. Apply
+// each block below to whichever ruleset you actually deploy, then test in the emulator.
+//
+// CLIENT DEPENDENCIES (already in the repo, must ship BEFORE or WITH these rules):
+//   • services/backendService.ts followUser/unfollowUser — follow edge + followerCount in ONE
+//     transaction (already the case).
+//   • services/backendService.ts likeVideo/unlikeVideo — now ONE writeBatch (like edge +
+//     likesCount). Shipping rule 3 without this client change breaks video likes.
+//   • Posts: likes go through the likedBy toggle (already the case).
+//
+// Line refs: R = repo firestore.rules (approx, file moves), L = .rules-hotfix/firestore.rules.
+// Test checklist after applying: follow/unfollow, like/unlike a post and a video, comment on a
+// post and a video, create a DM, create a group, send a message in a DM / group / live chat /
+// org channel / production channel / classroom meeting, receive a notification.
+// ═══════════════════════════════════════════════════════════════════════════════════════
+
+
+// ── 1. users/{userId}: followerCount bound to the follow edge ───────────────────────────
+// PROBLEM: any signed-in user could ±1 ANY user's followerCount, forever, with no edge.
+// L ~919 / R users/{userId} allow update. REPLACE:
+//   (isAuthenticated() &&
+//    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
+//    math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1) ||
+// WITH:
+                      (isAuthenticated() &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) && (
+                         (request.resource.data.followerCount == resource.data.get('followerCount', 0) + 1 &&
+                          !exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + userId)) &&
+                          existsAfter(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + userId))) ||
+                         (request.resource.data.followerCount == resource.data.get('followerCount', 0) - 1 &&
+                          exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + userId)) &&
+                          !existsAfter(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + userId)))
+                       )) ||
+// Note: follows/{followerId}_{followingId} create must keep requiring followerId == auth.uid
+// (it does in both rulesets) — that is what makes the edge unforgeable.
+
+
+// ── 2. posts/{postId}: no edge-less like/comment counter inflation ───────────────────────
+// PROBLEM (L ~795, much worse live): `affectedKeys().hasOnly(['likesCount','commentsCount'])`
+// with NO bound, and a likedBy branch that doesn't check the caller's uid.
+// REPLACE both live branches with the repo's bound likedBy toggle + this comment branch:
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount']) &&
+                        (
+                          (request.auth.uid in request.resource.data.likedBy &&
+                           !(request.auth.uid in resource.data.likedBy) &&
+                           request.resource.data.likesCount == resource.data.likesCount + 1) ||
+                          (!(request.auth.uid in request.resource.data.likedBy) &&
+                           request.auth.uid in resource.data.likedBy &&
+                           request.resource.data.likesCount == resource.data.likesCount - 1)
+                        )) ||
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount']) &&
+                        request.resource.data.commentsCount is number && request.resource.data.commentsCount >= 0 &&
+                        (request.resource.data.commentsCount == resource.data.get('commentsCount', 0) + 1 || request.resource.data.commentsCount == resource.data.get('commentsCount', 0) - 1)) ||
+// RESIDUAL: commentsCount is still ±1-per-write without an edge (comment ids are random, so the
+// rule can't name the comment doc). Follow-up: write comments with a client-chosen id + a
+// `lastCommentId` field and bind with existsAfter, or move the counter to a server trigger.
+// Same pattern exists on private_posts and several other collections (grep hasOnly(['likesCount', 'commentsCount'])).
+
+
+// ── 3. videos/{videoId}: likesCount bound to the like edge ──────────────────────────────
+// PROBLEM (L ~824): `hasOnly(['likesCount','commentsCount'])` with no bound.
+// REPLACE the second update branch WITH (requires the batched likeVideo/unlikeVideo client):
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']) && (
+                        (request.resource.data.likesCount == resource.data.get('likesCount', 0) + 1 &&
+                         !exists(/databases/$(database)/documents/videos/$(videoId)/likes/$(request.auth.uid + '_' + videoId)) &&
+                         existsAfter(/databases/$(database)/documents/videos/$(videoId)/likes/$(request.auth.uid + '_' + videoId))) ||
+                        (request.resource.data.likesCount == resource.data.get('likesCount', 0) - 1 &&
+                         exists(/databases/$(database)/documents/videos/$(videoId)/likes/$(request.auth.uid + '_' + videoId)) &&
+                         !existsAfter(/databases/$(database)/documents/videos/$(videoId)/likes/$(request.auth.uid + '_' + videoId)))
+                      )) ||
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount']) &&
+                        request.resource.data.commentsCount is number && request.resource.data.commentsCount >= 0 &&
+                        (request.resource.data.commentsCount == resource.data.get('commentsCount', 0) + 1 || request.resource.data.commentsCount == resource.data.get('commentsCount', 0) - 1));
+// The likes subcollection rule must keep: likeId == request.auth.uid + "_" + videoId on create.
+// (Live L has it under videos/{videoId}/likes — verify before applying.)
+
+
+// ── 4. notifications: senderId bound to the caller ──────────────────────────────────────
+// PROBLEM (L ~779 / R notifications): anyone could create a notification "from" anyone
+// (spoofed sender name/photo — phishing via the bell). REPLACE:
+//   allow create: if isAuthenticated() && isValidNotification(request.resource.data);
+// WITH:
+      allow create: if isAuthenticated() && isValidNotification(request.resource.data) &&
+                    request.resource.data.senderId == request.auth.uid;
+// System notifications (tickets, CSO, etc.) are written server-side with the service account,
+// which bypasses rules — unaffected.
+
+
+// ── 5. chat_rooms create: creator must be a participant; GROUP size cap ─────────────────
+// PROBLEM (L ~1561): a client could create a GROUP of up to 1000 arbitrary uids WITHOUT being
+// in it (mass-add spam; recipients see the room + its messages).
+// In the non-PRODUCTION / non-CLASSROOM_MEETING branch, ADD before the PRIVATE/dmPairAllowed check:
+         request.auth.uid in request.resource.data.participants &&
+         (request.resource.data.type != 'GROUP' || request.resource.data.participants.size() <= 256 ||
+          (request.resource.data.get('workspaceType', '') == 'ORGANIZATION' && request.resource.data.get('orgId', '') != '' &&
+           (get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.get('creatorId', '') == request.auth.uid ||
+            request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.get('admins', [])))) &&
+// Client mirror: services/trust/trustClient.ts caps group size by trust tier (NEW 10, BASIC 50,
+// TRUSTED 256, VERIFIED_CREATOR 1000 — the rule's 256 is the hard ceiling for user groups).
+
+
+// ── 6. chat_rooms/{roomId}/messages create: membership required ─────────────────────────
+// PROBLEM (L ~1595): ANY signed-in user could post into ANY room by id (only senderId was
+// checked). ADD to the create condition (after the PRODUCTION check):
+          && (
+            roomId.matches('^live_chat_.*') ||
+            request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('participants', []) ||
+            get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('type', '') == 'PUBLIC_LIVE' ||
+            get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('workspaceType', '') in ['PRODUCTION', 'CLASSROOM_MEETING']
+          )
+// PRODUCTION rooms are gated by canPostProductionChat, CLASSROOM_MEETING by classroomThreadAccess
+// (repo only — the live ruleset has no classroomThreadAccess; there, drop 'CLASSROOM_MEETING'
+// from the list unless that feature is live). get() of the same doc is billed once per request.
+
+
+// ── 7. Server-only collections (default deny — verify nothing grants access) ────────────
+// security_events (services/securityEvents.ts) and rate_limits (services/sharedRateLimit.ts)
+// are written by the server's service account only. Neither ruleset matches them, so clients
+// are denied by default. Optional explicit belt-and-braces:
+    match /security_events/{id} { allow read, write: if false; }
+    match /rate_limits/{id}     { allow read, write: if false; }
+// And add Firestore TTL policies (console → Firestore → TTL): security_events.expireAt,
+// rate_limits.expireAt.

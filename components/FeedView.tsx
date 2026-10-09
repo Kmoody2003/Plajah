@@ -7,6 +7,7 @@ import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, Live
 import PageHeader from './PageHeader';
 import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, postFieldsForAssetEmbed, recordFeedInteraction, fetchAlbumsByIds, fetchAllPublicAlbums, fetchPublicBooks, fetchAllLiveFeeds, fetchStreamArchives } from '../services/backendService';
 import { getDailyFigure } from '../services/historyData';
+import { talkCapacityLabel } from '../services/liveTalk/liveTalkCore';
 import { filterPostsForViewer } from '../services/contentSafety';
 import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
 import { prefetchSports } from '../services/sportsService';
@@ -26,6 +27,10 @@ import PostCard from './PostCard';
 import PostMediaCarousel from './PostMediaCarousel';
 import BroadcastHub from './broadcast/BroadcastHub';
 import FediversePostCard from './FediversePostCard';
+import ExternalPostCard from './feed/ExternalPostCard';
+import BlueskyOverlayHost from './feed/BlueskyOverlays';
+import { openBluesky } from '../services/fediverse/blueskyNav';
+import { selectExternalForFeed, mergeExternalEntries } from '../services/feedMerge';
 import RightNowFeed, { PresenceSync } from './RightNowFeed';
 import { RightNowOnboardingController, RightNowAnnouncementBanner, STORAGE_KEY as NOW_STORAGE_KEY } from './RightNowOnboarding';
 import { updateUserProfile as _updatePresence } from '../services/backendService';
@@ -78,7 +83,9 @@ import MilestoneCard from './feed/retention/MilestoneCard';
 import StreakChip from './feed/retention/StreakChip';
 import { fetchPendingMilestones } from '../services/retentionService';
 import { withAltText, linkPreviewMedia } from '../services/postingLogic';
+import { isModerationHiddenFor } from '../services/safety/safetyPolicy';
 import { publishComposerPost } from '../services/postingService';
+import { crosspostNative } from '../services/fediverse/crosspostClient';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
@@ -286,7 +293,7 @@ const LiveTalkDiscovery: React.FC<{
                       </div>
                       <div className="flex items-center gap-2">
                          <Users size={12} className="text-white/20" />
-                         <span className="text-[10px] font-black font-mono text-white/40">{talk.listeners.length + talk.speakers.length}</span>
+                         <span className="text-[10px] font-black font-mono text-white/40" title="People in the room / capacity">{talkCapacityLabel(talk as any)}</span>
                       </div>
                    </div>
                 </div>
@@ -1452,6 +1459,19 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [showGoLive, setShowGoLive] = useState(false);
   const [showStartTalk, setShowStartTalk] = useState(false);
   const [joinTalkId, setJoinTalkId] = useState<string | null>(null);   // room to auto-join in the overlay
+  // Deep link: /talk/:id (index.html maps it to ?talk=:id) — open that live talk once, then drop the param.
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const talk = sp.get('talk');
+      if (!talk || !/^[A-Za-z0-9_-]{1,128}$/.test(talk)) return;
+      setJoinTalkId(talk);
+      setShowStartTalk(true);
+      sp.delete('talk');
+      const q = sp.toString();
+      window.history.replaceState(window.history.state, '', window.location.pathname + (q ? `?${q}` : '') + window.location.hash);
+    } catch { /* */ }
+  }, []);
   const [globalActiveTalks, setGlobalActiveTalks] = useState<LiveTalk[]>([]);
   const [subscribedPodcasts, setSubscribedPodcasts] = useState<Album[]>([]);
   const [clockTime, setClockTime] = useState(() => new Date());
@@ -1587,7 +1607,13 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     [likedPosts, hiddenUids, viewerProfile],
   );
   const listPosts: Post[] = hashtagView ? feed.items : plajahFilter === 'LIKED' ? likedVisible : feedKind === 'following' ? feed.items : forYouPosts;
-  const displayedPosts = withoutExpiredTodays(listPosts);
+  // Server moderation: blocked / removed / hidden-pending-review posts never render for other viewers.
+  // Memoised + identity-preserving so downstream memos/effects keyed on displayedPosts don't churn.
+  const moderatedPosts = React.useMemo(() => {
+    const kept = listPosts.filter(p => !isModerationHiddenFor((p as any).moderationStatus, p.authorId === viewerUid));
+    return kept.length === listPosts.length ? listPosts : kept;
+  }, [listPosts, viewerUid]);
+  const displayedPosts = withoutExpiredTodays(moderatedPosts);
   const pagedFeed = !!hashtagView || plajahFilter !== 'LIKED';
   const feedLoading = pagedFeed && (feed.loadingInitial || !feedReady);
 
@@ -1606,6 +1632,18 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
       })
     : displayedPosts.map(post => ({ type: 'post' as const, key: `post:${post.id}`, post })),
   [forYouActive, displayedPosts, feedCards, viewerUid]);
+
+  // Posts from the user's Bluesky/Mastodon timeline, woven into the same list by time and rendered as native posts.
+  // Off by default only when no network account is connected; the chip next to the feed filters turns it off.
+  const [mixFediverse, setMixFediverse] = useState<boolean>(() => { try { return localStorage.getItem('plajah.feed.mixFediverse') !== '0'; } catch { return true; } });
+  const toggleMixFediverse = () => setMixFediverse(v => { const n = !v; try { localStorage.setItem('plajah.feed.mixFediverse', n ? '1' : '0'); } catch { /* private mode */ } return n; });
+  const externalForFeed = React.useMemo(
+    () => (mixFediverse && activeTab === 'GLOBAL' && !hashtagView && plajahFilter !== 'LIKED' && fediverseAccounts.length > 0)
+      ? selectExternalForFeed(fediverseFeed, displayedPosts) : [],
+    [mixFediverse, activeTab, hashtagView, plajahFilter, fediverseAccounts.length, fediverseFeed, displayedPosts]);
+  const mergedEntries = React.useMemo(
+    () => mergeExternalEntries(feedEntries, externalForFeed, e => (e.type === 'post' ? e.post.timestamp : null)),
+    [feedEntries, externalForFeed]);
 
   const followingVisible = React.useMemo(() => following.list.filter(u => !hiddenUids.has(u)), [following.list, hiddenUids]);
 
@@ -1655,6 +1693,8 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
 
   // Spam pre-check input for the composers: the viewer's own recent texts (this session + what is on screen).
   const sessionPostTexts = useRef<string[]>([]);
+  // Result of sharing the last post out to Bluesky/the fediverse (the Plajah post itself is already live by then).
+  const [fediNotice, setFediNotice] = useState<{ ok: boolean; msg: string } | null>(null);
   const recentOwnTexts = (): string[] => [
     ...sessionPostTexts.current,
     ...displayedPosts.filter(p => p.authorId === viewerUid && p.text).slice(0, 10).map(p => p.text),
@@ -1668,7 +1708,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     const resolved = withAltText(await resolveComposerMedia(data.attachments, currentUser.uid), data.attachments);
     const media = data.linkPreview ? [...resolved, linkPreviewMedia(data.linkPreview)] : resolved;
     const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
-    await publishComposerPost(
+    const newPostId = await publishComposerPost(
       { text: data.text, quoteOf: data.quoteOf, replyAudience: data.replyAudience },
       {
         isPublic: true,
@@ -1686,7 +1726,26 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     );
     sessionPostTexts.current = [data.text, ...sessionPostTexts.current].slice(0, 10);
     setPostToToday(false);
+
+    // Share out AFTER the Plajah post exists: the server re-reads the stored post, so the Bluesky version links back
+    // to the real post and records where it landed. A failure here never undoes the Plajah post.
+    if (newPostId && data.fediverse?.accountIds.length && !data.quoteOf) {
+      crosspostNative(newPostId, data.fediverse).then(r => {
+        if (r.blocked) { setFediNotice({ ok: false, msg: `Posted on Plajah. Not shared to Bluesky: ${r.blocked}` }); }
+        else {
+          const bad = r.results.filter(x => !x.ok);
+          setFediNotice(bad.length
+            ? { ok: false, msg: `Posted on Plajah. Couldn't share to ${bad.map(b => b.handle).join(', ')}: ${bad[0].error ?? 'failed'}` }
+            : { ok: true, msg: `Shared to ${r.results.map(x => x.handle).join(', ')}` });
+        }
+        setTimeout(() => setFediNotice(null), 7000);
+      }).catch(e => { setFediNotice({ ok: false, msg: `Posted on Plajah. Couldn't share to Bluesky: ${e?.message ?? 'failed'}` }); setTimeout(() => setFediNotice(null), 7000); });
+    }
   };
+
+  const fediNoticeEl = fediNotice ? (
+    <div role="status" className={`mx-1 mb-2 rounded-xl px-3 py-2 text-[11px] font-bold border ${fediNotice.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-200'}`}>{fediNotice.msg}</div>
+  ) : null;
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -2459,6 +2518,27 @@ const toggleFavoriteTeam = async (team: string) => {
               </div>
               {currentUser && (
                 <div className="flex items-center gap-1.5">
+                  {fediverseAccounts.length > 0 && <BlueskyOverlayHost />}
+                  {fediverseAccounts.some(a => a.protocol === 'bluesky') && (
+                    <button
+                      onClick={() => openBluesky({ kind: 'search' })}
+                      aria-label="Search Bluesky"
+                      title="Search Bluesky — people, posts and #tags"
+                      className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                    >
+                      <Search size={14} />
+                    </button>
+                  )}
+                  {fediverseAccounts.length > 0 && (
+                    <button
+                      onClick={toggleMixFediverse}
+                      aria-pressed={mixFediverse}
+                      title={mixFediverse ? 'Bluesky posts are mixed into your feed — tap to hide them' : 'Mix your Bluesky timeline into this feed'}
+                      className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-[9px] font-black uppercase tracking-widest transition-all ${mixFediverse ? 'bg-[#1185fe]/15 border-[#1185fe]/40 text-[#7ab8ff]' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
+                    >
+                      🦋 {mixFediverse ? 'In feed' : 'Hidden'}
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowPeoplePage('default')}
                     className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-white/5 border border-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all"
@@ -2972,8 +3052,10 @@ const toggleFavoriteTeam = async (team: string) => {
             postingPower
             recentOwnTexts={recentOwnTexts()}
             onPost={publishFromComposer}
+            handlesFediverse
             onMakeStory={() => setShowStoryCreator(true)}
           />
+          {fediNoticeEl}
         </div>
       )}
 
@@ -3267,7 +3349,7 @@ const toggleFavoriteTeam = async (team: string) => {
                     </div>
                     <div className="flex items-center gap-1 text-[8px] text-white/40 shrink-0">
                       <Users size={9} />
-                      <span>{talk.listeners?.length + talk.speakers?.length || 0}</span>
+                      <span>{talkCapacityLabel(talk as any)}</span>
                     </div>
                   </button>
                 ))}
@@ -3428,8 +3510,10 @@ const toggleFavoriteTeam = async (team: string) => {
               quoteOf={quoteTarget}
               onClearQuote={() => setQuoteTarget(null)}
               onPost={publishFromComposer}
+              handlesFediverse
               onMakeStory={() => setShowStoryCreator(true)}
             />
+            {fediNoticeEl}
             </>
           )}
 
@@ -3573,7 +3657,14 @@ const toggleFavoriteTeam = async (team: string) => {
               </div>
             ) : (() => {
               let postIdx = -1;
-              return feedEntries.flatMap((entry): React.ReactNode[] => {
+              return mergedEntries.flatMap((entry): React.ReactNode[] => {
+                if (entry.type === 'external') {
+                  return [
+                    <motion.div key={entry.key} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 340, damping: 32 }}>
+                      <ExternalPostCard post={entry.post} />
+                    </motion.div>,
+                  ];
+                }
                 if (entry.type === 'module') {
                   return [
                     <DiscoveryModuleSlot

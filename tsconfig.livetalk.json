@@ -1,0 +1,1 @@
+﻿{ "extends": "./tsconfig.json", "include": ["services/liveTalk/liveTalkCore.ts", "services/liveTalk/liveTalkService.ts", "components/LiveTalkView.tsx", "services/rtcCore.ts", "hooks/useRtcSession.ts", "services/iceConfig.ts", "routes/rtcIce.ts", "tests/liveTalkCore.test.ts", "vite-env.d.ts"] }

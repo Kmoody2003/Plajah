@@ -32,7 +32,7 @@ import {
   doc, collection, setDoc, updateDoc, addDoc, deleteDoc, onSnapshot,
   serverTimestamp, getDocs,
 } from 'firebase/firestore';
-import { getIceServers } from './iceConfig';
+import { getIceServers, resolveIceServers } from './iceConfig';
 
 export type RtcTopology =
   | 'mesh'       // everyone publishes + subscribes (video rooms, group calls)
@@ -69,6 +69,17 @@ export interface RtcSessionConfig {
   iceServers?: RTCIceServer[];
   /** Firestore root collection (default 'rtc_sessions'). */
   collectionName?: string;
+  /** OPT-IN robustness for rejoin-heavy rooms (Live Talk). When on:
+   *   - each join gets a fresh `nonce` written to the participant doc and stamped on every signal
+   *     + ICE candidate; signals from another join of either side are ignored (no stale-SDP replay)
+   *   - a peer whose nonce changes (they rejoined) is torn down and re-created
+   *   - participants heartbeat `lastSeen`; a peer silent for staleAfterMs is dropped
+   *  Off by default because it adds participant/signal fields that stricter rule sets (meeting_rtc)
+   *  don't allow. */
+  liveness?: boolean | { heartbeatMs?: number; staleAfterMs?: number };
+  /** Outbound Opus max bitrate (bps). Default: 256k for broadcast/collect (HQ music),
+   *  48k for mesh/stage (voice). */
+  audioBitrate?: number;
 }
 
 export interface RtcParticipant {
@@ -90,7 +101,11 @@ export interface RtcEvents {
   /** Low-latency data-channel message from a peer (reactions, polls, synced
    *  playback, cursors, whiteboard strokes, game state, …). */
   onData?: (peerId: string, msg: RtcDataMessage) => void;
+  /** Fatal-ish: media capture failed / could not join. */
   onError?: (err: Error) => void;
+  /** Transient negotiation/signaling hiccup (glare, stale SDP). The session self-heals; surface
+   *  as "reconnecting" at most — never treat it like a mic failure. */
+  onSignalWarning?: (peerId: string, err: Error) => void;
 }
 
 const edgeId = (from: string, to: string) => `${from}__${to}`;
@@ -102,7 +117,19 @@ interface Peer {
   ignoreOffer: boolean;
   dc: RTCDataChannel | null;
   unsubs: Array<() => void>;
+  /** The remote peer's join nonce this connection belongs to (liveness mode). */
+  remoteNonce?: string;
+  initiator: boolean;
+  restartTimer?: ReturnType<typeof setTimeout>;
 }
+
+/** Strip the liveness stamps before handing a candidate to the browser. */
+function cleanCandidate(d: any): RTCIceCandidateInit {
+  const { nonce: _n, to: _t, ...rest } = d || {};
+  return rest as RTCIceCandidateInit;
+}
+/** toJSON() can carry undefined fields on some browsers; Firestore rejects undefined. */
+const defined = <T extends object>(o: T): T => JSON.parse(JSON.stringify(o));
 
 // ── Camera quality ───────────────────────────────────────────────────────────
 // Two things made the stream look like a cheap webcam: (1) we captured with no
@@ -145,13 +172,16 @@ function withMicDevice(a: boolean | MediaTrackConstraints | undefined, deviceId:
 }
 /** Give the outbound OPUS audio real bitrate + stereo so live viewers hear full-band, not the
  *  ~32 kbps narrowband the WebRTC default settles on. Best-effort; runs once encodings exist. */
-function boostAudioSender(pc: RTCPeerConnection): void {
+export function defaultAudioBitrate(topology: RtcTopology): number {
+  return topology === 'broadcast' || topology === 'collect' ? 256_000 : 48_000;
+}
+function boostAudioSender(pc: RTCPeerConnection, bitrate: number): void {
   const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
   if (!sender) return;
   try {
     const params = sender.getParameters();
     if (params.encodings && params.encodings.length) {
-      params.encodings.forEach(e => { e.maxBitrate = 256_000; });
+      params.encodings.forEach(e => { e.maxBitrate = bitrate; });
       sender.setParameters(params).catch(() => {});
     }
   } catch { /* encodings not negotiated yet — retried on connect */ }
@@ -225,13 +255,43 @@ export class RtcSession {
   private closed = false;
   private excludedPeers = new Set<string>();
   private allowedPeers: Set<string> | null = null;
+  /** Per-join id (liveness mode) — distinguishes this join from a previous one with the same selfId. */
+  readonly nonce = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  private lastRaw: Array<RtcParticipant & Record<string, any>> = [];
+  private snapshotSeen = false;
+  private seen = new Map<string, { v: number | null; at: number }>();
+  private timers: Array<ReturnType<typeof setInterval>> = [];
+  private onPageHide = () => { void this.leave(); };
   setAllowedPeers(ids?: string[]) {
     this.allowedPeers = ids ? new Set(ids) : null;
-    for (const id of this.peers.keys()) if (this.allowedPeers && !this.allowedPeers.has(id)) this.removePeer(id);
+    for (const id of [...this.peers.keys()]) if (this.allowedPeers && !this.allowedPeers.has(id)) this.removePeer(id);
+    // Newly-allowed peers already present in the session connect now, not on the next snapshot.
+    this.reconcile();
   }
   setExcludedPeers(ids: string[]) {
     this.excludedPeers = new Set(ids);
     for (const id of this.excludedPeers) if (this.peers.has(id)) this.removePeer(id);
+    this.reconcile();
+  }
+  private get live(): { heartbeatMs: number; staleAfterMs: number } | null {
+    const l = this.cfg.liveness;
+    if (!l) return null;
+    const o = typeof l === 'object' ? l : {};
+    return { heartbeatMs: o.heartbeatMs ?? 15_000, staleAfterMs: o.staleAfterMs ?? 45_000 };
+  }
+  /** Liveness: has this participant stopped heart-beating? Uses only the LOCAL receipt time of
+   *  the last lastSeen change, so device clock skew can't hide a live peer. (A long-dead doc seen
+   *  for the first time is tried once, then dropped after staleAfterMs.) */
+  private isStale(p: Record<string, any>): boolean {
+    const live = this.live;
+    if (!live) return false;
+    const raw = p.lastSeen;
+    const v: number | null = raw == null ? null : typeof raw === 'number' ? raw : (typeof raw?.toMillis === 'function' ? raw.toMillis() : null);
+    if (v == null) return false; // legacy / pending write
+    const prev = this.seen.get(p.id);
+    if (!prev || prev.v !== v) this.seen.set(p.id, { v, at: Date.now() });
+    const at = this.seen.get(p.id)!.at;
+    return Date.now() - at > live.staleAfterMs;
   }
 
   constructor(config: RtcSessionConfig, events: RtcEvents = {}) {
@@ -243,10 +303,14 @@ export class RtcSession {
       collectionName: config.collectionName || 'rtc_sessions',
       iceServers: config.iceServers || getIceServers(),
     };
+    this.iceProvided = !!config.iceServers;
     this.events = events;
   }
+  private readonly iceProvided: boolean;
 
   // ── Paths ──────────────────────────────────────────────────────────────────
+  /** `${collectionName}/${sessionId}` — identifies the signaling space (used to serialize leave→join). */
+  get path(): string { return `${this.cfg.collectionName}/${this.cfg.sessionId}`; }
   private get root() { return doc(db, this.cfg.collectionName, this.cfg.sessionId); }
   private participantDoc(id: string) { return doc(db, this.cfg.collectionName, this.cfg.sessionId, 'participants', id); }
   private participantsCol() { return collection(db, this.cfg.collectionName, this.cfg.sessionId, 'participants'); }
@@ -257,6 +321,9 @@ export class RtcSession {
 
   /** Acquire media (per role) and join the session. */
   async join(): Promise<void> {
+    // Fetch short-lived TURN creds IN PARALLEL with mic capture (fast join). Falls back to the
+    // static list within ~1.5s; a caller-provided list always wins.
+    const icePromise = this.iceProvided ? null : resolveIceServers().catch(() => null);
     // Subscribers (broadcast viewers / stage listeners) don't capture media.
     const publishes = this.selfPublishes;
     if (publishes && (this.cfg.localStream || this.cfg.media?.audio || this.cfg.media?.video)) {
@@ -278,32 +345,61 @@ export class RtcSession {
       }
     }
 
+    if (icePromise) {
+      const ice = await icePromise;
+      if (ice && ice.length) this.cfg.iceServers = ice;
+    }
     if (this.closed) return;
+    const live = this.live;
     await setDoc(this.participantDoc(this.selfId), {
       role: this.cfg.role,
       name: this.cfg.displayName || auth.currentUser?.displayName || 'Guest',
       joinedAt: serverTimestamp(),
+      ...(live ? { nonce: this.nonce, lastSeen: serverTimestamp() } : {}),
     });
     if (this.closed) { await deleteDoc(this.participantDoc(this.selfId)).catch(() => {}); return; }
+
+    // Tab closed / app backgrounded for good: free our seat so peers don't wait on a ghost.
+    if (typeof window !== 'undefined') window.addEventListener('pagehide', this.onPageHide);
+
+    if (live) {
+      this.timers.push(setInterval(() => {
+        if (!this.closed) updateDoc(this.participantDoc(this.selfId), { lastSeen: serverTimestamp() }).catch(() => {});
+      }, live.heartbeatMs));
+      // Re-evaluate staleness even when no snapshot arrives (a crashed peer writes nothing).
+      this.timers.push(setInterval(() => this.reconcile(), Math.max(5_000, Math.floor(live.staleAfterMs / 3))));
+    }
 
     // React to who is present.
     this.participantsUnsub = onSnapshot(this.participantsCol(), snap => {
       if (this.closed) return;
-      const list: RtcParticipant[] = snap.docs.filter(d => !this.excludedPeers.has(d.id) && (!this.allowedPeers || this.allowedPeers.has(d.id))).map(d => ({ id: d.id, ...(d.data() as any) }));
-      this.events.onParticipants?.(list.filter(p => p.id !== this.selfId));
-
-      const others = list.filter(p => p.id !== this.selfId);
-      // Establish the connections this topology/role requires.
-      for (const p of others) {
-        if (this.shouldConnectTo(p) && !this.peers.has(p.id)) {
-          this.createPeer(p.id, this.shouldInitiateTo(p));
-        }
-      }
-      // Tear down peers who left.
-      for (const id of [...this.peers.keys()]) {
-        if (!others.find(p => p.id === id)) this.removePeer(id);
-      }
+      this.lastRaw = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      this.snapshotSeen = true;
+      this.reconcile();
     });
+  }
+
+  /** Bring the peer map in line with the latest participant list + allow/exclude/stale filters. */
+  private reconcile() {
+    if (this.closed || !this.snapshotSeen) return; // nothing seen yet (pre-join)
+    const list = this.lastRaw.filter(p => !this.excludedPeers.has(p.id)
+      && (!this.allowedPeers || this.allowedPeers.has(p.id) || p.id === this.selfId)
+      && (p.id === this.selfId || !this.isStale(p)));
+    const others = list.filter(p => p.id !== this.selfId);
+    this.events.onParticipants?.(others);
+    const live = !!this.live;
+    // Establish the connections this topology/role requires.
+    for (const p of others) {
+      if (!this.shouldConnectTo(p)) continue;
+      const existing = this.peers.get(p.id);
+      // Liveness: the peer rejoined (new nonce) → its old connection is dead weight; rebuild.
+      if (existing && live && p.nonce && existing.remoteNonce !== p.nonce) this.removePeer(p.id);
+      if (!this.peers.has(p.id)) this.createPeer(p.id, this.shouldInitiateTo(p), live ? p.nonce : undefined);
+    }
+    // Tear down peers who left (or are no longer allowed / went stale).
+    for (const id of [...this.peers.keys()]) {
+      if (!others.find(p => p.id === id && this.shouldConnectTo(p))) this.removePeer(id);
+    }
   }
 
   /** Does a given role publish media in this topology?
@@ -344,11 +440,22 @@ export class RtcSession {
   }
 
   // ── Peer connection (perfect negotiation) ─────────────────────────────────────
-  private createPeer(peerId: string, initiate: boolean) {
+  private createPeer(peerId: string, initiate: boolean, remoteNonce?: string) {
     const pc = new RTCPeerConnection({ iceServers: this.cfg.iceServers });
     // Polite peer yields on glare. Make the non-initiator polite.
-    const peer: Peer = { pc, makingOffer: false, polite: !initiate, ignoreOffer: false, dc: null, unsubs: [] };
+    const peer: Peer = { pc, makingOffer: false, polite: !initiate, ignoreOffer: false, dc: null, unsubs: [], remoteNonce, initiator: initiate };
     this.peers.set(peerId, peer);
+    const live = !!this.live;
+    // Liveness stamps: who sent it (this join) and which join of the receiver it targets.
+    const stamp = live ? { nonce: this.nonce, ...(remoteNonce ? { to: remoteNonce } : {}) } : {};
+    /** Is an inbound signal/candidate from the remote join this connection belongs to, aimed at us? */
+    const fresh = (d: any) => !live || !remoteNonce || (d?.nonce === remoteNonce && (d?.to == null || d.to === this.nonce));
+    // Candidates can land before the offer/answer is applied — queue them instead of dropping.
+    const pendingCandidates: RTCIceCandidateInit[] = [];
+    const flushCandidates = () => {
+      while (pendingCandidates.length) pc.addIceCandidate(pendingCandidates.shift()!).catch(() => {});
+    };
+    let lastAppliedSdp = '';
 
     // Data channel for low-latency app messages (reactions, polls, sync, …).
     // The initiator creates it; the other side receives it via ondatachannel.
@@ -378,15 +485,25 @@ export class RtcSession {
     pc.ontrack = e => {
       if (e.streams[0]) this.events.onRemoteStream?.(peerId, e.streams[0]);
     };
+    const restartIce = () => {
+      // Only the initiator restarts (one offer, no glare); restartIce() fires negotiationneeded.
+      if (this.closed || !peer.initiator || pc.connectionState === 'closed') return;
+      try { pc.restartIce(); } catch { /* old browser — peer will be rebuilt on rejoin */ }
+    };
     pc.onconnectionstatechange = () => {
-      // Apply high-bitrate/maintain-resolution encoding once the sender's encodings
+      const st = pc.connectionState;
+      // Apply bitrate/maintain-resolution encoding once the sender's encodings
       // exist (post-negotiation) — this is where the sharpness win lands.
-      if (pc.connectionState === 'connected' && publishes) { boostVideoSender(pc); boostAudioSender(pc); }
-      this.events.onPeerState?.(peerId, pc.connectionState);
+      if (st === 'connected' && publishes) { boostVideoSender(pc); boostAudioSender(pc, this.cfg.audioBitrate ?? defaultAudioBitrate(this.cfg.topology)); }
+      if (peer.restartTimer) { clearTimeout(peer.restartTimer); peer.restartTimer = undefined; }
+      if (st === 'failed') restartIce();
+      // 'disconnected' often recovers by itself (wifi→cell handover); give it 4s first.
+      if (st === 'disconnected') peer.restartTimer = setTimeout(() => { if (pc.connectionState === 'disconnected') restartIce(); }, 4000);
+      this.events.onPeerState?.(peerId, st);
     };
 
     pc.onicecandidate = e => {
-      if (e.candidate) addDoc(this.edgeCandidates(this.selfId, peerId), e.candidate.toJSON()).catch(() => {});
+      if (e.candidate) addDoc(this.edgeCandidates(this.selfId, peerId), defined({ ...e.candidate.toJSON(), ...stamp })).catch(() => {});
     };
 
     // Perfect negotiation: (re)offer whenever tracks change.
@@ -394,9 +511,10 @@ export class RtcSession {
       try {
         peer.makingOffer = true;
         await pc.setLocalDescription();
-        await setDoc(this.edgeDoc(this.selfId, peerId), { description: pc.localDescription?.toJSON() }, { merge: true });
+        if (this.closed) return;
+        await setDoc(this.edgeDoc(this.selfId, peerId), defined({ description: pc.localDescription?.toJSON(), ...stamp }), { merge: true });
       } catch (e: any) {
-        this.events.onError?.(new Error(e?.message || 'negotiation failed'));
+        this.events.onSignalWarning?.(peerId, new Error(e?.message || 'negotiation failed'));
       } finally {
         peer.makingOffer = false;
       }
@@ -404,21 +522,28 @@ export class RtcSession {
 
     // Inbound description (offer/answer) on the edge addressed to us.
     peer.unsubs.push(onSnapshot(this.edgeDoc(peerId, this.selfId), async snap => {
-      const description = snap.data()?.description as RTCSessionDescriptionInit | undefined;
-      if (!description) return;
+      const data = snap.data();
+      const description = data?.description as RTCSessionDescriptionInit | undefined;
+      if (!description || !fresh(data)) return;          // stale SDP from an earlier join
+      if (description.sdp && description.sdp === lastAppliedSdp) return; // replayed snapshot
       try {
+        // An answer only makes sense while our offer is outstanding (a leftover answer from a
+        // previous session used to throw here and surface as "signaling failed").
+        if (description.type === 'answer' && pc.signalingState !== 'have-local-offer') return;
         const offerCollision = description.type === 'offer'
           && (peer.makingOffer || pc.signalingState !== 'stable');
         peer.ignoreOffer = !peer.polite && offerCollision;
         if (peer.ignoreOffer) return;
 
         await pc.setRemoteDescription(description);
+        lastAppliedSdp = description.sdp || '';
+        flushCandidates();
         if (description.type === 'offer') {
           await pc.setLocalDescription();
-          await setDoc(this.edgeDoc(this.selfId, peerId), { description: pc.localDescription?.toJSON() }, { merge: true });
+          await setDoc(this.edgeDoc(this.selfId, peerId), defined({ description: pc.localDescription?.toJSON(), ...stamp }), { merge: true });
         }
       } catch (e: any) {
-        this.events.onError?.(new Error(e?.message || 'signaling failed'));
+        this.events.onSignalWarning?.(peerId, new Error(e?.message || 'signaling failed'));
       }
     }));
 
@@ -426,8 +551,11 @@ export class RtcSession {
     peer.unsubs.push(onSnapshot(this.edgeCandidates(peerId, this.selfId), snap => {
       snap.docChanges().forEach(ch => {
         if (ch.type !== 'added') return;
-        pc.addIceCandidate(new RTCIceCandidate(ch.doc.data() as RTCIceCandidateInit))
-          .catch(() => { if (!peer.ignoreOffer) {/* swallow late candidates */} });
+        const d = ch.doc.data();
+        if (!fresh(d)) return; // candidate from an earlier join — would poison ICE
+        const cand = cleanCandidate(d);
+        if (!pc.remoteDescription) { pendingCandidates.push(cand); return; }
+        pc.addIceCandidate(cand).catch(() => { /* late/obsolete candidate */ });
       });
     }));
 
@@ -438,6 +566,7 @@ export class RtcSession {
   private removePeer(peerId: string) {
     const peer = this.peers.get(peerId);
     if (!peer) return;
+    if (peer.restartTimer) clearTimeout(peer.restartTimer);
     peer.unsubs.forEach(u => u());
     try { peer.dc?.close(); } catch {}
     peer.pc.close();
@@ -718,20 +847,39 @@ export class RtcSession {
   }
 
   /** Leave the session and release everything. */
-  async leave() {
+  private leaving: Promise<void> | null = null;
+  /** Leave the session and release everything. Idempotent (pagehide + unmount may both call it);
+   *  resolves once presence is gone, so a re-join with the same selfId can safely await it. */
+  leave(): Promise<void> {
+    if (this.leaving) return this.leaving;
     this.closed = true;
     this.participantsUnsub?.();
+    this.participantsUnsub = null;
+    this.timers.forEach(t => clearInterval(t));
+    this.timers = [];
+    if (typeof window !== 'undefined') window.removeEventListener('pagehide', this.onPageHide);
     [...this.peers.keys()].forEach(id => this.removePeer(id));
     this.local?.getTracks().forEach(t => t.stop());
     this.screen?.getTracks().forEach(t => t.stop());
     this.local = null;
-    // Best-effort signaling cleanup for our edges + presence.
-    try {
-      await deleteDoc(this.participantDoc(this.selfId));
-      const sigs = await getDocs(collection(db, this.cfg.collectionName, this.cfg.sessionId, 'signals'));
-      await Promise.all(sigs.docs
-        .filter(d => d.id.startsWith(`${this.selfId}__`) || d.id.endsWith(`__${this.selfId}`))
-        .map(d => deleteDoc(d.ref).catch(() => {})));
-    } catch { /* non-fatal */ }
+    // Best-effort signaling cleanup for our edges + presence. Presence first: it's what peers
+    // react to, and on pagehide it may be the only write that makes it out.
+    this.leaving = (async () => {
+      try {
+        await deleteDoc(this.participantDoc(this.selfId));
+        const sigs = await getDocs(collection(db, this.cfg.collectionName, this.cfg.sessionId, 'signals'));
+        await Promise.all(sigs.docs
+          .filter(d => d.id.startsWith(`${this.selfId}__`) || d.id.endsWith(`__${this.selfId}`))
+          .map(async d => {
+            // Our OUTBOUND candidates too — they used to pile up forever.
+            if (d.id.startsWith(`${this.selfId}__`)) {
+              const c = await getDocs(collection(d.ref, 'candidates')).catch(() => null);
+              await Promise.all((c?.docs || []).map(x => deleteDoc(x.ref).catch(() => {})));
+            }
+            await deleteDoc(d.ref).catch(() => {});
+          }));
+      } catch { /* non-fatal */ }
+    })();
+    return this.leaving;
   }
 }

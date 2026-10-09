@@ -6,6 +6,8 @@ import ComicReader from './ComicReader';
 import { buildShareUrl } from '../services/deepLinkService';
 import { createParty, partyShareUrl } from '../services/partyService';
 import { useParty } from '../hooks/useParty';
+import PartyBar from './party/PartyBar';
+import { partyToast } from './party/partyToast';
 import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles, AlertCircle, ExternalLink } from 'lucide-react';
 import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,6 +22,10 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
 import { BookOpeningScene } from './BookOpeningScene';
 import { BuyToOwn, useOwnership } from './BuyToOwn';
+import { useTelaEdition } from './bookTela/useTelaEdition';
+// Tela edition (services/bookTela): lazy, so the classic reader pays nothing unless the author upgraded the book.
+const TelaBookReader = React.lazy(() => import('./bookTela/TelaBookReader'));
+import BuyPrintEdition from './pod/BuyPrintEdition';
 import { ReactReader, ReactReaderStyle } from 'react-reader';
 import { Rendition, Book as EPubBook } from 'epubjs';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -126,6 +132,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const isBookOwner = !!(currentUser?.uid && currentUser.uid === book.ownerId);
   const bookOwnership = useOwnership('book', book.id, currentUser?.uid);
   const hasBookAccess = isBookOwner || !isPaidBook || bookOwnership.owned;
+  const telaEdition = useTelaEdition(book, { isOwner: isBookOwner, isPaid: isPaidBook, ownershipLoading: bookOwnership.loading, license: bookOwnership.license });
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -314,6 +321,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const isReadAlongActive = !!activePartyId;
   const isHost = party.isHost;
   const followingRef = useRef(false);   // guard: don't re-broadcast a page turn we made to follow
+  // Followers' page turns are locked to the host; "Read on my own" is the escape hatch.
+  const [readOnOwn, setReadOnOwn] = useState(false);
+  useEffect(() => { setReadOnOwn(false); }, [activePartyId]);
+  const pageLocked = party.isFollower && !readOnOwn;
+  const lockedNudge = useCallback(() => { partyToast(`Following ${party.party?.hostName || 'the host'} — tap “Read on my own” to browse`); }, [party.party?.hostName]);
   
   // Narration State
   const [isNarrating, setIsNarrating] = useState(false);
@@ -651,6 +663,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   }, [epubRendition, fontSize, modeScale, readingTheme, fontFamily, theme]);
 
   const nextPage = useCallback(() => {
+    if (pageLocked) { lockedNudge(); return; }
     if (isEpub && epubRendition) {
       try {
         if ((epubRendition as any).manager) epubRendition.next();
@@ -669,9 +682,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       setCurrentChapterIndex(currentChapterIndex + 1);
       setCurrentPageIndex(0);
     }
-  }, [isEpub, epubRendition, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, pages.length, currentChapterIndex, book.bookChapters]);
+  }, [pageLocked, lockedNudge, isEpub, epubRendition, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, pages.length, currentChapterIndex, book.bookChapters]);
 
   const prevPage = useCallback(() => {
+    if (pageLocked) { lockedNudge(); return; }
     if (isEpub && epubRendition) {
       try {
         if ((epubRendition as any).manager) epubRendition.prev();
@@ -691,7 +705,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       const prevChapterPages = book.bookChapters?.[currentChapterIndex - 1].pages || [];
       setCurrentPageIndex(Math.max(0, prevChapterPages.length - 1));
     }
-  }, [isEpub, epubRendition, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, currentChapterIndex, book.bookChapters]);
+  }, [pageLocked, lockedNudge, isEpub, epubRendition, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, currentChapterIndex, book.bookChapters]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -955,7 +969,11 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       const id = await createParty({
         kind: 'READ',
         content: { type: 'BOOK', id: book.id, title: book.title, thumbnail: book.coverImage },
-        initial: { currentPage: currentPageIndex, chapterIndex: currentChapterIndex },
+        initial: {
+          currentPage: currentPageIndex, chapterIndex: currentChapterIndex,
+          ...(isEpub && epubLocation ? { cfi: epubLocation } : {}),
+          ...(parsedChapters.length ? { parsedChapter: activeParsedChapter, parsedPage: activeParsedPage } : {}),
+        },
       });
       setActivePartyId(id);
       const url = partyShareUrl(id);
@@ -964,22 +982,38 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     } catch (e) { console.error('start read-along failed', e); }
   };
 
-  // HOST: broadcast the current chapter+page whenever it changes (skip turns we made to follow).
+  // HOST: broadcast the full reading position whenever it changes — native chapter+page, the EPUB
+  // rendition CFI, and the parsed (PDF/DOCX/TXT) chapter+page. Skip turns we made to follow.
   useEffect(() => {
     if (!activePartyId || !party.isHost) return;
     if (followingRef.current) { followingRef.current = false; return; }
-    party.broadcast({ currentPage: currentPageIndex, chapterIndex: currentChapterIndex, contentId: book.id });
-  }, [activePartyId, party.isHost, currentPageIndex, currentChapterIndex]);
+    party.broadcast({
+      currentPage: currentPageIndex, chapterIndex: currentChapterIndex, contentId: book.id,
+      ...(isEpub && epubLocation ? { cfi: epubLocation } : {}),
+      ...(parsedChapters.length ? { parsedChapter: activeParsedChapter, parsedPage: activeParsedPage } : {}),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePartyId, party.isHost, currentPageIndex, currentChapterIndex, epubLocation, activeParsedChapter, activeParsedPage, isEpub, parsedChapters.length]);
 
-  // FOLLOWER: navigate to the host's chapter+page whenever the host turns.
+  // FOLLOWER: go where the host is (unless reading on their own). EPUB → display the host's CFI via
+  // the reader's controlled location; parsed docs → chapter+page; native books → chapter+page.
   useEffect(() => {
-    if (!activePartyId || !party.isFollower) return;
+    if (!activePartyId || !party.isFollower || readOnOwn) return;
     const pb = party.playback;
     if (!pb) return;
     followingRef.current = true;
+    if (isEpub && typeof pb.cfi === 'string' && pb.cfi && pb.cfi !== epubLocation) setEpubLocation(pb.cfi);
+    if (parsedChapters.length) {
+      if (typeof pb.parsedChapter === 'number' && pb.parsedChapter !== activeParsedChapter && pb.parsedChapter < parsedChapters.length) setActiveParsedChapter(pb.parsedChapter);
+      if (typeof pb.parsedPage === 'number' && pb.parsedPage !== activeParsedPage) setActiveParsedPage(pb.parsedPage);
+    }
     if (typeof pb.chapterIndex === 'number' && pb.chapterIndex !== currentChapterIndex) setCurrentChapterIndex(pb.chapterIndex);
     if (typeof pb.currentPage === 'number' && pb.currentPage !== currentPageIndex) setCurrentPageIndex(pb.currentPage);
-  }, [activePartyId, party.isFollower, party.playback?.seq]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePartyId, party.isFollower, party.playback?.seq, readOnOwn, isEpub, parsedChapters.length]);
+
+  // PartyBar ends the party for the host before calling this.
+  const leaveReadAlongParty = useCallback(() => { setActivePartyId(null); }, []);
 
   // Generate AI narration for current chapter using MAI Voice 2
   const generateAINarration = async () => {
@@ -2212,38 +2246,27 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
           )}
         </AnimatePresence>
 
-        {/* Read Along Video Window */}
-        <AnimatePresence>
-          {isReadAlongActive && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className={`fixed bottom-32 left-8 w-64 ${s.card} border-0 rounded-2xl overflow-hidden shadow-2xl z-50`}
-            >
-              <div className="aspect-video bg-black relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <VideoIcon size={32} className="text-white/20" />
-                </div>
-                <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-widest text-white flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                  {isHost ? 'Host (You)' : `Following ${party.party?.hostName || 'Host'}`}
-                </div>
-              </div>
-              <div className={`p-3 ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} flex justify-between items-center gap-2`}>
-                <span className={`text-[9px] font-black uppercase tracking-widest ${s.subtext} flex items-center gap-1.5`}>
-                  <Users size={11} /> {party.viewerCount} {party.viewerCount === 1 ? 'Reader' : 'Readers'}
-                </span>
+        {/* Read-along — shared PartyBar (status, readers, chat, reactions, invite, remote). */}
+        {isReadAlongActive && activePartyId && (
+          <div className="fixed bottom-24 left-4 right-4 sm:right-auto sm:max-w-2xl z-50">
+            <PartyBar
+              partyId={activePartyId}
+              party={party}
+              verb={party.viewerCount === 1 ? 'reader' : 'readers'}
+              noun="read-along"
+              title={book.title}
+              onLeave={leaveReadAlongParty}
+              followerExtra={
                 <button
-                  onClick={toggleReadAlong}
-                  className="text-[9px] font-black uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors"
+                  onClick={() => { setReadOnOwn(v => !v); partyToast(readOnOwn ? `Back with ${party.party?.hostName || 'the host'}` : 'Reading on your own — tap again to rejoin', 'info'); }}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 text-white"
                 >
-                  {isHost ? 'End' : 'Leave'}
+                  {readOnOwn ? 'Rejoin host' : 'Read on my own'}
                 </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              }
+            />
+          </div>
+        )}
       </div>
 
       {/* Bottom Progress Bar */}
@@ -2342,13 +2365,29 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               creatorUid={book.ownerId || ''}
               title={book.title}
               purchasePrice={book.price}
+              delivery={book.bookDistribution?.delivery}
+              watermark={book.bookDistribution?.watermark}
               uid={currentUser?.uid}
               ownership={bookOwnership}
               onRequestSignIn={() => loginWithGoogle()}
             />
           </div>
+          <div className="mt-4 flex justify-center"><BuyPrintEdition albumId={book.id} /></div>
         </div>
       </div>
+    );
+  }
+
+  // Tela edition: an upgraded book renders through TelaEmbed (follow-latest for the author and free readers, pinned
+  // to the purchased version for buyers). Falls back to this classic reader whenever anything is missing.
+  if (telaEdition.status === 'loading') {
+    return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0A0A0A]"><Loader2 className="animate-spin text-white/50" size={22} /></div>;
+  }
+  if (telaEdition.status === 'tela') {
+    return (
+      <React.Suspense fallback={<div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0A0A0A]"><Loader2 className="animate-spin text-white/50" size={22} /></div>}>
+        <TelaBookReader album={book} bundle={telaEdition.bundle} pin={telaEdition.pin} uid={currentUser?.uid} isOwner={isBookOwner} isPaid={isPaidBook} license={bookOwnership.license} onBack={onBack} />
+      </React.Suspense>
     );
   }
 

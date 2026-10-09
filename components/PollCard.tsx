@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { BarChart2, Clock, Check } from 'lucide-react';
-import { doc, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, onSnapshot, getDoc } from 'firebase/firestore';
 import { db, auth } from '../services/backendService';
 
 export interface PollData {
@@ -19,6 +19,15 @@ interface PollCardProps {
   postId: string;
   poll: PollData;
   compact?: boolean;
+  /**
+   * Opt-in live vote sync (one Firestore listener on the whole post doc PER CARD). Off by default: a feed
+   * with 20 polls used to open 20 post-doc listeners. The parent's post data (poll.votes prop) is the source
+   * of truth; after voting we do one getDoc to pick up everyone else's votes.
+   * NOTE (storage, unchanged for now): votes live in the post doc as uid arrays per option — a post doc
+   * grows with every voter and voter identities are readable by anyone who can read the post. A
+   * counter + per-voter subcollection would scale and be private; not changed in this pass.
+   */
+  realtime?: boolean;
 }
 
 function timeLeft(createdAt: number, durationHours: number): string {
@@ -33,7 +42,7 @@ function timeLeft(createdAt: number, durationHours: number): string {
   return `${m}m left`;
 }
 
-const PollCard: React.FC<PollCardProps> = ({ postId, poll, compact = false }) => {
+const PollCard: React.FC<PollCardProps> = ({ postId, poll, compact = false, realtime = false }) => {
   const uid = auth.currentUser?.uid;
   const [votes, setVotes] = useState<Record<string, string[]>>(poll.votes || {});
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -42,9 +51,12 @@ const PollCard: React.FC<PollCardProps> = ({ postId, poll, compact = false }) =>
 
   const isExpired = Date.now() > poll.createdAt + poll.durationHours * 3_600_000;
 
-  // Real-time sync for votes as results come in across the platform
+  // Parent re-renders with fresh post data → adopt its votes.
+  useEffect(() => { if (poll.votes) setVotes(poll.votes); }, [poll.votes]);
+
+  // Opt-in real-time sync (see `realtime` prop).
   useEffect(() => {
-    if (!postId) return;
+    if (!postId || !realtime) return;
     const unsub = onSnapshot(doc(db, 'posts', postId), snap => {
       if (snap.exists()) {
         const d = snap.data();
@@ -56,7 +68,7 @@ const PollCard: React.FC<PollCardProps> = ({ postId, poll, compact = false }) =>
       console.warn('[PollCard] Real-time sync warning:', err);
     });
     return () => unsub();
-  }, [postId]);
+  }, [postId, realtime]);
 
   // Check if current user already voted
   useEffect(() => {
@@ -110,6 +122,10 @@ const PollCard: React.FC<PollCardProps> = ({ postId, poll, compact = false }) =>
         return next;
       });
       setHasVoted(true);
+      // One-shot refresh so the results include everyone else's votes (no standing listener).
+      if (!realtime) {
+        getDoc(ref).then(snap => { const v = snap.data()?.poll?.votes; if (v) setVotes(v); }).catch(() => {});
+      }
     } catch (e) {
       console.error('[PollCard] vote failed', e);
     } finally {

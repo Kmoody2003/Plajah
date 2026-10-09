@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true },
+  "include": [
+    "services/securityEvents.ts",
+    "services/sharedRateLimit.ts",
+    "services/appCheckServer.ts",
+    "services/appCheckFetch.ts",
+    "services/signupGuard.ts",
+    "services/signupClient.ts",
+    "services/emailVerifyNudge.ts",
+    "services/trust/trustCore.ts",
+    "services/trust/trustClient.ts",
+    "services/trust/serverSpamGate.ts",
+    "services/socialRateLimit.ts",
+    "services/firebase.ts",
+    "data/disposableEmailDomains.ts",
+    "routes/antiAbuse.ts",
+    "routes/authMethods.ts",
+    "tests/trustCore.test.ts",
+    "tests/antiAbuse.test.ts"
+  ]
+}

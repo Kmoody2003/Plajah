@@ -30,7 +30,7 @@ function harness(capture?: Promise<any>, presence?: Promise<void>) {
     require: (name: string) => {
       if (name === './backendService') return { db: {}, auth: { currentUser: { uid: 'host' } } };
       if (name === 'firebase/firestore') return firestore;
-      if (name === './iceConfig') return { getIceServers: () => [] };
+      if (name === './iceConfig') return { getIceServers: () => [], resolveIceServers: async () => [] };
       throw new Error(`Unexpected dependency ${name}`);
     },
   });

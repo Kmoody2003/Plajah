@@ -149,7 +149,9 @@ const DESK_TABS: { id: DeskTab; label: string; icon: React.ReactNode }[] = [
 export const WritersDesk: React.FC<{
   currentUser?: UserProfile | null;
   onBackToLibrary?: () => void;
-}> = ({ currentUser, onBackToLibrary }) => {
+  /** Opens the journalist Newsroom (story desk, sources, fact-check, publications). */
+  onOpenNewsroom?: () => void;
+}> = ({ currentUser, onBackToLibrary, onOpenNewsroom }) => {
   const [activeTab, setActiveTab] = useState<DeskTab>('overview');
 
   return (
@@ -180,6 +182,16 @@ export const WritersDesk: React.FC<{
             </div>
           </div>
         </div>
+
+        {onOpenNewsroom && (
+          <button
+            onClick={onOpenNewsroom}
+            className="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-200 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5 transition shrink-0"
+            title="Story pipeline, sources, interviews, fact-check, corrections, publications"
+          >
+            <Newspaper size={13} /> Newsroom
+          </button>
+        )}
 
         {/* Desk Tabs Rail */}
         <nav className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 overflow-x-auto">

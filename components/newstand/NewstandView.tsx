@@ -292,6 +292,15 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
               >
                 <Pen size={14} /> Start Writing
               </button>
+              {onNavigate && currentUser && (
+                <button
+                  onClick={() => onNavigate('JOURNALIST_DESK')}
+                  className="px-6 py-3 border border-white/15 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                  title="Story pipeline, sources, fact-check, publications"
+                >
+                  Newsroom desk
+                </button>
+              )}
             </div>
           </div>
         </div>

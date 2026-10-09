@@ -16,6 +16,8 @@ import {
   updateTypingStatus, markMessageAsSeen, fetchUserProfiles,
   uploadFile, updateRoomIntimate, updateUserProfile,
 } from '../services/backendService';
+import { fetchEarlierMessages, listenToTyping, type MessageWindowMeta } from '../services/socialPerf';
+import { mergeMessagePages, slideMessageWindow } from '../services/socialPerfCore';
 import { encryptText, decryptText } from '../services/cryptoService';
 import { markProtectedSurfaceOpen, setThreadProtected } from '../services/protectedThreads';
 import { isProbablyImage, stripImageMetadata } from '../services/exifService';
@@ -205,6 +207,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   room, profiles: externalProfiles = {}, currentUserProfile, onBack, onOpenCollab, onStartVideo, onStartAudio, readOnly = false,
 }) => {
   const [messages, setMessages] = useState<ExtendedMessage[]>([]);
+  // Paging: the listener only holds the newest page; "Load earlier" pulls older pages on demand.
+  const [hasEarlier, setHasEarlier] = useState(false);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+  const windowCursorRef = useRef<MessageWindowMeta['cursor']>(null);
+  const earlierCursorRef = useRef<MessageWindowMeta['cursor']>(null);
+  const messagesRef = useRef<ExtendedMessage[]>([]);
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
+  const [liveTypers, setLiveTypers] = useState<string[]>([]);
   const [decryptedMessages, setDecryptedMsgs] = useState<ExtendedMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
@@ -334,8 +344,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [messages, room.id]);
 
   useEffect(() => {
-    const unsub = listenToMessages(room.id, (msgs) => {
-      setMessages(msgs as ExtendedMessage[]);
+    // New room → drop the previous room's pages/cursors.
+    messagesRef.current = [];
+    windowCursorRef.current = null;
+    earlierCursorRef.current = null;
+    setHasEarlier(false);
+    setLiveTypers([]);
+    const unsubTyping = listenToTyping(room.id, setLiveTypers);
+    const unsub = listenToMessages(room.id, (msgs, meta) => {
+      // Keep older pages + messages that slid out of the newest-N window on screen.
+      const next = slideMessageWindow(messagesRef.current, msgs as ExtendedMessage[], !!meta?.hasMore);
+      messagesRef.current = next;
+      setMessages(next);
+      windowCursorRef.current = meta?.cursor ?? null;
+      if (!earlierCursorRef.current) setHasEarlier(!!meta?.hasMore);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
       // Only mark-as-seen (and arm burn timers) in PRIVATE DMs — not in PUBLIC_LIVE channels
       if (room.type === 'PRIVATE') {
@@ -356,9 +378,37 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     return () => {
       unsub();
-      if (isTyping) updateTypingStatus(room.id, false);
+      unsubTyping();
+      // Unconditional: the throttle only writes "stopped" if we last said "typing" (the old
+      // `if (isTyping)` read a stale closure value and never cleared).
+      updateTypingStatus(room.id, false);
     };
   }, [room.id]);
+
+  // "Load earlier": one older page, keeping the reader's scroll position anchored.
+  const loadEarlier = useCallback(async () => {
+    const cursor = earlierCursorRef.current || windowCursorRef.current;
+    if (!cursor || loadingEarlier) return;
+    setLoadingEarlier(true);
+    const el = messagesScrollRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
+    const prevTop = el?.scrollTop ?? 0;
+    try {
+      const page = await fetchEarlierMessages<ExtendedMessage>(room.id, cursor);
+      earlierCursorRef.current = page.cursor;
+      setHasEarlier(page.hasMore);
+      const next = mergeMessagePages(page.messages, messagesRef.current);
+      messagesRef.current = next;
+      setMessages(next);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (el) el.scrollTop = el.scrollHeight - prevHeight + prevTop;
+      }));
+    } catch (e) {
+      console.warn('[ChatWindow] load earlier failed', e);
+    } finally {
+      setLoadingEarlier(false);
+    }
+  }, [room.id, loadingEarlier]);
 
   // Auto-grow the message box with its content (WhatsApp/Telegram style): 1 line → up to ~6,
   // then it scrolls internally. Reset to one line after the message is sent.
@@ -370,7 +420,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
     autosize(e.target);
-    if (!isTyping) { setIsTyping(true); updateTypingStatus(room.id, true); }
+    if (!isTyping) setIsTyping(true);
+    updateTypingStatus(room.id, true); // throttled to ≤1 write/3s — doubles as the TTL heartbeat
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
@@ -794,7 +845,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const uid = auth.currentUser?.uid;
-  const typingUsers = room.typingUsers?.filter(id => id !== uid) || [];
+  // Typing now lives in chat_rooms/{id}/meta/typing (liveTypers); room.typingUsers is the legacy fallback field.
+  const typingUsers = Array.from(new Set([...(room.typingUsers || []), ...liveTypers])).filter(id => id !== uid);
   const roomName = room.type === 'PRIVATE'
     ? (profiles[room.participants.find(id => id !== uid) ?? '']?.displayName || 'Direct Message')
     : (room.name || (room.type === 'PUBLIC_LIVE' ? 'Live Channel' : 'Group Chat'));
@@ -1234,9 +1286,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* ── MESSAGES ────────────────────────────────────────────────── */}
       <div
+        ref={messagesScrollRef}
         className="relative z-10 flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide"
         onClick={() => { setShowEmojiPicker(null); setShowMoreMenu(false); }}
       >
+        {hasEarlier && !(searchMode && searchQuery) && (
+          <div className="flex justify-center pb-1">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); loadEarlier(); }}
+              disabled={loadingEarlier}
+              className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-[10px] font-bold uppercase tracking-widest text-white/50 hover:text-white disabled:opacity-40 transition-colors"
+            >
+              {loadingEarlier ? 'Loading…' : 'Load earlier messages'}
+            </button>
+          </div>
+        )}
         {displayedMessages.map((msg, i) => {
           const isMe = msg.senderId === uid;
           const isSeen = (msg.seenBy?.length ?? 0) > (isMe ? 1 : 0);

@@ -26,6 +26,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { createArticle, updateArticle, uploadFile } from '../services/backendService';
 import { useAriaSurface } from '../services/aria/useAriaSurface';
+import ArticleDesk, { type DeskTab } from './journalist/ArticleDesk';
+import { loadArticleTemplates, prepareTelaDoc, saveDraft, workingCopy, type ArticleTemplateCatalog } from '../services/journalist/articleService';
+import { makeVariants } from '../services/journalist/headlineTester';
+import { detectCheckableClaims } from '../services/journalist/factCheck';
+import type { Claim } from '../services/journalist/types';
 
 interface ArticleEditorProps {
   article?: Article;
@@ -35,12 +40,30 @@ interface ArticleEditorProps {
 }
 
 const ArticleEditor: React.FC<ArticleEditorProps> = ({ article, onSave, onCancel, user }) => {
-  const [title, setTitle] = useState(article?.title || '');
-  const [subtitle, setSubtitle] = useState(article?.subtitle || '');
-  const [coverImage, setCoverImage] = useState(article?.coverImage || '');
-  const [blocks, setBlocks] = useState<ArticleBlock[]>(article?.blocks || [
+  // Open with the unpublished working copy when there is one (edits to a live article never go live without a publish).
+  const wc = article ? workingCopy(article) : null;
+  const [title, setTitle] = useState(wc?.title || '');
+  const [subtitle, setSubtitle] = useState(wc?.subtitle || '');
+  const [coverImage, setCoverImage] = useState(wc?.coverImage || '');
+  const [blocks, setBlocks] = useState<ArticleBlock[]>(wc?.blocks?.length ? wc.blocks : [
     { id: 'initial', type: 'TEXT', content: '', layout: 'FULL' }
   ]);
+  // Journalist desk (Tela publishing, style, headline, fact-check)
+  const [deskOpen, setDeskOpen] = useState(false);
+  const [deskTab, setDeskTab] = useState<DeskTab>('publish');
+  const [templates, setTemplates] = useState<ArticleTemplateCatalog>({ ARTICLE: [], MAGAZINE: [], CATALOG: [] });
+  const [templateId, setTemplateId] = useState(article?.tela?.templateId || '');
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [aiUsed, setAiUsed] = useState(false);
+  const [ariaHeadlines, setAriaHeadlines] = useState<string[]>([]);
+  const [ariaClaims, setAriaClaims] = useState<string[]>([]);
+  const [savedId, setSavedId] = useState<string | undefined>(article?.id);
+  const [stub, setStub] = useState<Article | null>(null);   // a draft this session created (not in the `article` prop)
+  const [draftKey] = useState(() => `draft_${Date.now().toString(36)}`);
+  const [notice, setNotice] = useState('');
+  useEffect(() => { void loadArticleTemplates().then(setTemplates); }, []);
+  const track = <T extends Record<string, (params: any) => any>>(h: T): T =>
+    Object.fromEntries(Object.entries(h).map(([k, fn]) => [k, (params: any) => { setAiUsed(true); return fn(params); }])) as T;
   const [isSaving, setIsSaving] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const { theme } = useGlobalPlayerState();
@@ -95,12 +118,16 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ article, onSave, onCancel
     surface: 'article-editor',
     domain: 'writing',
     title: `Editing article: ${title || 'Untitled'}`,
-    summary: `${blocks.length} block(s), ~${ariaWordCount} words${subtitle ? `; subtitle "${subtitle}"` : ''}. You are co-authoring with the writer — continue, tighten, or restructure the piece in their voice.`,
+    summary: `${blocks.length} block(s), ~${ariaWordCount} words${subtitle ? `; subtitle "${subtitle}"` : ''}. You are co-authoring with the writer — continue, tighten, or restructure the piece in their voice. This is a journalism tool: never invent facts, quotes or sources; you can propose headline variants, pick a Tela layout, and flag claims for the writer to fact-check (you cannot verify them).`,
     documentText: ariaPlainText,
     data: {
       articleTitle: title,
       subtitle,
       wordCount: ariaWordCount,
+      templateId,
+      availableTemplates: [...templates.ARTICLE, ...templates.MAGAZINE].slice(0, 24).map(t => ({ id: t.id, name: t.name })),
+      checkableClaimCount: detectCheckableClaims(ariaPlainText).length,
+      headlineVariants: makeVariants(title, { subtitle }).map(v => v.text).slice(0, 4),
       blocks: blocks.map(b => ({ id: b.id, type: b.type, preview: (b.content || '').slice(0, 120) })),
     },
     actions: [
@@ -119,8 +146,20 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ article, onSave, onCancel
       { id: 'setSubtitle', label: 'Set the subtitle',
         description: 'Set or replace the article subtitle / deck.',
         params: { text: 'the new subtitle' } },
+      { id: 'suggestHeadlines', label: 'Propose headline variants',
+        description: 'Offer alternative headlines in the Headline tab. Use only facts stated in the article, sentence case, under 70 characters. The writer chooses; nothing is replaced.',
+        params: { variants: 'headline alternatives, one per line' } },
+      { id: 'pickTemplate', label: 'Choose the Tela layout template',
+        description: 'Select an article layout from the Tela template gallery by id or name. Use an empty string for the built-in masthead.',
+        params: { template: 'template id or name' } },
+      { id: 'flagClaims', label: 'Flag claims for fact-checking',
+        description: 'Add sentences from the article to the fact-check list as UNVERIFIED. You can never mark a claim verified; only the human journalist can.',
+        params: { claims: 'exact sentences from the article, one per line' } },
+      { id: 'openDesk', label: 'Open the journalist tools',
+        description: 'Open the publish / style / headline / fact-check drawer.',
+        params: { tab: 'publish | style | headline | facts' } },
     ],
-    handlers: {
+    handlers: track({
       appendParagraph: ({ text }) => {
         const paras = String(text ?? '').split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
         if (!paras.length) return { ok: false, message: 'No text to add.' };
@@ -148,36 +187,49 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ article, onSave, onCancel
       },
       setTitle: ({ text }) => { setTitle(String(text ?? '')); return { ok: true, message: 'Updated the title.' }; },
       setSubtitle: ({ text }) => { setSubtitle(String(text ?? '')); return { ok: true, message: 'Updated the subtitle.' }; },
-    },
-  }, [title, subtitle, blocks]);
+      suggestHeadlines: ({ variants }) => {
+        const list = String(variants ?? '').split(/\n+/).map(v => v.replace(/^[-*\d.)\s]+/, '').trim()).filter(Boolean).slice(0, 8);
+        if (!list.length) return { ok: false, message: 'No headline variants given.' };
+        setAriaHeadlines(list); setDeskTab('headline'); setDeskOpen(true);
+        return { ok: true, message: `Put ${list.length} headline variants in the Headline tab for the writer to choose.` };
+      },
+      pickTemplate: ({ template }) => {
+        const all = [...templates.ARTICLE, ...templates.MAGAZINE];
+        const q = String(template ?? '').trim().toLowerCase();
+        if (!q) { setTemplateId(''); return { ok: true, message: 'Using the built-in masthead.' }; }
+        const hit = all.find(t => t.id.toLowerCase() === q || t.name.toLowerCase() === q) || all.find(t => t.name.toLowerCase().includes(q));
+        if (!hit) return { ok: false, message: all.length ? `No template matches. Available: ${all.slice(0, 12).map(t => t.name).join(', ')}.` : 'There are no article templates in the Tela gallery yet.' };
+        setTemplateId(hit.id); return { ok: true, message: `Layout set to "${hit.name}".` };
+      },
+      flagClaims: ({ claims: list }) => {
+        const lines = String(list ?? '').split(/\n+/).map(v => v.trim()).filter(Boolean).slice(0, 20);
+        if (!lines.length) return { ok: false, message: 'No claims given.' };
+        setAriaClaims(lines); setDeskTab('facts'); setDeskOpen(true);
+        return { ok: true, message: `Added ${lines.length} claim${lines.length > 1 ? 's' : ''} to the fact-check list, all unverified. The writer must verify them.` };
+      },
+      openDesk: ({ tab }) => { const t = (['publish', 'style', 'headline', 'facts', 'council'] as const).find(x => x === String(tab)) || 'publish'; setDeskTab(t); setDeskOpen(true); return { ok: true, message: `Opened the ${t} tab.` }; },
+    }),
+  }, [title, subtitle, blocks, templates, templateId]);
 
-  const handleSave = async () => {
-    if (!title.trim()) return alert("Please enter a title");
-    setIsSaving(true);
+  const deskArticle: Article | null = article ? { ...article, id: savedId || article.id } : stub;
+  const currentDraft = () => ({ title, subtitle, coverImage, category: article?.category, tags: article?.tags, blocks });
+
+  const handleSaveDraft = async (): Promise<string | undefined> => {
+    if (!title.trim()) { setNotice('Add a headline before saving.'); return undefined; }
+    setIsSaving(true); setNotice('');
     try {
-      const articleData: Partial<Article> = {
-        title,
-        subtitle,
-        coverImage,
-        blocks,
-        isPublic: true,
-        category: 'Article'
-      };
+      const r = await saveDraft(currentDraft(), deskArticle);
+      if (r.ok) { setSavedId(r.articleId); if (!article && r.articleId) setStub({ id: r.articleId, isPublic: false, status: 'DRAFT' } as Article); setNotice(article?.tela?.versionId ? 'Saved as an unpublished working copy. Readers still see the published version.' : 'Draft saved.'); return r.articleId; }
+      setNotice(r.error || 'Save failed.');
+    } finally { setIsSaving(false); }
+    return undefined;
+  };
 
-      let id: string | undefined;
-      if (article?.id) {
-        await updateArticle(article.id, articleData);
-        id = article.id;
-      } else {
-        id = await createArticle(articleData);
-      }
-
-      if (id) onSave(id, title);
-    } catch (error) {
-      console.error("Save failed:", error);
-    } finally {
-      setIsSaving(false);
-    }
+  const handleOpenInTela = async () => {
+    const id = await handleSaveDraft();
+    if (!id) return;
+    const docId = await prepareTelaDoc(currentDraft(), deskArticle ? { ...deskArticle, id } : ({ id } as any), templateId || undefined);
+    window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId } }));
   };
 
   return (
@@ -199,15 +251,28 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ article, onSave, onCancel
             >
               <Eye size={14} /> {isPreview ? 'Editor' : 'Preview'}
             </button>
-            <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-8 py-2 rounded-full bg-[var(--text-primary)] text-[var(--bg-color)] hover:scale-105 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest disabled:opacity-50"
+            <button
+              onClick={() => { setDeskTab('style'); setDeskOpen(true); }}
+              className="px-5 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-all text-xs font-black uppercase tracking-widest"
             >
-              {isSaving ? 'Saving...' : <><Save size={14} /> Save</>}
+              Tools
+            </button>
+            <button
+              onClick={() => void handleSaveDraft()}
+              disabled={isSaving}
+              className="px-5 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest disabled:opacity-50"
+            >
+              {isSaving ? 'Saving...' : <><Save size={14} /> Save draft</>}
+            </button>
+            <button
+              onClick={() => { setDeskTab('publish'); setDeskOpen(true); }}
+              className="px-8 py-2 rounded-full bg-[var(--text-primary)] text-[var(--bg-color)] hover:scale-105 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest"
+            >
+              Publish
             </button>
           </div>
         </header>
+        {notice && <p role="status" className="mb-6 text-sm text-white/60">{notice}</p>}
 
         {isPreview ? (
           <div className="prose prose-invert max-w-none">
@@ -429,6 +494,17 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ article, onSave, onCancel
           </div>
         )}
       </div>
+      <ArticleDesk
+        open={deskOpen} onClose={() => setDeskOpen(false)} tab={deskTab} setTab={setDeskTab}
+        article={deskArticle}
+        content={{ title, subtitle, coverImage, category: article?.category, blocks }}
+        user={user} templates={templates} templateId={templateId} setTemplateId={setTemplateId}
+        aiUsed={aiUsed} claims={claims} setClaims={setClaims} claimKey={savedId || article?.id || draftKey}
+        ariaHeadlines={ariaHeadlines} ariaClaims={ariaClaims}
+        onPickHeadline={setTitle} onBlocksChange={setBlocks}
+        onSaveDraft={handleSaveDraft} onOpenInTela={handleOpenInTela}
+        onPublished={(r) => { if (r.articleId) onSave(r.articleId, title); }}
+      />
     </div>
   );
 };

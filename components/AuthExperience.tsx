@@ -196,7 +196,7 @@ const AuthExperience: React.FC<Props> = ({ onClose, initialMode = 'REGISTER', on
               <div className="flex flex-col items-center text-center gap-3 py-6">
                 <div className="w-12 h-12 rounded-full bg-green-500/15 flex items-center justify-center"><Check size={22} className="text-green-400" /></div>
                 <p className="text-sm font-black text-white">Check your inbox</p>
-                <p className="text-[11px] text-white/45">We sent a password reset link to {email}.</p>
+                <p className="text-[11px] text-white/45">If an account with a password exists for {email}, a reset link is on its way.</p>
                 <button onClick={() => { setMode('SIGN_IN'); setResetSent(false); }} className="mt-2 text-[11px] font-black uppercase tracking-widest text-small-orange hover:text-white">Back to sign in</button>
               </div>
             ) : (

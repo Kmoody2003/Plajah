@@ -154,7 +154,7 @@ export async function sendProductionRadio(
   const id = `radio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const path = `productionRadio/${safe(productionId)}/${safe(channelKey)}/${id}.webm`;
   const reference = storageRef(getStorage(), path);
-  await uploadBytes(reference, blob, { contentType: blob.type || 'audio/webm' });
+  await uploadBytes(reference, blob, { contentType: blob.type || 'audio/webm', customMetadata: { ownerUid: fromUid } });
   const row: ProductionRadioTransmission = {
     id, productionId, channelKey, radioChannel, fromUid, fromName, audioUrl: await getDownloadURL(reference),
     storagePath: path, durationMs, createdAt: Date.now(),

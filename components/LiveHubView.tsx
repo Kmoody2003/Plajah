@@ -21,6 +21,7 @@ const MobileLiveStreamer = lazy(() => import('./MobileLiveStreamer'));
 const MobileGoLiveButton = lazy(() => import('./MobileLiveStreamer').then(m => ({ default: m.MobileGoLiveButton })));
 const PlajahEpgGuide = lazy(() => import('./tv/PlajahEpgGuide'));
 import ChipRail from './ui/ChipRail';
+import PublicPartiesRow from './party/PublicPartiesRow';
 
 interface LiveHubViewProps {
   onBack: () => void;
@@ -400,6 +401,9 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
           </div>
         )}
       </header>
+
+      {/* Public watch / read / listening parties whose host is live right now. Renders nothing when none. */}
+      <PublicPartiesRow className="px-8 lg:px-24 mb-10 shrink-0" />
 
       <div className="flex-1 w-full relative flex flex-col">
         {activeTab === 'STREAMS' && (

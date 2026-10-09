@@ -647,6 +647,10 @@ export class LiveComposer {
   }
 
   // ── FX layer ────────────────────────────────────────────────────────────────
+  /** Extra layer drawn last on the published frame — Reello Live emotes when the creator turns on
+   *  "bake emotes into the stream" (services/emotes/emoteStage.ts). Null = off. */
+  private overlayDrawer: ((ctx: CanvasRenderingContext2D, W: number, H: number, dt: number) => void) | null = null;
+  setOverlayDrawer(fn: ((ctx: CanvasRenderingContext2D, W: number, H: number, dt: number) => void) | null) { this.overlayDrawer = fn; }
   setAmbient(fx: AmbientFx) { this.ambient = fx; }
   getAmbient() { return this.ambient; }
   /** Fire an emoji burst into the published video (streamer or audience triggered). */
@@ -733,6 +737,7 @@ export class LiveComposer {
       const dt = Math.min(0.05, this.lastFxT ? (t - this.lastFxT) / 1000 : 0.016);
       this.lastFxT = t;
       this.draw(); this.applyLens(); this.present(); this.stepFx(dt);
+      if (this.overlayDrawer) { this.octx.save(); this.overlayDrawer(this.octx, this.canvas.width, this.canvas.height, dt); this.octx.restore(); }
     } catch { /* keep alive */ }
   };
 

@@ -66,39 +66,39 @@ export const listenToCreatorTiers = (creatorId: string, callback: (tiers: Sanctu
 
 // ── MEMBERSHIPS ───────────────────────────────────────────────────────────────
 
+/** Authenticated POST to the API (memberships are server-written; see firestore.rules). */
+async function sanctuaryApi<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Sign in to continue');
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong');
+  return data as T;
+}
+
+/**
+ * Join a FREE tier. The server checks the tier really is free and writes the membership
+ * (`sanctuaryMemberships/{creatorId}_{uid}`); paid tiers go through startSanctuaryTierCheckout.
+ */
 export const joinSanctuaryTier = async (
   tier: SanctuaryTier,
   billingCycle: 'MONTHLY' | 'ANNUAL' = 'MONTHLY',
 ): Promise<string> => {
   if (!auth.currentUser) throw new Error('Not authenticated');
-  const ref = doc(collection(db, 'sanctuaryMemberships'));
-  const now = Date.now();
-  const membership: SanctuaryMembership = {
-    id: ref.id,
-    tierId: tier.id,
-    tierName: tier.name,
-    tierColor: tier.color,
-    creatorId: tier.creatorId,
-    memberId: auth.currentUser.uid,
-    memberName: auth.currentUser.displayName || 'Anonymous',
-    memberPhoto: auth.currentUser.photoURL || '',
-    billingCycle,
-    status: 'ACTIVE',
-    startedAt: now,
-    renewsAt: now + (billingCycle === 'MONTHLY' ? 30 * 24 * 60 * 60 * 1000 : 365 * 24 * 60 * 60 * 1000),
-  };
-  await setDoc(ref, membership);
-  await updateDoc(doc(db, 'sanctuaryTiers', tier.id), { memberCount: increment(1) });
-  return ref.id;
+  const { id } = await sanctuaryApi<{ id: string }>('/api/sanctuary/join-free', { tierId: tier.id, billingCycle });
+  return id;
 };
 
-export const cancelMembership = async (membershipId: string, tierId: string): Promise<void> => {
-  await updateDoc(doc(db, 'sanctuaryMemberships', membershipId), {
-    status: 'CANCELLED',
-    cancelledAt: Date.now(),
-  });
-  await updateDoc(doc(db, 'sanctuaryTiers', tierId), { memberCount: increment(-1) });
-};
+/**
+ * Cancel a membership. Free → ends now. Paid → the Stripe subscription stops renewing and access
+ * lasts until the paid period ends (`endsAt`); the webhook ends the membership then.
+ */
+export const cancelMembership = async (creatorId: string): Promise<{ status: 'ACTIVE' | 'CANCELLED'; endsAt?: number | null }> =>
+  sanctuaryApi('/api/sanctuary/cancel', { creatorId });
 
 export const fetchMyMemberships = async (): Promise<SanctuaryMembership[]> => {
   if (!auth.currentUser) return [];
@@ -341,24 +341,8 @@ export const likeSanctuaryPost = async (postId: string, liked: boolean): Promise
 
 // ── À LA CARTE (one-time unlocks of a single item) ──────────────────────────────
 
-export const unlockContent = async (
-  sanctuaryId: string, itemId: string, amount: number,
-  itemType: 'CONTENT' | 'POST' | 'CHAT' = 'CONTENT',
-): Promise<SanctuaryPurchase | null> => {
-  if (!auth.currentUser) return null;
-  const ref = doc(collection(db, 'sanctuaryPurchases'));
-  const purchase: SanctuaryPurchase = {
-    id: ref.id,
-    sanctuaryId,
-    buyerId: auth.currentUser.uid,
-    itemId,
-    itemType,
-    amount,
-    purchasedAt: Date.now(),
-  };
-  await setDoc(ref, purchase);
-  return purchase;
-};
+// One-time unlocks are recorded by the Stripe webhook only (purchaseSanctuaryUnlock → checkout);
+// clients can't create sanctuaryPurchases (firestore.rules).
 
 export const fetchMyPurchases = async (sanctuaryId?: string): Promise<SanctuaryPurchase[]> => {
   if (!auth.currentUser) return [];

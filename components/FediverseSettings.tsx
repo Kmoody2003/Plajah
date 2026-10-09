@@ -237,18 +237,34 @@ function MastodonForm({ onSuccess }: { onSuccess: () => void }) {
 // ─── Bluesky form ──────────────────────────────────────────────────────────────
 
 function BlueskyForm({ onSuccess }: { onSuccess: () => void }) {
-  const { connectBlueskyAccount } = useFediverse();
+  const { connectBlueskyAccount, connectBlueskyOAuth } = useFediverse();
   const [handle, setHandle] = useState('');
   const [appPassword, setAppPassword] = useState('');
+  const [pdsUrl, setPdsUrl] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState(false);
   const [status, setStatus] = useState<ConnectStatus>('idle');
   const [errMsg, setErrMsg] = useState('');
+
+  // Preferred path: Bluesky's own consent screen. No password ever touches Plajah.
+  const handleOAuth = async () => {
+    setOauthBusy(true); setStatus('idle'); setErrMsg('');
+    try {
+      await connectBlueskyOAuth(handle.trim());
+      setStatus('success');
+      setTimeout(onSuccess, 800);
+    } catch (err) {
+      setStatus('error');
+      setErrMsg(err instanceof Error ? err.message : 'Sign-in failed');
+    } finally { setOauthBusy(false); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!handle.trim() || !appPassword.trim()) return;
     setStatus('loading');
     try {
-      await connectBlueskyAccount(handle.trim(), appPassword.trim());
+      await connectBlueskyAccount(handle.trim(), appPassword.trim(), pdsUrl.trim() || undefined);
       setStatus('success');
       setTimeout(onSuccess, 800);
     } catch (err) {
@@ -262,7 +278,24 @@ function BlueskyForm({ onSuccess }: { onSuccess: () => void }) {
       <input value={handle} onChange={e => setHandle(e.target.value)}
         placeholder="yourhandle.bsky.social"
         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#0085ff]/50"
-        required />
+        required={showPassword} />
+      <button type="button" onClick={handleOAuth} disabled={oauthBusy}
+        className="w-full py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+        style={{ background: '#0085ff' }}>
+        {oauthBusy ? 'Waiting for Bluesky…' : 'Sign in with Bluesky'}
+      </button>
+      <p className="text-[9px] text-white/30 leading-relaxed">
+        You approve Plajah on Bluesky's own page — your password never reaches us, and you can revoke access from Bluesky any time.
+      </p>
+      {status === 'error' && !showPassword && <p className="text-[10px] text-red-300/90">{errMsg}</p>}
+      {!showPassword ? (
+        <button type="button" onClick={() => setShowPassword(true)} className="text-[10px] text-white/35 hover:text-white/60 underline self-start">
+          Use an app password instead
+        </button>
+      ) : (<>
+      <input value={pdsUrl} onChange={e => setPdsUrl(e.target.value)}
+        placeholder="Own server (optional) — https://pds.example.com"
+        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-white/25 focus:outline-none focus:border-[#0085ff]/50" />
       <input value={appPassword} onChange={e => setAppPassword(e.target.value)}
         placeholder="App Password  (xxxx-xxxx-xxxx-xxxx)"
         type="password"
@@ -272,7 +305,8 @@ function BlueskyForm({ onSuccess }: { onSuccess: () => void }) {
         <strong>Settings → Privacy &amp; Security → App Passwords</strong>.
         The password is sent directly to our server and never stored in your browser.
       </p>
-      <StatusButton status={status} color="#0085ff" label="Connect Bluesky" errMsg={errMsg} />
+      <StatusButton status={status} color="#0085ff" label="Connect with app password" errMsg={errMsg} />
+      </>)}
     </form>
   );
 }

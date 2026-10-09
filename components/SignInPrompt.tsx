@@ -207,7 +207,7 @@ const SignInPrompt: React.FC<SignInPromptProps> = ({ action = 'interact', initia
               {resetSent ? (
                 <div className="text-center py-4">
                   <div className="text-sm font-black text-white mb-2">Check your email</div>
-                  <p className="text-xs text-white/40">Password reset link sent to {email}</p>
+                  <p className="text-xs text-white/40">If an account exists for {email}, a reset link is on its way</p>
                   <button onClick={() => { setResetSent(false); setEmailMode('SIGN_IN'); }} className="mt-4 text-[10px] text-white/40 hover:text-white underline">Back to sign in</button>
                 </div>
               ) : (

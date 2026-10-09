@@ -36,9 +36,9 @@ const eraTemplates: TelaDesignTemplate[] = TELA_STYLE_ERAS.map(raw => {
 const publicationTemplates: TelaDesignTemplate[] = TELA_PUBLICATION_TEMPLATES.map(t => ({
   id: `pub:${t.id}`, name: t.name, collection: 'PUBLICATION', group: t.category,
   tagline: t.description, description: t.audience, audience: t.audience,
-  palette: [...t.palette], fonts: [], width: t.width, height: t.height, frameKind: t.category === 'EMAIL BLAST' ? 'SCREEN' : 'PAPER',
+  palette: [...t.palette], fonts: [], width: t.width, height: t.height, frameKind: t.category === 'EMAIL BLAST' || (t.category === 'ARTICLE' && (t.width === 1080 || t.width === 680)) ? 'SCREEN' : 'PAPER',
   pages: t.pages.map((pageType, i) => ({ label: `${i + 1} · ${pageType}`, build: () => instantiatePublicationPage(t, pageType, i) })),
-  lesson: lessonFor('publication', t.id, { interestTag: t.category === 'COMIC & MANGA' ? 'Comics & manga' : t.category === 'CHILDREN’S BOOK' ? 'Picture books' : t.category === 'PHOTO BOOK' ? 'Photo books' : t.category === 'MAGAZINE' ? 'Magazine design' : t.category === 'NEWSLETTER' ? 'Newsletter design' : 'Email design' }),
+  lesson: lessonFor('publication', t.id, { interestTag: t.category === 'COMIC & MANGA' ? 'Comics & manga' : t.category === 'CHILDREN’S BOOK' ? 'Picture books' : t.category === 'PHOTO BOOK' ? 'Photo books' : t.category === 'MAGAZINE' ? 'Magazine design' : t.category === 'NEWSLETTER' ? 'Newsletter design' : t.category === 'ARTICLE' ? 'Article design' : t.category === 'CATALOG' ? 'Catalog design' : 'Email design' }),
   tags: [t.category.toLowerCase(), t.fontMood.toLowerCase(), t.audience.toLowerCase()],
 }));
 

@@ -15,6 +15,7 @@ import PlajahLivePlayer from './PlajahLivePlayer';
 import LiveBroadcastControlPanel from './LiveBroadcastControlPanel';
 import SportsProducerPanel from './SportsProducerPanel';
 import MobileLiveStreamer from './MobileLiveStreamer';
+import { StandingGate } from './enforcement/StandingGateNotice';
 
 interface GoLiveWizardProps {
   onClose: () => void;
@@ -847,7 +848,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
 // made the wizard open at the top of the page instead of the current viewport.
 const GoLiveWizard: React.FC<GoLiveWizardProps> = (props) => createPortal(
   <BroadcastErrorBoundary onClose={props.onClose}>
-    <GoLiveWizardInner {...props} />
+    <StandingGate cap="canGoLive" title="Go Live" onClose={props.onClose}><GoLiveWizardInner {...props} /></StandingGate>
   </BroadcastErrorBoundary>,
   document.body,
 );

@@ -11,6 +11,7 @@ import { followUser, updateUserProfile } from '../../services/backendService';
 import { clearDiscoveryCache } from '../../services/discoveryService';
 import { useSuggestions } from './useDiscovery';
 import { PersonAvatar } from './PersonActions';
+import FindYourPeople from './FindYourPeople';
 
 const INTERESTS = [
   'Music', 'Film', 'Books', 'Gaming', 'Sports', 'Art', 'Science', 'Tech', 'Faith', 'Cooking',
@@ -106,6 +107,8 @@ const OnboardingFollowStep: React.FC<OnboardingFollowStepProps> = ({ viewer, onD
         </div>
       ) : (
         <>
+          {/* Coming from Bluesky / Mastodon? Bring your people with you (needs a linked account; skippable). */}
+          <FindYourPeople compact className="mb-4" />
           <div className="flex flex-col gap-2">
             {loading && suggestions.length === 0 && Array.from({ length: 5 }, (_, i) => <div key={i} className="h-[64px] rounded-2xl border border-white/10 bg-white/[0.03] animate-pulse" />)}
             {!loading && suggestions.length === 0 && <p className="text-center text-sm text-white/45 py-6">No suggestions yet — you'll find people on the Find people page.</p>}

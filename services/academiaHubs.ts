@@ -58,7 +58,7 @@ export function resolveAcademiaHubs(
   if (isSchoolTeacher(profile)) {
     hubs.push({ id: 'teacher', label: 'Teacher Hub', icon: '🍎', school: true, view: 'ACADEMIA_HOME' as AppView, sub: 'Classes, roster, gradebook & the full teacher-tools suite' });
   } else if (isCreatorInstructor(profile) || extras.ownsCourses) {
-    hubs.push({ id: 'teacher', label: 'Teacher Hub', icon: '🍎', school: false, view: 'ACADEMIA_COURSES' as AppView, sub: 'Your courses, learners & creator-teaching tools' });
+    hubs.push({ id: 'teacher', label: 'Teacher Hub', icon: '🍎', school: false, view: 'CREATOR_COURSES' as AppView, sub: 'Your courses, learners & creator-teaching tools' });
   }
 
   // Student hub — school students, else platform learners enrolled in classes.

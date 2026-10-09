@@ -45,7 +45,8 @@ export function startCloudRecording(opts: { streamId: string; mime?: string }): 
     // Chain onto the queue so segments upload strictly in order, one at a time.
     queue = queue.then(async () => {
       try {
-        await uploadBytes(ref(storage, path(segIndex)), blob, { contentType: mime });
+        // ownerUid: storage rules only let the stamped uploader write/overwrite this stream's segments.
+        await uploadBytes(ref(storage, path(segIndex)), blob, { contentType: mime, customMetadata: { ownerUid: uid } });
         uploaded++;
       } catch {
         failed = true; // non-fatal — the device backup still has this chunk

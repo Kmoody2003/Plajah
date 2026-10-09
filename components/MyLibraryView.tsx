@@ -61,6 +61,7 @@ import { readAudioTags, isAudioFile, titleFromFilename, isPlaylistFile, isImageF
 import { fetchLyrics, fetchCoverArtBlob } from '../services/musicEnrichment';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import OfflineDownloadButton from './OfflineDownloadButton';
+import { fetchMyMemberships } from '../services/sanctuaryService';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import LockerEditModal from './LockerEditModal';
 import MelosPickerModal from './MelosPickerModal';
@@ -89,6 +90,9 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  // Creators this listener is an ACTIVE (server-verified) Sanctuary member of — unlocks their exclusives.
+  const [memberOf, setMemberOf] = useState<Set<string>>(new Set());
+  useEffect(() => { fetchMyMemberships().then(ms => setMemberOf(new Set(ms.map(m => m.creatorId)))).catch(() => {}); }, []);
   const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('LIST');
   const [lockerAlbumId, setLockerAlbumId] = useState<string | null>(null); // drilled-into locker album
   const [sortBy, setSortBy] = useState<'title' | 'artist' | 'album' | 'date'>('date');
@@ -700,7 +704,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
 
   const filteredLibrary = sortTracks(libraryTracks.filter(t => {
     if (t.isExclusive) {
-      const isMember = profile.activeMemberships?.includes(t.artistId || '');
+      const isMember = !!t.artistId && (memberOf.has(t.artistId) || t.artistId === profile.uid);
       if (!isMember) return false;
     }
     return t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 

@@ -32,6 +32,12 @@ import { registerTicketRoutes, ticketSaleHooks } from './services/ticketServer';
 import { registerLaundryRoutes, loadWalletPromo } from './services/laundryServer';
 import { computeTopUpBonus, bonusIdemKey } from './services/walletPromoCore';
 import { registerAutoRoutes } from './services/autoServer';
+import { registerEviteRoutes, recordEviteGift } from './services/evite/eviteServer';
+import { registerPoolRoutes, nominatimGeocoder, googleGeocoder } from './services/eventPool/poolServer';
+import { registerEviteThemeRoutes,mayUseTemplate as themeMayUse, resolveArt as themeArt, recordThemePurchase } from './services/evite/eviteThemeServer';
+import { registerEvitePrintRoutes, fulfillEvitePrint, createGelatoAdapter } from './services/evite/evitePrintServer';
+// Evite print orders: one Gelato adapter shared by the routes and the Stripe webhook. No key → PRINT_NOT_CONFIGURED.
+const evitePrintGelato = createGelatoAdapter({ apiKey: () => process.env.GELATO_API_KEY, draftOrders: () => process.env.EVITE_PRINT_DRAFT_ORDERS === '1' });
 import { buildLinearMediaPlaylist, currentProgrammeMasterUrl, buildM3uLineup, type M3uChannel } from './services/fastChannelHls';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -44,21 +50,37 @@ import { createAdminFilmIngestRouter } from './routes/adminFilmIngest';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { postmanRouter } from './routes/postman';
+import { articleFeedsRouter } from './routes/articleFeeds';
+import { socialConnectRouter,publishToSocialAccounts, socialAccountIds, parseScope } from './routes/socialConnect';
+import './routes/socialEngage'; // adds inbox + approval routes to socialConnectRouter
+import { blueskyOAuthRouter } from './routes/blueskyOAuth';
+import { fediverseNativeRouter } from './routes/fediverseNative';
+import { blueskyClientRouter } from './routes/blueskyClient';
+import { bookSubmissionsRouter } from './routes/bookSubmissions';
 import { campaignsRouter } from './routes/campaigns';
-import { socialConnectRouter, publishToSocialAccounts, socialAccountIds } from './routes/socialConnect';
+import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
+import { createRtcIceRouter } from './routes/rtcIce';
 import { decideVerifiedAgentTier, type VerifiedAgentTier, type VerifiedFacts } from './services/aria/ariaTier';
 import { isVerifiedAdmin } from './services/platformAdmin';
 import { socialServerRouter } from './routes/socialServer';
+import { createTrustSafetyRouter } from './routes/trustSafety';
+import { createEnforcementRouter, requireCapability } from './routes/enforcement';
 import { notifyEmailRouter } from './routes/notifyEmail';
 import { dispatchEmailNotification, createServerNotification, listAllUserIds } from './services/notify/emailNotifyServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { authMethodsRouter } from './routes/authMethods';
+// Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md): App Check monitor, signup-check, shared limits.
+import { antiAbuseRouter } from './routes/antiAbuse';
+import { createAppCheckMiddleware, verifyAppCheckTokenStrict } from './services/appCheckServer';
+import { sharedRateLimit, uidOrIpKey, clientIpKey } from './services/sharedRateLimit';
 import { fseGamesRouter } from './routes/fseGames';
 import { threatProtectionRouter } from './routes/threatProtection';
+import { initSecurityCouncil } from './services/securityCouncil/index';
+import { createSecurityCouncilRouter } from './routes/securityCouncil';
 import { homeDiscoveryRouter } from './routes/homeDiscovery';
 import { matterRouter } from './routes/matterRoutes';
 import { homeHubRouter, HOME_HUB_ORIGINS, startHomeHub } from './routes/homeHubRoutes';
@@ -83,11 +105,16 @@ import type { Recipe as CxRecipe, MediaKind as CxKind, MediaProbe as CxProbe } f
 import { ARIA_ART_COUNCIL_METHOD } from './services/aria/ariaCreativeRoles';
 import { protectPlaylist } from './services/choraUploadQueue';
 import { createCouncil } from './services/council/councilRoutes';
+import { createEditorialCouncil } from './services/editorial/council/editorialRoutes';
 import { FABULA_BROADCAST_PACKS } from './services/fabula/broadcastPacks';
 import {
   runChoraTranscodeWorker, startChoraTranscodeScheduler, PROCESSING_STALE_MS,
   type ChoraTranscodeDeps, type TrackCandidate as ChoraTrackCandidate,
 } from './services/choraTranscodeWorker.js';
+import {
+  runLyricSyncWorker, syncAndRecord, needsLyricSync, lyricJobId, LYRIC_MAX_ATTEMPTS,
+  type LyricSyncDeps, type LyricCandidate, type LyricJobDoc,
+} from './services/lyricSyncWorker.js';
 import {
   type ChoraVoiceTrack,
   handleAlexaRequest,
@@ -191,6 +218,8 @@ async function firestoreAuthHeaders(): Promise<Record<string, string>> {
 // Meta only autoplays a direct video/mp4 in-feed, not an HTML audio player — so for music
 // shares we render a short cover+audio MP4 and point og:video at it. Cached in Cloud Storage.
 const STORAGE_BUCKET = process.env.STORAGE_BUCKET || 'gen-lang-client-0665118474.firebasestorage.app';
+/** Evite creator-theme deps, set where the routes register; the Stripe webhook uses them for `evite_theme`. */
+let eviteThemeDeps: any = null;
 
 // Firebase project id for FCM HTTP v1 (messages:send). Prefer the service-account
 // JSON's project_id; fall back to the storage bucket prefix.
@@ -310,6 +339,205 @@ function runFfprobe(input: string, timeoutMs = 30000): Promise<{ ok: boolean; js
       resolve({ ok: code === 0 && !!json, json, err });
     });
   });
+}
+
+/**
+ * Audio → time-coded captions. The ONE transcription pipeline behind "Sync Lyrics", the post-upload
+ * auto-sync, Show Mode's on-demand sync and the library backfill (see ensureTrackLyricSync below).
+ * Throws CaptionError(status, message) for anything the caller should surface.
+ */
+class CaptionError extends Error { constructor(public status: number, message: string) { super(message); } }
+async function generateTimedCaptions(opts: { audioUrl?: string; title?: string; artist?: string; kind?: string }): Promise<{ time: number; text: string }[]> {
+  const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
+  if (!geminiKey) throw new CaptionError(503, 'Gemini not configured');
+  const { audioUrl, title, artist, kind } = opts;
+  if (!audioUrl || !/^https?:\/\//.test(audioUrl)) throw new CaptionError(400, 'audioUrl required');
+  const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const inputPath = path.join(os.tmpdir(), `capin_${stamp}`);
+  const tmpChunks: string[] = [];
+  try {
+    const aRes = await fetch(audioUrl, { signal: AbortSignal.timeout(25000) });
+    if (!aRes.ok) throw new CaptionError(502, `audio fetch ${aRes.status}`);
+    const mimeType = (aRes.headers.get('content-type') || 'audio/mpeg').split(';')[0];
+    const buf = Buffer.from(await aRes.arrayBuffer());
+    // Generous ceiling that only guards the Cloud Run instance's memory against a runaway
+    // download — NOT the old 22MB gate that silently rejected large WAV masters. Older Chora
+    // tracks never got a compressed rendition, so they arrive here as ~40-60MB uncompressed
+    // masters; ffmpeg downsamples them below Gemini's inline limit before transcription (the
+    // windowed path re-encodes each slice from disk; the single-shot path transcodes the whole
+    // file — see below), so raw size no longer needs to block the request.
+    if (buf.length > 250 * 1024 * 1024) throw new CaptionError(413, 'audio too large to transcribe');
+
+    const { GoogleGenAI, Type } = await import('@google/genai');
+    const genai = new GoogleGenAI({ apiKey: geminiKey });
+
+    // Write to disk once — both the duration probe and every ffmpeg slice/transcode below read
+    // from here, so the raw buffer never has to be small.
+    await fs.writeFile(inputPath, buf);
+    // Probe the true duration (also the anchor for overshoot clamping / windowing).
+    let dur = 0;
+    try {
+      const { json } = await runFfprobe(inputPath);
+      dur = parseFloat(json?.format?.duration || '0') || 0;
+    } catch { /* probe is best-effort */ }
+
+    let captions: { time: number; text: string }[] = [];
+
+    // ── Primary path: WINDOWED transcription ──────────────────────────────────────────
+    // The whole-song single-shot approach drifts — an LLM aligns well inside ~45s but its
+    // timestamps wander (and often stall then jump) over a full track, which is exactly the
+    // "lyrics freeze at 25% then resume out of sync" failure. Instead we slice the audio into
+    // short overlapping windows with ffmpeg (whose -ss start is ground truth), transcribe each
+    // window with 0-based local timestamps, add the window's exact start, and tile them. The
+    // absolute timing never accumulates error because every window is re-anchored to real time.
+    // Bounded to ≤10 min so the sequential window calls stay inside the Cloud Run request budget;
+    // longer audio (sermons) uses the single-shot path below.
+    const canWindow = dur > 55 && dur <= 600;
+    if (canWindow) {
+      const OVERLAP = 8;                 // seconds shared between neighbours
+      const winLen = 45;                 // short enough that the LLM stays aligned
+      const step = winLen - OVERLAP;     // 37s of unique coverage per window
+      const half = OVERLAP / 2;
+      const starts: number[] = [];
+      for (let s = 0; s < dur - 1; s += step) starts.push(Math.round(s * 100) / 100);
+
+      // Windows are independent, so they run a few at a time (results keep their slot, so order
+      // and the tiling below are unchanged). Sequential took 60-90s a song; this is ~3x faster,
+      // which is what lets the lyric worker get through several songs per Cloud Run request.
+      const perWindow: { time: number; text: string }[][] = starts.map(() => []);
+      let windowFailures = 0;
+      const WINDOW_CONCURRENCY = 3;
+      let nextWin = 0;
+      const runWindow = async (i: number) => {
+        const start = starts[i];
+        const thisLen = Math.min(winLen, dur - start + 0.5);
+        const chunkPath = path.join(os.tmpdir(), `capw_${stamp}_${i}.mp3`);
+        tmpChunks.push(chunkPath);
+        // Accurate seek + downmix to mono 16 kHz mp3 (tiny payload, plenty for transcription).
+        const { ok } = await runFfmpeg(
+          ['-y', '-accurate_seek', '-ss', String(start), '-i', inputPath, '-t', String(Math.ceil(thisLen)),
+           '-ac', '1', '-ar', '16000', '-b:a', '48k', '-f', 'mp3', chunkPath], 30000);
+        if (!ok) { windowFailures++; return; }
+        try {
+          const cbuf = await fs.readFile(chunkPath);
+          const local = await transcribeAudioWindow(genai, Type, cbuf.toString('base64'), 'audio/mpeg',
+            { title, artist, kind, windowSec: thisLen });
+          // Lift local (clip-relative) timestamps into absolute song time.
+          perWindow[i] = local.map(c => ({ time: Math.round((c.time + start) * 100) / 100, text: c.text }));
+        } catch { windowFailures++; }
+      };
+      await Promise.all(Array.from({ length: Math.min(WINDOW_CONCURRENCY, starts.length) }, async () => {
+        while (nextWin < starts.length) await runWindow(nextWin++);
+      }));
+
+      // Tile: give each window a non-overlapping "claim" region so the shared overlap can't
+      // double-list a line. Region i = [start_i + half, start_i + step + half); the first window
+      // opens at -inf and the last closes at +inf, so the regions cover the song edge-to-edge.
+      for (let i = 0; i < perWindow.length; i++) {
+        const start = starts[i];
+        const claimStart = i === 0 ? -Infinity : start + half;
+        const claimEnd = i === perWindow.length - 1 ? Infinity : start + step + half;
+        for (const c of perWindow[i]) if (c.time >= claimStart && c.time < claimEnd) captions.push(c);
+      }
+      captions.sort((a, b) => a.time - b.time);
+      if (windowFailures) console.warn(`[AI] captions: ${windowFailures}/${starts.length} windows failed`);
+    }
+
+    // ── Fallback: single-shot (short clips, long spoken word, no ffmpeg, or windows empty) ──
+    if (captions.length === 0) {
+      const speechPrompt = `You are a precise speech transcription engine. Transcribe the spoken audio titled "${(title || '').slice(0, 200)}"${artist ? ` by "${(artist || '').slice(0, 200)}"` : ''} into time-coded captions covering the ENTIRE duration from first word to last.
+
+Rules:
+- Timestamps precise to 0.1 seconds; each marks the exact moment that phrase BEGINS.
+- Transcribe every spoken word accurately; do NOT invent, summarise, or skip content.
+- Preserve any Bible passages / scripture references exactly as spoken (e.g. "John 3:16").
+- Each "text" entry is one natural spoken phrase or sentence clause (~6-15 words).
+- Sort by ascending time; the final entry must be near the true end — do not stop early.`;
+      const lyricPrompt = `You are a precise audio transcription engine. Listen to every second of this audio titled "${(title || '').slice(0, 200)}" by "${(artist || '').slice(0, 200)}" and generate time-coded captions covering the ENTIRE duration from first word to last.
+
+Rules:
+- Timestamps must be precise to 0.1 seconds (e.g. 14.3, not 14). Each timestamp marks the exact moment that line BEGINS being sung or spoken.
+- Cover every section: intro, verses, pre-chorus, chorus, bridge, outro, and any spoken parts.
+- For purely instrumental gaps longer than 3 seconds with no vocals, add an "(instrumental)" entry with the correct start time.
+- Do NOT invent or guess lyrics — only transcribe words you can clearly hear in the audio.
+- Each "text" entry should be one sung phrase of roughly 3-8 words. Do not merge multiple lines into one entry.
+- Sort all entries by ascending time.
+- CRITICAL: keep timing accurate through the WHOLE song. A common failure is timestamps drifting behind (or ahead of) the audio after the first minute — re-anchor to what you actually hear every ~20 seconds, and never let a timestamp exceed the audio's real length.
+- The last entry must be close to the actual end of the audio — do not stop early.`;
+      // Send a compact, downmixed copy rather than the raw bytes: a mono 16 kHz mp3 is a fraction
+      // of a WAV master and stays under Gemini's ~20MB inline-data limit — which is what makes
+      // this path work for older large-file tracks. Bitrate drops for very long spoken word so
+      // even an hour-long sermon fits. Falls back to the raw bytes only if the transcode fails
+      // (e.g. ffmpeg missing) and they're already small enough.
+      let ssData = buf.toString('base64');
+      let ssMime = mimeType;
+      const INLINE_CAP = 19 * 1024 * 1024;
+      {
+        const fullPath = path.join(os.tmpdir(), `capfull_${stamp}.mp3`);
+        tmpChunks.push(fullPath);
+        const bitrate = dur > 1500 ? '24k' : dur > 700 ? '32k' : '48k';
+        const { ok } = await runFfmpeg(
+          ['-y', '-i', inputPath, '-ac', '1', '-ar', '16000', '-b:a', bitrate, '-f', 'mp3', fullPath], 120000);
+        if (ok) {
+          try {
+            const fbuf = await fs.readFile(fullPath);
+            if (fbuf.length <= INLINE_CAP) { ssData = fbuf.toString('base64'); ssMime = 'audio/mpeg'; }
+          } catch { /* keep raw */ }
+        }
+      }
+      // If even the compressed copy (or an un-transcodable raw file) is over the inline limit, we
+      // genuinely can't send it — report it clearly instead of letting Gemini reject it opaquely.
+      if (Buffer.byteLength(ssData, 'base64') > INLINE_CAP) {
+        throw new CaptionError(413, 'audio too large to transcribe');
+      }
+      const response = await genai.models.generateContent({
+        model: 'gemini-3.6-flash',
+        contents: [
+          { inlineData: { data: ssData, mimeType: ssMime } },
+          { text: kind === 'speech' ? speechPrompt : lyricPrompt },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
+          },
+          maxOutputTokens: 65536,
+          // Gemini 3.x: thinkingBudget is an invalid argument; thinkingLevel replaces it.
+          thinkingConfig: { thinkingLevel: 'minimal' },
+        },
+      });
+      const raw = (response as any).text || '[]';
+      let arr: any[] = [];
+      try { arr = JSON.parse(raw); }
+      catch { const cut = raw.lastIndexOf('}'); if (cut > 0) { try { arr = JSON.parse(raw.slice(0, cut + 1) + ']'); } catch { arr = []; } } }
+      captions = Array.isArray(arr)
+        ? arr.filter(c => typeof c?.time === 'number' && !isNaN(c.time) && typeof c?.text === 'string' && c.text.trim())
+             .map(c => ({ time: c.time, text: c.text.trim() }))
+        : [];
+      // The single-shot path is the drift-prone one, so keep the overshoot compression here.
+      if (captions.length && dur > 0) {
+        const last = captions[captions.length - 1].time;
+        if (last > dur * 1.02) { const k = (dur * 0.99) / last; captions = captions.map(c => ({ time: Math.round(c.time * k * 100) / 100, text: c.text })); }
+      }
+    }
+
+    // ── Common post-processing: drop adjacent near-duplicate lines, enforce non-decreasing time.
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const deduped: { time: number; text: string }[] = [];
+    for (const c of captions) {
+      const p = deduped[deduped.length - 1];
+      if (p && norm(p.text) === norm(c.text) && Math.abs(c.time - p.time) < 2.5) continue; // overlap echo
+      deduped.push(c);
+    }
+    let prev = -Infinity;
+    captions = deduped.map(c => { const t = Math.max(prev, c.time); prev = t; return { time: Math.round(t * 100) / 100, text: c.text }; });
+
+    return captions;
+  } finally {
+    fs.rm(inputPath, { force: true }).catch(() => {});
+    for (const f of tmpChunks) fs.rm(f, { force: true }).catch(() => {});
+  }
 }
 
 /**
@@ -975,6 +1203,15 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        // No resolvable artist — keep the same on-brand copy, just without the "by".
        desc = `Check out ${title} on Plajah`;
      }
+     // Articles (journalist toolset): the card carries the lede, and an unpublished / embargoed article
+     // reveals nothing (no headline, no cover) to crawlers or anyone holding the link.
+     if (type === 'article') {
+       if (f?.isPublic?.booleanValue === false) { title = 'Article on Plajah'; desc = 'This article has not been published yet.'; image = ''; }
+       else {
+         const lede = pick(['subtitle']) || String(f?.bodyText?.stringValue || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+         if (lede) desc = lede;
+       }
+     }
      // Only audio/video get an inline player card; the rest use a large-image card.
      if (!(type === 'video' || type === 'reello' || type === 'album' || type === 'track' || type === 'mix')) playerUrl = '';
    }
@@ -1226,28 +1463,15 @@ async function appCheckCerts(): Promise<Record<string, string>> {
   return certs;
 }
 
+// Verification lives in services/appCheckServer.ts, which ALSO checks iss/aud against the
+// project NUMBER (env FIREBASE_PROJECT_NUMBER). The old inline version checked only
+// signature+exp, so any Firebase project's App Check token passed. The /api-wide monitor/enforce
+// middleware (createAppCheckMiddleware) is mounted right after globalApiLimiter.
 async function verifyAppCheckToken(token: string): Promise<boolean> {
-  const parts = token.split('.');
-  if (parts.length !== 3) return false;
-  let header: any, payload: any;
-  try {
-    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
-    payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-  } catch { return false; }
-  if (header.alg !== 'RS256' || !header.kid) return false;
-  const now = Math.floor(Date.now() / 1000);
-  if (!(typeof payload.exp === 'number' && payload.exp > now)) return false;
-  try {
-    const certs = await appCheckCerts();
-    const cert = certs[header.kid];
-    if (!cert) return false;
-    return nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
-  } catch {
-    return false;
-  }
+  return verifyAppCheckTokenStrict(token);
 }
 
-// Optional App Check: verifies if header is present, blocks if ENFORCE_APP_CHECK=true
+// LEGACY — never mounted. Superseded by createAppCheckMiddleware (APPCHECK_ENFORCE / APPCHECK_STRICT_ROUTES).
 async function appCheckMiddleware(req: any, res: any, next: any) {
   const token = req.headers['x-firebase-appcheck'];
   if (process.env.ENFORCE_APP_CHECK === 'true') {
@@ -1352,6 +1576,50 @@ async function firestoreIncrement(
     console.error(`[Metrics] increment ${path} threw:`, e?.message || e);
     return false;
   }
+}
+
+/**
+ * Add string values to an array field ONLY if missing (Firestore appendMissingElements), atomically
+ * and idempotently. Used by the course-enrollment webhook so a re-fired event can never double-enroll,
+ * and a retry after a half-failed first attempt still completes the enrollment.
+ */
+async function firestoreArrayUnion(path: string, field: string, values: string[]): Promise<boolean> {
+  const docName = `projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${path}`;
+  try {
+    const res = await fetch(
+      'https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents:commit',
+      {
+        method: 'POST',
+        headers: await firestoreAuthHeaders(),
+        body: JSON.stringify({ writes: [{
+          transform: { document: docName, fieldTransforms: [{ fieldPath: field, appendMissingElements: { values: values.map(v => ({ stringValue: v })) } }] },
+          currentDocument: { exists: true },
+        }] }),
+      },
+    );
+    if (!res.ok) console.error(`[Firestore] arrayUnion ${path}.${field} failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+    return res.ok;
+  } catch (e: any) {
+    console.error(`[Firestore] arrayUnion ${path}.${field} threw:`, e?.message || e);
+    return false;
+  }
+}
+
+/** Grant a paid learner their seat (idempotent). Retries because the webhook that calls it cannot be retried. */
+async function enrollPaidLearner(courseId: string, uid: string, now = Date.now()): Promise<boolean> {
+  let ok = false;
+  for (let i = 0; i < 3 && !ok; i++) {
+    ok = await firestoreArrayUnion(`classrooms/${courseId}`, 'enrolledStudents', [uid]);
+    if (!ok) await new Promise(r => setTimeout(r, 400 * (i + 1)));
+  }
+  if (ok) {
+    await firestoreCreateOnce('progress_reports', `${uid}_${courseId}`, {
+      id: `${uid}_${courseId}`, classId: courseId, studentId: uid, overallGrade: 0, completedLessons: [], lastAccessed: now,
+    });
+  } else {
+    console.error(`[course] PAID learner not enrolled after retries: ${courseId}/${uid} (claim doc kept for reconcile)`);
+  }
+  return ok;
 }
 
 async function firestoreCreate(collection: string, data: object) {
@@ -1484,6 +1752,53 @@ async function firestoreCreateOnce(collection: string, id: string, data: Record<
     return 'error';
   } catch { return 'error'; }
 }
+/**
+ * The one-time unlock price of a Sanctuary item, read from where the creator published it:
+ * sanctuaryPosts (feed posts), sanctuaryContent (vault), sanctuaryGallery (gallery), or a gated
+ * post anywhere (posts/{id}.sanctuaryGate). The item must belong to `creatorId`. 0 = not for sale.
+ */
+async function sanctuaryUnlockPrice(creatorId: string, itemId: string, itemType: 'POST' | 'CONTENT'): Promise<number> {
+  const owns = (d: Record<string, any> | null, ...keys: string[]) => !!d && keys.some(k => d[k] === creatorId);
+  if (itemType === 'POST') {
+    const p = await firestoreGetDeep('sanctuaryPosts', itemId);
+    return owns(p, 'sanctuaryId', 'authorId') ? Number(p!.oneTimePrice) || 0 : 0;
+  }
+  const c = await firestoreGetDeep('sanctuaryContent', itemId);
+  if (c) return owns(c, 'creatorId', 'sanctuaryId') ? Number(c.oneTimePrice) || 0 : 0;
+  const g = await firestoreGetDeep('sanctuaryGallery', itemId);
+  if (g) return owns(g, 'sanctuaryId', 'creatorId') ? Number(g.oneTimePrice) || 0 : 0;
+  const post = await firestoreGetDeep('posts', itemId);
+  const gate = post?.sanctuaryGate;
+  return gate && gate.sanctuaryId === creatorId ? Number(gate.oneTimePrice) || 0 : 0;
+}
+
+/** Keep a Sanctuary membership in step with its Stripe subscription (renewals, past-due, cancellation). */
+async function syncSanctuarySubscription(sub: any, deleted: boolean): Promise<void> {
+  let id = '';
+  if (sub?.metadata?.type === 'sanctuary_membership' && sub.metadata.creatorId && sub.metadata.uid) id = `${sub.metadata.creatorId}_${sub.metadata.uid}`;
+  else if (sub?.id) {
+    // subscriptions created before metadata was copied onto them: find by subscription id
+    const hits = await queryFirebase('sanctuaryMemberships', [{ field: 'stripeSubscriptionId', value: sub.id }], 1).catch(() => []);
+    id = (hits as any[])[0]?.id || '';
+  }
+  if (!id) return;
+  const m = await firestoreGetDeep('sanctuaryMemberships', id);
+  if (!m) return;
+  const was = m.status;
+  const status = deleted || sub.status === 'canceled' || sub.status === 'incomplete_expired' ? 'CANCELLED'
+    : sub.status === 'past_due' || sub.status === 'unpaid' ? 'PAUSED'
+    : 'ACTIVE';
+  await firestorePatchDeep('sanctuaryMemberships', id, {
+    status,
+    renewsAt: sub.current_period_end ? sub.current_period_end * 1000 : (m.renewsAt || 0),
+    cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+    ...(status === 'CANCELLED' ? { cancelledAt: Date.now() } : {}),
+  });
+  if (m.tierId && was !== status && (was === 'ACTIVE' || status === 'ACTIVE')) {
+    await firestoreIncrement(`sanctuaryTiers/${String(m.tierId)}`, { memberCount: status === 'ACTIVE' ? 1 : -1 }).catch(() => {});
+  }
+}
+
 async function firestoreDeleteDoc(collection: string, id: string): Promise<void> {
   const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}`;
   try { await fetch(url, { method: 'DELETE', headers: await firestoreAuthHeaders() }); } catch { /* best-effort rollback */ }
@@ -2246,6 +2561,11 @@ async function startServer() {
             });
           }
 
+          // ── Print-on-demand order paid: record earning + send the print job (idempotent) ──
+          if (mode === 'payment' && meta.type === 'pod_print_order') {
+            try { await fulfillPodOrderFromStripe(session); } catch (e: any) { console.error('[pod] fulfil failed', e?.message || e); }
+          }
+
           // ── Content purchase: mint the "own it forever" license ───────────────
           // Films (Taleo) + books (Lorea). Server-only mint after a real charge —
           // the client can never self-grant (contentLicenses is read-only in rules).
@@ -2361,6 +2681,30 @@ async function startServer() {
               createdAt: now,
             });
           }
+
+          // ── Creator course enrollment: server-only grant after a real charge ─────────────
+          // The client can no longer self-enroll in a paid course (firestore.rules), so this is the
+          // ONLY path in. Idempotent: the claim doc is deterministic, and arrayUnion never duplicates.
+          if (mode === 'payment' && meta.type === 'course_enrollment' && meta.courseId && meta.uid) {
+            if (session.payment_status === 'paid') {
+              await firestoreCreateOnce('courseEnrollments', `${meta.courseId}_${meta.uid}`, {
+                courseId: meta.courseId, uid: meta.uid, ownerUid: meta.ownerUid || '',
+                amountCents: session.amount_total || 0, currency: (session.currency || 'usd').toUpperCase(),
+                platformFeeCents: parseInt(meta.platformFeeCents || '0', 10) || 0,
+                stripePaymentIntentId: (session.payment_intent as string) || '', createdAt: now,
+              });
+              // This handler swallows errors and always answers 200 (Stripe will NOT retry), so retry here.
+              // If it still fails, the paid claim doc remains and /api/courses/enrollment-status
+              // completes the enrollment the next time the learner opens the course.
+              await enrollPaidLearner(meta.courseId, meta.uid, now);
+            }
+          }
+
+          // ── Evite gifts: Stripe Checkout straight to the host, no platform cut (services/evite/eviteServer.ts) ──
+          if (meta.type === 'evite_gift') await recordEviteGift({ firestoreCreateOnce }, session);
+          // Creator theme sale: destination charge with the 5% application fee (NOT a CREATOR_PAYMENT_TYPES payout).
+          if (meta.type === 'evite_theme' && eviteThemeDeps) await recordThemePurchase(eviteThemeDeps, session);
+          if (meta.type === 'evite_print') await fulfillEvitePrint({ firestoreRead, firestoreWrite, firestoreCreateOnce, gelato: evitePrintGelato } as any, session);
 
           // ── Church giving (one-time or recurring) ─────────────────────────────
           if (meta.type === 'church_donation') {
@@ -2593,6 +2937,7 @@ async function startServer() {
 
         case 'customer.subscription.updated': {
           const sub = event.data.object;
+          await syncSanctuarySubscription(sub, false).catch((e: any) => console.error('[Sanctuary] sub.updated failed:', e?.message));
           const snap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/plajahPlusSubscriptions?pageSize=5`);
           // Update status in Firestore based on stripeSubscriptionId
           // (full query not available via REST easily — rely on client-side sync)
@@ -2601,6 +2946,7 @@ async function startServer() {
 
         case 'customer.subscription.deleted': {
           const sub = event.data.object;
+          await syncSanctuarySubscription(sub, true).catch((e: any) => console.error('[Sanctuary] sub.deleted failed:', e?.message));
           console.log('Subscription cancelled:', sub.id);
           break;
         }
@@ -2764,7 +3110,18 @@ async function startServer() {
     skip: req => req.path === '/api/stripe/webhook' || req.path === '/api/stripe/connect-webhook' || req.path === '/api/mux/webhook' || req.path === '/api/merch/stripe-webhook',
     message: { error: 'Request rate limit exceeded' },
   });
+  // Security & IT Council edge (services/securityCouncil/telemetry.ts): O(1) per-request telemetry, plus —
+  // only when SECURITY_COUNCIL_AUTO_MITIGATE=true — temporary, expiring per-IP-hash rate tightening (429, never a block).
+  app.use('/api', initSecurityCouncil({ getAccessToken: getGoogleAccessToken }).edge);
   app.use('/api', globalApiLimiter);
+  // App Check: verifies X-Firebase-AppCheck when present, sets req.appCheck = valid|invalid|missing,
+  // counts outcomes into security_events. Blocks ONLY when APPCHECK_ENFORCE=true (all non-exempt
+  // /api routes) or APPCHECK_STRICT_ROUTES=true ('invalid' on the high-abuse list). See
+  // services/appCheckServer.ts + docs/ANTI_BOT_PLAYBOOK.md.
+  app.use('/api', createAppCheckMiddleware());
+  // Cross-instance (Firestore-backed) limits for the routes bots love most. Fail open.
+  app.use('/api/social-import', sharedRateLimit({ name: 'social_import_ip', limit: 60, windowMs: 60 * 60 * 1000, key: (req: any) => `ip:${clientIpKey(req)}` }));
+  app.use('/api/link-preview', sharedRateLimit({ name: 'link_preview_ip', limit: 150, windowMs: 60 * 60 * 1000, key: (req: any) => `ip:${clientIpKey(req)}` }));
 
   // Tight global JSON limit for safety — but exempt routes that legitimately carry
   // larger bodies (the AI proxy sends system prompt + scene context, well over 10kb)
@@ -2784,7 +3141,9 @@ async function startServer() {
   const apiLimiter        = rateLimit({ windowMs:      60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
   const proxyLimiter      = rateLimit({ windowMs:      60 * 1000, max: 60,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
   const pokeeLimiter      = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Pokee reasoning limit reached. Try again in a few minutes.' } });
-  const aiLimiter         = rateLimit({ windowMs: 5 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'AI request limit reached. Please wait a few minutes.' } });
+  // Per-uid (authMiddleware runs FIRST on these routes) so one account can't rotate IPs and a
+  // shared NAT/school IP doesn't throttle everyone; falls back to an IPv6-safe req.ip key.
+  const aiLimiter         = rateLimit({ windowMs: 5 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, keyGenerator: uidOrIpKey, message: { error: 'AI request limit reached. Please wait a few minutes.' } });
   const netdiagLimiter    = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Diagnostic probe rate limit exceeded.' } });
   const coraDetectLimiter = rateLimit({ windowMs:      60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Beat detection rate limit reached.' } });
 
@@ -3851,21 +4210,32 @@ async function startServer() {
   // key stays server-side; the browser only ever calls this endpoint. Cached in
   // memory for 24h because Data API search costs 100 quota units/call (default
   // quota 10,000/day ≈ 100 searches/day uncached).
+  // Public (signed-out World Cup viewers use it), so it is per-IP limited and the upstream
+  // (quota-burning) calls are capped per instance per day. safeSearch is never 'none':
+  // 'moderate' by default, 'strict' when the client says the viewer is in kids mode (?kids=1).
   const _ytCache = new Map<string, { t: number; id: string | null }>();
-  app.get('/api/yt-search', async (req: any, res) => {
+  let _ytDay = '', _ytDayCalls = 0;
+  const YT_DAILY_UPSTREAM_CAP = Number(process.env.YT_SEARCH_DAILY_CAP) || 90;
+  app.get('/api/yt-search', sharedRateLimit({ name: 'yt_search_ip', limit: 30, windowMs: 60 * 60 * 1000, key: (req: any) => `ip:${clientIpKey(req)}` }), async (req: any, res) => {
     const q = String(req.query.q || '').slice(0, 120).trim();
     if (!q) return res.status(400).json({ videoId: null, error: 'missing q' });
+    const safe = String(req.query.kids || '') === '1' ? 'strict' : 'moderate';
     const apiKey = process.env.YOUTUBE_API_KEY;
     if (!apiKey) return res.json({ videoId: null, reason: 'no-api-key' }); // graceful: client falls back to YouTube
-    const hit = _ytCache.get(q);
+    const cacheKey = `${safe}|${q}`;
+    const hit = _ytCache.get(cacheKey);
     if (hit && Date.now() - hit.t < 24 * 3600_000) return res.json({ videoId: hit.id, cached: true });
+    const today = new Date().toISOString().slice(0, 10);
+    if (today !== _ytDay) { _ytDay = today; _ytDayCalls = 0; }
+    if (_ytDayCalls >= YT_DAILY_UPSTREAM_CAP) return res.json({ videoId: null, reason: 'quota' }); // client falls back to YouTube
+    _ytDayCalls++;
     try {
-      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=none&maxResults=1&q=${encodeURIComponent(q)}&key=${apiKey}`;
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=${safe}&maxResults=1&q=${encodeURIComponent(q)}&key=${apiKey}`;
       const r = await fetch(url);
       const d: any = await r.json();
       if (!r.ok) return res.status(502).json({ videoId: null, error: d?.error?.message || 'youtube api error' });
       const id = d?.items?.[0]?.id?.videoId || null;
-      _ytCache.set(q, { t: Date.now(), id });
+      _ytCache.set(cacheKey, { t: Date.now(), id });
       res.json({ videoId: id });
     } catch (e: any) { res.status(500).json({ videoId: null, error: e.message }); }
   });
@@ -4920,14 +5290,9 @@ async function startServer() {
   const muxLiveRateLimit = rateLimit({
     windowMs: 10 * 60 * 1000,
     max: 5,
-    keyGenerator: (req: any) => {
-      // Prefer per-user UID when available; otherwise use connection remote address
-      // Use remoteAddress/header instead of req.ip to avoid express-rate-limit IPv6 keyGenerator validation
-      if (req && req.uid) return `uid:${req.uid}`;
-      const forwarded = req?.headers?.['x-forwarded-for'];
-      const remote = forwarded ? String(forwarded).split(',')[0].trim() : (req?.socket?.remoteAddress || 'unknown');
-      return `ip:${remote}`;
-    },
+    // Per-uid (authMiddleware runs first); IP fallback uses Express's trust-proxy req.ip via an
+    // IPv6-safe key — never the raw, client-forgeable X-Forwarded-For header.
+    keyGenerator: uidOrIpKey,
     message: { error: 'Too many live stream requests. Please wait before creating another stream.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -4936,7 +5301,7 @@ async function startServer() {
   // POST /api/mux/upload — browser gets an upload URL and PUTs directly to Mux
   // tightJson: this route previously took no body at all — it needs one now (the trace tag),
   // and a 10 kB cap is plenty for a 255-char string.
-  app.post('/api/mux/upload', authMiddleware, tightJson, async (req, res) => {
+  app.post('/api/mux/upload', authMiddleware, requireCapability('canUpload'), tightJson, async (req, res) => {
     try {
       const mux = await getMux();
       const corsOrigin = trustedRequestOrigin(req);
@@ -4975,7 +5340,7 @@ async function startServer() {
   // POST /api/mux/create-asset-from-url — ingest a public URL into Mux
   // Returns playbackId as soon as it's available (usually within a few seconds
   // of the first segments being ready — full transcoding continues in background).
-  app.post('/api/mux/create-asset-from-url', authMiddleware, express.json(), async (req, res) => {
+  app.post('/api/mux/create-asset-from-url', authMiddleware, requireCapability('canUpload'), express.json(), async (req, res) => {
     try {
       const { url } = req.body;
       if (!url) return res.status(400).json({ error: 'Missing url' });
@@ -5203,7 +5568,7 @@ async function startServer() {
 
   // --- Mux Live Streaming ---
   // Auth + per-user rate limit protects against stream creation abuse and billing attacks
-  app.post('/api/mux/live/create', authMiddleware, muxLiveRateLimit, express.json(), async (req, res) => {
+  app.post('/api/mux/live/create', authMiddleware, requireCapability('canGoLive'), muxLiveRateLimit, express.json(), async (req, res) => {
     try {
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
@@ -5424,7 +5789,7 @@ async function startServer() {
   // ── Anthropic (Claude) proxy for FABULA ─────────────────────────────────────
   // FABULA is Claude-powered; this keeps the API key server-side. Accepts the
   // standard Messages-API body and forwards it. Logged-in + rate-limited.
-  app.post('/api/ai/anthropic', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '4mb' }), async (req: any, res) => {
+  app.post('/api/ai/anthropic', authMiddleware, aiLimiter, requireRegisteredUser, express.json({ limit: '4mb' }), async (req: any, res) => {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
     const { model, max_tokens, system, messages } = req.body as {
@@ -5564,7 +5929,7 @@ async function startServer() {
   // Phase 1 of the character-avatars system. Fetches the character, verifies its creator turned the
   // chatbot ON, builds a GUARDRAILED persona system prompt SERVER-SIDE (so the safety rules can't be
   // stripped by the client), and answers via Claude. See docs/PLAJAH_CHARACTER_AVATARS_BLUEPRINT.md.
-  app.post('/api/character/chat', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '256kb' }), async (req: any, res) => {
+  app.post('/api/character/chat', authMiddleware, aiLimiter, requireRegisteredUser, express.json({ limit: '256kb' }), async (req: any, res) => {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return res.status(503).json({ error: 'AI not configured' });
     const { worldId, characterId, messages } = req.body || {};
@@ -5624,191 +5989,14 @@ async function startServer() {
   // bundle (the old client-side path silently no-op'd in prod because the key
   // wasn't baked in). The client sends the track's audio URL; we fetch it and
   // transcribe with timestamps. Logged-in + rate-limited.
-  app.post('/api/ai/captions', aiLimiter, authMiddleware, requireRegisteredUser, async (req: any, res) => {
-    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
-    if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
-    const { audioUrl, title, artist, kind } = (req.body || {}) as { audioUrl?: string; title?: string; artist?: string; kind?: string };
-    if (!audioUrl || !/^https?:\/\//.test(audioUrl)) return res.status(400).json({ error: 'audioUrl required' });
-    const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const inputPath = path.join(os.tmpdir(), `capin_${stamp}`);
-    const tmpChunks: string[] = [];
+  app.post('/api/ai/captions', authMiddleware, aiLimiter, requireRegisteredUser, async (req: any, res) => {
     try {
-      const aRes = await fetch(audioUrl, { signal: AbortSignal.timeout(25000) });
-      if (!aRes.ok) return res.status(502).json({ error: `audio fetch ${aRes.status}` });
-      const mimeType = (aRes.headers.get('content-type') || 'audio/mpeg').split(';')[0];
-      const buf = Buffer.from(await aRes.arrayBuffer());
-      // Generous ceiling that only guards the Cloud Run instance's memory against a runaway
-      // download — NOT the old 22MB gate that silently rejected large WAV masters. Older Chora
-      // tracks never got a compressed rendition, so they arrive here as ~40-60MB uncompressed
-      // masters; ffmpeg downsamples them below Gemini's inline limit before transcription (the
-      // windowed path re-encodes each slice from disk; the single-shot path transcodes the whole
-      // file — see below), so raw size no longer needs to block the request.
-      if (buf.length > 250 * 1024 * 1024) return res.status(413).json({ error: 'audio too large to transcribe' });
-
-      const { GoogleGenAI, Type } = await import('@google/genai');
-      const genai = new GoogleGenAI({ apiKey: geminiKey });
-
-      // Write to disk once — both the duration probe and every ffmpeg slice/transcode below read
-      // from here, so the raw buffer never has to be small.
-      await fs.writeFile(inputPath, buf);
-      // Probe the true duration (also the anchor for overshoot clamping / windowing).
-      let dur = 0;
-      try {
-        const { json } = await runFfprobe(inputPath);
-        dur = parseFloat(json?.format?.duration || '0') || 0;
-      } catch { /* probe is best-effort */ }
-
-      let captions: { time: number; text: string }[] = [];
-
-      // ── Primary path: WINDOWED transcription ──────────────────────────────────────────
-      // The whole-song single-shot approach drifts — an LLM aligns well inside ~45s but its
-      // timestamps wander (and often stall then jump) over a full track, which is exactly the
-      // "lyrics freeze at 25% then resume out of sync" failure. Instead we slice the audio into
-      // short overlapping windows with ffmpeg (whose -ss start is ground truth), transcribe each
-      // window with 0-based local timestamps, add the window's exact start, and tile them. The
-      // absolute timing never accumulates error because every window is re-anchored to real time.
-      // Bounded to ≤10 min so the sequential window calls stay inside the Cloud Run request budget;
-      // longer audio (sermons) uses the single-shot path below.
-      const canWindow = dur > 55 && dur <= 600;
-      if (canWindow) {
-        const OVERLAP = 8;                 // seconds shared between neighbours
-        const winLen = 45;                 // short enough that the LLM stays aligned
-        const step = winLen - OVERLAP;     // 37s of unique coverage per window
-        const half = OVERLAP / 2;
-        const starts: number[] = [];
-        for (let s = 0; s < dur - 1; s += step) starts.push(Math.round(s * 100) / 100);
-
-        const perWindow: { time: number; text: string }[][] = [];
-        let windowFailures = 0;
-        for (let i = 0; i < starts.length; i++) {
-          const start = starts[i];
-          const thisLen = Math.min(winLen, dur - start + 0.5);
-          const chunkPath = path.join(os.tmpdir(), `capw_${stamp}_${i}.mp3`);
-          tmpChunks.push(chunkPath);
-          // Accurate seek + downmix to mono 16 kHz mp3 (tiny payload, plenty for transcription).
-          const { ok } = await runFfmpeg(
-            ['-y', '-accurate_seek', '-ss', String(start), '-i', inputPath, '-t', String(Math.ceil(thisLen)),
-             '-ac', '1', '-ar', '16000', '-b:a', '48k', '-f', 'mp3', chunkPath], 30000);
-          if (!ok) { windowFailures++; perWindow.push([]); continue; }
-          try {
-            const cbuf = await fs.readFile(chunkPath);
-            const local = await transcribeAudioWindow(genai, Type, cbuf.toString('base64'), 'audio/mpeg',
-              { title, artist, kind, windowSec: thisLen });
-            // Lift local (clip-relative) timestamps into absolute song time.
-            perWindow.push(local.map(c => ({ time: Math.round((c.time + start) * 100) / 100, text: c.text })));
-          } catch { windowFailures++; perWindow.push([]); }
-        }
-
-        // Tile: give each window a non-overlapping "claim" region so the shared overlap can't
-        // double-list a line. Region i = [start_i + half, start_i + step + half); the first window
-        // opens at -inf and the last closes at +inf, so the regions cover the song edge-to-edge.
-        for (let i = 0; i < perWindow.length; i++) {
-          const start = starts[i];
-          const claimStart = i === 0 ? -Infinity : start + half;
-          const claimEnd = i === perWindow.length - 1 ? Infinity : start + step + half;
-          for (const c of perWindow[i]) if (c.time >= claimStart && c.time < claimEnd) captions.push(c);
-        }
-        captions.sort((a, b) => a.time - b.time);
-        if (windowFailures) console.warn(`[AI] captions: ${windowFailures}/${starts.length} windows failed`);
-      }
-
-      // ── Fallback: single-shot (short clips, long spoken word, no ffmpeg, or windows empty) ──
-      if (captions.length === 0) {
-        const speechPrompt = `You are a precise speech transcription engine. Transcribe the spoken audio titled "${(title || '').slice(0, 200)}"${artist ? ` by "${(artist || '').slice(0, 200)}"` : ''} into time-coded captions covering the ENTIRE duration from first word to last.
-
-Rules:
-- Timestamps precise to 0.1 seconds; each marks the exact moment that phrase BEGINS.
-- Transcribe every spoken word accurately; do NOT invent, summarise, or skip content.
-- Preserve any Bible passages / scripture references exactly as spoken (e.g. "John 3:16").
-- Each "text" entry is one natural spoken phrase or sentence clause (~6-15 words).
-- Sort by ascending time; the final entry must be near the true end — do not stop early.`;
-        const lyricPrompt = `You are a precise audio transcription engine. Listen to every second of this audio titled "${(title || '').slice(0, 200)}" by "${(artist || '').slice(0, 200)}" and generate time-coded captions covering the ENTIRE duration from first word to last.
-
-Rules:
-- Timestamps must be precise to 0.1 seconds (e.g. 14.3, not 14). Each timestamp marks the exact moment that line BEGINS being sung or spoken.
-- Cover every section: intro, verses, pre-chorus, chorus, bridge, outro, and any spoken parts.
-- For purely instrumental gaps longer than 3 seconds with no vocals, add an "(instrumental)" entry with the correct start time.
-- Do NOT invent or guess lyrics — only transcribe words you can clearly hear in the audio.
-- Each "text" entry should be one sung phrase of roughly 3-8 words. Do not merge multiple lines into one entry.
-- Sort all entries by ascending time.
-- CRITICAL: keep timing accurate through the WHOLE song. A common failure is timestamps drifting behind (or ahead of) the audio after the first minute — re-anchor to what you actually hear every ~20 seconds, and never let a timestamp exceed the audio's real length.
-- The last entry must be close to the actual end of the audio — do not stop early.`;
-        // Send a compact, downmixed copy rather than the raw bytes: a mono 16 kHz mp3 is a fraction
-        // of a WAV master and stays under Gemini's ~20MB inline-data limit — which is what makes
-        // this path work for older large-file tracks. Bitrate drops for very long spoken word so
-        // even an hour-long sermon fits. Falls back to the raw bytes only if the transcode fails
-        // (e.g. ffmpeg missing) and they're already small enough.
-        let ssData = buf.toString('base64');
-        let ssMime = mimeType;
-        const INLINE_CAP = 19 * 1024 * 1024;
-        {
-          const fullPath = path.join(os.tmpdir(), `capfull_${stamp}.mp3`);
-          tmpChunks.push(fullPath);
-          const bitrate = dur > 1500 ? '24k' : dur > 700 ? '32k' : '48k';
-          const { ok } = await runFfmpeg(
-            ['-y', '-i', inputPath, '-ac', '1', '-ar', '16000', '-b:a', bitrate, '-f', 'mp3', fullPath], 120000);
-          if (ok) {
-            try {
-              const fbuf = await fs.readFile(fullPath);
-              if (fbuf.length <= INLINE_CAP) { ssData = fbuf.toString('base64'); ssMime = 'audio/mpeg'; }
-            } catch { /* keep raw */ }
-          }
-        }
-        // If even the compressed copy (or an un-transcodable raw file) is over the inline limit, we
-        // genuinely can't send it — report it clearly instead of letting Gemini reject it opaquely.
-        if (Buffer.byteLength(ssData, 'base64') > INLINE_CAP) {
-          return res.status(413).json({ error: 'audio too large to transcribe' });
-        }
-        const response = await genai.models.generateContent({
-          model: 'gemini-3.6-flash',
-          contents: [
-            { inlineData: { data: ssData, mimeType: ssMime } },
-            { text: kind === 'speech' ? speechPrompt : lyricPrompt },
-          ],
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.ARRAY,
-              items: { type: Type.OBJECT, properties: { time: { type: Type.NUMBER }, text: { type: Type.STRING } }, required: ['time', 'text'] },
-            },
-            maxOutputTokens: 65536,
-            // Gemini 3.x: thinkingBudget is an invalid argument; thinkingLevel replaces it.
-            thinkingConfig: { thinkingLevel: 'minimal' },
-          },
-        });
-        const raw = (response as any).text || '[]';
-        let arr: any[] = [];
-        try { arr = JSON.parse(raw); }
-        catch { const cut = raw.lastIndexOf('}'); if (cut > 0) { try { arr = JSON.parse(raw.slice(0, cut + 1) + ']'); } catch { arr = []; } } }
-        captions = Array.isArray(arr)
-          ? arr.filter(c => typeof c?.time === 'number' && !isNaN(c.time) && typeof c?.text === 'string' && c.text.trim())
-               .map(c => ({ time: c.time, text: c.text.trim() }))
-          : [];
-        // The single-shot path is the drift-prone one, so keep the overshoot compression here.
-        if (captions.length && dur > 0) {
-          const last = captions[captions.length - 1].time;
-          if (last > dur * 1.02) { const k = (dur * 0.99) / last; captions = captions.map(c => ({ time: Math.round(c.time * k * 100) / 100, text: c.text })); }
-        }
-      }
-
-      // ── Common post-processing: drop adjacent near-duplicate lines, enforce non-decreasing time.
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const deduped: { time: number; text: string }[] = [];
-      for (const c of captions) {
-        const p = deduped[deduped.length - 1];
-        if (p && norm(p.text) === norm(c.text) && Math.abs(c.time - p.time) < 2.5) continue; // overlap echo
-        deduped.push(c);
-      }
-      let prev = -Infinity;
-      captions = deduped.map(c => { const t = Math.max(prev, c.time); prev = t; return { time: Math.round(t * 100) / 100, text: c.text }; });
-
-      res.json({ captions });
+      const { audioUrl, title, artist, kind } = (req.body || {}) as { audioUrl?: string; title?: string; artist?: string; kind?: string };
+      res.json({ captions: await generateTimedCaptions({ audioUrl, title, artist, kind }) });
     } catch (err: any) {
+      if (err instanceof CaptionError) return res.status(err.status).json({ error: err.message });
       console.error('[AI] captions failed:', err?.message || err);
       res.status(502).json({ error: 'caption generation failed' });
-    } finally {
-      fs.rm(inputPath, { force: true }).catch(() => {});
-      for (const f of tmpChunks) fs.rm(f, { force: true }).catch(() => {});
     }
   });
 
@@ -5818,7 +6006,7 @@ Rules:
   // album metadata/liner notes, lyric gen, sermon transcription, module insights,
   // content-safety, etc. work in production. Body is the SDK's generateContent
   // params ({ model, contents, config }); returns { text }. Logged-in + limited.
-  app.post('/api/ai/gemini', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '25mb' }), async (req: any, res) => {
+  app.post('/api/ai/gemini', authMiddleware, aiLimiter, requireRegisteredUser, express.json({ limit: '25mb' }), async (req: any, res) => {
     const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
     const { model, contents, config } = (req.body || {}) as { model?: string; contents?: any; config?: any };
@@ -5960,7 +6148,9 @@ Rules:
           const targetIds: string[] = Array.isArray(post.targetAccountIds) ? post.targetAccountIds : [];
           const targeted = accounts.filter((a: any) => targetIds.includes(a.id));
           // Commercial networks (Meta / X / LinkedIn) live in users/{uid}/socialAccounts, not the fediverse vault.
-          const socialIds = await socialAccountIds(uid, targetIds.filter((id: string) => !targeted.some((a: any) => a.id === id)));
+          // A business/org post publishes through THAT identity's credential store (permission re-checked in publishToSocialAccounts).
+          const socialScope = parseScope(uid, post.ownerKind, post.ownerId);
+          const socialIds = await socialAccountIds(socialScope, targetIds.filter((id: string) => !targeted.some((a: any) => a.id === id)));
 
           if (!targeted.length && !socialIds.length && !post.shareToX) {
             await patch({
@@ -5981,16 +6171,17 @@ Rules:
                   title: post.linkTitle || undefined,
                   description: post.linkDescription || undefined,
                   thumbnail: Array.isArray(post.mediaUrls) ? post.mediaUrls[0] : undefined,
+                  mediaUrls: Array.isArray(post.mediaUrls) ? post.mediaUrls.slice(0, 4) : undefined,
                 },
               )
             : { succeeded: [] as any[], failed: [] as any[] };
           if (socialIds.length) {
-            const sr = await publishToSocialAccounts(uid, socialIds, {
+            const sr = await publishToSocialAccounts(uid, socialScope, socialIds, {
               text: String(post.text ?? ''),
               linkUri: post.linkUri || undefined,
               title: post.linkTitle || undefined,
               mediaUrls: Array.isArray(post.mediaUrls) ? post.mediaUrls : [],
-            });
+            }, { approved: !!post.approvedBy });
             sr.succeeded.forEach(s => result.succeeded.push({ accountId: s.accountId, protocol: s.network, postUrl: s.postUrl }));
             sr.failed.forEach(f => result.failed.push({ accountId: f.accountId, protocol: f.network, error: f.error }));
           }
@@ -6008,6 +6199,7 @@ Rules:
             publishLog: { stringValue: log.slice(0, 900) },
             lastAttemptAt: { integerValue: String(now) }, updatedAt: { integerValue: String(now) },
           });
+          summary.push({ uid, status, ok: okCount, failed: failCount });
           // X has no free write API, so scheduled X shares are a reminder: the post is queued and the
           // user finishes it in X's own composer with one tap. Best-effort; never fails the publish.
           if (post.shareToX && !post.xSharedAt) {
@@ -6020,7 +6212,6 @@ Rules:
               if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title, body: message, link: 'PLAJAH_STUDIO', channelId: 'system', data: { type: 'SYSTEM', targetId: 'PLAJAH_STUDIO' } });
             } catch (e: any) { console.warn('[Cron] X reminder failed:', e?.message || e); }
           }
-          summary.push({ uid, status, ok: okCount, failed: failCount });
         } catch (err: any) {
           await patch({
             status: { stringValue: 'FAILED' },
@@ -6139,98 +6330,33 @@ Rules:
   });
 
   // ── Social Graph Import ───────────────────────────────────────────────────────
-  // Seed the user's Plajah follow graph from Twitter/X or Instagram.
-  // OAuth flows redirect back to the app with ?social_import_code=…&social_import_platform=…
-
-  app.get('/api/social-import/twitter/auth', authMiddleware, async (req: any, res) => {
-    const clientId = process.env.TWITTER_CLIENT_ID;
-    if (!clientId) return res.status(501).json({ error: 'TWITTER_CLIENT_ID not configured' });
-    const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
-    const redirectUri = encodeURIComponent(`${appUrl}/auth/twitter/callback`);
-    const state = Buffer.from(req.uid).toString('base64');
-    const scope = encodeURIComponent('tweet.read users.read follows.read offline.access');
-    const url = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=challenge&code_challenge_method=plain`;
-    res.json({ url });
+  // X/Twitter import is DISABLED: the X API is paid/hostile, and the old flow used a hardcoded PKCE
+  // challenge ('challenge', method=plain) — anyone could replay an intercepted code. The routes stay as
+  // 410 stubs so the unmounted components/SocialGraphImport.tsx fails clearly instead of half-working.
+  // The replacement is "Find your people" (Bluesky + Mastodon) in services/socialMigrationServer.ts.
+  app.get('/api/social-import/twitter/auth', authMiddleware, (_req: any, res) => {
+    res.status(410).json({ error: 'X import is not available. Use Find your people (Bluesky / Mastodon).' });
+  });
+  app.get('/auth/twitter/callback', (_req: any, res) => { res.redirect('/'); });
+  app.get('/api/social-import/twitter/matches', authMiddleware, (_req: any, res) => {
+    res.status(410).json({ error: 'X import is not available. Use Find your people (Bluesky / Mastodon).' });
   });
 
-  app.get('/auth/twitter/callback', async (req: any, res) => {
-    const { code, state } = req.query as Record<string, string>;
-    const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
-    // Pass the code back to the SPA so SocialGraphImport.tsx can pick it up
-    res.redirect(`${appUrl}?social_import_code=${encodeURIComponent(code)}&social_import_platform=twitter&state=${state}`);
-  });
-
-  app.get('/api/social-import/twitter/matches', authMiddleware, async (req: any, res) => {
-    const { code } = req.query as { code: string };
-    const clientId = process.env.TWITTER_CLIENT_ID;
-    const clientSecret = process.env.TWITTER_CLIENT_SECRET;
-    if (!clientId || !clientSecret) return res.status(501).json({ error: 'Twitter not configured' });
-
-    try {
-      const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
-      // Exchange code for token
-      const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-        },
-        body: new URLSearchParams({ code, grant_type: 'authorization_code', redirect_uri: `${appUrl}/auth/twitter/callback`, code_verifier: 'challenge' }).toString(),
-      });
-      if (!tokenRes.ok) return res.status(400).json({ error: 'Token exchange failed' });
-      const { access_token } = await tokenRes.json();
-
-      // Get the authenticated user's following list
-      const meRes = await fetch('https://api.twitter.com/2/users/me', { headers: { Authorization: `Bearer ${access_token}` } });
-      const { data: me } = await meRes.json();
-      const followingRes = await fetch(`https://api.twitter.com/2/users/${me.id}/following?max_results=1000&user.fields=username`, { headers: { Authorization: `Bearer ${access_token}` } });
-      const { data: following } = await followingRes.json();
-      const handles = (following ?? []).map((u: any) => u.username.toLowerCase());
-
-      // Match against Plajah users by twitterHandle field
-      const { getDocs, collection, where, query, limit } = await import('firebase/firestore');
-      const { db: firestoreDb } = await import('./services/firebase.js');
-      const matches: any[] = [];
-
-      // Batch into groups of 10 (Firestore 'in' limit)
-      for (let i = 0; i < handles.length; i += 10) {
-        const batch = handles.slice(i, i + 10);
-        if (!batch.length) continue;
-        const q = query(collection(firestoreDb, 'users'), where('twitterHandle', 'in', batch), limit(10));
-        const snap = await getDocs(q);
-        snap.docs.forEach(d => {
-          const u = d.data();
-          matches.push({
-            plajahUid: d.id,
-            displayName: u.displayName ?? u.twitterHandle,
-            photoURL: u.photoURL,
-            externalHandle: u.twitterHandle ?? '',
-            alreadyFollowing: false,
-          });
-        });
-      }
-
-      res.json(matches);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post('/api/social-import/follow-batch', authMiddleware, express.json(), async (req: any, res) => {
+  app.post('/api/social-import/follow-batch', authMiddleware, sharedRateLimit({ name: 'social_import_follow', limit: 5, windowMs: 60 * 60 * 1000 }), express.json(), async (req: any, res) => {
     const { uids: rawUids } = req.body as { uids: string[] };
     if (!Array.isArray(rawUids) || rawUids.length === 0) return res.status(400).json({ error: 'uids required' });
     if (req.isAnonymous) return res.status(403).json({ error: 'A registered account is required', code: 'ANONYMOUS_NOT_ALLOWED' });
     // Mass-follow is a classic bot pattern — cap one import batch.
     const uids = Array.from(new Set(rawUids.filter(u => typeof u === 'string' && /^[A-Za-z0-9_-]{6,128}$/.test(u) && u !== req.uid))).slice(0, 200);
-    // Write follow records to Firestore
-    const { doc, setDoc, serverTimestamp: ts } = await import('firebase/firestore');
-    const { db: firestoreDb } = await import('./services/firebase.js');
-    await Promise.allSettled(uids.map(uid =>
-      setDoc(doc(firestoreDb, 'follows', `${req.uid}_${uid}`), {
-        followerId: req.uid, followingId: uid, createdAt: ts(), source: 'social_import',
-      })
-    ));
-    res.json({ followed: uids.length });
+    // Server REST writes (the old client-SDK setDoc from the server had no auth → always denied). Same semantics
+    // as followUser(): blocked pairs skipped, private accounts get a follow request, counters + notification.
+    try {
+      const { serverFollowBatch } = await import('./services/socialMigrationServer.js');
+      const r = await serverFollowBatch({ firestoreAuthHeaders, firestoreIncrement: (p: string, inc: Record<string, number>) => firestoreIncrement(p, inc) }, req.uid, uids, 'social_import');
+      res.json({ ...r, followedCount: r.followed.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'follow failed' });
+    }
   });
 
   // ── Google Actions Fulfillment ────────────────────────────────────────────────
@@ -6555,9 +6681,19 @@ Rules:
   // ── Bluesky — Create session from handle + App Password ────────────────────
   // App Password never leaves the server. Browser receives only account metadata.
   app.post('/api/fediverse/bluesky/connect', express.json(), authMiddleware, async (req: any, res) => {
-    const { handle, appPassword } = req.body as { handle?: string; appPassword?: string };
+    const { handle, appPassword, pdsUrl } = req.body as { handle?: string; appPassword?: string; pdsUrl?: string };
     if (!handle?.trim() || !appPassword?.trim()) {
       return res.status(400).json({ error: 'handle and appPassword are required' });
+    }
+    // Optional self-hosted PDS. https only, and never an internal address (this server makes the request).
+    let customPds: string | undefined;
+    if (pdsUrl?.trim()) {
+      try {
+        const u = new URL(pdsUrl.trim());
+        const h = u.hostname.toLowerCase();
+        if (u.protocol !== 'https:' || h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal') || /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.includes(':')) throw new Error('bad host');
+        customPds = u.origin;
+      } catch { return res.status(400).json({ error: 'pdsUrl must be a public https address' }); }
     }
 
     // Gate early so the error is unambiguous
@@ -6571,7 +6707,7 @@ Rules:
 
       let creds;
       try {
-        creds = await auth.createBlueskySession(handle.trim(), appPassword.trim());
+        creds = await auth.createBlueskySession(handle.trim(), appPassword.trim(), customPds);
       } catch (err: any) {
         console.error('[Fediverse] Bluesky session error:', err);
         return res.status(401).json({ error: `Bluesky login failed: ${err.message}` });
@@ -6591,11 +6727,48 @@ Rules:
     }
   });
 
+  // ── Connect with a pasted token (Threads long-lived token, Mastodon access token) ────────────────
+  // Server-side so the token is encrypted before it is stored; the old browser-side path wrote it to Firestore as
+  // plain text. Existing plain-text accounts are re-encrypted the next time they are loaded (auth.loadAccounts).
+  app.post('/api/fediverse/token-connect', express.json(), authMiddleware, async (req: any, res) => {
+    const { protocol, token, instanceUrl } = req.body as { protocol?: string; token?: string; instanceUrl?: string };
+    if (!token?.trim() || (protocol !== 'threads' && protocol !== 'mastodon')) return res.status(400).json({ error: 'protocol (threads|mastodon) and token are required' });
+    if ((process.env.ENCRYPTION_KEY ?? '').length < 16) return res.status(500).json({ error: 'Server misconfiguration: ENCRYPTION_KEY is not set' });
+    try {
+      const creds: { accessToken: string; instanceUrl?: string } = { accessToken: token.trim() };
+      if (protocol === 'mastodon') {
+        if (!instanceUrl?.trim()) return res.status(400).json({ error: 'instanceUrl is required for Mastodon' });
+        const host = instanceUrl.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+        try { validateFediverseInstance(host); } catch (e: any) { return res.status(400).json({ error: e.message }); }
+        creds.instanceUrl = `https://${host}`;
+      }
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const account = await auth.buildAndSaveAccount(req.uid, protocol, creds, firebaseToken);
+      res.json({ account });
+    } catch (err: any) {
+      console.error('[Fediverse] token-connect error:', err);
+      res.status(401).json({ error: `Could not verify that token: ${err.message ?? 'rejected'}` });
+    }
+  });
+
   // ── Disconnect an account ───────────────────────────────────────────────────
   app.delete('/api/fediverse/accounts/:accountId', authMiddleware, async (req: any, res) => {
     try {
       const auth = await getFediverseAuth();
       const firebaseToken = (req.headers.authorization as string).slice(7);
+      // Bluesky OAuth: revoke the grant at Bluesky and drop the stored session, not just our pointer to it.
+      try {
+        const acct = await auth.loadAccount(req.uid, req.params.accountId, firebaseToken);
+        if (acct) { // drop the Find-your-people mapping too (only if it still points at this user)
+          const { unregisterFediverseHandle } = await import('./services/socialMigrationServer.js');
+          await unregisterFediverseHandle({ firestoreAuthHeaders, firestoreIncrement: (p: string, inc: Record<string, number>) => firestoreIncrement(p, inc) }, req.uid, acct).catch(() => {});
+        }
+        if (acct?.credentials.oauth && acct.credentials.did) {
+          const { revokeBlueskyOAuth } = await import('./services/fediverse/blueskyOAuth.js');
+          await revokeBlueskyOAuth(acct.credentials.did);
+        }
+      } catch { /* never block a disconnect */ }
       await auth.removeAccount(req.uid, req.params.accountId, firebaseToken);
       res.json({ success: true });
     } catch (err: any) {
@@ -6605,15 +6778,20 @@ Rules:
 
   // ── Unified Broadcast — post to all active networks simultaneously ──────────
   app.post('/api/fediverse/broadcast', express.json(), authMiddleware, async (req: any, res) => {
-    const { text, uri, title, description, thumbnail, langs, targetAccountIds } = req.body as {
+    const body = req.body as {
       text?: string;
       uri?: string;
+      url?: string;           // alias: the chat share sends `url`
       title?: string;
       description?: string;
       thumbnail?: string;
+      mediaUrls?: string[];
       langs?: string[];
       targetAccountIds?: string[];
     };
+    const { text, title, description, thumbnail, langs, targetAccountIds } = body;
+    const uri = body.uri ?? body.url;
+    const mediaUrls = Array.isArray(body.mediaUrls) ? body.mediaUrls.filter(u => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 4) : undefined;
 
     if (!text?.trim()) return res.status(400).json({ error: 'text is required' });
 
@@ -6627,11 +6805,65 @@ Rules:
         return res.status(400).json({ error: 'No connected fediverse accounts' });
       }
 
-      const result = await broadcast(accounts, { text, uri, title, description, thumbnail, langs }, targetAccountIds);
+      const result = await broadcast(accounts, { text, uri, title, description, thumbnail, langs, mediaUrls }, targetAccountIds);
       res.json(result);
     } catch (err: any) {
       console.error('[Fediverse] Broadcast error:', err);
       res.status(500).json({ error: err.message ?? 'Broadcast failed' });
+    }
+  });
+
+  // ── Reply — a real reply (thread-aware on Bluesky, in_reply_to on Mastodon) ───
+  // The broadcast route above only creates top-level posts; the reply box used to go through it and so every
+  // "reply" landed as a brand-new post.
+  app.post('/api/fediverse/reply', express.json(), authMiddleware, async (req: any, res) => {
+    const { accountId, text, options } = req.body as { accountId?: string; text?: string; options?: Record<string, unknown> };
+    if (!accountId || !text?.trim()) return res.status(400).json({ error: 'accountId and text are required' });
+    const o = options ?? {};
+    const str = (k: string) => (typeof o[k] === 'string' && (o[k] as string).length < 600 ? (o[k] as string) : undefined);
+    const replyOptions = {
+      inReplyToId: str('inReplyToId'), inReplyToUri: str('inReplyToUri'), inReplyToCid: str('inReplyToCid'),
+      inReplyToRootUri: str('inReplyToRootUri'), inReplyToRootCid: str('inReplyToRootCid'),
+    };
+    if (!replyOptions.inReplyToId && !replyOptions.inReplyToUri) return res.status(400).json({ error: 'Nothing to reply to' });
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const account = await auth.loadAccount(req.uid, accountId, firebaseToken);
+      if (!account) return res.status(404).json({ error: 'Account not found' });
+      const { ADAPTERS_MAP } = await import('./services/fediverse/service.js');
+      const post = await ADAPTERS_MAP[account.protocol].createPost(account.credentials, text.trim(), replyOptions);
+      res.json({ post });
+    } catch (err: any) {
+      console.error('[Fediverse] Reply error:', err);
+      res.status(500).json({ error: err.message ?? 'Reply failed' });
+    }
+  });
+
+  // ── Notifications (credentials stay server-side — the browser only ever holds account metadata) ──
+  app.get('/api/fediverse/notifications', authMiddleware, async (req: any, res) => {
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+      const { getUnifiedNotifications } = await import('./services/fediverse/service.js');
+      res.json({ notifications: await getUnifiedNotifications(accounts) });
+    } catch (err: any) {
+      console.error('[Fediverse] Notifications error:', err);
+      res.status(500).json({ error: err.message ?? 'Notifications failed' });
+    }
+  });
+
+  app.post('/api/fediverse/bluesky/notifications/seen', express.json(), authMiddleware, async (req: any, res) => {
+    try {
+      const auth = await getFediverseAuth();
+      const firebaseToken = (req.headers.authorization as string).slice(7);
+      const accounts = await auth.loadAccounts(req.uid, firebaseToken);
+      const { bskyMarkNotificationsSeen } = await import('./services/fediverse/bluesky.js');
+      await Promise.all(accounts.filter(a => a.protocol === 'bluesky' && a.isActive).map(a => bskyMarkNotificationsSeen(a.credentials)));
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message ?? 'Could not mark notifications seen' });
     }
   });
 
@@ -6659,6 +6891,10 @@ Rules:
       const accounts = await auth.loadAccounts(req.uid, firebaseToken);
       const safe = accounts.map(({ credentials: _creds, ...meta }) => meta);
       res.json({ accounts: safe });
+      // Keep fediverse_handles (Find-your-people matching) pointed at this user — fire-and-forget.
+      import('./services/socialMigrationServer.js')
+        .then(m => m.registerFediverseHandles({ firestoreAuthHeaders, firestoreIncrement: (p: string, inc: Record<string, number>) => firestoreIncrement(p, inc) }, req.uid, accounts))
+        .catch(() => {});
     } catch (err: any) {
       res.status(500).json({ error: err.message ?? 'Failed to load accounts' });
     }
@@ -8523,6 +8759,163 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     res.json({ ok: true, queued, total: tracks.length, forced: force });
   });
 
+  // ── Chora lyric sync: every song gets time-coded lyrics, server-side ─────────
+  // See services/lyricSyncWorker for the why. Three entry points, ONE claim/record path:
+  //   POST /api/lyrics/ensure   { albumId, trackId }  on demand (Show Mode, upload flow). Public
+  //                              albums need no sign-in, so a Show Mode visitor can trigger it;
+  //                              rate-limited, idempotent, never re-spends on a synced track.
+  //   POST /api/lyrics/cron     key-gated (CHORA_CRON_KEY): the durable driver + catalogue backfill.
+  //   GET  /api/lyrics/status   read-only coverage.
+
+  /** Every music track on the platform, with whether it already carries timed lyrics. */
+  async function lyricListCandidates(limit: number): Promise<LyricCandidate[]> {
+    const out: LyricCandidate[] = [];
+    const pub = await fsQueryDocs('albums', [{ field: 'type', op: 'EQUAL', value: 'MUSIC' }], 1000);
+    const priv = await fsQueryDocs('personal_albums', [], 500);
+    const rows = [
+      ...pub.map(a => ({ ...a, collection: 'albums' as const })),
+      ...priv.map(a => ({ ...a, collection: 'personal_albums' as const })),
+    ];
+    for (const a of rows) {
+      const tracks = Array.isArray(a.data?.tracks) ? a.data.tracks : [];
+      for (const t of tracks) {
+        const trackId = String(t?.id || '').trim();
+        const srcUrl = String(t?.url || '').trim();
+        if (!trackId || !/^https?:/i.test(srcUrl) || t?.mediaKind === 'VIDEO') continue;
+        out.push({
+          albumId: a.id, collection: a.collection, trackId, srcUrl,
+          title: t?.title, artist: a.data?.artist,
+          hasTimedLyrics: Array.isArray(t?.timeCodedLyrics) && t.timeCodedLyrics.length > 0,
+        });
+        if (out.length >= limit) return out;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Write ONE track's timeCodedLyrics into its album without touching anything else. Works on the
+   * raw Firestore REST value (so no other track field is re-typed by a decode/encode round trip)
+   * and PATCHes with an updateTime precondition, so a creator editing the album at the same moment
+   * is never overwritten: on a conflict we re-read and retry.
+   */
+  async function patchTrackTimedLyrics(collection: string, albumId: string, trackId: string, captions: { time: number; text: string }[]): Promise<number> {
+    const base = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${encodeURIComponent(albumId)}`;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const g = await fetch(base, { headers: await firestoreAuthHeaders() });
+      if (!g.ok) throw new Error(`album read ${g.status}`);
+      const doc = await g.json() as any;
+      const values: any[] = doc?.fields?.tracks?.arrayValue?.values || [];
+      const i = values.findIndex(v => v?.mapValue?.fields?.id?.stringValue === trackId);
+      if (i < 0) throw new Error('track no longer on album');
+      const existing = values[i].mapValue.fields.timeCodedLyrics?.arrayValue?.values;
+      if (Array.isArray(existing) && existing.length) return existing.length; // synced meanwhile: keep theirs
+      if (!captions.length) return 0;
+      values[i] = { mapValue: { fields: { ...values[i].mapValue.fields, timeCodedLyrics: jsToFsValue(captions) } } };
+      const url = `${base}?updateMask.fieldPaths=tracks&currentDocument.updateTime=${encodeURIComponent(doc.updateTime)}`;
+      const p = await fetch(url, {
+        method: 'PATCH', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: { tracks: { arrayValue: { values } } } }),
+      });
+      if (p.ok) return captions.length;
+      const body = await p.text();
+      if (!/FAILED_PRECONDITION|ABORTED/i.test(body) && p.status !== 409) throw new Error(`album write ${p.status} ${body.slice(0, 120)}`);
+    }
+    throw new Error('album kept changing; will retry later');
+  }
+
+  const lyricDeps: LyricSyncDeps = {
+    listCandidates: lyricListCandidates,
+    readJob: async (id) => (await firestoreRead('lyricSyncJobs', id)) as LyricJobDoc | null,
+    writeJob: async (id, patch) => {
+      const clean: Record<string, any> = {};
+      for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
+      await firestoreWrite('lyricSyncJobs', id, clean, true);
+    },
+    syncOne: async (c) => {
+      // Prefer the compressed rendition: a fraction of the bytes of a WAV master, same words.
+      // Private renditions are token-gated, so those always use the source.
+      let audioUrl = c.srcUrl;
+      if (c.collection === 'albums') {
+        const st = await firestoreRead('choraStreams', c.trackId).catch(() => null);
+        if (st?.status === 'ready' && /^https?:/i.test(String(st.low || ''))) audioUrl = String(st.low);
+      }
+      let captions: { time: number; text: string }[];
+      try {
+        captions = await generateTimedCaptions({ audioUrl, title: c.title, artist: c.artist });
+      } catch (e: any) {
+        if (audioUrl === c.srcUrl || !(e instanceof CaptionError) || e.status !== 502) throw e;
+        captions = await generateTimedCaptions({ audioUrl: c.srcUrl, title: c.title, artist: c.artist });
+      }
+      // "(instrumental)" markers alone are not lyrics.
+      const sung = captions.filter(l => !/^\(?\s*instrumental\s*\)?$/i.test(l.text.trim()));
+      return patchTrackTimedLyrics(c.collection, c.albumId, c.trackId, sung.length ? captions : []);
+    },
+  };
+
+  /** One track, right now. In-process de-dupe so ten Show Mode viewers trigger ONE transcription. */
+  const lyricInflight = new Map<string, Promise<{ status: string; lines: number; error?: string }>>();
+  app.post('/api/lyrics/ensure', aiLimiter, express.json({ limit: '4kb' }), async (req: any, res) => {
+    const albumId = String(req.body?.albumId || '').trim();
+    const trackId = String(req.body?.trackId || '').trim();
+    if (!/^[\w-]{1,128}$/.test(albumId) || !/^[\w.-]{1,160}$/.test(trackId)) return res.status(400).json({ error: 'albumId and trackId required' });
+    try {
+      // Public catalogue only: this route needs no sign-in. Private albums go through the cron.
+      const album = await firestoreGetDeep('albums', albumId);
+      if (!album || album.isPrivate === true) return res.status(404).json({ error: 'album not found' });
+      const t = (Array.isArray(album.tracks) ? album.tracks : []).find((x: any) => x?.id === trackId);
+      if (!t || t.mediaKind === 'VIDEO' || !/^https?:/i.test(String(t.url || ''))) return res.status(404).json({ error: 'track not found' });
+      if (Array.isArray(t.timeCodedLyrics) && t.timeCodedLyrics.length) return res.json({ status: 'done', captions: t.timeCodedLyrics });
+
+      const c: LyricCandidate = { albumId, collection: 'albums', trackId, srcUrl: String(t.url), title: t.title, artist: album.artist, hasTimedLyrics: false };
+      const id = lyricJobId(albumId, trackId);
+      let p = lyricInflight.get(id);
+      if (!p) {
+        const job = await lyricDeps.readJob(id);
+        if (!needsLyricSync(c, job, Date.now())) return res.json({ status: job?.status || 'unknown' });
+        p = syncAndRecord(lyricDeps, c, job).finally(() => lyricInflight.delete(id));
+        lyricInflight.set(id, p);
+      }
+      const r = await p;
+      if (r.status !== 'done') return res.json({ status: r.status, error: r.error });
+      const fresh = await firestoreGetDeep('albums', albumId);
+      const ft = (fresh?.tracks || []).find((x: any) => x?.id === trackId);
+      res.json({ status: 'done', captions: ft?.timeCodedLyrics || [] });
+    } catch (err: any) {
+      console.error('[lyrics] ensure failed:', err?.message || err);
+      res.status(502).json({ error: 'lyric sync failed' });
+    }
+  });
+
+  app.post('/api/lyrics/cron', express.json({ limit: '4kb' }), async (req: any, res) => {
+    const expected = process.env.CHORA_CRON_KEY || '';
+    const provided = String(req.get('x-chora-cron-key') || '');
+    if (!secretsEqual(provided, expected)) return res.status(401).json({ error: 'invalid or missing cron key' });
+    try {
+      res.json(await runLyricSyncWorker(lyricDeps, { reason: String(req.body?.reason || 'cron').slice(0, 40) }));
+    } catch (err: any) {
+      console.error('[lyrics] cron failed:', err?.message || err);
+      res.status(500).json({ error: String(err?.message || err) });
+    }
+  });
+
+  app.get('/api/lyrics/status', apiLimiter, async (_req: any, res: any) => {
+    try {
+      const all = await lyricListCandidates(5000);
+      const counts = { total: all.length, synced: 0, instrumental: 0, gaveUp: 0, pending: 0 };
+      for (const c of all) {
+        if (c.hasTimedLyrics) { counts.synced++; continue; }
+        const job = await lyricDeps.readJob(lyricJobId(c.albumId, c.trackId));
+        if (job?.status === 'empty') counts.instrumental++;
+        else if (job?.status === 'failed' && (job.attempts || 0) >= LYRIC_MAX_ATTEMPTS) counts.gaveUp++;
+        else counts.pending++;
+      }
+      res.json({ ...counts, syncedPct: counts.total ? Math.round((counts.synced / counts.total) * 1000) / 10 : 0 });
+    } catch (err: any) {
+      res.status(500).json({ error: String(err?.message || err) });
+    }
+  });
+
   // Backend-only transcode for the catalogue backfill. Identical work to the route above, but
   // gated by a shared key instead of a Firebase ID token — so it can be driven entirely from the
   // server side (a script / cron) with NO signed-in browser or TV in the loop. This is why the
@@ -9062,6 +9455,24 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     } catch { return res.status(500).send('Error'); }
   });
 
+  // ── SOCIAL MIGRATION (services/socialMigrationServer.ts): Find-your-people (Bluesky/Mastodon follow graph),
+  // batch follow, personal invites (/join/:code), and OG cards for /c/ /room/ /talk/ /party/ /live/ share links.
+  // Registered BEFORE the SPA catch-all / Vite so crawlers get the rich card.
+  {
+    const { registerSocialMigrationRoutes } = await import('./services/socialMigrationServer.js');
+    registerSocialMigrationRoutes({
+      app, express, authMiddleware,
+      firestoreAuthHeaders, firestoreIncrement: (p: string, inc: Record<string, number>) => firestoreIncrement(p, inc),
+      loadFediverseAccounts: async (uid: string, idToken: string) => (await getFediverseAuth()).loadAccounts(uid, idToken),
+      readIndexHtml: async () => {
+        try { return await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8'); }
+        catch { try { return await fs.readFile(path.join(__dirname, 'index.html'), 'utf-8'); } catch { return null; } }
+      },
+      publicHost, htmlEscape,
+      isProduction: process.env.NODE_ENV === 'production',
+    });
+  }
+
   // Share landing — serves the SPA shell with OG/twitter:player meta injected so
   // a shared track link renders an inline player card on social. Crawlers read
   // the meta; humans are bounced to the canonical app URL so the full app loads.
@@ -9179,7 +9590,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();   // /t/* = public ticket page (ticketServer)
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
       try {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
         if (req.query.type) {
@@ -9770,6 +10181,55 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   registerLaundryRoutes({
     app, express, authMiddleware, resolveActor: resolveRegisterActor, restCas,
     fsQueryDocs, firestoreRead, firestoreWrite, firestoreGetDeep, firestoreCreate, sendFcmMulticast, loadRegisterSettings,
+  } as any);
+  // ── EVITE CREATOR THEMES (services/evite/eviteThemeServer.ts): /api/evite-themes/* — make, trade, sell (5%), Sanctuary-gate ──
+  eviteThemeDeps = {
+    app, express, rateLimit, authMiddleware, firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc, fsQueryDocs,
+    getStripe, trustedRequestOrigin, firestoreIncrement: (p: string, inc: Record<string, number>) => firestoreIncrement(p, inc),
+    uploadThemeFile: async (objectPath: string, data: Buffer, contentType: string) => {   // immutable copies on publish
+      const dl = nodeCrypto.randomUUID();
+      return (await gcsUploadWithDownloadToken(objectPath, data, contentType, dl))
+        ? `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media&token=${dl}` : null;
+    },
+    feeParams: () => ({ rate: process.env.STRIPE_FEE_RATE ? Number(process.env.STRIPE_FEE_RATE) : undefined, fixedCents: process.env.STRIPE_FEE_FIXED_CENTS ? Number(process.env.STRIPE_FEE_FIXED_CENTS) : undefined }),
+  };
+  registerEviteThemeRoutes(eviteThemeDeps);
+  // ── EVITES (services/evite/eviteServer.ts): /api/evite/*, public /i/:id, QR + calendar files ──
+  registerEviteRoutes({
+    app, express, rateLimit, authMiddleware,
+    firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc: firestoreDeleteDoc, fsQueryDocs, getStripe, trustedRequestOrigin,
+    mayUseTemplate: (uid: string, t: string) => themeMayUse(eviteThemeDeps, uid, t),
+    resolveArt: (t: string) => themeArt(eviteThemeDeps, t),
+    readIndexHtml: async () => { try { return await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8'); } catch { return null; } },
+    cronAuthorized: (req: any) => { const key = req.headers['x-cron-key']; return secretsEqual(key, process.env.ADMIN_SEED_KEY) || secretsEqual(key, process.env.CRON_SECRET); },
+    sendEmail: process.env.RESEND_API_KEY ? async (to: string, subject: string, text: string) => {
+      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to, subject, text }) });
+      return r.ok;
+    } : undefined,
+  } as any);
+  // ── EVENT PHOTO POOLS v2 (services/eventPool/poolServer.ts): /api/pool/* — check-in, curation, streams ──
+  // Location services default to Google Maps (GOOGLE_MAPS_API_KEY, Geocoding API enabled). POOL_GEOCODER=nominatim
+  // switches to OpenStreetMap; POOL_GEOCODER=off disables lookups. With no provider, a pool's pin comes from the
+  // ticketed event's coordinates or the host's "set pin to my location".
+  registerPoolRoutes({
+    app, express, rateLimit, authMiddleware,
+    firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc, fsQueryDocs,
+    verifyIdToken: verifyFirebaseToken,
+    storageBucket: STORAGE_BUCKET,
+    geocode: process.env.POOL_GEOCODER === 'off' ? undefined
+      : process.env.POOL_GEOCODER === 'nominatim' ? nominatimGeocoder({ userAgent: 'Plajah/1.0 (+https://plajah.com)', email: process.env.NOMINATIM_EMAIL })
+      : process.env.GOOGLE_MAPS_API_KEY ? googleGeocoder({ apiKey: process.env.GOOGLE_MAPS_API_KEY }) : undefined,
+  } as any);
+  registerEvitePrintRoutes({
+    app, express, rateLimit, authMiddleware, firestoreRead, firestoreWrite, firestoreCreateOnce, getStripe, trustedRequestOrigin,
+    gelato: evitePrintGelato,
+    uploadPrintFile: async (objectPath: string, data: Buffer, contentType: string) => {
+      const dl = nodeCrypto.randomUUID();
+      return (await gcsUploadWithDownloadToken(objectPath, data, contentType, dl))
+        ? `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media&token=${dl}` : null;
+    },
+    feeParams: () => ({ rate: process.env.STRIPE_FEE_RATE ? Number(process.env.STRIPE_FEE_RATE) : undefined, fixedCents: process.env.STRIPE_FEE_FIXED_CENTS ? Number(process.env.STRIPE_FEE_FIXED_CENTS) : undefined }),
   } as any);
   // AUTO REPAIR layer (services/autoServer.ts): vehicles, NHTSA decode/recalls, inspections, AI advisor draft, reminders, Vehicle Passport.
   registerAutoRoutes({
@@ -10624,6 +11084,73 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  // ── Creator course checkout (paid enrollment) ──────────────────────────────────────────────────
+  // Price, owner, capacity and publish state are read from Firestore, NEVER trusted from the client.
+  // Money goes straight to the instructor's Connect account minus Plajah's 5% direct-sale cut.
+  // Enrollment itself is granted by the checkout.session.completed webhook, not here.
+  app.post('/api/stripe/course-checkout', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const courseId = String(req.body?.courseId || '');
+      if (!/^[A-Za-z0-9_-]{3,80}$/.test(courseId)) return res.status(400).json({ error: 'Missing course.' });
+      const course = await firestoreGetDeep('classrooms', courseId);
+      if (!course) return res.status(404).json({ error: 'Course not found.' });
+      if ((course.track || 'CREATOR') !== 'CREATOR') return res.status(400).json({ error: 'This is not a creator course.' });
+      if (course.status === 'DRAFT') return res.status(400).json({ error: 'This course is not published yet.' });
+      const priceCents = Math.round(Number(course.price || 0) * 100);
+      if (!(priceCents >= 100)) return res.status(400).json({ error: 'Paid courses must cost at least $1.00. Free courses enroll directly.' });
+      const ownerUid = String(course.ownerId || '');
+      if (!ownerUid) return res.status(400).json({ error: 'This course has no instructor on file.' });
+      if (ownerUid === req.uid) return res.status(400).json({ error: 'This is your own course.' });
+      const enrolled: string[] = Array.isArray(course.enrolledStudents) ? course.enrolledStudents : [];
+      if (enrolled.includes(req.uid)) return res.status(400).json({ error: 'You are already enrolled.' });
+      const capacity = Number(course.capacity || 0);
+      if (capacity > 0 && enrolled.filter(u => u !== ownerUid).length >= capacity) return res.status(409).json({ error: 'This course is full.' });
+
+      const ownerUser = await firestoreRead('users', ownerUid);
+      const acct = ownerUser?.stripeConnectAccountId as string | undefined;
+      if (!acct) return res.status(400).json({ error: 'The instructor has not set up payouts yet.' });
+      const stripe = getStripe();
+      try {
+        const info = await stripe.accounts.retrieve(acct);
+        if (!info.payouts_enabled) return res.status(400).json({ error: 'The instructor cannot receive payouts yet.' });
+      } catch { return res.status(400).json({ error: 'Could not verify the instructor payout account.' }); }
+
+      const platformFee = Math.round(priceCents * 0.05);
+      const origin = trustedRequestOrigin(req);
+      const meta = { type: 'course_enrollment', courseId, uid: req.uid, ownerUid, platformFeeCents: String(platformFee) };
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{ price_data: { currency: 'usd', product_data: { name: String(course.title || 'Course').slice(0, 120), description: `Taught by ${String(course.ownerName || 'a Plajah creator').slice(0, 80)}` }, unit_amount: priceCents }, quantity: 1 }],
+        payment_intent_data: { application_fee_amount: platformFee, transfer_data: { destination: acct }, metadata: meta },
+        metadata: meta,
+        client_reference_id: req.uid,
+        success_url: `${origin}/?course=${encodeURIComponent(courseId)}&enrolled=1`,
+        cancel_url: `${origin}/?course=${encodeURIComponent(courseId)}`,
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('/api/stripe/course-checkout', err.message);
+      res.status(500).json({ error: 'Checkout could not be started.' });
+    }
+  });
+
+  // Called when a learner returns from checkout (and whenever they open a course they paid for): if a
+  // PAID claim exists for them, make sure the seat is granted. Covers a slow or failed webhook.
+  app.post('/api/courses/enrollment-status', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const courseId = String(req.body?.courseId || '');
+      if (!/^[A-Za-z0-9_-]{3,80}$/.test(courseId)) return res.status(400).json({ error: 'Missing course.' });
+      const claim = await firestoreRead('courseEnrollments', `${courseId}_${req.uid}`);
+      if (!claim) return res.json({ paid: false, enrolled: false });
+      const enrolled = await enrollPaidLearner(courseId, req.uid);
+      res.json({ paid: true, enrolled });
+    } catch (err: any) {
+      console.error('/api/courses/enrollment-status', err.message);
+      res.status(500).json({ error: 'Could not check enrollment.' });
+    }
+  });
+
   app.post('/api/stripe/club-membership', authMiddleware, express.json(), async (req: any, res) => {
     try {
       const { clubId, clubName, monthlyPrice } = req.body;
@@ -10658,12 +11185,25 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // ── Sanctuary: recurring tier subscription (Patreon) ──────────────────────────
   app.post('/api/stripe/sanctuary-tier', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const { tierId, creatorId, tierName, tierColor, monthlyPrice, annualPrice, billingCycle } = req.body;
-      if (!tierId || !creatorId || !tierName || typeof monthlyPrice !== 'number' || monthlyPrice <= 0) {
-        return res.status(400).json({ error: 'tierId, creatorId, tierName and a positive monthlyPrice are required' });
-      }
+      // The tier (price, name, owner) is read from Firestore — NEVER trusted from the client, which
+      // could otherwise buy a $50/month tier for $0.50.
+      const { tierId, billingCycle } = req.body;
+      if (!tierId || typeof tierId !== 'string') return res.status(400).json({ error: 'tierId is required' });
+      const tier = await firestoreGetDeep('sanctuaryTiers', tierId);
+      if (!tier || tier.isActive === false) return res.status(404).json({ error: 'That tier is not available' });
+      const creatorId = String(tier.creatorId || '');
+      const monthlyPrice = Number(tier.price) || 0;
+      if (!creatorId) return res.status(400).json({ error: 'This tier has no creator' });
+      if (creatorId === req.uid) return res.status(400).json({ error: "You can't join your own Sanctuary" });
+      if (monthlyPrice <= 0) return res.status(400).json({ error: 'This tier is free — join it directly' });
+      const tierName = String(tier.name || 'Membership'), tierColor = String(tier.color || '#C9A55C');
+      const annualPrice = Number(tier.annualPrice) || 0;
       const annual = billingCycle === 'ANNUAL';
       const amount = annual ? Math.round((annualPrice || monthlyPrice * 12 * 0.9) * 100) : Math.round(monthlyPrice * 100);
+      const subMeta = {
+        type: 'sanctuary_membership', uid: req.uid, creatorUid: creatorId, creatorId,
+        tierId, tierName, tierColor, billingCycle: annual ? 'ANNUAL' : 'MONTHLY',
+      };
       const stripe = getStripe();
       const origin = trustedRequestOrigin(req);
       const session = await stripe.checkout.sessions.create({
@@ -10680,10 +11220,9 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         }],
         success_url: `${origin}/?sanctuary_join=${creatorId}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/?sanctuary=${creatorId}`,
-        metadata: {
-          type: 'sanctuary_membership', uid: req.uid, creatorUid: creatorId, creatorId,
-          tierId, tierName, tierColor: tierColor || '#C9A55C', billingCycle: annual ? 'ANNUAL' : 'MONTHLY',
-        },
+        metadata: subMeta,
+        // copied onto the Subscription so cancellations / failed payments can find the membership
+        subscription_data: { metadata: subMeta },
         client_reference_id: req.uid,
       });
       res.json({ url: session.url });
@@ -10696,10 +11235,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // ── Sanctuary: one-time à la carte unlock ─────────────────────────────────────
   app.post('/api/stripe/sanctuary-unlock', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const { creatorId, itemId, itemType, itemTitle, price } = req.body;
-      if (!creatorId || !itemId || typeof price !== 'number' || price <= 0) {
-        return res.status(400).json({ error: 'creatorId, itemId and a positive price are required' });
-      }
+      const { creatorId, itemId, itemType, itemTitle } = req.body;
+      if (!creatorId || !itemId) return res.status(400).json({ error: 'creatorId and itemId are required' });
+      // The price is read from the item the creator published — never trusted from the client.
+      const price = await sanctuaryUnlockPrice(String(creatorId), String(itemId), itemType === 'POST' ? 'POST' : 'CONTENT');
+      if (!(price > 0)) return res.status(404).json({ error: 'That item is not for sale' });
       const stripe = getStripe();
       const origin = trustedRequestOrigin(req);
       const session = await stripe.checkout.sessions.create({
@@ -10724,6 +11264,61 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     } catch (err: any) {
       console.error('[Stripe] sanctuary-unlock error:', err.message);
       res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // ── Sanctuary memberships are SERVER-WRITTEN ─────────────────────────────────
+  // firestore.rules forbid clients from creating or editing sanctuaryMemberships (a client could
+  // otherwise mark itself an ACTIVE member of a paid tier). Paid tiers → Stripe webhook; free tiers →
+  // this endpoint; cancelling → /cancel, which also stops the Stripe subscription.
+  app.post('/api/sanctuary/join-free', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { tierId, billingCycle } = req.body || {};
+      if (!tierId || typeof tierId !== 'string') return res.status(400).json({ error: 'tierId is required' });
+      const tier = await firestoreGetDeep('sanctuaryTiers', tierId);
+      if (!tier || tier.isActive === false) return res.status(404).json({ error: 'That tier is not available' });
+      if ((Number(tier.price) || 0) > 0) return res.status(402).json({ error: 'This tier is paid — use checkout' });
+      const creatorId = String(tier.creatorId || '');
+      if (!creatorId || creatorId === req.uid) return res.status(400).json({ error: "You can't join this tier" });
+      const id = `${creatorId}_${req.uid}`;
+      const existing = await firestoreGetDeep('sanctuaryMemberships', id);
+      const now = Date.now();
+      const user = await firestoreGetDeep('users', req.uid);
+      await firestorePatchDeep('sanctuaryMemberships', id, {
+        id, tierId, tierName: String(tier.name || ''), tierColor: String(tier.color || '#C9A55C'),
+        creatorId, memberId: req.uid,
+        memberName: String(user?.displayName || user?.name || 'Member'), memberPhoto: String(user?.photoURL || user?.avatar || ''),
+        billingCycle: billingCycle === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY', status: 'ACTIVE',
+        startedAt: existing?.status === 'ACTIVE' ? (existing.startedAt || now) : now, renewsAt: 0,
+      });
+      if (existing?.status !== 'ACTIVE') await firestoreIncrement(`sanctuaryTiers/${tierId}`, { memberCount: 1 }).catch(() => {});
+      res.json({ id });
+    } catch (err: any) {
+      console.error('[Sanctuary] join-free error:', err.message);
+      res.status(500).json({ error: 'Could not join right now' });
+    }
+  });
+
+  app.post('/api/sanctuary/cancel', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { creatorId } = req.body || {};
+      if (!creatorId || typeof creatorId !== 'string') return res.status(400).json({ error: 'creatorId is required' });
+      const id = `${creatorId}_${req.uid}`;
+      const m = await firestoreGetDeep('sanctuaryMemberships', id);
+      if (!m || m.memberId !== req.uid) return res.status(404).json({ error: 'No membership to cancel' });
+      if (m.stripeSubscriptionId) {
+        // Paid: stop renewal at period end. Access stays until then; the subscription.deleted webhook
+        // flips the membership to CANCELLED when Stripe actually ends it.
+        await getStripe().subscriptions.update(String(m.stripeSubscriptionId), { cancel_at_period_end: true });
+        await firestorePatchDeep('sanctuaryMemberships', id, { cancelAtPeriodEnd: true, cancelledAt: Date.now() });
+        return res.json({ status: 'ACTIVE', endsAt: m.renewsAt || null });
+      }
+      await firestorePatchDeep('sanctuaryMemberships', id, { status: 'CANCELLED', cancelledAt: Date.now() });
+      if (m.status === 'ACTIVE' && m.tierId) await firestoreIncrement(`sanctuaryTiers/${String(m.tierId)}`, { memberCount: -1 }).catch(() => {});
+      res.json({ status: 'CANCELLED' });
+    } catch (err: any) {
+      console.error('[Sanctuary] cancel error:', err.message);
+      res.status(500).json({ error: 'Could not cancel right now' });
     }
   });
 
@@ -11390,9 +11985,14 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // ── The Council of Art Directors — a working team behind Aria ──────────────
   const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, resolveTier: resolveVerifiedAgentTier, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
   council.register(app);
+  // The Editorial & Copyright Council: editors who guide an author the way a publisher would (services/editorial/council).
+  createEditorialCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, resolveTier: resolveVerifiedAgentTier, jsonParser: express.json({ limit: '8mb' }) }).register(app);
 
   // Aria's spoken voice (ElevenLabs proxy) — see routes/ariaSpeak.ts. Dark until ELEVENLABS_API_KEY + ELEVENLABS_ARIA_VOICE_ID are set.
   // Access = verified owner email / admins collection / active Plajah+ subscription (all server-side).
+  // Short-lived TURN credentials for WebRTC (routes/rtcIce.ts). Dark until CLOUDFLARE_TURN_* or METERED_* is set.
+  app.use('/api/rtc/ice', createRtcIceRouter({ authMiddleware, limiter: apiLimiter }));
+
   app.use('/api/aria/speak', createAriaSpeakRouter({
     authMiddleware, requireRegisteredUser, limiter: aiLimiter,
     resolveAccess: async (req: any) => decideAriaVoiceAccess(await resolveVerifiedFacts(req)),
@@ -11997,10 +12597,24 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // ── The Post Man (native mail client — per-user, per-account Gmail) ───────────
   app.use('/api/postman', express.json({ limit: '1mb' }), postmanRouter);
   app.use('/api/social', express.json({ limit: '1mb' }), socialConnectRouter);
+  // "Sign in with Bluesky" (AT Protocol OAuth). Importing the module registers the OAuth-session restorer the adapter uses.
+  app.use('/api/fediverse/bluesky/oauth', blueskyOAuthRouter);
+  // Share a NATIVE Plajah post out to Bluesky/Mastodon/Threads using the same plan the composer previews.
+  app.use('/api/fediverse/crosspost-native', express.json({ limit: '64kb' }), fediverseNativeRouter);
+  // In-app Bluesky client screens: profiles, threads, search, follow graph, custom feeds, mute/block, quote.
+  app.use('/api/fediverse/bluesky/c', express.json({ limit: '32kb' }), blueskyClientRouter);
+  // Independent-author ebook submissions (status transitions are server-only; see firestore.rules bookSubmissions).
+  app.use('/api/books', express.json({ limit: '14mb' }), bookSubmissionsRouter);
+  // Article syndication (RSS/Atom per author or publication, AMP-lite, Apple News Format, email render).
+  app.use('/feeds', articleFeedsRouter);
 
   // Campaigns — built-in email marketing. Compliance (postal address, one-click
   // unsubscribe, suppression) is enforced inside the router, not by its callers.
   app.use('/api/campaigns', express.json({ limit: '2mb' }), campaignsRouter);
+
+  // Print-on-demand for authors (Lulu direct connect + export packs). Router owns its body parsers
+  // (the printer webhook needs the RAW body for signature checks). See docs/POD_INTEGRATION.md.
+  app.use('/api/pod', createPodRouter({ authMiddleware, requireRegisteredUser, getStripe, trustedRequestOrigin }));
 
   // Academia Integrity Wall — conflict check (the only bridge between a teacher's district and
   // independent personas), Silent Mode claim mirroring, and OER licence validation. Rate-limited
@@ -12021,6 +12635,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // and the scheduled-post publisher (POST /api/social/publish-due-posts, gated by env SCHEDULER_SECRET).
   // Each route does its own auth/rate limiting; paths are exact so nothing else under /api is shadowed.
   app.use('/api', socialServerRouter);
+  // Trust & Safety (routes/trustSafety.ts): server-side media scanning (PhotoDNA / OpenAI omni-moderation /
+  // Gemini art-aware pass), CSAM quarantine + case metadata, admin soft-remove, and the backstop sweep
+  // POST /api/cron/safety-sweep (x-cron-key). Each route parses its own JSON + does its own auth.
+  app.use('/api', createTrustSafetyRouter());
+  // Fair Process enforcement + appeals (routes/enforcement.ts; policy docs/FAIR_PROCESS_POLICY.md).
+  app.use('/api/enforcement', createEnforcementRouter({ authMiddleware, requireVerifiedAdmin }));
   // Email notifications: unsubscribe (RFC 8058 one-click), self-test, 15-min cron (unread messages + digests).
   app.use('/api', notifyEmailRouter);
 
@@ -12035,9 +12655,16 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // "Invalid email or password." authLimiter because it takes an unauthenticated email.
   app.use('/api/auth-methods', authLimiter);
   app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter);
+  // POST /api/auth/signup-check (disposable-domain gate, strict per-IP) + POST /api/security/csp-report.
+  app.use('/api', antiAbuseRouter);
 
   // ── Plajah FSE (10-Foot Console local game detection and native launch) ──────
   app.use('/api/fse', express.json({ limit: '64kb' }), fseGamesRouter);
+
+  // ── Security & IT Council (routes/securityCouncil.ts, docs/SECURITY_IT_COUNCIL.md) ──
+  // Exact paths: POST /api/cron/security-council (x-cron-key), POST /api/security/council/ingest-audit (CI key),
+  // and platform-admin GET/POST /api/security/council/*. Agents propose; they never change config, rules or code.
+  app.use('/api', createSecurityCouncilRouter({ authMiddleware, requireVerifiedAdmin }));
 
   // ── Advance Threat Protection & Chief Security Officer (CSO) ────────────────
   // Platform-admin only. This API used to be completely unauthenticated (its requireAdmin was never applied),
@@ -12046,6 +12673,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // ── Plajah Home (Real Matter & LAN Device Discovery) ────────────────────────
   app.use(homeDiscoveryRouter);
+  app.use(homeHubRouter);
   app.use(matterRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER === 'true' || (process.env.NODE_ENV === 'production' && process.env.SPORTS_INGESTION_WORKER !== 'false')) {
@@ -12074,6 +12702,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Mesh Server running on http://localhost:${PORT}`);
+    // Plajah Home hub: LAN discovery beacon (_plajahhub._tcp). No-op on Cloud Run / production.
+    void startHomeHub(PORT);
     // Log env var status at startup so Cloud Run logs reveal config issues immediately
     const encKey = process.env.ENCRYPTION_KEY ?? '';
     const fbKey  = process.env.FIREBASE_API_KEY ?? process.env.VITE_FIREBASE_API_KEY ?? '';
@@ -12111,6 +12741,3 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 }
 
 startServer();
-  app.use(homeHubRouter);
-    // Plajah Home hub: LAN discovery beacon (_plajahhub._tcp). No-op on Cloud Run / production.
-    void startHomeHub(PORT);

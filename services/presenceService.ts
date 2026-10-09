@@ -12,12 +12,16 @@ const VIDEO_TTL_MS  = 3 * 60 * 60 * 1000; // 3 hrs
 export async function writePresence(uid: string, entry: Omit<NowActiveEntry, 'uid' | 'startedAt' | 'expiresAt'>): Promise<void> {
   const ttl = entry.type === 'TRACK' || entry.type === 'RADIO' ? TRACK_TTL_MS : VIDEO_TTL_MS;
   const now = Date.now();
-  await setDoc(doc(db, COLLECTION, uid), {
+  const full = {
     ...entry,
     uid,
     startedAt: now,
     expiresAt: now + ttl,
-  } satisfies NowActiveEntry);
+  } satisfies NowActiveEntry;
+  // Firestore rejects `undefined` (album/creator fields are often absent) — drop them.
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(full)) if (v !== undefined) clean[k] = v;
+  await setDoc(doc(db, COLLECTION, uid), clean);
 }
 
 export async function clearPresence(uid: string): Promise<void> {

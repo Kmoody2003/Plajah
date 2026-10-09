@@ -7,7 +7,10 @@ import { ArrowLeft, Radio, Users, Share2, Send, Clock, X, Check, Megaphone } fro
 import {
   subscribeRoom, subscribeMembers, subscribeRoomChat, joinRoom, leaveRoom, sendRoomMessage, endRoom,
   isLive, minsLeft, roomShareUrl, type LiveRoom, type RoomMember, type RoomMessage,
+  subscribeRoomPolls, subscribeRoomPollVotes, castRoomPollVote, addRoomPoll, isSharedKind, MAX_POLL_OPTIONS,
+  type RoomPoll,
 } from '../services/roomService';
+import { tallyPollVotes, pollPercent, type RoomPollVote } from '../services/roomPollCore';
 import { useFediverse } from '../contexts/FediverseContext';
 
 const T = {
@@ -118,6 +121,11 @@ const RoomView: React.FC<{ roomId: string; user?: any; onBack?: () => void }> = 
           </div>
         )}
 
+        {/* polls (capability) — one vote doc per voter, tallied here */}
+        {room?.capabilities?.polls && (
+          <RoomPolls roomId={roomId} uid={user?.uid || null} live={live} canCreate={!!user?.uid && live && (isHost || isSharedKind(room.kind))} />
+        )}
+
         {/* chat */}
         <div ref={scrollRef} style={{ flex: 1, minHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 2px' }}>
           {chat.length === 0 && <div style={{ color: T.muted, fontSize: 13, textAlign: 'center', margin: 'auto 0' }}>{live ? 'Say hi 👋 — the room is live.' : 'This room has ended.'}</div>}
@@ -150,6 +158,63 @@ const RoomView: React.FC<{ roomId: string; user?: any; onBack?: () => void }> = 
           <div style={{ marginTop: 10, textAlign: 'center', color: T.muted, fontSize: 13, padding: 12, border: `1px solid ${T.border}`, borderRadius: 12, display: 'inline-flex', justifyContent: 'center', gap: 6 }}><Radio size={15} /> Room ended — chat is read-only.</div>
         )}
       </div>
+    </div>
+  );
+};
+
+const PollCard: React.FC<{ roomId: string; poll: RoomPoll; uid: string | null; live: boolean }> = ({ roomId, poll, uid, live }) => {
+  const [votes, setVotes] = useState<RoomPollVote[]>([]);
+  useEffect(() => subscribeRoomPollVotes(roomId, poll.id, setVotes), [roomId, poll.id]);
+  const options = Array.isArray(poll.options) ? poll.options : [];
+  const t = tallyPollVotes(votes, options.length, uid);
+  const vote = (i: number) => { if (uid && live) castRoomPollVote(roomId, poll.id, uid, i).catch(() => {}); };
+  return (
+    <div style={{ border: `1px solid ${T.border}`, background: T.cardAlt, borderRadius: 12, padding: 12 }}>
+      <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 8 }}>{poll.question}</div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        {options.map((o, i) => {
+          const pct = pollPercent(t.counts[i] || 0, t.total);
+          const mine = t.myChoice === i;
+          return (
+            <button key={i} onClick={() => vote(i)} disabled={!uid || !live}
+              style={{ position: 'relative', overflow: 'hidden', textAlign: 'left', padding: '8px 10px', borderRadius: 9, border: `1px solid ${mine ? T.orange : T.border}`, background: T.card, color: T.ink, fontSize: 12.5, fontWeight: 700, cursor: uid && live ? 'pointer' : 'default' }}>
+              <span style={{ position: 'absolute', inset: 0, width: `${pct}%`, background: mine ? 'rgba(255,140,0,0.18)' : 'rgba(129,102,230,0.14)' }} />
+              <span style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <span>{o.label}{mine ? ' ✓' : ''}</span><span style={{ color: T.muted }}>{t.total ? `${pct}%` : ''}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 10.5, color: T.muted, marginTop: 6 }}>{t.total} vote{t.total === 1 ? '' : 's'}</div>
+    </div>
+  );
+};
+
+const RoomPolls: React.FC<{ roomId: string; uid: string | null; live: boolean; canCreate: boolean }> = ({ roomId, uid, live, canCreate }) => {
+  const [polls, setPolls] = useState<RoomPoll[]>([]);
+  const [q, setQ] = useState('');
+  const [opts, setOpts] = useState('');
+  useEffect(() => subscribeRoomPolls(roomId, setPolls), [roomId]);
+  const create = async () => {
+    const options = opts.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX_POLL_OPTIONS).map(label => ({ label }));
+    if (!uid || !q.trim() || options.length < 2) return;
+    setQ(''); setOpts('');
+    await addRoomPoll(roomId, { question: q.trim(), options }, uid).catch(() => {});
+  };
+  if (!polls.length && !canCreate) return null;
+  return (
+    <div style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
+      {polls.slice(0, 3).map(p => <PollCard key={p.id} roomId={roomId} poll={p} uid={uid} live={live} />)}
+      {canCreate && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Ask the room…" maxLength={300}
+            style={{ flex: '2 1 180px', padding: '8px 10px', borderRadius: 9, border: `1px solid ${T.border}`, background: T.card, color: T.ink, fontSize: 12.5, outline: 'none' }} />
+          <input value={opts} onChange={e => setOpts(e.target.value)} placeholder="Options, comma-separated" maxLength={400}
+            style={{ flex: '2 1 180px', padding: '8px 10px', borderRadius: 9, border: `1px solid ${T.border}`, background: T.card, color: T.ink, fontSize: 12.5, outline: 'none' }} />
+          <button onClick={create} style={{ padding: '8px 12px', borderRadius: 9, border: 'none', background: T.violet, color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Poll</button>
+        </div>
+      )}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useFediverse } from '../contexts/FediverseContext';
 import FediversePostCard from './FediversePostCard';
+import FindYourPeople from './discovery/FindYourPeople';
 import type { FediverseProtocol } from '../services/fediverse/types';
 import type { BskyConversation } from '../services/fediverse/bluesky';
 
@@ -200,7 +201,7 @@ export default function FediverseHub({ onOpenSettings }: FediverseHubProps) {
   const {
     accounts, feed, notifications, isLoadingAccounts, isLoadingFeed,
     refreshFeed, refreshNotifications, hasProtocol,
-    dmConversations, isDmLoading, loadDmConversations,
+    dmConversations, isDmLoading, dmError, loadDmConversations,
   } = useFediverse();
 
   const [tab, setTab] = useState<HubTab>('feed');
@@ -274,6 +275,9 @@ export default function FediverseHub({ onOpenSettings }: FediverseHubProps) {
           </button>
         )}
       </div>
+
+      {/* Find your people — follows on Bluesky/Mastodon who are already on Plajah, + invite the rest */}
+      {(hasProtocol('bluesky') || hasProtocol('mastodon')) && <FindYourPeople onConnect={onOpenSettings} compact />}
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
@@ -399,7 +403,13 @@ export default function FediverseHub({ onOpenSettings }: FediverseHubProps) {
                   </div>
                 )}
 
-                {!isDmLoading && dmConversations.length === 0 && (
+                {!isDmLoading && dmError && (
+                  <div className="py-8 px-2 text-center">
+                    <p className="text-[11px] text-amber-300/90 leading-relaxed">{dmError}</p>
+                  </div>
+                )}
+
+                {!isDmLoading && !dmError && dmConversations.length === 0 && (
                   <div className="py-12 text-center space-y-2">
                     <MessageCircle size={32} className="mx-auto text-white/10" />
                     <p className="text-[10px] text-white/20 uppercase tracking-widest">No conversations</p>

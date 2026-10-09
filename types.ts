@@ -607,6 +607,10 @@ export interface Album {
   bookChapters?: BookChapter[];
   movieMetadata?: MovieMetadata; // Added for Movie Album type
   filmDistribution?: FilmDistribution; // Film/TV monetization + release (uploader → Taleo)
+  /** Independent-author ebook submission (components/bookSubmit). delivery mirrors FilmDistribution.delivery: DRM-free by default, never a paid upsell. */
+  bookDistribution?: { delivery?: 'DOWNLOAD_OPEN' | 'PLAJAH_ONLY'; watermark?: boolean; submissionId?: string; language?: string; isbn13?: string; arkId?: string; wordCount?: number; aiDisclosure?: string; license?: string };
+  /** Book upgraded to the full Tela stack (services/bookTela). Readers render the published Tela version; exports stay open-format (EPUB/PDF). */
+  bookTela?: { enabled: boolean; docId: string; versionId?: string; upgradedAt: number; layoutPreference?: 'AUTO' | 'REFLOW' | 'FIXED'; enhancementCount?: number; /** Write-once version stamps; a buyer pins to the newest one at or before their license.issuedAt. */ versions?: Array<{ versionId: string; createdAt: number }> };
   alternateVersions?: FilmVersion[]; // Extended / director's / unrated cuts (film)
   bookPreviewConfig?: {
     type: 'CHAPTERS' | 'PAGES';
@@ -1657,6 +1661,8 @@ export interface UserProfile {
    *  verification). INSTRUCTOR = creator-economy courses (MasterClass/Skillshare-style, monetized,
    *  learners self-enroll). A user may hold both. Drives the Teaching-tab default + provisioning UI. */
   teachingKind?: ('TEACHER' | 'INSTRUCTOR')[];
+  /** In-app Motion switch (creator courses art + card animation). auto = follow the device. */
+  motionPref?: 'auto' | 'on' | 'off';
   revenue?: UserRevenue;
   storeSettings?: StoreSettings;
   isWriter?: boolean;
@@ -2135,6 +2141,8 @@ export interface Post {
   quotedPost?: { id: string; authorId: string; authorName: string; authorPhoto: string; text: string; mediaThumb?: string; mediaType?: string; timestamp: number };
   /** Count of quote posts of this post (bounded +/-1 client increments). */
   quoteCount?: number;
+  /** Where this post was also shared on the fediverse (written by the server after a cross-post; see routes/fediverseNative.ts). */
+  fediverse?: { posts: { protocol: string; accountId: string; handle: string; url?: string; uri?: string; cid?: string; at: number }[] };
   /** Plain repost: this doc (id repost_{uid}_{origId}) re-shares `repostOf`. */
   repostOf?: string;
   repostCount?: number;
@@ -3324,6 +3332,10 @@ export interface Lesson {
   contentUrl?: string;
   textContent?: string;
   order: number;
+  /** Creator courses group lessons into modules/weeks. */
+  section?: string;
+  /** Free preview lesson, visible to non-enrolled visitors on the course page. */
+  preview?: boolean;
 }
 
 export interface Assignment {
@@ -3344,6 +3356,8 @@ export interface Submission {
   grade?: number;
   feedback?: string;
   timestamp: number;
+  /** Lets the course owner query a gradebook (assignments are embedded in the classroom doc). */
+  classroomId?: string;
 }
 
 export interface Classroom {
@@ -3368,6 +3382,23 @@ export interface Classroom {
   track?: 'ACADEMIC' | 'CREATOR';
   gradeBand?: string; // academic only — e.g. 'g34'
   schoolId?: string;  // the emergent School this classroom (a Club) belongs to
+  // ── Creator-course fields (all optional; academic classes ignore them) ──
+  /** DRAFT courses are hidden from the public directory. Missing = PUBLISHED (legacy classes). */
+  status?: 'DRAFT' | 'PUBLISHED';
+  tagline?: string;
+  /** "By the end you will…" bullets shown on the course page. */
+  outcomes?: string[];
+  level?: 'beginner' | 'intermediate' | 'advanced' | 'all';
+  format?: 'SELF_PACED' | 'COHORT' | 'LIVE';
+  /** Cohort / live-series start (ms). */
+  startDate?: number;
+  /** Seat cap for cohort / live courses. 0 or missing = unlimited. */
+  capacity?: number;
+  accent?: string;
+  createdAt?: number;
+  publishedAt?: number;
+  /** Evite / Event created to launch the course. */
+  launchEventId?: string;
 }
 
 // ── Emergent school model ──────────────────────────────────────────────────────
@@ -3475,6 +3506,35 @@ export interface Article {
   imageUrl?: string;
   source?: string;
   content?: string;
+  // ── Tela-powered article engine + journalist toolset (services/journalist/*) ──
+  /** Present when the article body is a Tela document. Absent = legacy blocks article (rendered via a read-only Tela bridge). */
+  tela?: {
+    docId: string;
+    /** Newest published version. Live articles follow this. */
+    versionId: string;
+    templateId?: string;
+    /** 'live' follows the newest version; 'archived' is pinned to `pinnedVersionId` and never changes. */
+    mode: 'live' | 'archived';
+    pinnedVersionId?: string;
+  };
+  status?: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'RETRACTED';
+  publishedAt?: number;
+  /** Derived at publish time so feeds, search and OG cards never need the Tela bundle. */
+  bodyText?: string;
+  bodyHtml?: string;
+  wordCount?: number;
+  /** Append-only public correction log (see services/journalist/correctionLog.ts). */
+  notices?: Array<{ id: string; label: 'CORRECTION' | 'UPDATE' | 'EDITORS_NOTE' | 'RETRACTION' | 'CLARIFICATION'; text: string; at: number; byUid: string; byName: string; versionId?: string; previousVersionId?: string }>;
+  disclosures?: { aiAssisted: boolean; aiNote?: string; sponsored: boolean; sponsorName?: string; affiliateLinks: boolean; conflictOfInterest: boolean; conflictNote?: string };
+  imageRights?: Array<{ ref: string; credit: string; license: string; sourceUrl?: string }>;
+  embargoUntil?: number;
+  publicationId?: string;
+  section?: string;
+  /** 'FREE' (default) | 'SUBSCRIBERS' | 'PAID' (buy-to-own issue). */
+  access?: 'FREE' | 'SUBSCRIBERS' | 'PAID';
+  modifiedAt?: number;
+  /** Unpublished edits to an already-published (or scheduled) article. Never visible to readers; copied live only by an explicit publish (with a notice when the text changed). */
+  draft?: { title: string; subtitle?: string; coverImage?: string; blocks: ArticleBlock[]; category?: string; tags?: string[]; savedAt: number } | null;
 }
 
 export interface LiveTalk {
@@ -3547,7 +3607,7 @@ export interface ParentalControls {
   updatedBy?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_DIRECTORY' | 'LEARN' | 'HOMESCHOOL' | 'INQUIRY' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB' | 'MACHINE_ATLAS'
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_DIRECTORY' | 'LEARN' | 'HOMESCHOOL' | 'INQUIRY' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB' | 'MACHINE_ATLAS' | 'CREATOR_COURSES' | 'JOURNALIST_DESK' | 'PUBLICATION_PAGE'
   | 'PLAJAH_FSE'
   | 'LIVE_FX_LAB'
   | 'DJ_CONSOLE'
@@ -7318,7 +7378,7 @@ export interface TelaVectorObject {
   blur?: number;
   strokeDash?: number[];
   /** Template semantics — galleries, Aria and "replace image" affordances read this. */
-  templateRole?: 'GROUND' | 'IMAGE_SLOT' | 'HEADLINE' | 'DECK' | 'BODY' | 'CAPTION' | 'LABEL' | 'FOLIO' | 'ORNAMENT' | 'RULE' | 'LOGO';
+  templateRole?: 'GROUND' | 'IMAGE_SLOT' | 'HEADLINE' | 'DECK' | 'BODY' | 'CAPTION' | 'LABEL' | 'FOLIO' | 'ORNAMENT' | 'RULE' | 'LOGO' | 'BYLINE' | 'DATELINE' | 'PULLQUOTE' | 'CREDIT' | 'SIDEBAR' | 'HERO' | 'KICKER' | 'FOOTNOTE' | 'PRICE' | 'SKU' | 'SPEC' | 'COVER_TITLE' | 'COVER_LINE' | 'RUNNING_HEAD' | 'AD_SLOT';
   /**
    * When set, a TEXT object renders the plain text of that Writer device live
    * (the binding-graph "text" edge). The object's own `text` is kept as a
@@ -7740,6 +7800,8 @@ export interface SecurityThreatEvent {
   mitigated: boolean;
   mitigationAction?: 'BLOCKED_IP' | 'CHALLENGE_ISSUED' | 'SESSION_TERMINATED' | 'USER_WARNED' | 'LOGGED_MONITOR';
   details: string;
+  /** True for events created by the admin "simulate attack" test buttons — never real traffic. */
+  simulated?: boolean;
 }
 
 export interface SecurityPlatformStats {
@@ -7748,11 +7810,17 @@ export interface SecurityPlatformStats {
   activeThreatCount: number;
   blockedAttacks24h: number;
   botTrafficPercent: number;
-  csoMode: 'CLOUD_GEMINI' | 'LOCAL_PHI4' | 'HYBRID_ACTIVE';
+  csoMode: 'CLOUD_GEMINI' | 'LOCAL_PHI4' | 'HYBRID_ACTIVE' | 'SECURITY_COUNCIL';
   lastAssessmentAt: number;
   recentPings: SecurityGeoPing[];
   attackDistribution: { vector: ThreatVector; count: number }[];
   timeline: { time: string; normal: number; suspected: number; malicious: number }[];
+  /** Where these numbers come from. 'SIMULATION' = only admin test events; show it as such. */
+  dataSource?: 'COUNCIL' | 'SIMULATION' | 'NONE';
+  /** Metrics with no real source — the UI renders them as "n/a" instead of a number. */
+  unavailableMetrics?: string[];
+  metricNotes?: Record<string, string>;
+  councilLastRunAt?: number;
 }
 
 export interface CsoAssessment {
@@ -7765,7 +7833,7 @@ export interface CsoAssessment {
   indicatorsOfCompromise: string[];
   recommendedActions: string[];
   activeContainments: string[];
-  engineUsed: 'CLOUD_GEMINI' | 'LOCAL_PHI4' | 'SECURITY_HEURISTICS';
+  engineUsed: 'CLOUD_GEMINI' | 'LOCAL_PHI4' | 'SECURITY_HEURISTICS' | 'SECURITY_COUNCIL';
 }
 
 export interface UserThreatWarning {

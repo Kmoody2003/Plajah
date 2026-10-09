@@ -1,0 +1,204 @@
+// parties-rooms-presence.rules.snippet — synchronized parties, Rooms and Presence for the LIVE
+// Firestore ruleset (database plajah-prod). The repo firestore.rules carries the same changes but
+// is over the 256 KiB limit; the live ruleset is .rules-hotfix/firestore.rules. NOT compiled or
+// emulator-tested — dry-run before deploying:  firebase deploy --only firestore:rules --dry-run
+// (against a firebase.json pointing at the hotfix file, as .rules-hotfix/firebase.json does).
+//
+// Fixes:
+//  * parties: (P1) the doc is public-read, so a playable url / Mux id on `content` is REJECTED;
+//    co-host playback writes; host-gone (>60s heartbeat) remote CLAIM by a co-host or, with
+//    openRemote, anyone present; new subcollections viewers / chat / reactions (chat + reactions:
+//    signed-in, own uid, bounded, not blocked with the host).
+//  * rooms: shared rooms (hostId == '') can no longer be hijacked/killed (hostId, endedAt, endsAt,
+//    kind, persistent are immutable for non-host non-admin); polls no longer hold a shared,
+//    anyone-writable vote map — votes are polls/{pollId}/votes/{uid}, self-write only.
+//  * now_active: had NO rule (default deny) → RightNowFeed was always empty. Self-write, auth read.
+//  * presence/{key}/here/{uid}: unchanged (docs now carry expireAt for a TTL policy).
+//
+// HOW TO APPLY (to .rules-hotfix/firestore.rules, line numbers as of 2026-10-08):
+//  STEP 1 (parties). Replace the whole `match /parties/{partyId} { ... }` block (~line 3069-3073)
+//          with BLOCK A. The live file has no isBlockedPair(), so block A carries its own helper.
+//  STEP 2 (rooms). Replace the whole `match /rooms/{roomId} { ... }` block (~line 1220-1249: from
+//          `match /rooms/{roomId} {` to the brace just before `// Two-way (walkie-talkie)`) with
+//          BLOCK B. Keep the comment header above it.
+//  STEP 3 (now_active). Insert BLOCK C right after the `match /presence/{key}/here/{uid} { ... }`
+//          block (~line 3039-3042).
+//  STEP 4 (index). Add to the deployed firestore.indexes.json (repo file already has it):
+//          { "collectionGroup": "parties", "queryScope": "COLLECTION", "fields": [
+//              { "fieldPath": "isActive", "order": "ASCENDING" },
+//              { "fieldPath": "visibility", "order": "ASCENDING" },
+//              { "fieldPath": "hostHeartbeat", "order": "DESCENDING" } ] }
+//  STEP 5 (TTL, one-off gcloud — not part of rules):
+//          gcloud firestore fields ttls update expireAt --collection-group=here --enable-ttl --database=plajah-prod
+//          gcloud firestore fields ttls update expireAt --collection-group=members --enable-ttl --database=plajah-prod   (optional)
+
+// ───────────────────────────── BLOCK A — parties ─────────────────────────────
+    // Synchronized parties (watch-along / read-along / listening party) — services/partyService.ts.
+    // Public read (shareable/joinable) — so the doc holds ONLY a content reference (type/id/title/cover);
+    // a playable url / Mux id is rejected. Host writes anything on their own party; a co-host may write
+    // playback/heartbeat; when the host heartbeat is >60s stale, a co-host (or anyone present when
+    // openRemote) may CLAIM the remote (hostId → self) and nothing else.
+    match /parties/{partyId} {
+      function partyNoPlayable(d) {
+        return !d.get('content', {}).keys().hasAny(['url', 'muxPlaybackId', 'playbackUrl', 'hlsUrl']);
+      }
+      function partyBlocked(a, b) {
+        return exists(/databases/$(database)/documents/blocks/$(a + '_' + b))
+               || exists(/databases/$(database)/documents/blocks/$(b + '_' + a));
+      }
+      function partyHostStale() {
+        return resource.data.get('hostHeartbeat', timestamp.value(0)) < request.time - duration.value(60, 's');
+      }
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.hostId == request.auth.uid
+                    && partyNoPlayable(request.resource.data);
+      allow update: if isAuthenticated() && partyNoPlayable(request.resource.data) && (
+        resource.data.hostId == request.auth.uid
+        || (request.auth.uid in resource.data.get('coHostIds', [])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playback', 'hostHeartbeat', 'hostAway']))
+        || (resource.data.get('isActive', false) == true
+            && partyHostStale()
+            && (request.auth.uid in resource.data.get('coHostIds', []) || resource.data.get('openRemote', false) == true)
+            && request.resource.data.hostId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['hostId', 'hostName', 'hostPhoto', 'coHostIds', 'hostHeartbeat', 'hostAway', 'playback']))
+      );
+      allow delete: if isAuthenticated() && resource.data.hostId == request.auth.uid;
+
+      // Viewer join time + last-seen (clock probe; "longest-present" for openRemote). Self-write only.
+      match /viewers/{uid} {
+        allow read: if true;
+        allow write: if isAuthenticated() && uid == request.auth.uid
+                     && request.resource.data.keys().hasOnly(['uid', 'name', 'photo', 'joinedAt', 'seenAt'])
+                     && request.resource.data.uid == request.auth.uid;
+        allow delete: if isAuthenticated() && uid == request.auth.uid;
+      }
+      // Party chat: signed-in, own uid, bounded text, not blocked with the host. Author or host may delete.
+      match /chat/{msgId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated()
+                      && request.resource.data.keys().hasOnly(['uid', 'name', 'photo', 'text', 'at'])
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 300
+                      && !partyBlocked(request.auth.uid, get(/databases/$(database)/documents/parties/$(partyId)).data.hostId);
+        allow delete: if isAuthenticated() && (
+          resource.data.uid == request.auth.uid
+          || get(/databases/$(database)/documents/parties/$(partyId)).data.hostId == request.auth.uid);
+      }
+      // Emoji reactions overlay: signed-in, own uid, fixed emoji set, not blocked with the host.
+      match /reactions/{rid} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated()
+                      && request.resource.data.keys().hasOnly(['uid', 'emoji', 'at'])
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.emoji in ['😂', '😍', '🔥', '👏', '😮', '😢', '🎉', '❤️']
+                      && !partyBlocked(request.auth.uid, get(/databases/$(database)/documents/parties/$(partyId)).data.hostId);
+      }
+    }
+
+// ───────────────────────────── BLOCK B — rooms ─────────────────────────────
+    match /rooms/{roomId} {
+      allow read: if true;
+      // Shared rooms are born live: a shared create may not pre-kill the deterministic id.
+      allow create: if isAuthenticated() && (
+        request.resource.data.hostId == request.auth.uid ||
+        (request.resource.data.hostId == ''
+          && request.resource.data.kind in ['MATCH', 'TEAM', 'LEAGUE']
+          && !request.resource.data.keys().hasAny(['endedAt'])
+          && request.resource.data.get('endsAt', 0) == 0)
+      );
+      // Host + admin keep full power (incl. ending and re-opening: endedAt delete, endsAt reset).
+      // Anyone signed in may touch a SHARED room (hostId == '') for context/postId merges, but
+      // may never hijack (hostId), kill (endedAt/endsAt/persistent) or re-type (kind) it.
+      allow update: if isAuthenticated() && (
+        resource.data.hostId == request.auth.uid ||
+        isAdmin() ||
+        (resource.data.get('hostId', 'x') == ''
+          && !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['hostId', 'endedAt', 'endsAt', 'kind', 'persistent']))
+      );
+      allow delete: if isAuthenticated() && (resource.data.hostId == request.auth.uid || isAdmin());
+      // Member presence: self-write only. Heartbeat lastSeen (serverTimestamp) + expireAt (TTL).
+      match /members/{uid} {
+        allow read: if true;
+        allow write: if isAuthenticated() && uid == request.auth.uid;
+      }
+      match /chat/{msgId} {
+        allow read: if true;
+        allow create: if isAuthenticated()
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() <= 500;
+      }
+      // Polls: the poll doc holds the question/options only (no shared vote map). Creator,
+      // room host or admin may edit/delete it. Votes are one doc per voter (self-write only),
+      // tallied client-side (services/roomPollCore).
+      match /polls/{pollId} {
+        allow read: if true;
+        allow create: if isAuthenticated()
+                      && request.resource.data.createdBy == request.auth.uid
+                      && !request.resource.data.keys().hasAny(['votes'])
+                      && request.resource.data.question is string
+                      && request.resource.data.question.size() <= 300
+                      && request.resource.data.options is list
+                      && request.resource.data.options.size() >= 2
+                      && request.resource.data.options.size() <= 8;
+        allow update: if isAuthenticated()
+                      && (resource.data.get('createdBy', '') == request.auth.uid
+                          || get(/databases/$(database)/documents/rooms/$(roomId)).data.get('hostId', '') == request.auth.uid
+                          || isAdmin())
+                      && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['votes', 'createdBy'])
+                      && request.resource.data.options is list
+                      && request.resource.data.options.size() <= 8;
+        allow delete: if isAuthenticated()
+                      && (resource.data.get('createdBy', '') == request.auth.uid
+                          || get(/databases/$(database)/documents/rooms/$(roomId)).data.get('hostId', '') == request.auth.uid
+                          || isAdmin());
+        match /votes/{voterId} {
+          allow read: if true;
+          allow create, update: if isAuthenticated()
+                                && voterId == request.auth.uid
+                                && request.resource.data.keys().hasOnly(['uid', 'choice', 'at'])
+                                && request.resource.data.uid == request.auth.uid
+                                && request.resource.data.choice is int
+                                && request.resource.data.choice >= 0
+                                && request.resource.data.choice < get(/databases/$(database)/documents/rooms/$(roomId)/polls/$(pollId)).data.options.size();
+          allow delete: if isAuthenticated() && voterId == request.auth.uid;
+        }
+      }
+    }
+
+// ───────────────────────────── BLOCK C — now_active ─────────────────────────────
+    // "Right now" activity (services/presenceService → components/RightNowFeed): one doc per
+    // user at now_active/{uid}. Signed-in users may read (the feed queries followed uids with
+    // where('uid','in',[...]) — single-field, no composite index). Self-write only, bounded.
+    match /now_active/{uid} {
+      function nowActiveStr(d, k, n) {
+        return !(k in d) || d[k] == null || (d[k] is string && d[k].size() <= n);
+      }
+      function nowActiveValid(d) {
+        return d.keys().hasOnly(['uid', 'displayName', 'photoURL', 'type',
+                                 'trackId', 'trackTitle', 'trackArtist', 'albumId', 'albumTitle', 'albumCover',
+                                 'videoId', 'videoTitle', 'videoThumbnail', 'creatorUid', 'creatorName',
+                                 'startedAt', 'expiresAt'])
+          && d.uid == request.auth.uid
+          && d.type in ['TRACK', 'VIDEO', 'RADIO', 'LIVE']
+          && d.startedAt is number && d.expiresAt is number
+          && d.expiresAt <= d.startedAt + 4 * 60 * 60 * 1000
+          && nowActiveStr(d, 'displayName', 120)
+          && nowActiveStr(d, 'photoURL', 2048)
+          && nowActiveStr(d, 'trackId', 200) && nowActiveStr(d, 'trackTitle', 300)
+          && nowActiveStr(d, 'trackArtist', 200) && nowActiveStr(d, 'albumId', 200)
+          && nowActiveStr(d, 'albumTitle', 300) && nowActiveStr(d, 'albumCover', 2048)
+          && nowActiveStr(d, 'videoId', 200) && nowActiveStr(d, 'videoTitle', 300)
+          && nowActiveStr(d, 'videoThumbnail', 2048) && nowActiveStr(d, 'creatorUid', 200)
+          && nowActiveStr(d, 'creatorName', 200);
+      }
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && uid == request.auth.uid
+                            && nowActiveValid(request.resource.data);
+      allow delete: if isAuthenticated() && uid == request.auth.uid;
+    }

@@ -6,7 +6,7 @@
 // Results are cached in localStorage (30 days) so repeat views don't burn quota.
 
 const MEM = new Map<string, string | null>();
-const LS_KEY = 'yt_resolve_v1';
+const LS_KEY = 'yt_resolve_v2'; // v2: v1 entries were resolved with safeSearch=none
 const TTL = 30 * 24 * 3600_000;
 
 function readLS(): Record<string, { t: number; id: string | null }> {
@@ -29,16 +29,21 @@ export function queryFromYouTubeUrl(urlOrQuery: string): string {
 }
 
 /** Resolve a query → embeddable video id (or null). Cached. */
-export async function resolveVideoId(query: string): Promise<string | null> {
-  const q = (query || '').trim();
-  if (!q) return null;
+// `kids: true` asks the server for safeSearch=strict (default is moderate); cached separately.
+export async function resolveVideoId(query: string, opts?: { kids?: boolean }): Promise<string | null> {
+  const raw = (query || '').trim();
+  if (!raw) return null;
+  const kids = opts?.kids === true;
+  const q = kids ? `kids|${raw}` : raw; // cache key
   if (MEM.has(q)) return MEM.get(q)!;
   const ls = readLS()[q];
   if (ls && Date.now() - ls.t < TTL) { MEM.set(q, ls.id); return ls.id; }
   try {
-    const r = await fetch(`/api/yt-search?q=${encodeURIComponent(q)}`);
+    const r = await fetch(`/api/yt-search?q=${encodeURIComponent(raw)}${kids ? '&kids=1' : ''}`);
     const d = await r.json();
     const id: string | null = d?.videoId ?? null;
+    // Don't pin a transient miss (rate limit / daily quota / server error) for 30 days.
+    if (!r.ok || d?.reason === 'quota') return id;
     MEM.set(q, id);
     writeLS(q, id);
     return id;

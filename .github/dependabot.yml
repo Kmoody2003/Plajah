@@ -1,0 +1,36 @@
+# Dependabot — weekly, grouped npm updates so the PR queue stays small.
+# Security updates (Dependabot alerts) still open immediately, independent of this schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Los_Angeles
+    open-pull-requests-limit: 5
+    groups:
+      firebase:
+        patterns: ["firebase", "firebase-*", "@firebase/*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      build-tooling:
+        patterns: ["vite", "vite-*", "@vitejs/*", "typescript", "tsx", "esbuild", "@types/*"]
+      server:
+        patterns: ["express", "express-*", "helmet", "cors", "cookie-parser", "body-parser"]
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"

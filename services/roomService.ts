@@ -19,9 +19,16 @@
 //   rooms/{roomId}/members/{uid}   RoomMember (presence)
 //   rooms/{roomId}/chat/{msgId}    RoomMessage
 //   rooms/{roomId}/polls/{pollId}  RoomPoll   (only when capabilities.polls)
+//   rooms/{roomId}/polls/{pollId}/votes/{uid}  RoomPollVote (self-write only; tallied client-side)
+//
+// Member liveness: joinRoom starts a heartbeat (lastSeen = serverTimestamp, every 25s)
+// that runs until leaveRoom; subscribeMembers drops members whose heartbeat stopped
+// (services/presenceCore). Member docs carry `expireAt` for an optional TTL policy.
 
 import { db } from './firebase';
-import { collection, doc, setDoc, deleteDoc, addDoc, onSnapshot, query, where, orderBy, limit, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, addDoc, onSnapshot, query, where, orderBy, limit, getDoc, serverTimestamp, deleteField } from 'firebase/firestore';
+import { StaleTracker, toMillisLoose, STALE_MS, HEARTBEAT_MS, EXPIRE_MS, REFILTER_MS, type HeartbeatObservation } from './presenceCore';
+import type { RoomPollVote } from './roomPollCore';
 
 export type RoomKind = 'TOPIC' | 'MATCH' | 'TEAM' | 'LEAGUE' | 'WATCH' | 'LISTEN' | 'STUDY' | 'PROFILE';
 
@@ -51,7 +58,7 @@ export interface RoomContext {
   accent?: string;         // hex accent for theming
 }
 
-export interface RoomMember { uid: string; displayName: string; photoURL?: string | null; joinedAt: number; }
+export interface RoomMember { uid: string; displayName: string; photoURL?: string | null; joinedAt: number; lastSeenMs?: number; }
 export interface RoomMessage { id: string; uid: string; displayName: string; photoURL?: string | null; text: string; at: number; }
 
 export interface LiveRoom {
@@ -132,7 +139,7 @@ export async function createRoom(input: {
     ...(input.context ? { context: input.context } : {}),
   };
   await setDoc(doc(db, ROOM_COL, id), room);
-  await setDoc(memberRef(id, input.user.uid), { uid: input.user.uid, displayName: room.hostName, photoURL: room.hostPhoto, joinedAt: now });
+  await joinRoom(id, { uid: input.user.uid, displayName: room.hostName, photoURL: room.hostPhoto });
   return room;
 }
 
@@ -148,6 +155,15 @@ export async function getOrCreateContextRoom(input: {
   const id = roomIdForContext(input.kind, input.context);
   const existing = await getRoom(id);
   if (existing) {
+    // Deterministic host-owned rooms (PROFILE/WATCH/LISTEN/STUDY) reuse one id forever, so an
+    // ended room must be reopenable by its host — otherwise it is dead for good.
+    if (existing.endedAt && existing.hostId && input.user?.uid === existing.hostId) {
+      try {
+        await setDoc(doc(db, ROOM_COL, id), { endedAt: deleteField(), endsAt: 0, durationMins: 0, persistent: true }, { merge: true });
+        delete existing.endedAt;
+        Object.assign(existing, { endsAt: 0, durationMins: 0, persistent: true });
+      } catch { /* rules/offline — fall through with the ended room */ }
+    }
     if (input.user?.uid) await joinRoom(id, input.user).catch(() => {});
     return existing;
   }
@@ -176,10 +192,71 @@ export async function setRoomPost(roomId: string, postId: string): Promise<void>
   try { await setDoc(doc(db, ROOM_COL, roomId), { postId }, { merge: true }); } catch { /* */ }
 }
 
+// ── Member heartbeat registry ────────────────────────────────────────────────
+// One heartbeat per (room, uid), idempotent: join starts/refreshes it, leave stops it and
+// deletes the member doc. pagehide removes the doc best-effort; pageshow / tab-visible
+// re-publishes it. Without this, a closed tab left a member doc (a ghost) forever.
+interface MemberBeat {
+  roomId: string; user: HostUser; joinedAt: number;
+  timer: ReturnType<typeof setInterval> | null; lastWriteLocal: number;
+  onHide: () => void; onShow: () => void; onVis: () => void;
+}
+const beats = new Map<string, MemberBeat>();
+const beatKey = (rid: string, uid: string) => `${rid}::${uid}`;
+
+function writeMember(b: MemberBeat): Promise<void> {
+  b.lastWriteLocal = Date.now();
+  return setDoc(memberRef(b.roomId, b.user.uid), {
+    uid: b.user.uid,
+    displayName: b.user.displayName || 'Guest',
+    photoURL: b.user.photoURL || null,
+    joinedAt: b.joinedAt,
+    lastSeen: serverTimestamp(),
+    expireAt: new Date(b.lastWriteLocal + EXPIRE_MS), // optional TTL policy target
+  });
+}
+function startBeat(b: MemberBeat): void {
+  if (b.timer) clearInterval(b.timer);
+  b.timer = setInterval(() => { writeMember(b).catch(() => {}); }, HEARTBEAT_MS);
+}
+
 export async function joinRoom(roomId: string, user: HostUser): Promise<void> {
-  await setDoc(memberRef(roomId, user.uid), { uid: user.uid, displayName: user.displayName || 'Guest', photoURL: user.photoURL || null, joinedAt: Date.now() });
+  const k = beatKey(roomId, user.uid);
+  let b = beats.get(k);
+  if (!b) {
+    const nb: MemberBeat = {
+      roomId, user, joinedAt: Date.now(), timer: null, lastWriteLocal: 0,
+      onHide: () => { if (nb.timer) { clearInterval(nb.timer); nb.timer = null; } deleteDoc(memberRef(roomId, user.uid)).catch(() => {}); },
+      onShow: () => { if (!nb.timer) { writeMember(nb).catch(() => {}); startBeat(nb); } },
+      onVis: () => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') { writeMember(nb).catch(() => {}); startBeat(nb); }
+      },
+    };
+    b = nb;
+    beats.set(k, b);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', b.onHide);
+      window.addEventListener('pageshow', b.onShow);
+      document.addEventListener('visibilitychange', b.onVis);
+    }
+  } else {
+    b.user = user;
+  }
+  startBeat(b);
+  await writeMember(b);
 }
 export async function leaveRoom(roomId: string, uid: string): Promise<void> {
+  const k = beatKey(roomId, uid);
+  const b = beats.get(k);
+  if (b) {
+    if (b.timer) clearInterval(b.timer);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', b.onHide);
+      window.removeEventListener('pageshow', b.onShow);
+      document.removeEventListener('visibilitychange', b.onVis);
+    }
+    beats.delete(k);
+  }
   try { await deleteDoc(memberRef(roomId, uid)); } catch { /* */ }
 }
 /** Host ends the room early — sets endsAt to now (and endedAt for persistent rooms). */
@@ -193,8 +270,44 @@ export async function getRoom(roomId: string): Promise<LiveRoom | null> {
 export function subscribeRoom(roomId: string, cb: (room: LiveRoom | null) => void): () => void {
   return onSnapshot(doc(db, ROOM_COL, roomId), s => cb(s.exists() ? (s.data() as LiveRoom) : null), () => cb(null));
 }
+/** Live members only — stale heartbeats (closed tabs, crashed apps) are filtered out. */
 export function subscribeMembers(roomId: string, cb: (m: RoomMember[]) => void): () => void {
-  return onSnapshot(memberCol(roomId), snap => cb(snap.docs.map(d => d.data() as RoomMember)), () => cb([]));
+  const tracker = new StaleTracker(STALE_MS);
+  let latest: RoomMember[] = [];
+  let lastSig = '';
+  const emit = (force = false) => {
+    const fresh = tracker.freshIds(Date.now());
+    const list = latest.filter(m => fresh.has(m.uid));
+    const sig = list.map(m => `${m.uid}|${m.displayName}|${m.photoURL ?? ''}`).join(',');
+    if (!force && sig === lastSig) return;
+    lastSig = sig;
+    cb(list);
+  };
+  const unsub = onSnapshot(memberCol(roomId), snap => {
+    const now = Date.now();
+    const obs: HeartbeatObservation[] = [];
+    latest = snap.docs.map(d => {
+      const data = d.data() as Record<string, unknown>;
+      const hb = toMillisLoose(data.lastSeen);
+      const own = beats.get(beatKey(roomId, d.id));
+      if (own && !d.metadata.hasPendingWrites) tracker.noteOwnHeartbeat(hb, own.lastWriteLocal);
+      const joinedAt = typeof data.joinedAt === 'number' ? data.joinedAt : 0;
+      // Legacy member docs (no lastSeen) age from joinedAt — old ghosts vanish immediately.
+      obs.push({ id: d.id, heartbeatMs: hb, legacyTs: hb == null && !d.metadata.hasPendingWrites ? joinedAt : null });
+      const m: RoomMember = {
+        uid: d.id,
+        displayName: typeof data.displayName === 'string' && data.displayName ? data.displayName : 'Guest',
+        photoURL: typeof data.photoURL === 'string' ? data.photoURL : null,
+        joinedAt,
+      };
+      if (hb != null) m.lastSeenMs = hb;
+      return m;
+    });
+    tracker.observe(obs, now);
+    emit(true);
+  }, () => cb([]));
+  const refilter = setInterval(() => emit(), REFILTER_MS);
+  return () => { clearInterval(refilter); unsub(); };
 }
 export async function sendRoomMessage(roomId: string, msg: Omit<RoomMessage, 'id' | 'at'>): Promise<void> {
   await addDoc(chatCol(roomId), { ...msg, at: Date.now() });
@@ -206,16 +319,46 @@ export function subscribeRoomChat(roomId: string, cb: (m: RoomMessage[]) => void
 
 // ── Polls capability (shared rooms) ──────────────────────────────────────────
 export interface RoomPollOption { label: string; tag?: string | null; }
+// Votes are one doc per voter under polls/{pollId}/votes/{uid} (self-write only in rules) —
+// the poll doc itself carries no vote map, so nobody can overwrite anyone else's vote.
+// Tally with tallyPollVotes() from ./roomPollCore.
+export const MAX_POLL_OPTIONS = 8;
 export interface RoomPoll {
-  id: string; key: string; question: string; hint?: string;
-  options: RoomPollOption[]; votes: Record<string, string[]>; createdAt: number;
+  id: string; key?: string; question: string; hint?: string;
+  options: RoomPollOption[]; createdBy: string; createdAt: number;
 }
 export function subscribeRoomPolls(roomId: string, cb: (p: RoomPoll[]) => void): () => void {
   const q = query(pollCol(roomId), orderBy('createdAt', 'desc'), limit(12));
   return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))), () => cb([]));
 }
-export async function addRoomPoll(roomId: string, poll: Omit<RoomPoll, 'id' | 'votes' | 'createdAt'>): Promise<void> {
-  await addDoc(pollCol(roomId), { ...poll, votes: {}, createdAt: Date.now() });
+export async function addRoomPoll(
+  roomId: string,
+  poll: { key?: string; question: string; hint?: string; options: RoomPollOption[] },
+  createdBy: string,
+): Promise<void> {
+  const options = poll.options.slice(0, MAX_POLL_OPTIONS).map(o => ({ label: o.label.slice(0, 80), tag: o.tag ?? null }));
+  await addDoc(pollCol(roomId), {
+    question: poll.question.slice(0, 300),
+    options,
+    createdBy,
+    createdAt: Date.now(),
+    ...(poll.key ? { key: poll.key.slice(0, 80) } : {}),
+    ...(poll.hint ? { hint: poll.hint.slice(0, 200) } : {}),
+  });
+}
+const voteCol = (rid: string, pid: string) => collection(db, ROOM_COL, rid, 'polls', pid, 'votes');
+/** Cast / change the viewer's own vote (option index). */
+export async function castRoomPollVote(roomId: string, pollId: string, uid: string, choice: number): Promise<void> {
+  await setDoc(doc(voteCol(roomId, pollId), uid), { uid, choice: Math.floor(choice), at: Date.now() });
+}
+export async function clearRoomPollVote(roomId: string, pollId: string, uid: string): Promise<void> {
+  try { await deleteDoc(doc(voteCol(roomId, pollId), uid)); } catch { /* */ }
+}
+export function subscribeRoomPollVotes(roomId: string, pollId: string, cb: (v: RoomPollVote[]) => void): () => void {
+  return onSnapshot(voteCol(roomId, pollId), snap => cb(snap.docs.map(d => {
+    const data = d.data() as Record<string, unknown>;
+    return { uid: d.id, choice: typeof data.choice === 'number' ? data.choice : -1, at: typeof data.at === 'number' ? data.at : 0 };
+  })), () => cb([]));
 }
 
 /**

@@ -40,7 +40,7 @@ export const FONTS = {
   bodoni: S('Bodoni Moda', 'Georgia, serif', 'serif', 'Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900'),
   lora: S('Lora', 'Georgia, serif', 'serif', 'Lora:ital,wght@0,400..700;1,400..700'),
   crimson: S('Crimson Pro', 'Georgia, serif', 'serif', 'Crimson+Pro:ital,wght@0,200..900;1,200..900'),
-  spectral: S('Spectral', 'Georgia, serif', 'serif', 'Spectral:ital,wght@0,200..800;1,200..800'),
+  spectral: S('Spectral', 'Georgia, serif', 'serif', 'Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600;1,700;1,800'),
   merriweather: S('Merriweather', 'Georgia, serif', 'serif', 'Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900'),
   alegreya: S('Alegreya', 'Georgia, serif', 'serif', 'Alegreya:ital,wght@0,400..900;1,400..900'),
   cardo: S('Cardo', 'Georgia, serif', 'serif', 'Cardo:ital,wght@0,400;0,700;1,400', 'Scholarly, humanist'),
@@ -55,7 +55,7 @@ export const FONTS = {
   abril: S('Abril Fatface', 'Georgia, serif', 'display', 'Abril+Fatface'),
   // ── Slab ──
   robotoSlab: S('Roboto Slab', 'Georgia, serif', 'slab', 'Roboto+Slab:wght@100..900'),
-  zilla: S('Zilla Slab', 'Georgia, serif', 'slab', 'Zilla+Slab:ital,wght@0,300..700;1,300..700'),
+  zilla: S('Zilla Slab', 'Georgia, serif', 'slab', 'Zilla+Slab:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700'),
   bitter: S('Bitter', 'Georgia, serif', 'slab', 'Bitter:ital,wght@0,100..900;1,100..900'),
   josefinSlab: S('Josefin Slab', 'Georgia, serif', 'slab', 'Josefin+Slab:ital,wght@0,100..700;1,100..700'),
   // ── Display / poster ──
@@ -90,9 +90,9 @@ export const FONTS = {
   philosopher: S('Philosopher', 'system-ui, sans-serif', 'display', 'Philosopher:ital,wght@0,400;0,700;1,400;1,700'),
   // ── Mono ──
   jetbrains: S('JetBrains Mono', 'monospace', 'mono', 'JetBrains+Mono:ital,wght@0,100..800;1,100..800'),
-  ibmPlexMono: S('IBM Plex Mono', 'monospace', 'mono', 'IBM+Plex+Mono:ital,wght@0,100..700;1,100..700'),
+  ibmPlexMono: S('IBM Plex Mono', 'monospace', 'mono', 'IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700'),
   spaceMono: S('Space Mono', 'monospace', 'mono', 'Space+Mono:ital,wght@0,400;0,700;1,400;1,700'),
-  dmMono: S('DM Mono', 'monospace', 'mono', 'DM+Mono:ital,wght@0,300..500;1,300..500'),
+  dmMono: S('DM Mono', 'monospace', 'mono', 'DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500'),
   courierPrime: S('Courier Prime', '"Courier New", monospace', 'mono', 'Courier+Prime:ital,wght@0,400;0,700;1,400;1,700', 'Screenplay standard'),
   specialElite: S('Special Elite', '"Courier New", monospace', 'mono', 'Special+Elite', 'Typewriter with worn ink'),
   // ── Script / hand ──

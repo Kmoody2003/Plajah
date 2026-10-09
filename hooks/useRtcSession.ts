@@ -77,6 +77,15 @@ export interface UseRtcSession {
   screenStream: MediaStream | null;
 }
 
+/** In-flight leaves per session path. A re-key (role change: listener → speaker) used to start the
+ *  new join while the old leave() was still deleting the SAME participant doc id — so the delete
+ *  could land after the new setDoc and erase the fresh presence. Joins now wait for it. */
+const pendingLeaves = new Map<string, Promise<void>>();
+function trackLeave(path: string, p: Promise<void>) {
+  pendingLeaves.set(path, p);
+  p.finally(() => { if (pendingLeaves.get(path) === p) pendingLeaves.delete(path); }).catch(() => {});
+}
+
 export function useRtcSession(
   config: RtcSessionConfig | null,
   opts: { autoJoin?: boolean; onData?: (peerId: string, msg: RtcDataMessage) => void; excludePeerIds?: string[]; allowedPeerIds?: string[]; onRecordingStopped?: (blob: Blob) => void } = { autoJoin: true },
@@ -109,12 +118,23 @@ export function useRtcSession(
   // joining/leaving mid-recording are captured automatically).
   const streamsRef = useRef<MediaStream[]>([]);
   // Stable key so we only rejoin when the actual session identity changes.
-  const key = config ? `${config.collectionName || 'rtc_sessions'}/${config.sessionId}/${config.role}/${config.topology}` : null;
+  // `revive` re-keys after the page is restored from the back/forward cache (pagehide tore the
+  // session down; the restored page must rejoin instead of showing a dead room).
+  const [revive, setRevive] = useState(0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) setRevive(n => n + 1); };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
+  const sessionPath = config ? `${config.collectionName || 'rtc_sessions'}/${config.sessionId}` : '';
+  const key = config ? `${sessionPath}/${config.role}/${config.topology}#${revive}` : null;
 
   useEffect(() => {
     if (!config || !key || opts.autoJoin === false) return;
     setActiveSessionKey(key);
     let cancelled = false;
+    const priorLeave = pendingLeaves.get(sessionPath);
     const session = new RtcSession(config, {
       onLocalStream: s => { if (!cancelled) { s.getAudioTracks().forEach(t => { t.enabled = enabledRef.current.audio; }); s.getVideoTracks().forEach(t => { t.enabled = enabledRef.current.video; }); setLocalStream(s); } },
       onScreenStream: s => { if (!cancelled) { setScreenStream(s); setSharingScreen(!!s); } },
@@ -138,8 +158,12 @@ export function useRtcSession(
     sessionRef.current = session;
     session.setExcludedPeers(opts.excludePeerIds || []);
     session.setAllowedPeers(opts.allowedPeerIds);
-    session.join().catch(e => {
-      session.leave();
+    (async () => {
+      if (priorLeave) await priorLeave.catch(() => {});
+      if (cancelled) return;
+      await session.join();
+    })().catch(e => {
+      trackLeave(sessionPath, session.leave());
       if (!cancelled) { setLocalStream(null); setScreenStream(null); setRemoteStreams(new Map()); setParticipants([]); setError(e?.message || 'Failed to join'); }
     });
 
@@ -150,7 +174,7 @@ export function useRtcSession(
       if (recording) recording.stop().then(blob => { if (blob) onRecordingStoppedRef.current?.(blob); }).catch(() => {});
       streamsRef.current = [];
       setIsRecording(false);
-      session.leave();
+      trackLeave(sessionPath, session.leave());
       sessionRef.current = null;
       setRemoteStreams(new Map());
       setParticipants([]);
@@ -284,7 +308,8 @@ export function useRtcSession(
     if (recording) recording.stop().then(blob => { if (blob) onRecordingStoppedRef.current?.(blob); }).catch(() => {});
     streamsRef.current = [];
     setIsRecording(false);
-    sessionRef.current?.leave();
+    const s = sessionRef.current;
+    if (s) trackLeave(s.path, s.leave());
   }, []);
 
   return {

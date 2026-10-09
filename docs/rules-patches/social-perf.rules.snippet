@@ -1,0 +1,35 @@
+// Social perf + migration (docs/SOCIAL_MIGRATION_AND_PERF.md) — rules to add to the LIVE rule set.
+// The repo firestore.rules has the same block (inside match /chat_rooms/{roomId}) but is over the 256KB
+// deploy limit, so paste this into the live set by hand.
+//
+// 1) Typing indicator subdoc. Paste INSIDE the live `match /chat_rooms/{roomId} { ... }` block, next to
+//    `match /messages/{messageId}`. Until it is deployed the client falls back to the legacy room-doc
+//    `typingUsers` field (still throttled to <=1 write / 3s), so nothing breaks before the deploy.
+//    Uses isAuthenticated() from the live set.
+
+      match /meta/{metaId} {
+        function typingRoom() { return get(/databases/$(database)/documents/chat_rooms/$(roomId)).data; }
+        function typingWriter() {
+          return isAuthenticated() && metaId == 'typing'
+            && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
+            && request.auth.uid in typingRoom().participants
+            && request.resource.data.keys().hasOnly(['users'])
+            && request.resource.data.users is map
+            && request.resource.data.users.size() <= 500
+            && request.resource.data.users.get(request.auth.uid, 0) is number;
+        }
+        allow read: if isAuthenticated() && metaId == 'typing'
+          && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
+          && (request.auth.uid in typingRoom().participants || typingRoom().get('type', '') == 'PUBLIC_LIVE');
+        allow create: if typingWriter() && request.resource.data.users.keys().hasOnly([request.auth.uid]);
+        allow update: if typingWriter()
+          && request.resource.data.users.diff(resource.data.get('users', {})).affectedKeys().hasOnly([request.auth.uid]);
+      }
+
+// 2) Server-only collections — NO client rule needed (default deny keeps them private). Listed so nobody
+//    "fixes" a denied read by opening them up:
+//      fediverse_handles/{key}     Bluesky DID / Mastodon address → Plajah uid (matching is server-side only;
+//                                  exposing it would let anyone de-anonymise a fediverse account)
+//      invites/{code}, invite_owners/{uid}, invite_redemptions/{uid}
+//    Follow writes from the server (follows, follow_requests, notifications, users counters) use the
+//    service account and bypass rules, same as the rest of server.ts.

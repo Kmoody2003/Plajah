@@ -26,7 +26,7 @@ import {
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
   LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus, BarChart3,
-  HardDriveDownload, FolderOpen, Download, ShieldCheck, Clapperboard,
+  HardDriveDownload, FolderOpen, Download, ShieldCheck, Clapperboard, Smile, SmilePlus,
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type AmbientFx } from '../services/liveComposer';
 import type { LensId } from '../services/lenses/lensEngine';
@@ -56,6 +56,16 @@ import {
   listPendingLocalRecordings, assembleLocalRecording, type LiveRecordingSink, type LocalRecordingMeta,
 } from '../services/localRecordingStore';
 import StreamRecoveryList from './StreamRecoveryList';
+import { LiveEmoteLayer, type LiveEmoteLayerHandle } from './emotes/LiveEmoteLayer';
+import { EmoteTray } from './emotes/EmoteTray';
+import { EmotePicker } from './emotes/EmotePicker';
+import { EmoteChatText, EmoteSuggest } from './emotes/EmoteChatText';
+import { EmoteStudioSheet } from './emotes/EmoteStudioSheet';
+import { useChannelEmotes, useViewerEmoteAccess } from '../services/emotes/emoteLive';
+import { smartLightingService } from '../services/smartLightingService';
+import { emoteById, emoteByCode } from '../services/emotes/emoteLibrary';
+import { ACCESS_LABEL, canUseEmote, completeEmote, isEmoteOnly, parseEmoteText } from '../services/emotes/emoteEngine';
+import type { StreamEmoteSettings } from '../services/emotes/emoteTypes';
 import {
   doc, collection, addDoc, setDoc, updateDoc, increment, deleteDoc,
   query, orderBy, limit, arrayUnion, arrayRemove,
@@ -122,12 +132,16 @@ async function sendChat(streamId: string, text: string) {
 
 // ─── Audience emotes + polls (Twitch-style, on the same Firestore rails as chat) ──────
 
-const QUICK_EMOTES = ['❤️', '🔥', '😂', '👏', '😱', '🎉'];
+// Emotes moved to the Reello Live emote system (components/emotes, services/emotes): a 190-emote
+// library, chorus, Crowd Light, kaiju summons. Old clients' `{type:'emote', emoji}` events still map
+// onto library emotes via their `unicode`.
 
-async function sendLiveEvent(streamId: string, emoji: string) {
-  const user = auth.currentUser;
-  if (!user) return;
-  await addDoc(collection(db, 'streams', streamId, 'events'), { type: 'emote', emoji, uid: user.uid, ts: Date.now() });
+const HOST_ACCESS = { isCreator: true };
+
+/** Chat send gate for emote-only mode. Returns an error string, or null when the message may go. */
+function emoteOnlyBlock(text: string, settings: StreamEmoteSettings, channel: ReturnType<typeof useChannelEmotes>): string | null {
+  if (!settings.emoteOnly || !text.trim()) return null;
+  return isEmoteOnly(parseEmoteText(text, c => emoteByCode(c, channel))) ? null : 'Emote-only chat is on — send emotes (tap the 🙂 button or type :code:).';
 }
 
 /** Viewer → host: "I tapped here" (normalized frame coords) for the Aura lens's collectible orbs. */
@@ -550,6 +564,13 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [reactions, setReactions] = useState<Reaction[]>([]);
+  // Emotes: the host's overlay layer (also the chorus authority), studio sheet, picker, channel emotes.
+  const emoteLayerRef = useRef<LiveEmoteLayerHandle>(null);
+  const [emoteSettings, setEmoteSettings] = useState<StreamEmoteSettings>({});
+  const [emoteStudioOpen, setEmoteStudioOpen] = useState(false);
+  const [emotePicker, setEmotePicker] = useState(false);
+  const [roomLights, setRoomLights] = useState(false);
+  const channelEmotes = useChannelEmotes(auth.currentUser?.uid);
   const [copied, setCopied] = useState(false);
   const [permError, setPermError] = useState('');
   const [goLiveError, setGoLiveError] = useState('');
@@ -777,7 +798,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // Audience fun layer — ambient FX, on-stream emote bursts (audience-triggered), polls.
   const [ambientId, setAmbientId] = useState<AmbientFx>('none');
   const applyAmbient = (fx: AmbientFx) => { composerRef.current?.setAmbient(fx); setAmbientId(fx); };
-  useLiveEvents(streamId || null, emoji => composerRef.current?.spawnBurst(emoji, 10),
+  useLiveEvents(streamId || null, () => { /* emotes: LiveEmoteLayer */ },
     (x, y, who) => { composerRef.current?.tapLens(x, y, who); });
   const [pollOpen, setPollOpen] = useState(false);
   const { poll, counts } = usePoll(streamId || null);
@@ -789,7 +810,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   };
   const endPoll = async () => {
     if (!streamId || !poll) return;
-    composerRef.current?.spawnBurst('🎉', 18);
+    const popper = emoteById('core.popper');
+    if (popper) emoteLayerRef.current?.send(popper, 18);
     await updateDoc(doc(db, 'streams', streamId), { activePoll: { ...poll, closed: true } }).catch(() => {});
     setTimeout(() => { updateDoc(doc(db, 'streams', streamId), { activePoll: null }).catch(() => {}); }, 8000);
   };
@@ -1581,6 +1603,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             </AnimatePresence>
           </div>
 
+          {/* Reello Live emotes on the host preview (+ chorus authority, Crowd Light, room lights, bake) */}
+          <LiveEmoteLayer ref={emoteLayerRef} streamId={isLive ? streamId : null} role="host" audience={viewerCount}
+            roomLights={roomLights} composer={composerPublishedRef.current ? composerRef.current : null} onSettings={setEmoteSettings} />
+
           {/* Floating reactions */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <AnimatePresence>
@@ -1626,7 +1652,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     {chatMsgs.map(m => (
                       <div key={m.id} className="flex items-start gap-2">
                         <span className="text-[11px] font-black text-orange-400 shrink-0 mt-0.5">{(m.user || 'Viewer').split(' ')[0]}</span>
-                        <span className="text-[13px] text-white/90 leading-relaxed">{m.text}</span>
+                        <span className="text-[13px] text-white/90 leading-relaxed"><EmoteChatText text={m.text} channelEmotes={channelEmotes} /></span>
                       </div>
                     ))}
                     <div ref={chatEndRef} />
@@ -1841,13 +1867,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                         ))}
                       </div>
                       <p className="text-[9px] text-white/35 px-1 pt-1 pb-1">Hype burst (viewers can fire these too)</p>
-                      <div className="flex gap-1.5">
-                        {QUICK_EMOTES.map(e => (
-                          <button key={e} onClick={() => composerRef.current?.spawnBurst(e, 12)}
-                            className="w-9 h-9 rounded-lg bg-white/[0.06] text-[17px] flex items-center justify-center active:scale-90 transition-transform">
-                            {e}
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-1.5">
+                        <EmoteTray access={HOST_ACCESS} slots={5} size={24} onSend={(e, n) => emoteLayerRef.current?.send(e, n)} onOpenPicker={() => setEmotePicker(true)} />
+                        <button type="button" onClick={() => setEmoteStudioOpen(true)}
+                          className="h-9 px-2.5 rounded-lg bg-white/[0.06] text-[11px] font-bold text-white/80 whitespace-nowrap">Emote studio</button>
                       </div>
                     </div>
                   </div>
@@ -1868,14 +1891,13 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 </motion.div>
               )}
             </AnimatePresence>
-            {/* Reactions row */}
-            <div className="flex items-center gap-3">
-              {['❤️', '🔥', '😂', '👏', '💯', '🎉'].map(e => (
-                <button key={e} onClick={() => addReaction(e)}
-                  className="text-2xl active:scale-125 transition-transform">
-                  {e}
-                </button>
-              ))}
+            {/* Emotes — tap to fire on stream, hold to keep firing; the smiley opens the full library */}
+            <div className="flex items-center gap-2">
+              <EmoteTray access={HOST_ACCESS} onSend={(e, n) => emoteLayerRef.current?.send(e, n)} onOpenPicker={() => setEmotePicker(true)} pinned={channelEmotes.slice(0, 2)} />
+              <button type="button" onClick={() => setEmoteStudioOpen(true)} aria-label="Emote studio"
+                className="w-[42px] h-[42px] shrink-0 rounded-2xl bg-white/[0.06] flex items-center justify-center text-white/85">
+                <Settings size={18} />
+              </button>
             </div>
 
             {/* Controls */}
@@ -2093,6 +2115,22 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
           listPendingLocalRecordings().then(l => setPendingRec(l.sort((a, b) => b.startedAt - a.startedAt)[0] || null)).catch(() => {});
         }} />
       )}
+
+      {/* Emotes: the full library (host fires on stream) + the creator's emote studio */}
+      {isLive && emotePicker && (
+        <div className="absolute inset-0 z-[70]" onClick={() => setEmotePicker(false)}>
+          <EmotePicker channelEmotes={channelEmotes} channelName="Your channel" access={HOST_ACCESS}
+            onClose={() => setEmotePicker(false)} onPick={e => emoteLayerRef.current?.send(e, 1)} />
+        </div>
+      )}
+      {emoteStudioOpen && (
+        <div className="absolute inset-0 z-[70]" onClick={() => setEmoteStudioOpen(false)}>
+          <EmoteStudioSheet streamId={isLive ? streamId : null} settings={emoteSettings} channelEmotes={channelEmotes}
+            roomLights={roomLights} onRoomLights={setRoomLights} roomLightsAvailable={smartLightingService.lights.some(l => l.on)}
+            ensureComposer={async () => { if (!composerPublishedRef.current) await applyMode('front'); }}
+            onClose={() => setEmoteStudioOpen(false)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2124,6 +2162,16 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
   const [likeCount, setLikeCount] = useState(0);
   const [guests, setGuests] = useState<Array<{ uid: string; name: string; photo?: string }>>([]);
   const [requested, setRequested] = useState(false);
+  // Emotes: overlay layer, picker, channel emotes of this stream's creator, stream emote settings.
+  const [ownerUid, setOwnerUid] = useState<string | null>(null);
+  const emoteLayerRef = useRef<LiveEmoteLayerHandle>(null);
+  const [emoteSettings, setEmoteSettings] = useState<StreamEmoteSettings>({});
+  const [picker, setPicker] = useState<null | 'send' | 'insert'>(null);
+  const channelEmotes = useChannelEmotes(ownerUid);
+  const emoteAccess = useViewerEmoteAccess(ownerUid);   // follower / member emotes unlock live
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const [chatCaret, setChatCaret] = useState(0);
+  const [chatBlock, setChatBlock] = useState<string | null>(null);
 
   const myUid = auth.currentUser?.uid || '';
   const isGuest = !!myUid && guests.some(g => g.uid === myUid);
@@ -2170,6 +2218,7 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
         setStreamLive(data.isLive !== false);
         setAuraOn(data.auraOn === true);
         setGuests(Array.isArray(data.guests) ? data.guests : []);
+        setOwnerUid(typeof data.ownerUid === 'string' ? data.ownerUid : null);
       }
     });
   }, [streamId]);
@@ -2211,21 +2260,25 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
   const toggleLike = async () => {
     setLiked(l => !l);
     await updateDoc(doc(db, 'streams', streamId), { likeCount: increment(liked ? -1 : 1) }).catch(() => {});
-    if (!liked) addReaction('❤️');
+    if (!liked) { const h = emoteById('core.heart'); if (h) emoteLayerRef.current?.send(h, 3); }
+  };
+  const submitChat = () => {
+    const locked = parseEmoteText(chatInput, c => emoteByCode(c, channelEmotes)).find(x => x.t === 'emote' && !canUseEmote(x.e, emoteAccess));
+    const block = locked && locked.t === 'emote'
+      ? `:${locked.code}: is for ${ACCESS_LABEL[locked.e.access ?? 'everyone'].toLowerCase()} of this channel.`
+      : emoteOnlyBlock(chatInput, emoteSettings, channelEmotes);
+    setChatBlock(block);
+    if (block) return;
+    sendChat(streamId, chatInput); setChatInput(''); setChatCaret(0);
+  };
+  const insertEmote = (code: string) => {
+    const el = chatInputRef.current, caret = el?.selectionStart ?? chatInput.length;
+    const pre = chatInput.slice(0, caret), needsSpace = pre && !/\s$/.test(pre);
+    const r = completeEmote(chatInput.slice(0, caret) + (needsSpace ? ' ' : '') + chatInput.slice(caret), caret + (needsSpace ? 1 : 0), code);
+    setChatInput(r.text); setChatCaret(r.caret);
+    requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(r.caret, r.caret); });
   };
 
-  // Audience fun layer: quick emotes fire ON THE STREAM (the host bakes them into the
-  // video for everyone) + float locally for instant feedback. Polls: tap to vote.
-  const lastEmoteRef = useRef(0);
-  const quickEmote = (emoji: string) => {
-    const now = Date.now();
-    if (now - lastEmoteRef.current < 900) return; // rate limit
-    lastEmoteRef.current = now;
-    const r: Reaction = { id: uid4(), emoji, x: 10 + Math.random() * 70 };
-    setReactions(prev => [...prev, r]);
-    setTimeout(() => setReactions(prev => prev.filter(x => x.id !== r.id)), 2500);
-    sendLiveEvent(streamId, emoji).catch(() => {});
-  };
   const { poll, counts, myVote } = usePoll(streamId);
 
   return (
@@ -2358,6 +2411,9 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
         </div>
       </div>
 
+      {/* Reello Live emotes: the audience's emotes, chorus evolutions, Crowd Light (drawn on this device) */}
+      <LiveEmoteLayer ref={emoteLayerRef} streamId={streamLive ? streamId : null} role="viewer" audience={viewerCount} onSettings={setEmoteSettings} className="z-[5]" />
+
       {/* Floating reactions */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <AnimatePresence>
@@ -2399,20 +2455,28 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
               {chatMsgs.map(m => (
                 <div key={m.id} className="flex items-start gap-2">
                   <span className="text-[10px] font-black text-orange-400 shrink-0 mt-0.5">{(m.user || 'Viewer').split(' ')[0]}</span>
-                  <span className="text-[11px] text-white/80 leading-relaxed">{m.text}</span>
+                  <span className="text-[11px] text-white/80 leading-relaxed"><EmoteChatText text={m.text} channelEmotes={channelEmotes} size={20} /></span>
                 </div>
               ))}
               <div ref={chatEndRef} />
             </div>
+            <div className="px-4 pt-1"><EmoteSuggest text={chatInput} caret={chatCaret} channelEmotes={channelEmotes} onPick={e => insertEmote(e.code)} /></div>
+            {(chatBlock || emoteSettings.emoteOnly) && <p className="px-5 pt-1 text-[10px] text-amber-300/90">{chatBlock || 'Emote-only chat is on.'}</p>}
             <div className="flex items-center gap-2 px-4 py-3 border-t border-white/10 pb-safe">
+              <button type="button" onClick={() => setPicker('insert')} aria-label="Add an emote"
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                <Smile size={16} className="text-white" />
+              </button>
               <input
+                ref={chatInputRef}
                 value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { sendChat(streamId, chatInput); setChatInput(''); } }}
-                placeholder="Say something…"
+                onChange={e => { setChatInput(e.target.value); setChatCaret(e.target.selectionStart ?? e.target.value.length); setChatBlock(null); }}
+                onSelect={e => setChatCaret((e.target as HTMLInputElement).selectionStart ?? 0)}
+                onKeyDown={e => { if (e.key === 'Enter') submitChat(); }}
+                placeholder={emoteSettings.emoteOnly ? 'Emotes only — try :fire:' : 'Say something…  :fire: for emotes'}
                 className="flex-1 bg-white/10 border border-white/15 rounded-full px-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none"
               />
-              <button onClick={() => { sendChat(streamId, chatInput); setChatInput(''); }}
+              <button onClick={submitChat}
                 className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center">
                 <Send size={14} className="text-white" />
               </button>
@@ -2426,16 +2490,9 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
 
       {/* Bottom controls */}
       <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-3 px-5 pb-safe pt-4">
-        {/* Quick emotes — these burst ON the stream itself for everyone watching */}
-        {!showChat && (
-          <div className="flex items-center gap-2">
-            {QUICK_EMOTES.map(e => (
-              <button key={e} onClick={() => quickEmote(e)}
-                className="w-11 h-11 rounded-full bg-black/50 backdrop-blur border border-white/15 text-[20px] flex items-center justify-center active:scale-125 transition-transform">
-                {e}
-              </button>
-            ))}
-          </div>
+        {/* Quick emotes — tap to send, hold to keep sending; everyone watching sees them fly */}
+        {!showChat && streamLive && (
+          <EmoteTray access={emoteAccess} onSend={(e, n) => emoteLayerRef.current?.send(e, n)} onOpenPicker={() => setPicker('send')} pinned={channelEmotes.slice(0, 2)} />
         )}
         {lensOpen && (
           <div className="rounded-2xl bg-black/70 backdrop-blur-xl border border-white/10 p-2.5">
@@ -2470,6 +2527,13 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
           </button>
         </div>
       </div>
+      {picker && (
+        <div className="absolute inset-0 z-[70]" onClick={() => setPicker(null)}>
+          <EmotePicker mode={picker} access={emoteAccess} channelEmotes={channelEmotes} channelName={ownerName} hiddenPacks={emoteSettings.hiddenPacks}
+            onClose={() => setPicker(null)}
+            onPick={e => { if (picker === 'insert') { insertEmote(e.code); setPicker(null); } else emoteLayerRef.current?.send(e, 1); }} />
+        </div>
+      )}
     </div>
   );
 }

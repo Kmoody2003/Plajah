@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   Image, Smile, Globe, X, Mic, Camera, Square, Share2,
   BarChart2, FlaskConical, ChevronDown, ChevronUp, Plus, Trash2,
@@ -20,11 +20,14 @@ import { fetchLinkPreview, firstUrl } from '../services/linkPreviewService';
 import { tryConsume, formatRetry, isNewAccount } from '../services/socialRateLimit';
 import { assessPostSpam, SPAM_REASON_COPY } from '../services/socialSpamHeuristic';
 import { useFediverse } from '../contexts/FediverseContext';
+import BlueskyShare from './feed/posting/BlueskyShare';
+import type { NativePostLike } from '../services/fediverse/blueskyVersion';
 import SocialEmbedCard from './SocialEmbedCard';
 import { detectSocialEmbeds, type SocialEmbed } from '../utils/socialEmbed';
 import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import ContentLabelPicker from './safety/ContentLabelPicker';
 import { SanctuaryGatePicker } from './sanctuary/SanctuaryGate';
+import StandingGateNotice, { useStandingAllows } from './enforcement/StandingGateNotice';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -94,6 +97,8 @@ export interface ComposerPostData {
   quoteOf?: Post;
   /** Link card for the first pasted non-social URL. Append linkPreviewMedia(lp) to media. */
   linkPreview?: LinkPreviewData;
+  /** Also share to the author's connected fediverse accounts. The host publishes the Plajah post first, then calls crosspostNative(). */
+  fediverse?: { accountIds: string[]; override?: string };
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -183,11 +188,18 @@ interface UniversalPostComposerProps {
   postingPower?: boolean;
   /** postingPower: the viewer's recent own post texts, for the duplicate/spam pre-check (assessPostSpam). */
   recentOwnTexts?: readonly string[];
+  /**
+   * The host publishes the Plajah post and then shares it to the fediverse itself using data.fediverse (so the
+   * Bluesky post can link back to the real post and its URL is recorded). Hosts that don't set this keep the old
+   * fire-and-forget text cross-post.
+   */
+  handlesFediverse?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
+  handlesFediverse = false,
   currentUser,
   placeholder = 'Share something...',
   onPost,
@@ -431,7 +443,29 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   };
 
   const { broadcast, accounts } = useFediverse();
+  const activeFediAccounts = useMemo(() => accounts.filter(a => a.isActive), [accounts]);
   const hasFediverse = accounts.length > 0;
+  const hasBluesky = activeFediAccounts.some(a => a.protocol === 'bluesky');
+  // Which fediverse accounts this post goes to, and the author's own wording for Bluesky (undefined = use the post text).
+  const [fediIds, setFediIds] = useState<string[]>([]);
+  const [bskyOverride, setBskyOverride] = useState<string | undefined>(undefined);
+  // The post as the Bluesky planner sees it — recomputed from live composer state so the preview is always current.
+  const bskyInput = useMemo<NativePostLike>(() => ({
+    text,
+    authorName: currentUser?.displayName || undefined,
+    media: [
+      ...attachments.map(a => ({ type: a.type as string, url: a.url, thumbnail: a.thumbnail, alt: a.alt, title: a.title })),
+      ...(linkPreview ? [{ type: 'LINK', linkPreview: { url: linkPreview.url, title: linkPreview.title, description: linkPreview.description, image: linkPreview.image } }] : []),
+    ],
+    poll: poll && poll.question.trim() ? poll : undefined,
+    dataViz: dataViz ?? undefined,
+    assetEmbed: assetEmbed ?? null,
+    sanctuaryGate,
+    contentLabels,
+    // Deliberately NOT planned from postMode/threadChunks/exclusive: the feed stores a long post whole and does not
+    // persist exclusive settings, and the server plans from the STORED post — the preview must see the same inputs.
+    isPublic: !(currentUser as any)?.isPrivate,
+  }), [text, attachments, linkPreview, poll, dataViz, assetEmbed, sanctuaryGate, contentLabels, currentUser]);
 
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
@@ -441,7 +475,9 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const dragCounter     = useRef(0);
   const camTimerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const canPost = text.trim().length > 0 || attachments.length > 0 || !!assetEmbed || !!poll || !!dataViz;
+  // Fair Process: a restricted account sees the composer DISABLED with an explanation, never hidden.
+  const standingPostOk = useStandingAllows('canPost');
+  const canPost = standingPostOk && (text.trim().length > 0 || attachments.length > 0 || !!assetEmbed || !!poll || !!dataViz);
 
   // ── File helpers ─────────────────────────────────────────────────────────────
 
@@ -677,7 +713,9 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       // Spam / duplicate pre-check (socialSpamHeuristic): block outright on `block`, ask to confirm on `warn`.
       if (postingPower && uid && !scheduleAt && text.trim()) {
         const createdMs = currentUser?.metadata?.creationTime ? Date.parse(currentUser.metadata.creationTime) : NaN;
-        const spam = assessPostSpam(text, recentOwnTexts ?? [], { newAccount: Number.isFinite(createdMs) ? isNewAccount(Date.now() - createdMs) : false });
+        // Trust tier (services/trust/trustCore) sets the link/mention ceilings; age-only fallback if unavailable.
+        const tierOpts = await import('../services/trust/trustClient').then(m => m.composerSpamOptions()).catch(() => null);
+        const spam = assessPostSpam(text, recentOwnTexts ?? [], tierOpts ?? { newAccount: Number.isFinite(createdMs) ? isNewAccount(Date.now() - createdMs) : false });
         if (spam.block) { setNotice(`This post can't be published. ${spam.reasons.map(r => SPAM_REASON_COPY[r]).join(' ')}`); return; }
         if (spam.warn && !window.confirm(`${spam.reasons.map(r => SPAM_REASON_COPY[r]).join(' ')}
 
@@ -701,7 +739,7 @@ Post it anyway?`)) return;
             if (hardBlock) {
               setSafetyBlock(`This post appears to violate Plajah's guidelines (${screen.prohibited.map(p => p.reason).join('; ')}). It can't be published. If you believe this is a mistake, adjust the content and try again.`);
               const { reportContent } = await import('../services/contentSafetyService');
-              reportContent({ contentId: 'pre-publish', contentType: 'post', reason: (screen.prohibited[0].id as any) ?? 'other', details: text.slice(0, 500) }).catch(() => {});
+              reportContent({ contentId: 'pre-publish', contentType: 'post', reason: (screen.prohibited[0].id as any) ?? 'other', details: text.slice(0, 500), ...(uid ? { authorId: uid } : {}) }).catch(() => {});
               return;
             }
             if (screen.suggestedLabels.length) {
@@ -757,13 +795,15 @@ Post it anyway?`)) return;
 
       await onPost({ text, attachments, assetEmbed, theme, poll: pollData, dataViz: dataViz ?? undefined, exclusive: buildExclusiveConfig(), ...(finalLabels.length ? { contentLabels: finalLabels } : {}), ...(isLong ? { postMode, threadChunks } : {}), ...(sanctuaryGate ? { sanctuaryGate } : {}),
         ...(quoteOf ? { quoteOf } : {}),
+        ...(handlesFediverse && crossPost && hasFediverse && fediIds.length ? { fediverse: { accountIds: fediIds, ...(bskyOverride !== undefined && bskyOverride.trim() ? { override: bskyOverride } : {}) } } : {}),
         ...(postingPower ? {
           ...(replyAudience !== 'everyone' ? { replyAudience } : {}),
           ...(extractHashtags(text).length ? { hashtags: extractHashtags(text) } : {}),
           ...(linkPreview ? { linkPreview } : {}),
         } : {}),
       });
-      if (crossPost && hasFediverse && text.trim()) {
+      setBskyOverride(undefined);
+      if (crossPost && hasFediverse && text.trim() && !handlesFediverse) {
         broadcast({ text: text.trim(), thumbnail: attachments.find(a => a.type === 'PHOTO')?.url, uri: window.location.href }).catch(() => {});
       }
       setText(''); setAttachments([]); setAssetEmbed(undefined); setSanctuaryGate(undefined); setTheme('STANDARD');
@@ -986,6 +1026,7 @@ Post it anyway?`)) return;
       {/* Content labels + community guidelines */}
       <div className="pl-0 sm:pl-12">
         <ContentLabelPicker selected={contentLabels} onChange={setContentLabels} />
+        <StandingGateNotice cap="canPost" className="mt-2" />
         {safetyBlock && (
           <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
             <p className="text-[9px] font-bold text-red-300 leading-relaxed">{safetyBlock}</p>
@@ -1515,6 +1556,19 @@ Post it anyway?`)) return;
         </div>
       )}
 
+      {/* ── Fediverse / Bluesky: see and judge what goes out ── */}
+      {handlesFediverse && crossPost && hasFediverse && (
+        <BlueskyShare
+          post={bskyInput}
+          accounts={activeFediAccounts}
+          selectedIds={fediIds}
+          onSelectIds={setFediIds}
+          override={bskyOverride}
+          onOverride={setBskyOverride}
+          displayName={currentUser?.displayName || undefined}
+        />
+      )}
+
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-1 pl-0 sm:pl-12 flex-wrap">
         <input ref={fileInputRef} type="file" accept="image/*,video/*,audio/*" multiple className="hidden" onChange={handleFileChange} />
@@ -1640,14 +1694,19 @@ Post it anyway?`)) return;
 
         {hasFediverse && (
           <button
-            onClick={() => setCrossPost(v => !v)}
-            title={crossPost ? 'Cross-posting to Mastodon/Bluesky' : 'Cross-post to Mastodon/Bluesky'}
+            onClick={() => {
+              setCrossPost(v => {
+                if (!v && !fediIds.length) { const b = activeFediAccounts.filter(a => a.protocol === 'bluesky'); setFediIds((b.length ? b : activeFediAccounts).map(a => a.id)); }
+                return !v;
+              });
+            }}
+            title={crossPost ? 'Also posting to the fediverse — preview below' : 'Also post to Bluesky / the fediverse'}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[9px] font-bold border transition-all ${
               crossPost ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-400' : 'border-white/10 text-white/25 hover:text-white/50'
             }`}
           >
             <Share2 size={10} />
-            {crossPost ? 'Fediverse ✓' : 'Fediverse'}
+            {hasBluesky ? (crossPost ? 'Bluesky ✓' : 'Bluesky') : (crossPost ? 'Fediverse ✓' : 'Fediverse')}
           </button>
         )}
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Article, UserProfile, FeedItem } from '../types';
 import { PodcastsView } from './PodcastsView';
+import ArticleBadges from './journalist/ArticleBadges';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { GoogleGenAI } from "@google/genai";
 import { 
@@ -236,6 +237,7 @@ const ArticlesFeed: React.FC<ArticlesFeedProps> = ({ onSelectArticle, onVisitUse
                             <Hash size={12} />
                             <span>{article.category || 'Article'}</span>
                           </div>
+                          <ArticleBadges article={article} />
                         </div>
                       </div>
                       {article.coverImage && (

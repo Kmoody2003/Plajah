@@ -20,21 +20,25 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [currentUid, setCurrentUid] = useState<string | null>(null);
 
   useEffect(() => {
+    // onAuthStateChanged ignores a returned cleanup, so the old code leaked one notifications listener per
+    // sign-in / account switch (and kept delivering the previous account's notifications). Track it here.
+    let unsubscribeNotifs: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubscribeNotifs?.();
+      unsubscribeNotifs = null;
       setCurrentUid(user?.uid ?? null);
       if (user) {
-        const unsubscribeNotifs = fetchNotifications(user.uid, (notifs) => {
+        unsubscribeNotifs = fetchNotifications(user.uid, (notifs) => {
           setNotifications(notifs);
           setIsLoading(false);
         });
-        return () => unsubscribeNotifs();
       } else {
         setNotifications([]);
         setIsLoading(false);
       }
     });
 
-    return () => unsubscribeAuth();
+    return () => { unsubscribeAuth(); unsubscribeNotifs?.(); };
   }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;

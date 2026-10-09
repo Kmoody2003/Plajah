@@ -34,7 +34,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Classroom, Lesson, Assignment, Submission, ProgressReport, ClassroomModule, LiveClassSession, StudentGrade } from '../types';
 import { fetchClassrooms, enrollInClassroom, createClassroom, auth, fetchClassroomModules, createClassroomModule, deleteClassroomModule, submitAssignment, gradeSubmission } from '../services/backendService';
-import { collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, getDoc, query, where, orderBy, updateDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { scheduleClassroomMeeting, joinClassroomMeeting, endClassroomMeeting } from '../services/classroomMeetings';
 import { useCall } from '../contexts/CallContext';
 import { db } from '../services/firebase';
@@ -44,6 +44,9 @@ import HumanBodyExperience from './HumanBodyExperience';
 const CellAtlasView = React.lazy(() => import('./anatomy/CellAtlasView'));
 import ErrorBoundary from './ErrorBoundary';
 import TeacherStudentsPanel from './TeacherStudentsPanel';
+import LessonPlayer from './academia/creator/LessonPlayer';
+import CourseCertificate from './academia/creator/CourseCertificate';
+import { completion } from '../services/creatorCourses';
 import { TYPE } from '../src/lib/designSystem';
 import { lazy } from 'react';
 // The Living Forest wing — lazy: it pulls three.js, and the museum should
@@ -421,7 +424,12 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
   const [activeTab, setActiveTab] = useState<'EXPLORE' | 'COURSES' | 'MY_CLASSES' | 'TEACHING' | 'MODULES'>('MODULES');
   const [teachingMode, setTeachingMode] = useState<'ACADEMIC' | 'CREATOR'>('CREATOR');
   const [createTrack, setCreateTrack] = useState<'ACADEMIC' | 'CREATOR'>('CREATOR');
-  const openCreate = (track: 'ACADEMIC' | 'CREATOR') => { setCreateTrack(track); setShowCreateModal(true); };
+  // Creator courses have their own studio (guided builder, dashboard, promote tools); only academic
+  // classes use this view's modal. Falls back to the modal when no navigator is available.
+  const openCreate = (track: 'ACADEMIC' | 'CREATOR') => {
+    if (track === 'CREATOR' && onNavigate) { onNavigate('CREATOR_COURSES'); return; }
+    setCreateTrack(track); setShowCreateModal(true);
+  };
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [seedingDemo, setSeedingDemo] = useState(false);
@@ -1034,8 +1042,8 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
           {activeTab !== 'MODULES' && (() => {
             const trackOf = (c: Classroom) => c.track || 'CREATOR';
             const pool =
-              activeTab === 'EXPLORE' ? classrooms.filter(c => trackOf(c) === 'ACADEMIC') :
-              activeTab === 'COURSES' ? classrooms.filter(c => trackOf(c) === 'CREATOR') :
+              activeTab === 'EXPLORE' ? classrooms.filter(c => trackOf(c) === 'ACADEMIC' && c.status !== 'DRAFT') :
+              activeTab === 'COURSES' ? classrooms.filter(c => trackOf(c) === 'CREATOR' && c.status !== 'DRAFT') :
               activeTab === 'MY_CLASSES' ? myClasses :
               teachingClasses;
 
@@ -1296,7 +1304,7 @@ function gradeColor(pct: number) {
 
 // ── CLASSROOM DETAIL ──────────────────────────────────────────────────────────
 
-const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user: any }> = ({ classroom, onBack, user }) => {
+export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user: any }> = ({ classroom, onBack, user }) => {
   const { joinMeeting, inCall } = useCall();
   const [meetingError, setMeetingError] = useState('');
   const [joiningMeeting, setJoiningMeeting] = useState<string | null>(null);
@@ -1314,6 +1322,47 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
 
   // Grades state
   const [grades, setGrades] = useState<StudentGrade[]>([]);
+
+  // Lesson progress (learner view): progress_reports/{uid}_{classId}.completedLessons
+  const [doneLessons, setDoneLessons] = useState<string[]>([]);
+  const [completedAt, setCompletedAt] = useState<number>(0);
+  const [playing, setPlaying] = useState<number | null>(null);
+  const [savingProgress, setSavingProgress] = useState(false);
+  const [showCert, setShowCert] = useState(false);
+  const progressId = `${user?.uid}_${classroom.id}`;
+  const sortedLessons = [...classroom.lessons].sort((a, b) => a.order - b.order);
+  const progress = completion(sortedLessons.map(l => l.id), doneLessons);
+
+  useEffect(() => {
+    if (!user?.uid || isOwner || !isEnrolled) return;
+    let alive = true;
+    getDoc(doc(db, 'progress_reports', progressId)).then(snap => {
+      if (!alive || !snap.exists()) return;
+      const d: any = snap.data();
+      setDoneLessons(Array.isArray(d.completedLessons) ? d.completedLessons : []);
+      if (typeof d.completedAt === 'number') setCompletedAt(d.completedAt);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [progressId, isOwner, isEnrolled, user?.uid]);
+
+  /** Persist a lesson as done. The report doc already exists from enrollment; merge keeps rule-required fields. */
+  const markLessonDone = async (lessonId: string) => {
+    if (!user?.uid || isOwner || !isEnrolled) return;
+    const next = doneLessons.includes(lessonId) ? doneLessons : [...doneLessons, lessonId];
+    const nowDone = completion(sortedLessons.map(l => l.id), next).complete;
+    setDoneLessons(next);
+    setSavingProgress(true);
+    try {
+      const at = nowDone ? (completedAt || Date.now()) : 0;
+      await setDoc(doc(db, 'progress_reports', progressId), {
+        id: progressId, classId: classroom.id, studentId: user.uid,
+        overallGrade: 0, completedLessons: next, lastAccessed: Date.now(),
+        ...(at ? { completedAt: at } : {}),
+      }, { merge: true });
+      if (at) setCompletedAt(at);
+    } catch { /* offline: local state keeps the tick; it saves on the next completion */ }
+    setSavingProgress(false);
+  };
 
   // Live sessions state
   const [sessions, setSessions] = useState<LiveClassSession[]>([]);
@@ -1385,6 +1434,7 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
     setSubmitting(true); setSubmitError('');
     try {
       await submitAssignment({
+        classroomId: classroom.id,
         assignmentId: assignment.id,
         studentId: user?.uid,
         studentName: user?.displayName ?? 'Student',
@@ -1408,7 +1458,7 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
     try {
       await gradeSubmission(gradingSubmission.id, g, feedbackInput);
       // Also save to studentGrades for easy progress lookup
-      await addDoc(collection(db, 'studentGrades'), {
+      await setDoc(doc(db, 'studentGrades', `${classroom.id}_${gradingSubmission.studentId}_${gradingSubmission.assignmentId}`), {
         classroomId: classroom.id,
         studentId: gradingSubmission.studentId,
         studentName: gradingSubmission.studentName,
@@ -1550,25 +1600,47 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
               {/* LESSONS */}
               {activeTab === 'LESSONS' && (
                 <motion.div key="lessons" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                  {isEnrolled && !isOwner && sortedLessons.length > 0 && (
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-3xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Your progress · {progress.done}/{progress.total} lessons</span>
+                        <span className="text-sm font-black">{progress.pct}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-gradient-to-r from-[#6B0099] to-[#D40055] transition-all" style={{ width: `${progress.pct}%` }} /></div>
+                      {progress.complete && (
+                        <button onClick={() => setShowCert(true)} className="mt-4 w-full sm:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-[#D40055] to-[#FF8C00] text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2"><Award size={15} /> View your certificate</button>
+                      )}
+                    </div>
+                  )}
                   {classroom.lessons.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white/5 border border-white/10 rounded-[3rem] text-center">
                       <PlayCircle size={40} className="text-white/10 mb-4" />
                       <p className="text-[10px] font-black uppercase tracking-widest text-white/30">No lessons published yet.</p>
                     </div>
-                  ) : classroom.lessons.map((lesson, i) => (
+                  ) : sortedLessons.map((lesson, i) => {
+                    const done = doneLessons.includes(lesson.id);
+                    const canPlay = isEnrolled || isOwner || !!lesson.preview;
+                    return (
                     <div key={lesson.id} className="group p-6 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-between hover:border-white/30 transition-all">
-                      <div className="flex items-center gap-6">
-                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white/20 font-black">{i + 1}</div>
-                        <div>
+                      <div className="flex items-center gap-6 min-w-0">
+                        <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center font-black ${done ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-white/20'}`}>{done ? <CheckCircle2 size={20} /> : i + 1}</div>
+                        <div className="min-w-0">
+                          {lesson.section && <div className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-0.5">{lesson.section}</div>}
                           <h4 className="text-sm font-black uppercase tracking-widest mb-1">{lesson.title}</h4>
-                          <p className="text-[10px] text-white/40 uppercase tracking-widest">{lesson.type} · {lesson.description}</p>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest">{lesson.type}{lesson.description ? ` · ${lesson.description}` : ''}{lesson.preview && !isEnrolled && !isOwner ? ' · free preview' : ''}</p>
                         </div>
                       </div>
-                      <button className="p-4 bg-white/5 rounded-2xl text-white/40 group-hover:bg-white group-hover:text-black transition-all">
-                        <PlayCircle size={20} />
+                      <button
+                        onClick={() => canPlay && setPlaying(i)}
+                        disabled={!canPlay}
+                        aria-label={canPlay ? `Open lesson: ${lesson.title}` : 'Enroll to unlock this lesson'}
+                        title={canPlay ? undefined : 'Enroll to unlock this lesson'}
+                        className="p-4 shrink-0 bg-white/5 rounded-2xl text-white/40 group-hover:bg-white group-hover:text-black transition-all disabled:opacity-30 disabled:group-hover:bg-white/5 disabled:group-hover:text-white/40">
+                        {canPlay ? <PlayCircle size={20} /> : <Lock size={20} />}
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </motion.div>
               )}
 
@@ -1935,7 +2007,7 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
                           <div className="flex-1">
                             <div className="text-xs font-bold text-white/60">{lesson.title}</div>
                           </div>
-                          <div className="w-3 h-3 rounded-full bg-white/10 flex-shrink-0" />
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${doneLessons.includes(lesson.id) ? 'bg-emerald-400' : 'bg-white/10'}`} />
                         </div>
                       ))}
                       {classroom.lessons.length === 0 && (
@@ -1950,6 +2022,33 @@ const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => void; user
           </div>
         </div>
       </div>
+      {playing !== null && sortedLessons[playing] && (
+        <LessonPlayer
+          lesson={sortedLessons[playing]}
+          index={playing}
+          total={sortedLessons.length}
+          completed={doneLessons.includes(sortedLessons[playing].id)}
+          saving={savingProgress}
+          onClose={() => setPlaying(null)}
+          onPrev={playing > 0 ? () => setPlaying(playing - 1) : undefined}
+          onNext={playing < sortedLessons.length - 1 ? () => setPlaying(playing + 1) : undefined}
+          onComplete={async () => {
+            await markLessonDone(sortedLessons[playing].id);
+            if (playing < sortedLessons.length - 1) setPlaying(playing + 1); else { setPlaying(null); }
+          }}
+        />
+      )}
+      {showCert && (
+        <CourseCertificate
+          learnerName={user?.displayName || 'Learner'}
+          courseTitle={classroom.title}
+          instructorName={classroom.ownerName}
+          completedAt={completedAt || Date.now()}
+          refId={progressId}
+          accent={classroom.accent}
+          onClose={() => setShowCert(false)}
+        />
+      )}
     </div>
   );
 };

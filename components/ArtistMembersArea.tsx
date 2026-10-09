@@ -277,7 +277,8 @@ const ArtistMembersArea: React.FC<ArtistMembersAreaProps> = ({ artistId, artist:
                     ))}
                   </div>
 
-                  <button className={`w-full py-5 rounded-[2rem] font-black text-[10px] uppercase tracking-widest transition-all ${
+                  <button onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SANCTUARY', params: { artistId } } }))}
+                    className={`w-full py-5 rounded-[2rem] font-black text-[10px] uppercase tracking-widest transition-all ${
                     idx === 1 ? 'bg-small-orange text-white shadow-2xl' : 'bg-white/5 border border-white/10 hover:bg-white/10'
                   }`}>
                     Join This Tier

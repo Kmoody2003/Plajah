@@ -49,6 +49,9 @@ import {
 import { db, storage, auth as firebaseAuth } from './firebase';
 import { isWindowsApp } from './windowsBridgeService';
 import { followNeedsApproval, requestFollow } from './socialSafetyService';
+// Social perf pass (docs/SOCIAL_MIGRATION_AND_PERF.md): paged chat, throttled typing subdoc, index fallbacks, shared room list.
+import { setTypingStatus as setTypingStatusPerf, snapshotWithIndexFallback, listenToRecentMessages, MESSAGE_PAGE_SIZE, type MessageWindowMeta } from './socialPerf';
+import { sharedSubscription } from './sharedSubscription';
 import { chunkArray, mergeByTimestamp, uniqueIds } from './followGraphUtils';
 import { tryConsume } from './socialRateLimit';
 import { saveResumable, updateResumableProgress, clearResumable } from './resumableUpload';
@@ -103,6 +106,7 @@ import { allTakenNumbers, canClaim, isAllocatableMajor, legacyMajors, numberFor,
 import { guideAccounts, type GuideAccount } from './fast/guideLineup';
 import { Album, Comment, Track, UserProfile, FeedItem, LiveFeed, StreamArchive, Video, MerchItem, Donation, TVChannel, Game, Photo, PhotoAlbum, PhotoAlbum as PhotoAlbumType, EventPhotoPool, ChatMessage, ChatRoom, CollabProject, CallSession, Membership, ArtistMembershipConfig, PPVEvent, Classroom, Lesson, Assignment, Submission, ProgressReport, VideoChatSession, Playlist, VideoComment, VideoPlaylist, Post, PayItForwardPool, PayItForwardWinner, PayItForwardDonation, PayItForwardVault, Newsletter, MailingListSubscriber, SystemStats, AdConfig, Article, ArticleBlock, BrandAccount, FanPage, FollowRelation, AdCampaign, PartnerConfig, Review, UserRevenue, StoreSettings, PostThemeBackground, ClassroomModule, WebApp, AppReview, AppNotification, SystemSettingsConfig, AdRatioConfig, StationIDStinger, AutoFastChannelConfig, IPWorld, Character, LoreEntry, TimelineEvent, Universe, LiveTalk, SharedAsset, PrivateBoard, BoardItem, ProfileThemePreset, HideNSeekConfig, HideNSeekAlternate, HideNSeekUserProgress, HideNSeekStats, Story, Club, ClubMembership, ClubPost, ClubGalleryItem, ClubChatMessage, ClubEvent, ClubStickyNote, ClubRole, ClubType, FastChannel, ChannelSource, ChannelSourceSet, SavedFeed, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, EarlyAccessEntry, ReviewCode, EarlyAccessRequest, PodcastRssSettings, ImportedRssEpisode, AccountType, NotifyLevel, SecurityPlatformStats, SecurityThreatEvent, SecurityGeoPing, CsoAssessment, UserThreatWarning } from '../types';
 import { accountFlagUpdate } from './accountCapabilities';
+import { isTalkAlive } from './liveTalk/liveTalkCore';
 // Creator Passport provenance (blueprint 1C.5) — attribution record, not crypto proof.
 import { buildProvenance, stampVideo } from './creatorPassport';
 import { exactDurationSec, extractTimeInfoFromFile, extractTimeInfoFromUrl } from './mediaTimebase';
@@ -187,11 +191,18 @@ export const listenToActiveLiveTalks = (callback: (talks: LiveTalk[]) => void) =
     where('isActive', '==', true),
     orderBy('timestamp', 'desc')
   );
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as LiveTalk)));
+  // Hide zombie rooms (host tab died → heartbeat stopped). Re-check every 15s because a talk can
+  // die without any doc change. Index: liveTalks(isActive ASC, timestamp DESC). See docs/LIVE_TALK.md.
+  let latest: LiveTalk[] = [];
+  const emit = () => callback(latest.filter(t => isTalkAlive(t as any, Date.now())));
+  const unsub = onSnapshot(q, (snapshot) => {
+    latest = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as LiveTalk));
+    emit();
   }, (err) => {
     handleFirestoreError(err, OperationType.LIST, path);
   });
+  const timer = setInterval(emit, 15_000);
+  return () => { clearInterval(timer); unsub(); };
 };
 
 export const listenToLiveTalk = (talkId: string, callback: (talk: LiveTalk) => void) => {
@@ -1567,6 +1578,8 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
     } else {
       docRef = await addDoc(collection(db, path), postData);
     }
+    // Server media-safety scan (routes/trustSafety.ts) — non-blocking; the cron sweep is the backstop.
+    void import('./safety/safetyScanClient').then(m => m.scanCreatedPost(path, docRef.id, post.media)).catch(() => {});
 
     // Department-private posts never mirror to the global feed or notify followers.
     if (post.orgAudience === 'DEPARTMENT') return docRef.id;
@@ -2135,13 +2148,24 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
     lessons: classroom.lessons || [],
     assignments: classroom.assignments || [],
     enrolledStudents: [],
-    category: classroom.category || 'Music'
+    category: classroom.category || 'Music',
+    // Persist the track (it was silently dropped, so every academic class read back as CREATOR)
+    // and the creator-course fields. Firestore throws on undefined, so only copy what is set.
+    track: classroom.track || 'CREATOR',
+    createdAt: Date.now(),
+    ...Object.fromEntries(
+      (['status', 'tagline', 'outcomes', 'level', 'format', 'startDate', 'capacity', 'accent', 'publishedAt', 'gradeBand', 'schoolId'] as const)
+        .filter(k => (classroom as any)[k] !== undefined)
+        .map(k => [k, (classroom as any)[k]]),
+    ),
   };
   try {
     await setDoc(doc(db, 'classrooms', id), newClass);
     
-    // Notify followers
-    notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Class', `${auth.currentUser.displayName} opened a new classroom: ${newClass.title}`, 'CONTENT', id);
+    // Notify followers — a draft is not announced until it is published.
+    if (newClass.status !== 'DRAFT') {
+      notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Class', `${auth.currentUser.displayName} opened a new classroom: ${newClass.title}`, 'CONTENT', id);
+    }
     
     return newClass;
   } catch (e) {
@@ -2196,7 +2220,8 @@ export const submitAssignment = async (submission: Partial<Submission>) => {
     studentName: auth.currentUser.displayName || 'Student',
     textContent: submission.textContent,
     contentUrl: submission.contentUrl,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    ...(submission.classroomId ? { classroomId: submission.classroomId } : {}),
   };
   try {
     await setDoc(doc(db, 'submissions', id), newSub);
@@ -2485,10 +2510,13 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
     return new Promise((resolve, reject) => {
       const metadata = {
         contentType: contentType,
-      };
         // Every upload path is content-addressed by a unique id; edits write new objects.
         // Immutable caching makes second views instant on web, Android and TV webviews.
         cacheControl: 'public,max-age=31536000,immutable',
+        // Storage rules scope shared prefixes (albums/, videos/, comments/, chat/, uploads/ …)
+        // by this uploader stamp: only the uid that created an object may overwrite/delete it.
+        customMetadata: { ownerUid: auth.currentUser!.uid },
+      };
 
       const uploadTask = uploadBytesResumable(storageRef, blobOrFile, metadata);
       
@@ -3199,7 +3227,9 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
     : finalCover.startsWith('blob:') ? await dataUrlToBlob(album.coverImage) : null;
   if (coverSource) {
     onProgress?.(album.coverFile ? "Uploading Artwork..." : "Uploading Artwork (Legacy)...", 10);
-    const img = await uploadImageWithDerivatives(`albums/${album.id}/cover`, coverSource);
+    // Versioned names: an edit writes NEW objects (immutable cache + storage owner-stamp rules
+    // deny overwriting legacy objects that predate the ownerUid metadata).
+    const img = await uploadImageWithDerivatives(`albums/${album.id}/cover_${Date.now().toString(36)}`, coverSource);
     finalCover = img.display;
     coverThumb = img.thumb;
     if (img.original !== img.display) coverOriginal = img.original;
@@ -3208,10 +3238,10 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   // 2. Upload Artist Image
   let finalArtistImg = album.artistImage;
   if (album.artistFile) {
-    finalArtistImg = await uploadFile(`albums/${album.id}/artist.png`, album.artistFile);
+    finalArtistImg = await uploadFile(`albums/${album.id}/artist_${Date.now().toString(36)}.png`, album.artistFile);
   } else if (album.artistImage && album.artistImage.startsWith('blob:')) {
     const blob = await dataUrlToBlob(album.artistImage);
-    finalArtistImg = await uploadFile(`albums/${album.id}/artist.png`, blob);
+    finalArtistImg = await uploadFile(`albums/${album.id}/artist_${Date.now().toString(36)}.png`, blob);
   }
 
   // 3. Upload Slideshow
@@ -3331,12 +3361,12 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       }
       
       if (video.thumbnailFile) {
-        thumbUrl = await uploadFile(`albums/${album.id}/videos/thumb_${video.id}.png`, video.thumbnailFile);
+        thumbUrl = await uploadFile(`albums/${album.id}/videos/thumb_${video.id}_${Date.now().toString(36)}.png`, video.thumbnailFile);
       }
       
       let coverUrl = video.coverImageUrl;
       if (video.coverImageFile) {
-        coverUrl = await uploadFile(`albums/${album.id}/videos/cover_${video.id}.png`, video.coverImageFile);
+        coverUrl = await uploadFile(`albums/${album.id}/videos/cover_${video.id}_${Date.now().toString(36)}.png`, video.coverImageFile);
       }
       
       finalVideos.push({
@@ -4560,15 +4590,18 @@ export const loginWithMicrosoft = async () => {
 // password.” with no way to find out why. /api/auth-methods/lookup asks the server (admin
 // credentials, not subject to enumeration protection) which providers the address really has.
 
+// Anti-enumeration (2026-10-08): the server answers EVERY address with the same shape and only
+// fills `labels` for an account that has NO password and signs in with a social provider. A
+// missing address, a password account and a server error are indistinguishable, so this can
+// never be used to test whether an email is registered. Copy below matches: "if an account
+// exists…", never "no account found".
 export type EmailAuthMethods = {
-  exists: boolean;
-  providers: string[];   // raw providerIds, e.g. ['google.com'] or ['password']
-  hasPassword: boolean;  // can this address sign in with a password at all?
-  labels: string[];      // human names of the NON-password providers, e.g. ['Google']
-  unknown?: boolean;     // server couldn't answer — treat as “no information”, never as “no account”
+  providers: string[];   // raw providerIds of a social-only account, e.g. ['google.com']; else []
+  hasPassword: boolean;  // always false in the hardened shape (kept for type compatibility)
+  labels: string[];      // human names of those providers, e.g. ['Google']; else []
 };
 
-const UNKNOWN_METHODS: EmailAuthMethods = { exists: false, providers: [], hasPassword: false, labels: [], unknown: true };
+const UNKNOWN_METHODS: EmailAuthMethods = { providers: [], hasPassword: false, labels: [] };
 
 /** Provider label ← providerId, for messages the client builds itself. */
 export const PROVIDER_LABEL: Record<string, string> = {
@@ -4592,11 +4625,9 @@ export const fetchEmailAuthMethods = async (email: string): Promise<EmailAuthMet
     if (!res.ok) return UNKNOWN_METHODS;
     const d = await res.json();
     return {
-      exists: !!d.exists,
       providers: Array.isArray(d.providers) ? d.providers : [],
       hasPassword: !!d.hasPassword,
       labels: Array.isArray(d.labels) ? d.labels : [],
-      unknown: !!d.unknown,
     };
   } catch {
     return UNKNOWN_METHODS;
@@ -4636,10 +4667,9 @@ export const loginWithEmail = async (email: string, password: string) => {
       // Before calling it a typo, find out whether this address even HAS a password. That is
       // the difference between “check your password” and “you signed up with Google”.
       const m = await fetchEmailAuthMethods(email);
-      if (m.exists && !m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'sign in');
-      if (m.exists && m.hasPassword) throw new Error('That password doesn\u2019t match this account. Try again, or use “Forgot password?”.');
-      if (!m.exists && !m.unknown) throw new Error('No account found for that email. Create one below, or sign in with the button you originally used.');
-      throw new Error('Invalid email or password. If you originally joined with Google, Facebook, Microsoft or X, use that button instead — email sign-in only works for accounts created with a password.');
+      if (!m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'sign in');
+      if (m.hasPassword) throw new Error('That password doesn\u2019t match this account. Try again, or use “Forgot password?”.');
+      throw new Error('That email and password don’t match. Check for typos or use “Forgot password?”. If you originally joined with Google, Facebook, Microsoft or X, use that button instead.');
     }
     // Everything past this point is a system/config/network problem (not a user typo) — worth alerting on.
     void import('./errorReporting').then(m => m.reportLoginIssue({ provider: 'email', error, email }));
@@ -4651,17 +4681,22 @@ export const loginWithEmail = async (email: string, password: string) => {
 };
 
 export const registerWithEmail = async (email: string, password: string, displayName: string) => {
+  // Anti-bot pre-check (services/signupClient): rejects disposable inboxes with friendly copy;
+  // never blocks on network/server trouble. Thrown errors carry user-facing text.
+  const { preSignupCheck, afterEmailSignup } = await import('./signupClient');
+  await preSignupCheck(email);
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(result.user, { displayName });
     await syncUserProfile(result.user);
+    afterEmailSignup(result.user); // fire-and-forget verification email + gentle nudge
     return result.user;
   } catch (error: any) {
     const code = error?.code || '';
     if (code === 'auth/email-already-in-use') {
       // Name the provider they already have, so “already registered” isn't a dead end.
       const m = await fetchEmailAuthMethods(email);
-      if (m.exists && !m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'sign in');
+      if (!m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'sign in');
       throw new Error('This email is already registered. Try signing in instead.');
     } else if (code === 'auth/weak-password') {
       throw new Error('Password must be at least 6 characters.');
@@ -4678,13 +4713,14 @@ export const registerWithEmail = async (email: string, password: string, display
 export const sendPasswordReset = async (email: string) => {
   const addr = (email || '').trim();
   const m = await fetchEmailAuthMethods(addr);
-  if (m.exists && !m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'reset');
-  if (!m.exists && !m.unknown) throw new Error('No account found for that email. Check the address, or create an account instead.');
+  if (!m.hasPassword && m.labels.length) throw new WrongProviderError(m.labels, m.providers, 'reset');
+  // Otherwise send. If a password account exists the mail arrives; if not, nothing is sent and we
+  // deliberately don't say so (no account enumeration). UI copy reads "If an account exists…".
   try {
     await sendPasswordResetEmail(auth, addr);
   } catch (error: any) {
     const code = error?.code || '';
-    if (code === 'auth/user-not-found') throw new Error('No account found for that email.');
+    if (code === 'auth/user-not-found') return; // same outcome as success: never confirm (non-)existence
     if (code === 'auth/invalid-email') throw new Error('That doesn\u2019t look like a valid email address.');
     if (code === 'auth/too-many-requests') throw new Error('Too many reset requests. Please wait a few minutes and try again.');
     // A misconfigured action URL / authorised-domain list is a platform problem, not a user
@@ -5157,20 +5193,20 @@ export const updateNotificationPrefs = async (uid: string, prefs: Record<string,
 // --- NOTIFICATIONS ---
 export const fetchNotifications = (uid: string, callback: (notifications: AppNotification[]) => void) => {
   const path = 'notifications';
-  const q = query(
-    collection(db, path),
-    where('userId', '==', uid),
-    limit(50)
-  );
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(d => ({ 
-      id: d.id, 
+  // Newest 50 (needs the userId+timestamp desc index). Without orderBy, limit(50) returned an arbitrary 50
+  // (doc-id order), so new notifications could be missing from the bell. Falls back to the old query until
+  // the index is deployed; the result is always sorted newest-first client-side.
+  const ordered = query(collection(db, path), where('userId', '==', uid), orderBy('timestamp', 'desc'), limit(50));
+  const legacy = query(collection(db, path), where('userId', '==', uid), limit(50));
+  return snapshotWithIndexFallback(ordered, legacy, (snapshot) => {
+    callback(snapshot.docs.map(d => ({
+      id: d.id,
       ...d.data(),
       timestamp: safeToMillis(d.data().timestamp)
-    } as AppNotification)));
+    } as AppNotification)).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
   }, (err) => {
     handleFirestoreError(err, OperationType.LIST, path);
-  });
+  }, 'notifications');
 };
 
 export const createNotification = async (notif: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>) => {
@@ -6932,36 +6968,6 @@ export const fetchUserLibraryTracks = async (trackIds: string[]) => {
   return allTracks;
 };
 
-export const joinMembership = async (artistId: string) => {
-  if (!auth.currentUser) return;
-  const artistRef = doc(db, 'users', artistId);
-  const artistSnap = await getDoc(artistRef);
-  const artistData = artistSnap.data() as UserProfile;
-  
-  const membershipId = `${auth.currentUser.uid}_${artistId}`;
-  const membershipRef = doc(db, 'memberships', membershipId);
-  
-  const status = artistData.membershipConfig?.isWaitingListEnabled ? 'PENDING' : 'ACTIVE';
-  
-  const membership: Membership = {
-    id: membershipId,
-    artistId,
-    memberId: auth.currentUser.uid,
-    status,
-    startDate: Date.now(),
-  };
-  
-  await setDoc(membershipRef, membership);
-  
-  if (status === 'ACTIVE') {
-    const userRef = doc(db, 'users', auth.currentUser.uid);
-    await updateDoc(userRef, {
-      activeMemberships: arrayUnion(artistId)
-    });
-  }
-  
-  return membership;
-};
 
 export const updateMembershipStatus = async (membershipId: string, status: 'ACTIVE' | 'REVOKED') => {
   const membershipRef = doc(db, 'memberships', membershipId);
@@ -7023,6 +7029,8 @@ export const createChatRoom = async (participants: string[], type: ChatRoom['typ
         return p.length === 2 && participants.every(uid => p.includes(uid));
       });
       if (existing) return existing.id;
+      // Trust tier: meters NEW cold DMs (to people who don't follow you) — services/trust/trustClient.
+      await (await import('./trust/trustClient')).enforceChatCreateTrust(participants, type);
       // Deterministic id for a DM pair — concurrent creates converge on the SAME
       // doc (setDoc/merge) instead of racing into two rooms for the same pair.
       const dmId = 'dm_' + [...participants].sort().join('_');
@@ -7036,6 +7044,8 @@ export const createChatRoom = async (participants: string[], type: ChatRoom['typ
       return dmId;
     }
 
+    // Trust tier: group-size cap for newer accounts — services/trust/trustClient.
+    await (await import('./trust/trustClient')).enforceChatCreateTrust(participants, type);
     const docRef = await addDoc(collection(db, path), {
       participants,
       type,
@@ -7111,18 +7121,15 @@ export const renameChatRoom = async (roomId: string, newName: string) => {
   }
 };
 
+/**
+ * Typing indicator. Writes chat_rooms/{id}/meta/typing (NOT the room doc — rewriting the room doc re-fired
+ * every participant's room-list listener on each keystroke burst). Throttled to ≤1 write per 3s; safe to call
+ * on every keystroke. Falls back to the legacy room-doc `typingUsers` field if the subdoc rule isn't deployed.
+ * Readers: services/socialPerf.listenToTyping (ChatWindow).
+ */
 export const updateTypingStatus = async (roomId: string, isTyping: boolean) => {
   if (!auth.currentUser) return;
-  const path = `chat_rooms/${roomId}`;
-  try {
-    const roomRef = doc(db, 'chat_rooms', roomId);
-    const uid = auth.currentUser.uid;
-    await updateDoc(roomRef, {
-      typingUsers: isTyping ? arrayUnion(uid) : arrayRemove(uid)
-    });
-  } catch (e) {
-    handleFirestoreError(e, OperationType.UPDATE, path);
-  }
+  await setTypingStatusPerf(roomId, isTyping);
 };
 
 export const markMessageAsSeen = async (roomId: string, messageId: string) => {
@@ -7187,6 +7194,8 @@ export const ensureGuardianCc = async (
 };
 
 export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+  // Fair Process: messaging is never removed, only limited under the strictest tiers (throws StandingDMError).
+  await (await import('./enforcement/dmGuard')).assertCanSendMessage(roomId, message);
   const path = `chat_rooms/${roomId}/messages`;
   try {
     const docRef = await addDoc(collection(db, 'chat_rooms', roomId, 'messages'), {
@@ -7293,12 +7302,16 @@ export const updateRoomIntimate = async (
   await setDoc(doc(db, 'chat_rooms', roomId), clean, { merge: true });
 };
 
-export const listenToMessages = (roomId: string, callback: (messages: ChatMessage[]) => void) => {
-  const q = query(collection(db, 'chat_rooms', roomId, 'messages'), orderBy('timestamp', 'asc'));
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)));
-  }, (e) => handleFirestoreError(e, OperationType.LIST, `chat_rooms/${roomId}/messages`));
-};
+/**
+ * Live window of a room's NEWEST messages (ascending), not its whole history — public live chats can hold
+ * thousands. Older pages: socialPerf.fetchEarlierMessages(roomId, meta.cursor). `meta` is optional to use.
+ */
+export const listenToMessages = (
+  roomId: string,
+  callback: (messages: ChatMessage[], meta?: MessageWindowMeta) => void,
+  pageSize: number = MESSAGE_PAGE_SIZE,
+) => listenToRecentMessages<ChatMessage>(roomId, (msgs, meta) => callback(msgs, meta), pageSize,
+  (e) => handleFirestoreError(e, OperationType.LIST, `chat_rooms/${roomId}/messages`));
 
 /**
  * Collapse duplicate DM conversations. Two things cause dupes in the inbox:
@@ -7320,12 +7333,22 @@ export const dedupeChatRooms = (rooms: ChatRoom[]): ChatRoom[] => {
   return [...byKey.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 };
 
+/** Most recent rooms only — the inbox never needs a user's entire room history live. */
+export const CHAT_ROOMS_LIMIT = 100;
+/**
+ * The signed-in user's room list. ONE shared Firestore listener per uid no matter how many components
+ * subscribe (ChatSystem, ChatFlyout and GlobalPlayer all do) — see services/sharedSubscription.
+ * Each subscriber gets its own array copy, so in-place sorts can't leak between components.
+ */
 export const listenToChatRooms = (callback: (rooms: ChatRoom[]) => void) => {
   if (!auth.currentUser) return () => {};
-  const q = query(collection(db, 'chat_rooms'), where("participants", "array-contains", auth.currentUser.uid), orderBy('updatedAt', 'desc'));
-  return onSnapshot(q, (snap) => {
-    callback(dedupeChatRooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom))));
-  }, (e) => handleFirestoreError(e, OperationType.LIST, 'chat_rooms'));
+  const uid = auth.currentUser.uid;
+  return sharedSubscription<ChatRoom[]>(`chat_rooms:${uid}`, (emit) => {
+    const q = query(collection(db, 'chat_rooms'), where("participants", "array-contains", uid), orderBy('updatedAt', 'desc'), limit(CHAT_ROOMS_LIMIT));
+    return onSnapshot(q, (snap) => {
+      emit(dedupeChatRooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatRoom))));
+    }, (e) => handleFirestoreError(e, OperationType.LIST, 'chat_rooms'));
+  }, (rooms) => callback(rooms.slice()));
 };
 
 export const fetchChatRooms = async (): Promise<ChatRoom[]> => {
@@ -7748,18 +7771,18 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
       }
       // Mux endpoint unreachable (no bytes sent) — fall back to Firebase Storage, then
       // trigger Mux URL ingestion after the file is in Storage.
-      videoUrl = await uploadFile(`videos/${id}/source.mp4`, video.file, onProgress);
+      videoUrl = await uploadFile(`videos/${id}/source_${Date.now().toString(36)}.mp4`, video.file, onProgress);
     }
   }
   
   let thumbUrl = video.thumbnailUrl || '';
   if (video.thumbnailFile) {
-    thumbUrl = await uploadFile(`videos/${id}/thumb.png`, video.thumbnailFile);
+    thumbUrl = await uploadFile(`videos/${id}/thumb_${Date.now().toString(36)}.png`, video.thumbnailFile);
   }
 
   let coverUrl = video.coverImageUrl || '';
   if (video.coverImageFile) {
-    coverUrl = await uploadFile(`videos/${id}/cover.png`, video.coverImageFile);
+    coverUrl = await uploadFile(`videos/${id}/cover_${Date.now().toString(36)}.png`, video.coverImageFile);
   }
   
   // Resolves well before a real upload finishes. A duration with no fps is still recorded — losing
@@ -7974,13 +7997,17 @@ export const likeVideo = async (videoId: string) => {
   const likeId = `${uid}_${videoId}`;
   const path = `videos/${videoId}/likes/${likeId}`;
   try {
-    await setDoc(doc(db, 'videos', videoId, 'likes', likeId), {
+    // ONE batch: the anti-abuse rules only allow likesCount +1 when the caller's like edge is
+    // created in the same write (firestore.rules videos/{id}; docs/rules-patches/anti-abuse.rules.snippet).
+    const likeBatch = writeBatch(db);
+    likeBatch.set(doc(db, 'videos', videoId, 'likes', likeId), {
       id: likeId,
       videoId,
       userId: uid,
       timestamp: Date.now()
     });
-    await updateDoc(doc(db, 'videos', videoId), { likesCount: increment(1) });
+    likeBatch.update(doc(db, 'videos', videoId), { likesCount: increment(1) });
+    await likeBatch.commit();
     // Mirror into the owner's liked-videos list (powers the "Liked videos" surface).
     await setDoc(doc(db, 'users', uid, 'likedVideos', videoId), { videoId, timestamp: Date.now() }).catch(() => {});
   } catch (e) {
@@ -7994,8 +8021,11 @@ export const unlikeVideo = async (videoId: string) => {
   const likeId = `${uid}_${videoId}`;
   const path = `videos/${videoId}/likes/${likeId}`;
   try {
-    await deleteDoc(doc(db, 'videos', videoId, 'likes', likeId));
-    await updateDoc(doc(db, 'videos', videoId), { likesCount: increment(-1) });
+    // ONE batch: likesCount -1 is only allowed alongside deleting the caller's like edge.
+    const unlikeBatch = writeBatch(db);
+    unlikeBatch.delete(doc(db, 'videos', videoId, 'likes', likeId));
+    unlikeBatch.update(doc(db, 'videos', videoId), { likesCount: increment(-1) });
+    await unlikeBatch.commit();
     await deleteDoc(doc(db, 'users', uid, 'likedVideos', videoId)).catch(() => {});
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
@@ -9934,31 +9964,6 @@ export const updateFundingGoal = async (targetId: string, type: 'ALBUM' | 'USER'
   }
 };
 
-export const joinMembershipTier = async (artistId: string, tierId: string) => {
-  const user = auth.currentUser;
-  if (!user) return;
-  const id = `mem_${Date.now()}`;
-  const path = `memberships/${id}`;
-
-  try {
-    const membership = {
-      id,
-      artistId,
-      memberId: user.uid,
-      status: 'ACTIVE',
-      startDate: Date.now()
-    };
-
-    await setDoc(doc(db, 'memberships', id), membership);
-    
-    // Update user profile
-    await updateDoc(doc(db, 'users', user.uid), {
-      activeMemberships: arrayUnion(artistId)
-    });
-  } catch (e) {
-    handleFirestoreError(e, OperationType.CREATE, path);
-  }
-};
 
 export const fetchThemePresets = async (): Promise<ProfileThemePreset[]> => {
   const path = 'themePresets';
@@ -10290,8 +10295,13 @@ export const uploadHideNSeekAlternate = async (
   artist: string
 ): Promise<HideNSeekAlternate> => {
   const altId = `${parentTrackId}_slot${slot}`;
-  const storageRef = ref(storage, `hideNSeek/${albumId}/${altId}`);
-  await uploadBytes(storageRef, file);
+  // Versioned object name (a re-upload never overwrites — legacy objects carry no ownerUid stamp)
+  // + explicit type/owner so the storage rules' type allowlist and owner scoping pass.
+  const storageRef = ref(storage, `hideNSeek/${albumId}/${altId}_${Date.now().toString(36)}`);
+  await uploadBytes(storageRef, file, {
+    ...(file.type ? { contentType: file.type } : {}),
+    customMetadata: { ownerUid: auth.currentUser?.uid || '' },
+  });
   const url = await getDownloadURL(storageRef);
   const alt: HideNSeekAlternate = {
     id: altId, albumId, parentTrackId, slot, title, artist, url, uploadedAt: Date.now()
@@ -11367,15 +11377,17 @@ export const createClubPost = async (post: Partial<ClubPost>): Promise<ClubPost 
 };
 
 export const listenToClubPosts = (clubId: string, callback: (posts: ClubPost[]) => void) => {
-  const q = query(collection(db, 'clubPosts'), where('clubId', '==', clubId), limit(100));
-  return onSnapshot(q, snap => {
+  // Newest 100 (clubId+timestamp desc index); the unordered legacy query is the fallback until it deploys.
+  const ordered = query(collection(db, 'clubPosts'), where('clubId', '==', clubId), orderBy('timestamp', 'desc'), limit(100));
+  const legacy = query(collection(db, 'clubPosts'), where('clubId', '==', clubId), limit(100));
+  return snapshotWithIndexFallback(ordered, legacy, snap => {
     const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubPost));
     posts.sort((a, b) => {
       const pinDiff = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
       return pinDiff !== 0 ? pinDiff : (b.timestamp || 0) - (a.timestamp || 0);
     });
     callback(posts);
-  }, err => console.error('[listenToClubPosts]', err));
+  }, err => console.error('[listenToClubPosts]', err), 'clubPosts');
 };
 
 export const deleteClubPost = async (postId: string) => {
@@ -11503,12 +11515,15 @@ export const sendClubChatMessage = async (clubId: string, content: string): Prom
 };
 
 export const listenToClubChat = (clubId: string, callback: (msgs: ClubChatMessage[]) => void) => {
-  const q = query(collection(db, 'clubChat'), where('clubId', '==', clubId), limit(200));
-  return onSnapshot(q, snap => {
+  // Newest 200 (clubId+timestamp desc index), shown oldest→newest. The old unordered limit(200) returned an
+  // arbitrary 200, so busy clubs showed stale chat. Legacy query is the pre-deploy fallback.
+  const ordered = query(collection(db, 'clubChat'), where('clubId', '==', clubId), orderBy('timestamp', 'desc'), limit(200));
+  const legacy = query(collection(db, 'clubChat'), where('clubId', '==', clubId), limit(200));
+  return snapshotWithIndexFallback(ordered, legacy, snap => {
     const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as ClubChatMessage));
     msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
     callback(msgs);
-  }, err => console.error('[listenToClubChat]', err));
+  }, err => console.error('[listenToClubChat]', err), 'clubChat');
 };
 
 export const deleteClubChatMessage = async (msgId: string) => {
@@ -12191,15 +12206,17 @@ const threatFetch = async (path: string, init: RequestInit = {}): Promise<Respon
   });
 };
 
+// No local fallbacks: these used to fall back to an in-browser CsoAgentService with seeded fake telemetry (and a
+// dispatch fallback that reported emailSent:true without sending). A failed request now returns null / [] /
+// ok:false and the admin UI shows the failure. Real data: the Security & IT Council (server-side).
 export const fetchThreatStats = async (): Promise<SecurityPlatformStats | null> => {
   try {
     const res = await threatFetch('stats');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
-    // In-memory local fallback if offline or backend route initializing
-    const { CsoAgentService } = await import('./csoAgentService');
-    return CsoAgentService.getPlatformStats();
+    console.warn('[threat-protection] stats unavailable:', err);
+    return null;
   }
 };
 
@@ -12210,8 +12227,8 @@ export const fetchThreatEvents = async (): Promise<SecurityThreatEvent[]> => {
     const data = await res.json();
     return data.events || [];
   } catch (err) {
-    const { CsoAgentService } = await import('./csoAgentService');
-    return CsoAgentService.getThreatEvents();
+    console.warn('[threat-protection] events unavailable:', err);
+    return [];
   }
 };
 
@@ -12221,9 +12238,8 @@ export const fetchThreatMapData = async (): Promise<SecurityGeoPing[]> => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.pings || [];
-  } catch (err) {
-    const { CsoAgentService } = await import('./csoAgentService');
-    return CsoAgentService.getPlatformStats().recentPings;
+  } catch {
+    return [];
   }
 };
 
@@ -12234,8 +12250,8 @@ export const fetchCsoAssessment = async (refresh: boolean = false): Promise<CsoA
     const data = await res.json();
     return data.assessment || null;
   } catch (err) {
-    const { CsoAgentService } = await import('./csoAgentService');
-    return await CsoAgentService.generateSecurityAssessment();
+    console.warn('[threat-protection] assessment unavailable:', err);
+    return null;
   }
 };
 
@@ -12249,31 +12265,23 @@ export const simulateThreatAttack = async (isMalicious: boolean, targetUserUid?:
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.event || null;
-  } catch (err) {
-    const { CsoAgentService } = await import('./csoAgentService');
-    return await CsoAgentService.simulateAttack(isMalicious, targetUserUid);
+  } catch {
+    return null;
   }
 };
 
-export const dispatchThreatAlert = async (eventId?: string, email?: string): Promise<{ ok: boolean; emailSent?: boolean; chatDelivered?: boolean }> => {
+export const dispatchThreatAlert = async (eventId?: string, email?: string): Promise<{ ok: boolean; emailSent?: boolean; chatDelivered?: boolean; emailError?: string; simulated?: boolean; error?: string }> => {
   try {
     const res = await threatFetch('dispatch-alert', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ eventId, email })
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    const { CsoAgentService, ADMIN_PRIMARY_EMAIL } = await import('./csoAgentService');
-    const events = CsoAgentService.getThreatEvents();
-    const event = events.find(e => e.id === eventId) || events[0];
-    if (event) {
-      await CsoAgentService.sendRichAdminEmail({ to: email || ADMIN_PRIMARY_EMAIL, subject: `🚨 Incident Alert: ${event.vector}`, event });
-      await CsoAgentService.dispatchAssessmentToAdminChat(event);
-      return { ok: true, emailSent: true, chatDelivered: true };
-    }
-    return { ok: false };
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, emailSent: false, chatDelivered: false, error: data?.error || `HTTP ${res.status}` };
+    return data;
+  } catch (err: any) {
+    return { ok: false, emailSent: false, chatDelivered: false, error: String(err?.message || err) };
   }
 };
 
@@ -12287,20 +12295,21 @@ export const warnUserThreat = async (uid: string, vector?: string, details?: str
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.warning || null;
-  } catch (err) {
-    const { CsoAgentService } = await import('./csoAgentService');
-    return await CsoAgentService.warnTargetUser(uid, {
-      id: 'evt-manual-' + Date.now(),
-      timestamp: Date.now(),
-      ip: '198.51.100.42',
-      geo: { lat: 37.7749, lng: -122.4194, country: 'United States', city: 'San Francisco' },
-      severity: 'MALICIOUS_RED',
-      vector: (vector as any) || 'CREDENTIAL_STUFFING',
-      targetEndpoint: '/api/auth/session',
-      targetUid: uid,
-      riskScore: 94,
-      mitigated: true,
-      details: details || 'Administrative security warning dispatched.'
-    });
+  } catch {
+    return null;
   }
+};
+
+// ── Security & IT Council (platform admin) ───────────────────────────────────
+/** Thin JSON helper for components/admin/SecurityCouncilPanel.tsx. Throws with the server's error text. */
+export const securityCouncilApi = async <T = any>(path: string, init: RequestInit = {}): Promise<T> => {
+  let token: string | null = null;
+  try { token = (await auth.currentUser?.getIdToken()) || null; } catch { /* server answers 401 */ }
+  const res = await fetch(`/api/security/council/${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init.headers as Record<string, string> | undefined), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any)?.error || `HTTP ${res.status}`);
+  return data as T;
 };

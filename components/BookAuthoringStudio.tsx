@@ -27,6 +27,8 @@ import { useContextMenu } from './ui/ContextMenu';
 import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
 import { useAriaSurface } from '../services/aria/useAriaSurface';
 import { setComicHandoff, peekComicHandoff } from '../services/comicHandoff';
+import EditorialCouncilRoom from './editorial/council/EditorialCouncilRoom';
+import { studioPagesToManuscript } from '../services/editorial/council/editorialAdapters';
 import { extractDocument, type ImportedParagraph } from '../services/documentImport';
 import type { ContinuityReport } from '../services/manuscriptContinuity';
 import { auth, storage, db } from '../services/firebase';
@@ -37,6 +39,7 @@ const ComicPanelBuilder = lazy(() => import('./ComicPanelBuilder'));
 // Opt-in professional layer: ARK, content fingerprint, ISBN/ASIN, credits & splits.
 // Off for every account until the author turns it on inside the panel.
 const RightsIdentifiersPanel = lazy(() => import('./registry/RightsIdentifiersPanel'));
+const StudioBookTela = lazy(() => import('./bookTela/StudioBookTela'));
 
 // ─── Typography CSS (injected once) ──────────────────────────────────────────
 
@@ -808,6 +811,7 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   const [activePageId, setActivePageId] = useState(book.pages[0]?.id ?? '');
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [bookTelaTab, setBookTelaTab] = useState<null | 'upgrade' | 'export'>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [importDragging, setImportDragging] = useState(false);
@@ -860,6 +864,7 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   // contradictions that only exist BETWEEN distant chapters. See
   // services/manuscriptContinuity — runs on the Pokee long-context lane.
   const [showContinuity, setShowContinuity] = useState(false);
+  const [showEditors, setShowEditors] = useState(false);
   const [continuityRunning, setContinuityRunning] = useState(false);
   const [continuityReport, setContinuityReport] = useState<ContinuityReport | null>(null);
   const [continuityError, setContinuityError] = useState<string | null>(null);
@@ -1179,6 +1184,11 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
             <ScanSearch size={11}/> Continuity
           </button>
 
+          <button onClick={() => setShowEditors(true)} title="Ask the editorial and copyright council about this book"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
+            <BookMarked size={11}/> Editors
+          </button>
+
           <button onClick={() => setShowRights(true)}
             title="ARK, content fingerprint, ISBN, credits & splits"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
@@ -1197,6 +1207,8 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                   className="absolute right-0 top-full mt-2 w-48 bg-[#181818] border border-white/8 rounded-xl overflow-hidden shadow-2xl z-50">
                   {[
                     { label:'Publish & Protect', icon:<Globe size={12}/>, action:()=>setShowPublish(true) },
+                    { label:'Tela edition', icon:<Sparkles size={12}/>, action:()=>setBookTelaTab('upgrade') },
+                    { label:'EPUB / PDF (open formats)', icon:<Download size={12}/>, action:()=>setBookTelaTab('export') },
                     { label:'Print / PDF', icon:<Printer size={12}/>, action:()=>window.print() },
                     { label:'HTML file', icon:<Download size={12}/>, action:()=>{ const h=buildHTML(book); const b=new Blob([h],{type:'text/html'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`${book.title}.html`; a.click(); URL.revokeObjectURL(u); } },
                   ].map(({label,icon,action}) => (
@@ -1385,6 +1397,12 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
         </Suspense>
       )}
 
+      {bookTelaTab && (
+        <Suspense fallback={null}>
+          <StudioBookTela book={book} uid={auth.currentUser?.uid} price={Math.max(0, parseFloat(publishPrice) || 0)} initialTab={bookTelaTab} onClose={() => setBookTelaTab(null)} />
+        </Suspense>
+      )}
+
       {/* ── Publish & Protect modal ── */}
       <AnimatePresence>
         {showPublish && (
@@ -1467,6 +1485,15 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Editorial & Copyright Council ── */}
+      {showEditors && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 overflow-y-auto" onClick={() => setShowEditors(false)}>
+          <div className="bg-[#141414] border border-white/8 rounded-2xl max-w-4xl mx-auto my-6" onClick={e => e.stopPropagation()}>
+            <EditorialCouncilRoom getManuscript={() => studioPagesToManuscript(book)} onClose={() => setShowEditors(false)} />
+          </div>
+        </div>
+      )}
 
       {/* ── Continuity pass modal ── */}
       <AnimatePresence>

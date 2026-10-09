@@ -1339,7 +1339,11 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {(['FAN', 'ARTIST', 'BRAND', 'ORGANIZATION', 'WRITER', 'STUDENT', 'TEACHER', 'PARTNER', 'ATHLETE', 'PARENT', 'CHILD'] as const).map((type) => (
+                    {(['FAN', 'ARTIST', 'BRAND', 'ORGANIZATION', 'WRITER', 'STUDENT', 'TEACHER', 'PARTNER', 'ATHLETE', 'PARENT', 'CHILD'] as const)
+                      // CHILD is never self-selectable (Firestore rules reject it): child accounts are
+                      // created by a guardian (Family) or the learner provisioning flow.
+                      .filter((type) => type !== 'CHILD' || profile.accountType === 'CHILD')
+                      .map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -2300,6 +2304,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
       {/* Book Creator Wizard */}
       {showBookWizard && (
         <BookCreatorWizard
+          uid={user.uid}
           onCancel={() => setShowBookWizard(false)}
           onLaunchCreator={(albumPartial) => {
             setShowBookWizard(false);

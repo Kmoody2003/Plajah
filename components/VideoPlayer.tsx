@@ -12,9 +12,10 @@ import MediaThumb from './ui/MediaThumb';
 import { recordProgress, getResumePosition } from '../services/watchHistoryService';
 import { trackStart, trackProgress, trackComplete } from '../services/contentMetrics';
 import { setVideoReaction } from '../services/videoTasteService';
-import { createParty, partyShareUrl, shouldResync } from '../services/partyService';
+import { createParty, partyShareUrl, planDriftCorrection } from '../services/partyService';
 import { useParty } from '../hooks/useParty';
-import { Users, Radio } from 'lucide-react';
+import PartyBar from './party/PartyBar';
+import { Users } from 'lucide-react';
 import TvVideoUpNext from './tv/TvVideoUpNext';
 import {
   Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
@@ -673,60 +674,139 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
     }
   }, [isMuted, volume]);
 
-  // HOST: broadcast play/pause/seek + a heartbeat so followers (incl. late joiners) stay in sync.
+  // One adapter over the native <video> and the YouTube IFrame player so party sync is
+  // source-agnostic (YouTube only supports coarse playback rates → hard seeks only, no nudging).
+  const isYoutubeSrc = (video.url ?? '').includes('youtube.com') || (video.url ?? '').includes('youtu.be');
+  const partyMedia = useCallback(() => {
+    if (isYoutubeSrc) {
+      const yt = ytPlayerRef.current;
+      if (!yt?.getPlayerState) return null;
+      return {
+        time: () => Number(yt.getCurrentTime?.() || 0),
+        paused: () => { const s = yt.getPlayerState?.(); return s !== 1 && s !== 3; },   // 1 playing, 3 buffering
+        play: () => Promise.resolve(yt.playVideo?.()),
+        pause: () => { yt.pauseVideo?.(); },
+        seek: (t: number) => { yt.seekTo?.(t, true); },
+        setRate: (_r: number) => { /* coarse-only on YouTube */ },
+        canNudge: false,
+      };
+    }
+    const el = localVideoRef.current;
+    if (!el) return null;
+    return {
+      time: () => el.currentTime || 0,
+      paused: () => el.paused,
+      play: () => el.play(),
+      pause: () => { el.pause(); },
+      seek: (t: number) => { try { el.currentTime = t; } catch { /* */ } },
+      setRate: (r: number) => { if (Math.abs(el.playbackRate - r) > 0.001) el.playbackRate = r; },
+      canNudge: true,
+    };
+  }, [isYoutubeSrc]);
+
+  // HOST: broadcast play/pause/seek (events for <video>, a 1s poll that also covers YouTube) plus a
+  // position refresh while playing so late joiners and drifting followers stay in sync.
   useEffect(() => {
     if (!activePartyId || !party.isHost) return;
-    const el = localVideoRef.current;
-    if (!el) return;
-    const push = () => party.broadcast({ isPlaying: !el.paused, positionSec: el.currentTime || 0, contentId: video.id });
-    el.addEventListener('play', push);
-    el.addEventListener('pause', push);
-    el.addEventListener('seeked', push);
-    push();
-    const hb = setInterval(() => { if (!el.paused) push(); }, 4000);
-    return () => {
-      el.removeEventListener('play', push);
-      el.removeEventListener('pause', push);
-      el.removeEventListener('seeked', push);
-      clearInterval(hb);
+    let last = { playing: false, pos: 0, at: 0 };
+    const push = () => {
+      const m = partyMedia();
+      if (!m) return;
+      const playing = !m.paused();
+      const pos = m.time();
+      last = { playing, pos, at: Date.now() };
+      party.broadcast({ isPlaying: playing, positionSec: pos, contentId: video.id });
     };
-  }, [activePartyId, party.isHost, video.id, video.muxPlaybackId, video.url]);
+    const el = isYoutubeSrc ? null : localVideoRef.current;
+    el?.addEventListener('play', push);
+    el?.addEventListener('pause', push);
+    el?.addEventListener('seeked', push);
+    push();
+    const iv = setInterval(() => {
+      const m = partyMedia();
+      if (!m) return;
+      const playing = !m.paused();
+      const pos = m.time();
+      const expected = last.playing ? last.pos + (Date.now() - last.at) / 1000 : last.pos;
+      if (playing !== last.playing || Math.abs(pos - expected) > 1.5 || (playing && Date.now() - last.at > 4000)) push();
+    }, 1000);
+    return () => {
+      el?.removeEventListener('play', push);
+      el?.removeEventListener('pause', push);
+      el?.removeEventListener('seeked', push);
+      clearInterval(iv);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePartyId, party.isHost, video.id, video.muxPlaybackId, video.url, partyMedia]);
 
-  // FOLLOWER: slave the local element to the host's state — seek only when drifted past threshold so
-  // we don't fight the decoder, and mirror play/pause. Re-armed whenever a new host state arrives.
+  // FOLLOWER: slave the local player to the host. Small drift → playbackRate nudge (0.95–1.05,
+  // inaudible); ≥3s → one hard seek with backoff (no seek loops). hold → pause where we are
+  // (host reconnecting / countdown / ended). Autoplay blocked → play muted + "Tap to unmute".
+  const lastHardSeekRef = useRef(0);
+  const [needsUnmute, setNeedsUnmute] = useState(false);
   useEffect(() => {
     if (!activePartyId || !party.isFollower) return;
     const apply = () => {
-      const el = localVideoRef.current;
-      if (!el) return;
-      const { targetPositionSec, shouldPlay } = party.getTarget();
-      if (shouldResync(el.currentTime || 0, targetPositionSec)) { try { el.currentTime = targetPositionSec; } catch { /* */ } }
-      if (shouldPlay && el.paused) { el.play().catch(() => { el.muted = true; el.play().catch(() => {}); }); }
-      else if (!shouldPlay && !el.paused) { el.pause(); }
+      const m = partyMedia();
+      if (!m) return;
+      const t = party.getTarget();
+      if (t.hold) { m.setRate(1); if (!m.paused()) m.pause(); return; }
+      const now = Date.now();
+      const local = m.time();
+      const plan = planDriftCorrection(local, t.targetPositionSec, { playing: t.shouldPlay, nowMs: now, lastHardSeekMs: lastHardSeekRef.current });
+      if (plan.kind === 'seek') { m.seek(plan.seekTo); m.setRate(1); lastHardSeekRef.current = now; }
+      else if (m.canNudge) m.setRate(plan.rate);
+      else if (Math.abs(t.targetPositionSec - local) > 1.5 && now - lastHardSeekRef.current > 4000) { m.seek(t.targetPositionSec); lastHardSeekRef.current = now; }
+      if (t.shouldPlay && m.paused()) {
+        Promise.resolve(m.play()).catch(() => {
+          const el = localVideoRef.current;
+          if (el) { el.muted = true; setNeedsUnmute(true); el.play().catch(() => {}); }
+        });
+      } else if (!t.shouldPlay && !m.paused()) m.pause();
     };
     apply();
     const iv = setInterval(apply, 1000);
-    return () => clearInterval(iv);
-  }, [activePartyId, party.isFollower, party.playback?.seq]);
+    return () => { clearInterval(iv); partyMedia()?.setRate(1); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePartyId, party.isFollower, party.playback?.seq, partyMedia]);
+
+  const unmuteFromParty = useCallback(() => {
+    const el = localVideoRef.current;
+    if (el) { el.muted = false; el.volume = volume || 1; }
+    setIsMuted(false);
+    setNeedsUnmute(false);
+  }, [volume]);
+
+  // HOST: "Start together" — everyone sees 3-2-1, then the host's play goes out to the room.
+  const startTogether = useCallback(() => {
+    const m = partyMedia();
+    if (!m) return;
+    m.pause();
+    party.startCountdown(() => { Promise.resolve(m.play()).catch(() => {}); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyMedia, party.startCountdown]);
 
   const startWatchParty = useCallback(async () => {
     try {
+      const m = partyMedia();
+      // Only a REFERENCE goes on the (public) party doc — each guest resolves playback via their own access.
       const id = await createParty({
         kind: 'WATCH',
-        content: { type: 'VIDEO', id: video.id, title: video.title, thumbnail: video.thumbnailUrl || video.coverImageUrl, url: video.url, muxPlaybackId: video.muxPlaybackId },
-        initial: { positionSec: localVideoRef.current?.currentTime || 0, isPlaying: !localVideoRef.current?.paused },
+        content: { type: 'VIDEO', id: video.id, title: video.title, thumbnail: video.thumbnailUrl || video.coverImageUrl },
+        initial: { positionSec: m?.time() || 0, isPlaying: m ? !m.paused() : false },
       });
       setActivePartyId(id);
       const url = partyShareUrl(id);
       if (navigator.share) navigator.share({ title: `Watch “${video.title}” together on Plajah`, url }).catch(() => {});
       else navigator.clipboard?.writeText(url).catch(() => {});
     } catch (e) { console.error('start watch party failed', e); }
-  }, [video]);
+  }, [video, partyMedia]);
 
+  // PartyBar ends the party for the host before calling this.
   const leaveWatchParty = useCallback(() => {
-    if (party.isHost) party.end();
+    setNeedsUnmute(false);
     setActivePartyId(null);
-  }, [party]);
+  }, []);
 
   // ── Watch history: throttled progress recording + resume ──────────────────
   const lastRecordRef = useRef(0);
@@ -1187,31 +1267,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           </div>
         </div>
 
-        {/* ── Watch-party status banner ─────────────────────────────────── */}
+        {/* ── Watch party: shared PartyBar (status, viewers, chat, reactions, invite, remote) ── */}
         {activePartyId && (
-          <div className="relative z-10 mx-4 mb-2 flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-[#D40055]/30 bg-gradient-to-r from-[#6B0099]/20 to-[#D40055]/20 backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-            <Radio size={14} className="text-[#ff5c9d] shrink-0" />
-            <p className="text-[10px] font-black uppercase tracking-widest text-white flex-1 min-w-0 truncate">
-              {party.isHost ? 'Hosting watch party' : `Following ${party.party?.hostName || 'the host'}`}
-              <span className="text-white/50"> · </span>
-              <span className="inline-flex items-center gap-1 text-white/70"><Users size={11} /> {party.viewerCount} watching</span>
-              {party.isFollower && <span className="text-white/40 normal-case tracking-normal"> — synced to host</span>}
-            </p>
-            {party.isHost && (
-              <button
-                onClick={() => { const u = partyShareUrl(activePartyId); if (navigator.share) navigator.share({ title: `Watch “${video.title}” together on Plajah`, url: u }).catch(() => {}); else navigator.clipboard?.writeText(u).catch(() => {}); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[9px] font-black uppercase tracking-widest transition-all shrink-0"
-              >
-                <Share2 size={12} /> Invite
+          <div className="relative z-20 mx-4 mb-2">
+            <PartyBar
+              partyId={activePartyId}
+              party={party}
+              verb="watching"
+              noun="watch party"
+              title={video.title}
+              onLeave={leaveWatchParty}
+              onStartTogether={startTogether}
+            />
+            {needsUnmute && party.isFollower && (
+              <button onClick={unmuteFromParty}
+                className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[85] px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest text-white shadow-2xl"
+                style={{ background: 'var(--pj-grad-brand)' }}>
+                Tap to unmute
               </button>
             )}
-            <button
-              onClick={leaveWatchParty}
-              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all shrink-0"
-            >
-              {party.isHost ? 'End' : 'Leave'}
-            </button>
           </div>
         )}
 

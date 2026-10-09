@@ -77,7 +77,18 @@ const fmt = (cents: number) => (cents / 100).toFixed(2);
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent, onSaved, onBack }) => {
+/** One-shot prefill handed over by other surfaces (e.g. a creator course's launch evite). */
+const takeEventPrefill = (): Partial<PlajahEvent> | undefined => {
+  try {
+    const raw = sessionStorage.getItem('plajah.eventPrefill');
+    if (!raw) return undefined;
+    sessionStorage.removeItem('plajah.eventPrefill');
+    return JSON.parse(raw);
+  } catch { return undefined; }
+};
+
+const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent: editingEventProp, onSaved, onBack }) => {
+  const [editingEvent] = useState<Partial<PlajahEvent> | undefined>(() => editingEventProp ?? takeEventPrefill());
   const isEdit = !!editingEvent?.id;
 
   // Form state
