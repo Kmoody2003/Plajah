@@ -130,7 +130,12 @@ export function eraMotion(id: string): MotionRecipe {
 }
 
 /** Typographic voice for the live text over an era plate (same shape as plateCatalog.plateVoice). */
-export function eraVoice(id: string): { tone: 'formal'; display: string; displayStyle: string; eyebrow: string } {
+export function eraVoice(id: string): { tone: 'formal'; display: string; displayStyle: string; eyebrow: string; scale: number } {
   const ev = eraEvite(id);
-  return { tone: 'formal', display: ev?.display || 'Georgia, serif', displayStyle: ev?.displayStyle || 'normal 600', eyebrow: 'You are invited' };
+  return { tone: 'formal', display: ev?.display || 'Georgia, serif', displayStyle: ev?.displayStyle || 'normal 600', eyebrow: 'You are invited', scale: (ev && DISPLAY_SCALE[ev.font]) || 1 };
 }
+/** Extended / wide faces set smaller so a long word still fits a 390 px card; condensed faces a touch larger. */
+const DISPLAY_SCALE: Partial<Record<FontKey, number>> = {
+  michroma: .68, rubikMono: .7, unbounded: .78, audiowide: .82, orbitron: .8, spaceMono: .82, archivoBlack: .88, shrikhand: .88, permanentMarker: .9,
+  uncial: .86, cinzel: .86, limelight: .9, syne: .9, abril: .94, federo: .92, specialElite: .9, bigShoulders: 1.08, anton: 1.04,
+};

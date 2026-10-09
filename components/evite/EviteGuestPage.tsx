@@ -13,6 +13,7 @@ import { type EviteStageHandle } from './EviteStage';
 import EviteCard, { whenLines } from './EviteCard';
 import EvitePlayGate from './EvitePlayGate';
 import { playFor } from '../../services/evite/playGames';
+import { eraIdOf } from '../../services/evite/eraIds';
 import { httpGuestApi, personalLink, type EviteGuestApi, type GuestMe } from '../../services/evite/eviteClient';
 import { plateUrls, isLightPlate } from '../../services/evite/plateCatalog';
 import { recipeFor } from '../../services/evite/motionRecipes';
@@ -30,6 +31,15 @@ export default function EviteGuestPage({ id, api = httpGuestApi }: { id: string;
   const [editing, setEditing] = useState(false);
   // Kids invites open with a short game (or a scratch-off). A parent can skip with one tap; the host can turn it off.
   const [played, setPlayed] = useState(false);
+  // Design-era invites draw their plate in the browser (services/evite/eraArt.ts); the same art backs the page.
+  const [eraBg, setEraBg] = useState<{ plate: string; light: boolean; foil: string } | null>(null);
+  const eraId = eraIdOf(invite?.templateId);
+  useEffect(() => {
+    if (!eraId) { setEraBg(null); return; }
+    let live = true;
+    import('../../services/evite/eraArt').then(m => m.eraArt(eraId, { showLaw: invite?.look.showLaw })).then(a => { if (live) setEraBg({ plate: a.plate, light: a.light, foil: a.foil }); }).catch(() => {});
+    return () => { live = false; };
+  }, [eraId, invite?.look.showLaw]);
   const stage = useRef<EviteStageHandle>(null);
   const rsvpRef = useRef<HTMLDivElement>(null);
   const giftRef = useRef<HTMLDivElement>(null);
@@ -46,7 +56,7 @@ export default function EviteGuestPage({ id, api = httpGuestApi }: { id: string;
 
   const urls = plateUrls(invite.templateId) || (invite.art ? { plate: invite.art.plate, depth: invite.art.depth, collection: invite.art.preset, subject: 'custom' } as any : null);
   const recipe = urls ? recipeFor(urls.collection, urls.subject) : null;
-  const accent = invite.look.accent || recipe?.foil.color || '#FF8C00';
+  const accent = invite.look.accent || recipe?.foil.color || eraBg?.foil || '#FF8C00';
   const w = whenLines(invite.fields);
   const origin = typeof location !== 'undefined' ? location.origin : 'https://plajah.com';
   const link = `${origin}/i/${invite.id}`;
@@ -58,11 +68,11 @@ export default function EviteGuestPage({ id, api = httpGuestApi }: { id: string;
   const goScroll = (r: React.RefObject<HTMLDivElement | null>) => r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   return (
-    <Shell accent={accent} backdrop={urls?.plate} light={invite.art ? !!invite.art.light : isLightPlate(invite.templateId)}>
+    <Shell accent={accent} backdrop={urls?.plate || eraBg?.plate} light={eraId ? !!eraBg?.light : invite.art ? !!invite.art.light : isLightPlate(invite.templateId)}>
       {giftThanks && <div className="eg-banner" role="status">Thank you. Your gift is on its way to {invite.hostName || 'the host'}.</div>}
       {(invite.status === 'cancelled') && <div className="eg-banner warn" role="status">The host cancelled this event.</div>}
 
-      {urls
+      {urls || eraId
         ? <EviteCard ref={stage} plateId={invite.templateId} art={invite.art} fields={invite.fields} accent={invite.look.accent} showLaw={invite.look.showLaw} ctaLabel={answered ? 'Change my reply' : 'RSVP'} onCta={() => goScroll(rsvpRef)}
             hideText={gated} overlay={gated && play ? <EvitePlayGate spec={play} accent={accent} reducedMotion={reduced} onWin={() => openCard(true)} onSkip={() => openCard(false)} /> : null} />
         : <div className="eg-card"><h1 className="eg-h">{invite.fields.headline}</h1></div>}

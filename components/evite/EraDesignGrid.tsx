@@ -23,7 +23,7 @@ export function EraThumb({ id, alt, className, width = 240 }: { id: string; alt:
     io.observe(el);
     return () => { live = false; io.disconnect(); };
   }, [id, width]);
-  return <img ref={ref} src={src || undefined} alt={alt} width={width} height={Math.round(width * 1.5)} className={className} style={{ background: 'linear-gradient(160deg,#1b1626,#0b0713)' }} />;
+  return <img ref={ref} src={src || undefined} alt={src ? alt : ''} aria-busy={src ? undefined : true} width={width} height={Math.round(width * 1.5)} className={className} style={{ background: 'linear-gradient(160deg,#1b1626,#0b0713)' }} />;
 }
 
 export default function EraDesignGrid({ value, onPick, columns = 'grid-cols-3 sm:grid-cols-4' }: { value?: string | null; onPick(id: string): void; columns?: string }) {

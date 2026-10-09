@@ -210,7 +210,7 @@ function DesignStep({ value, onPick }: { value: string; onPick(id: string): void
 }
 
 function DetailsStep({ fields, plate, setF, settings, setS, onHeadline }: { fields: EviteDoc['fields']; plate: ReturnType<typeof parsePlateId>; setF(p: Partial<EviteDoc['fields']>): void; settings: EviteDoc['settings']; setS(p: Partial<EviteDoc['settings']>): void; onHeadline(): void }) {
-  const suggestion = plate ? suggestHeadline(plate.collection, plate.subject, fields.honoree) : '';
+  const suggestion = plate ? suggestHeadline(plate.collection, plate.subject, fields.honoree) : 'You’re Invited';
   return (
     <section className="grid gap-3">
       <h2 className="pj-h2">The details</h2>

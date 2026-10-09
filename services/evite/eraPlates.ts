@@ -859,7 +859,10 @@ const minimalist: EraPlateSpec = {
   foil: '#D9D6CE', foilStrength: .06, cta: '#9A3E35', font: 'manrope', fontStyle: 'normal 300', light: true,
   build: c => {
     const { ink: I, accent: G, secondary: R0 } = c; const gx = W / PHI, gy = CALM_Y / PHI;
-    const stack: Obj[] = []; for (let i = 0; i < 7; i++) { const y = 84 + i * 80; stack.push(rect(gx - 90, y, 180, 40, G, { label: 'Unit' }), rect(gx - 90, y + 36, 180, 4, mix(G, -.22))); }
+    // a wall stack: seven identical units, the interval equal to the unit; each reads as an object (face + side + shadow)
+    const stack: Obj[] = []; const uw = 210, uh = 44, sd = 18;
+    for (let i = 0; i < 7; i++) { const y = 70 + i * uh * 2; const x = gx - uw / 2;
+      stack.push(rect(x + 10, y + uh + 6, uw, 10, I, { opacity: .07, blur: 6, label: 'Shadow' }), P(polyD([[x + uw, y], [x + uw + sd, y + sd * .6], [x + uw + sd, y + uh + sd * .6], [x + uw, y + uh]]), mix(G, -.25), { label: 'Unit side' }), P(polyD([[x, y + uh], [x + uw, y + uh], [x + uw + sd, y + uh + sd * .6], [x + sd, y + uh + sd * .6]]), mix(G, -.38), { label: 'Unit underside' }), rect(x, y, uw, uh, G, { gradient: lg(0, [0, mix(G, .1)], [1, mix(G, -.06)]), label: 'Unit' })); }
     return [L(.1, ground(c)), L(.6, stack), L(.72, rect(W / PHI ** 2 - 20 - 120, gy - 20, 40, 40, R0, { label: 'Red square' })), L(.2, line(64, CALM_Y + 40, W - 64, CALM_Y + 40, I, .8, { opacity: .35 }))];
   },
 };
