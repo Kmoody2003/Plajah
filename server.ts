@@ -11,6 +11,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { plajahTrustProxy } from './services/trustProxy';
 import { BskyAgent } from '@atproto/api';
 import fs from 'fs/promises';
 import { Readable } from 'stream';
@@ -2292,9 +2293,10 @@ async function startServer() {
   const PORT = parseInt(process.env.PORT || '3000', 10);
 
   app.disable('x-powered-by');
-  // Cloud Run/Firebase Hosting contributes exactly one trusted proxy hop. This
-  // makes req.ip and HTTPS detection accurate without trusting arbitrary XFF.
-  if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+  // Browser → Firebase Hosting → Cloud Run. `trust proxy = 1` made req.ip a Hosting edge address
+  // (verified in Cloud Run logs), so per-IP limits were shared by many users. Trust Cloud Run's hop
+  // plus Google front-end hops only; req.ip = the real client, still unspoofable via XFF.
+  if (process.env.NODE_ENV === 'production') app.set('trust proxy', plajahTrustProxy);
 
   // One-shot local recovery when an older production service worker shadows Vite.
   // This route is intentionally explicit: normal app requests never clear auth or caches.

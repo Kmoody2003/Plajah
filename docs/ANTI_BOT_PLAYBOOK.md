@@ -147,9 +147,12 @@ Optional later: `beforeUserSignedIn` to add a `sanctioned` custom claim (feeds t
 1. **Deploy this build** (server + hosting). Watch `security_events` rollups for a day:
    `counts.appcheck_valid / (valid + missing + invalid)` per route, `csp_report` details,
    `shared_rate_limited`, `signup_check_disposable`.
-2. **Verify the client IP.** Sample `security_events` `samples[].ipHash` across known users. If
-   every request hashes to a handful of values, `req.ip` is the Firebase Hosting edge, not the
-   client — set `app.set('trust proxy', 2)` (Hosting → GFE → Cloud Run) in `server.ts`. All IP
+2. **Client IP — done 2026-10-09.** Cloud Run logs showed every `/api` request arriving from
+   Google front-end addresses (Firebase Hosting), so `trust proxy = 1` made `req.ip` a Hosting
+   edge shared by many users. `server.ts` now uses `services/trustProxy.ts` (`plajahTrustProxy`):
+   trust Cloud Run's hop plus Google front-end hops only, so `req.ip` is the real client and a
+   forged `X-Forwarded-For` (or a direct `*.run.app` call) can't spoof it (tests/trustProxy.test.ts).
+   After deploy, confirm `security_events` `samples[].ipHash` now varies per user. All IP
    limiters (`clientIpKey`) depend on this; **never** read `X-Forwarded-For` directly.
 3. **TTL policies:** Firestore → TTL → `security_events` / `expireAt`, `rate_limits` / `expireAt`.
 4. **reCAPTCHA Enterprise** (better scores, no v3 quota): Google Cloud console → reCAPTCHA →
