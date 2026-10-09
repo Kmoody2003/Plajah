@@ -48,23 +48,35 @@ const AdminPushBroadcast: React.FC<AdminPushBroadcastProps> = ({ users = [] }) =
   const [sending, setSending] = useState(false);
   const [confirmAll, setConfirmAll] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Platform notifications can go out on any mix of channels. Email respects each user's email
+  // prefs + unsubscribes and only reaches verified addresses (server-side).
+  const [channels, setChannels] = useState({ push: true, inApp: true, email: false });
+  const anyChannel = channels.push || channels.inApp || channels.email;
 
-  const canSend = title.trim() && body.trim() && (mode === 'all' || !!effectiveUid);
+  const canSend = title.trim() && body.trim() && anyChannel && (mode === 'all' || !!effectiveUid);
 
   const send = async () => {
     if (!canSend) return;
     if (mode === 'all' && !confirmAll) { setConfirmAll(true); return; }
     setSending(true); setResult(null); setConfirmAll(false);
-    const res = await sendAdminBroadcast({ mode, uid: effectiveUid || undefined, title: title.trim(), body: body.trim(), link: link.trim() || 'FEED' });
+    const res = await sendAdminBroadcast({ mode, uid: effectiveUid || undefined, title: title.trim(), body: body.trim(), link: link.trim() || 'FEED', channels });
     setSending(false);
     if ('error' in res) {
       setResult({ ok: false, msg: res.error });
     } else if (res.recipients === 0) {
-      setResult({ ok: false, msg: mode === 'all' ? 'No users have registered a device token yet.' : 'That user has no registered device (they need to open the app and allow notifications).' });
+      setResult({ ok: false, msg: mode === 'all' ? 'No users found.' : 'That user wasn’t found.' });
+    } else if (!channels.push || res.devices === 0) {
+      const parts = [
+        channels.push ? `push: no registered devices` : '',
+        channels.inApp ? `in-app: ${res.inAppQueued ?? 0} queued` : '',
+        channels.email ? `email: ${res.emailQueued ?? 0} queued (verified + opted-in only)` : '',
+      ].filter(Boolean);
+      setResult({ ok: true, msg: parts.join(' · ') });
     } else if (res.sent === 0) {
       setResult({ ok: false, msg: `Reached ${res.recipients} recipient(s)/${res.devices} device(s) but FCM accepted none — check GOOGLE_SERVICE_ACCOUNT_JSON or that tokens are current.` });
     } else {
-      setResult({ ok: true, msg: `Sent to ${res.sent}/${res.devices} device(s) across ${res.recipients} recipient(s).` });
+      const extra = [channels.inApp ? `in-app ${res.inAppQueued ?? 0}` : '', channels.email ? `email ${res.emailQueued ?? 0} queued` : ''].filter(Boolean).join(' · ');
+      setResult({ ok: true, msg: `Push sent to ${res.sent}/${res.devices} device(s) across ${res.recipients} recipient(s).${extra ? ` ${extra}.` : ''}` });
     }
   };
 
@@ -77,7 +89,7 @@ const AdminPushBroadcast: React.FC<AdminPushBroadcastProps> = ({ users = [] }) =
           <Radio size={22} className="text-small-orange" />
         </div>
         <div>
-          <h3 className="text-lg font-black uppercase tracking-tight">Push Broadcast</h3>
+          <h3 className="text-lg font-black uppercase tracking-tight">Platform Notifications</h3>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Send a notification to one user or everyone</p>
         </div>
       </div>
@@ -164,11 +176,22 @@ const AdminPushBroadcast: React.FC<AdminPushBroadcastProps> = ({ users = [] }) =
           </div>
         </div>
 
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 block">Channels</label>
+          <div className="flex flex-wrap gap-2">
+            {([['push', 'Push'], ['inApp', 'In-app inbox'], ['email', 'Email']] as const).map(([k, label]) => (
+              <button key={k} onClick={() => setChannels(c => ({ ...c, [k]: !c[k] }))} aria-pressed={channels[k]}
+                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${channels[k] ? 'bg-small-orange/20 border-small-orange/40 text-small-orange' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>{label}</button>
+            ))}
+          </div>
+          {channels.email && <p className="mt-2 text-[10px] text-white/40 px-1">Email goes only to verified addresses that haven’t turned off “Updates from Plajah”, with an unsubscribe link.</p>}
+        </div>
+
         {/* Confirm-all guard */}
         {mode === 'all' && confirmAll && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/30">
             <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-red-300 leading-relaxed">This pushes to <b>every user with a registered device</b>. Tap “Send to everyone” again to confirm.</p>
+            <p className="text-[11px] text-red-300 leading-relaxed">This notifies <b>every user</b> on the selected channels. Tap “Send to everyone” again to confirm.</p>
           </motion.div>
         )}
 
@@ -181,7 +204,7 @@ const AdminPushBroadcast: React.FC<AdminPushBroadcastProps> = ({ users = [] }) =
             ? <><Loader2 size={16} className="animate-spin" /> Sending…</>
             : mode === 'all'
               ? <><Users size={16} /> {confirmAll ? 'Send to everyone — confirm' : 'Send to everyone'}</>
-              : <><Send size={16} /> Send push</>}
+              : <><Send size={16} /> Send notification</>}
         </button>
 
         {result && (

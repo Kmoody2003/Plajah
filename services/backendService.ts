@@ -5032,49 +5032,33 @@ const PUSH_CATEGORY: Record<string, 'messages' | 'social' | 'content' | 'system'
 interface PushMeta {
   link?: string; type?: string; targetId?: string;
   senderId?: string; senderName?: string; senderPhoto?: string;
+  notificationId?: string;
 }
 
 const sendPushToUser = async (uid: string, title: string, body: string, meta: PushMeta = {}): Promise<void> => {
   try {
-    const userSnap = await getDoc(doc(db, 'users', uid));
-    const data = userSnap.data() || {};
-
-    // Respect the recipient's notification preferences (master switch + per-category).
-    const prefs = (data.notificationPrefs || {}) as Record<string, boolean>;
-    if (prefs.push === false) return;
+    // One server call per notification: the server reads the recipient's prefs, devices and
+    // verified email itself, stamps the real sender, and decides push + email independently
+    // (email = unread-message delay / daily digest). The client never reads another user's tokens.
     const category = PUSH_CATEGORY[meta.type || 'SYSTEM'] || 'system';
-    if (prefs[category] === false) return;
-
-    // Fan out to every registered device: web FCM token + all native device tokens, de-duped.
-    const tokens = Array.from(new Set<string>(
-      [...((data.fcmTokens as string[]) || []), data.fcmToken as string].filter(Boolean)
-    ));
-    if (!tokens.length) return;
-
-    const res = await fetch('/api/push', {
+    const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+    if (!idToken) return;
+    await fetch('/api/push', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify({
-        tokens, title, body,
+        toUid: uid, title, body,
         link: meta.link,
         channelId: category,
         // Forwarded in the FCM data payload so a native tap can deep-link exactly
         // like an in-app tap (handleNotificationNavigate reads link + targetId + type).
         targetId: meta.targetId, type: meta.type,
-        senderId: meta.senderId, senderName: meta.senderName, senderPhoto: meta.senderPhoto,
+        senderName: meta.senderName, senderPhoto: meta.senderPhoto,
+        // Lets the email worker skip messages you already read in-app.
+        notificationId: meta.notificationId,
+        threadId: meta.type === 'MESSAGE' ? meta.targetId : undefined,
       }),
     });
-
-    // Prune any tokens FCM reports as permanently unregistered (app uninstalled /
-    // token rotated) so we stop fanning out to dead devices. Results are index-aligned
-    // with `tokens` because we send `tokens` only (no extra single `token`).
-    const json = await res.json().catch(() => null) as { results?: Array<{ ok: boolean; stale?: boolean }> } | null;
-    if (json?.results?.length === tokens.length) {
-      const stale = tokens.filter((_, i) => json.results![i]?.stale);
-      if (stale.length) {
-        await updateDoc(doc(db, 'users', uid), { fcmTokens: arrayRemove(...stale) }).catch(() => {});
-      }
-    }
   } catch {
     // Non-critical — push failures must never break the main flow
   }
@@ -5115,11 +5099,12 @@ export const sendTestPush = async (): Promise<{ sent: number; total: number }> =
       [...((data.fcmTokens as string[]) || []), data.fcmToken as string].filter(Boolean)
     ));
     if (!tokens.length) return { sent: 0, total: 0 };
+    const idToken = await auth.currentUser!.getIdToken();
     const res = await fetch('/api/push', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify({
-        tokens,
+        self: true,
         title: 'Plajah',
         body: '🔔 Test notification — your push notifications are working!',
         link: 'FEED',
@@ -5141,8 +5126,9 @@ export const sendTestPush = async (): Promise<{ sent: number; total: number }> =
  * fanning out. Returns delivery counts, or { error } on failure.
  */
 export const sendAdminBroadcast = async (
-  payload: { mode: 'user' | 'all'; uid?: string; title: string; body: string; link?: string }
-): Promise<{ sent: number; total: number; recipients: number; devices: number } | { error: string }> => {
+  payload: { mode: 'user' | 'all'; uid?: string; title: string; body: string; link?: string;
+    channels?: { push?: boolean; inApp?: boolean; email?: boolean } }
+): Promise<{ sent: number; total: number; recipients: number; devices: number; inAppQueued?: number; emailQueued?: number } | { error: string }> => {
   if (!auth.currentUser) return { error: 'Not signed in' };
   try {
     const token = await auth.currentUser.getIdToken();
@@ -5199,7 +5185,7 @@ export const createNotification = async (notif: Omit<AppNotification, 'id' | 'ti
     // Fire push in background — never await, never block the main flow. Pass the full
     // meta so native taps deep-link and per-category preferences are honored.
     sendPushToUser(notif.userId, notif.title, notif.message, {
-      link: notif.link, type: notif.type, targetId: notif.targetId,
+      link: notif.link, type: notif.type, targetId: notif.targetId, notificationId: docRef.id,
       senderId: notif.senderId, senderName: notif.senderName, senderPhoto: notif.senderPhoto,
     }).catch(() => {});
     return docRef.id;

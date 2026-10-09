@@ -32,12 +32,6 @@ import { registerTicketRoutes, ticketSaleHooks } from './services/ticketServer';
 import { registerLaundryRoutes, loadWalletPromo } from './services/laundryServer';
 import { computeTopUpBonus, bonusIdemKey } from './services/walletPromoCore';
 import { registerAutoRoutes } from './services/autoServer';
-import { registerEviteRoutes, recordEviteGift } from './services/evite/eviteServer';
-import { registerPoolRoutes, nominatimGeocoder, googleGeocoder } from './services/eventPool/poolServer';
-import { registerEviteThemeRoutes,mayUseTemplate as themeMayUse, resolveArt as themeArt, recordThemePurchase } from './services/evite/eviteThemeServer';
-import { registerEvitePrintRoutes, fulfillEvitePrint, createGelatoAdapter } from './services/evite/evitePrintServer';
-// Evite print orders: one Gelato adapter shared by the routes and the Stripe webhook. No key → PRINT_NOT_CONFIGURED.
-const evitePrintGelato = createGelatoAdapter({ apiKey: () => process.env.GELATO_API_KEY, draftOrders: () => process.env.EVITE_PRINT_DRAFT_ORDERS === '1' });
 import { buildLinearMediaPlaylist, currentProgrammeMasterUrl, buildM3uLineup, type M3uChannel } from './services/fastChannelHls';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -58,6 +52,8 @@ import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak
 import { decideVerifiedAgentTier, type VerifiedAgentTier, type VerifiedFacts } from './services/aria/ariaTier';
 import { isVerifiedAdmin } from './services/platformAdmin';
 import { socialServerRouter } from './routes/socialServer';
+import { notifyEmailRouter } from './routes/notifyEmail';
+import { dispatchEmailNotification, createServerNotification, listAllUserIds } from './services/notify/emailNotifyServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { authMethodsRouter } from './routes/authMethods';
@@ -217,8 +213,6 @@ async function gcsObjectExists(objectPath: string): Promise<boolean> {
 }
 
 async function gcsUpload(objectPath: string, data: Buffer, contentType: string): Promise<boolean> {
-/** Evite creator-theme deps, set where the routes register; the Stripe webhook uses them for `evite_theme`. */
-let eviteThemeDeps: any = null;
   const token = await getGoogleAccessToken();
   if (!token) return false;
   try {
@@ -2699,12 +2693,6 @@ async function startServer() {
           break;
         }
         case 'charge.dispute.created': case 'charge.dispute.closed':
-          // ── Evite gifts: Stripe Checkout straight to the host, no platform cut (services/evite/eviteServer.ts) ──
-          if (meta.type === 'evite_gift') await recordEviteGift({ firestoreCreateOnce }, session);
-          // Creator theme sale: destination charge with the 5% application fee (NOT a CREATOR_PAYMENT_TYPES payout).
-          if (meta.type === 'evite_theme' && eviteThemeDeps) await recordThemePurchase(eviteThemeDeps, session);
-          if (meta.type === 'evite_print') await fulfillEvitePrint({ firestoreRead, firestoreWrite, firestoreCreateOnce, gelato: evitePrintGelato } as any, session);
-
           await applyDispute(obj, event.type.endsWith('created') ? 'created' : 'closed', acct);
           break;
       }
@@ -4823,10 +4811,22 @@ async function startServer() {
   // Sends when RESEND_API_KEY is configured; otherwise reports configured:false
   // (in-app + push already reached members). Same "works when keys set" pattern
   // as the Stripe endpoints.
-  app.post('/api/email/broadcast', authMiddleware, express.json(), async (req: any, res) => {
+  // Was an open relay for any signed-in account (guests included): 500 recipients + arbitrary
+  // HTML from the platform domain. Now registered-only, per-uid daily quota, text-only unless
+  // a platform admin, and every mail names the sending account.
+  const emailBroadcastLimiter = rateLimit({
+    windowMs: 24 * 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false,
+    keyGenerator: (req: any) => `emailbc:${req.uid || req.ip}`,
+    message: { error: 'Daily email broadcast limit reached' },
+  });
+  app.post('/api/email/broadcast', authMiddleware, requireRegisteredUser, emailBroadcastLimiter, express.json(), async (req: any, res) => {
     try {
       const key = process.env.RESEND_API_KEY;
-      const { subject, text, html, recipients } = req.body || {};
+      const isAdmin = await isPlatformAdminReq(req);
+      const { subject: rawSubject, text: rawText, recipients } = req.body || {};
+      const html = isAdmin ? req.body?.html : undefined;
+      const subject = typeof rawSubject === 'string' ? rawSubject.slice(0, 200) : rawSubject;
+      const text = isAdmin ? rawText : `${String(rawText || '').slice(0, 20000)}\n\n—\nSent via Plajah by account ${req.uid}. Report abuse: abuse@plajah.com`;
       if (!Array.isArray(recipients) || recipients.length === 0 || !subject) {
         return res.status(400).json({ error: 'recipients + subject required' });
       }
@@ -5959,6 +5959,8 @@ Rules:
           const accounts = await auth.loadAccounts(uid, token);
           const targetIds: string[] = Array.isArray(post.targetAccountIds) ? post.targetAccountIds : [];
           const targeted = accounts.filter((a: any) => targetIds.includes(a.id));
+          // Commercial networks (Meta / X / LinkedIn) live in users/{uid}/socialAccounts, not the fediverse vault.
+          const socialIds = await socialAccountIds(uid, targetIds.filter((id: string) => !targeted.some((a: any) => a.id === id)));
 
           if (!targeted.length && !socialIds.length && !post.shareToX) {
             await patch({
@@ -5999,12 +6001,25 @@ Rules:
           const log = [
             ...result.succeeded.map((s: any) => `✓ ${s.protocol}`),
             ...result.failed.map((f: any) => `✗ ${f.protocol}: ${f.error}`),
+            ...(post.shareToX ? ['X: tap to share'] : []),
           ].join('  ');
           await patch({
             status: { stringValue: status },
             publishLog: { stringValue: log.slice(0, 900) },
             lastAttemptAt: { integerValue: String(now) }, updatedAt: { integerValue: String(now) },
           });
+          // X has no free write API, so scheduled X shares are a reminder: the post is queued and the
+          // user finishes it in X's own composer with one tap. Best-effort; never fails the publish.
+          if (post.shareToX && !post.xSharedAt) {
+            try {
+              const title = 'Your X post is ready';
+              const message = String(post.text ?? '').slice(0, 120) || 'Tap to finish sharing on X.';
+              await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-studio', senderName: 'Marketing', senderPhoto: '', type: 'SYSTEM', title, message, targetId: 'PLAJAH_STUDIO', isRead: false, timestamp: Date.now() });
+              const u = await firestoreGetDeep('users', uid);
+              const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+              if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title, body: message, link: 'PLAJAH_STUDIO', channelId: 'system', data: { type: 'SYSTEM', targetId: 'PLAJAH_STUDIO' } });
+            } catch (e: any) { console.warn('[Cron] X reminder failed:', e?.message || e); }
+          }
           summary.push({ uid, status, ok: okCount, failed: failCount });
         } catch (err: any) {
           await patch({
@@ -6112,8 +6127,6 @@ Rules:
         pending.redirectUri,
         pending.clientId,
         pending.clientSecret,
-          // Commercial networks (Meta / X / LinkedIn) live in users/{uid}/socialAccounts, not the fediverse vault.
-          const socialIds = await socialAccountIds(uid, targetIds.filter((id: string) => !targeted.some((a: any) => a.id === id)));
       );
 
       const firebaseToken = (req.headers.authorization as string).slice(7);
@@ -6142,7 +6155,6 @@ Rules:
 
   app.get('/auth/twitter/callback', async (req: any, res) => {
     const { code, state } = req.query as Record<string, string>;
-            ...(post.shareToX ? ['X: tap to share'] : []),
     const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
     // Pass the code back to the SPA so SocialGraphImport.tsx can pick it up
     res.redirect(`${appUrl}?social_import_code=${encodeURIComponent(code)}&social_import_platform=twitter&state=${state}`);
@@ -6150,18 +6162,6 @@ Rules:
 
   app.get('/api/social-import/twitter/matches', authMiddleware, async (req: any, res) => {
     const { code } = req.query as { code: string };
-          // X has no free write API, so scheduled X shares are a reminder: the post is queued and the
-          // user finishes it in X's own composer with one tap. Best-effort; never fails the publish.
-          if (post.shareToX && !post.xSharedAt) {
-            try {
-              const title = 'Your X post is ready';
-              const message = String(post.text ?? '').slice(0, 120) || 'Tap to finish sharing on X.';
-              await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-studio', senderName: 'Marketing', senderPhoto: '', type: 'SYSTEM', title, message, targetId: 'PLAJAH_STUDIO', isRead: false, timestamp: Date.now() });
-              const u = await firestoreGetDeep('users', uid);
-              const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
-              if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title, body: message, link: 'PLAJAH_STUDIO', channelId: 'system', data: { type: 'SYSTEM', targetId: 'PLAJAH_STUDIO' } });
-            } catch (e: any) { console.warn('[Cron] X reminder failed:', e?.message || e); }
-          }
     const clientId = process.env.TWITTER_CLIENT_ID;
     const clientSecret = process.env.TWITTER_CLIENT_SECRET;
     if (!clientId || !clientSecret) return res.status(501).json({ error: 'Twitter not configured' });
@@ -6217,8 +6217,11 @@ Rules:
   });
 
   app.post('/api/social-import/follow-batch', authMiddleware, express.json(), async (req: any, res) => {
-    const { uids } = req.body as { uids: string[] };
-    if (!Array.isArray(uids) || uids.length === 0) return res.status(400).json({ error: 'uids required' });
+    const { uids: rawUids } = req.body as { uids: string[] };
+    if (!Array.isArray(rawUids) || rawUids.length === 0) return res.status(400).json({ error: 'uids required' });
+    if (req.isAnonymous) return res.status(403).json({ error: 'A registered account is required', code: 'ANONYMOUS_NOT_ALLOWED' });
+    // Mass-follow is a classic bot pattern — cap one import batch.
+    const uids = Array.from(new Set(rawUids.filter(u => typeof u === 'string' && /^[A-Za-z0-9_-]{6,128}$/.test(u) && u !== req.uid))).slice(0, 200);
     // Write follow records to Firestore
     const { doc, setDoc, serverTimestamp: ts } = await import('firebase/firestore');
     const { db: firestoreDb } = await import('./services/firebase.js');
@@ -7204,21 +7207,65 @@ Rules:
     return { configured: true, sent: results.filter(x => x.ok).length, total: tokens.length, results };
   }
 
-  app.post('/api/push', express.json(), async (req, res) => {
-    const { token, tokens, title, body, link, icon, channelId, targetId, type, senderId, senderName, senderPhoto } = req.body || {};
-    const targets: string[] = (Array.isArray(tokens) ? tokens : []).concat(token ? [token] : []).filter(Boolean);
-    if (!targets.length) return res.status(400).json({ error: 'No FCM token provided' });
+  // User-to-user push. Was an open relay (no auth, caller supplied raw FCM tokens + any
+  // sender name) — tokens sit on the public users doc, so anyone could phish every device.
+  // Now: signed-in callers name a recipient uid (or `self` for the test push); the server
+  // reads that user's tokens + prefs itself and stamps the REAL sender id. Per-uid limited.
+  const pushLimiter = rateLimit({
+    windowMs: 60 * 1000, max: 40, standardHeaders: true, legacyHeaders: false,
+    keyGenerator: (req: any) => `push:${req.uid || req.ip}`,
+    message: { error: 'Too many notifications, slow down' },
+  });
+  const PUSH_CATEGORIES = new Set(['messages', 'social', 'content', 'system']);
+  app.post('/api/push', express.json(), authMiddleware, pushLimiter, async (req: any, res) => {
+    const { toUid, self, title, body, link, icon, channelId, targetId, type, senderName, senderPhoto, notificationId, threadId } = req.body || {};
+    const recipient = self === true ? req.uid : (typeof toUid === 'string' ? toUid : '');
+    if (!recipient || !/^[A-Za-z0-9_-]{6,128}$/.test(recipient)) return res.status(400).json({ error: 'toUid required' });
+    if (req.isAnonymous && recipient !== req.uid) return res.status(403).json({ error: 'A registered account is required', code: 'ANONYMOUS_NOT_ALLOWED' });
 
-    const data: Record<string, string> = {};
-    if (targetId) data.targetId = String(targetId);
-    if (type) data.type = String(type);
-    if (senderId) data.senderId = String(senderId);
-    if (senderName) data.senderName = String(senderName);
-    if (senderPhoto) data.senderPhoto = String(senderPhoto);
+    const user = await firestoreGetDeep('users', recipient);
+    if (!user) return res.json({ sent: 0, total: 0 });
+    const category = PUSH_CATEGORIES.has(channelId) ? channelId : 'system';
+    if (recipient !== req.uid) {
+      // A recipient who blocked the sender never hears from them.
+      if (Array.isArray(user.blockedUsers) && user.blockedUsers.includes(req.uid)) return res.json({ sent: 0, total: 0 });
+      // Email is its own channel with its own prefs (unread delay / digests) — decided server-side,
+      // independent of push prefs and of whether the recipient has a device registered.
+      if (!req.isAnonymous) {
+        dispatchEmailNotification({
+          toUid: recipient, fromUid: req.uid, type: typeof type === 'string' ? type : undefined,
+          title: typeof title === 'string' ? title : undefined, body: typeof body === 'string' ? body : undefined,
+          targetId: typeof targetId === 'string' ? targetId.slice(0, 200) : undefined,
+          threadId: typeof threadId === 'string' ? threadId.slice(0, 200) : undefined,
+          notificationId: typeof notificationId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(notificationId) ? notificationId : undefined,
+        }).catch(() => {});
+      }
+      const prefs = (user.notificationPrefs || {}) as Record<string, boolean>;
+      if (prefs.push === false || prefs[category] === false) return res.json({ sent: 0, total: 0, muted: true });
+    }
+    const targets = Array.from(new Set<string>(
+      [...(Array.isArray(user.fcmTokens) ? user.fcmTokens : []), user.fcmToken].filter((t: any) => typeof t === 'string' && t)
+    )).slice(0, 20);
+    if (!targets.length) return res.json({ sent: 0, total: 0 });
 
-    const out = await sendFcmMulticast(targets, { title, body, link, icon, channelId, data });
+    const clip = (v: any, n: number) => (v == null ? undefined : String(v).slice(0, n));
+    const data: Record<string, string> = { senderId: req.uid };
+    if (targetId) data.targetId = clip(targetId, 200)!;
+    if (type) data.type = clip(type, 40)!;
+    if (senderName) data.senderName = clip(senderName, 80)!;
+    if (senderPhoto && /^https:\/\//.test(String(senderPhoto))) data.senderPhoto = clip(senderPhoto, 500)!;
+
+    const out = await sendFcmMulticast(targets, {
+      title: clip(title, 120), body: clip(body, 400), link: clip(link, 300), icon, channelId: category, data,
+    });
     if (!out.configured) return res.status(503).json({ error: 'Push not configured — set GOOGLE_SERVICE_ACCOUNT_JSON' });
-    res.json({ sent: out.sent, total: out.total, results: out.results });
+    // Server prunes dead tokens itself (a caller can't write someone else's users doc).
+    const stale = targets.filter((_, i) => (out.results as any[])?.[i]?.stale);
+    if (stale.length) {
+      const keep = (Array.isArray(user.fcmTokens) ? user.fcmTokens : []).filter((t: string) => !stale.includes(t));
+      firestorePatchDeep('users', recipient, { fcmTokens: keep }).catch(() => {});
+    }
+    res.json({ sent: out.sent, total: out.total });
   });
 
   // Admin broadcast — push to ONE user (by uid) or to ALL users. Firebase ID token +
@@ -7226,11 +7273,14 @@ Rules:
   app.post('/api/push/admin', express.json(), authMiddleware, async (req: any, res) => {
     if (!(await isPlatformAdminReq(req))) return res.status(403).json({ error: 'Admin access required' });
 
-    const { mode, uid, title, body, link } = req.body || {};
+    const { mode, uid, title, body, link, channels } = req.body || {};
     if (!title || !body) return res.status(400).json({ error: 'title and body are required' });
+    // Platform notifications: choose any of push / in-app / email (default push only, as before).
+    const ch = { push: channels?.push !== false, inApp: channels?.inApp === true, email: channels?.email === true };
 
     let tokens: string[] = [];
     let recipients = 0;
+    let uids: string[] = [];
     if (mode === 'all') {
       const users = await queryFirebase('users', [], 5000);
       recipients = users.length;
@@ -7240,19 +7290,41 @@ Rules:
       }
     } else {
       if (!uid) return res.status(400).json({ error: 'uid is required for single-user mode' });
+      uids = [String(uid)];
       const u = decodeFirestoreFields(((await fetchFirebaseDoc('users', String(uid))) || {}).fields || {});
+      if (u) recipients = 1;
       if (u && (u.fcmTokens || u.fcmToken)) {
-        recipients = 1;
         if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
         if (u.fcmToken) tokens.push(u.fcmToken);
       }
     }
     tokens = Array.from(new Set(tokens.filter(Boolean)));
-    if (!tokens.length) return res.json({ sent: 0, total: 0, recipients, devices: 0 });
+    uids = Array.from(new Set(uids.filter(x => /^[A-Za-z0-9_-]{6,128}$/.test(x))));
+    const safeTitle = String(title).slice(0, 120), safeBody = String(body).slice(0, 2000);
 
-    const out = await sendFcmMulticast(tokens, { title, body, link: link || 'FEED', channelId: 'system', data: { type: 'SYSTEM', senderName: 'Plajah' } });
-    if (!out.configured) return res.status(503).json({ error: 'Push not configured — set GOOGLE_SERVICE_ACCOUNT_JSON' });
-    res.json({ sent: out.sent, total: out.total, recipients, devices: tokens.length });
+    // In-app + email fan out in the background so a 5k-user broadcast doesn't hold the request.
+    if (ch.inApp || ch.email) {
+      (async () => {
+        if (mode === 'all') uids = await listAllUserIds(5000);
+        for (let i = 0; i < uids.length; i += 10) {
+          await Promise.all(uids.slice(i, i + 10).map(async (to) => {
+            const notificationId = ch.inApp
+              ? await createServerNotification(to, { title: safeTitle, message: safeBody, link: String(link || 'FEED') }).catch(() => undefined)
+              : undefined;
+            if (ch.email) await dispatchEmailNotification({ toUid: to, type: 'PLATFORM', title: safeTitle, body: safeBody, notificationId }).catch(() => {});
+          }));
+        }
+      })().catch(e => console.warn('[push/admin] fan-out', e?.message));
+    }
+
+    let push = { sent: 0, total: 0 };
+    if (ch.push && tokens.length) {
+      const out = await sendFcmMulticast(tokens, { title: safeTitle, body: safeBody, link: link || 'FEED', channelId: 'system', data: { type: 'SYSTEM', senderName: 'Plajah' } });
+      if (!out.configured && !ch.inApp && !ch.email) return res.status(503).json({ error: 'Push not configured — set GOOGLE_SERVICE_ACCOUNT_JSON' });
+      push = { sent: out.sent, total: out.total };
+    }
+    const fanout = mode === 'all' ? recipients : uids.length;
+    res.json({ ...push, recipients, devices: tokens.length, inAppQueued: ch.inApp ? fanout : 0, emailQueued: ch.email ? fanout : 0 });
   });
 
   // Admin display-name resync — re-writes every denormalized copy of a user's display name
@@ -9107,7 +9179,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();   // /t/* = public ticket page (ticketServer)
       try {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
         if (req.query.type) {
@@ -10181,55 +10253,6 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (!/^[a-f0-9]{48}$/.test(token)) return next();
       const link = await firestoreRead('posReceipts', token);
       const order = link ? await firestoreRead('storeOrders', String(link.orderId)) : null;
-  // ── EVITE CREATOR THEMES (services/evite/eviteThemeServer.ts): /api/evite-themes/* — make, trade, sell (5%), Sanctuary-gate ──
-  eviteThemeDeps = {
-    app, express, rateLimit, authMiddleware, firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc, fsQueryDocs,
-    getStripe, trustedRequestOrigin, firestoreIncrement: (p: string, inc: Record<string, number>) => firestoreIncrement(p, inc),
-    uploadThemeFile: async (objectPath: string, data: Buffer, contentType: string) => {   // immutable copies on publish
-      const dl = nodeCrypto.randomUUID();
-      return (await gcsUploadWithDownloadToken(objectPath, data, contentType, dl))
-        ? `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media&token=${dl}` : null;
-    },
-    feeParams: () => ({ rate: process.env.STRIPE_FEE_RATE ? Number(process.env.STRIPE_FEE_RATE) : undefined, fixedCents: process.env.STRIPE_FEE_FIXED_CENTS ? Number(process.env.STRIPE_FEE_FIXED_CENTS) : undefined }),
-  };
-  registerEviteThemeRoutes(eviteThemeDeps);
-  // ── EVITES (services/evite/eviteServer.ts): /api/evite/*, public /i/:id, QR + calendar files ──
-  registerEviteRoutes({
-    app, express, rateLimit, authMiddleware,
-    firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc: firestoreDeleteDoc, fsQueryDocs, getStripe, trustedRequestOrigin,
-    mayUseTemplate: (uid: string, t: string) => themeMayUse(eviteThemeDeps, uid, t),
-    resolveArt: (t: string) => themeArt(eviteThemeDeps, t),
-    readIndexHtml: async () => { try { return await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8'); } catch { return null; } },
-    cronAuthorized: (req: any) => { const key = req.headers['x-cron-key']; return secretsEqual(key, process.env.ADMIN_SEED_KEY) || secretsEqual(key, process.env.CRON_SECRET); },
-    sendEmail: process.env.RESEND_API_KEY ? async (to: string, subject: string, text: string) => {
-      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to, subject, text }) });
-      return r.ok;
-    } : undefined,
-  } as any);
-  // ── EVENT PHOTO POOLS v2 (services/eventPool/poolServer.ts): /api/pool/* — check-in, curation, streams ──
-  // Location services default to Google Maps (GOOGLE_MAPS_API_KEY, Geocoding API enabled). POOL_GEOCODER=nominatim
-  // switches to OpenStreetMap; POOL_GEOCODER=off disables lookups. With no provider, a pool's pin comes from the
-  // ticketed event's coordinates or the host's "set pin to my location".
-  registerPoolRoutes({
-    app, express, rateLimit, authMiddleware,
-    firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc, fsQueryDocs,
-    verifyIdToken: verifyFirebaseToken,
-    storageBucket: STORAGE_BUCKET,
-    geocode: process.env.POOL_GEOCODER === 'off' ? undefined
-      : process.env.POOL_GEOCODER === 'nominatim' ? nominatimGeocoder({ userAgent: 'Plajah/1.0 (+https://plajah.com)', email: process.env.NOMINATIM_EMAIL })
-      : process.env.GOOGLE_MAPS_API_KEY ? googleGeocoder({ apiKey: process.env.GOOGLE_MAPS_API_KEY }) : undefined,
-  } as any);
-  registerEvitePrintRoutes({
-    app, express, rateLimit, authMiddleware, firestoreRead, firestoreWrite, firestoreCreateOnce, getStripe, trustedRequestOrigin,
-    gelato: evitePrintGelato,
-    uploadPrintFile: async (objectPath: string, data: Buffer, contentType: string) => {
-      const dl = nodeCrypto.randomUUID();
-      return (await gcsUploadWithDownloadToken(objectPath, data, contentType, dl))
-        ? `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media&token=${dl}` : null;
-    },
-    feeParams: () => ({ rate: process.env.STRIPE_FEE_RATE ? Number(process.env.STRIPE_FEE_RATE) : undefined, fixedCents: process.env.STRIPE_FEE_FIXED_CENTS ? Number(process.env.STRIPE_FEE_FIXED_CENTS) : undefined }),
-  } as any);
       if (!link || !order) return res.status(404).type('html').send('<!doctype html><title>Receipt</title><p style="font-family:sans-serif;padding:24px">Receipt not found.</p>');
       res.set('Cache-Control', 'private, no-store').type('html').send(renderReceiptHtml(order, String(link.businessName || 'Receipt')));
     } catch { res.status(500).send('Could not load receipt.'); }
@@ -11973,6 +11996,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // ── The Post Man (native mail client — per-user, per-account Gmail) ───────────
   app.use('/api/postman', express.json({ limit: '1mb' }), postmanRouter);
+  app.use('/api/social', express.json({ limit: '1mb' }), socialConnectRouter);
 
   // Campaigns — built-in email marketing. Compliance (postal address, one-click
   // unsubscribe, suppression) is enforced inside the router, not by its callers.
@@ -11997,6 +12021,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // and the scheduled-post publisher (POST /api/social/publish-due-posts, gated by env SCHEDULER_SECRET).
   // Each route does its own auth/rate limiting; paths are exact so nothing else under /api is shadowed.
   app.use('/api', socialServerRouter);
+  // Email notifications: unsubscribe (RFC 8058 one-click), self-test, 15-min cron (unread messages + digests).
+  app.use('/api', notifyEmailRouter);
 
   // Pixels Veo/Gemini proxy (browser code must never hold the key — see routes/veo.ts).
   app.use('/api/ai/veo', express.json({ limit: '48mb' }), veoRouter);
@@ -12088,4 +12114,3 @@ startServer();
   app.use(homeHubRouter);
     // Plajah Home hub: LAN discovery beacon (_plajahhub._tcp). No-op on Cloud Run / production.
     void startHomeHub(PORT);
-  app.use('/api/social', express.json({ limit: '1mb' }), socialConnectRouter);

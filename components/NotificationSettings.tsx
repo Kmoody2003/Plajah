@@ -9,12 +9,24 @@ import { X, MessageCircle, Heart, Sparkles, Bell, BellOff, Send, Loader2, CheckC
 import { useLiveAlertsPref } from '../hooks/useLiveAlertsPref';
 import { Radio } from 'lucide-react';
 import { auth, getNotificationPrefs, updateNotificationPrefs, sendTestPush } from '../services/backendService';
+import { sendTestEmail } from '../services/emailNotifyClient';
+import { Mail, MailX } from 'lucide-react';
 
 interface NotificationSettingsProps {
   onClose: () => void;
 }
 
 type PrefKey = 'push' | 'messages' | 'social' | 'content' | 'system';
+type EmailKey = 'emailMessages' | 'emailSocial' | 'emailSystem' | 'emailContent';
+
+// Email is calmer than push by design: messages only if still unread after ~15 min, activity as
+// one digest, never one email per like. "New posts" is opt-in (unset = off) — see emailNotifyCore.
+const EMAIL_ROWS: { key: EmailKey; label: string; desc: string; optIn?: boolean }[] = [
+  { key: 'emailMessages', label: 'Unread messages', desc: 'If a message sits unread for 15 minutes' },
+  { key: 'emailSocial', label: 'Activity digest', desc: 'Likes, comments, follows — bundled into one email' },
+  { key: 'emailSystem', label: 'Updates from Plajah', desc: 'Account notices & important announcements' },
+  { key: 'emailContent', label: 'New posts', desc: 'From people you follow, in your digest', optIn: true },
+];
 
 const CATEGORIES: { key: Exclude<PrefKey, 'push'>; label: string; desc: string; icon: React.ReactNode }[] = [
   { key: 'messages', label: 'Messages', desc: 'Direct messages & chat', icon: <MessageCircle size={15} className="text-blue-400" /> },
@@ -80,6 +92,24 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onClose }) 
   const masterOn = isOn('push');
   const [liveAlertsOn, setLiveAlertsOn] = useLiveAlertsPref();
 
+  const emailOn = prefs.email !== false;
+  const emailRowOn = (r: { key: EmailKey; optIn?: boolean }) => (r.optIn ? prefs[r.key] === true : prefs[r.key] !== false);
+  const weekly = prefs.emailWeekly === true;
+  const [emailTest, setEmailTest] = useState<{ state: 'idle' | 'sending' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' });
+  const runEmailTest = async () => {
+    setEmailTest({ state: 'sending', msg: '' });
+    const r = await sendTestEmail();
+    if (!('reason' in r)) return setEmailTest({ state: 'ok', msg: `Sent to ${r.to}. Check your inbox (and spam, the first time).` });
+    const why: Record<string, string> = {
+      not_configured: 'Email sending isn’t switched on for Plajah yet.',
+      no_email: 'Your account doesn’t have an email address.',
+      email_unverified: 'Verify your email address first — we only email verified addresses.',
+      rate_limited: 'One test per minute — try again shortly.',
+      error: 'Couldn’t reach the email service. Try again.',
+    };
+    setEmailTest({ state: 'err', msg: why[r.reason] || why.error });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -124,6 +154,50 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onClose }) 
           </div>
           <Toggle on={liveAlertsOn} onChange={() => setLiveAlertsOn(!liveAlertsOn)} />
         </div>
+
+        {/* Email — independent of push; decided server-side so it never spams. */}
+        <div className="mt-3 flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10">
+          <div className="shrink-0">{emailOn ? <Mail size={18} className="text-small-orange" /> : <MailX size={18} className="text-white/40" />}</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-wider text-white">Email</p>
+            <p className="text-[10px] text-white/50 leading-snug">{emailOn ? 'On — only what you’d otherwise miss' : 'Off — no notification emails'}</p>
+          </div>
+          <Toggle on={emailOn} onChange={() => save({ ...prefs, email: !emailOn })} />
+        </div>
+        {EMAIL_ROWS.map((r) => (
+          <div key={r.key} className={`flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 transition-opacity ${emailOn ? '' : 'opacity-40 pointer-events-none'}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-wider text-white">{r.label}</p>
+              <p className="text-[10px] text-white/50 leading-snug">{r.desc}</p>
+            </div>
+            <Toggle on={emailOn && emailRowOn(r)} disabled={!emailOn} onChange={() => save({ ...prefs, [r.key]: !emailRowOn(r) })} />
+          </div>
+        ))}
+        <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white/[0.02] border border-white/5 ${emailOn ? '' : 'opacity-40 pointer-events-none'}`}>
+          <p className="text-[11px] font-black uppercase tracking-wider text-white">Digest</p>
+          <div className="flex rounded-full bg-white/10 p-0.5" role="radiogroup" aria-label="Digest frequency">
+            {(['Daily', 'Weekly'] as const).map((f) => {
+              const active = (f === 'Weekly') === weekly;
+              return (
+                <button key={f} role="radio" aria-checked={active} onClick={() => save({ ...prefs, emailWeekly: f === 'Weekly' })}
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider tap transition-colors ${active ? 'bg-small-orange text-white' : 'text-white/60'}`}>{f}</button>
+              );
+            })}
+          </div>
+        </div>
+        <button
+          onClick={runEmailTest}
+          disabled={emailTest.state === 'sending'}
+          className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-white/80 text-[10px] font-black uppercase tracking-widest transition-colors tap disabled:opacity-60"
+        >
+          {emailTest.state === 'sending' ? <><Loader2 size={13} className="animate-spin" /> Sending…</> : <><Mail size={13} /> Send test email</>}
+        </button>
+        {emailTest.msg && (
+          <div className={`flex items-start gap-2 px-1 text-[10px] leading-relaxed ${emailTest.state === 'ok' ? 'text-green-400' : 'text-red-400'}`}>
+            {emailTest.state === 'ok' ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
+            <span>{emailTest.msg}</span>
+          </div>
+        )}
 
         {loading && <p className="text-center text-[9px] font-black uppercase tracking-widest text-white/20 py-4">Loading…</p>}
 
