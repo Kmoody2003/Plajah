@@ -199,7 +199,8 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
   return (
     <div ref={rootRef} className={cls} data-live-page={living.page} data-reduced={reduced ? '1' : '0'} data-active={active ? '1' : '0'} role="group" aria-label={label || summary || `Page ${living.page}, interactive`} aria-describedby={instr ? descId : undefined}
       onPointerDownCapture={unlock}
-      style={{ position: 'relative', width: '100%', aspectRatio: `${width} / ${height}`, touchAction: 'pan-y pinch-zoom', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent', overflow: 'hidden', ...style } as React.CSSProperties}>
+      style={{ position: 'relative', width: '100%', aspectRatio: `${width} / ${height}`, touchAction: living.behaviors.some(b => b.on.type === 'drag' || b.on.type === 'press') ? 'none' : 'pan-y pinch-zoom',   // a drag that starts on a full-page texture would otherwise be claimed by the browser's pan
+      userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent', overflow: 'hidden', ...style } as React.CSSProperties}>
       <style>{`.pj-live-page .pj-live-hit:focus-visible{outline:3px solid #ff8c00;outline-offset:2px;background:rgba(255,140,0,.14)!important}`}</style>
       <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" style={{ display: 'block' }} preserveAspectRatio="xMidYMid meet" focusable="false">
         {background ? <rect width={width} height={height} fill={background} /> : null}

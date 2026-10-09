@@ -160,8 +160,8 @@ describe('living data goes through the Tela op path, saves, reloads and publishe
     assert.equal(frameObjects(d, d.frames[0]).length, labObjects.length); assert.equal(frameObjects(d, d.frames[1]).length, 0);
     assert.equal(hasLiving(d.living, 1), true); assert.equal(hasLiving(d.living, 2), false); assert.equal(hasLiving(undefined, 1), false);
     assert.equal(livingPageFor(d.living, 1)?.page, 1);
-    assert.equal(pageText(labObjects), 'Living Runtime Lab Bo beeps when you tap him and Mars is shy. Drag the blanket, pull the thread, find the pips.'.replace(/^/, ''));
-    assert.deepEqual(narrationObjects(labObjects).map(o => o.id), ['title', 'story-1', 'story-2']);
+    assert.equal(pageText(labObjects), 'Bo beeps when you tap him and Mars is shy. Drag the blanket, pull the thread, find the pips.'.replace(/^/, ''));
+    assert.deepEqual(narrationObjects(labObjects).map(o => o.id), ['story-1', 'story-2']);   // story text marked BODY wins over the title
   });
 });
 

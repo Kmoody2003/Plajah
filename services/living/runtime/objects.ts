@@ -53,6 +53,9 @@ export function pageText(objects: TelaVectorObject[]): string {
 const SKIP_ROLES = new Set(['FOLIO', 'RUNNING_HEAD', 'CREDIT', 'LOGO', 'FOOTNOTE', 'AD_SLOT', 'SKU']);
 /** TEXT objects that are part of the story, top-to-bottom then left-to-right. */
 export function narrationObjects(objects: TelaVectorObject[]): TelaVectorObject[] {
-  return objects.filter(o => o.kind === 'TEXT' && !o.hidden && (o.text ?? '').trim() && !(o.templateRole && SKIP_ROLES.has(o.templateRole)))
+  const text = objects.filter(o => o.kind === 'TEXT' && !o.hidden && (o.text ?? '').trim() && !(o.templateRole && SKIP_ROLES.has(o.templateRole)));
+  // Picture-book pages also carry title letters, shop signs and counters as TEXT; when the page marks its story text as BODY, that is the read-along.
+  const body = text.filter(o => o.templateRole === 'BODY');
+  return (body.length ? body : text)
     .sort((a, b) => (Math.abs(a.y - b.y) < 6 ? a.x - b.x : a.y - b.y));
 }

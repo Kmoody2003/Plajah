@@ -170,7 +170,7 @@ export class ActionInterpreter {
       }
       case 'celebrate': {
         h.celebrate();
-        this.audio()?.sfx('celebrate');
+        this.audio()?.sfx('success-jingle');
         h.haptic('success');
         return;
       }

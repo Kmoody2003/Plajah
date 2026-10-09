@@ -40,7 +40,7 @@ describe('action interpreter: visuals and state', () => {
     assert.deepEqual(host.of('haptic').map(h => h[1]), ['tug', 'success'], 'celebrate adds a success haptic');
     assert.deepEqual(host.of('follow')[0][1], ['bo-eye-l', 'bo-eye-r']); assert.deepEqual(host.of('narrate')[0].slice(1), [2, 5]);
     assert.deepEqual(host.of('trail')[0].slice(1), ['sparkles', 'flag']); assert.equal(host.of('celebrate').length, 1);
-    assert.deepEqual(audio.of('sfx').map(s => s[1]), ['celebrate']);
+    assert.deepEqual(audio.of('sfx').map(s => s[1]), ['success-jingle']);
   });
 
   it('burst: explicit point, target centre, or the tap point; skipped under reduced motion', async () => {
