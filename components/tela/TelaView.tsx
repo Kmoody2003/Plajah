@@ -73,6 +73,7 @@ import { useContextMenu } from '../ui/ContextMenu';
 import { makeTelaChart } from '../../services/telaChartData';
 
 const ComicDrawCanvas = React.lazy(() => import('../ComicDrawCanvas'));
+const ComposeWithCouncil = React.lazy(() => import('../living/ComposeWithCouncil'));   // Composer Council panel (services/living/composer)
 const TelaBehaviorsPanel = React.lazy(() => import('./TelaBehaviorsPanel'));   // Live authoring: behaviours, sounds, music (services/living)
 const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => ({ default: m.TelaComicStudio })));
 const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
@@ -2259,7 +2260,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                         {vec!.objects.find(o => o.id === studioSel)?.kind === 'IMAGE' && (() => { const selectedObject = vec!.objects.find(o => o.id === studioSel)!; return <button onClick={() => void refineSelectedRegion(vec!, selectedObject)} disabled={studioMaskBusy} className="mt-3 w-full flex items-center justify-center gap-1.5 h-9 rounded-[10px] text-[.7rem] font-extrabold text-white disabled:opacity-40" style={{ background: 'var(--pj-grad-spatial,linear-gradient(135deg,#6B0099,#00DAF3))' }}>{studioMaskBusy ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>} {studioMaskBusy ? (studioAiProgress?.message || 'Refining…') : `Refine object edge · ${Math.round(TELA_SEGMENT_MODEL.approximateBytes / 1048576)} MB`}</button>; })()}
                       </div>
                     )}
-                    {doc && vec && (() => { const liveFrame = doc.frames.find(f => f.deviceIds.includes(vec.id)); return liveFrame ? <React.Suspense fallback={null}><TelaBehaviorsPanel doc={doc} frameId={liveFrame.id} selectedObjectId={studioSel} dispatchOp={dispatchOp} /></React.Suspense> : null; })()}
+                    {doc && vec && (() => { const liveFrame = doc.frames.find(f => f.deviceIds.includes(vec.id)); return liveFrame ? <React.Suspense fallback={null}><TelaBehaviorsPanel doc={doc} frameId={liveFrame.id} selectedObjectId={studioSel} dispatchOp={dispatchOp} /><ComposeWithCouncil doc={doc} frameId={liveFrame.id} dispatchOp={dispatchOp} /></React.Suspense> : null; })()}
                   </>
                 )}
                 {img && (

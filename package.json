@@ -18,6 +18,8 @@
     "sports:agent": "tsx scripts/localSportsAgent.ts",
     "sports:archive": "tsx scripts/localArchiveAgent.ts",
     "test:livingaudio": "npx tsx --test tests/livingAudio*.test.ts",
+    "test:composer": "tsx --test tests/livingComposer*.test.ts",
+    "typecheck:composer": "tsc -p tsconfig.livingcomposer.json --noEmit",
     "test:lyrics": "npx tsx --test tests/lyricSyncWorker.test.ts",
     "test:cora": "npx tsx --test tests/coraAnalysis.test.ts",
     "test:notebook": "npx tsx --test tests/sharedNotebook.test.ts tests/notes.test.ts tests/notesScripture.test.ts tests/serviceNotes.test.ts",

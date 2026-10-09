@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["services/living/composer/*.ts", "services/living/contracts.ts", "services/living/audio/*.ts", "services/melos/theory.ts", "services/melos/progressionRepo.ts", "services/melos/composition/progressionToClip.ts", "services/melos/composition/promptToScore.ts", "services/melos/council/musicCouncilPersonas.ts", "components/living/ComposeWithCouncil.tsx", "tests/livingComposer*.ts"]
+}
