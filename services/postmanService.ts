@@ -120,29 +120,49 @@ export function connectGoogleAccount(): Promise<{ email: string }> {
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    let bc: BroadcastChannel | null = null;
     const finish = (fn: () => void) => {
       if (settled) return;
       settled = true;
       window.removeEventListener('message', onMessage);
-      clearInterval(closedTimer);
+      window.removeEventListener('storage', onStorage);
+      try { bc?.close(); } catch { /* ignore */ }
+      clearTimeout(giveUp);
       fn();
     };
 
-    const onMessage = (event: MessageEvent) => {
-      // Same-origin only: the callback page is served by our own server.
-      if (event.origin !== window.location.origin) return;
-      const data = event.data as { type?: string; ok?: boolean; email?: string; error?: string } | null;
+    const handle = (data: { type?: string; ok?: boolean; email?: string; error?: string } | null) => {
       if (!data || data.type !== 'PLAJAH_POSTMAN_OAUTH') return;
       if (data.ok && data.email) finish(() => resolve({ email: data.email as string }));
       else finish(() => reject(new PostmanError(data.error || 'Could not connect that account.')));
     };
-    window.addEventListener('message', onMessage);
 
-    // If the user closes the popup themselves, stop waiting rather than hanging
-    // on a promise that will never settle.
-    const closedTimer = window.setInterval(() => {
-      if (popup.closed) finish(() => reject(new PostmanError('Sign-in was cancelled.')));
-    }, 600);
+    // Three ways back, because Google's sign-in pages set Cross-Origin-Opener-Policy and
+    // that severs window.opener: postMessage works only when the link survives; the
+    // BroadcastChannel and the storage event are same-origin and always arrive.
+    const onMessage = (event: MessageEvent) => {
+      // Same-origin only: the callback page is served by our own server.
+      if (event.origin !== window.location.origin) return;
+      handle(event.data);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== 'plajah_postman_oauth' || !event.newValue) return;
+      try { handle(JSON.parse(event.newValue).payload); } catch { /* ignore */ }
+    };
+    window.addEventListener('message', onMessage);
+    window.addEventListener('storage', onStorage);
+    try {
+      bc = new BroadcastChannel('plajah_postman_oauth');
+      bc.onmessage = (e) => handle(e.data);
+    } catch { bc = null; }
+
+    // popup.closed is NOT trustworthy here: once the popup navigates to Google, COOP makes it
+    // read as closed while the person is still signing in. So it is not watched at all; a
+    // result on any channel above settles this, and otherwise it gives up after five minutes.
+    const giveUp = window.setTimeout(
+      () => finish(() => reject(new PostmanError('Sign-in did not finish. If you completed it, reopen The Post Man.'))),
+      5 * 60 * 1000,
+    );
 
     callApi<{ url: string }>('/auth/google/url')
       .then(({ url }) => { popup.location.href = url; })

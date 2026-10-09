@@ -23,6 +23,11 @@
 //   POST   /api/postman/messages/:id/read     — { accountId, read } → toggle the UNREAD label
 //   POST   /api/postman/messages/:id/star     — { accountId, starred } → toggle the STARRED label
 //   POST   /api/postman/send                  — { accountId, to, cc?, bcc?, subject, bodyHtml, bodyText, inReplyTo?, threadId? }
+//   GET    /api/postman/calendar/events       — Google Calendar events across connected accounts (?from=&to= ms)
+//   POST   /api/postman/calendar/events       — create an event in the caller's primary Google Calendar
+//   GET    /api/postman/calendar/feed-url     — the caller's private ICS subscription URL
+//   POST   /api/postman/calendar/feed-url/rotate — invalidate the old URL, issue a new one
+//   GET    /api/postman/calendar/feed/:token  — PUBLIC (calendar apps poll it); HMAC-verified
 
 import { Router, Request, Response } from 'express';
 import nodeCrypto from 'node:crypto';
@@ -97,6 +102,9 @@ const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/gmail.modify',
   'https://www.googleapis.com/auth/gmail.send',
+  // One connection, mail AND calendar. Accounts connected before this scope existed are
+  // detected by their stored `scope` and asked to consent once more (needsCalendarConsent).
+  'https://www.googleapis.com/auth/calendar.events',
 ].join(' ');
 
 const GMAIL_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
@@ -493,6 +501,11 @@ function callbackPage(payload: { ok: boolean; email?: string; error?: string }):
       window.opener.postMessage(payload, window.location.origin);
     }
   } catch (e) {}
+  // Google's sign-in pages set Cross-Origin-Opener-Policy, which severs window.opener by the
+  // time we land back here — postMessage alone silently never arrives. A same-origin
+  // BroadcastChannel (and a storage event as a fallback) reaches the Plajah tab regardless.
+  try { var bc = new BroadcastChannel('plajah_postman_oauth'); bc.postMessage(payload); bc.close(); } catch (e) {}
+  try { localStorage.setItem('plajah_postman_oauth', JSON.stringify({ payload: payload, t: Date.now() })); } catch (e) {}
   if (payload.ok) { setTimeout(function () { try { window.close(); } catch (e) {} }, 1500); }
 })();
 </script>
@@ -532,7 +545,12 @@ postmanRouter.get('/auth/google/url', async (req: Request, res: Response) => {
       });
     }
     if (!adminConfig.hasCredentials()) {
-      return res.status(503).json({ error: 'Mail sign-in is temporarily unavailable.', configured: false });
+      // Locally this means GOOGLE_SERVICE_ACCOUNT_JSON is missing (Cloud Run uses its runtime identity).
+      // Say so — a vague "unavailable" made the popup look like it was just vanishing.
+      return res.status(503).json({
+        error: 'Mail sign-in needs the server Firebase service account. Add GOOGLE_SERVICE_ACCOUNT_JSON to .env.local and restart.',
+        configured: false,
+      });
     }
     const uid = await callerUid(req);
     if (!uid) return res.status(401).json({ error: 'Sign in to connect a mailbox.' });
@@ -886,5 +904,219 @@ postmanRouter.post('/send', async (req: Request, res: Response) => {
   } catch (e) {
     console.error('[postman] send failed:', e);
     return res.status(500).json({ error: 'Could not send that message.' });
+  }
+});
+
+
+// ─── Calendar ─────────────────────────────────────────────────────────────────
+//
+// Google Calendar rides the SAME server-held OAuth connection as Gmail — one consent, one
+// token store, the same reauth path. The ICS feed is the no-lock-in half: whatever calendar
+// app a person already lives in (Apple, Outlook, Google "From URL") can subscribe to their
+// Plajah calendar without Plajah ever holding a token for that app.
+
+const CAL_BASE = 'https://www.googleapis.com/calendar/v3';
+const CAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+
+interface GCalEvent {
+  id?: string; status?: string; summary?: string; description?: string; location?: string; htmlLink?: string;
+  start?: { date?: string; dateTime?: string; timeZone?: string };
+  end?: { date?: string; dateTime?: string; timeZone?: string };
+}
+
+function gcalTime(t: GCalEvent['start']): { ms: number; allDay: boolean } {
+  if (t?.dateTime) return { ms: Date.parse(t.dateTime), allDay: false };
+  if (t?.date) {
+    const [y, m, d] = t.date.split('-').map(Number);
+    return { ms: new Date(y, (m || 1) - 1, d || 1).getTime(), allDay: true };
+  }
+  return { ms: NaN, allDay: false };
+}
+
+postmanRouter.get('/calendar/events', async (req: Request, res: Response) => {
+  try {
+    const uid = await callerUid(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+    if (!googleConfigured()) return res.status(503).json({ configured: false, events: [] });
+
+    const from = Number(req.query.from) || Date.now() - 31 * 86_400_000;
+    const to = Number(req.query.to) || Date.now() + 62 * 86_400_000;
+    if (to <= from || to - from > 400 * 86_400_000) return res.status(400).json({ error: 'Range too large.' });
+
+    const rows = await fsList(ACCOUNTS(uid));
+    const needsCalendarConsent: string[] = [];
+    const events: unknown[] = [];
+
+    await mapLimit(rows, 3, async (row) => {
+      const email = String(row.data.email ?? '');
+      if (!String(row.data.scope ?? '').includes(CAL_SCOPE)) { needsCalendarConsent.push(email); return; }
+      const token = await getFreshAccessToken(uid, row.id);
+      if (!token) return;
+      const qs = new URLSearchParams({
+        timeMin: new Date(from).toISOString(), timeMax: new Date(to).toISOString(),
+        singleEvents: 'true', orderBy: 'startTime', maxResults: '250',
+      });
+      const r = await fetch(`${CAL_BASE}/calendars/primary/events?${qs}`, {
+        headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000),
+      }).catch(() => null);
+      if (!r) return;
+      if (r.status === 403) { needsCalendarConsent.push(email); return; }
+      if (!r.ok) return;
+      const body = await r.json().catch(() => ({})) as { items?: GCalEvent[] };
+      for (const ev of body.items ?? []) {
+        if (ev.status === 'cancelled') continue;
+        const s = gcalTime(ev.start);
+        const e = gcalTime(ev.end);
+        if (Number.isNaN(s.ms)) continue;
+        events.push({
+          id: `g:${row.id}:${ev.id}`,
+          title: String(ev.summary || '(No title)').slice(0, 300),
+          start: s.ms,
+          end: Number.isNaN(e.ms) ? s.ms + 3_600_000 : e.ms,
+          allDay: s.allDay,
+          tz: ev.start?.timeZone,
+          location: ev.location ? String(ev.location).slice(0, 300) : undefined,
+          notes: ev.description ? String(ev.description).slice(0, 2000) : undefined,
+          kindLabel: email,
+          open: ev.htmlLink && /^https:\/\/(www\.)?google\.com\/calendar\//.test(ev.htmlLink) ? { kind: 'url', href: ev.htmlLink } : undefined,
+        });
+      }
+    });
+
+    return res.json({ configured: true, events, needsCalendarConsent });
+  } catch (e) {
+    console.error('[postman] calendar list failed:', e);
+    return res.status(500).json({ error: 'Could not load your Google Calendar.' });
+  }
+});
+
+const GCAL_RRULE: Record<string, string> = {
+  daily: 'RRULE:FREQ=DAILY', weekdays: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
+  weekly: 'RRULE:FREQ=WEEKLY', monthly: 'RRULE:FREQ=MONTHLY', yearly: 'RRULE:FREQ=YEARLY',
+};
+
+postmanRouter.post('/calendar/events', async (req: Request, res: Response) => {
+  try {
+    const uid = await callerUid(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+    if (!googleConfigured()) return res.status(503).json({ configured: false, error: 'Google is not set up on this server.' });
+
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const start = Number(b.start);
+    const end = Number(b.end);
+    const title = String(b.title ?? '').trim().slice(0, 300);
+    if (!title || !Number.isFinite(start) || !Number.isFinite(end) || end < start) return res.status(400).json({ error: 'That event is missing a title or a valid time.' });
+
+    const rows = await fsList(ACCOUNTS(uid));
+    const row = rows.find(r => r.id === b.accountId) ?? rows.find(r => String(r.data.scope ?? '').includes(CAL_SCOPE)) ?? rows[0];
+    if (!row) return res.status(409).json({ error: 'Connect a Google account first.', code: 'NO_CALENDAR' });
+    if (!String(row.data.scope ?? '').includes(CAL_SCOPE)) return res.status(409).json({ error: 'Reconnect this Google account to allow calendar access.', code: 'REAUTH' });
+    const token = await getFreshAccessToken(uid, row.id);
+    if (!token) return res.status(401).json({ error: 'This Google account needs to be reconnected.', code: 'REAUTH' });
+
+    const tz = typeof b.tz === 'string' && /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+){0,2}$/.test(b.tz) ? b.tz : 'UTC';
+    const day = (t: number) => new Date(t).toISOString().slice(0, 10);
+    const allDay = b.allDay === true;
+    const event: Record<string, unknown> = {
+      summary: title,
+      ...(b.location ? { location: String(b.location).slice(0, 500) } : {}),
+      description: `${b.notes ? `${String(b.notes).slice(0, 4000)}\n\n` : ''}Added from The Post Man on Plajah`,
+      start: allDay ? { date: day(start) } : { dateTime: new Date(start).toISOString(), timeZone: tz },
+      end: allDay ? { date: day(Math.max(end, start + 86_400_000)) } : { dateTime: new Date(end).toISOString(), timeZone: tz },
+    };
+    const rr = GCAL_RRULE[String(b.recurrence ?? '')];
+    if (rr) event.recurrence = [rr];
+
+    const r = await fetch(`${CAL_BASE}/calendars/primary/events`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(event),
+      signal: AbortSignal.timeout(20_000),
+    }).catch(() => null);
+    if (!r) return res.status(502).json({ error: 'Could not reach Google Calendar.' });
+    if (r.status === 403) return res.status(409).json({ error: 'Reconnect this Google account to allow calendar access.', code: 'REAUTH' });
+    if (!r.ok) return res.status(502).json({ error: 'Google Calendar refused that event.' });
+    const created = await r.json().catch(() => ({})) as { id?: string };
+    return res.json({ ok: true, id: String(created.id ?? '') });
+  } catch (e) {
+    console.error('[postman] calendar create failed:', e);
+    return res.status(500).json({ error: 'Could not add that to Google Calendar.' });
+  }
+});
+
+// ─── ICS subscription feed ────────────────────────────────────────────────────
+
+/** Never falls back to a constant: with no secret configured the feed is simply off. */
+const feedSecret = () => process.env.CALENDAR_FEED_SECRET || process.env.CAMPAIGN_UNSUB_SECRET || '';
+
+async function feedVersion(uid: string): Promise<number> {
+  const prefs = await fsGet(`users/${uid}/calendar_prefs/settings`).catch(() => null);
+  return Number(prefs?.feedVersion) || 0;
+}
+
+function feedSig(uid: string, version: number): string {
+  return nodeCrypto.createHmac('sha256', feedSecret()).update(`calfeed:v1:${uid}:${version}`).digest('base64url').slice(0, 32);
+}
+
+async function feedUrlFor(req: Request, uid: string): Promise<string> {
+  const v = await feedVersion(uid);
+  return `${publicBase(req)}/api/postman/calendar/feed/${uid}.${v}.${feedSig(uid, v)}.ics`;
+}
+
+postmanRouter.get('/calendar/feed-url', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  if (!feedSecret()) return res.status(503).json({ error: 'Calendar subscriptions need CALENDAR_FEED_SECRET set on the server.' });
+  return res.json({ url: await feedUrlFor(req, uid) });
+});
+
+postmanRouter.post('/calendar/feed-url/rotate', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  if (!feedSecret()) return res.status(503).json({ error: 'Calendar subscriptions are not set up on this server.' });
+  const next = (await feedVersion(uid)) + 1;
+  await fsPatch(`users/${uid}/calendar_prefs/settings`, { feedVersion: next, updatedAt: Date.now() });
+  return res.json({ url: await feedUrlFor(req, uid) });
+});
+
+postmanRouter.get('/calendar/feed/:token', async (req: Request, res: Response) => {
+  try {
+    if (!feedSecret()) return res.status(404).send('Not found');
+    const m = String(req.params.token).match(/^([A-Za-z0-9]{6,128})\.(\d{1,6})\.([A-Za-z0-9_-]{32})\.ics$/);
+    if (!m) return res.status(404).send('Not found');
+    const [, uid, vStr, sig] = m;
+    const v = Number(vStr);
+    const expected = feedSig(uid, v);
+    const ok = sig.length === expected.length && nodeCrypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+    if (!ok || v !== await feedVersion(uid)) return res.status(404).send('Not found');
+
+    const { buildIcs } = await import('../services/postman/calendarTime');
+    const rows = await fsList(`users/${uid}/calendar_events`);
+    const horizon = Date.now() - 90 * 86_400_000;
+    const events = rows
+      .filter(r => Number(r.data.end) >= horizon || (r.data.recurrence && r.data.recurrence !== 'none'))
+      .slice(0, 1500)
+      .map(r => {
+        const d = r.data;
+        return {
+          uid: r.id,
+          title: String(d.title ?? 'Event'),
+          start: Number(d.start),
+          end: Number(d.end),
+          allDay: d.allDay === true,
+          location: d.location ? String(d.location) : undefined,
+          description: [d.kindLabel, d.byName ? `from ${d.byName}` : '', d.notes].filter(Boolean).join(' — ') || undefined,
+          recurrence: (typeof d.recurrence === 'string' ? d.recurrence : 'none') as 'none',
+          until: d.until ? Number(d.until) : undefined,
+        };
+      })
+      .filter(e => Number.isFinite(e.start) && Number.isFinite(e.end));
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Cache-Control', 'private, max-age=900');
+    return res.status(200).send(buildIcs(events, 'Plajah'));
+  } catch (e) {
+    console.error('[postman] calendar feed failed:', e);
+    return res.status(500).send('Calendar unavailable');
   }
 });

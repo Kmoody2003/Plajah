@@ -146,7 +146,10 @@ for (const envFile of ['.env.local', '.env']) {
       const eq = trimmed.indexOf('=');
       if (eq === -1) return;
       const key = trimmed.slice(0, eq).trim();
-      const val = trimmed.slice(eq + 1).trim();
+      let val = trimmed.slice(eq + 1).trim();
+      // Strip one pair of matching surrounding quotes, as dotenv does — KEY='{"json":…}' must
+      // arrive as the JSON, not with the quotes (that silently broke GOOGLE_SERVICE_ACCOUNT_JSON).
+      if (val.length >= 2 && (val[0] === '"' || val[0] === "'") && val[val.length - 1] === val[0]) val = val.slice(1, -1);
       if (key && !(key in process.env)) process.env[key] = val;
     });
     break;

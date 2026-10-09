@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Gochi+Hand&family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+/* Tailwind v4 scans every non-ignored file for class names. docs/ holds design media
+   (videos, image sheets, rigs) that sessions drop in untracked; scanning it stalls the dev
+   server's index.css indefinitely. It never contains app classes. */
+@source not "./docs";
 /* Canonical design-system tokens + control layer. Spec: docs/PLAJAH_DESIGN_SYSTEM.md */
 @import "./styles/plajah-ds.css";
 /* Ora — personal productivity & wellbeing. Consumes DS tokens, defines no colours. */

@@ -80,8 +80,20 @@ const CampaignsRoom: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         <AlertTriangle size={42} strokeWidth={1.2} className="text-state-warning" style={{ opacity: 0.5 }} />
         <h2 className="type-title-lg">Campaign sending is not configured</h2>
         <p className="text-sm max-w-[46ch]" style={{ color: 'var(--on-surface-variant)' }}>
-          An administrator needs to set <code>RESEND_API_KEY</code> on the server before campaigns can go out.
+          An administrator needs to set <code>RESEND_API_KEY</code> on the server before email campaigns can go out.
+          You can still write to your Plajah followers — on the platform it arrives as a letter, no email needed.
         </p>
+        <div className="w-full max-w-3xl text-left mt-4">
+          <Composer
+            ready={false}
+            lettersOnly
+            sender={sender}
+            audience={null}
+            userEmail={userEmail}
+            onNotice={setNotice}
+            onSent={() => {}}
+          />
+        </div>
       </div>
     );
   }
@@ -172,16 +184,50 @@ const Composer: React.FC<{
   sender: CampaignSender | null;
   audience: CampaignAudience | null;
   userEmail?: string;
+  /** Email sending is not configured — only the on-platform letter path is offered. */
+  lettersOnly?: boolean;
   onNotice: (n: { kind: 'ok' | 'error'; text: string }) => void;
   onSent: () => void;
-}> = ({ ready, sender, audience, userEmail, onNotice, onSent }) => {
+}> = ({ ready, sender, audience, userEmail, lettersOnly = false, onNotice, onSent }) => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [testing, setTesting] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // On-platform delivery: followers get the campaign as a Letter (a Tela page on their
+  // "From businesses you follow" shelf), not as email. Email still reaches the subscriber list.
+  const [asLetter, setAsLetter] = useState(true);
+  const [posting, setPosting] = useState(false);
 
   const warnings = useMemo(() => subjectWarnings(subject), [subject]);
+
+  const postLetter = async (): Promise<boolean> => {
+    const [{ buildLetterDoc }, { postBulletin }, { auth }] = await Promise.all([
+      import('../../services/postman/letterStationery'),
+      import('../../services/postman/lettersService'),
+      import('../../services/firebase'),
+    ]);
+    const fromName = sender?.fromName || auth.currentUser?.displayName || 'Your business';
+    const doc = buildLetterDoc({
+      stationery: 'plajah', hand: 'serif', salutation: subject.trim(), body: body.trim(),
+      signoff: 'With thanks,', signature: fromName, fromName, dated: Date.now(),
+    }, { docId: `bulletin_${Date.now().toString(36)}`, ownerId: auth.currentUser?.uid ?? 'me' });
+    await postBulletin({ title: subject.trim(), doc, excerpt: body.trim().replace(/\s+/g, ' ').slice(0, 280) });
+    return true;
+  };
+
+  const doPostOnly = async () => {
+    setPosting(true);
+    try {
+      await postLetter();
+      onNotice({ kind: 'ok', text: 'Posted to your followers’ letter shelf.' });
+      setSubject(''); setBody('');
+    } catch (err) {
+      onNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Could not post the letter.' });
+    } finally {
+      setPosting(false);
+    }
+  };
   const canSend = ready && subject.trim().length > 0 && body.trim().length > 0 && (audience?.deliverable ?? 0) > 0;
 
   const doSend = async () => {
@@ -189,9 +235,12 @@ const Composer: React.FC<{
     setSending(true);
     try {
       const { sent, failed } = await sendCampaign(subject.trim(), draftToHtml(body));
+      let lettered = false;
+      if (asLetter) { try { lettered = await postLetter(); } catch { lettered = false; } }
+      const tail = asLetter ? (lettered ? ' Followers on Plajah got it as a letter.' : ' The follower letter could not be posted.') : '';
       onNotice({
         kind: failed > 0 ? 'error' : 'ok',
-        text: failed > 0 ? `Sent to ${sent}. ${failed} could not be delivered.` : `Sent to ${sent} people.`,
+        text: (failed > 0 ? `Sent to ${sent}. ${failed} could not be delivered.` : `Sent to ${sent} people.`) + tail,
       });
       setSubject(''); setBody('');
       onSent();
@@ -217,7 +266,7 @@ const Composer: React.FC<{
 
   return (
     <div className="flex flex-col gap-5 max-w-3xl">
-      <div className="flex flex-wrap items-center gap-3">
+      {!lettersOnly && <div className="flex flex-wrap items-center gap-3">
         <span className="pj-eyebrow">Sending to</span>
         <span className="inline-flex items-center gap-2 px-3 h-[28px] rounded-full border border-theme text-xs"
               style={{ background: 'var(--glass-2)' }}>
@@ -229,7 +278,7 @@ const Composer: React.FC<{
             {audience?.suppressed} excluded — unsubscribed or undeliverable
           </span>
         )}
-      </div>
+      </div>}
 
       <label className="flex flex-col gap-2">
         <span className="pj-eyebrow">Subject</span>
@@ -267,7 +316,7 @@ const Composer: React.FC<{
 
       {/* The footer is previewed, not described. Senders who can see what gets
           appended stop trying to write their own unsubscribe line. */}
-      <div className="rounded-card border border-theme p-4" style={{ background: 'var(--glass-1)' }}>
+      {!lettersOnly && <div className="rounded-card border border-theme p-4" style={{ background: 'var(--glass-1)' }}>
         <div className="flex items-center gap-2 mb-3">
           <ShieldCheck size={13} className="text-state-success" />
           <span className="pj-eyebrow">Added to every message automatically</span>
@@ -280,10 +329,33 @@ const Composer: React.FC<{
           </p>
           <p className="mt-2"><u>Unsubscribe</u> — one click, honoured immediately.</p>
         </div>
-      </div>
+      </div>}
+
+      {!lettersOnly && <label className="flex items-start gap-3 rounded-card border border-theme p-4 cursor-pointer" style={{ background: 'var(--glass-1)' }}>
+        <input
+          type="checkbox"
+          checked={asLetter}
+          onChange={(e) => setAsLetter(e.target.checked)}
+          className="w-4 h-4 mt-0.5 shrink-0 accent-[color:var(--pj-orange)]"
+        />
+        <span>
+          <span className="block text-sm font-semibold">Also deliver as a Letter to your Plajah followers</span>
+          <span className="block text-[11.5px] mt-0.5" style={{ color: 'var(--on-surface-variant)' }}>
+            On Plajah it is not an email — it arrives as a page on your followers’ “From businesses you follow” shelf,
+            kept apart from their personal letters. No list to manage: unfollowing is the unsubscribe.
+          </span>
+        </span>
+      </label>}
 
       <div className="flex flex-wrap items-center gap-2.5 pt-1">
         <Button
+          variant="secondary" size="md" icon={<Users />}
+          disabled={!subject.trim() || !body.trim() || posting} loading={posting}
+          onClick={doPostOnly}
+        >
+          {lettersOnly ? 'Post as a letter to followers' : 'Post to followers only'}
+        </Button>
+        {!lettersOnly && <><Button
           variant="primary" size="md" icon={<Send />}
           disabled={!canSend || sending} loading={sending}
           onClick={() => setConfirming(true)}
@@ -296,7 +368,7 @@ const Composer: React.FC<{
           onClick={doTest}
         >
           Send a test to myself
-        </Button>
+        </Button></>}
       </div>
 
       <AnimatePresence>

@@ -1,18 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  AlertTriangle, ArrowLeft, Inbox, Loader2, Mail, PenLine, RefreshCw, Reply, Star,
+  AlertTriangle, ArrowLeft, CalendarPlus, Inbox, Loader2, Mail, PenLine, RefreshCw, Reply, Star,
 } from 'lucide-react';
 import { Button, IconButton } from '../ui';
 import {
   displayNameFor, formatMailTime, getMessage, initialsFor, listMessages,
   PostmanError, setMessageRead, setMessageStarred,
 } from '../../services/postmanService';
+import { findDatesInText } from '../../services/postman/calendarTime';
+import { newEventId, saveEvent } from '../../services/postman/calendarService';
 import type {
   PostmanAccount, PostmanLetterSkin, PostmanMessage, PostmanMessageDetail,
 } from '../../types';
 
-interface LettersRoomProps {
+interface InboxRoomProps {
   accounts: PostmanAccount[];
   activeAccountId?: string;
   skin: PostmanLetterSkin;
@@ -25,7 +27,7 @@ interface LettersRoomProps {
 
 type Filter = 'all' | 'unread';
 
-const LettersRoom: React.FC<LettersRoomProps> = ({
+const InboxRoom: React.FC<InboxRoomProps> = ({
   accounts, activeAccountId, skin, onCompose, onReply, onConnect, refreshKey,
 }) => {
   const [messages, setMessages] = useState<PostmanMessage[]>([]);
@@ -266,8 +268,9 @@ const LettersRoom: React.FC<LettersRoomProps> = ({
                   Reply
                 </Button>
                 <Button variant="secondary" size="md" icon={<PenLine />} onClick={onCompose}>
-                  New letter
+                  New email
                 </Button>
+                <DatesFound text={`${detail.subject ?? ''}. ${detail.bodyText || detail.snippet || ''}`} from={displayNameFor(detail.from)} />
               </footer>
             </motion.article>
           </AnimatePresence>
@@ -278,6 +281,44 @@ const LettersRoom: React.FC<LettersRoomProps> = ({
 };
 
 /* ── Pieces ───────────────────────────────────────────────────────────────── */
+
+/**
+ * "Meet Thursday at 3pm?" — the reader notices dates in a message and offers
+ * them as one-tap calendar entries, so nobody retypes an email into a form.
+ * Parsing is local (services/postman/calendarTime), the mail never leaves the page.
+ */
+const DatesFound: React.FC<{ text: string; from: string }> = ({ text, from }) => {
+  const found = useMemo(() => findDatesInText(text), [text]);
+  const [added, setAdded] = useState<Set<number>>(new Set());
+  if (!found.length) return null;
+  return (
+    <div className="w-full flex flex-wrap items-center gap-2 mt-1">
+      <span className="pj-eyebrow flex items-center gap-1.5"><CalendarPlus size={11} /> Dates in this email</span>
+      {found.map((f, i) => (
+        <button
+          key={i}
+          type="button"
+          title={f.phrase}
+          disabled={added.has(i)}
+          onClick={async () => {
+            try {
+              await saveEvent({
+                id: newEventId(), title: f.parsed.title, start: f.parsed.start, end: f.parsed.end, allDay: f.parsed.allDay,
+                location: f.parsed.location, recurrence: f.parsed.recurrence, layer: 'mine', source: 'manual',
+                notes: `From an email from ${from}: “${f.phrase}”`,
+              });
+              setAdded((s) => new Set(s).add(i));
+            } catch { /* signed out — the button simply stays */ }
+          }}
+          className="pm-react tap"
+          style={{ padding: '6px 10px' }}
+        >
+          {added.has(i) ? '✓ Added' : `${new Date(f.parsed.start).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}${f.parsed.allDay ? '' : ` · ${new Date(f.parsed.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}`}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 const MailRow: React.FC<{ message: PostmanMessage; active: boolean; onOpen: () => void }> = ({
   message, active, onOpen,
@@ -327,4 +368,4 @@ const EmptyState: React.FC<{
   </div>
 );
 
-export default LettersRoom;
+export default InboxRoom;

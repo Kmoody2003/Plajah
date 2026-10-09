@@ -2012,8 +2012,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
     // The Post Man — dispatched from the Mail tab inside ChatSystem, which is a
     // narrow sidebar and only shows a summary of the mailbox.
+    // detail (optional) is a PostmanIntent; PostmanApp reads it from services/postman/postmanIntent.
     const handleOpenPostman = () => setView('POSTMAN');
     window.addEventListener('OPEN_POSTMAN', handleOpenPostman);
+    // Open someone's profile from anywhere (the Post Man calendar's "from <creator>").
+    const handleVisitUserEvent = (e: Event) => { const uid = (e as CustomEvent)?.detail?.uid; if (uid) void handleVisitUser(uid); };
+    window.addEventListener('plajah:visit-user', handleVisitUserEvent);
 
     // Smart Director — multi-camera auto-production. detail: { productionId?, event? }.
     const handleOpenSmartDirector = (e: Event) => { setSmartDirectorPayload((e as CustomEvent)?.detail || {}); setView('SMART_DIRECTOR' as AppView); };
@@ -2183,6 +2187,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_DJ_CONSOLE', handleOpenDJConsole);
       window.removeEventListener('OPEN_MELOS_BEATS', handleOpenMelosBeats);
       window.removeEventListener('OPEN_POSTMAN', handleOpenPostman);
+      window.removeEventListener('plajah:visit-user', handleVisitUserEvent);
       window.removeEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
       window.removeEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
       window.removeEventListener('OPEN_NOTES', handleOpenNotes);
@@ -3658,6 +3663,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
     switch (link) {
       case 'CHAT': setView('CHAT'); break;
+      // sendMessage notifications carry the room id — open that conversation, not the sender's profile.
+      case 'MESSAGES':
+        setView('CHAT');
+        if (targetId) setSelectedChatRoomId(targetId);
+        break;
+      // The Post Man — a letter or calendar notification. targetId is the correspondence (chat room) id.
+      case 'POSTMAN': {
+        const { openPostman } = await import('./services/postman/postmanIntent');
+        openPostman(targetId ? { room: 'LETTERS', roomId: targetId } : {});
+        break;
+      }
       case 'DEBATE_DETAIL':
         if (targetId) {
           // For DEBATE_CHALLENGE notifications, show the VS screen first

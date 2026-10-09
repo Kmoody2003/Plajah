@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  BookOpen, Calendar, Check, LayoutGrid, Mail, Megaphone, PenLine, Plus, Settings, Shield, StickyNote, Trash2, X,
+  Calendar, Check, Feather, Inbox, Megaphone, PenLine, Plus, Settings, Shield, Trash2, X,
 } from 'lucide-react';
 import { Button, IconButton } from '../ui';
-import LettersRoom from './LettersRoom';
+import InboxRoom from './InboxRoom';
 import LetterComposer from './LetterComposer';
+import CorrespondenceRoom from './letters/CorrespondenceRoom';
+import CalendarRoom from './calendar/CalendarRoom';
+import LetterWriter from './letters/LetterWriter';
+import { consumePostmanIntent, type PostmanIntent } from '../../services/postman/postmanIntent';
 import CampaignsRoom from './CampaignsRoom';
 import SourcesRoom from './SourcesRoom';
 import {
@@ -35,19 +39,26 @@ interface PostmanAppProps {
   embedded?: boolean;
 }
 
+/**
+ * Letters is Plajah-to-Plajah correspondence (Tela documents, not email) and the
+ * room the Post Man opens on. Inbox is the connected Gmail. Calendar pulls the
+ * platform's dates in by itself. The old "Soon" rooms are gone: Desk and Journal
+ * belong to Lorea's authoring studio, and Board overlaps the Content Asset Manager.
+ */
 const ROOMS: { id: PostmanRoom; label: string; icon: React.ReactNode; ready: boolean }[] = [
-  { id: 'LETTERS',   label: 'Letters',   icon: <Mail size={13} />,     ready: true  },
+  { id: 'LETTERS',   label: 'Letters',   icon: <Feather size={13} />,   ready: true },
+  { id: 'INBOX',     label: 'Inbox',     icon: <Inbox size={13} />,     ready: true },
+  { id: 'CALENDAR',  label: 'Calendar',  icon: <Calendar size={13} />,  ready: true },
   { id: 'CAMPAIGNS', label: 'Campaigns', icon: <Megaphone size={13} />, ready: true },
-  { id: 'SOURCES',   label: 'Sources',   icon: <Shield size={13} />,   ready: true  },
-  { id: 'SCHEDULE', label: 'Schedule', icon: <Calendar size={13} />,   ready: false },
-  { id: 'DESK',     label: 'Desk',     icon: <PenLine size={13} />,    ready: false },
-  { id: 'JOURNAL',  label: 'Journal',  icon: <BookOpen size={13} />,   ready: false },
-  { id: 'STICKIES', label: 'Stickies', icon: <StickyNote size={13} />, ready: false },
-  { id: 'BOARD',    label: 'Board',    icon: <LayoutGrid size={13} />, ready: false },
+  { id: 'SOURCES',   label: 'Sources',   icon: <Shield size={13} />,    ready: true },
 ];
+const ROOM_IDS = new Set(ROOMS.map((r) => r.id));
 
 const PostmanApp: React.FC<PostmanAppProps> = ({ embedded = false }) => {
   const [room, setRoom] = useState<PostmanRoom>('LETTERS');
+  const [letterRoomId, setLetterRoomId] = useState<string | null>(null);
+  const [composeSignal, setComposeSignal] = useState(0);
+  const [writeTo, setWriteTo] = useState<{ uid: string; name: string } | null>(null);
   const [accounts, setAccounts] = useState<PostmanAccount[]>([]);
   const [prefs, setPrefs] = useState<PostmanPrefs>(DEFAULT_POSTMAN_PREFS);
   const [googleConfigured, setGoogleConfigured] = useState(true);
@@ -74,6 +85,44 @@ const PostmanApp: React.FC<PostmanAppProps> = ({ embedded = false }) => {
       if (status.googleConfigured) await refreshAccounts();
     })();
   }, [refreshAccounts]);
+
+  // Re-check mailboxes when the person comes back to this tab — e.g. after finishing Google
+  // sign-in in a popup whose result could not be delivered back.
+  useEffect(() => {
+    if (!googleConfigured) return;
+    let last = 0;
+    const recheck = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 4000) return;
+      last = Date.now();
+      void listAccounts().then((next) => {
+        setAccounts((prev) => {
+          if (next.length !== prev.length) setRefreshKey((k) => k + 1);
+          return next;
+        });
+      }).catch(() => {});
+    };
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => { window.removeEventListener('focus', recheck); document.removeEventListener('visibilitychange', recheck); };
+  }, [googleConfigured]);
+
+  // Intents: a notification, a chat line or a calendar item asking for a room.
+  useEffect(() => {
+    const apply = (i: PostmanIntent | null | undefined) => {
+      if (!i) return;
+      if (i.room && ROOM_IDS.has(i.room)) setRoom(i.room);
+      if (i.roomId) { setRoom('LETTERS'); setLetterRoomId(i.roomId); }
+      if (i.compose) {
+        setRoom('LETTERS');
+        if (i.toUid) setWriteTo({ uid: i.toUid, name: i.toName ?? 'friend' });
+        else setComposeSignal((n) => n + 1);
+      }
+    };
+    apply(consumePostmanIntent());
+    const onIntent = (e: Event) => { apply((e as CustomEvent<PostmanIntent>).detail); consumePostmanIntent(); };
+    window.addEventListener('postman:intent', onIntent);
+    return () => window.removeEventListener('postman:intent', onIntent);
+  }, []);
 
   // Notices are transient; nothing here is important enough to persist.
   useEffect(() => {
@@ -133,9 +182,8 @@ const PostmanApp: React.FC<PostmanAppProps> = ({ embedded = false }) => {
                 className="w-1.5 h-1.5 rounded-full bg-brand-orange shrink-0"
                 style={{ boxShadow: '0 0 0 3px var(--pj-orange-soft)' }}
               />
-              {accounts.length === 0
-                ? 'No mailbox connected'
-                : `${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'} connected`}
+              {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+              {accounts.length > 0 && ` · ${accounts.length} ${accounts.length === 1 ? 'mailbox' : 'mailboxes'}`}
             </p>
             {/* The platform's display header (PageHeader, up to 12rem) is for
                 landing surfaces. A mail client spends its vertical space on mail,
@@ -165,13 +213,23 @@ const PostmanApp: React.FC<PostmanAppProps> = ({ embedded = false }) => {
             >
               Settings
             </Button>
+            {room === 'INBOX' && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<PenLine />}
+                onClick={() => setComposing({})}
+                disabled={!accounts.length}
+                title={accounts.length ? undefined : 'Connect a mailbox first'}
+              >
+                New email
+              </Button>
+            )}
             <Button
               variant="accent"
               size="sm"
-              icon={<PenLine />}
-              onClick={() => setComposing({})}
-              disabled={!accounts.length}
-              title={accounts.length ? undefined : 'Connect a mailbox first'}
+              icon={<Feather />}
+              onClick={() => { setRoom('LETTERS'); setComposeSignal((n) => n + 1); }}
             >
               Write a letter
             </Button>
@@ -221,7 +279,21 @@ const PostmanApp: React.FC<PostmanAppProps> = ({ embedded = false }) => {
       {/* ── Room ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 flex">
         {room === 'LETTERS' && (
-          <LettersRoom
+          <CorrespondenceRoom
+            initialRoomId={letterRoomId}
+            composeSignal={composeSignal}
+            onNotice={setNotice}
+          />
+        )}
+        {room === 'CALENDAR' && (
+          <CalendarRoom
+            onNotice={setNotice}
+            onConnectGoogle={handleConnect}
+            googleAccounts={googleConfigured ? accounts.length : 0}
+          />
+        )}
+        {room === 'INBOX' && (
+          <InboxRoom
             accounts={accounts}
             activeAccountId={activeAccountId}
             skin={prefs.letterSkin}
@@ -257,7 +329,17 @@ const PostmanApp: React.FC<PostmanAppProps> = ({ embedded = false }) => {
         )}
       </AnimatePresence>
 
-      {/* ── Composer ─────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {writeTo && (
+          <LetterWriter
+            toUser={writeTo}
+            onClose={() => setWriteTo(null)}
+            onSent={(id) => { setWriteTo(null); setLetterRoomId(id); setNotice({ kind: 'ok', text: 'Your letter is in the post.' }); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Composer (Gmail) ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {composing && (
           <LetterComposer
@@ -269,7 +351,7 @@ const PostmanApp: React.FC<PostmanAppProps> = ({ embedded = false }) => {
             onSent={() => {
               setComposing(null);
               setRefreshKey((k) => k + 1);
-              setNotice({ kind: 'ok', text: 'Letter sent.' });
+              setNotice({ kind: 'ok', text: 'Email sent.' });
             }}
           />
         )}

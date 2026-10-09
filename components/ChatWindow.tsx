@@ -1412,6 +1412,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         )}
                       </div>
                     )
+                  ) : msg.letterId ? (
+                    // The Post Man: this line announces a letter. Letters are read on paper, not in a bubble.
+                    <div className="flex flex-col gap-2 min-w-[200px]">
+                      <p className="text-sm">{msg.text}</p>
+                      <button
+                        type="button"
+                        onClick={() => void import('../services/postman/postmanIntent').then(m => m.openPostman({ room: 'LETTERS', roomId: room.id }))}
+                        className="self-start text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                      >
+                        ✉ Read the letter
+                      </button>
+                    </div>
                   ) : msg.mediaType === 'TELA' && msg.telaDocument ? (
                     <ChatTelaDocument message={msg} roomId={room.id} />
                   ) : msg.type === 'MEDIA' ? (

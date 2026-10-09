@@ -4105,6 +4105,8 @@ export interface AppNotification {
 export interface ChatMessage {
   /** Room-encrypted native Tela snapshot; carries devices and bindings intact. */
   telaDocument?: string;
+  /** The Post Man: this line announces a letter in chat_rooms/{roomId}/letters/{letterId}. */
+  letterId?: string;
   id: string;
   senderId: string;
   senderName: string;
@@ -6715,7 +6717,8 @@ export interface OraProfile {
 
 /** Rooms in the app. Only LETTERS is built; the rest are declared so the nav
  *  and the persistence layer do not need editing when each one lands. */
-export type PostmanRoom = 'LETTERS' | 'CAMPAIGNS' | 'SOURCES' | 'SCHEDULE' | 'DESK' | 'JOURNAL' | 'STICKIES' | 'BOARD';
+/** LETTERS = Plajah-to-Plajah correspondence; INBOX = connected Gmail. */
+export type PostmanRoom = 'LETTERS' | 'INBOX' | 'CALENDAR' | 'CAMPAIGNS' | 'SOURCES';
 
 /** Tier-two theming: the reading and writing surface only. The chrome always
  *  follows the platform theme — see the two-tier rule in styles/postman.css. */
