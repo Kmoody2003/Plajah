@@ -9,6 +9,7 @@ import { bookToTelaDoc, defaultDocId, telaDocToBook, parseFrameId } from './book
 import { fidelitySummary, pageFidelity } from './model';
 import { htmlToNodes, normalizeChapterHtml, plainText, wordCountOf } from './html';
 import { validateInstance } from './enhancements';
+import { sanitizeAuthorPageTurn, type AuthorPageTurn } from '../lorea/pageTransitions';
 import type { BookSource, BookSourceChapter, BookTelaUpgrade, EnhancementInstance, ExportFormat, PageFidelity, UpgradeOptions } from './types';
 
 // ── adapters ─────────────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ export function createUpgrade(book: BookSource, opts: UpgradeOptions = {}): Upgr
     schemaVersion: 1, bookId: book.id, docId, upgradedAt: now,
     originalChapters: book.chapters.map(c => ({ ...c })),   // verbatim: Revert restores exactly this
     enhancements, ...(opts.template ? { openerTemplateId: opts.template.id } : {}), layoutPreference: 'AUTO',
+    ...(sanitizeAuthorPageTurn(opts.pageTurn) ? { pageTurn: sanitizeAuthorPageTurn(opts.pageTurn) } : {}),
   };
   return { upgrade, doc, issues };
 }
@@ -129,6 +131,8 @@ export interface BookTelaBundle {
   label?: string;
   doc: TelaDoc;
   enhancements: EnhancementInstance[];
+  /** The author's page-turn choice (Lorea reader only; exports ignore it). */
+  pageTurn?: AuthorPageTurn;
   /** Chapter order + titles so the reader can build a contents list without parsing frames. */
   toc: { chapterId: string; title: string; frameId: string }[];
   book: Pick<BookSource, 'id' | 'title' | 'subtitle' | 'authors' | 'contributors' | 'language' | 'description' | 'coverUrl' | 'coverAlt' | 'metadata' | 'visualLed' | 'ownerId'>;
@@ -137,7 +141,7 @@ export interface BookTelaBundle {
 export function makeBundle(book: BookSource, upgrade: BookTelaUpgrade, doc: TelaDoc, versionId: string, now = Date.now(), label?: string): BookTelaBundle {
   const toc = doc.frames.flatMap(f => { const r = parseFrameId(doc.id, f.id); return r.role === 'opener' ? [{ chapterId: r.chapterId, title: f.label || '', frameId: f.id }] : []; });
   const { chapters: _c, ...rest } = book;
-  return { schemaVersion: 1, bookId: book.id, versionId, createdAt: now, ...(label ? { label } : {}), doc: { ...doc, currentVersionId: versionId }, enhancements: upgrade.enhancements, toc, book: rest };
+  return { schemaVersion: 1, bookId: book.id, versionId, createdAt: now, ...(label ? { label } : {}), doc: { ...doc, currentVersionId: versionId }, enhancements: upgrade.enhancements, ...(sanitizeAuthorPageTurn(upgrade.pageTurn) ? { pageTurn: sanitizeAuthorPageTurn(upgrade.pageTurn) } : {}), toc, book: rest };
 }
 
 export interface VersionStamp { versionId: string; createdAt: number }

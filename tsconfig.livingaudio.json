@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["services/living/audio/*.ts", "services/living/contracts.ts", "living-audio-lab.tsx", "tests/livingAudio*.ts"]
+}

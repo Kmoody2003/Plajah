@@ -610,7 +610,7 @@ export interface Album {
   /** Independent-author ebook submission (components/bookSubmit). delivery mirrors FilmDistribution.delivery: DRM-free by default, never a paid upsell. */
   bookDistribution?: { delivery?: 'DOWNLOAD_OPEN' | 'PLAJAH_ONLY'; watermark?: boolean; submissionId?: string; language?: string; isbn13?: string; arkId?: string; wordCount?: number; aiDisclosure?: string; license?: string };
   /** Book upgraded to the full Tela stack (services/bookTela). Readers render the published Tela version; exports stay open-format (EPUB/PDF). */
-  bookTela?: { enabled: boolean; docId: string; versionId?: string; upgradedAt: number; layoutPreference?: 'AUTO' | 'REFLOW' | 'FIXED'; enhancementCount?: number; /** Write-once version stamps; a buyer pins to the newest one at or before their license.issuedAt. */ versions?: Array<{ versionId: string; createdAt: number }> };
+  bookTela?: { enabled: boolean; docId: string; versionId?: string; upgradedAt: number; layoutPreference?: 'AUTO' | 'REFLOW' | 'FIXED'; enhancementCount?: number; /** Author's page-turn animation (services/lorea/pageTransitions AuthorPageTurn). Untrusted on read: run sanitizeAuthorPageTurn. Not exported: page turns only exist in the Lorea reader. */ pageTurn?: { style?: string; perChapter?: Record<string, string>; perPage?: Record<string, string> }; /** Write-once version stamps; a buyer pins to the newest one at or before their license.issuedAt. */ versions?: Array<{ versionId: string; createdAt: number }>; /** 'living' = the Tela edition carries a LivingBook (behaviours, music, narration); the album's bookChapters stay the flat pages (export version + fallback). docs/LIVING_PUBLISHING.md */ edition?: 'standard' | 'living'; hasLiving?: boolean; /** Copy of the newest version manifest (bundleUrl, byteLength, sha256...). Albums are publicly readable, so readers can load a living edition even when the telaVersions rules are not deployed. */ manifest?: Record<string, unknown>; /** Where the newest bundle lives when it is too big for a Firestore doc (gzip JSON in Cloud Storage). Informational: the reader follows telaVersions/{versionId}.bundleUrl. */ bundleUrl?: string };
   alternateVersions?: FilmVersion[]; // Extended / director's / unrated cuts (film)
   bookPreviewConfig?: {
     type: 'CHAPTERS' | 'PAGES';
@@ -1040,8 +1040,11 @@ export interface Video {
   worldId?: string;
   characterIds?: string[];        // Characters from this world that appear in this video
   timelinePointYear?: number;     // In-universe year/timestamp this video is set in
+  /** "Release later": hidden from everyone but the owner while `isScheduled && releaseDate > now` (services/releases/visibility.ts). */
   releaseDate?: number;
   isScheduled?: boolean;
+  /** Creator's wording for the release-day feed post (components/release/ReleaseAnnouncementField.tsx). */
+  releaseAnnouncement?: { enabled?: boolean; message?: string };
   likesCount?: number;
   commentsCount?: number;
   timestamp: number;
@@ -7684,6 +7687,10 @@ export interface TelaDoc {
   createdAt: number;
   updatedAt: number;
   /** Last structural assignment formatting pass. Source content remains editable. */
+  /** Living layer: behaviours, music scores and narration that make the document's pages interactive in the reader. See services/living/contracts.ts. Export strips it. */
+  living?: import('./services/living/contracts').LivingBook;
+  /** Self-description of a published picture book (the showcase books): who wrote it, under what licence, for what ages, and how it was made. */
+  publication?: { kind: 'picture-book'; bookId: string; templateId: string; author: string; license: string; licenseId?: string; ageMin: number; ageMax: number; language: string; aiDisclosure: string; pageCount: number };
   assignmentFormat?: {
     profile: 'PLAJAH_PLUS';
     version: 1;

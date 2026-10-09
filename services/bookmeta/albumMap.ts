@@ -44,6 +44,7 @@ export function toAlbumPartial(d: BookDraft, submissionId?: string): Partial<Alb
     price: paid ? (p.prices.USD ?? Object.values(p.prices)[0] ?? 0) : 0,
     isScheduled: future,
     releaseDate: future ? release : undefined,
+    ...(future && m.releaseAnnouncement ? { releaseAnnouncement: m.releaseAnnouncement } : {}),
     bookChapters: chapters,
     bookPreviewConfig: paid ? { type: 'CHAPTERS', allowedChapterIds: freeIds } : undefined,
     tags: [...new Set([m.genre, ...m.keywords, 'book'].map(t => (t || '').trim()).filter(Boolean))],

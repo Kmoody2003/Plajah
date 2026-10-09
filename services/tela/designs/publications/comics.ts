@@ -5,7 +5,7 @@
 // balloons with tails and copy inside them, caption boxes, SFX in a display
 // face with a stroke, a folio. Manga pages carry a right-to-left cue and a
 // right-side folio; the webtoon is a vertical scroll with breathing gaps.
-import type { TelaVectorObject } from '../../../types';
+import type { TelaVectorObject } from '../../../../types';
 import type { DesignLesson } from '../types';
 import type { PublicationDesigner } from './types';
 import type { FontKey } from '../../telaFonts';
@@ -343,7 +343,7 @@ const noir: PublicationDesigner = ({ W, H, pageType, pageIndex, paper: cream, in
           fy = below(val2, 18);
         });
         out.push(text(fx, fy + 6, 90, 'NOTES:', { size: 10, font: 'specialElite', color: alpha(ink, .6), wrap: false, label: 'Field label', role: 'LABEL' }));
-        out.push(text(fx, fy + 26, fw, p.notes, { size: 11.5, font: 'specialElite', color: ink, leading: 1.55, label: 'Case notes', role: 'BODY' }));
+        out.push(text(fx, fy + 26, fw - 36, p.notes, { size: 11.5, font: 'specialElite', color: ink, leading: 1.55, label: 'Case notes', role: 'BODY' }));
         out.push(rect(fx, y + 264, 110, 26, red, { rotation: -4, opacity: .9, label: 'Status tag' }));
         out.push(text(fx, y + 270, 110, i ? 'INVESTIGATING' : 'SUSPECT', { size: 10, font: 'oswald', weight: 700, color: cream, align: 'center', tracking: .12, wrap: false, rotation: -4, label: 'Status', role: 'LABEL' }));
       });

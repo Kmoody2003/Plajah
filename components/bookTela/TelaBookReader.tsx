@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Download, Highlighter, List, MessageSquare, Trash2 } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Download, Highlighter, List, MessageSquare, Rows3, Settings2, Trash2 } from 'lucide-react';
 import type { Album, TelaDoc, TelaFrame } from '../../types';
 import TelaEmbed from '../tela/TelaEmbed';
 import type { BookTelaBundle } from '../../services/bookTela/upgrade';
@@ -10,6 +10,15 @@ import { stripTags } from '../../services/bookTela/html';
 import { decideExportRights } from '../../services/bookTela/export/rights';
 import type { ContentLicense } from '../../services/contentLicense';
 import type { EnhancementInstance } from '../../services/bookTela/types';
+import TelaLivePage, { type TelaLivePageHandle } from '../living/TelaLivePage';
+import { LivingReaderBar, useLivingPrefs } from '../living/LivingReaderBar';
+import { frameObjects, frameSize, hasLiving, livingPageFor } from '../../services/living/runtime/objects';
+import { loadBookAudio } from '../../services/living/runtime/audioProvider';
+import type { BookAudioApi } from '../../services/living/contracts';
+import PageTurn from '../lorea/PageTurn';
+import PageTurnSettings from '../lorea/PageTurnSettings';
+import { usePageTurn } from '../lorea/usePageTurn';
+import { dirForArrowKey, dirForTapSide, inferBookKind, sanitizeAuthorPageTurn } from '../../services/lorea/pageTransitions';
 
 const ExportDialog = lazy(() => import('./ExportDialog'));
 
@@ -28,6 +37,7 @@ interface Props {
 const POS_KEY = (id: string) => `lorea_pos_${id}`;
 const MARK_KEY = (id: string) => `plajah-bookmarks-${id}`;
 const NOTE_KEY = (id: string) => `plajah-tela-notes-${id}`;
+const LAYOUT_KEY = 'lorea_tela_layout';
 
 interface Mark { id: string; frameId: string; blockId: string; start: number; end: number; text: string; note?: string; createdAt: number }
 const readJson = <T,>(k: string, d: T): T => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) as T : d; } catch { return d; } };
@@ -54,6 +64,7 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
   const doc = bundle.doc;
   const rootRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(360);
+  const [viewH, setViewH] = useState(() => (typeof window !== 'undefined' ? window.innerHeight : 800));
   const [showTOC, setShowTOC] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -61,9 +72,27 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
   const [marks, setMarks] = useState<Mark[]>(() => readJson(NOTE_KEY(album.id), []));
   const [sel, setSel] = useState<{ x: number; y: number; mark: Omit<Mark, 'id' | 'createdAt'> } | null>(null);
 
+  // ── living pages (docs/LIVING_RUNTIME.md): pages with `doc.living` data render live; everything else is the static device
+  const living = doc.living;
+  const hasLive = !!living && living.pages.some(p => hasLiving(living, p.page));
+  const lp = useLivingPrefs(living?.defaults ? { narrate: living.defaults.narrate } : undefined);
+  const [audio, setAudio] = useState<BookAudioApi | null>(null);
+  const liveRef = useRef<TelaLivePageHandle>(null);
+  const [turnBusy, setTurnBusy] = useState(false);
+  const [scrollTop, setScrollTop] = useState(0);
+  useEffect(() => {
+    if (!hasLive) return; let on = true;
+    void loadBookAudio(living!.scores).then(a => { if (on) setAudio(a); });
+    return () => { on = false; };
+  }, [hasLive, living]);
+  useEffect(() => { if (!audio) return; audio.setGains({ music: living?.defaults?.musicGain, sfx: living?.defaults?.sfxGain }); }, [audio, living]);
+  useEffect(() => { if (audio) audio.setMuted(!lp.soundOn); }, [audio, lp.soundOn]);
+  useEffect(() => () => { audio?.stopAll(); }, [audio]);
+
   useLayoutEffect(() => {
     const el = rootRef.current; if (!el) return;
-    const ro = new ResizeObserver(() => setWidth(Math.max(280, Math.min(el.clientWidth - 32, 560)))); ro.observe(el); setWidth(Math.max(280, Math.min(el.clientWidth - 32, 560)));
+    const measure = () => { setWidth(Math.max(280, Math.min(el.clientWidth - 32, 560))); setViewH(el.clientHeight || window.innerHeight); };
+    const ro = new ResizeObserver(measure); ro.observe(el); measure();
     return () => ro.disconnect();
   }, []);
 
@@ -90,9 +119,45 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
   const chapters = bundle.toc;
   const frameChapter = useMemo(() => frames.map(f => { const r = parseFrameId(doc.id, f.id); return 'chapterId' in r ? r.chapterId : '' }), [frames, doc.id]);
   const posFor = useCallback((frameIdx: number) => { const cid = frameChapter[frameIdx]; const ci = Math.max(0, chapters.findIndex(c => c.chapterId === cid)); const first = frameChapter.indexOf(cid); return { chapter: ci, page: Math.max(0, frameIdx - first) }; }, [frameChapter, chapters]);
+  // ── paged mode (page turns). Scroll mode is the original reader and stays the default unless the author chose a page turn.
+  const rtl = (album as { readingDir?: string }).readingDir === 'rtl';
+  const author = useMemo(() => sanitizeAuthorPageTurn(bundle.pageTurn), [bundle.pageTurn]);
+  const bookKind = inferBookKind({ visualLed: bundle.book.visualLed, rtl });
+  const [layout, setLayout] = useState<'scroll' | 'paged'>(() => {
+    const saved = readJson<string>(LAYOUT_KEY, '');
+    if (saved === 'scroll' || saved === 'paged') return saved;
+    return (author?.style && author.style !== 'auto' && author.style !== 'none') || bundle.book.visualLed ? 'paged' : 'scroll';
+  });
+  const paged = layout === 'paged';
+  const [pageIdx, setPageIdx] = useState(() => {
+    const saved = readJson<{ chapter: number; page: number }>(POS_KEY(album.id), { chapter: 0, page: 0 });
+    const cid = chapters[saved.chapter]?.chapterId; const base = cid ? frameChapter.indexOf(cid) : -1;
+    return base < 0 ? 0 : Math.min(frames.length - 1, base + Math.max(0, saved.page));
+  });
+  const topFrame = useRef(0);
+  const goTo = useCallback((i: number) => setPageIdx(Math.max(0, Math.min(frames.length - 1, i))), [frames.length]);
+  const pt = usePageTurn({ kind: bookKind, author, chapterId: frameChapter[pageIdx], pageId: frames[pageIdx]?.id });
+  const [showAnim, setShowAnim] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const setLayoutPersist = (l: 'scroll' | 'paged') => {
+    if (l === 'paged') setPageIdx(Math.max(0, Math.min(frames.length - 1, topFrame.current)));
+    else setTimeout(() => document.getElementById(`tbr-f-${pageIdx}`)?.scrollIntoView({ block: 'start' }), 60);
+    setLayout(l); writeJson(LAYOUT_KEY, l);
+  };
+  useEffect(() => { if (paged) writeJson(POS_KEY(album.id), posFor(pageIdx)); }, [paged, pageIdx, album.id, posFor]);
+  useEffect(() => {
+    if (!paged) return;
+    const h = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      const d = dirForArrowKey(e.key, rtl); if (d) goTo(pageIdx + d);
+    };
+    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
+  }, [paged, rtl, pageIdx, goTo]);
+
   const restored = useRef(false);
   useEffect(() => {
     if (restored.current) return; restored.current = true;
+    if (paged) return;                 // paged mode starts on the saved page directly
     const saved = readJson<{ chapter: number; page: number }>(POS_KEY(album.id), { chapter: 0, page: 0 });
     const cid = chapters[saved.chapter]?.chapterId; if (!cid || (saved.chapter === 0 && saved.page === 0)) return;
     const idx = frameChapter.indexOf(cid) + saved.page;
@@ -103,12 +168,12 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
     const seen = new Map<number, number>();
     const io = new IntersectionObserver(es => {
       for (const e of es) { const i = Number((e.target as HTMLElement).dataset.fi); if (e.isIntersecting) seen.set(i, e.intersectionRatio); else seen.delete(i); }
-      if (!seen.size) return; const top = Math.min(...seen.keys()); writeJson(POS_KEY(album.id), posFor(top));
+      if (!seen.size) return; const top = Math.min(...seen.keys()); topFrame.current = top; if (!paged) { writeJson(POS_KEY(album.id), posFor(top)); setScrollTop(top); }
     }, { threshold: [0, 0.25, 0.6] });
     document.querySelectorAll('[data-fi]').forEach(n => io.observe(n)); return () => io.disconnect();
-  }, [album.id, posFor, slices.length]);
+  }, [album.id, posFor, slices.length, paged]);
 
-  const jumpToChapter = (cid: string) => { const i = frameChapter.indexOf(cid); setShowTOC(false); document.getElementById(`tbr-f-${i}`)?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); };
+  const jumpToChapter = (cid: string) => { const i = frameChapter.indexOf(cid); setShowTOC(false); if (paged) { goTo(i); return; } document.getElementById(`tbr-f-${i}`)?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); };
 
   // ── highlights: capture a selection inside a Writer block, paint with the CSS Custom Highlight API where it exists
   useEffect(() => { writeJson(NOTE_KEY(album.id), marks); }, [marks, album.id]);
@@ -134,21 +199,45 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
     CSSAny.highlights.set('pj-user-hl', new HL(...ranges));
   });
 
+  /** One page: the live runtime when this page has living data, the static Tela device otherwise (also the fallback). */
+  const renderPage = (i: number, active: boolean, w: number) => {
+    const f = frames[i];
+    if (hasLive && hasLiving(living, i + 1)) {
+      const objs = frameObjects(doc, f);
+      if (objs.length) {
+        const size = frameSize(doc, f);
+        return (
+          <div key={f.id} style={{ width: w, margin: "0 auto" }} data-living-page-frame={i + 1}>
+            <TelaLivePage ref={active ? liveRef : undefined} objects={objs} width={size.width} height={size.height} living={livingPageFor(living, i + 1)!}
+              audio={audio} reducedMotion={lp.reduced} soundEnabled={lp.soundOn} active={active} autoNarrate={lp.narrate === 'auto'} label={f.label || undefined}
+              onGoto={p => goTo(p === 'next' ? i + 1 : p === 'prev' ? i - 1 : p - 1)}
+              onGoal={(pg, id) => { const k = `plajah-living-goals-${album.id}`; writeJson(k, { ...readJson<Record<string, number>>(k, {}), [`${pg}:${id}`]: Date.now() }); }} />
+          </div>
+        );
+      }
+    }
+    return <TelaEmbed snapshot={slices[i]} docId={doc.id} frameId={f.id} mode={pin === 'pinned' ? 'pinned' : 'follow-latest'} width={w} versionLabel={bundle.label} />;
+  };
+
   // ── export rights: pinned bundle, same decision function as the author flow
   const rights = decideExportRights({ isOwner, signedIn: !!uid, isPaid, license: license ? { grant: license.grant, delivery: license.delivery, issuedAt: license.issuedAt, expiresAt: license.expiresAt, watermarkTag: license.watermarkTag } : null, bookLicense: album.bookDistribution?.license, watermarkOn: album.bookDistribution?.watermark });
   const bookForExport = useMemo(() => ({ ...bookFromBundle(bundle), ownerId: album.ownerId }), [bundle, album.ownerId]);
 
   return (
-    <div ref={rootRef} className="pj-tela-reader fixed inset-0 z-[80] overflow-y-auto bg-[#0A0A0A] text-white" onMouseUp={onSelectEnd} onTouchEnd={() => setTimeout(onSelectEnd, 0)}>
+    <div ref={rootRef} className="pj-tela-reader fixed inset-0 z-[80] overflow-y-auto bg-[#0A0A0A] text-white" onMouseUp={onSelectEnd} onTouchEnd={() => setTimeout(onSelectEnd, 0)}
+      onPointerDownCapture={hasLive ? () => { lp.markGesture(); void audio?.unlock(); } : undefined} onKeyDownCapture={hasLive ? (e => { if (e.key === 'Enter' || e.key === ' ') { lp.markGesture(); void audio?.unlock(); } }) : undefined}>
       <style>{`::highlight(pj-user-hl){background:rgba(255,200,0,.38);color:inherit}@media (prefers-reduced-motion: reduce){.pj-tela-reader *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}`}</style>
       <header className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 bg-[#0A0A0A]/90 backdrop-blur border-b border-white/10">
         <button onClick={onBack} aria-label="Back" className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"><ChevronLeft size={20} /></button>
         <div className="min-w-0 flex-1"><p className="text-sm font-black truncate">{album.title}</p><p className="text-[10px] text-white/40">{pin === 'pinned' ? 'Tela edition, the version you bought' : 'Tela edition'}</p></div>
         <button onClick={() => setShowTOC(v => !v)} aria-expanded={showTOC} aria-label="Contents" className="h-11 w-11 rounded-full hover:bg-white/10 flex items-center justify-center"><List size={18} /></button>
         <button onClick={() => setShowNotes(v => !v)} aria-expanded={showNotes} aria-label="Highlights and notes" className="h-11 w-11 rounded-full hover:bg-white/10 flex items-center justify-center"><Highlighter size={18} /></button>
+        <button onClick={() => setLayoutPersist(paged ? 'scroll' : 'paged')} aria-pressed={paged} aria-label={paged ? 'Switch to continuous scroll' : 'Switch to turning pages'} title={paged ? 'Pages (tap for scroll)' : 'Scroll (tap for pages)'} className={`h-11 w-11 rounded-full flex items-center justify-center ${paged ? 'bg-white/15' : 'hover:bg-white/10'}`}>{paged ? <BookOpen size={18} /> : <Rows3 size={18} />}</button>
+        {paged && <button onClick={() => setShowAnim(v => !v)} aria-expanded={showAnim} aria-label="Page animation" className="h-11 w-11 rounded-full hover:bg-white/10 flex items-center justify-center"><Settings2 size={18} /></button>}
         {enhs.some(e => e.type === 'COMMENTARY') && <button onClick={() => setShowCommentary(v => !v)} aria-pressed={showCommentary} aria-label="Author commentary" className={`h-11 w-11 rounded-full flex items-center justify-center ${showCommentary ? 'bg-amber-400 text-black' : 'hover:bg-white/10'}`}><MessageSquare size={18} /></button>}
         {rights.allowed && <button onClick={() => setShowExport(true)} aria-label="Download EPUB or PDF" className="h-11 w-11 rounded-full hover:bg-white/10 flex items-center justify-center"><Download size={18} /></button>}
       </header>
+      {hasLive && <LivingReaderBar prefs={lp} onReplay={() => liveRef.current?.replay()} onReadNow={() => liveRef.current?.narrate()} />}
 
       {showTOC && (
         <nav aria-label="Contents" className="max-w-[592px] mx-auto m-4 rounded-2xl border border-white/10 bg-white/[0.03] p-2">
@@ -160,7 +249,7 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
           {marks.length === 0 ? <p className="text-sm text-white/45">Select some text to highlight it and add a note. Highlights stay on this device.</p> : (
             <ul className="space-y-2">{marks.map(m => (
               <li key={m.id} className="rounded-xl bg-white/[0.04] p-2.5 text-sm">
-                <button className="text-left w-full" onClick={() => document.getElementById(`tbr-f-${frames.findIndex(f => f.id === m.frameId)}`)?.scrollIntoView({ block: 'start' })}>“{m.text}”</button>
+                <button className="text-left w-full" onClick={() => { const fi = frames.findIndex(f => f.id === m.frameId); if (paged) goTo(fi); else document.getElementById(`tbr-f-${fi}`)?.scrollIntoView({ block: 'start' }); }}>“{m.text}”</button>
                 <label className="sr-only" htmlFor={`n-${m.id}`}>Note</label>
                 <input id={`n-${m.id}`} value={m.note || ''} placeholder="Add a note" onChange={e => setMarks(ms => ms.map(x => x.id === m.id ? { ...x, note: e.target.value } : x))} className="mt-1 w-full bg-transparent border-b border-white/15 text-[13px] py-1 outline-none" />
                 <button aria-label="Delete highlight" className="mt-1 text-white/35 hover:text-red-300" onClick={() => setMarks(ms => ms.filter(x => x.id !== m.id))}><Trash2 size={14} /></button>
@@ -168,19 +257,55 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
         </aside>
       )}
 
+      {showAnim && paged && (
+        <aside aria-label="Page animation" className="max-w-[592px] mx-auto m-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <PageTurnSettings pref={pt.prefs.animation} onPref={pt.setAnimation} sound={pt.prefs.sound} onSound={pt.setSound} resolved={pt.turn} reducedMotion={pt.reducedMotion} cardClass="bg-white/10" activeClass="bg-amber-400 text-black" />
+        </aside>
+      )}
+
+      {paged ? (() => {
+        const fitW = (i: number) => { const f = frames[i]; return Math.max(240, Math.min(width, Math.floor(((viewH - 170) * f.w) / Math.max(1, f.h)))); };
+        const renderFrame = (i: number, live: boolean) => {
+          const f = frames[i]; const extras = extrasByFrame.get(f.id) || [];
+          return (
+            <section {...(live ? { id: `tbr-f-${i}`, 'data-fi': i, 'data-frame-id': f.id } : {})} aria-label={f.label || undefined} className="w-full">
+              {renderPage(i, live && i === pageIdx && !turnBusy, fitW(i))}
+              {extras.filter(e => e.type !== 'COMMENTARY' || showCommentary).map(e => <ReaderExtra key={e.id} e={e} book={bundle} onGo={jumpToChapter} />)}
+            </section>
+          );
+        };
+        const fw = fitW(pageIdx);
+        return (
+          <main ref={mainRef} className="mx-auto px-4 pb-24 pt-4 flex flex-col items-center" style={{ maxWidth: width + 32 }}>
+            <PageTurn pageKey={frames[pageIdx].id} order={pageIdx} turn={pt.turn} rtl={rtl} heavy
+              renderNeighbor={d => (pageIdx + d >= 0 && pageIdx + d < frames.length ? renderFrame(pageIdx + d, false) : null)}
+              canTurn={d => pageIdx + d >= 0 && pageIdx + d < frames.length}
+              onTurn={d => goTo(pageIdx + d)} gestureRef={mainRef as React.RefObject<HTMLElement>} sound={pt.soundOn}
+              paper="#e9e4d6" radius="12px" style={{ width: fw }} onBusyChange={setTurnBusy}>
+              {renderFrame(pageIdx, true)}
+            </PageTurn>
+            <nav aria-label="Page navigation" className="mt-4 flex items-center gap-3">
+              <button onClick={() => goTo(pageIdx + dirForTapSide('left', rtl))} disabled={pageIdx + dirForTapSide('left', rtl) < 0 || pageIdx + dirForTapSide('left', rtl) >= frames.length} aria-label={rtl ? 'Next page' : 'Previous page'} className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center"><ChevronLeft size={20} /></button>
+              <span className="text-[11px] font-black uppercase tracking-widest text-white/50 min-w-[96px] text-center" aria-live="polite">Page {pageIdx + 1} of {frames.length}</span>
+              <button onClick={() => goTo(pageIdx + dirForTapSide('right', rtl))} disabled={pageIdx + dirForTapSide('right', rtl) < 0 || pageIdx + dirForTapSide('right', rtl) >= frames.length} aria-label={rtl ? 'Previous page' : 'Next page'} className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center"><ChevronRight size={20} /></button>
+            </nav>
+          </main>
+        );
+      })() : (
       <main className="mx-auto px-4 pb-24 pt-4" style={{ maxWidth: width + 32 }}>
         {frames.map((f, i) => {
           const extras = extrasByFrame.get(f.id) || [];
           return (
             <section key={f.id} id={`tbr-f-${i}`} data-fi={i} data-frame-id={f.id} aria-label={f.label || undefined} className="mb-3">
               <LazyFrame eager={frames.length <= 60 || i < 8} height={f.h * (width / f.w)}>
-                <TelaEmbed snapshot={slices[i]} docId={doc.id} frameId={f.id} mode={pin === 'pinned' ? 'pinned' : 'follow-latest'} width={width} versionLabel={bundle.label} />
+                {renderPage(i, i === scrollTop, width)}
               </LazyFrame>
               {extras.filter(e => e.type !== 'COMMENTARY' || showCommentary).map(e => <ReaderExtra key={e.id} e={e} book={bundle} onGo={jumpToChapter} />)}
             </section>
           );
         })}
       </main>
+      )}
 
       {sel && (
         <div className="fixed z-20 -translate-x-1/2 -translate-y-full" style={{ left: Math.max(90, Math.min(sel.x, window.innerWidth - 90)), top: Math.max(56, sel.y - 8) }}>

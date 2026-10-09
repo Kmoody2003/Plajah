@@ -1,6 +1,7 @@
 // Author/buyer view of print orders (reads the caller's own mirror via /api/pod/orders).
 import React, { useEffect, useState } from 'react';
 import { podFetch, money } from './podApi';
+import { usePodFlags } from '../../services/podFlagsClient';
 
 const LABEL: Record<string, string> = {
   pending_payment: 'Awaiting payment', paid: 'Paid, sending to printer', submitted: 'With the printer', in_production: 'Printing', shipped: 'Shipped',
@@ -8,9 +9,12 @@ const LABEL: Record<string, string> = {
 };
 
 export const PrintOrdersPanel: React.FC = () => {
+  const flags = usePodFlags();
   const [orders, setOrders] = useState<any[] | null>(null);
   const [error, setError] = useState('');
   useEffect(() => { podFetch('/orders').then(j => setOrders(j.orders)).catch(e => setError(e.message)); }, []);
+  // Existing orders stay visible even if ordering is later switched off; with none and nothing live there is nothing to show.
+  if (flags.loaded && !flags.visible('PRINT_ORDERING') && !flags.visible('PRINT_RETAIL') && !(orders && orders.length)) return null;
   if (error) return <p className="text-xs text-red-300" role="alert">{error}</p>;
   if (!orders) return <p className="text-xs text-white/50">Loading print orders...</p>;
   if (!orders.length) return <p className="text-xs text-white/50">No print orders yet.</p>;

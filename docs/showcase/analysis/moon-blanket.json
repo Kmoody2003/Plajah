@@ -1,0 +1,117 @@
+{
+  "book": "moon-blanket",
+  "model": "pokee-isaac",
+  "metrics": {
+    "totalWords": 125,
+    "storyWords": 117,
+    "sentenceCount": 30,
+    "avgSentenceWords": 3.9,
+    "longestSentenceWords": 9,
+    "fkGrade": 0.5,
+    "maxWordsOnASpread": 24,
+    "uniqueWordRatio": 0.48,
+    "refrainCount": 3
+  },
+  "report": {
+    "structure": {
+      "want": "Bramble wants to settle in for a good night's sleep with his soft blanket.",
+      "obstacle": "He discovers a hole in his blanket and a tiny, cold moth (Flit) hiding inside it.",
+      "turningPoint": "Bramble realizes the blanket is big enough for both of them and invites Flit to come in.",
+      "resolution": "Bramble and Flit share the blanket, feeling 'snug as a stitch,' and say goodnight to the moon.",
+      "arcStrength": "strong",
+      "notes": "The narrative arc is tight and perfectly suited for a picture book. The transition from 'puzzled' to 'kind' is clear and immediate, which is appropriate for the 2-4 age group. The 'hole' serves as both a plot device and a thematic symbol for making room."
+    },
+    "characters": [
+      {
+        "name": "Bramble",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Flit",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "The Moon",
+        "consistent": true,
+        "issues": []
+      }
+    ],
+    "ageFit": {
+      "targetAge": "2-4",
+      "fits": true,
+      "tooEasy": [],
+      "tooHard": []
+    },
+    "readAloud": {
+      "rhythm": "strong",
+      "bestLine": "Snug as a stitch.",
+      "weakestLine": "Was it the mouse? No. / Was it the cat? No. / Was it the owl? No. / Was it the moon? No.",
+      "refrainWorks": true
+    },
+    "pageTurns": [
+      {
+        "spread": 2,
+        "worksAsTurn": true,
+        "note": "Sets the scene and establishes the comfort of the blanket before the disruption."
+      },
+      {
+        "spread": 3,
+        "worksAsTurn": true,
+        "note": "Introduces the refrain and the routine, making the 'different' night more impactful."
+      },
+      {
+        "spread": 4,
+        "worksAsTurn": true,
+        "note": "The reveal of the hole is a strong hook for the next page."
+      },
+      {
+        "spread": 5,
+        "worksAsTurn": true,
+        "note": "The guessing game engages young readers and builds suspense."
+      },
+      {
+        "spread": 6,
+        "worksAsTurn": true,
+        "note": "The quiet moment before the reveal creates tension."
+      },
+      {
+        "spread": 7,
+        "worksAsTurn": true,
+        "note": "The character reveal and the explanation of the hole (nibbling a door) are clear and cute."
+      },
+      {
+        "spread": 8,
+        "worksAsTurn": true,
+        "note": "Bramble's decision to share is the emotional core of the story."
+      },
+      {
+        "spread": 9,
+        "worksAsTurn": true,
+        "note": "The resolution brings the refrain back, reinforcing the theme of shared comfort."
+      },
+      {
+        "spread": 10,
+        "worksAsTurn": true,
+        "note": "A gentle, rhythmic goodnight ending that helps wind down the child."
+      }
+    ],
+    "safety": {
+      "issues": [],
+      "notes": "The story is gentle and safe. The concept of a moth nibbling a hole in a blanket is whimsical and non-threatening. There are no scary elements or inappropriate content."
+    },
+    "suggestions": [
+      {
+        "spread": 5,
+        "kind": "reword",
+        "why": "The list of animals (mouse, cat, owl, moon) is a bit long for a single spread in a 2-4 picture book. Consider shortening it to two or three guesses to keep the pacing snappy and ensure the page turn to the reveal (Spread 6) feels urgent. For example: 'Was it the mouse? No. Was it the owl? No.'"
+      },
+      {
+        "spread": 7,
+        "kind": "reword",
+        "why": "'I nibbled a little door' is a lovely line, but ensure the illustration clearly shows the moth's small size relative to the hole to make the 'door' metaphor visually intuitive for pre-readers."
+      }
+    ]
+  }
+}

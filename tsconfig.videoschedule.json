@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/releases/visibility.ts", "components/release/ReleaseLaterField.tsx", "components/VideoManager.tsx", "components/VideoPlayer.tsx",
+    "components/MovieUXView.tsx", "components/VideoTab.tsx", "components/UserProfileView.tsx", "components/AlbumCreator.tsx", "components/ChoraArtistPage.tsx", "components/RelloView.tsx", "services/soundsService.ts", "services/videoReplies.ts",
+    "services/feedCardsService.ts", "tests/videoScheduling.test.ts"
+  ]
+}

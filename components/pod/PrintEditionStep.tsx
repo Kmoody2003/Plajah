@@ -7,13 +7,14 @@ import { TRIM_SIZES, BINDINGS, PAPER_OPTIONS, spineWidthIn, coverDimensions, pre
 import type { BindingType, PaperColor, PaperWeight, PrinterId } from '../../services/pod/podTypes';
 import { computeRoyalty } from '../../services/pod/royalty';
 import { podFetch, money, openPodFile } from './podApi';
+import { usePodFlags } from '../../services/podFlagsClient';
 
 export interface PrintEditionAlbum { id: string; title: string; artist?: string; coverImage?: string; description?: string; bookChapters?: Array<{ content?: string }> }
 interface ProviderRow { id: PrinterId; name: string; configured: boolean; mode: 'direct' | 'export'; capabilities: { summary: string; hardcover: boolean; requiresPartnership: boolean }; guide?: { dashboardUrl: string; steps: string[]; notes: string[] } | null }
 
 const ADDR0 = { name: '', street1: '', city: '', stateCode: '', postcode: '', countryCode: 'US', phone: '', email: '' };
 
-export const PrintEditionStep: React.FC<{ album: PrintEditionAlbum; onSaved?: (e: any) => void }> = ({ album, onSaved }) => {
+const PrintEditionStepInner: React.FC<{ album: PrintEditionAlbum; onSaved?: (e: any) => void; ordering: boolean; preview: boolean }> = ({ album, onSaved, ordering, preview }) => {
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [printer, setPrinter] = useState<PrinterId>('lulu');
   const [trimId, setTrimId] = useState('6x9');
@@ -98,17 +99,20 @@ export const PrintEditionStep: React.FC<{ album: PrintEditionAlbum; onSaved?: (e
     );
   };
 
+  // Until direct ordering is switched on, only export-pack printers are selectable (so no order buttons can appear).
+  useEffect(() => { if (!ordering && provider?.mode === 'direct') { const first = providers.find(x => x.mode !== 'direct'); if (first) setPrinter(first.id); } }, [ordering, provider, providers]);
   const field = 'w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white';
   const sel = (v: string, set: (x: any) => void, children: React.ReactNode) => <select value={v} onChange={e => set(e.target.value)} className={field}>{children}</select>;
   return (
     <div className="space-y-6 text-white">
+      {preview && <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Admin preview: not live for authors yet</p>}
       <div>
         <h3 className="text-lg font-black">Print edition</h3>
         <p className="text-xs text-white/50 mt-1">Pick a printer. <b>Direct connect</b> means Plajah sends print jobs to the printer for you. <b>Export pack</b> means we build print-ready files and you upload them yourself; no automatic connection exists.</p>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-3">
-        {providers.map(p => (
+        {providers.filter(p => ordering || p.mode !== 'direct').map(p => (
           <button key={p.id} onClick={() => setPrinter(p.id)} className={`text-left rounded-xl border p-3 ${printer === p.id ? 'border-purple-400 bg-purple-500/10' : 'border-white/10 bg-white/5'}`}>
             <div className="flex items-center justify-between"><span className="font-bold text-sm">{p.name}</span>
               <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${p.mode === 'direct' ? (p.configured ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300') : 'bg-sky-500/20 text-sky-300'}`}>
@@ -181,6 +185,23 @@ export const PrintEditionStep: React.FC<{ album: PrintEditionAlbum; onSaved?: (e
       {error && <p className="text-xs text-red-300" role="alert">{error}</p>}
     </div>
   );
+};
+
+/** Launch-gated entry point (config/podFlags). Authors see a calm "coming soon" card until a print flag is on; admins preview. */
+export const PrintEditionStep: React.FC<{ album: PrintEditionAlbum; onSaved?: (e: any) => void }> = ({ album, onSaved }) => {
+  const flags = usePodFlags();
+  const live = flags.enabled('PRINT_EXPORT_PACKS') || flags.enabled('PRINT_ORDERING');
+  if (!flags.loaded) return null;
+  if (!live && !flags.isAdmin) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-white" role="status">
+        <p className="text-[9px] font-black uppercase tracking-widest text-amber-300">Coming soon</p>
+        <h3 className="text-lg font-black mt-1">Print editions</h3>
+        <p className="text-xs text-white/50 mt-2 max-w-md mx-auto leading-relaxed">Turn your book into a paperback or hardcover without leaving Plajah. Your ebook is saved either way, and print will appear here automatically when it opens.</p>
+      </div>
+    );
+  }
+  return <PrintEditionStepInner album={album} onSaved={onSaved} ordering={flags.enabled('PRINT_ORDERING') || (!live && flags.isAdmin)} preview={!live} />;
 };
 
 export default PrintEditionStep;

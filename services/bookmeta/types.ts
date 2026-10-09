@@ -66,6 +66,8 @@ export interface BookMetadata {
   contentWarnings: string[];
   matureContent: boolean;
   publicationDate: string;        // YYYY-MM-DD
+  /** Creator's choice for the announcement posted at release time (optional; default = announce with platform wording). */
+  releaseAnnouncement?: { enabled?: boolean; message?: string };
   originalPublicationDate: string;
   publicDomain: boolean;
   publicDomainNote: string;

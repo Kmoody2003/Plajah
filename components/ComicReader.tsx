@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, BookOpen, Rows3, Square, ArrowLeftRight,
+  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, BookOpen, Rows3, Square, ArrowLeftRight, Settings2,
 } from 'lucide-react';
+import PageTurn from './lorea/PageTurn';
+import PageTurnSettings from './lorea/PageTurnSettings';
+import { usePageTurn } from './lorea/usePageTurn';
+import type { AuthorPageTurn } from '../services/lorea/pageTransitions';
 
 // Best-in-class comic/manga reader: single page, double-page spread (manga RTL aware),
 // and webtoon (continuous vertical scroll). Fit-to-width/height + zoom, tap zones,
@@ -17,20 +21,25 @@ interface Props {
   onIndexChange: (i: number) => void;
   readingDir?: 'ltr' | 'rtl';
   title?: string;
+  /** The author's page-turn choice for this book (sanitized by the caller). */
+  pageTurnAuthor?: AuthorPageTurn;
 }
 
-const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir = 'ltr', title }) => {
+const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir = 'ltr', title, pageTurnAuthor }) => {
   const [mode, setMode] = useState<Mode>('page');
   const [fit, setFit] = useState<Fit>('height');
   const [zoom, setZoom] = useState(1);
   const [rtl, setRtl] = useState(readingDir === 'rtl');
   const webtoonRef = useRef<HTMLDivElement>(null);
+  const areaRef = useRef<HTMLDivElement>(null);
+  const [showAnim, setShowAnim] = useState(false);
   const pageRefs = useRef<(HTMLImageElement | null)[]>([]);
   const programmaticScroll = useRef(false);
   const n = pages.length;
   const clamp = (i: number) => Math.max(0, Math.min(n - 1, i));
 
   const step = mode === 'spread' ? 2 : 1;
+  const pt = usePageTurn({ kind: rtl ? 'manga' : 'comic', author: pageTurnAuthor });
   const go = useCallback((dir: 1 | -1) => {
     // In RTL, "forward" (right→left) still advances page index.
     onIndexChange(clamp(index + dir * step));
@@ -100,6 +109,7 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
           <Btn onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))} title="Zoom in"><ZoomIn size={15} /></Btn>
           <span className="w-px h-4 bg-white/10 mx-1" />
         </>}
+        {mode !== 'webtoon' && <Btn on={showAnim} onClick={() => setShowAnim(v => !v)} title="Page animation"><Settings2 size={15} /></Btn>}
         <Btn on={rtl} onClick={() => setRtl(v => !v)} title="Manga reading direction (right-to-left)">
           <span className="text-[9px] font-black uppercase tracking-widest px-1">{rtl ? 'RTL' : 'LTR'}</span>
         </Btn>
@@ -114,16 +124,36 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
           ))}
         </div>
       ) : (
-        <div className="flex-1 min-h-0 relative flex items-center justify-center overflow-auto" onClick={tap}>
+        <div ref={areaRef} className="flex-1 min-h-0 relative flex items-center justify-center overflow-auto" onClick={tap}>
+          {showAnim && (
+            <div className="absolute z-20 top-2 right-2 w-72 max-w-[90%] rounded-2xl bg-black/85 border border-white/10 p-4 backdrop-blur-md text-white" onClick={e => e.stopPropagation()} data-no-pageturn>
+              <PageTurnSettings pref={pt.prefs.animation} onPref={pt.setAnimation} sound={pt.prefs.sound} onSound={pt.setSound} resolved={pt.turn} reducedMotion={pt.reducedMotion} cardClass="bg-white/10" activeClass="bg-small-orange text-black" />
+            </div>
+          )}
           {/* tap hint arrows */}
           {!atStart && <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 text-white/20 pointer-events-none"><ChevronLeft size={30} /></div>}
           {!atEnd && <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 text-white/20 pointer-events-none"><ChevronRight size={30} /></div>}
-          <div className="flex gap-3 items-center justify-center h-full" style={{ transform: `scale(${zoom})`, transformOrigin: 'center', flexDirection: rtl && mode === 'spread' ? 'row-reverse' : 'row' }}>
-            {pages[index] && <img src={pages[index].url} alt={`Page ${index + 1}`} referrerPolicy="no-referrer"
-              className={`${imgClass} object-contain rounded-lg shadow-2xl ring-1 ring-white/10`} />}
-            {mode === 'spread' && pages[index + 1] && <img src={pages[index + 1].url} alt={`Page ${index + 2}`} referrerPolicy="no-referrer"
-              className={`${imgClass} object-contain rounded-lg shadow-2xl ring-1 ring-white/10`} />}
-          </div>
+          {(() => {
+            // One view = one page, or two for a spread. PageTurn animates between views and also renders the neighbouring view for drags.
+            const view = (i: number) => (
+              <div className="flex gap-3 items-center justify-center h-full w-full" style={{ transform: `scale(${zoom})`, transformOrigin: 'center', flexDirection: rtl && mode === 'spread' ? 'row-reverse' : 'row' }}>
+                {pages[i] && <img src={pages[i].url} alt={`Page ${i + 1}`} referrerPolicy="no-referrer"
+                  className={`${imgClass} object-contain rounded-lg shadow-2xl ring-1 ring-white/10`} />}
+                {mode === 'spread' && pages[i + 1] && <img src={pages[i + 1].url} alt={`Page ${i + 2}`} referrerPolicy="no-referrer"
+                  className={`${imgClass} object-contain rounded-lg shadow-2xl ring-1 ring-white/10`} />}
+              </div>
+            );
+            const nb = (dir: 1 | -1) => { const j = index + dir * step; return j < 0 || j >= n ? null : j; };
+            return (
+              <PageTurn pageKey={`${mode}:${index}`} order={Math.floor(index / step)} turn={pt.turn} rtl={rtl} spread={mode === 'spread'}
+                renderNeighbor={dir => { const j = nb(dir); return j === null ? null : view(j); }}
+                canTurn={dir => nb(dir) !== null} onTurn={dir => go(dir)} gestureRef={areaRef} sound={pt.soundOn}
+                paper="#d8d2c4" heavy={false} radius="8px"
+                className={`h-full ${fit === 'width' || mode === 'spread' ? 'w-full' : 'w-fit max-w-full'}`}>
+                {view(index)}
+              </PageTurn>
+            );
+          })()}
         </div>
       )}
 

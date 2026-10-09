@@ -1,0 +1,140 @@
+{
+  "book": "golden-thread",
+  "model": "pokee-isaac",
+  "metrics": {
+    "totalWords": 722,
+    "storyWords": 673,
+    "sentenceCount": 73,
+    "avgSentenceWords": 9.2,
+    "longestSentenceWords": 25,
+    "fkGrade": 2,
+    "maxWordsOnASpread": 93,
+    "uniqueWordRatio": 0.4,
+    "refrainCount": 5
+  },
+  "report": {
+    "structure": {
+      "want": "Mira wants to follow the mysterious golden thread and complete the tasks it presents, ultimately seeking to understand the source of her endless supply.",
+      "obstacle": "The thread is tangled in a massive knot at the top of the world, and the only way to free it is to give away the last of her thread, which is all she has.",
+      "turningPoint": "Mira realizes that the thread was never truly hers to keep but was 'passing through,' and she chooses to unwind her entire spool to free Glint, despite the fear of losing her only possession.",
+      "resolution": "The knot loosens, Glint is freed, and a new spool appears in Mira's hands, teaching her that generosity is cyclical. She returns home to mend the village.",
+      "arcStrength": "strong",
+      "notes": "The narrative arc is clear and emotionally resonant. The progression from passive giving (village) to active questing (tasks) to ultimate sacrifice (the spool) works well for the target age. The thematic link between the physical mending and the spiritual 'untangling' is handled simply but effectively."
+    },
+    "characters": [
+      {
+        "name": "Mira",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Glint",
+        "consistent": true,
+        "issues": [
+          "The transition from a 'thread' to a 'knot with a face' is a significant visual leap. Ensure the illustration on Spread 8 clearly establishes the 'knot' as a distinct entity before the face appears on Spread 9 to avoid confusing younger readers."
+        ]
+      },
+      {
+        "name": "The Grey Wolf",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "The Moon",
+        "consistent": true,
+        "issues": []
+      }
+    ],
+    "ageFit": {
+      "targetAge": "7-9",
+      "fits": true,
+      "tooEasy": [
+        "The vocabulary is simple and accessible, which is appropriate for the lower end of the range (7-year-olds) but might feel slightly basic for 9-year-olds who are ready for more complex sentence structures."
+      ],
+      "tooHard": [
+        "The abstract concept of 'thread that is given is thread that comes back' might require a parent to explain the metaphorical weight of 'passing through' vs. 'ownership' to a 7-year-old, though the visual of the new spool helps."
+      ]
+    },
+    "readAloud": {
+      "rhythm": "strong",
+      "bestLine": "Thread that is given is thread that comes back.",
+      "weakestLine": "It looped, it tied, it held.",
+      "refrainWorks": true
+    },
+    "pageTurns": [
+      {
+        "spread": 2,
+        "worksAsTurn": true,
+        "note": "The setup of the 'never runs out' thread creates immediate curiosity. The turn to 'Something stirs' is a good hook."
+      },
+      {
+        "spread": 3,
+        "worksAsTurn": true,
+        "note": "The action of the thread sliding out and the command 'Follow me' creates urgency. The turn to 'The first task' is a clear structural beat."
+      },
+      {
+        "spread": 4,
+        "worksAsTurn": true,
+        "note": "The journey montage works well. The stop at the forest edge and the 'tug' pointing into shadows builds suspense for the reveal."
+      },
+      {
+        "spread": 5,
+        "worksAsTurn": true,
+        "note": "The wolf scene is self-contained. The instruction 'Go to the river' provides a clear directive for the next page turn."
+      },
+      {
+        "spread": 6,
+        "worksAsTurn": true,
+        "note": "The bridge task is visually strong. The observation about the spool feeling heavier is a crucial plot point that sets up the climax. The turn to 'Up the tallest hill' escalates the difficulty."
+      },
+      {
+        "spread": 7,
+        "worksAsTurn": true,
+        "note": "The moon scene is quiet and magical. The turn to 'Higher' signals the final ascent."
+      },
+      {
+        "spread": 8,
+        "worksAsTurn": true,
+        "note": "The arrival at the top of the world and the discovery of the 'knot as big as a mountain' is a strong visual cliffhanger. The turn to 'The knot has a face' is excellent."
+      },
+      {
+        "spread": 9,
+        "worksAsTurn": true,
+        "note": "The exposition from Glint explains the stakes. The turn to 'What does it cost?' is a direct question that engages the reader."
+      },
+      {
+        "spread": 10,
+        "worksAsTurn": true,
+        "note": "Mira's internal decision process is well-paced. The turn to 'She lets go' is the emotional climax."
+      },
+      {
+        "spread": 11,
+        "worksAsTurn": true,
+        "note": "The resolution is satisfying. The final image of the village waking up provides a sense of closure and return."
+      }
+    ],
+    "safety": {
+      "issues": [
+        "Mira follows a mysterious glowing thread into the dark forest and up to the top of the world. While this is a fairy tale trope, parents should be aware that the story normalizes following unknown entities without caution. However, the context of a magical story makes this acceptable for the genre."
+      ],
+      "notes": "No dangerous or inappropriate content. The themes of generosity and trust are positive."
+    },
+    "suggestions": [
+      {
+        "spread": 6,
+        "kind": "reword",
+        "why": "The line 'It should be lighter' is a bit logical for a 7-year-old to grasp immediately in the flow of the story. Consider changing to 'But why does it feel so heavy?' to make the physical sensation more immediate and less abstract."
+      },
+      {
+        "spread": 10,
+        "kind": "add",
+        "why": "Add a small physical detail of Mira's hesitation or fear before she unwinds the spool. For example, 'Her hands trembled for a moment.' This heightens the bravery of the act and makes the sacrifice feel more real to the reader."
+      },
+      {
+        "spread": 12,
+        "kind": "reword",
+        "why": "The activity instructions are clear, but 'Trace each one with your finger' might be too passive. Consider 'Follow the golden path with your finger to help Mira find her way home' to make it more interactive and goal-oriented."
+      }
+    ]
+  }
+}

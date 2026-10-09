@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/living/**/*.ts", "components/living/*.tsx", "components/tela/TelaBehaviorsPanel.tsx", "components/tela/telaOps.ts",
+    "components/bookTela/TelaBookReader.tsx", "living-lab.tsx", "tests/livingMocks.ts", "tests/living*.test.ts"
+  ]
+}

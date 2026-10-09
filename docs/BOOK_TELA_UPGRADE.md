@@ -99,6 +99,13 @@ Author (or admin): everything, latest. Buyer of a paid book: only with a non-exp
 
 Round trip (chapters <-> Tela, edits, missing chapters, foreign frames), enhancement-frames-never-change-text, upgrade/preview/revert, adapters, fidelity classification for all 12 enhancements x 6 formats and per page, **fallback markup validity for four variants** (good, minimal, broken, forced-omit) in EPUB reflow + fixed, HTML and Markdown (no empty elements, no missing alt/src, no remote media, no scripts, no unresolved markers), reflowable and fixed EPUB through `inspectEpub` with zero findings, deterministic output, licence-safe fonts, PDF structure (outline, link annotations, metadata, RGB, trim/bleed boxes, mirrored margins, padding), POD interior reuse, Markdown/HTML/sidecar, export rights, buy-to-own pinning, bundle privacy, XML checker. `test:pod` (18) and `test:books` (49) still pass untouched.
 
+## Page-turn style (Lorea reader only)
+
+The author can pick how pages turn (curl, flip, slide, dissolve ...) in the upgrade panel's **Page-turn style** card, book-wide
+and per chapter. It is stored on the upgrade record, published inside the immutable bundle and mirrored on the album, and the
+Tela reader has a Pages mode that plays it. It is never exported: the export fidelity report states that page turns do not
+carry into EPUB/PDF. Details: `docs/LOREA_PAGE_TURNS.md`.
+
 ## Honest limits
 
 * **No browser run.** The panel, export dialog, mounts and Tela reader compile (`tsc -p tsconfig.booktela.json` is clean for these files; remaining errors are in unrelated files) and the Tela device renderers were exercised in node (SSR) on book docs, but nothing was clicked in a browser. Unverified: the Vite `?url` font imports in `components/bookTela/browserFonts.ts`, the CSS Custom Highlight API painting, selection capture on touch, `LazyFrame` virtualisation, the ?proxy fallback for CORS-blocked images.
@@ -112,3 +119,7 @@ Round trip (chapters <-> Tela, edits, missing chapters, foreign frames), enhance
 * **PDF vector subset** and **no tagged PDF** as described above. PDF print for text-led books is text-only (the POD interior pipeline), so pictures, tables and QR codes in that path are written as text. Books the exporter recommends as visual-led (pictures about as common as paragraphs) automatically use the paged drawer instead, which keeps them; `PdfOptions.usePodInterior=false` forces the paged drawer for any book.
 * **Colour:** RGB only.
 * Frames from `articleTela.ts` helpers: if the article agent changes `fillTemplateObjects`, opener templates may fill differently (built-in opener is unaffected).
+
+## Large and living bundles
+
+Bundles over the inline limit (the showcase living books, 0.6-3.9 MB of JSON) are stored as a gzip object in Cloud Storage with a small manifest in `telaVersions/{versionId}`; `loadReaderBundle` follows `bundleUrl`, verifies SHA-256, and falls back to the classic reader on any failure. Details, format and the export-report lines for living layers: `docs/LIVING_PUBLISHING.md`.

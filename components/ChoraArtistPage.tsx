@@ -2,6 +2,7 @@ import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Album, Track, Video, UserProfile } from '../types';
 import { fetchArtistAlbums, fetchUserVideos, fetchUserProfile, followUser, unfollowUser, isFollowing, auth, uploadImageWithDerivatives, updateUserProfile } from '../services/backendService';
+import { filterReleased } from '../services/releases/visibility';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Play, Pause, Share2, UserPlus, UserMinus, ExternalLink,
@@ -69,7 +70,7 @@ const ChoraArtistPage: React.FC<Props> = ({ artistId, onBack, onSelectAlbum, onV
       if (!alive) return;
       setProfile(p as UserProfile | null);
       setAlbums(a as Album[]);
-      setVideos(v as Video[]);
+      setVideos(filterReleased(v as Video[], auth.currentUser?.uid));
       setFollowing(f as boolean);
       // Feature the newest album by default
       if ((a as Album[]).length > 0) setFeaturedAlbumId((a as Album[])[0].id);

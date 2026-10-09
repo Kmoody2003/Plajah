@@ -1,4 +1,3 @@
-import * as crypto from 'node:crypto';
 // Article syndication routes: RSS 2.0 / Atom per author or publication, plus per-article
 // AMP-lite HTML, Apple News Format JSON and email HTML. Public read-only; only articles that are
 // public AND not embargoed are ever emitted (see feedGenerators.publishable).
@@ -13,17 +12,16 @@ import * as crypto from 'node:crypto';
 //   GET /feeds/article/:id/apple-news.json     Apple News Format document (not submitted to Apple)
 //   GET /feeds/article/:id/email.html          Substack-style email render (placeholders for unsubscribe/address)
 //
-// Embargo release: there is no background scheduler. Articles in status SCHEDULED whose embargo
-// has passed are flipped public the first time any feed/article route is hit after the deadline
-// (and when the author opens the Newsroom Desk). For to-the-minute release, point Cloud Scheduler
-// at GET /feeds/release-due with header x-article-release-key.
+// Embargo: no scheduler and no release job. An embargoed article stays in place and every reader compares
+// embargoUntil to the clock (services/journalist/embargo.ts), exactly like scheduled albums. Feeds below drop
+// embargoed items until the moment passes, so a release is never late.
 //
 // Reads the whole `articles` collection through the admin REST helper and filters in memory with a
 // 60 s cache. Fine for today's volume; switch to a structured query before this collection is big.
 
 import { Router, Request, Response } from 'express';
-import { fsList, fsGet, fsPatch } from '../services/firebaseAdminRest';
-import { buildRss, buildAtom, buildAmpLiteHtml, buildAppleNewsArticle, buildEmailIssue, feedArticleFromRecord, toMs, type FeedArticle, type FeedMeta } from '../services/journalist/feedGenerators';
+import { fsList, fsGet } from '../services/firebaseAdminRest';
+import { buildRss, buildAtom, buildAmpLiteHtml, buildAppleNewsArticle, buildEmailIssue, feedArticleFromRecord, type FeedArticle, type FeedMeta } from '../services/journalist/feedGenerators';
 
 export const articleFeedsRouter = Router();
 
@@ -34,15 +32,6 @@ const TTL = 60_000;
 async function allArticles(force = false): Promise<Row[]> {
   if (!force && cache && Date.now() - cache.at < TTL) return cache.rows;
   const rows = await fsList('articles', { pageSize: 200, maxDocs: 2000 });
-  const now = Date.now();
-  // lazy embargo release
-  for (const r of rows) {
-    const d = r.data;
-    if (d.status === 'SCHEDULED' && d.isPublic === false && toMs(d.embargoUntil) && toMs(d.embargoUntil) <= now) {
-      const ok = await fsPatch(`articles/${r.id}`, { isPublic: true, status: 'PUBLISHED', publishedAt: now });
-      if (ok) { d.isPublic = true; d.status = 'PUBLISHED'; d.publishedAt = now; }
-    }
-  }
   cache = { at: Date.now(), rows };
   return rows;
 }
@@ -115,17 +104,4 @@ articleFeedsRouter.get('/article/:id/apple-news.json', async (req, res) => { con
 articleFeedsRouter.get('/article/:id/email.html', async (req, res) => {
   const a = await oneArticle(req, res);
   if (a) send(res, 'text/html', buildEmailIssue(a, { publicationName: a.authorName }).html);
-});
-
-/** Cron hook: releases every due embargo and reports how many. */
-articleFeedsRouter.get('/release-due', async (req, res) => {
-  // Key travels in a header (a ?key= query string lands in access logs); constant-time compare.
-  const key = process.env.ARTICLE_RELEASE_KEY || '';
-  const given = Buffer.from(String(req.get('x-article-release-key') || ''));
-  const want = Buffer.from(key);
-  if (!key || given.length !== want.length || !crypto.timingSafeEqual(given, want)) return void res.status(403).type('text/plain').send('forbidden');
-  const before = cache; cache = null;
-  const rows = await allArticles(true);
-  void before;
-  res.json({ ok: true, scanned: rows.length });
 });

@@ -16,6 +16,7 @@
 import { doc, updateDoc, deleteField, getDoc } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { fetchVideoById, fetchUserVideos } from './backendService';
+import { isFutureRelease } from './releases/visibility';
 import type { Video, VideoComment } from '../types';
 
 /**
@@ -91,7 +92,8 @@ export async function fetchReplyCandidates(excludeVideoId?: string): Promise<Vid
   try {
     const mine = await fetchUserVideos(uid);
     return (mine || [])
-      .filter(v => v.id !== excludeVideoId && !v.isPrivate)
+      // A scheduled video is still unreleased: answering a public comment with it would publish it early.
+      .filter(v => v.id !== excludeVideoId && !v.isPrivate && !isFutureRelease(v))
       .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   } catch (e) {
     console.warn('[videoReplies] candidates failed:', (e as Error)?.message?.slice(0, 200));

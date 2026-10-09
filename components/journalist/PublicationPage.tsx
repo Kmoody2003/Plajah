@@ -1,3 +1,4 @@
+import { visibleToReader } from '../../services/journalist/embargo';
 import React, { useEffect, useState } from 'react';
 import { collection, doc as fsDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { ChevronLeft, Rss } from 'lucide-react';
@@ -35,7 +36,7 @@ export const PublicationPage: React.FC<Props> = ({ publicationId, currentUser, o
         const snap = await getDocs(query(collection(db, 'articles'), where('publicationId', '==', p.id), where('isPublic', '==', true)));
         if (!live) return;
         const ms = (v: any) => (typeof v === 'number' ? v : v?.toMillis?.() ?? 0);
-        setArticles(snap.docs.map(d => ({ ...(d.data() as any), id: d.id, timestamp: ms((d.data() as any).timestamp) }) as Article).sort((a, b) => (b.publishedAt || b.timestamp) - (a.publishedAt || a.timestamp)));
+        setArticles(snap.docs.map(d => ({ ...(d.data() as any), id: d.id, timestamp: ms((d.data() as any).timestamp) }) as Article).filter(a => visibleToReader(a as any, currentUser?.uid)).sort((a, b) => (b.publishedAt || b.timestamp) - (a.publishedAt || a.timestamp)));
       } catch { if (live) setPub(null); }
     })();
     return () => { live = false; };

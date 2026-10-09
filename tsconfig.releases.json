@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/releases/*.ts", "routes/releaseAnnouncements.ts", "components/release/*.tsx", "components/pod/PodFlagsAdmin.tsx", "components/pod/PrintEditionStep.tsx",
+    "components/pod/BuyPrintEdition.tsx", "components/pod/PrintOrdersPanel.tsx", "services/podFlagsClient.ts", "services/pod/podFlags.ts",
+    "components/journalist/ArticleDesk.tsx", "components/bookSubmit/StepDetails.tsx", "services/bookmeta/albumMap.ts",
+    "services/journalist/embargo.ts", "routes/pod.ts", "tests/releaseAnnouncer.test.ts", "tests/videoScheduling.test.ts", "tests/podFlags.test.ts", "tests/journalistEmbargo.test.ts"
+  ]
+}

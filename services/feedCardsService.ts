@@ -47,6 +47,7 @@ import { collection, query, where, orderBy, limit, getDocs, getDoc, doc } from '
 import { db } from './firebase';
 import { onSnapshot } from './safeSnapshot';
 import { filterForViewer } from './contentSafety';
+import { filterReleased } from './releases/visibility';
 import type { UserProfile } from '../types';
 import { chunk, IN_QUERY_LIMIT } from './feedPaginationCore';
 import {
@@ -195,7 +196,8 @@ export async function fetchFeedCards(
 
   const cards: FeedCardItem[] = [
     ...filterForViewer(albums, o.viewerProfile).map(a => albumToCard(a, now)),
-    ...filterForViewer(videos, o.viewerProfile).map(v => videoToCard(v, now)),
+    // "Release later" videos never reach a card before their time (videoToCard's 60s slack is only clock skew).
+    ...filterReleased(filterForViewer(videos, o.viewerProfile), viewerId).map(v => videoToCard(v, now)),
     ...events.map(e => eventToCard(e, now)),
     ...clubCards, ...debateCards, ...achievementCards, ...sportsCards,
   ].filter((c): c is FeedCardItem => !!c);

@@ -19,6 +19,7 @@ import express from 'express';
 import * as crypto from 'node:crypto';
 import { fsGet, fsSet, fsPatch, fsList, fsCreate } from '../services/firebaseAdminRest';
 import { fsCreateOnce } from '../services/safety/safetyServerIo';
+import { effectivePodFlags, POD_FLAGS, type PodFlagKey } from '../services/pod/podFlags';
 import type { PrintEdition, PrinterId, PodAddress, PodQuote, ShippingLevel, PodJobStatus } from '../services/pod/podTypes';
 import { PodError } from '../services/pod/podTypes';
 import { getProvider, listProviders, ALL_PRINTERS } from '../services/pod/registry';
@@ -35,6 +36,8 @@ export interface PodRouterDeps {
   requireRegisteredUser: any;
   getStripe: () => any;
   trustedRequestOrigin: (req: any) => string;
+  /** Verified platform-admin check (never the editable profile role). Admins can preview OFF features and read /readiness. */
+  isAdmin?: (req: any) => Promise<boolean>;
 }
 
 const SHIPPING_LEVELS: ShippingLevel[] = ['MAIL', 'PRIORITY_MAIL', 'GROUND', 'EXPEDITED', 'EXPRESS'];
@@ -238,6 +241,59 @@ export function createPodRouter(deps: PodRouterDeps): Router {
   };
   const jsonBody = express.json({ limit: '64kb' });
 
+  // ── launch flags (config/podFlags, default OFF) ───────────────────────────────────────────────────────────────
+  // Server-enforced, so hiding the UI is never the only protection. NOT gated, on purpose: GET /files (the printer must be able to
+  // fetch files for orders already placed), POST /webhook (status updates for in-flight orders) and the Stripe fulfilment path.
+  // Turning a flag off stops NEW orders; it never strands one that is already paid.
+  let flagCache: { v: Record<PodFlagKey, boolean>; exp: number } | null = null;
+  async function flagsNow() {
+    if (flagCache && flagCache.exp > Date.now()) return flagCache.v;
+    let raw: any = null; try { raw = await fsGet('config/podFlags'); } catch { raw = null; }   // unreadable => all OFF
+    flagCache = { v: effectivePodFlags(raw), exp: Date.now() + 30_000 };
+    return flagCache.v;
+  }
+  /** Passes when ANY listed flag is on, or the caller is a verified admin (preview). Otherwise 403 COMING_SOON. */
+  const needFlag = (...keys: PodFlagKey[]) => async (req: any, res: Response, next: any) => {
+    try {
+      const f = await flagsNow();
+      if (keys.some(k => f[k])) return next();
+      if (deps.isAdmin && await deps.isAdmin(req).catch(() => false)) { res.setHeader('X-Pod-Preview', '1'); return next(); }
+      res.status(403).json({ error: 'Print-on-demand is coming soon.', code: 'COMING_SOON', flag: keys[0] });
+    } catch (e) { fail(res, e); }
+  };
+  const anyPrint = needFlag('PRINT_EXPORT_PACKS', 'PRINT_ORDERING', 'PRINT_RETAIL');
+
+
+
+  /** Admin-only go-live check: what is configured, what is still missing. Reports presence only; never returns a secret. */
+  r.get('/readiness', auth, reg, async (req: any, res) => {
+    try {
+      if (!deps.isAdmin || !(await deps.isAdmin(req).catch(() => false))) return res.status(403).json({ error: 'Platform admin access required' });
+      const env = (k: string) => !!process.env[k];
+      const base = process.env.POD_PUBLIC_BASE_URL || '';
+      const lulu = getProvider('lulu') as any;
+      let luluAuth: { ok: boolean; note: string } = { ok: false, note: 'Lulu keys not set' };
+      if (lulu?.configured?.()) {
+        try { await lulu.getToken(true); luluAuth = { ok: true, note: `Authenticated against ${process.env.LULU_SANDBOX === 'false' ? 'PRODUCTION' : 'SANDBOX'}` }; }
+        catch (e: any) { luluAuth = { ok: false, note: String(e?.message || e).slice(0, 160) }; }
+      }
+      flagCache = null;
+      const flags = await flagsNow();
+      const checks = [
+        { id: 'lulu_keys', label: 'Lulu client key + secret set', ok: env('LULU_CLIENT_KEY') && env('LULU_CLIENT_SECRET') },
+        { id: 'lulu_auth', label: 'Lulu accepts the keys', ok: luluAuth.ok, note: luluAuth.note },
+        { id: 'lulu_production', label: 'Pointed at PRODUCTION Lulu (LULU_SANDBOX=false)', ok: process.env.LULU_SANDBOX === 'false', note: 'Leave on sandbox while rehearsing; flip only for launch' },
+        { id: 'file_secret', label: 'POD_FILE_SECRET set (24+ chars)', ok: (process.env.POD_FILE_SECRET || '').length >= 24 },
+        { id: 'public_url', label: 'POD_PUBLIC_BASE_URL is a public https URL', ok: /^https:\/\//.test(base) && !/localhost|127\.0\.0\.1/.test(base), note: base ? undefined : 'not set' },
+        { id: 'stripe', label: 'Stripe secret key set', ok: env('STRIPE_SECRET_KEY') },
+        { id: 'stripe_webhook', label: 'Stripe webhook secret set', ok: env('STRIPE_WEBHOOK_SECRET') },
+        // Lulu signs webhooks with the API client secret (no separate secret), so the only manual step is registering the URL.
+        { id: 'lulu_webhook', label: 'Printer webhook registered in the Lulu developer portal (manual, cannot be checked from here)', ok: false, note: 'Register ' + (base || '<POD_PUBLIC_BASE_URL>') + '/api/pod/webhook/lulu, then tick it off in the launch checklist' },
+      ];
+      res.json({ flags, flagMeta: POD_FLAGS, checks, readyForOrdering: checks.filter(c => c.id !== 'lulu_production' && c.id !== 'lulu_webhook').every(c => c.ok) });
+    } catch (e) { fail(res, e); }
+  });
+
   r.get('/providers', (_req, res) => res.json({
     providers: listProviders().map(p => ({ ...p, guide: EXPORT_GUIDES[p.id] ?? null })),
     trims: TRIM_SIZES,
@@ -266,7 +322,7 @@ export function createPodRouter(deps: PodRouterDeps): Router {
     return album;
   }
 
-  r.put('/editions/:albumId', auth, reg, jsonBody, async (req: any, res) => {
+  r.put('/editions/:albumId', auth, reg, anyPrint, jsonBody, async (req: any, res) => {
     try {
       const albumId = String(req.params.albumId);
       const album = await ownedAlbum(req, res, albumId); if (!album) return;
@@ -300,7 +356,7 @@ export function createPodRouter(deps: PodRouterDeps): Router {
     } catch (e) { fail(res, e); }
   });
 
-  r.get('/editions/:albumId', async (req: any, res) => {
+  r.get('/editions/:albumId', needFlag('PRINT_EXPORT_PACKS', 'PRINT_ORDERING', 'PRINT_RETAIL'), async (req: any, res) => {
     try {
       const d: any = await fsGet(`podEditions/${encodeURIComponent(String(req.params.albumId))}`);
       if (!d) return res.status(404).json({ error: 'No print edition' });
@@ -324,7 +380,7 @@ export function createPodRouter(deps: PodRouterDeps): Router {
     return illustrativeEstimate(e, pages, qty);
   }
 
-  r.post('/quote', auth, reg, jsonBody, async (req: any, res) => {
+  r.post('/quote', auth, reg, anyPrint, jsonBody, async (req: any, res) => {
     try {
       const e: any = await fsGet(`podEditions/${encodeURIComponent(String(req.body?.albumId || ''))}`);
       if (!e || (!e.listedForSale && e.ownerUid !== req.uid)) return res.status(404).json({ error: 'No print edition' });
@@ -342,7 +398,7 @@ export function createPodRouter(deps: PodRouterDeps): Router {
     } catch (e) { fail(res, e); }
   });
 
-  r.get('/preview/:albumId/:file', auth, reg, async (req: any, res) => {
+  r.get('/preview/:albumId/:file', auth, reg, anyPrint, async (req: any, res) => {
     try {
       const albumId = String(req.params.albumId);
       const album = await ownedAlbum(req, res, albumId); if (!album) return;
@@ -415,8 +471,8 @@ export function createPodRouter(deps: PodRouterDeps): Router {
     res.json({ url: session.url, orderId: id, buyerTotalCents: buyerTotal });
   }
 
-  r.post('/checkout', auth, reg, jsonBody, async (req: any, res) => { try { await createOrderAndSession(req, res, 'retail'); } catch (e) { fail(res, e); } });
-  r.post('/author-copies', auth, reg, jsonBody, async (req: any, res) => { try { await createOrderAndSession(req, res, req.body?.proof ? 'proof' : 'author_copies'); } catch (e) { fail(res, e); } });
+  r.post('/checkout', auth, reg, needFlag('PRINT_RETAIL'), jsonBody, async (req: any, res) => { try { await createOrderAndSession(req, res, 'retail'); } catch (e) { fail(res, e); } });
+  r.post('/author-copies', auth, reg, needFlag('PRINT_ORDERING'), jsonBody, async (req: any, res) => { try { await createOrderAndSession(req, res, req.body?.proof ? 'proof' : 'author_copies'); } catch (e) { fail(res, e); } });
 
   r.get('/orders', auth, reg, async (req: any, res) => {
     try {

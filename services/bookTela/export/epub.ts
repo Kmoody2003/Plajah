@@ -239,7 +239,7 @@ export async function buildEpub(book: BookSource, model: ExportModel, opts: Expo
   if (model.coverUrl) { const a = await assets.add(model.coverUrl); if (a) { coverPath = a.path; coverMime = a.mime; } }
   if (!coverPath) {
     const svg = generatedCover(meta);
-    coverPath = assets.addRaw('images/cover.svg', 'image/svg+xml', utf8(svg), 'cover').path; coverMime = 'image/svg+xml';
+    coverPath = assets.addRaw('images/cover.svg', 'image/svg+xml', utf8(svg), 'coverimg').path;   /* id must not collide with the cover PAGE's manifest id 'cover' */ coverMime = 'image/svg+xml';
     report.warnings.push('No cover image could be loaded, so a simple typographic cover was generated. Upload a real cover before selling.');
   }
   const coverItemId = assets.files.find(f => f.path === coverPath)!.id;
@@ -342,7 +342,7 @@ figure.qr img{width:150px;height:150px}.notes{font-size:.8em}
   textFiles.push({ id: 'nav', href: 'nav.xhtml', title: 'Contents', props: 'nav', spine: false, xhtml: nav });
 
   // a11y metadata (only claims what this exporter really produces)
-  const imgCount = assets.files.filter(f => !f.id.startsWith('qr') && f.id !== 'cover').length;
+  const imgCount = assets.files.filter(f => !f.id.startsWith('qr') && f.id !== 'coverimg').length;
   const features = ['structuralNavigation', 'tableOfContents', 'readingOrder', 'ARIA'];
   if (!fixed) features.push('displayTransformability');
   if (imgCount > 0) features.push('alternativeText');

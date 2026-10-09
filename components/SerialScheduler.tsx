@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { fetchUserAlbums, updateAlbum, auth } from '../services/backendService';
 import type { Album, BookChapter } from '../types';
+import ReleaseAnnouncementField from './release/ReleaseAnnouncementField';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,8 @@ export default function SerialScheduler() {
   const [interval, setInterval]     = useState<Interval>('WEEKLY');
   const [startDate, setStartDate]   = useState('');
   const [saving, setSaving]         = useState(false);
+  // Wording for each chapter-drop announcement (default: announce, platform wording). The server sweep posts one per drop.
+  const [announce, setAnnounce]       = useState<{ enabled?: boolean; message?: string } | undefined>(undefined);
   const [saved, setSaved]           = useState(false);
   const [loading, setLoading]       = useState(true);
 
@@ -101,10 +104,22 @@ export default function SerialScheduler() {
         description: row.releaseAt ? `RELEASE:${new Date(row.releaseAt).getTime()}|${ch.description ?? ''}` : ch.description,
       };
     });
+    // Clean, queryable copy of the schedule for the release-announcement sweep (the RELEASE: description above is the legacy reader hack).
+    const chapterSchedule = (album.bookChapters ?? []).map((ch, index) => {
+      const row = schedule.find(r => r.chapterId === ch.id);
+      const at = row?.releaseAt ? new Date(row.releaseAt).getTime() : 0;
+      return at > 0 ? { chapterId: ch.id, title: ch.title || `Chapter ${index + 1}`, releaseAt: at, index } : null;
+    }).filter((c): c is { chapterId: string; title: string; releaseAt: number; index: number } => !!c);
+    const now = Date.now();
+    const upcoming = chapterSchedule.map(c => c.releaseAt).filter(t => t > now).sort((a, b) => a - b)[0];
     await updateAlbum(album.id, {
       bookChapters: updatedChapters,
       isScheduled: true,
-    });
+      chapterSchedule,
+      // Earliest drop still ahead; the server advances it after each announcement. Null once the last chapter is out.
+      nextChapterReleaseAt: upcoming ?? null,
+      ...(announce ? { releaseAnnouncement: announce } : {}),
+    } as any);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -171,6 +186,10 @@ export default function SerialScheduler() {
               <label className={labelCls}>First drop date</label>
               <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)}
                 className={`${inputCls} w-full`} />
+            </div>
+
+            <div className="md:col-span-2">
+              <ReleaseAnnouncementField value={announce} onChange={setAnnounce} name={auth.currentUser?.displayName || ''} noun="chapter" title={album ? `${schedule[0]?.title || 'Chapter 1'} of ${album.title}` : 'your next chapter'} />
             </div>
 
             <div className="flex items-end">

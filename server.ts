@@ -86,6 +86,8 @@ import { homeDiscoveryRouter } from './routes/homeDiscovery';
 import { matterRouter } from './routes/matterRoutes';
 import { homeHubRouter, HOME_HUB_ORIGINS, startHomeHub } from './routes/homeHubRoutes';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
+import { sweepReleaseAnnouncements } from './services/releases/releaseAnnouncer';
+import { createReleaseIo } from './routes/releaseAnnouncements';
 // Fabula generation agent — server-side only (these carry the user's provider API key).
 import {
   submitMagnific as magnificSubmit, pollMagnific as magnificPoll, verifyMagnificKey,
@@ -133,6 +135,7 @@ import {
 import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './services/giftFees';
 import { createBilling } from './routes/billing';
 import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
+import { isFutureRelease } from './services/releases/visibility';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -741,6 +744,10 @@ async function resolveShareCover(type: string, id: string, track?: string): Prom
   if ((type === 'album' || type === 'track') && track) {
     const arr = f?.tracks?.arrayValue?.values || [];
     const tf = arr.find((t: any) => t.mapValue?.fields?.id?.stringValue === track)?.mapValue?.fields;
+  if (collection === 'videos' && isFutureRelease({
+    isScheduled: f?.isScheduled?.booleanValue === true, isPremiere: f?.isPremiere?.booleanValue === true,
+    releaseDate: f?.releaseDate?.integerValue ?? f?.releaseDate?.doubleValue,
+  })) return '';
     const tc = tf?.coverImage?.stringValue || tf?.coverImageUrl?.stringValue || tf?.artworkUrl?.stringValue;
     if (tc) return tc;
   }
@@ -1142,6 +1149,13 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    // First non-empty string field from a list of candidates (schemas vary by type).
    const pick = (keys: string[]): string => { for (const k of keys) { const v = f?.[k]?.stringValue; if (v) return v; } return ''; };
    const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl', 'thumbnail'];
+   // An embargoed article must not leak its title/image through a share card before its release time.
+   if (String(type) === 'article' && Number(f?.embargoUntil?.integerValue ?? f?.embargoUntil?.doubleValue ?? 0) > Date.now()) return html;
+   // Same for a scheduled ("Release later") video: no title/thumbnail in a share card until releaseDate (services/releases/visibility.ts).
+   if (collection === 'videos' && isFutureRelease({
+     isScheduled: f?.isScheduled?.booleanValue === true, isPremiere: f?.isPremiere?.booleanValue === true,
+     releaseDate: f?.releaseDate?.integerValue ?? f?.releaseDate?.doubleValue,
+   })) return html;
 
    let title = '';
    let image = '';
@@ -5468,6 +5482,7 @@ async function startServer() {
         .map((v: any) => {
           const url = v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : v.url;
           if (!url) return null;
+        .filter((v: any) => !isFutureRelease(v))   // scheduled ("Release later") videos stay out of the public feed until release
           return { id: v.id || v.identifier || url, title: v.title || 'Untitled', description: cleanDescription(v.description) || undefined, url,
             thumbnailUrl: v.muxPlaybackId ? `https://image.mux.com/${v.muxPlaybackId}/thumbnail.png?width=640&height=360&time=5` : (v.thumbnailUrl || v.coverImageUrl),
             durationSec: Number(v.duration) || undefined };
@@ -6094,6 +6109,33 @@ async function startServer() {
   app.post('/api/cron/publish-due-posts', express.json(), async (req: any, res: any) => {
     const key = req.headers['x-cron-key'];
     if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) {
+  // ── Release announcements ─────────────────────────────────────────────────────────────────────────────────────
+  // Scheduled content (albums, books, movies, videos, embargoed articles) becomes VISIBLE exactly on time because every reader
+  // compares its release date to the clock. Nothing runs at that moment, so this sweep is what ANNOUNCES it: one feed post from the
+  // creator (their own wording if they set one in the release workflow, else the default) + follower notifications + push.
+  // Run every 5 min:  POST /api/cron/release-announcements   header x-cron-key: <CRON_SECRET|ADMIN_SEED_KEY>   (same key as the other cron jobs)
+  // Exactly-once per item (create-if-absent claim doc). See docs/RELEASE_ANNOUNCEMENTS.md.
+  app.post('/api/cron/release-announcements', express.json({ limit: '4kb' }), async (req: any, res: any) => {
+    const key = req.headers['x-cron-key'];
+    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) return res.status(401).json({ error: 'Unauthorized' });
+    try {
+      // Normal runs look back 72h on purpose (never announce old content as new). An admin can run ONE deliberate catch-up: ?hours=240 (max 720).
+      const hours = Math.min(720, Math.max(1, Number(req.query?.hours) || 72));
+      const result = await sweepReleaseAnnouncements(createReleaseIo({
+        pushToUser: async (uid, m) => {
+          const u = await firestoreGetDeep('users', uid);
+          const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+          if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title: m.title, body: m.body, link: m.link, channelId: 'system', data: { type: 'CONTENT', targetId: m.targetId } });
+        },
+      }), { lookbackMs: hours * 3_600_000 });
+      console.log(`[release-announcements] checked=${result.checked} announced=${result.announced} failed=${result.failed}`);
+      res.json(result);
+    } catch (e: any) {
+      console.error('[release-announcements]', e?.message || e);
+      res.status(500).json({ error: String(e?.message || e).slice(0, 300) });
+    }
+  });
+
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const token = await getGoogleAccessToken();
@@ -7998,6 +8040,10 @@ async function startServer() {
 
     const host = req.get('host') || 'plajah.com';
     const title = dbData.fields?.title?.stringValue || 'Plajah';
+    if (collection === 'videos' && isFutureRelease({
+      isScheduled: dbData.fields?.isScheduled?.booleanValue === true, isPremiere: dbData.fields?.isPremiere?.booleanValue === true,
+      releaseDate: dbData.fields?.releaseDate?.integerValue ?? dbData.fields?.releaseDate?.doubleValue,
+    })) return res.status(404).json({ error: 'not found' });
     const cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue || '';
     const embedUrl = `https://${host}/embed?type=${type}&id=${id}${track ? `&track=${track}` : ''}`;
     const safeTitle = htmlEscape(title);
@@ -8047,6 +8093,10 @@ async function startServer() {
 
     // Album embed: ALWAYS render the full player — album art + the whole track list +
     // an audio player — whether or not a specific track was requested. (Previously a
+    if (collection === 'videos' && isFutureRelease({
+      isScheduled: dbData.fields?.isScheduled?.booleanValue === true, isPremiere: dbData.fields?.isPremiere?.booleanValue === true,
+      releaseDate: dbData.fields?.releaseDate?.integerValue ?? dbData.fields?.releaseDate?.doubleValue,
+    })) return res.status(404).send('Not Found');
     // share link without a &track= resolved no media and returned "No Media Found",
     // so album/music embeds showed nothing. This is the fix.)
     if (type === 'album') {
@@ -12616,7 +12666,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // Print-on-demand for authors (Lulu direct connect + export packs). Router owns its body parsers
   // (the printer webhook needs the RAW body for signature checks). See docs/POD_INTEGRATION.md.
-  app.use('/api/pod', createPodRouter({ authMiddleware, requireRegisteredUser, getStripe, trustedRequestOrigin }));
+  app.use('/api/pod', createPodRouter({ authMiddleware, requireRegisteredUser, getStripe, trustedRequestOrigin, isAdmin: isPlatformAdminReq }));
 
   // Academia Integrity Wall — conflict check (the only bridge between a teacher's district and
   // independent personas), Silent Mode claim mirroring, and OER licence validation. Rate-limited

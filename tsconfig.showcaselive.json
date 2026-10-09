@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/showcase/livingDoc.ts", "services/bookTela/bundleStorage.ts", "services/bookTela/livingNotes.ts", "services/bookTela/upgradeStore.ts",
+    "services/bookTela/model.ts", "services/bookTela/export/index.ts", "components/bookTela/FidelityBadge.tsx", "components/bookTela/ExportDialog.tsx",
+    "components/bookTela/useTelaEdition.ts",
+    "scripts/showcase/exportPages.ts", "scripts/showcase/publishLiving.ts", "scripts/showcase/gcp.ts", "tests/showcaseLive.test.ts"
+  ]
+}

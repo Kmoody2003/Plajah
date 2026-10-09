@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Video, VideoPlaylist, Album, Track } from '../types';
-import { fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile, uploadVideo, activateFastChannel, updateFastChannelEnabled } from '../services/backendService';
+import { rescheduleVideo, fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile, uploadVideo, activateFastChannel, updateFastChannelEnabled } from '../services/backendService';
 import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio, ShieldCheck, Upload, Film, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import UploadManager from './UploadManager';
 import MediaThumb from './ui/MediaThumb';
 import PodcastManager from './PodcastManager';
 import FastChannelManager from './FastChannelManager';
 import { motion, AnimatePresence } from 'motion/react';
+import { ReleaseLaterField, ScheduleEditor, releaseLaterInvalid, type ReleaseLaterValue } from './release/ReleaseLaterField';
 
 interface VideoManagerProps {
   user: any;
@@ -40,6 +41,8 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
     genre: '',
     isPrivate: false,
   });
+  const [releaseLater, setReleaseLater] = useState<ReleaseLaterValue>({ isScheduled: false });
+  const [scheduleBusyId, setScheduleBusyId] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadThumb, setUploadThumb] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -89,6 +92,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
 
   const handleSubmitUpload = async () => {
     if (!uploadFile || !uploadForm.title.trim()) return;
+    if (!uploadForm.isPrivate && releaseLaterInvalid(releaseLater)) { setUploadError('Pick a release date and time in the future, or turn Release later off.'); return; }
     setIsSubmitting(true);
     setUploadError('');
     setUploadProgress(0);
@@ -99,6 +103,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
           description: uploadForm.description.trim(),
           genre: uploadForm.genre || 'General',
           isPrivate: uploadForm.isPrivate,
+          ...(!uploadForm.isPrivate && releaseLater.isScheduled ? releaseLater : {}),
           file: uploadFile,
           thumbnailFile: uploadThumb || undefined,
         },
@@ -106,6 +111,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
       );
       setIsUploading(false);
       setUploadForm({ title: '', description: '', genre: '', isPrivate: false });
+      setReleaseLater({ isScheduled: false });
       setUploadFile(null);
       setUploadThumb(null);
       setUploadProgress(0);
@@ -465,6 +471,10 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
                     </button>
                   </div>
 
+                  {!uploadForm.isPrivate && (
+                    <ReleaseLaterField value={releaseLater} onChange={setReleaseLater} name={user?.displayName || ''} title={uploadForm.title} noun="video" />
+                  )}
+
                   {uploadError && (
                     <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
                       <AlertCircle size={16} className="text-red-400 shrink-0" />
@@ -557,6 +567,23 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
                   </div>
                   <div className="p-8">
                     <h3 className="text-lg font-black uppercase tracking-tight mb-2 truncate">{video.title}</h3>
+                    <div className="mb-4">
+                      <ScheduleEditor
+                        video={video} name={user?.displayName || ''} busy={scheduleBusyId === video.id}
+                        onReschedule={async (releaseDate) => {
+                          setScheduleBusyId(video.id);
+                          try { await rescheduleVideo(video.id, { releaseDate }); await loadData(); }
+                          catch (e: any) { alert(e?.message || 'Could not change the release date.'); }
+                          finally { setScheduleBusyId(null); }
+                        }}
+                        onPublishNow={async () => {
+                          setScheduleBusyId(video.id);
+                          try { await rescheduleVideo(video.id, { publishNow: true }); await loadData(); }
+                          catch (e: any) { alert(e?.message || 'Could not publish.'); }
+                          finally { setScheduleBusyId(null); }
+                        }}
+                      />
+                    </div>
                     <p className="text-[10px] font-bold text-white/40 mb-8 line-clamp-2 uppercase tracking-widest leading-relaxed">
                       {video.description || 'No description provided.'}
                     </p>

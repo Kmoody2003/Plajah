@@ -4,7 +4,7 @@ import QRCode from 'qrcode';
 import type { Contributor } from '../../bookmeta/types';
 import { checkIsbn } from '../../bookmeta/isbn';
 import type { BookSource, ExportFormat, Fidelity, PageFidelity } from '../types';
-import { fidelitySummary, type ExportModel, type OmittedItem, type XItem } from '../model';
+import { fidelitySummary, READER_ONLY_NOTES, type ExportModel, type OmittedItem, type XItem } from '../model';
 import { esc } from '../html';
 import { utf8 } from './zip';
 
@@ -140,10 +140,12 @@ export interface ExportReport {
   /** Missing/failed images that were replaced by their alt text. */
   missingAssets: string[];
   warnings: string[];
+  /** Reader-only features that never export (page-turn animations). */
+  readerOnly: string[];
 }
 
 export function newReport(format: ExportFormat, model: ExportModel): ExportReport {
-  return { format, generatedAt: model.exportedAt, fidelity: model.fidelity, summary: fidelitySummary(model.fidelity), omitted: model.omitted, missingAssets: [], warnings: [] };
+  return { format, generatedAt: model.exportedAt, fidelity: model.fidelity, summary: fidelitySummary(model.fidelity), omitted: model.omitted, missingAssets: [], warnings: [], readerOnly: model.readerOnly?.length ? [...READER_ONLY_NOTES, ...model.readerOnly] : READER_ONLY_NOTES };
 }
 
 export interface Sidecar {

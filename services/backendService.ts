@@ -1,3 +1,5 @@
+import { visibleToReader } from './journalist/embargo';
+import { isFutureRelease as isFutureReleaseVideo, visibleToViewer as videoVisibleToViewer, filterReleased as filterReleasedVideos } from './releases/visibility';
 import {
   ref,
   uploadBytes,
@@ -9,7 +11,7 @@ import {
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch,
   query, where, orderBy, limit, onSnapshot as rawOnSnapshot, Timestamp, increment,
-  arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, or, getDocFromServer
+  arrayUnion, arrayRemove, runTransaction, serverTimestamp, addDoc, or, getDocFromServer, deleteField
 } from 'firebase/firestore';
 
 // Firestore's watch stream can corrupt itself after quota/permission errors
@@ -951,7 +953,7 @@ export const fetchVideosByIds = async (ids: string[]) => {
   const path = 'videos';
   try {
     const results = await Promise.all(ids.map(id => getDoc(doc(db, path, id))));
-    return results.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() } as Video));
+    return filterReleasedVideos(results.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -3610,9 +3612,13 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
         }
       }
 
+      // A scheduled album must not leak its gallery copies: stamp the album's schedule onto each one so every video reader hides
+      // them until release. The album's own announcement covers the release, so the video sweep is told to stay quiet.
+      const albumSchedule = cloudAlbum.isScheduled && cloudAlbum.releaseDate
+        ? { isScheduled: true, releaseDate: cloudAlbum.releaseDate, releaseAnnouncement: { enabled: false } } : {};
       for (const v of videosToPublish) {
         try {
-          await setDoc(doc(db, videosCollectionPath, v.id), v);
+          await setDoc(doc(db, videosCollectionPath, v.id), { ...v, ...albumSchedule });
         } catch (e) {
           handleFirestoreError(e, OperationType.WRITE, videosCollectionPath);
         }
@@ -3777,7 +3783,8 @@ export const listenToGlobalArticles = (callback: (articles: Article[]) => void) 
       timestamp: safeToMillis(d.data().timestamp)
     } as Article));
     arr.sort((a, b) => b.timestamp - a.timestamp);
-    callback(arr);
+    // Embargoed pieces stay hidden from everyone but their author (same read-time rule as scheduled albums).
+    callback(arr.filter(a => visibleToReader(a, auth.currentUser?.uid)));
   }, (err) => {
     handleFirestoreError(err, OperationType.LIST, path);
   });
@@ -3788,11 +3795,12 @@ export const fetchArticleById = async (articleId: string): Promise<Article | nul
   try {
     const docSnap = await getDoc(doc(db, 'articles', articleId));
     if (docSnap.exists()) {
-      return {
+      const art = {
         id: docSnap.id,
         ...docSnap.data(),
         timestamp: safeToMillis(docSnap.data().timestamp)
       } as Article;
+      return visibleToReader(art as any, auth.currentUser?.uid) ? art : null;   // embargoed: not found for everyone but the author
     }
     return null;
   } catch (e) {
@@ -4130,7 +4138,7 @@ export const fetchWorldContentByWorldId = async (worldId: string): Promise<{ alb
     ]);
     return {
       albums: albumSnap.docs.map(d => ({ id: d.id, ...d.data() } as Album)),
-      videos: videoSnap.docs.map(d => ({ id: d.id, ...d.data() } as Video)),
+      videos: filterReleasedVideos(videoSnap.docs.map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid),
     };
   } catch {
     return { albums: [], videos: [] };
@@ -6021,7 +6029,8 @@ export const fetchUserVideos = async (uid: string): Promise<Video[]> => {
   try {
     const q = query(collection(db, path), where('ownerId', '==', uid), orderBy('timestamp', 'desc'));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Video));
+    // The owner keeps their own scheduled videos (VideoManager shows the badge); everyone else only sees released ones.
+    return filterReleasedVideos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -6049,7 +6058,7 @@ export const fetchFollowedVideos = async (uid: string): Promise<Video[]> => {
     const targetIds = followingIds.slice(0, 10);
     const q = query(collection(db, path), where('ownerId', 'in', targetIds), orderBy('timestamp', 'desc'), limit(20));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Video));
+    return filterReleasedVideos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -7789,6 +7798,7 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   // the length is what forces consumers back onto a default block.
   const sourceTime = await timeInfoPromise;
 
+  const scheduledRelease = video.isScheduled === true && typeof video.releaseDate === 'number' && video.releaseDate > Date.now() ? video.releaseDate : 0;
   const newVideo: Video = {
     id,
     ownerId: uploaderUid,
@@ -7805,6 +7815,9 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     timestamp: Date.now(),
     likesCount: 0,
     commentsCount: 0,
+    // "Release later": hidden from everyone but the owner until releaseDate (see services/releases/visibility.ts). The sweep
+    // (releaseAnnouncer) announces it at release; the immediate follower notification below is skipped for it.
+    ...(scheduledRelease ? { isScheduled: true, releaseDate: scheduledRelease, releaseAnnouncement: video.releaseAnnouncement || { enabled: true } } : {}),
     // Store the Mux direct-upload ID so we can resume polling if the tab is
     // refreshed before Mux finishes transcoding a large file.
     ...(muxUploadId ? { muxUploadId } : {}),
@@ -7848,7 +7861,7 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
       stampVideo(id, uploaderUid, { remixOfVideoId: video.remixOfVideoId }).catch(() => {});
     }
     // New video is new content — notify the creator's followers (unless it's a private upload).
-    if (!newVideo.isPrivate) {
+    if (!newVideo.isPrivate && !scheduledRelease) {
       notifyFollowers(uploaderUid, 'CONTENT', 'New Video', `${auth.currentUser.displayName || 'A creator'} posted a new video: ${newVideo.title}`, 'FEED', id, { highlight: true });
     }
   } catch (e) {
@@ -7957,7 +7970,7 @@ export const fetchAllVideos = async (): Promise<Video[]> => {
     // No orderBy — avoids composite index requirement on named database; sort in JS instead
     const q = query(collection(db, path), where("isPrivate", "==", false), limit(100));
     const snap = await getDocs(q);
-    const videos = snap.docs.map(d => ({ id: d.id, ...d.data() } as Video));
+    const videos = filterReleasedVideos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid);
     return videos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
@@ -7970,7 +7983,10 @@ export const fetchAllVideos = async (): Promise<Video[]> => {
 export const fetchVideoById = async (id: string): Promise<Video | null> => {
   try {
     const snap = await getDoc(doc(db, 'videos', id));
-    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Video) : null;
+    if (!snap.exists()) return null;
+    const v = { id: snap.id, ...snap.data() } as Video;
+    // A scheduled video does not exist for anyone but its owner until releaseDate passes.
+    return videoVisibleToViewer(v, auth.currentUser?.uid) ? v : null;
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, `videos/${id}`);
     return null;
@@ -8497,6 +8513,34 @@ export const updateVideo = async (videoId: string, updates: Partial<Video>) => {
   }
 };
 
+/**
+ * Owner-only: change or cancel a video's "Release later" schedule.
+ *  - `{ releaseDate }` (future)  -> (re)schedule, optionally with a new announcement choice.
+ *  - `{ publishNow: true }`      -> release immediately; runs the follower notification ONCE (the same one a normal upload
+ *    sends), because the sweep only announces scheduled items when their time arrives and will never see this one.
+ */
+export const rescheduleVideo = async (
+  videoId: string,
+  change: { publishNow: true } | { releaseDate: number; releaseAnnouncement?: { enabled?: boolean; message?: string } },
+): Promise<void> => {
+  if (!auth.currentUser) throw new Error('Must be signed in.');
+  const ref = doc(db, 'videos', videoId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('Video not found.');
+  const v = { id: snap.id, ...snap.data() } as Video;
+  if (v.ownerId !== auth.currentUser.uid) throw new Error('Only the owner can change a release schedule.');
+  if ('publishNow' in change) {
+    const wasPending = isFutureReleaseVideo(v);
+    await updateDoc(ref, { isScheduled: false, releaseDate: deleteField(), timestamp: Date.now() });
+    if (wasPending && !v.isPrivate) {
+      notifyFollowers(v.ownerId, 'CONTENT', 'New Video', `${auth.currentUser.displayName || 'A creator'} posted a new video: ${v.title}`, 'FEED', videoId, { highlight: true });
+    }
+    return;
+  }
+  if (!(change.releaseDate > Date.now())) throw new Error('Pick a release time in the future, or publish now.');
+  await updateDoc(ref, removeUndefined({ isScheduled: true, releaseDate: change.releaseDate, releaseAnnouncement: change.releaseAnnouncement }) as any);
+};
+
 export const updateTrack = async (trackId: string, updates: Partial<Track>) => {
   const path = `tracks/${trackId}`;
   try {
@@ -8511,7 +8555,7 @@ export const fetchFastChannelVideos = async (uid: string): Promise<Video[]> => {
   try {
     const q = query(collection(db, path), where('ownerId', '==', uid), where('allowInFastChannel', '==', true));
     const snap = await getDocs(q);
-    const videos = snap.docs.map(d => ({ id: d.id, ...d.data() } as Video));
+    const videos = filterReleasedVideos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid);
     return videos.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);

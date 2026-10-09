@@ -107,7 +107,7 @@ export default function ExportDialog({ book, source, rights, onClose }: Props) {
       </Card>
 
       <Card title="Export fidelity" subtitle="Per page, for the format you picked.">
-        {fid ? (<><div className="mb-2"><FidelityBadge fidelity={fid.summary.overall} /></div><FidelityReport pages={fid.pages} /></>) : <p className="text-[12px] text-white/40">Calculating.</p>}
+        {fid ? (<><div className="mb-2"><FidelityBadge fidelity={fid.summary.overall} /></div><FidelityReport pages={fid.pages} readerOnly={fid.readerOnly} /></>) : <p className="text-[12px] text-white/40">Calculating.</p>}
       </Card>
 
       {(err || out) && (

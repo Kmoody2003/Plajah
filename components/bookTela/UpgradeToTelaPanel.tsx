@@ -9,6 +9,8 @@ import { stripTags } from '../../services/bookTela/html';
 import { fidelitySummary } from '../../services/bookTela/model';
 import { Card, Field, inputCls, btnGhost, btnPrimary, hintCls } from '../bookSubmit/ui';
 import { FidelityBadge, FidelityReport } from './FidelityBadge';
+import PageTurnPreview from '../lorea/PageTurnPreview';
+import { PAGE_TURNS, PICKABLE_STYLES, defaultStyleForKind, getSpec, inferBookKind, sanitizeAuthorPageTurn, type AuthorPageTurn, type PageTurnId } from '../../services/lorea/pageTransitions';
 
 export interface AlbumCtx { id: string; ownerId: string; price?: number }
 interface Props {
@@ -66,12 +68,28 @@ export default function UpgradeToTelaPanel({ book, album, onChaptersChanged, onO
   const [formChapter, setFormChapter] = useState('');
   const [formAnchor, setFormAnchor] = useState('');
   const [formAlt, setFormAlt] = useState('');
+  const [draftTurn, setDraftTurn] = useState<AuthorPageTurn | undefined>(undefined);
 
   useEffect(() => { let alive = true; loadUpgrade(book.id).then(u => { if (alive) { setUpgrade(u && !u.revertedAt ? u : null); setLoaded(true); } }); return () => { alive = false; }; }, [book.id]);
 
   const enhancements = upgrade ? upgrade.enhancements : draftEnh;
   const setEnhancements = async (next: EnhancementInstance[]) => {
     if (upgrade) { const u = { ...upgrade, enhancements: next }; setUpgrade(u); await saveUpgrade(u); } else setDraftEnh(next);
+  };
+
+  // Page-turn style: stored on the upgrade record, published with the Tela edition, and read by every Lorea reader.
+  const pageTurn: AuthorPageTurn | undefined = upgrade ? upgrade.pageTurn : draftTurn;
+  const setPageTurn = async (next: AuthorPageTurn | undefined) => {
+    const clean = sanitizeAuthorPageTurn(next);
+    if (upgrade) { const u = { ...upgrade }; if (clean) u.pageTurn = clean; else delete u.pageTurn; setUpgrade(u); await saveUpgrade(u); } else setDraftTurn(clean);
+  };
+  const bookKind = inferBookKind({ visualLed: book.visualLed });
+  const bookStyle: PageTurnId | 'auto' = pageTurn?.style ?? 'auto';
+  const resolvedBookStyle: PageTurnId = bookStyle === 'auto' ? defaultStyleForKind(bookKind) : bookStyle;
+  const setBookStyle = (v: PageTurnId | 'auto') => setPageTurn({ ...pageTurn, style: v });
+  const setChapterStyle = (cid: string, v: PageTurnId | 'auto') => {
+    const per = { ...(pageTurn?.perChapter || {}) }; if (v === 'auto') delete per[cid]; else per[cid] = v;
+    setPageTurn({ ...pageTurn, perChapter: Object.keys(per).length ? per : undefined });
   };
 
   const eligibility = useMemo(() => canUpgrade(book), [book]);
@@ -101,7 +119,7 @@ export default function UpgradeToTelaPanel({ book, album, onChaptersChanged, onO
   const run = async (name: string, fn: () => Promise<void>) => { setBusy(name); setMsg(null); try { await fn(); } catch (e) { setMsg({ tone: 'err', text: e instanceof Error ? e.message : 'Something went wrong.' }); } finally { setBusy(null); } };
 
   const doUpgrade = () => run('upgrade', async () => {
-    const r = await upgradeBook(book, { enhancements: draftEnh, ownerId: book.ownerId });
+    const r = await upgradeBook(book, { enhancements: draftEnh, ownerId: book.ownerId, pageTurn: draftTurn });
     setUpgrade(r.upgrade); setDraftEnh([]);
     setMsg({ tone: 'ok', text: 'Upgraded. Your original chapters are saved, and you can revert at any time.' });
   });
@@ -216,6 +234,38 @@ export default function UpgradeToTelaPanel({ book, album, onChaptersChanged, onO
             {def.needsAlt && <Field label="Alt text" hint="Describe what a reader would see. Used by screen readers and in every export."><textarea className={inputCls} rows={2} value={formAlt} onChange={e => setFormAlt(e.target.value)} /></Field>}
             <div className="flex gap-2 flex-wrap"><button type="button" className={btnPrimary} onClick={addEnhancement}>Add</button><button type="button" className={btnGhost} onClick={() => setAdding(null)}>Cancel</button></div>
           </div>
+        )}
+      </Card>
+
+      <Card title="Page-turn style" subtitle="How pages turn for readers in Lorea. Readers can still switch to reduced motion or off.">
+        <div className="flex gap-4 items-start flex-wrap">
+          <PageTurnPreview id={resolvedBookStyle} />
+          <div className="flex-1 min-w-[200px] space-y-2">
+            <Field label="Style for the whole book" hint={bookStyle === 'auto' ? `Auto picks ${getSpec(resolvedBookStyle).label.toLowerCase()} for this kind of book.` : getSpec(resolvedBookStyle).blurb}>
+              <select className={inputCls} value={bookStyle} onChange={e => setBookStyle(e.target.value as PageTurnId | 'auto')} aria-label="Page-turn style for the whole book">
+                <option value="auto">Auto (recommended)</option>
+                {PICKABLE_STYLES.map(id => <option key={id} value={id}>{getSpec(id).label}</option>)}
+                <option value="none">None (instant)</option>
+              </select>
+            </Field>
+            <p className="text-[11px] text-white/45 leading-snug">Only in Lorea. EPUB and PDF exports use each reading app's own page turn, and the export report says so.{upgrade?.publishedVersionId ? ' Publish the Tela edition again for readers to see a change.' : ''}</p>
+          </div>
+        </div>
+        {included.length > 1 && (
+          <details className="mt-3">
+            <summary className="cursor-pointer text-[12px] font-bold text-white/70 min-h-[44px] flex items-center">Choose a style for individual chapters</summary>
+            <ul className="space-y-2 mt-2">
+              {included.map(c => (
+                <li key={c.id} className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[12px] text-white/70 flex-1 min-w-[120px] truncate">{c.title}</span>
+                  <select className={`${inputCls} !w-auto`} aria-label={`Page-turn style for ${c.title}`} value={pageTurn?.perChapter?.[c.id] ?? 'auto'} onChange={e => setChapterStyle(c.id, e.target.value as PageTurnId | 'auto')}>
+                    <option value="auto">Same as book</option>
+                    {PAGE_TURNS.map(t => <option key={t.id} value={t.id}>{t.id === 'none' ? 'None (instant)' : t.label}</option>)}
+                  </select>
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </Card>
 

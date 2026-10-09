@@ -1,0 +1,124 @@
+{
+  "book": "below-the-blue",
+  "model": "pokee-isaac",
+  "metrics": {
+    "totalWords": 563,
+    "storyWords": 506,
+    "sentenceCount": 59,
+    "avgSentenceWords": 8.6,
+    "longestSentenceWords": 20,
+    "fkGrade": 2.9,
+    "maxWordsOnASpread": 90,
+    "uniqueWordRatio": 0.45,
+    "refrainCount": 2
+  },
+  "report": {
+    "structure": {
+      "want": "Coral wants to find the sun because she is afraid of the dark and believes the light is gone.",
+      "obstacle": "A cloud blocks the sun, creating darkness and fear, leading Coral to swim into the deep where she feels lost and alone.",
+      "turningPoint": "Coral meets Lumi, who explains that light can come from inside (bioluminescence) and that the sun was never truly gone, just hidden.",
+      "resolution": "Coral returns to the surface, sees the sun is back, and makes a promise to meet Lumi at night, overcoming her fear of the dark.",
+      "arcStrength": "strong",
+      "notes": "The narrative arc is clear and effective for the target age. The transition from fear to understanding is well-paced. The ending reinforces the theme nicely with the promise to meet at night."
+    },
+    "characters": [
+      {
+        "name": "Coral",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Lumi",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Mabel",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "The jellies",
+        "consistent": true,
+        "issues": []
+      }
+    ],
+    "ageFit": {
+      "targetAge": "6-8",
+      "fits": true,
+      "tooEasy": [],
+      "tooHard": [
+        "The explanation of bioluminescence and the depth comparison to a skyscraper might be slightly abstract for the lower end of the 6-8 range, but it is handled well by the visual context."
+      ]
+    },
+    "readAloud": {
+      "rhythm": "strong",
+      "bestLine": "Light can come from inside, too.",
+      "weakestLine": "It fades out about as deep as a skyscraper is tall.",
+      "refrainWorks": true
+    },
+    "pageTurns": [
+      {
+        "spread": 2,
+        "worksAsTurn": true,
+        "note": "The shadow moving in creates a good suspense hook for the next page."
+      },
+      {
+        "spread": 3,
+        "worksAsTurn": true,
+        "note": "The question 'What does she see below?' effectively drives the page turn."
+      },
+      {
+        "spread": 4,
+        "worksAsTurn": true,
+        "note": "The descent into the 'deep, deep, deep' builds anticipation."
+      },
+      {
+        "spread": 5,
+        "worksAsTurn": true,
+        "note": "The sudden appearance of a light in the dark is a strong cliffhanger."
+      },
+      {
+        "spread": 6,
+        "worksAsTurn": true,
+        "note": "The reveal of Lumi and her question sets up the dialogue."
+      },
+      {
+        "spread": 7,
+        "worksAsTurn": true,
+        "note": "The visual of the jellies lighting up is a great payoff for the turn."
+      },
+      {
+        "spread": 8,
+        "worksAsTurn": true,
+        "note": "The emotional shift and the decision to go back up creates momentum."
+      },
+      {
+        "spread": 9,
+        "worksAsTurn": true,
+        "note": "The return to the surface and the promise to meet at night sets up the final scene."
+      },
+      {
+        "spread": 10,
+        "worksAsTurn": true,
+        "note": "The surprise appearance of Mabel is a fun final twist."
+      }
+    ],
+    "safety": {
+      "issues": [],
+      "notes": "No safety issues detected. The content is appropriate and positive."
+    },
+    "suggestions": [
+      {
+        "spread": 7,
+        "kind": "reword",
+        "why": "The phrase 'It fades out about as deep as a skyscraper is tall' is a bit clunky for read-aloud. Consider simplifying to 'Sunlight fades out before it gets this deep' to keep the rhythm smoother and the concept clearer for 6-year-olds."
+      },
+      {
+        "spread": 10,
+        "kind": "add",
+        "why": "Mabel's appearance is a bit abrupt. Adding a small line about Coral being surprised or impressed by the whale's song could enhance the emotional connection and make the 'surprise' feel more earned."
+      }
+    ]
+  }
+}

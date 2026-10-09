@@ -1,0 +1,87 @@
+import type { ShowcaseBook } from '../types';
+import { SHOWCASE_AUTHOR, SHOWCASE_AI_DISCLOSURE } from '../types';
+
+// ORBIT PARTY: ages 4-6. A funny, warm story about shyness. The hero tries louder and louder ways to get a shy planet to join the party, and
+// what finally works is the quietest one: sitting down and saying "I get shy too." Humour comes from planet personalities and a joke that lands.
+export const orbitParty: ShowcaseBook = {
+  id: 'orbit-party',
+  templateId: 'story-space',
+  title: 'Orbit Party!',
+  blurb: 'Zib has invited every planet in the sky to a party. Everyone comes, except Mars. Balloons do not work. Jokes do not work. What does a shy planet need?',
+  logline: 'A little astronaut learns that the best way to invite a shy friend is to sit beside them, not to push.',
+  ageMin: 4, ageMax: 6, band: 'early-picture',
+  medium: 'Torn cut-paper collage',
+  theme: 'Shyness, patience and inviting without pushing',
+  refrain: 'Even a planet can feel shy.',
+  author: SHOWCASE_AUTHOR,
+  aiDisclosure: SHOWCASE_AI_DISCLOSURE,
+  license: 'CC_BY',
+  remixIdeas: [
+    'Make the shy guest a different planet, or a different animal, or a classmate.',
+    'Change the party: a picnic, a sleepover, a birthday.',
+    'Write what YOU do when you feel shy and swap it in for Zib\'s knees.',
+    'Draw your own planets and paste them over the paper cut-outs.',
+  ],
+  characters: [
+    {
+      id: 'zib', name: 'Zib', kind: 'round little astronaut', role: 'hero',
+      personality: ['enthusiastic', 'kind', 'a bit wobbly', 'learns to listen'],
+      look: 'A small round astronaut: a big circular sunshine-yellow helmet (#FFF200) with a happy face, two black eyes with white sparkle, red cheek dots (#FF0055), a short antenna with a round pink tip, and a round hot-pink suit (#FF0055) with a mint circle badge on the chest (#00FFCC). Built from torn paper circles with a thick white sticker edge.',
+      palette: ['#FFF200', '#FF0055', '#00FFCC', '#0D0015'],
+      voice: 'Fast and excited at first, then slow and gentle when it matters.',
+      signature: 'Blows a kazoo: "Toot-toot!" And his knees go wobbly when he is shy.',
+      arc: 'Starts out pushing; learns to sit still and share a feeling; ends with a friend who comes out in their own time.',
+    },
+    {
+      id: 'nova', name: 'Nova', kind: 'comet pup', role: 'companion',
+      personality: ['playful', 'loyal', 'sniffy'],
+      look: 'A round mint-green puppy head (#00FFCC) with floppy violet ears (#7000FF), a pink nose, huge friendly eyes, and a long comet tail made of a trail of orange, yellow and pink circles.',
+      palette: ['#00FFCC', '#7000FF', '#FF9F1C', '#FF0055'],
+      voice: 'Woofs and sniffs: "Sniff! Sniff! Woof!"',
+      signature: 'Zips in a circle and leaves a trail of sparkles.',
+      arc: 'Sniffs out the guests; is the first to sit still beside Mars.',
+    },
+    {
+      id: 'mars', name: 'Mars', kind: 'shy red planet', role: 'supporting',
+      personality: ['shy', 'gentle', 'secretly funny'],
+      look: 'A big round planet in rose red (#FF0055) with darker craters, two very large white eyes with round black pupils, a tiny round mouth and a blush patch that turns pinker when shy. Built from torn paper with halftone dots.',
+      palette: ['#FF0055', '#B00040', '#FFFFFF', '#0D0015'],
+      voice: 'A whisper: "Too loud. Too many."',
+      signature: 'Hides half behind a crater, and blushes.',
+      arc: 'Hides; is invited gently; comes out slowly and dances small.',
+    },
+    {
+      id: 'saturn', name: 'Saturn', kind: 'ringed planet guest', role: 'chorus',
+      personality: ['twirly', 'show-off'],
+      look: 'A golden-yellow planet with a big violet ring tilted like a hula hoop, and a grinning face.',
+      palette: ['#FFF200', '#7000FF'],
+      voice: 'Whoooo-oo!', signature: 'Spins his ring.', arc: 'Arrives with a twirl; cheers for Mars.',
+    },
+    {
+      id: 'jupiter', name: 'Jupiter', kind: 'giant striped planet guest', role: 'chorus',
+      personality: ['booming', 'friendly'],
+      look: 'A very large orange planet with cream and brown stripes and a booming wide mouth.',
+      palette: ['#FF9F1C', '#FFF3D6'],
+      voice: '"HO HO HO!" (but he whispers it for Mars).', signature: 'Laughs so big the stars shake.', arc: 'Learns to whisper.',
+    },
+  ],
+  spreads: [
+    { n: 1, beat: 'cover', text: 'Orbit Party!', art: 'Huge bouncing title, Zib with a cake, Nova zipping past, planets as balloons.', characters: ['zib', 'nova'] },
+    { n: 2, beat: 'hero', text: 'Zib zoomed up past the moon\nwith a cake and a kazoo.\nTonight, every planet was invited to the party!', art: 'Zib flying past a gold moon holding a cake; stars everywhere.', characters: ['zib'], turn: 'Time to find the guests.' },
+    { n: 3, beat: 'vignette', text: 'Nova the comet pup zipped round and round,\nsniffing out the planets one by one.\nSniff! Sniff! Woof!', art: 'Nova\'s rainbow trail looping across a violet sky.', characters: ['nova'], turn: 'The guests arrive.', sfx: 'Woof!' },
+    { n: 4, beat: 'panorama', text: 'Saturn came spinning in his ring.\nJupiter came booming, "HO HO HO!"\nNeptune came blub-blub-blubbing.\nThe Moon brought snacks.\nEveryone came.\nAlmost everyone.', art: 'A parade of planets arriving at a floating party table.', characters: ['saturn', 'jupiter', 'zib', 'nova'], turn: 'Who is missing?' },
+    { n: 5, beat: 'quiet', text: 'Shhh.\nMars was not coming out.\nEven a planet can feel shy.', art: 'Dark violet page, a tiny Mars peeking over a crater, a small Zib far away.', characters: ['mars', 'zib'], turn: 'Zib has an idea.', sfx: 'Shhh.' },
+    { n: 6, beat: 'strip', text: 'Knock, knock, said Zib.\nNo answer.\nZib tried a balloon. Pop!\nZib tried a loud song. La la LAAAA!\nZib tried a big, loud dance. Stomp, stomp, stomp!\nMars peeked out... and hid again.', art: 'Three round windows: a knock on a crater door; a balloon pop and a loud song; a big stomping dance with Mars peeking with one eye.', characters: ['zib', 'mars'], turn: 'Too much?', sfx: 'Knock knock!' },
+    { n: 7, beat: 'reveal', text: 'Mars blushed the pinkest pink ever.\n"Too loud," whispered Mars.\n"Too many. Too bright. Too much."\nZib\'s kazoo drooped. Oh no. Maybe he had tried too hard.', art: 'A giant close-up of Mars\'s big shy eyes and blushing cheeks filling the page; tiny Zib in a corner.', characters: ['mars', 'zib'], turn: 'What will Zib do?' },
+    { n: 8, beat: 'vignette', text: 'So Zib stopped trying.\nZib sat down, right next to Mars.\n"I get shy too," said Zib.\n"My knees go wobbly. My kazoo won\'t toot. Sometimes I hide behind my helmet."\n"Really?" said Mars.\n"Really."\nNova sat down too, very still, with her tail curled around her paws.', art: 'Zib sitting beside Mars on the dark, quiet ground, both small, the cake forgotten.', characters: ['zib', 'mars', 'nova'], turn: 'They wait together.' },
+    { n: 9, beat: 'closing', text: 'They sat together.\nIt was quiet.\nIt was nice.\nEven a planet can feel shy.\nEven a shy planet can dance small.\nThen Mars rolled out, slow, slow, slow,\nand the whole sky cheered (not too loud).\nDance, dance, dance!\nEvery planet swirled\nuntil the stars went blink, blink, blink.', art: 'A wide disco of planets dancing, Mars small and happy in the middle, a disco-ball moon.', characters: ['mars', 'zib', 'nova', 'saturn', 'jupiter'], turn: 'Goodnight.' },
+    { n: 10, beat: 'quiet', text: 'Good night, planets!\nThe end.', art: 'A sleepy golden sun, Zib and Nova asleep on a purple planet.', characters: ['zib', 'nova'] },
+    { n: 11, beat: 'back', text: 'Zib has invited every planet in the sky to a party. Everyone comes, except Mars. Balloons do not work. Songs do not work. What does a shy planet need?', art: 'Back cover: a ring of planets around a floating cake, Zib waving, a barcode box.', characters: ['zib', 'nova', 'mars'] },
+  ],
+  discussion: [
+    'Why did Mars hide? How could you tell Mars was shy?',
+    'What did Zib try first? Did it work?',
+    'What worked in the end? Why do you think that helped?',
+    'What do you do when you feel shy? What helps you?',
+  ],
+};

@@ -1,0 +1,122 @@
+{
+  "book": "orbit-party",
+  "model": "pokee-isaac",
+  "metrics": {
+    "totalWords": 245,
+    "storyWords": 238,
+    "sentenceCount": 50,
+    "avgSentenceWords": 4.8,
+    "longestSentenceWords": 15,
+    "fkGrade": 1,
+    "maxWordsOnASpread": 51,
+    "uniqueWordRatio": 0.57,
+    "refrainCount": 2
+  },
+  "report": {
+    "structure": {
+      "want": "Zib wants to invite Mars to the party.",
+      "obstacle": "Mars is shy and overwhelmed by Zib's loud, pushy attempts to get him to come out.",
+      "turningPoint": "Zib stops trying to force the issue, sits down, and shares his own feelings of shyness instead of performing.",
+      "resolution": "Mars feels understood, comes out slowly, and joins the dance.",
+      "arcStrength": "strong",
+      "notes": "The story follows a clear emotional arc from 'pushing' to 'listening.' The turning point is distinct and effectively resolves the conflict through empathy rather than action."
+    },
+    "characters": [
+      {
+        "name": "Zib",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Nova",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Mars",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Saturn",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Jupiter",
+        "consistent": true,
+        "issues": []
+      }
+    ],
+    "ageFit": {
+      "targetAge": "4-6",
+      "fits": true,
+      "tooEasy": [],
+      "tooHard": []
+    },
+    "readAloud": {
+      "rhythm": "strong",
+      "bestLine": "Even a planet can feel shy.",
+      "weakestLine": "What do stars wear to bed? Moon-jamas!",
+      "refrainWorks": true
+    },
+    "pageTurns": [
+      {
+        "spread": 2,
+        "worksAsTurn": true,
+        "note": "Sets up the mission; good hook for the next page."
+      },
+      {
+        "spread": 3,
+        "worksAsTurn": true,
+        "note": "Introduces the helper; builds anticipation for the guests."
+      },
+      {
+        "spread": 4,
+        "worksAsTurn": true,
+        "note": "The 'Almost everyone' line creates a strong suspense gap for the next turn."
+      },
+      {
+        "spread": 5,
+        "worksAsTurn": true,
+        "note": "The quiet page contrasts with the previous noise; effective pause."
+      },
+      {
+        "spread": 6,
+        "worksAsTurn": true,
+        "note": "The failed attempts build tension; the 'Too much?' question is a good prompt for the child."
+      },
+      {
+        "spread": 7,
+        "worksAsTurn": true,
+        "note": "Emotional reveal; the question 'What will Zib do?' drives the narrative forward."
+      },
+      {
+        "spread": 8,
+        "worksAsTurn": true,
+        "note": "The resolution begins; the stillness is a key visual and emotional beat."
+      },
+      {
+        "spread": 9,
+        "worksAsTurn": true,
+        "note": "The payoff; the slow roll-out is a satisfying release of tension."
+      }
+    ],
+    "safety": {
+      "issues": [],
+      "notes": "The story promotes healthy social boundaries and empathy. No safety concerns."
+    },
+    "suggestions": [
+      {
+        "spread": 6,
+        "kind": "reword",
+        "why": "The joke 'Moon-jamas' is a bit long and complex for a 4-year-old to process in the middle of a fast-paced sequence of failed attempts. It might break the rhythm. Consider a simpler, more visual failure (e.g., 'Zib tried a big hug. Mars flinched.')."
+      },
+      {
+        "spread": 9,
+        "kind": "reword",
+        "why": "The line 'Even a shy planet can find the beat' is slightly abstract. For ages 4-6, concrete actions are better. Consider: 'Even a shy planet can dance small.'"
+      }
+    ]
+  }
+}

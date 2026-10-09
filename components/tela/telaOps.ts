@@ -10,6 +10,8 @@ import type {
   TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaField, TelaFrame,
   TelaFramePreset, TelaImageLayer, TelaImageLayerGroup, TelaNotesDevice, TelaRow, TelaVectorObject,
 } from '../../types';
+import type { LivingBook, LivingPage } from '../../services/living/contracts';
+import { setLivingPage } from '../../services/living/authoring/livingDoc';
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 // CSS px at 96dpi, so 816px prints as exactly 8.5in via @page.
@@ -70,6 +72,9 @@ export type TelaOp =
   // ── Binding graph ops ───────────────────────────────────────────────────────
   | { type: 'ADD_BINDING'; binding: TelaBinding }
   | { type: 'REMOVE_BINDING'; bindingId: string }
+  // ── Living layer (behaviours, scores, narration): one page at a time, or the whole book (JSON import) ──
+  | { type: 'SET_LIVING_PAGE'; page: LivingPage }
+  | { type: 'SET_LIVING_BOOK'; living: LivingBook | undefined }
   // ── Versioning (P2b) — lock/unlock is a doc-level mutation ───────────────────
   | { type: 'SET_LOCKED'; locked: boolean }
   | { type: 'SET_CURRENT_VERSION'; versionId: string; locked?: boolean };
@@ -291,6 +296,12 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       }
       return { ...doc, bindings, devices, updatedAt: now };
     }
+
+    // ── Living layer ────────────────────────────────────────────────────────────
+    case 'SET_LIVING_PAGE':
+      return { ...doc, living: setLivingPage(doc.living, op.page, doc.id), updatedAt: now };
+    case 'SET_LIVING_BOOK':
+      return { ...doc, living: op.living, updatedAt: now };
 
     // ── Versioning ──────────────────────────────────────────────────────────────
     case 'SET_LOCKED':

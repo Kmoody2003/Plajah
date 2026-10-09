@@ -341,6 +341,14 @@
       ]
     },
     {
+      "collectionGroup": "follows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "followingId", "order": "ASCENDING" },
+        { "fieldPath": "followerId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "publicAchievements",
       "queryScope": "COLLECTION",
       "fields": [

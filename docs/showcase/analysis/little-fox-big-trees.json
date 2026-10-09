@@ -1,0 +1,117 @@
+{
+  "book": "little-fox-big-trees",
+  "model": "pokee-isaac",
+  "metrics": {
+    "totalWords": 386,
+    "storyWords": 340,
+    "sentenceCount": 53,
+    "avgSentenceWords": 6.4,
+    "longestSentenceWords": 16,
+    "fkGrade": 0.3,
+    "maxWordsOnASpread": 68,
+    "uniqueWordRatio": 0.48,
+    "refrainCount": 2
+  },
+  "report": {
+    "structure": {
+      "want": "Tam wants to walk home safely through the Big Trees.",
+      "obstacle": "Tam is afraid of the size of the trees and his own smallness, compounded by the arrival of a lost fawn (Dot) who needs help.",
+      "turningPoint": "Tam chooses to help Dot despite his fear, realizing that 'someone has to go first' and that they can follow the gold light in the trees.",
+      "resolution": "Tam helps Dot find her mother, then returns home to Mama Fox, reframing the trees as gentle friends rather than scary giants.",
+      "arcStrength": "strong",
+      "notes": "The narrative arc is clear and effective for the target age. The transition from fear to courage is driven by empathy (helping Dot), which aligns perfectly with the stated theme. The resolution provides a satisfying emotional shift in Tam's perception of the environment."
+    },
+    "characters": [
+      {
+        "name": "Tam",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Dot",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "Mama Fox",
+        "consistent": true,
+        "issues": []
+      },
+      {
+        "name": "The Big Trees",
+        "consistent": true,
+        "issues": []
+      }
+    ],
+    "ageFit": {
+      "targetAge": "5-7",
+      "fits": true,
+      "tooEasy": [],
+      "tooHard": []
+    },
+    "readAloud": {
+      "rhythm": "strong",
+      "bestLine": "Left foot, right foot, hush.",
+      "weakestLine": "Tam counted the trunks: one, two, three, four... then lost count.",
+      "refrainWorks": true
+    },
+    "pageTurns": [
+      {
+        "spread": 2,
+        "worksAsTurn": true,
+        "note": "Sets up the stakes and the first step."
+      },
+      {
+        "spread": 3,
+        "worksAsTurn": true,
+        "note": "Builds atmosphere and Tam's internal fear."
+      },
+      {
+        "spread": 4,
+        "worksAsTurn": true,
+        "note": "Creates suspense with the silence before the sound."
+      },
+      {
+        "spread": 5,
+        "worksAsTurn": true,
+        "note": "The 'Crunch' and 'Peek' provide a strong visual and auditory hook for the turn."
+      },
+      {
+        "spread": 6,
+        "worksAsTurn": true,
+        "note": "Reveals the companion and the new problem (Dot is lost)."
+      },
+      {
+        "spread": 7,
+        "worksAsTurn": true,
+        "note": "Tam makes the decision to help; the refrain returns to signal movement."
+      },
+      {
+        "spread": 8,
+        "worksAsTurn": true,
+        "note": "The visual shift to gold light and the reunion with the doe is a satisfying climax."
+      },
+      {
+        "spread": 9,
+        "worksAsTurn": true,
+        "note": "Resolution and thematic closure."
+      }
+    ],
+    "safety": {
+      "issues": [],
+      "notes": "No safety concerns. The story promotes kindness and courage in a safe, non-threatening context."
+    },
+    "suggestions": [
+      {
+        "spread": 3,
+        "kind": "reword",
+        "why": "The line 'Tam counted the trunks: one, two, three, four... then lost count' is a bit prosaic compared to the poetic rhythm of the rest of the book. Consider a more sensory or rhythmic description of the overwhelming number of trees to maintain the lyrical quality."
+      },
+      {
+        "spread": 8,
+        "kind": "reword",
+        "why": "The phrase 'gold, sleepy light' is lovely, but 'sleepy' might be slightly abstract for the youngest end of the 5-7 range. 'Soft' or 'warm' might be more immediately visual, though 'sleepy' works well for the mood."
+      }
+    ]
+  }
+}

@@ -174,6 +174,7 @@ import AdminMusicLab from './admin/AdminMusicLab';
 import AdminMediaHealth from './admin/AdminMediaHealth';
 import AdminExperiences from './admin/AdminExperiences';
 import BillingFlagsAdmin from './billing/BillingFlagsAdmin';
+import PodFlagsAdmin from './pod/PodFlagsAdmin';
 import AdminFilmIngestVault from './admin/AdminFilmIngestVault';
 import AdminThreatProtection from './admin/AdminThreatProtection';
 
@@ -208,7 +209,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'EXPERIENCES' | 'BILLING_FLAGS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB' | 'THREAT_PROTECTION' | 'CONTENT_REPORTS'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'EXPERIENCES' | 'BILLING_FLAGS' | 'POD_FLAGS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB' | 'THREAT_PROTECTION' | 'CONTENT_REPORTS'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
@@ -669,6 +670,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'MEDIA_HEALTH', label: 'Media Health', icon: HeartPulse },
             { id: 'EXPERIENCES', label: 'Experiences', icon: Clapperboard },
             { id: 'BILLING_FLAGS', label: 'Billing flags', icon: BarChart3 },
+            { id: 'POD_FLAGS', label: 'Print launch', icon: BookOpen },
             { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
             { id: 'ADS', label: 'Ad Platform', icon: Megaphone },
             { id: 'THEMES', label: 'Theme Manager', icon: Palette },
@@ -1472,6 +1474,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             )}
 
             {activeTab === 'BILLING_FLAGS' && <BillingFlagsAdmin key="billingFlags" />}
+            {activeTab === 'POD_FLAGS' && <PodFlagsAdmin key="podFlags" />}
 
             {activeTab === 'EXPERIENCES' && <AdminExperiences key="experiences" />}
 

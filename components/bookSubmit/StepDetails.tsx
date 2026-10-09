@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import ReleaseAnnouncementField from '../release/ReleaseAnnouncementField';
+import { auth } from '../../services/firebase';
 import { Plus, Search, X } from 'lucide-react';
 import type { BookDraft, BookMetadata, ContributorRole } from '../../services/bookmeta/types';
 import { MAX_BISAC, MAX_DESCRIPTION, MAX_KEYWORDS } from '../../services/bookmeta/types';
@@ -166,6 +168,9 @@ export default function StepDetails({ draft, updateMeta }: Props) {
           <Field label="Original publication date" hint="Only if it was published before (a re-release, a translation, a public-domain work)."><input type="date" className={inputCls} value={m.originalPublicationDate} onChange={e => updateMeta({ originalPublicationDate: e.target.value })} /></Field>
         </div>
         <p className={hintCls}>Pre-orders are set on the Pricing step.</p>
+        {m.publicationDate && Date.parse(m.publicationDate) > Date.now() && (
+          <ReleaseAnnouncementField value={m.releaseAnnouncement} onChange={v => updateMeta({ releaseAnnouncement: v })} name={auth.currentUser?.displayName || ''} noun="book" title={m.title} />
+        )}
       </Card>
     </div>
   );

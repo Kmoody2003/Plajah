@@ -1,0 +1,81 @@
+import type { ShowcaseBook } from '../types';
+import { SHOWCASE_AUTHOR, SHOWCASE_AI_DISCLOSURE } from '../types';
+
+// BEEP BLOCK STREET: ages 3-5. A loud, rhythmic read-aloud built on sound words (BEEP! HONK! TOOT! POP!) and a clear problem-search-fix shape:
+// a bus loses his beep, the whole street gets stuck, and the smallest friend finds it. Kids join in on the sounds.
+export const beepBlockStreet: ShowcaseBook = {
+  id: 'beep-block-street',
+  templateId: 'story-city',
+  title: 'Beep Block Street',
+  blurb: 'Every morning, Bo the bus wakes up Beep Block Street with one great big BEEP. Then one grey morning, the beep is gone. Who can find it? Maybe the smallest friend on the street.',
+  logline: 'A bus loses his beep and the whole street gets stuck, until a small pigeon finds it in an unexpected place.',
+  ageMin: 3, ageMax: 5, band: 'preschool',
+  medium: 'Vibrant pop and screen-print graphics',
+  theme: 'Small friends can fix big problems, and a voice matters most when it is missing',
+  refrain: 'Beep!',
+  author: SHOWCASE_AUTHOR,
+  aiDisclosure: SHOWCASE_AI_DISCLOSURE,
+  license: 'CC_BY',
+  remixIdeas: [
+    'Give Bo a different sound: a ding, a moo, a song.',
+    'Make the lost thing something else, like a wheel or a wave.',
+    'Name the street after your own street and add your neighbours as shops.',
+    'Turn it into a rhyming version in your language.',
+  ],
+  characters: [
+    {
+      id: 'bo', name: 'Bo', kind: 'square red bus', role: 'hero',
+      personality: ['cheerful', 'loud', 'loyal', 'a little proud'],
+      look: 'A boxy, rounded-corner bus in tomato red (#E5173F) with a pale-blue front window (#BFE6FF), two huge round white goggle eyes with black pupils, a wide white-toothed grin, a yellow roof light (#FFC300), two round yellow headlights and chunky black wheels with yellow hubs. Always seen from the front or a flat three-quarter side, with a thick black outline and a hard offset shadow.',
+      palette: ['#E5173F', '#BFE6FF', '#FFC300', '#1A1A1D'],
+      voice: 'Big, bold and bouncy. Says everything with a beep.',
+      signature: 'A great big BEEP! to start the day, and a small beep to say goodnight.',
+      arc: 'Starts proud of his loud beep; loses it; learns to say thank you to the small friend who found it.',
+    },
+    {
+      id: 'pip', name: 'Pip', kind: 'small city pigeon', role: 'companion',
+      personality: ['curious', 'brave', 'tiny but determined'],
+      look: 'A small round pigeon with an emerald-green body (#00D68F), a mint-blue head (#7EE0C9), a golden-yellow beak (#FFC300), one bright round eye and small orange feet. Very small next to Bo; always drawn with a bold black outline.',
+      palette: ['#00D68F', '#7EE0C9', '#FFC300', '#FF8A3D'],
+      voice: 'Quick little coos: "Coo? Coo!"',
+      signature: 'Tilts his head to one side when he is thinking.',
+      arc: 'Starts as a pigeon who naps on Bo\'s roof; becomes the hero who finds the beep.',
+    },
+    {
+      id: 'tilly', name: 'Tilly the Taxi', kind: 'yellow taxi', role: 'chorus',
+      personality: ['impatient', 'honky', 'softens in the end'],
+      look: 'A little taxi in sunshine yellow (#FFC300) with a checkered stripe, a pair of cross, slanted eyebrows over round eyes, and a TAXI sign on her roof.',
+      palette: ['#FFC300', '#1A1A1D'],
+      voice: 'Honks when she is cross.',
+      signature: 'HONK!',
+      arc: 'Cross at first; waves hello at the end.',
+    },
+    {
+      id: 'gus', name: 'Gus the Truck', kind: 'big green dump truck', role: 'chorus',
+      personality: ['grumbly', 'big', 'soft-hearted'],
+      look: 'A chunky dump truck in leaf green (#2AAE5E) with a rusty-orange tipper (#E8883A) and round sleepy eyes.',
+      palette: ['#2AAE5E', '#E8883A'],
+      voice: 'A deep "Toot-toot!" that is much smaller than he is.',
+      signature: 'TOOT!',
+      arc: 'Stuck and grumpy at first; cheers loudest at the end.',
+    },
+  ],
+  spreads: [
+    { n: 1, beat: 'cover', text: 'Beep! Block Street', art: 'Bo grinning at the front, Pip on the street sign, a tall colourful street behind them.', characters: ['bo', 'pip'] },
+    { n: 2, beat: 'hero', text: 'Good morning, Beep Block Street!\nBo the bus rolls out with a rumble, a yawn,\nand a great big...', art: 'Wide sunny street, Bo rolling out of his garage, pigeon Pip waking on his roof.', characters: ['bo', 'pip'], turn: 'The beep!', sfx: 'BEEP!' },
+    { n: 3, beat: 'hero', text: 'Beep! says Bo, and the baker wakes up.\nBeep! says Bo, and the barber stretches.\nBeep! says Bo, and the pigeons go flap, flap, flap!', art: 'Three little windows: the baker, the barber, the pigeons, each reacting to a big yellow BEEP word.', characters: ['bo', 'pip'], turn: 'But one morning...', sfx: 'BEEP!' },
+    { n: 4, beat: 'quiet', text: 'But one grey morning,\nBo opened his mouth,\nand nothing came out.\nNot a toot.\nNot a peep.\nNot a beep.', art: 'Night-blue street under one streetlamp cone; a small, sad Bo; Pip on the lamp looking down.', characters: ['bo', 'pip'], turn: 'The street notices.' },
+    { n: 5, beat: 'panorama', text: 'Honk! Toot! HONK!\nTilly honked. Gus tooted. Nobody knew when to go.\nThe street was stuck,\nand every driver was cross.\nOnly Pip did not honk.\nPip tilted his head. Where did the beep go?', art: 'Wide traffic jam: Tilly and Gus and other cars with cross eyebrows; Bo in the middle, Pip on the sign.', characters: ['bo', 'tilly', 'gus', 'pip'], turn: 'Pip has an idea.', sfx: 'HONK! TOOT!' },
+    { n: 6, beat: 'strip', text: 'Pip looked everywhere.\nIn the bakery: warm bread. No beep.\nIn the barber shop: snip, snip. No beep.\nIn Bo\'s tailpipe: something tiny...\nsomething stuck!', art: 'Three tall panels: bakery window, barber pole, the dark round of a tailpipe with a tiny yellow spark inside.', characters: ['pip'], turn: 'Pull!' },
+    { n: 7, beat: 'reveal', text: 'Pip tugged. Pip pulled. Pip pushed.\nPOP!\nOut came a teeny, tiny beep,\nand Bo said it as loud as he could.', art: 'A giant BEEP! word across a red burst, tiny Bo and Pip at the bottom, sparks and stars.', characters: ['bo', 'pip'], turn: 'The street cheers.', sfx: 'BEEP!' },
+    { n: 8, beat: 'closing', text: 'Bo gave Pip a special thank-you beep.\nBeep-beep!\nNow Bo beeps good morning,\ngood afternoon,\nand goodnight.\nAnd Pip sleeps on his roof.\nBeep.', art: 'A pink dusk street, Bo with eyes closed and a sleepy smile, Pip tucked on his roof, lamps glowing.', characters: ['bo', 'pip'] },
+    { n: 9, beat: 'activity', text: 'Where is Pip now?\nCan you find him in the windows?\nHow many yellow lamps can you count?', art: 'A grid of city windows with Pip, Bo and shapes hiding in them; counting boxes beside it.', characters: ['pip', 'bo'] },
+    { n: 10, beat: 'back', text: 'Bo the bus lost his beep, and the whole street went quiet. Can a small pigeon find it before the town is late?', art: 'Back cover: the street at noon with Bo and Pip, a barcode box.', characters: ['bo', 'pip'] },
+  ],
+  discussion: [
+    'Why did the street get stuck when Bo lost his beep?',
+    'Where did Pip look? Where would you look?',
+    'What sound do you make when you are happy?',
+    'How did Bo say thank you to Pip?',
+  ],
+};

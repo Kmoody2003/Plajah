@@ -14,6 +14,7 @@ import type { TelaBlock, TelaDevice, TelaDoc, TelaFrame, TelaMediaDevice, TelaVe
 import { fillTemplateObjects, type TemplateLike } from '../journalist/articleTela';
 import type { BookSource, BookSourceChapter, EnhancementInstance, UpgradeOptions } from './types';
 import { enhancementFrame, isFrameLevel, BOOK_FRAME_W } from './enhancements';
+import { FIXED_PAGE_MARK } from './livingNotes';
 import { htmlToNodes, nodesToHtml, normalizeChapterHtml, stripTags, type ChapterNode } from './html';
 
 export const PAGE_MAX_H = 900;
@@ -209,6 +210,7 @@ export interface TelaToBookResult {
 }
 
 const headlineOf = (d: TelaVectorDevice): string | undefined => {
+  if (d.objectLabel === FIXED_PAGE_MARK) return undefined;   // a fixed picture-book page: title comes from the frame, not from lettered HEADLINE glyphs
   const t = d.objects.find(o => o.kind === 'TEXT' && o.templateRole === 'HEADLINE');
   return t?.text ? stripTags(t.text).replace(/\s+/g, ' ').trim() : undefined;
 };
@@ -228,7 +230,7 @@ export function telaDocToBook(doc: Pick<TelaDoc, 'id' | 'frames' | 'devices'>, b
     if (role.role === 'cover') { const d = devs[0]; if (d?.type === 'MEDIA' && d.src) coverUrl = d.src; continue; }
     if (role.role === 'opener') {
       ensure(role.chapterId);
-      const d = devs[0]; if (d?.type === 'VECTOR') { const h = headlineOf(d); if (h) titleBy.set(role.chapterId, h); }
+      const d = devs[0]; if (d?.type === 'VECTOR') { const h = headlineOf(d); if (h) titleBy.set(role.chapterId, h); else if (d.objectLabel === FIXED_PAGE_MARK && (f.label || d.name)) titleBy.set(role.chapterId, String(f.label || d.name)); }
       continue;
     }
     if (role.role === 'enhancement') { ensure(role.chapterId); continue; }

@@ -1,0 +1,95 @@
+{
+  "book": "beep-block-street",
+  "model": "pokee-isaac",
+  "metrics": {
+    "totalWords": 217,
+    "storyWords": 173,
+    "sentenceCount": 39,
+    "avgSentenceWords": 4.4,
+    "longestSentenceWords": 15,
+    "fkGrade": 0.3,
+    "maxWordsOnASpread": 35,
+    "uniqueWordRatio": 0.53,
+    "refrainCount": 14
+  },
+  "report": {
+    "structure": {
+      "want": "Bo wants to wake up the street with his loud, proud beep.",
+      "obstacle": "Bo loses his voice (the beep) one morning, causing traffic chaos and confusion.",
+      "turningPoint": "Pip the pigeon investigates and finds the 'tiny beep' stuck in Bo's tailpipe.",
+      "resolution": "Pip pulls the beep out, restoring Bo's voice; Bo thanks Pip, and the street returns to normal with a warmer dynamic.",
+      "arcStrength": "ok",
+      "notes": "The plot is simple and clear, fitting the age group. The 'beep' being a physical object stuck in the tailpipe is a slightly magical/mechanical hybrid, but acceptable for a picture book. The emotional arc (proud -> lost -> grateful) is present but brief."
+    },
+    "characters": {
+      "name": "Bo",
+      "consistent": true,
+      "issues": [
+        "The transition from 'proud' to 'grateful' happens very quickly in Spread 8; a bit more internal reflection might help the 3-5 year old understand the lesson."
+      ]
+    },
+    "characters_2": {
+      "name": "Pip",
+      "consistent": true,
+      "issues": [
+        "Pip's agency is strong, which is good. However, the description 'something tiny... something stuck' in Spread 6 is vague. Is the beep a literal object? If so, how did it get there? It works as whimsy, but might confuse logical 5-year-olds."
+      ]
+    },
+    "characters_3": {
+      "name": "Tilly & Gus",
+      "consistent": true,
+      "issues": [
+        "They serve as background noise/contrast. Their arcs (cross -> cheerful) are implied but not explicitly shown in the text, relying on the illustrator to convey the mood shift."
+      ]
+    },
+    "ageFit": {
+      "targetAge": "3-5",
+      "fits": true,
+      "tooEasy": [
+        "The vocabulary is very simple, which is appropriate, but the plot resolution is very fast. Older 5-year-olds might find the 'stuck beep' concept too simplistic or magical without more grounding."
+      ],
+      "tooHard": []
+    },
+    "readAloud": {
+      "rhythm": "strong",
+      "bestLine": "Beep! says Bo, and the baker wakes up. / Beep! says Bo, and the barber stretches.",
+      "weakestLine": "Not a toot. / Not a peep. / Not a beep.",
+      "refrainWorks": true
+    },
+    "pageTurns": [
+      {
+        "spread": 2,
+        "worksAsTurn": true,
+        "note": "The pause before 'The beep!' is a classic and effective page turn for anticipation."
+      },
+      {
+        "spread": 4,
+        "worksAsTurn": true,
+        "note": "The shift to 'But one grey morning' creates a good tonal shift for the next spread."
+      },
+      {
+        "spread": 6,
+        "worksAsTurn": true,
+        "note": "The command 'Pull!' is a strong interactive cue for the child to anticipate the action on the next page."
+      }
+    ],
+    "safety": {
+      "issues": [
+        "None."
+      ],
+      "notes": "The story is safe and positive. The 'stuck' object in the tailpipe is resolved safely by a pigeon, not a child, so no danger is implied for the reader."
+    },
+    "suggestions": [
+      {
+        "spread": 6,
+        "kind": "reword",
+        "why": "'Something tiny... something stuck' is a bit abstract. Consider making it slightly more concrete or whimsical to match the tone, e.g., 'A tiny, squeaky little beep, / stuck fast in the pipe!'"
+      },
+      {
+        "spread": 8,
+        "kind": "add",
+        "why": "Add a line where Bo explicitly acknowledges Pip's bravery or smallness to reinforce the theme 'Small friends can fix big problems.' E.g., 'Even a tiny bird can make a big sound.'"
+      }
+    ]
+  }
+}

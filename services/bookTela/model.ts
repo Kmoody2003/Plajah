@@ -8,6 +8,7 @@ import { ENHANCEMENTS, instanceFidelity, resolveStrategy, validateInstance } fro
 import { parseFrameId } from './bookToTela';
 import { esc, stripTags } from './html';
 import { objectsToSvg } from '../tela/telaSvg';
+import { FIXED_PAGE_MARK, livingReaderOnlyNotes } from './livingNotes';
 
 export type XBlockKind = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'quote' | 'li' | 'oli' | 'hr';
 
@@ -33,6 +34,11 @@ export interface XChapter {
   notes: XNote[];
 }
 
+/** Things that exist only in the Lorea reader and are never part of an EPUB/PDF/Markdown/HTML file. Shown in every fidelity report. */
+export const READER_ONLY_NOTES: string[] = [
+  'Page-turn animations (curl, flip, slide and the rest) are a Lorea reader feature. Exported EPUB and PDF files do not carry them: the reading app you open the file in uses its own page turn.',
+];
+
 export interface OmittedItem { id: string; label: string; reason: string }
 
 export interface ExportModel {
@@ -42,6 +48,8 @@ export interface ExportModel {
   glossary: { term: string; definition: string }[];
   omitted: OmittedItem[];
   fidelity: PageFidelity[];
+  /** Extra reader-only lines for THIS book (a living book's behaviours, music, narration). Appended to READER_ONLY_NOTES in the report. */
+  readerOnly?: string[];
   /** True when pages are mostly pictures (picture book, comic): recommend fixed-layout. */
   visualLed: boolean;
   platformUrl: string;
@@ -187,7 +195,7 @@ export function buildExportModel(inp: BuildModelInput, opts: ModelOptions): Expo
     if (role.role === 'opener') {
       const ch = get(role.chapterId); const d = devs[0];
       if (d?.type === 'VECTOR') {
-        const h = d.objects.find(o => o.kind === 'TEXT' && o.templateRole === 'HEADLINE');
+        const h = d.objectLabel === FIXED_PAGE_MARK ? undefined : d.objects.find(o => o.kind === 'TEXT' && o.templateRole === 'HEADLINE');   // fixed pages keep the frame's own title
         if (h?.text) ch.title = stripTags(h.text).replace(/\s+/g, ' ').trim() || ch.title;
         chapterTitles.set(ch.id, ch.title);
         ch.openerObjects = { objects: d.objects, w: d.width, h: d.height };
@@ -244,6 +252,7 @@ export function buildExportModel(inp: BuildModelInput, opts: ModelOptions): Expo
     coverUrl, coverAlt, chapters: list, glossary, omitted, fidelity: [],
     visualLed: book.visualLed ?? (visualFrames > 0 && visualFrames >= textFrames),
     platformUrl: url, exportedAt,
+    ...(doc.living ? { readerOnly: livingReaderOnlyNotes(doc.living) } : {}),
   };
   model.fidelity = pageFidelity(doc, inp.upgrade, opts.format);
   return model;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import ReleaseAnnouncementField from './release/ReleaseAnnouncementField';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion, Character } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
@@ -188,6 +189,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [tags, setTags] = useState<string[]>(initialAlbum?.tags || []);
   const [tagInput, setTagInput] = useState('');
   const [isScheduled, setIsScheduled] = useState<boolean>(initialAlbum?.isScheduled || false);
+  // What the creator wants announced at release (default: announce, platform wording). Used by the server sweep.
+  const [releaseAnnouncement, setReleaseAnnouncement] = useState<{ enabled?: boolean; message?: string } | undefined>((initialAlbum as any)?.releaseAnnouncement);
   const [isSlideshowEnabled, setIsSlideshowEnabled] = useState<boolean>(initialAlbum?.isSlideshowEnabled || false);
   // Story Intelligence re-run toggle (films/TV, Edit Details). Not persisted — it's a one-shot
   // "run it again on save"; the analysis itself is a server-side job that outlives this dialog.
@@ -976,6 +979,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
           run: (onProgress) => uploadVideo({
             title: vidTitle, description: finalDescription, file: vidFile, thumbnailFile: coverFile, coverImageFile: coverFile,
             genre, isRello: true, isPrivate, tags,
+            // The Schedule Release control above applies to a Reello upload too: hidden until then, announced by the release sweep.
+            ...(isScheduled && !isPrivate && releaseDate && new Date(releaseDate).getTime() > Date.now()
+              ? { isScheduled: true, releaseDate: new Date(releaseDate).getTime(), ...(releaseAnnouncement ? { releaseAnnouncement } : {}) } : {}),
           } as any, (p) => onProgress('Uploading to Reello…', Math.max(5, Math.round(p)))),
           onDone: (created) => onCreated(created as any),
         });
@@ -1021,6 +1027,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         publishToAudius: type === 'MUSIC' ? publishToAudius : undefined,
         audiusPublishStatus: (type === 'MUSIC' && publishToAudius) ? 'pending' as const : initialAlbum?.audiusPublishStatus,
         releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined,
+        ...(isScheduled && releaseAnnouncement ? { releaseAnnouncement } : {}),
         worldId: finalWorldId,
         characterIds: createdCharacterIds.length > 0 ? createdCharacterIds : initialAlbum?.characterIds,
         hideNSeekConfig: hnsEnabled ? {
@@ -3038,6 +3045,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             <div className="space-y-2">
               <label className="block text-[9px] font-black uppercase tracking-widest text-white/20">Release Date & Time</label>
               <input type="datetime-local" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all" />
+              <div className="pt-2">
+                <ReleaseAnnouncementField value={releaseAnnouncement} onChange={setReleaseAnnouncement}
+                  name={auth.currentUser?.displayName || ''} noun={type === 'BOOK' ? 'book' : type === 'VIDEO' ? 'video' : type === 'MUSIC' ? 'release' : 'project'} title={title} />
+              </div>
             </div>
           )}
         </div>

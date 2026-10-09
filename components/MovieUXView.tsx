@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { visibleToViewer as releaseVisibleToViewer } from '../services/releases/visibility';
 import { Video, Album, Character, IPWorld, LoreEntry, TimelineEvent, WhatIfBranchPoint, WhatIfChoice, CharacterTimestamp, Club } from '../types';
 import {
   Play, Plus, Share2, ArrowLeft, Eye, Pencil,
@@ -765,7 +766,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 };
 
 // ─── MovieUXView ───────────────────────────────────────────────────────────────
-const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, onNavigateToWorld, onOpenItem, onEditFilm, currentUser }) => {
+const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, onNavigateToWorld, onOpenItem, onEditFilm, currentUser }) => {
   const {
     activateVideoSource,
     setVideoElement,
@@ -2279,6 +2280,20 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
       </div>
     </>
   );
+};
+
+/** A scheduled title ("Release later") does not exist for anyone but its owner until releaseDate: a deep link must not open it. */
+const MovieUXView: React.FC<MovieUXViewProps> = (props) => {
+  if (!releaseVisibleToViewer(props.item as any, props.currentUser?.uid)) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center text-white" role="status">
+        <p className="text-sm font-black uppercase tracking-widest">Not available yet</p>
+        <p className="text-xs text-white/50">This title has not been released. Check back after its release date.</p>
+        <button type="button" onClick={props.onBack} className="rounded-xl bg-white/10 px-5 py-2 text-[10px] font-black uppercase tracking-widest">Back</button>
+      </div>
+    );
+  }
+  return <MovieUXViewInner {...props} />;
 };
 
 export default MovieUXView;

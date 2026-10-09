@@ -10,6 +10,7 @@ import type { TelaDoc } from '../../types';
 import type { BookSource, BookTelaUpgrade } from './types';
 import { createUpgrade, makeBundle, type BookTelaBundle, type VersionStamp } from './upgrade';
 import { telaDocToBook } from './bookToTela';
+import { bundleFromVersionDoc } from './bundleStorage';
 
 export const MAX_BUNDLE_BYTES = 900_000;
 
@@ -55,7 +56,7 @@ export async function syncFromTela(book: BookSource, upgrade: BookTelaUpgrade) {
 
 /** Freeze a version, copy it to Firestore for readers on other devices, and flag the album. */
 export async function publishBookTela(album: { id: string; ownerId: string; price?: number }, book: BookSource, upgrade: BookTelaUpgrade, label?: string): Promise<{ ok: boolean; versionId?: string; error?: string }> {
-  const [{ loadTelaDoc, publishTelaVersion }, { doc: fsDoc, setDoc, updateDoc, arrayUnion }, { db, auth }] = await Promise.all([
+  const [{ loadTelaDoc, publishTelaVersion }, { doc: fsDoc, setDoc, updateDoc, arrayUnion, deleteField }, { db, auth }] = await Promise.all([
     import('../telaStore'), import('firebase/firestore'), import('../backendService'),
   ]);
   const user = auth.currentUser;
@@ -75,6 +76,8 @@ export async function publishBookTela(album: { id: string; ownerId: string; pric
       'bookTela.enabled': true, 'bookTela.docId': upgrade.docId, 'bookTela.versionId': version.versionId, 'bookTela.upgradedAt': upgrade.upgradedAt,
       'bookTela.layoutPreference': upgrade.layoutPreference ?? 'AUTO', 'bookTela.enhancementCount': upgrade.enhancements.length,
       'bookTela.versions': arrayUnion({ versionId: version.versionId, createdAt: bundle.createdAt }),
+      // The author's page-turn choice rides on the album (small) so the classic reader and the Tela reader both see it; deleteField when it is back to Auto (Firestore rejects undefined).
+      'bookTela.pageTurn': bundle.pageTurn ?? deleteField(),
     });
     await saveUpgrade({ ...upgrade, publishedVersionId: version.versionId });
     return { ok: true, versionId: version.versionId };
@@ -98,11 +101,23 @@ export async function loadReaderBundle(albumId: string, versionId: string): Prom
   if (cached?.json) { try { return JSON.parse(cached.json) as BookTelaBundle; } catch { /* refetch */ } }
   try {
     const [{ doc: fsDoc, getDoc }, { db }] = await Promise.all([import('firebase/firestore'), import('../backendService')]);
-    const snap = await getDoc(fsDoc(db, 'albums', albumId, 'telaVersions', versionId));
-    if (!snap.exists()) return null;
-    const json = (snap.data() as { bundleJson?: string }).bundleJson;
-    if (!json) return null;
-    await cacheBundle(albumId, versionId, json);
-    return JSON.parse(json) as BookTelaBundle;
+    // 1) the version doc (inline bundleJson for classic upgrades, or a manifest). Reading it needs the telaVersions rules; if they are not
+    //    deployed (or the read is denied) we do not give up: 2) the SAME manifest is mirrored on the album record, which is publicly readable.
+    let got: Awaited<ReturnType<typeof bundleFromVersionDoc>> = null;
+    try {
+      const snap = await getDoc(fsDoc(db, 'albums', albumId, 'telaVersions', versionId));
+      if (snap.exists()) got = await bundleFromVersionDoc(albumId, snap.data() as Record<string, unknown>);
+    } catch { /* denied or offline: try the album-record manifest */ }
+    if (!got) {
+      try {
+        const album = await getDoc(fsDoc(db, 'albums', albumId));
+        const m = (album.data() as any)?.bookTela?.manifest;
+        if (m && typeof m === 'object' && (m as any).versionId === versionId) got = await bundleFromVersionDoc(albumId, m as Record<string, unknown>);
+      } catch { /* flat pages */ }
+    }
+    // Any failure returns null: the flat pages are read instead.
+    if (!got) return null;
+    await cacheBundle(albumId, versionId, got.json);
+    return got.bundle;
   } catch { return null; }
 }

@@ -7,6 +7,7 @@
 // how it degrades when the book is exported to open formats (EPUB / PDF / Markdown / HTML).
 
 import type { BookMetadata, Contributor } from '../bookmeta/types';
+import type { AuthorPageTurn } from '../lorea/pageTransitions';
 
 export interface BookSourceChapter {
   id: string;
@@ -104,6 +105,8 @@ export interface BookTelaUpgrade {
   openerTemplateId?: string;
   /** Visual-led books default to fixed-layout EPUB; the author can override. */
   layoutPreference?: 'AUTO' | 'REFLOW' | 'FIXED';
+  /** Page-turn animation every Lorea reader sees by default (readers can switch to reduced/off). Never exported. */
+  pageTurn?: AuthorPageTurn;
   /** Last published Tela version (readers who bought pin to a version, see readerMode). */
   publishedVersionId?: string;
   /** Dropped on revert; kept so the UI can show "reverted at". */
@@ -116,4 +119,5 @@ export interface UpgradeOptions {
   now?: number;
   enhancements?: EnhancementInstance[];
   template?: import('../journalist/articleTela').TemplateLike | null;
+  pageTurn?: AuthorPageTurn;
 }

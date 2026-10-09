@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { recordHabit } from '../services/habitsService';
 import { createPortal } from 'react-dom';
 import { Album, BookChapter, BookPage, Comment, BookNote } from '../types';
@@ -15,6 +15,11 @@ import { subscribeToComments, postComment, createPost, loginWithGoogle } from '.
 import { cacheExternalBookAssets } from '../services/bookStorageService';
 import { fetchBookBinary, fetchBookText, formatReadableText, parseChaptersFromText, ParsedChapter, stripHtmlToText } from '../services/bookContentService';
 import BookFolioBody from './lorea/BookFolioBody';
+import PageTurn from './lorea/PageTurn';
+import PageTurnSettings from './lorea/PageTurnSettings';
+import { usePageTurn } from './lorea/usePageTurn';
+import { runEpubTurn } from './lorea/epubTurn';
+import { dirForArrowKey, dirForTapSide, inferBookKind, sanitizeAuthorPageTurn } from '../services/lorea/pageTransitions';
 import { adaptEpub, adaptPdf, toParsedChapters, type FolioDoc, type PageExtras } from '../services/bookPageAdapters';
 import CommentSection from './CommentSection';
 import ShareButton from './ShareButton';
@@ -534,7 +539,12 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
   // Load content whenever the resolved format changes (including TXT fallback override)
   useEffect(() => {
-    if (currentChapter?.content) {
+    if (currentChapter?.pages?.length) {
+      // Picture / comic chapter: the images ARE the book. Text stored alongside (for search and read-aloud) must never switch the reader
+      // into text mode, or the buttons, tap zones and table of contents would drive hidden text pages instead of the pictures.
+      setChapterContent('');
+      setParsedChapters([]);
+    } else if (currentChapter?.content) {
       const formatted = formatReadableText(currentChapter.content);
       setChapterContent(formatted);
       setParsedChapters(parseChaptersFromText(formatted));
@@ -547,7 +557,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     } else if (!isEpub) {
       setChapterContent('');
     }
-  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, isTxt, isEpub, forceTxtFallback]);
+  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, currentChapter?.pages?.length, isTxt, isEpub, forceTxtFallback]);
 
   const loadFullText = async (url: string, fallback?: string) => {
     if (!mountedRef.current) return;
@@ -662,13 +672,40 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     }
   }, [epubRendition, fontSize, modeScale, readingTheme, fontFamily, theme]);
 
+  // ── Page turn animation ───────────────────────────────────────────────────
+  // Which animation plays comes from the author's choice on the book edition, the reader's own setting
+  // (Reading Settings > Page animation) and the OS reduced-motion preference. See docs/LOREA_PAGE_TURNS.md.
+  const readerRtl = (book as any).readingDir === 'rtl';
+  const pageTurnKind = inferBookKind({ rtl: readerRtl, visualLed: pages.length > 0 && !isEpub, format: (book as any).bookFormat });
+  const pageTurnAuthor = useMemo(() => sanitizeAuthorPageTurn(book.bookTela?.pageTurn), [book.bookTela?.pageTurn]);
+  const pageTurn = usePageTurn({ kind: pageTurnKind, author: pageTurnAuthor, chapterId: currentChapter?.id });
+  const readerGestureRef = useRef<HTMLDivElement>(null);
+  const epubShellRef = useRef<HTMLDivElement>(null);
+  const epubTurnBusy = useRef(false);
+  const pageTurnPaper = readingTheme === 'SEPIA' ? '#f1e6cb' : readingTheme === 'PAPER' ? '#f3f1ea' : readingTheme === 'VIOLET' ? '#1a1526' : (readingTheme === 'DARK' || theme !== 'LIGHT') ? '#202024' : '#f4efe4';
+  /** EPUB: exit animation, rendition move, enter animation on the live reader surface (no snapshot of the epub.js iframe is possible). */
+  const turnEpub = useCallback((dir: 1 | -1, navigate: () => void) => {
+    if (epubTurnBusy.current || !epubRendition) { navigate(); return; }
+    epubTurnBusy.current = true;
+    const r: any = epubRendition;
+    const relocated = () => new Promise<void>((resolve) => {
+      let done = false;
+      const fin = () => { if (done) return; done = true; try { r.off?.('relocated', fin); } catch { /* gone */ } resolve(); };
+      try { r.on?.('relocated', fin); } catch { /* ignore */ }
+      setTimeout(fin, 420);
+    });
+    runEpubTurn({ el: epubShellRef.current, turn: pageTurn.turn, dir, rtl: readerRtl, navigate, relocated })
+      .catch(() => { /* animation is cosmetic */ })
+      .finally(() => { epubTurnBusy.current = false; });
+  }, [epubRendition, pageTurn.turn, readerRtl]);
+
   const nextPage = useCallback(() => {
     if (pageLocked) { lockedNudge(); return; }
     if (isEpub && epubRendition) {
       try {
-        if ((epubRendition as any).manager) epubRendition.next();
+        if ((epubRendition as any).manager) turnEpub(1, () => { try { epubRendition.next(); } catch (e) { console.warn('EPUB next page error', e); } });
       } catch (e) { console.warn('EPUB next page error', e); }
-    } else if (parsedChapters.length > 0) {
+    } else if (parsedChapters.length > 0 && pages.length === 0) {
       const ch = parsedChapters[activeParsedChapter];
       if (activeParsedPage < ch.pages.length - 1) {
         setActiveParsedPage(p => p + 1);
@@ -682,15 +719,15 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       setCurrentChapterIndex(currentChapterIndex + 1);
       setCurrentPageIndex(0);
     }
-  }, [pageLocked, lockedNudge, isEpub, epubRendition, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, pages.length, currentChapterIndex, book.bookChapters]);
+  }, [pageLocked, lockedNudge, isEpub, epubRendition, turnEpub, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, pages.length, currentChapterIndex, book.bookChapters]);
 
   const prevPage = useCallback(() => {
     if (pageLocked) { lockedNudge(); return; }
     if (isEpub && epubRendition) {
       try {
-        if ((epubRendition as any).manager) epubRendition.prev();
+        if ((epubRendition as any).manager) turnEpub(-1, () => { try { epubRendition.prev(); } catch (e) { console.warn('EPUB prev page error', e); } });
       } catch (e) { console.warn('EPUB prev page error', e); }
-    } else if (parsedChapters.length > 0) {
+    } else if (parsedChapters.length > 0 && pages.length === 0) {
       if (activeParsedPage > 0) {
         setActiveParsedPage(p => p - 1);
       } else if (activeParsedChapter > 0) {
@@ -705,17 +742,19 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       const prevChapterPages = book.bookChapters?.[currentChapterIndex - 1].pages || [];
       setCurrentPageIndex(Math.max(0, prevChapterPages.length - 1));
     }
-  }, [pageLocked, lockedNudge, isEpub, epubRendition, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, currentChapterIndex, book.bookChapters]);
+  }, [pageLocked, lockedNudge, isEpub, epubRendition, turnEpub, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, currentChapterIndex, book.bookChapters, pages.length]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') nextPage();
-      if (e.key === 'ArrowLeft') prevPage();
+      // RTL books (manga, Arabic): the left arrow advances. LTR is unchanged.
+      const d = dirForArrowKey(e.key, (book as any).readingDir === 'rtl');
+      if (d === 1) nextPage();
+      if (d === -1) prevPage();
       if (e.key === 'Escape') onBack();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nextPage, prevPage, onBack]);
+  }, [nextPage, prevPage, onBack, book]);
 
   // ── Read-along narration ─────────────────────────────────────────────────
   const stopReadAlong = useCallback(() => {
@@ -1002,7 +1041,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     const pb = party.playback;
     if (!pb) return;
     followingRef.current = true;
-    if (isEpub && typeof pb.cfi === 'string' && pb.cfi && pb.cfi !== epubLocation) setEpubLocation(pb.cfi);
+    if (isEpub && typeof pb.cfi === 'string' && pb.cfi && pb.cfi !== epubLocation) {
+      // Followers get the same exit/enter turn as a reader who turned the page themselves (direction unknown: forward).
+      const cfi = pb.cfi; turnEpub(1, () => setEpubLocation(cfi));
+    }
     if (parsedChapters.length) {
       if (typeof pb.parsedChapter === 'number' && pb.parsedChapter !== activeParsedChapter && pb.parsedChapter < parsedChapters.length) setActiveParsedChapter(pb.parsedChapter);
       if (typeof pb.parsedPage === 'number' && pb.parsedPage !== activeParsedPage) setActiveParsedPage(pb.parsedPage);
@@ -1060,6 +1102,107 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const txtFontFamily =
     fontFamily === 'serif' ? 'font-serif' :
     fontFamily === 'mono'  ? 'font-mono'  : 'font-sans';
+
+  /** Linear position of a parsed page: stable order across chapters, used to tell a turn from a jump. */
+  const parsedOrder = (ch: number, pg: number) => { let n = 0; for (let i = 0; i < ch && i < parsedChapters.length; i++) n += parsedChapters[i].pages.length; return n + pg; };
+  const parsedNeighbor = (dir: 1 | -1): { ch: number; pg: number } | null => {
+    const ch = parsedChapters[activeParsedChapter]; if (!ch) return null;
+    if (dir === 1) {
+      if (activeParsedPage < ch.pages.length - 1) return { ch: activeParsedChapter, pg: activeParsedPage + 1 };
+      return activeParsedChapter < parsedChapters.length - 1 ? { ch: activeParsedChapter + 1, pg: 0 } : null;
+    }
+    if (activeParsedPage > 0) return { ch: activeParsedChapter, pg: activeParsedPage - 1 };
+    if (activeParsedChapter > 0) return { ch: activeParsedChapter - 1, pg: Math.max(0, parsedChapters[activeParsedChapter - 1].pages.length - 1) };
+    return null;
+  };
+
+  // One parsed page as a card. Used for the live page AND, by PageTurn, for the neighbouring page while a turn plays or is dragged.
+  const renderParsedCard = (chIdx: number, pgIdx: number, live: boolean) => {
+    const activeCh = parsedChapters[chIdx] || parsedChapters[0];
+    const activePg = activeCh.pages[pgIdx] || activeCh.pages[0] || [];
+    const chTitle = parsedChapters.length > 1 ? activeCh.title : (currentChapter?.title || activeCh.title);
+    return (
+      <div className={`${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto w-full h-full ${s.scrollbar}`}>
+        {book.coverImage && chIdx === 0 && pgIdx === 0 && (
+          <div className="relative h-40 overflow-hidden rounded-t-3xl">
+            <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.5) saturate(1.3)' }} />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
+            <div className="absolute inset-0 flex items-end p-8">
+              <h3 className="text-2xl font-black uppercase tracking-widest text-white drop-shadow-2xl">{chTitle}</h3>
+            </div>
+          </div>
+        )}
+        <div className="p-6 sm:p-10 lg:p-12 xl:p-16">
+          {pageStyle === 'FOLIO' ? (
+            <BookFolioBody
+              paras={activePg}
+              chapterTitle={chTitle}
+              bookTitle={book.title}
+              author={book.artist || undefined}
+              pageNo={pgIdx + 1}
+              pageCount={activeCh.pages.length || 1}
+              chapterStart={pgIdx === 0}
+              titleShownElsewhere={!!book.coverImage && chIdx === 0 && pgIdx === 0}
+              readingTheme={readingTheme}
+              fontFamily={fontFamily}
+              fontSizePct={Math.round(fontSize * modeScale)}
+              doubleColumn={viewMode === 'DOUBLE'}
+              readAlong={live ? readAlongPos : null}
+              wordRef={live ? readAlongWordRef : undefined}
+              onReadFrom={startReadAlong}
+              figures={live && folioActive ? folioExtras.figures : undefined}
+              loadScan={folioActive && folioDoc?.scan ? () => folioDoc.scan!(chIdx, pgIdx) : undefined}
+              easy={easyRead}
+              calm={calmRead}
+              seed={book.id}
+            />
+          ) : (<>
+          {!(book.coverImage && chIdx === 0 && pgIdx === 0) && (
+            <h3 className={`text-2xl font-black uppercase tracking-tight mb-8 text-center ${txtHdColor}`}>{chTitle}</h3>
+          )}
+          <div className={`${txtFontFamily} text-lg ${modeLeading} ${txtColor} space-y-0 ${viewMode === 'DOUBLE' ? 'columns-1 md:columns-2 gap-10 lg:gap-14 [column-rule:1px_solid_rgba(255,255,255,0.06)]' : ''}`} style={{ fontSize: `${Math.round(fontSize * modeScale)}%` }}>
+            {activePg.map((para, i) => (
+              <p key={i} className="mb-5">
+                {live && readAlongPos?.para === i
+                  ? (() => {
+                      // Wrap words so the one being narrated can glow
+                      let w = 0;
+                      return para.split(/(\s+)/).map((tok, k) => {
+                        if (!tok || /^\s+$/.test(tok)) return tok;
+                        const idx = w++;
+                        const isCurrent = idx === readAlongPos!.word;
+                        return (
+                          <span
+                            key={k}
+                            ref={isCurrent && live ? readAlongWordRef : undefined}
+                            className={isCurrent
+                              ? 'bg-orange-500/50 text-white rounded-md px-1 -mx-1 shadow-[0_0_12px_rgba(249,115,22,0.45)] transition-all duration-100'
+                              : 'transition-colors duration-100'}
+                          >
+                            {tok}
+                          </span>
+                        );
+                      });
+                    })()
+                  : para}
+              </p>
+            ))}
+          </div>
+          </>)}
+          {/* Page turn hint at bottom */}
+          {(pgIdx < activeCh.pages.length - 1 || chIdx < parsedChapters.length - 1) && (
+            <div className="mt-12 pt-8 border-t border-white/5 text-center">
+              <button onClick={nextPage} className={`text-[9px] font-black uppercase tracking-[0.3em] ${s.subtext} hover:text-small-orange transition-colors`}>
+                {pgIdx < activeCh.pages.length - 1
+                  ? `Continue — Page ${pgIdx + 2} →`
+                  : `Next: ${parsedChapters[chIdx + 1]?.title} →`}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Portal to <body> so `fixed inset-0` is viewport-relative — the app's SpatialUIRoot
   // wrapper is transformed, which would otherwise confine this fixed reader to a small
@@ -1296,6 +1439,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       {/* Reader Area — Full Bleed Content First */}
       <div className="flex-1 flex overflow-hidden w-full h-full relative">
         <div 
+          ref={readerGestureRef}
           className={`flex-1 relative flex items-center justify-center overflow-auto p-2 sm:p-4 lg:p-6 pt-16 pb-16 no-scrollbar transition-all duration-500 ${(showComments || showNotes || showTOC || showSettings) ? 'lg:mr-[400px]' : ''}`}
           onClick={() => setShowControls(!showControls)}
         >
@@ -1377,6 +1521,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               </div>
             ) : isEpubReader && epubData ? (
               <div 
+                ref={epubShellRef}
                 className={`w-full h-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl relative ${readingTheme === 'SEPIA' ? 'bg-[#f4ecd8]' : readingTheme === 'PAPER' ? 'bg-[#fdfdfd]' : readingTheme === 'DARK' ? 'bg-[#111]' : readingTheme === 'VIOLET' ? 'bg-[#0e0b16]' : (theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]')}`}
               >
                 <ReaderErrorBoundary
@@ -1507,6 +1652,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   onIndexChange={setCurrentPageIndex}
                   readingDir={(book as any).readingDir === 'rtl' ? 'rtl' : 'ltr'}
                   title={book.title}
+                  pageTurnAuthor={pageTurnAuthor}
                 />
               </div>
             ) : isLoadingContent ? (
@@ -1514,92 +1660,24 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 <Loader2 className="animate-spin text-small-orange" size={48} />
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Decrypting neural transcript...</p>
               </div>
-            ) : parsedChapters.length > 0 ? (() => {
-              const activeCh = parsedChapters[activeParsedChapter] || parsedChapters[0];
-              const activePg = activeCh.pages[activeParsedPage] || activeCh.pages[0] || [];
-              const chTitle = parsedChapters.length > 1 ? activeCh.title : (currentChapter?.title || activeCh.title);
-              return (
-                <div className={`${modeMaxW} w-full ${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto h-full max-h-[92vh] ${s.scrollbar}`}>
-                  {book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0 && (
-                    <div className="relative h-40 overflow-hidden rounded-t-3xl">
-                      <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.5) saturate(1.3)' }} />
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
-                      <div className="absolute inset-0 flex items-end p-8">
-                        <h3 className="text-2xl font-black uppercase tracking-widest text-white drop-shadow-2xl">{chTitle}</h3>
-                      </div>
-                    </div>
-                  )}
-                  <div className="p-6 sm:p-10 lg:p-12 xl:p-16">
-                    {pageStyle === 'FOLIO' ? (
-                      <BookFolioBody
-                        paras={activePg}
-                        chapterTitle={chTitle}
-                        bookTitle={book.title}
-                        author={book.artist || undefined}
-                        pageNo={activeParsedPage + 1}
-                        pageCount={activeCh.pages.length || 1}
-                        chapterStart={activeParsedPage === 0}
-                        titleShownElsewhere={!!book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0}
-                        readingTheme={readingTheme}
-                        fontFamily={fontFamily}
-                        fontSizePct={Math.round(fontSize * modeScale)}
-                        doubleColumn={viewMode === 'DOUBLE'}
-                        readAlong={readAlongPos}
-                        wordRef={readAlongWordRef}
-                        onReadFrom={startReadAlong}
-                        figures={folioActive ? folioExtras.figures : undefined}
-                        loadScan={folioActive && folioDoc?.scan ? () => folioDoc.scan!(activeParsedChapter, activeParsedPage) : undefined}
-                        easy={easyRead}
-                        calm={calmRead}
-                        seed={book.id}
-                      />
-                    ) : (<>
-                    {!(book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0) && (
-                      <h3 className={`text-2xl font-black uppercase tracking-tight mb-8 text-center ${txtHdColor}`}>{chTitle}</h3>
-                    )}
-                    <div className={`${txtFontFamily} text-lg ${modeLeading} ${txtColor} space-y-0 ${viewMode === 'DOUBLE' ? 'columns-1 md:columns-2 gap-10 lg:gap-14 [column-rule:1px_solid_rgba(255,255,255,0.06)]' : ''}`} style={{ fontSize: `${Math.round(fontSize * modeScale)}%` }}>
-                      {activePg.map((para, i) => (
-                        <p key={i} className="mb-5">
-                          {readAlongPos?.para === i
-                            ? (() => {
-                                // Wrap words so the one being narrated can glow
-                                let w = 0;
-                                return para.split(/(\s+)/).map((tok, k) => {
-                                  if (!tok || /^\s+$/.test(tok)) return tok;
-                                  const idx = w++;
-                                  const isCurrent = idx === readAlongPos.word;
-                                  return (
-                                    <span
-                                      key={k}
-                                      ref={isCurrent ? readAlongWordRef : undefined}
-                                      className={isCurrent
-                                        ? 'bg-orange-500/50 text-white rounded-md px-1 -mx-1 shadow-[0_0_12px_rgba(249,115,22,0.45)] transition-all duration-100'
-                                        : 'transition-colors duration-100'}
-                                    >
-                                      {tok}
-                                    </span>
-                                  );
-                                });
-                              })()
-                            : para}
-                        </p>
-                      ))}
-                    </div>
-                    </>)}
-                    {/* Page turn hint at bottom */}
-                    {(activeParsedPage < activeCh.pages.length - 1 || activeParsedChapter < parsedChapters.length - 1) && (
-                      <div className="mt-12 pt-8 border-t border-white/5 text-center">
-                        <button onClick={nextPage} className={`text-[9px] font-black uppercase tracking-[0.3em] ${s.subtext} hover:text-small-orange transition-colors`}>
-                          {activeParsedPage < activeCh.pages.length - 1
-                            ? `Continue — Page ${activeParsedPage + 2} →`
-                            : `Next: ${parsedChapters[activeParsedChapter + 1]?.title} →`}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })() : (
+            ) : parsedChapters.length > 0 ? (
+              <PageTurn
+                pageKey={`${activeParsedChapter}:${activeParsedPage}`}
+                order={parsedOrder(activeParsedChapter, activeParsedPage)}
+                turn={pageTurn.turn}
+                rtl={readerRtl}
+                renderNeighbor={(dir) => { const n = parsedNeighbor(dir); return n ? renderParsedCard(n.ch, n.pg, false) : null; }}
+                canTurn={(dir) => !pageLocked && !!parsedNeighbor(dir)}
+                onTurn={(dir) => (dir === 1 ? nextPage() : prevPage())}
+                gestureRef={readerGestureRef}
+                sound={pageTurn.soundOn}
+                paper={pageTurnPaper}
+                radius="1.5rem"
+                className={`${modeMaxW} w-full h-full max-h-[92vh]`}
+              >
+                {renderParsedCard(activeParsedChapter, activeParsedPage, true)}
+              </PageTurn>
+            ) : (
               <div className={`max-w-2xl w-full aspect-[2/3] ${s.card} rounded-3xl flex items-center justify-center`}>
                 <div className="text-center p-12">
                   <BookOpenIcon size={64} className={`mx-auto mb-8 ${theme === 'LIGHT' ? 'text-black/10' : 'text-white/10'}`} />
@@ -1613,12 +1691,12 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
           </div>
 
           {/* Navigation Overlays */}
-          <div className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize group" onClick={(e) => { e.stopPropagation(); prevPage(); }}>
+          <div className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize group" onClick={(e) => { e.stopPropagation(); (dirForTapSide('left', readerRtl) === 1 ? nextPage : prevPage)(); }}>
             <div className="absolute inset-y-0 left-0 w-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-black/40 to-transparent">
               <ChevronLeft size={48} className="text-white/40" />
             </div>
           </div>
-          <div className="absolute inset-y-0 right-0 w-1/4 cursor-e-resize group" onClick={(e) => { e.stopPropagation(); nextPage(); }}>
+          <div className="absolute inset-y-0 right-0 w-1/4 cursor-e-resize group" onClick={(e) => { e.stopPropagation(); (dirForTapSide('right', readerRtl) === 1 ? nextPage : prevPage)(); }}>
             <div className="absolute inset-y-0 right-0 w-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-black/40 to-transparent">
               <ChevronRight size={48} className="text-white/40" />
             </div>
@@ -1658,6 +1736,24 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                         </span>
                       </button>
                     ))}
+                  </div>
+                ) : pages.length > 0 ? (
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-3">{pages.length} pages · tap a page to jump to it</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {pages.map((pg, i) => (
+                        <button
+                          key={pg.id || i}
+                          onClick={() => { setCurrentPageIndex(i); setShowTOC(false); }}
+                          aria-label={`Go to page ${i + 1}`}
+                          aria-current={currentPageIndex === i ? 'page' : undefined}
+                          className={`relative rounded-xl overflow-hidden border-2 transition-all ${currentPageIndex === i ? 'border-small-orange shadow-xl' : 'border-white/10 hover:border-white/40'}`}
+                        >
+                          <img src={pg.url} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-full aspect-[4/3] object-cover bg-black/20" />
+                          <span className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md text-[9px] font-black ${currentPageIndex === i ? 'bg-small-orange text-white' : 'bg-black/70 text-white'}`}>{i + 1}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : parsedChapters.length > 1 ? (
                   <div className="space-y-2">
@@ -1793,6 +1889,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                     <button onClick={() => setFontSize(Math.min(200, fontSize + 10))} className={`p-4 rounded-2xl ${s.card} hover:scale-110 transition-all`}><Type size={24} /></button>
                   </div>
                 </section>
+
+                {/* Page animation */}
+                <PageTurnSettings pref={pageTurn.prefs.animation} onPref={pageTurn.setAnimation} sound={pageTurn.prefs.sound} onSound={pageTurn.setSound}
+                  resolved={pageTurn.turn} reducedMotion={pageTurn.reducedMotion} cardClass={s.card} activeClass={s.activeBtn} />
 
                 {/* Font Family */}
                 <section>

@@ -1,5 +1,8 @@
 ﻿import FastImage from './ui/FastImage';
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { filterReleased } from '../services/releases/visibility';
+// Scheduled ("Release later") videos stay hidden from visitors; the owner keeps seeing their own.
+const releasedVideos = (vs?: any[]) => filterReleased(vs || [], auth.currentUser?.uid);
 import CreateEventButton from './events/CreateEventButton';
 import { gridSrc } from '../services/imageDerivatives';
 import { createPortal } from 'react-dom';
@@ -927,7 +930,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           onShowFastChannel={() => setShowFastChannel(true)}
           onShowFastChannelManager={() => setShowFastChannelManager(true)}
           albums={content}
-          videos={profile.videos || []}
+          videos={releasedVideos(profile.videos)}
           articles={articles}
           merch={merch}
           onOpenRadio={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid, params: { artistId: profile.uid } } }))}
@@ -1331,7 +1334,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                  // Try refId first, fall back to id (for pins created before refId field was added)
                  const contentRef = (pin as any).refId || pin.id;
                  const album = pin.type === 'AUDIO' ? content.find(a => a.id === contentRef) : null;
-                 const video = pin.type === 'VIDEO' ? (profile.videos || []).find((v: any) => v.id === contentRef || v.url === contentRef) : null;
+                 const video = pin.type === 'VIDEO' ? releasedVideos(profile.videos).find((v: any) => v.id === contentRef || v.url === contentRef) : null;
                  const article = pin.type === 'POST' ? articles.find(a => a.id === contentRef) : null;
                  const cover = album?.coverImage || (video as any)?.thumbnailUrl || (article as any)?.coverImage || null;
                  const title = album?.title || (video as any)?.title || (article as any)?.title || `Pinned ${pin.type}`;
@@ -1462,7 +1465,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               ...merch.map(m => ({ ...m, releaseType: 'MERCH', title: m.title, coverImage: m.imageUrl, createdAt: m.timestamp })),
               ...userApps.map(a => ({ ...a, releaseType: 'APP', title: a.title, coverImage: a.thumbnailUrl, createdAt: a.timestamp })),
               ...(profile.games || []).map(g => ({ ...g, releaseType: 'GAME', title: g.title, coverImage: g.thumbnailUrl, createdAt: g.timestamp })),
-              ...(profile.videos || []).map(v => ({ ...v, releaseType: 'VIDEO', title: v.title, coverImage: v.thumbnailUrl || v.coverImageUrl, createdAt: v.timestamp }))
+              ...releasedVideos(profile.videos).map(v => ({ ...v, releaseType: 'VIDEO', title: v.title, coverImage: v.thumbnailUrl || v.coverImageUrl, createdAt: v.timestamp }))
             ]
             .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
             .slice(0, 6)
@@ -1524,7 +1527,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             
             {/* If no releases, show placeholders */}
             {[...Array(Math.max(0, 6 - [
-              ...content, ...articles, ...merch, ...(profile.games || []), ...(profile.videos || [])
+              ...content, ...articles, ...merch, ...(profile.games || []), ...releasedVideos(profile.videos)
             ].length))].map((_, i) => (
               <div key={`empty-${i}`} className="aspect-[4/5] rounded-2xl border border-dashed border-white/5 flex items-center justify-center">
                 <Sparkles size={16} className="text-white/5" />
@@ -3509,7 +3512,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   <div className="bg-white/5 p-8 rounded-3xl border border-white/5">
                       <h3 className="text-xl font-black uppercase tracking-widest mb-6 border-b border-white/10 pb-4">Chronological Release Map</h3>
                       <div className="space-y-4">
-                          {profile.videos?.slice(0, 3).map((v, i) => (
+                          {releasedVideos(profile.videos).slice(0, 3).map((v, i) => (
                               <div key={v.id} className="flex items-center gap-4 bg-black/20 p-4 rounded-xl">
                                   <span className="font-black text-white/20 text-xl">0{i+1}</span>
                                   <div className="w-16 h-16 bg-white/10 rounded-lg" />

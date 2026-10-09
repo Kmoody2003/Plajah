@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/lorea/*.ts", "components/lorea/PageTurn.tsx", "components/lorea/usePageTurn.ts", "components/lorea/PageTurnSettings.tsx",
+    "components/lorea/PageTurnPreview.tsx", "components/lorea/epubTurn.ts", "components/bookTela/TelaBookReader.tsx",
+    "components/bookTela/UpgradeToTelaPanel.tsx", "components/bookTela/FidelityBadge.tsx", "components/ComicReader.tsx",
+    "services/bookTela/*.ts", "tests/pageTurn.test.ts", "page-turn-lab.tsx"
+  ]
+}

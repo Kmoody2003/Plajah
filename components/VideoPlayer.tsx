@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { visibleToViewer as releaseVisibleToViewer } from '../services/releases/visibility';
 import { Video, VideoComment, UserProfile } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import {
@@ -435,7 +436,7 @@ const VideoEditModal: React.FC<EditModalProps> = ({ video, onClose, onSaved }) =
 };
 
 // ── Main VideoPlayer ──────────────────────────────────────────────────────────
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, currentUser, queue, onPlayQueued, partyId }) => {
+const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, currentUser, queue, onPlayQueued, partyId }) => {
   const {
     isPlaying, pause, resume, setVideoElement, setYtPlayer,
     playVideo, currentVideo, clearMedia, volume, activateVideoSource,
@@ -1681,6 +1682,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
       {showSaveModal && <AddToPlaylistModal video={video} onClose={() => setShowSaveModal(false)} />}
     </div>
   );
+};
+
+/** A scheduled ("Release later") video does not exist for anyone but its owner until releaseDate: opening it by id says so. */
+const VideoPlayer: React.FC<VideoPlayerProps> = (props) => {
+  if (!releaseVisibleToViewer(props.video as any, props.currentUser?.uid)) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center text-white" role="status">
+        <p className="text-sm font-black uppercase tracking-widest">Not available yet</p>
+        <p className="text-xs text-white/50">This video has not been released. Check back after its release date.</p>
+        <button type="button" onClick={props.onBack} className="rounded-xl bg-white/10 px-5 py-2 text-[10px] font-black uppercase tracking-widest">Back</button>
+      </div>
+    );
+  }
+  return <VideoPlayerInner {...props} />;
 };
 
 export default VideoPlayer;

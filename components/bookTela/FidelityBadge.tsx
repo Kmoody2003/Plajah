@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2, MinusCircle } from 'lucide-react';
 import type { Fidelity, PageFidelity } from '../../services/bookTela/types';
+import { READER_ONLY_NOTES } from '../../services/bookTela/model';
 
 const LOOK: Record<Fidelity, { label: string; color: string; bg: string; Icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }> }> = {
   FULL: { label: 'Full', color: 'var(--pj-success, #06D6A0)', bg: 'var(--pj-success-soft, rgba(6,214,160,.14))', Icon: CheckCircle2 },
@@ -20,7 +21,7 @@ export function FidelityBadge({ fidelity, title }: { fidelity: Fidelity; title?:
 }
 
 /** Per-page list: every page that is not FULL, with what changes. */
-export function FidelityReport({ pages, max = 12 }: { pages: PageFidelity[]; max?: number }) {
+export function FidelityReport({ pages, max = 12, readerOnly = [] }: { pages: PageFidelity[]; max?: number; /** extra reader-only lines for a living book (fidelityFor(...).readerOnly) */ readerOnly?: string[] }) {
   const bad = pages.filter(p => p.fidelity !== 'FULL');
   const full = pages.length - bad.length;
   return (
@@ -37,6 +38,7 @@ export function FidelityReport({ pages, max = 12 }: { pages: PageFidelity[]; max
           {bad.length > max && <li className="text-[11px] text-white/35">+{bad.length - max} more pages</li>}
         </ul>
       )}
+      {[...READER_ONLY_NOTES, ...readerOnly].map(n => <p key={n} className="text-[11px] text-white/40 mt-3 leading-snug">{n}</p>)}
     </div>
   );
 }

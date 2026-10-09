@@ -2,18 +2,21 @@
 // has listed a print edition AND the server exposes it (GET /api/pod/editions/:id returns 404 otherwise).
 import React, { useEffect, useState } from 'react';
 import { podFetch, money } from './podApi';
+import { usePodFlags } from '../../services/podFlagsClient';
 
 const F0 = { name: '', street1: '', city: '', stateCode: '', postcode: '', countryCode: 'US', phone: '', email: '' };
 
 export const BuyPrintEdition: React.FC<{ albumId: string }> = ({ albumId }) => {
+  const flags = usePodFlags();
   const [ed, setEd] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [addr, setAddr] = useState(F0);
   const [qty, setQty] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => { let on = true; podFetch(`/editions/${encodeURIComponent(albumId)}`).then(j => on && j.edition?.printer && setEd(j.edition)).catch(() => {}); return () => { on = false; }; }, [albumId]);
-  if (!ed) return null;
+  const showing = flags.visible('PRINT_RETAIL');   // readers see nothing at all until retail is switched on (admins get a preview)
+  useEffect(() => { if (!showing) return; let on = true; podFetch(`/editions/${encodeURIComponent(albumId)}`).then(j => on && j.edition?.printer && setEd(j.edition)).catch(() => {}); return () => { on = false; }; }, [albumId, showing]);
+  if (!showing || !ed) return null;
   const go = async () => {
     setBusy(true); setError('');
     try { const r = await podFetch('/checkout', { method: 'POST', json: { albumId, quantity: qty, address: addr, shippingLevel: 'MAIL' } }); window.location.href = r.url; }

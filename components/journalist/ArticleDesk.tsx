@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import ReleaseAnnouncementField from '../release/ReleaseAnnouncementField';
+import { auth } from '../../services/firebase';
 import { AlertTriangle, Check, FileText, Rocket, X } from 'lucide-react';
 import { Button, Chip, Input, Surface, Textarea } from '../ui';
 import type { Article, ArticleBlock, UserProfile } from '../../types';
@@ -42,6 +44,7 @@ interface Props {
 export const ArticleDesk: React.FC<Props> = (p) => {
   const { article, content, templates } = p;
   const live = isLiveArticle(article);
+  const [announce, setAnnounce] = useState<{ enabled?: boolean; message?: string } | undefined>((article as any)?.releaseAnnouncement);
   const [disclosures, setDisclosures] = useState<ArticleDisclosures>({ ...EMPTY_DISCLOSURES, ...(article?.disclosures || {}) });
   const [rights, setRights] = useState<ImageRights[]>((article?.imageRights as ImageRights[]) || []);
   const [embargo, setEmbargo] = useState(article?.embargoUntil ? new Date(article.embargoUntil - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
@@ -87,7 +90,7 @@ export const ArticleDesk: React.FC<Props> = (p) => {
     setBusy(true); setResult(null);
     const r = await publishArticle({
       articleId: article?.id, title: content.title, subtitle: content.subtitle, coverImage: content.coverImage, category: content.category, blocks: content.blocks,
-      templateId: p.templateId || undefined, disclosures, rights: rights.filter(r => imageRefs.includes(r.ref)), claims: p.claims, embargoUntil: embargoMs,
+      templateId: p.templateId || undefined, disclosures, rights: rights.filter(r => imageRefs.includes(r.ref)), claims: p.claims, embargoUntil: embargoMs, releaseAnnouncement: embargoMs ? announce : undefined,
       publicationId: publicationId || undefined, section: section || undefined, access, aiUsedInEditor: p.aiUsed, source,
       notice: noticeText.trim() ? { label: noticeLabel, text: noticeText } : undefined,
     }, article);
@@ -199,7 +202,8 @@ export const ArticleDesk: React.FC<Props> = (p) => {
                 <Chip interactive selected={access === 'FREE'} onClick={() => setAccess('FREE')}>Free</Chip>
                 <Chip interactive selected={access === 'SUBSCRIBERS'} onClick={() => setAccess('SUBSCRIBERS')}>Subscribers</Chip>
               </div>
-              <Input label="Embargo / schedule (your local time)" type="datetime-local" value={embargo} onChange={e => setEmbargo(e.target.value)} hint="Held privately until then. There is no background clock: it goes live the next time the desk or a feed is opened after this time." />
+              <Input label="Embargo / schedule (your local time)" type="datetime-local" value={embargo} onChange={e => setEmbargo(e.target.value)} hint="Hidden from readers until then; it appears on its own at that moment." />
+              {embargo && <ReleaseAnnouncementField value={announce} onChange={setAnnounce} name={auth.currentUser?.displayName || ""} noun="article" title={content.title} />}
             </section>
 
             {live && (

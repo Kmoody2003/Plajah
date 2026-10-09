@@ -1,3 +1,4 @@
+import { visibleToViewer as videoVisibleToViewer, filterReleased as filterReleasedVideos } from '../services/releases/visibility';
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { ArrowLeft, Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Radio, FlaskConical, ExternalLink, X, Play, Volume2, VolumeX, Tv, Maximize2, Clock, Film, Sparkles, Clapperboard } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -83,7 +84,8 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
 
       const CINEMA_GENRES = ['Movie', 'TV Series', 'Feature Film'];
       const isRelloVideo = (v: Video) => v.isRello === true || (v.isRello == null && !v.isLiveRecording && !(v.genre && CINEMA_GENRES.includes(v.genre)));
-      const safe = (vs: Video[]) => filterForViewer(vs, viewer);
+      // Scheduled ("Release later") videos stay hidden from everyone but their owner until releaseDate (services/releases/visibility.ts).
+      const safe = (vs: Video[]) => filterForViewer(filterReleasedVideos(vs, currentUser?.uid), viewer);
 
       // FOCUSED SHARE MODE — a shared Reello link opens THAT video first:
       // fetch it by id, position it at index 0, start immediately, then load
@@ -93,7 +95,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
         try { target = (await fetchVideoById(initialVideoId)) || undefined; } catch { /* fall back below */ }
         if (cancelled) return;
         // A deep link must not become a hole in the filter — gate the single video too.
-        if (target && !isContentAllowed(target, viewer)) target = undefined;
+        if (target && (!isContentAllowed(target, viewer) || !videoVisibleToViewer(target, currentUser?.uid))) target = undefined;
         if (target) {
           setVideos([target]);
           setCurrentIndex(0);

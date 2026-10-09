@@ -66,6 +66,25 @@ export async function fsCreateOnce(collection: string, id: string, data: Record<
   } catch { return 'error'; }
 }
 
+/** Same as fsQuery but THROWS on any failure (missing index, permission, network) instead of returning []. Use when "no rows" and "query failed" must not look the same. */
+export async function fsQueryStrict(
+  collection: string,
+  opts: { where?: QueryFilter[]; orderBy?: { field: string; direction: 'ASCENDING' | 'DESCENDING' }; limit?: number },
+): Promise<Array<{ id: string; path: string; data: Record<string, any> }>> {
+  const filters = (opts.where || []).map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: f.op, value: toValue(f.value) } }));
+  const structuredQuery: any = { from: [{ collectionId: collection }], limit: opts.limit ?? 100 };
+  if (filters.length === 1) structuredQuery.where = filters[0];
+  else if (filters.length > 1) structuredQuery.where = { compositeFilter: { op: 'AND', filters } };
+  if (opts.orderBy) structuredQuery.orderBy = [{ field: { fieldPath: opts.orderBy.field }, direction: opts.orderBy.direction }];
+  const res = await fetch(`${FS_BASE}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ structuredQuery }) });
+  if (!res.ok) throw new Error(`query ${collection} failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  const rows = await res.json() as any[];
+  return rows.filter(r => r.document).map(r => {
+    const name = String(r.document.name);
+    return { id: name.split('/').pop()!, path: name.slice(name.indexOf('/documents/') + 11), data: fromFields(r.document.fields || {}) };
+  });
+}
+
 /** Merge-patch (updateMask) with deep values; logs failures. */
 export async function fsMerge(path: string, data: Record<string, unknown>): Promise<boolean> {
   const clean: Record<string, unknown> = {};

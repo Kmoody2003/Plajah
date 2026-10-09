@@ -46,10 +46,10 @@ export function prepare(input: Pick<ExportInput, 'book' | 'doc' | 'upgrade'>, fo
 }
 
 /** Live "Export fidelity" data for the editor badge, without building any file. */
-export function fidelityFor(input: Pick<ExportInput, 'book' | 'doc' | 'upgrade'>, format: ExportFormat): { pages: PageFidelity[]; summary: ReturnType<typeof fidelitySummary>; recommended: { layout: 'REFLOW' | 'FIXED'; reason: string } } {
+export function fidelityFor(input: Pick<ExportInput, 'book' | 'doc' | 'upgrade'>, format: ExportFormat): { pages: PageFidelity[]; summary: ReturnType<typeof fidelitySummary>; readerOnly: string[]; recommended: { layout: 'REFLOW' | 'FIXED'; reason: string } } {
   const { doc, model } = prepare(input, format);
   const pages = pageFidelity(doc, input.upgrade ?? null, format);
-  return { pages, summary: fidelitySummary(pages), recommended: recommendLayout(model) };
+  return { pages, summary: fidelitySummary(pages), readerOnly: model.readerOnly ?? [], recommended: recommendLayout(model) };
 }
 
 export async function exportBook(input: ExportInput): Promise<ExportOutcome> {

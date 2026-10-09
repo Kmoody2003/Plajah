@@ -1,4 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
+import { ReleaseLaterField, ScheduledBadge, releaseLaterInvalid } from './release/ReleaseLaterField';
+import { filterReleased as filterReleasedVideos } from '../services/releases/visibility';
 import { Video, VideoPlaylist, UserProfile, MovieMetadata, Album, LiveFeed, Track, Character, Club } from '../types';
 import { cleanDescription } from '../utils/description';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
@@ -183,6 +185,10 @@ const VideoCard: React.FC<{
           <div className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-small-orange/90 backdrop-blur-md rounded-lg text-[8px] font-black uppercase tracking-widest shadow-xl">
             MV
           </div>
+        )}
+        {/* Owner only: a still-scheduled video is invisible to everyone else (see services/releases/visibility.ts) */}
+        {isCardOwner && (
+          <div className="absolute bottom-9 left-2.5"><ScheduledBadge video={video as any} /></div>
         )}
         {/* Duration / views pill */}
         <div className="absolute bottom-2.5 right-2.5 px-2 py-1 bg-black/70 backdrop-blur-md rounded-md text-[8px] font-black tracking-widest text-white/80">
@@ -763,7 +769,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         const pool = vids.slice(0, Math.min(vids.length, 20));
         setHeroVideo(pool[Math.floor(Math.random() * pool.length)]);
       }
-      setVideos(vids);
+      // Defence in depth: the fetchers already hide scheduled videos from non-owners, so a stale cache can never show one.
+      setVideos(filterReleasedVideos(vids, auth.currentUser?.uid));
       setPlaylists(pls);
       setUserVideos(uVids);
       setUserAlbums(allAlbums.filter(a => a.ownerId === auth.currentUser?.uid));
@@ -783,8 +790,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           fetchVideosByInterests(auth.currentUser.uid),
           fetchUserWorlds(auth.currentUser.uid)
         ]);
-        setFollowedVideos(followed);
-        setInterestVideos(interested);
+        setFollowedVideos(filterReleasedVideos(followed, auth.currentUser?.uid));
+        setInterestVideos(filterReleasedVideos(interested, auth.currentUser?.uid));
         setUserWorlds(worlds.map((w: any) => ({ id: w.id, name: w.name || w.title || 'World' })));
       }
 
@@ -792,7 +799,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         setCuratedVideoPlaylists(await fetchVideoPlaylistsByIds(settings.curatedVideoPlaylists));
       }
       if (settings.mustWatchMovies?.length) {
-        setMustWatchMovies(await fetchVideosByIds(settings.mustWatchMovies));
+        setMustWatchMovies(filterReleasedVideos(await fetchVideosByIds(settings.mustWatchMovies), auth.currentUser?.uid));
       }
     } catch (error) {
       console.error('VideoTab: failed to load content:', error);
@@ -868,6 +875,10 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newVideo.isPrivate && newVideo.subType !== 'MOVIE' && newVideo.subType !== 'TV_SERIES' && releaseLaterInvalid(newVideo)) {
+      alert('Pick a release date and time in the future, or turn Release later off.');
+      return;
+    }
     setUploading(true);
     try {
       if (newVideo.subType === 'MOVIE') {
@@ -894,6 +905,8 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         if (!finalCover) { try { const b = await captureVideoFrame(newVideo.file); finalCover = new File([b], 'cover.jpg', { type: 'image/jpeg' }); } catch {} }
         await uploadVideo({
           ...newVideo,
+          // A private video is never "scheduled": there is nothing to release publicly.
+          ...(newVideo.isPrivate ? { isScheduled: false, releaseDate: undefined, releaseAnnouncement: undefined } : {}),
           thumbnailFile: finalThumb, coverImageFile: finalCover,
           category: newVideo.genre === 'Music Video' ? 'MUSIC_VIDEO' : newVideo.category,
           // Store the linked track/album so album page can surface this MV
@@ -904,7 +917,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       setUploadStep(1);
       setThumbPreview('');
       setCoverPreview('');
-      setNewVideo({ title: '', description: '', genre: 'General', isPrivate: false, tags: [] });
+      setNewVideo({ title: '', description: '', genre: 'General', isPrivate: false, tags: [], isScheduled: false, releaseDate: undefined, releaseAnnouncement: undefined });
       setLinkedTrackId(''); setLinkedAlbumId(''); setTrackSearch('');
       setTvEpisodes([]);
       loadData();
@@ -2090,6 +2103,14 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                           <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all shadow-lg ${!newVideo.isPrivate ? 'left-5' : 'left-0.5'}`} />
                         </button>
                       </div>
+
+                      {/* Release later (standalone videos only: movies / series schedule through the album flow) */}
+                      {!newVideo.isPrivate && newVideo.subType !== 'MOVIE' && newVideo.subType !== 'TV_SERIES' && (
+                        <ReleaseLaterField
+                          value={{ isScheduled: newVideo.isScheduled, releaseDate: newVideo.releaseDate, releaseAnnouncement: newVideo.releaseAnnouncement }}
+                          onChange={v => setNewVideo(p => ({ ...p, ...v }))}
+                          name={profile?.displayName || ''} title={newVideo.title || ''} noun="video" />
+                      )}
 
                       {/* Upload progress / submit */}
                       {uploading ? (

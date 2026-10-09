@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Archive, Clock, Eye, FileText, Pencil, Rss } from 'lucide-react';
 import { Button, Chip, Surface, Textarea } from '../ui';
 import { auth, fetchArticleById } from '../../services/backendService';
-import { addNoticeOnly, archiveArticle, listMyArticles, releaseMyDueEmbargoes, type MyArticleRow } from '../../services/journalist/articleService';
+import { addNoticeOnly, archiveArticle, listMyArticles, type MyArticleRow } from '../../services/journalist/articleService';
 import { NOTICE_LABELS, NOTICE_ORDER } from '../../services/journalist/correctionLog';
 import { headlineToLowerThird, headlinesToTicker } from '../../services/journalist/broadcastBridge';
 import { buildEmailIssue, feedArticleFromRecord } from '../../services/journalist/feedGenerators';
@@ -23,8 +23,6 @@ export const MyArticles: React.FC<Props> = ({ uid, onOpenArticle, onViewArticle,
 
   const load = useCallback(async () => {
     try {
-      const released = await releaseMyDueEmbargoes(uid);
-      if (released) setMsg(`${released} embargoed article${released > 1 ? 's' : ''} released.`);
       setRows(await listMyArticles(uid));
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not load your articles.'); setRows([]); }
   }, [uid]);

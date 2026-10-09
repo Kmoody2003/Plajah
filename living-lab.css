@@ -1,0 +1,5 @@
+/* Lab-only Tailwind entry: scans just the living components so the dev server stays fast. */
+@import "tailwindcss" source(none);
+@source "./components/living";
+@source "./components/tela/TelaBehaviorsPanel.tsx";
+@source "./components/bookTela/TelaBookReader.tsx";

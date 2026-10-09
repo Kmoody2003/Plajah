@@ -21,13 +21,14 @@ import {
 } from './articleTela';
 import { appendNotice, classifyEdit } from './correctionLog';
 import { evaluatePublishGate, type GateResult } from './publishGate';
+import { isEmbargoed, effectiveStatus } from './embargo';
 import type { ArticleDisclosures, ArticleNotice, Claim, ImageRights, NoticeLabel } from './types';
 
 export const MAX_BUNDLE_BYTES = 900_000; // Firestore doc limit is 1 MiB; leave headroom
 
 /** Readers can see this article right now (legacy block articles count: a missing status means published). */
-export const isLiveArticle = (a?: Pick<Article, 'isPublic' | 'status'> | null): boolean =>
-  !!a && a.isPublic !== false && a.status !== 'DRAFT' && a.status !== 'SCHEDULED';
+export const isLiveArticle = (a?: Pick<Article, 'isPublic' | 'status' | 'embargoUntil'> | null): boolean =>
+  !!a && a.isPublic !== false && a.status !== 'DRAFT' && !isEmbargoed(a);
 
 export const EMPTY_DISCLOSURES: ArticleDisclosures = { aiAssisted: false, sponsored: false, affiliateLinks: false, conflictOfInterest: false };
 
@@ -77,6 +78,8 @@ export interface PublishInput {
   rights: ImageRights[];
   claims: Claim[];
   embargoUntil?: number;
+  /** Creator's choice for the release-time announcement (feed post + follower notice). Default: announce, platform wording. */
+  releaseAnnouncement?: { enabled?: boolean; message?: string };
   publicationId?: string; section?: string;
   access?: 'FREE' | 'SUBSCRIBERS' | 'PAID';
   aiUsedInEditor?: boolean;
@@ -160,8 +163,8 @@ export async function publishArticle(input: PublishInput, existing?: Article | n
     title: input.title, subtitle: input.subtitle || '', coverImage: input.coverImage || '', category: input.category || 'Article', tags: input.tags || [],
     blocks: input.blocks, bodyText, bodyHtml, wordCount: wordCount(bodyText), readTime: readMinutes(wordCount(bodyText)),
     tela: removeUndef({ docId, versionId: version.versionId, templateId: input.templateId || existing?.tela?.templateId, mode: existing?.tela?.mode === 'archived' ? 'archived' : 'live', pinnedVersionId: existing?.tela?.pinnedVersionId }),
-    draft: null, status, isPublic: !scheduled, publishedAt: existing?.publishedAt || (wasPublished && typeof existing?.timestamp === 'number' ? existing.timestamp : undefined) || (scheduled ? undefined : now),
-    notices, disclosures: input.disclosures, imageRights: input.rights, embargoUntil: input.embargoUntil, publicationId: input.publicationId, section: input.section, access: input.access || 'FREE',
+    draft: null, status, isPublic: true, publishedAt: existing?.publishedAt || (wasPublished && typeof existing?.timestamp === 'number' ? existing.timestamp : undefined) || (scheduled ? input.embargoUntil : now),
+    notices, disclosures: input.disclosures, imageRights: input.rights, embargoUntil: input.embargoUntil, releaseAnnouncement: scheduled ? input.releaseAnnouncement : undefined, publicationId: input.publicationId, section: input.section, access: input.access || 'FREE',
   });
 
   let id = articleId;
@@ -270,25 +273,12 @@ export async function listMyArticles(uid: string): Promise<MyArticleRow[]> {
   return snap.docs.map(d => {
     const a = d.data() as any;
     return {
-      id: d.id, title: a.title || 'Untitled', status: (a.status || (a.isPublic === false ? 'DRAFT' : 'PUBLISHED')) as MyArticleRow['status'],
+      id: d.id, title: a.title || 'Untitled', status: effectiveStatus({ ...a, status: a.status || (a.isPublic === false ? 'DRAFT' : 'PUBLISHED') }) as MyArticleRow['status'],
       updatedAt: ms(a.modifiedAt) || ms(a.timestamp), legacy: !a.tela, notices: Array.isArray(a.notices) ? a.notices.length : 0, embargoUntil: a.embargoUntil,
     };
   }).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-/** Flip the caller's own SCHEDULED articles live once their embargo has passed. */
-export async function releaseMyDueEmbargoes(uid: string, now = Date.now()): Promise<number> {
-  const snap = await getDocs(query(collection(db, 'articles'), where('authorId', '==', uid)));
-  let n = 0;
-  for (const d of snap.docs) {
-    const a = d.data() as any;
-    if (a.status === 'SCHEDULED' && a.embargoUntil && a.embargoUntil <= now) {
-      await updateDoc(fsDoc(db, 'articles', d.id), { isPublic: true, status: 'PUBLISHED', publishedAt: now });
-      n++;
-    }
-  }
-  return n;
-}
 
 
 /** Build the article's Tela doc, store it on this device and return its id, so the author can open it in Tela. */

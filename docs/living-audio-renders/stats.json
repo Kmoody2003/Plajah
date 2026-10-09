@@ -1,0 +1,677 @@
+{
+ "sfx:beep": {
+  "peak": 0.28,
+  "rmsDb": -19.88,
+  "durSec": 0.16,
+  "centroidHz": 1460,
+  "maxSec": 0.4
+ },
+ "sfx:beep-low": {
+  "peak": 0.29,
+  "rmsDb": -19.9,
+  "durSec": 0.16,
+  "centroidHz": 890,
+  "maxSec": 0.4
+ },
+ "sfx:beep-high": {
+  "peak": 0.29,
+  "rmsDb": -20.12,
+  "durSec": 0.16,
+  "centroidHz": 2016,
+  "maxSec": 0.4
+ },
+ "sfx:beep-double": {
+  "peak": 0.35,
+  "rmsDb": -20.05,
+  "durSec": 0.36,
+  "centroidHz": 1607,
+  "maxSec": 0.6
+ },
+ "sfx:beep-car": {
+  "peak": 0.36,
+  "rmsDb": -20.09,
+  "durSec": 0.25,
+  "centroidHz": 1131,
+  "maxSec": 0.6
+ },
+ "sfx:honk": {
+  "peak": 0.38,
+  "rmsDb": -23.92,
+  "durSec": 0.47,
+  "centroidHz": 726,
+  "maxSec": 0.8
+ },
+ "sfx:toot": {
+  "peak": 0.31,
+  "rmsDb": -20.07,
+  "durSec": 0.18,
+  "centroidHz": 598,
+  "maxSec": 0.5
+ },
+ "sfx:kazoo-toot": {
+  "peak": 0.55,
+  "rmsDb": -20,
+  "durSec": 0.35,
+  "centroidHz": 2045,
+  "maxSec": 0.7
+ },
+ "sfx:pop": {
+  "peak": 0.27,
+  "rmsDb": -20.15,
+  "durSec": 0.08,
+  "centroidHz": 1913,
+  "maxSec": 0.3
+ },
+ "sfx:boing": {
+  "peak": 0.29,
+  "rmsDb": -20.67,
+  "durSec": 0.59,
+  "centroidHz": 716,
+  "maxSec": 1
+ },
+ "sfx:whoosh": {
+  "peak": 0.64,
+  "rmsDb": -21.39,
+  "durSec": 0.56,
+  "centroidHz": 2036,
+  "maxSec": 0.9
+ },
+ "sfx:swoosh": {
+  "peak": 0.59,
+  "rmsDb": -20.05,
+  "durSec": 0.31,
+  "centroidHz": 5707,
+  "maxSec": 0.6
+ },
+ "sfx:zip": {
+  "peak": 0.38,
+  "rmsDb": -20.03,
+  "durSec": 0.21,
+  "centroidHz": 3366,
+  "maxSec": 0.5
+ },
+ "sfx:jelly-squish": {
+  "peak": 0.29,
+  "rmsDb": -19.97,
+  "durSec": 0.34,
+  "centroidHz": 319,
+  "maxSec": 0.8
+ },
+ "sfx:squeak": {
+  "peak": 0.29,
+  "rmsDb": -19.99,
+  "durSec": 0.26,
+  "centroidHz": 2113,
+  "maxSec": 0.5
+ },
+ "sfx:boop": {
+  "peak": 0.26,
+  "rmsDb": -19.93,
+  "durSec": 0.09,
+  "centroidHz": 671,
+  "maxSec": 0.3
+ },
+ "sfx:tick": {
+  "peak": 0.28,
+  "rmsDb": -20.38,
+  "durSec": 0.02,
+  "centroidHz": 12040,
+  "maxSec": 0.15
+ },
+ "sfx:button-click": {
+  "peak": 0.27,
+  "rmsDb": -21.33,
+  "durSec": 0.03,
+  "centroidHz": 4562,
+  "maxSec": 0.2
+ },
+ "sfx:pop-balloon": {
+  "peak": 0.21,
+  "rmsDb": -24.69,
+  "durSec": 0.11,
+  "centroidHz": 3526,
+  "maxSec": 0.5
+ },
+ "sfx:confetti": {
+  "peak": 0.23,
+  "rmsDb": -31.72,
+  "durSec": 0.79,
+  "centroidHz": 11355,
+  "maxSec": 1.4
+ },
+ "sfx:sparkle": {
+  "peak": 0.6,
+  "rmsDb": -20.19,
+  "durSec": 0.6,
+  "centroidHz": 4415,
+  "maxSec": 1
+ },
+ "sfx:twinkle": {
+  "peak": 0.57,
+  "rmsDb": -20.18,
+  "durSec": 0.48,
+  "centroidHz": 1804,
+  "maxSec": 0.8
+ },
+ "sfx:magic-appear": {
+  "peak": 0.62,
+  "rmsDb": -20.67,
+  "durSec": 1,
+  "centroidHz": 6797,
+  "maxSec": 2
+ },
+ "sfx:success-jingle": {
+  "peak": 0.61,
+  "rmsDb": -21.68,
+  "durSec": 1.09,
+  "centroidHz": 1711,
+  "maxSec": 1.6
+ },
+ "sfx:gentle-no": {
+  "peak": 0.39,
+  "rmsDb": -20.01,
+  "durSec": 0.6,
+  "centroidHz": 462,
+  "maxSec": 0.8
+ },
+ "sfx:chime": {
+  "peak": 0.32,
+  "rmsDb": -22.64,
+  "durSec": 1.05,
+  "centroidHz": 1294,
+  "maxSec": 2.2
+ },
+ "sfx:glass-chime": {
+  "peak": 0.35,
+  "rmsDb": -23.71,
+  "durSec": 1.17,
+  "centroidHz": 2330,
+  "maxSec": 2.4
+ },
+ "sfx:bell": {
+  "peak": 0.45,
+  "rmsDb": -25.75,
+  "durSec": 1.89,
+  "centroidHz": 542,
+  "maxSec": 3.2
+ },
+ "sfx:ding": {
+  "peak": 0.28,
+  "rmsDb": -21.46,
+  "durSec": 0.69,
+  "centroidHz": 1888,
+  "maxSec": 1.4
+ },
+ "sfx:harp-gliss": {
+  "peak": 0.64,
+  "rmsDb": -21.48,
+  "durSec": 1.11,
+  "centroidHz": 1782,
+  "maxSec": 1.8
+ },
+ "sfx:stitch": {
+  "peak": 0.25,
+  "rmsDb": -21.54,
+  "durSec": 0.08,
+  "centroidHz": 2839,
+  "maxSec": 0.3
+ },
+ "sfx:thread-pluck": {
+  "peak": 0.28,
+  "rmsDb": -22.92,
+  "durSec": 0.8,
+  "centroidHz": 1124,
+  "maxSec": 1.5
+ },
+ "sfx:thread-tug": {
+  "peak": 0.35,
+  "rmsDb": -20.05,
+  "durSec": 0.43,
+  "centroidHz": 289,
+  "maxSec": 0.8
+ },
+ "sfx:unravel": {
+  "peak": 0.6,
+  "rmsDb": -31.01,
+  "durSec": 0.89,
+  "centroidHz": 4847,
+  "maxSec": 1.2
+ },
+ "sfx:knock": {
+  "peak": 0.62,
+  "rmsDb": -22.13,
+  "durSec": 0.25,
+  "centroidHz": 333,
+  "maxSec": 0.7
+ },
+ "sfx:thud": {
+  "peak": 0.25,
+  "rmsDb": -19.67,
+  "durSec": 0.21,
+  "centroidHz": 104,
+  "maxSec": 0.6
+ },
+ "sfx:crunch": {
+  "peak": 0.38,
+  "rmsDb": -23.3,
+  "durSec": 0.1,
+  "centroidHz": 9957,
+  "maxSec": 0.5
+ },
+ "sfx:rustle": {
+  "peak": 0.59,
+  "rmsDb": -22.8,
+  "durSec": 0.71,
+  "centroidHz": 10212,
+  "maxSec": 1
+ },
+ "sfx:splash": {
+  "peak": 0.43,
+  "rmsDb": -23.74,
+  "durSec": 0.45,
+  "centroidHz": 3568,
+  "maxSec": 1.2
+ },
+ "sfx:bubble": {
+  "peak": 0.24,
+  "rmsDb": -20.06,
+  "durSec": 0.08,
+  "centroidHz": 497,
+  "maxSec": 0.4
+ },
+ "sfx:drip": {
+  "peak": 0.25,
+  "rmsDb": -23.73,
+  "durSec": 0.19,
+  "centroidHz": 1334,
+  "maxSec": 0.6
+ },
+ "sfx:cricket": {
+  "peak": 0.48,
+  "rmsDb": -20,
+  "durSec": 0.49,
+  "centroidHz": 5190,
+  "maxSec": 1
+ },
+ "sfx:owl-hoo": {
+  "peak": 0.41,
+  "rmsDb": -19.94,
+  "durSec": 1.21,
+  "centroidHz": 433,
+  "maxSec": 1.5
+ },
+ "sfx:wings": {
+  "peak": 0.61,
+  "rmsDb": -22.87,
+  "durSec": 0.56,
+  "centroidHz": 8387,
+  "maxSec": 0.9
+ },
+ "sfx:whale-call": {
+  "peak": 0.41,
+  "rmsDb": -20.02,
+  "durSec": 3.4,
+  "centroidHz": 270,
+  "maxSec": 4.4
+ },
+ "sfx:hum": {
+  "peak": 0.38,
+  "rmsDb": -20,
+  "durSec": 1.21,
+  "centroidHz": 221,
+  "maxSec": 1.9
+ },
+ "sfx:snore": {
+  "peak": 0.55,
+  "rmsDb": -19.98,
+  "durSec": 1.7,
+  "centroidHz": 396,
+  "maxSec": 2.6
+ },
+ "sfx:yawn": {
+  "peak": 0.56,
+  "rmsDb": -20.01,
+  "durSec": 1.51,
+  "centroidHz": 998,
+  "maxSec": 2.2
+ },
+ "sfx:footstep-left": {
+  "peak": 0.21,
+  "rmsDb": -20.04,
+  "durSec": 0.08,
+  "centroidHz": 438,
+  "maxSec": 0.4
+ },
+ "sfx:footstep-right": {
+  "peak": 0.25,
+  "rmsDb": -19.99,
+  "durSec": 0.08,
+  "centroidHz": 409,
+  "maxSec": 0.4
+ },
+ "sfx:heartbeat": {
+  "peak": 0.58,
+  "rmsDb": -24.47,
+  "durSec": 1.3,
+  "centroidHz": 134,
+  "maxSec": 1.8
+ },
+ "sfx:candle-flicker": {
+  "peak": 0.63,
+  "rmsDb": -22.28,
+  "durSec": 0.61,
+  "centroidHz": 3747,
+  "maxSec": 1
+ },
+ "sfx:candle-blow": {
+  "peak": 0.61,
+  "rmsDb": -21.89,
+  "durSec": 0.61,
+  "centroidHz": 2362,
+  "maxSec": 1
+ },
+ "sfx:page-flip": {
+  "peak": 0.6,
+  "rmsDb": -20.11,
+  "durSec": 0.25,
+  "centroidHz": 4984,
+  "maxSec": 0.5
+ },
+ "sfx:rumble": {
+  "peak": 0.46,
+  "rmsDb": -24.02,
+  "durSec": 1.7,
+  "centroidHz": 107,
+  "maxSec": 2.6
+ },
+ "inst:musicbox": {
+  "peak": 0.39,
+  "rmsDb": -23.05,
+  "durSec": 0.78,
+  "centroidHz": 314
+ },
+ "inst:marimba": {
+  "peak": 0.44,
+  "rmsDb": -22.88,
+  "durSec": 0.43,
+  "centroidHz": 299
+ },
+ "inst:felt-piano": {
+  "peak": 0.45,
+  "rmsDb": -22.86,
+  "durSec": 0.99,
+  "centroidHz": 433
+ },
+ "inst:harp": {
+  "peak": 0.45,
+  "rmsDb": -23.13,
+  "durSec": 0.9,
+  "centroidHz": 647
+ },
+ "inst:pluck": {
+  "peak": 0.48,
+  "rmsDb": -23.49,
+  "durSec": 0.44,
+  "centroidHz": 1164
+ },
+ "inst:kalimba": {
+  "peak": 0.43,
+  "rmsDb": -22.92,
+  "durSec": 0.72,
+  "centroidHz": 346
+ },
+ "inst:bell": {
+  "peak": 0.55,
+  "rmsDb": -25.07,
+  "durSec": 1.95,
+  "centroidHz": 324
+ },
+ "inst:glass": {
+  "peak": 0.5,
+  "rmsDb": -23.03,
+  "durSec": 1.16,
+  "centroidHz": 465
+ },
+ "inst:bass": {
+  "peak": 0.12,
+  "rmsDb": -23.02,
+  "durSec": 0.58,
+  "centroidHz": 361
+ },
+ "inst:flute": {
+  "peak": 0.12,
+  "rmsDb": -22.88,
+  "durSec": 0.75,
+  "centroidHz": 334
+ },
+ "inst:whistle": {
+  "peak": 0.11,
+  "rmsDb": -22.9,
+  "durSec": 0.72,
+  "centroidHz": 273
+ },
+ "inst:kazoo": {
+  "peak": 0.42,
+  "rmsDb": -23.08,
+  "durSec": 0.72,
+  "centroidHz": 1977
+ },
+ "inst:pad": {
+  "peak": 0.3,
+  "rmsDb": -23.02,
+  "durSec": 1.61,
+  "centroidHz": 550
+ },
+ "inst:choir": {
+  "peak": 0.53,
+  "rmsDb": -22.98,
+  "durSec": 1.41,
+  "centroidHz": 1682
+ },
+ "inst:whale": {
+  "peak": 0.33,
+  "rmsDb": -22.99,
+  "durSec": 1.91,
+  "centroidHz": 342
+ },
+ "inst:hum": {
+  "peak": 0.17,
+  "rmsDb": -22.95,
+  "durSec": 1.11,
+  "centroidHz": 367
+ },
+ "inst:kick": {
+  "peak": 0.34,
+  "rmsDb": -22.5,
+  "durSec": 0.27,
+  "centroidHz": 105
+ },
+ "inst:snare": {
+  "peak": 0.49,
+  "rmsDb": -23.71,
+  "durSec": 0.14,
+  "centroidHz": 5397
+ },
+ "inst:hat": {
+  "peak": 0.44,
+  "rmsDb": -23.44,
+  "durSec": 0.05,
+  "centroidHz": 13103
+ },
+ "inst:ohat": {
+  "peak": 0.54,
+  "rmsDb": -23.6,
+  "durSec": 0.22,
+  "centroidHz": 12930
+ },
+ "inst:shaker": {
+  "peak": 0.34,
+  "rmsDb": -22.99,
+  "durSec": 0.11,
+  "centroidHz": 8279
+ },
+ "inst:click": {
+  "peak": 0.29,
+  "rmsDb": -23.11,
+  "durSec": 0.02,
+  "centroidHz": 3932
+ },
+ "inst:clap": {
+  "peak": 0.38,
+  "rmsDb": -26.77,
+  "durSec": 0.13,
+  "centroidHz": 4670
+ },
+ "inst:tom": {
+  "peak": 0.34,
+  "rmsDb": -22.8,
+  "durSec": 0.27,
+  "centroidHz": 201
+ },
+ "inst:drum": {
+  "peak": 0.34,
+  "rmsDb": -22.5,
+  "durSec": 0.27,
+  "centroidHz": 105
+ },
+ "bed:night-crickets": {
+  "peak": 0.19,
+  "rmsDb": -27.95,
+  "centroidHz": 2127,
+  "driftDb": 0.23
+ },
+ "bed:forest-wind": {
+  "peak": 0.21,
+  "rmsDb": -28.38,
+  "centroidHz": 3603,
+  "driftDb": 3.69
+ },
+ "bed:ocean-hum": {
+  "peak": 0.17,
+  "rmsDb": -28.96,
+  "centroidHz": 1156,
+  "driftDb": 5.89
+ },
+ "bed:city-murmur": {
+  "peak": 0.16,
+  "rmsDb": -28.03,
+  "centroidHz": 1296,
+  "driftDb": 0.13
+ },
+ "bed:room-tone": {
+  "peak": 0.15,
+  "rmsDb": -28.06,
+  "centroidHz": 1545,
+  "driftDb": 0.39
+ },
+ "bed:space-drone": {
+  "peak": 0.11,
+  "rmsDb": -28.13,
+  "centroidHz": 240,
+  "driftDb": 0.44
+ },
+ "bed:wind": {
+  "peak": 0.21,
+  "rmsDb": -28.49,
+  "centroidHz": 1981,
+  "driftDb": 0.59
+ },
+ "bed:rain-soft": {
+  "peak": 0.19,
+  "rmsDb": -28.01,
+  "centroidHz": 5813,
+  "driftDb": 0.09
+ },
+ "bed:forest-night": {
+  "peak": 0.19,
+  "rmsDb": -28.39,
+  "centroidHz": 3595,
+  "driftDb": 3.27
+ },
+ "score:lullaby": {
+  "peak": 0.43,
+  "rmsDb": -25.94,
+  "centroidHz": 577,
+  "events": 50
+ },
+ "score:city": {
+  "peak": 0.45,
+  "rmsDb": -23.5,
+  "centroidHz": 3026,
+  "events": 250
+ },
+ "score:folk": {
+  "peak": 0.36,
+  "rmsDb": -23.88,
+  "centroidHz": 592,
+  "events": 48
+ },
+ "determinism": {
+  "sfxDiff": 1.210719347000122e-7,
+  "otherSeedDiff": 0.2689349725842476,
+  "scoreDiff": 1.7881393432617188e-7,
+  "scorePeak": 0.2245231419801712
+ },
+ "tempoRamp": {
+  "passSec": [
+   22.004654035941783,
+   28.620260078915408,
+   39.241378984198164,
+   40.013277789138655,
+   40.00183091916145
+  ],
+  "passes": 6
+ },
+ "depth": {
+  "scoreCentroid": [
+   2996,
+   655
+  ],
+  "scoreRmsDb": [
+   -23.34,
+   -30.25
+  ],
+  "windCentroid": [
+   1946,
+   682
+  ],
+  "windRmsDb": [
+   -28.52,
+   -35.62
+  ]
+ },
+ "duck": {
+  "ducked": 0.012626974324273794,
+  "after": 0.06703559535571764,
+  "ref": 0.0630530337960164
+ },
+ "reduced": {
+  "pop-balloon": {
+   "normalPeak": 0.20665358006954193,
+   "reducedPeak": 0.05463162064552307,
+   "normalCentroid": 3395.951783231118,
+   "reducedCentroid": 2599.463980299723
+  },
+  "honk": {
+   "normalPeak": 0.3709871768951416,
+   "reducedPeak": 0.08326280862092972,
+   "normalCentroid": 724.6541655248715,
+   "reducedCentroid": 720.4324631506094
+  },
+  "rumble": {
+   "normalPeak": 0.45632776618003845,
+   "reducedPeak": 0.10772249102592468,
+   "normalCentroid": 107.16562700125239,
+   "reducedCentroid": 108.10733035108275
+  },
+  "boop": {
+   "normalPeak": 0.2555329203605652,
+   "reducedPeak": 0.11560201644897461,
+   "normalCentroid": 665.5991640132125,
+   "reducedCentroid": 673.0803996247689
+  }
+ },
+ "stress": {
+  "peakLR": 0.94
+ }
+}

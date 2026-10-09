@@ -18,6 +18,7 @@
 // registry doc just means a less specific label, never an error.
 
 import { db, auth } from './firebase';
+import { visibleToViewer } from './releases/visibility';
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, limit as qlimit,
   increment, serverTimestamp,
@@ -243,7 +244,7 @@ export async function getVideosUsingSound(trackId: string, max = 60): Promise<Vi
     ));
     return snap.docs
       .map(d => ({ id: d.id, ...(d.data() as any) } as Video))
-      .filter(v => !v.isPrivate)
+      .filter(v => !v.isPrivate && visibleToViewer(v, auth.currentUser?.uid))   // scheduled videos stay hidden until release
       .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   } catch {
     return [];
