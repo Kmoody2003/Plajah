@@ -837,33 +837,116 @@ const grunge: EraPlateSpec = {
 };
 
 const brutalist: EraPlateSpec = {
-  cf: { kind: 'module', value: 12, label: 'Exposed 68 px structural grid', governs: 'The frame, the slab and the blue bay are whole bays of the grid that stays on show.' },
+  cf: { kind: 'module', value: 12, label: 'Exposed 68 px structural grid', governs: 'Every mass, cantilever, fin and column is a whole or half bay of the grid; the board marks are sixths of a bay.' },
   foil: '#0047FF', foilStrength: .06, cta: '#0047FF', font: 'spaceMono', fontStyle: 'normal 700', light: true,
   build: c => {
-    const { ink: I, accent: B, secondary: R0, paper: P0 } = c; const u = W / c.cf.value;
-    const grid: Obj[] = []; for (let x = 4 * u; x < W; x += 4 * u) grid.push(line(x, 24, x, H - 24, I, 1, { opacity: .14, label: 'Structural line' })); for (let y = 4 * u; y < H; y += 4 * u) grid.push(line(24, y, W - 24, y, I, 1, { opacity: .14, label: 'Structural line' }));
-    const cross = (x: number, y: number): Obj[] => [circle(x, y, 16, 'none', { stroke: I, strokeWidth: 2, label: 'Registration' }), line(x - 26, y, x + 26, y, I, 2), line(x, y - 26, x, y + 26, I, 2)];
-    const bars: Obj[] = []; let x = 24 + u; [6, 2, 2, 10, 2, 4, 2, 2, 8, 2, 6, 2, 2, 4, 12, 2, 2, 6].forEach((w, i) => { if (i % 2 === 0) bars.push(rect(x, 6.4 * u, w, 1.3 * u, I, { label: 'Data bar' })); x += w + 4; });
+    const { ink: I, accent: B, secondary: R0, paper: P0 } = c; const u = W / c.cf.value; const r = c.r;
+    // raw concrete under a low sun from the left: lit faces, mid recesses, cast shade, black voids
+    const lit = '#D5CFC2', mid = '#9C968B', shade = '#6E6961', deep = '#3F3C38', voidC = '#1B1A18';
+    const U = (k: number) => k * u;
+    /** board-formed concrete: plank bands, plank joints and butt joints, all procedural strokes */
+    const boards = (x: number, y: number, w: number, h: number, k = 1): Obj[] => {
+      const out: Obj[] = []; const b = u / 6;
+      for (let yy = y, row = 0; yy < y + h - 2; yy += b, row++) {
+        const bh = Math.min(b, y + h - yy);
+        if (r() < .7) out.push(rect(x, yy, w, bh, r() < .55 ? I : '#FFFFFF', { opacity: (.04 + r() * .1) * k, label: 'Board' }));
+        if (row) out.push(line(x, yy + (r() - .5) * .8, x + w, yy + (r() - .5) * .8, I, .9, { opacity: (.14 + r() * .16) * k, label: 'Board joint' }));
+        for (let j = 0; j < Math.ceil(w / (2.5 * u)); j++) if (r() < .55) { const jx = x + 6 + r() * (w - 12); out.push(line(jx, yy, jx, yy + bh, I, .6, { opacity: .14 * k, label: 'Butt joint' })); }
+      }
+      return out;
+    };
+    const ties = (x: number, y: number, w: number, h: number): Obj[] => { const out: Obj[] = []; for (let yy = y + u / 4; yy < y + h - 4; yy += u / 2) for (let xx = x + u / 4; xx < x + w - 4; xx += u / 2) out.push(circle(xx, yy, 1.8, voidC, { opacity: .4, label: 'Form tie' })); return out; };
+    const stains = (x: number, y: number, w: number, h: number, n: number): Obj[] => Array.from({ length: n }, () => { const sw = 6 + r() * 26; return rect(x + r() * (w - sw), y, sw, h * (.4 + r() * .6), I, { gradient: lg(90, [0, I, .2], [1, I, 0]), label: 'Weathering' }); });
+    const under = (x0: number, x1: number, y: number, d: number, i0: number, i1: number) => P(polyD([[x0, y], [x1, y], [x1 - i1, y + d], [x0 + i0, y + d]]), voidC, { label: 'Soffit in shadow' });
+    const castBand = (x0: number, x1: number, y: number, d: number) => P(polyD([[x0, y], [x1, y], [x1, y + d], [x0 + d * 1.2, y + d]]), voidC, { opacity: .42, label: 'Cast shadow' });
+
+    // far plane: a long slab block, its balcony bands and cross-walls on show, softened by distance
+    const slabY = U(6.2), far = '#B9B4AA';
+    const farSlab: Obj[] = [rect(0, slabY, W, U(10) - slabY, far, { label: 'Far slab block' })];
+    for (let y = slabY + u * .2; y < U(10) - 8; y += u * .6) farSlab.push(rect(0, y, W, u * .3, '#5C5852', { opacity: .55, label: 'Balcony recess' }), rect(0, y + u * .3, W, 3, '#E2DDD2', { opacity: .6, label: 'Balcony lip' }));
+    for (let x = u / 2; x < W; x += u) farSlab.push(rect(x - 3, slabY, 6, U(10) - slabY, far, { label: 'Cross-wall' }));
+
+    // the stair tower, windowless but for one slot, crowned by a cantilevered tank
+    const tx0 = U(9.25), tx1 = U(10.75), tTop = U(2.1);
+    const tower: Obj[] = [rect(tx0, tTop, tx1 - tx0, U(10) - tTop, lit, { label: 'Stair tower' }), ...boards(tx0, tTop, tx1 - tx0, U(10) - tTop), ...ties(tx0, tTop + u, tx1 - tx0, U(8)), ...stains(tx0, tTop + u, tx1 - tx0, U(3), 4),
+      rect(U(9.9), U(3), U(.2), U(5.5), voidC, { label: 'Slot window' }),
+      rect(U(8.85), U(1.15), U(2.3), U(.95), mid, { label: 'Tank' }), ...boards(U(8.85), U(1.15), U(2.3), U(.95)), under(U(8.85), U(11.15), U(2.1), U(.28), U(.4), U(.4)),
+      // the crown throws its shadow across the tower, falling to the right under the low sun
+      P(polyD([[tx0, U(2.6)], [tx1, U(3.2)], [tx1, U(6.4)], [tx0, U(5.8)]]), voidC, { opacity: .58, label: 'Crown shadow on the tower' })];
+
+    // the inverted ziggurat: each tier cantilevers past the one below
+    const crown: Obj[] = []; const cx0 = U(.5), cx1 = U(9), cy0 = U(2.6), cy1 = U(4.75);
+    crown.push(rect(cx0, cy0, cx1 - cx0, cy1 - cy0, mid, { label: 'Crown recess' }), ...boards(cx0, cy0, cx1 - cx0, cy1 - cy0));
+    for (let x = cx0 + U(.2); x < cx1 - U(.25); x += u / 2) crown.push(rect(x + U(.17), cy0 + U(.2), U(.15), cy1 - cy0 - U(.2), voidC, { opacity: .5, label: 'Fin shadow' }), rect(x, cy0, U(.17), cy1 - cy0, lit, { label: 'Precast fin' }), rect(x + U(.17), cy0, U(.05), cy1 - cy0, shade, { label: 'Fin return' }));
+    crown.push(rect(cx0 - U(.1), cy0 - U(.22), cx1 - cx0 + U(.2), U(.3), lit, { label: 'Coping' }), ...boards(cx0 - U(.1), cy0 - U(.22), cx1 - cx0 + U(.2), U(.3), 1.4), rect(cx0 - U(.1), cy0 + U(.08), cx1 - cx0 + U(.2), 3, deep, { opacity: .7 }), ...stains(cx0, cy0 + U(.1), cx1 - cx0, U(1.2), 10), under(cx0, cx1, cy1, U(.42), U(.75), U(.75)));
+
+    const t2x0 = U(1.25), t2x1 = U(8.25), t2y1 = U(6.9);
+    const tier2: Obj[] = [rect(t2x0, cy1, t2x1 - t2x0, t2y1 - cy1, lit, { label: 'Tier' }), ...boards(t2x0, cy1, t2x1 - t2x0, t2y1 - cy1), rect(t2x0, U(5.75), t2x1 - t2x0, U(.6), voidC, { label: 'Deep-set ribbon window' }),
+      rect(U(5.25), U(5.75), u, U(.6), B, { gradient: lg(90, [0, mix(B, .25)], [1, mix(B, -.35)]), label: 'Blue bay' })];
+    for (let x = t2x0 + u / 2; x < t2x1; x += u / 2) tier2.push(rect(x - 3, U(5.75), 6, U(.6), mid, { label: 'Mullion' }));
+    tier2.push(castBand(t2x0, t2x1, cy1 + U(.42), U(.5)), ...stains(t2x0, U(6.35), t2x1 - t2x0, U(.5), 6), under(t2x0, t2x1, t2y1, U(.3), U(.5), U(.5)));
+
+    const t1x0 = U(2), t1x1 = U(7.5), t1y1 = U(8.3);
+    const tier1: Obj[] = [rect(t1x0, t2y1, t1x1 - t1x0, t1y1 - t2y1, lit, { label: 'Tier' }), ...boards(t1x0, t2y1, t1x1 - t1x0, t1y1 - t2y1), ...ties(t1x0, t2y1 + U(.5), t1x1 - t1x0, U(.9))];
+    for (let x = t1x0 + U(.6); x < t1x1 - U(.3); x += U(.75)) tier1.push(rect(x, U(7.3), U(.14), U(.8), voidC, { label: 'Slot window' }));
+    tier1.push(castBand(t1x0, t1x1, t2y1 + U(.3), U(.38)), under(t1x0, t1x1, t1y1, U(.24), U(.3), U(.3)));
+
+    const pil: Obj[] = [rect(U(2.4), t1y1, U(4.7), U(10) - t1y1, voidC, { gradient: lg(90, [0, voidC], [1, deep]), label: 'Undercroft' })];
+    for (const x of [2.25, 3.75, 5.25, 6.75]) pil.push(rect(U(x), t1y1 + U(.24), u / 4, U(10) - t1y1 - U(.24), lit, { label: 'Piloti' }), rect(U(x + .25), t1y1 + U(.24), u / 4, U(10) - t1y1 - U(.24), shade, { label: 'Piloti (shade side)' }));
+
+    // the plaza: calm, exposed joints converging on the axis
+    const plaza: Obj[] = [rect(0, U(10), W, H - U(10), P0, { gradient: lg(90, [0, '#C9C4BA'], [.22, mix(P0, -.05)], [1, P0]), label: 'Plaza' }), rect(0, U(10) - 2, W, 4, deep, { label: 'Plaza edge' })];
+    for (let k = -2; k <= 14; k++) plaza.push(line(CX + (k * u - CX) * .35, U(10), CX + (k * u - CX) * 1.6, H, I, 1, { opacity: .07, label: 'Plaza joint' }));
+    const shadows = [P(polyD([[U(2.4), U(10)], [U(7.5), U(10)], [U(9), U(10.9)], [U(3.9), U(10.9)]]), voidC, { opacity: .2, label: 'Building shadow' }), P(polyD([[tx0, U(10)], [tx1, U(10)], [U(12.4), U(10.9)], [tx0 + U(1.5), U(10.9)]]), voidC, { opacity: .2, label: 'Tower shadow' })];
+
+    // the near plane: we stand under a coffered canopy, beside a column in shade
+    const canopy: Obj[] = [P(polyD([[0, 0], [W, 0], [W, U(.8)], [0, U(1.05)]]), '#2C2A27', { label: 'Coffered canopy' })];
+    for (let x = U(.1); x < W; x += u) canopy.push(P(polyD([[x + 6, 6], [x + u - 6, 6], [x + u - 10, U(.62) - x * .004], [x + 10, U(.62) - x * .004]]), voidC, { label: 'Coffer' }), line(x + 10, U(.62) - x * .004, x + u - 10, U(.62) - x * .004, mid, 1.5, { opacity: .7, label: 'Coffer lip' }));
+    canopy.push(P(polyD([[0, U(1.05)], [W, U(.8)], [W, U(.95)], [0, U(1.2)]]), shade, { label: 'Canopy fascia' }));
+    const column = [rect(U(11.3), U(.8), U(.9), U(9.55), '#34322E', { label: 'Near column' }), rect(U(11.3), U(.8), U(.12), U(9.55), mid, { label: 'Column arris (lit)' }), ...boards(U(11.3), U(.8), U(.9), U(9.55), .8)];
+
     return [
-      L(.08, ground(c)), L(.16, grid),
-      L(.5, rect(24, 24, 6 * u, 5 * u, I, { label: 'Concrete slab' }), rect(24 + u, 24 + u, 2 * u, 2 * u, 'none', { stroke: P0, strokeWidth: 1.5 })),
-      L(.62, rect(6 * u + 24, 3 * u, 4 * u, 2 * u, B, { label: 'Blue bay' })),
-      L(.7, circle(10.4 * u, 1.4 * u, .5 * u, R0, { label: 'Red point' }), cross(2 * u, 8.4 * u), cross(10 * u, 8.4 * u), bars),
-      L(.76, rect(12, 12, W - 24, H - 24, 'none', { stroke: I, strokeWidth: 12, label: 'Frame' })),
+      L(.06, ground(c, P0, lg(90, [0, '#7E7A73'], [.32, '#C4C0B6'], [.58, P0], [1, P0]))),
+      L(.1, circle(U(2.3), U(1.75), U(.95), R0, { gradient: rg([0, R0, .3], [1, R0, 0]), label: 'Sun glow' }), circle(U(2.3), U(1.75), U(.42), R0, { label: 'Red sun' })),
+      L(.18, farSlab),
+      L(.3, plaza, shadows),
+      L(.4, tower),
+      L(.46, pil),
+      L(.54, tier1),
+      L(.64, tier2),
+      L(.78, crown),
+      L(.92, canopy, column),
     ];
   },
 };
 
 const minimalist: EraPlateSpec = {
-  cf: { kind: 'golden', value: PHI, origin: [W / PHI, CALM_Y / PHI], label: 'Golden section, and nothing else', governs: 'The stack hangs on the φ vertical; the single red square sits on the φ horizontal.' },
+  cf: { kind: 'golden', value: PHI, origin: [(W - H / PHI) / 2 + H / PHI ** 2, H / PHI ** 2], label: 'Golden section, and nothing else', governs: 'The red field is a 1 : φ rectangle whose corner sits on the plate’s golden point; the one taut rule runs along the φ horizontal and the one black square stands on it at W / φ².' },
   foil: '#D9D6CE', foilStrength: .06, cta: '#9A3E35', font: 'manrope', fontStyle: 'normal 300', light: true,
   build: c => {
-    const { ink: I, accent: G, secondary: R0 } = c; const gx = W / PHI, gy = CALM_Y / PHI;
-    // a wall stack: seven identical units, the interval equal to the unit; each reads as an object (face + side + shadow)
-    const stack: Obj[] = []; const uw = 210, uh = 44, sd = 18;
-    for (let i = 0; i < 7; i++) { const y = 70 + i * uh * 2; const x = gx - uw / 2;
-      stack.push(rect(x + 10, y + uh + 6, uw, 10, I, { opacity: .07, blur: 6, label: 'Shadow' }), P(polyD([[x + uw, y], [x + uw + sd, y + sd * .6], [x + uw + sd, y + uh + sd * .6], [x + uw, y + uh]]), mix(G, -.25), { label: 'Unit side' }), P(polyD([[x, y + uh], [x + uw, y + uh], [x + uw + sd, y + uh + sd * .6], [x + sd, y + uh + sd * .6]]), mix(G, -.38), { label: 'Unit underside' }), rect(x, y, uw, uh, G, { gradient: lg(0, [0, mix(G, .1)], [1, mix(G, -.06)]), label: 'Unit' })); }
-    return [L(.1, ground(c)), L(.6, stack), L(.72, rect(W / PHI ** 2 - 20 - 120, gy - 20, 40, 40, R0, { label: 'Red square' })), L(.2, line(64, CALM_Y + 40, W - 64, CALM_Y + 40, I, .8, { opacity: .35 }))];
+    const { paper: P0, ink: I, secondary: R0 } = c; const phi = c.cf.value; const [gx, gy] = c.cf.origin!;
+    // one field of colour, hung from the top edge: it is exactly the golden rectangle left when the plate's golden
+    // construction peels its first two squares — lower-left corner on the golden point, right edge on the construction's
+    // side (the plate's own φ rectangle, H/φ wide, centred), sides in 1 : φ
+    const m = (W - H / phi) / 2, fw = W - m - gx, fh = gy;
+    const field: Obj[] = [
+      P(polyD([[gx + fw, 0], [gx + fw + 7, 0], [gx + fw + 7, gy + 5], [gx + fw, gy]]), mix(R0, -.16), { label: 'Field edge (depth)' }),
+      P(polyD([[gx, gy], [gx + fw, gy], [gx + fw + 7, gy + 5], [gx + 7, gy + 5]]), mix(R0, -.55), { label: 'Field edge (underside)' }),
+      rect(gx, 0, fw, fh, R0, { gradient: lg(115, [0, mix(R0, .1)], [.55, R0], [1, mix(R0, -.12)]), label: 'Red field' }),
+    ];
+    // raking light from the upper right: a crisp contact shadow and a long soft one thrown down-left across the wall
+    const rake = P(polyD([[gx, 0], [gx - 64, 0], [gx - 64, gy + 90], [gx + fw - 64, gy + 90], [gx + fw, gy]]), I, { gradient: lg(125, [0, I, .3], [.7, I, .06], [1, I, 0]), blur: 5, label: 'Raking shadow' });
+    return [
+      L(.08, ground(c, P0, lg(90, [0, mix(P0, .55)], [.5, P0], [1, mix(P0, -.025)]))),
+      L(.1, { ...circle(0, 0, 1, '#FFFFFF'), x: gx - 300, y: -200, w: fw + 560, h: fh + 420, gradient: rg([0, '#FFFFFF', .75], [1, '#FFFFFF', 0]), objectLabel: 'Gallery light' }),
+      L(.3, rake),
+      L(.42, line(W / phi ** 4, gy + .5, gx, gy + .5, I, 1, { opacity: .75, label: 'Taut rule' }), circle(W / phi ** 4, gy + .5, 2.4, I, { label: 'Rule anchor' })),
+      L(.5, rect(gx - 5, 0, fw, fh + 7, I, { opacity: .22, blur: 4, label: 'Contact shadow' })),
+      // the one square: a small black cube resting on the rule, its right face on the second golden vertical (W/φ²)
+      L(.62, P(polyD([[W / phi ** 2 - 6, gy - 34], [W / phi ** 2 - 40, gy - 34], [W / phi ** 2 - 70, gy + 10], [W / phi ** 2 - 36, gy + 10]]), I, { gradient: lg(120, [0, I, .26], [1, I, 0]), blur: 3, label: 'Cube shadow' }),
+        rect(W / phi ** 2 - 34, gy - 34, 34, 34, I, { label: 'Black square' }), rect(W / phi ** 2 - 34, gy - 34, 34, 3, mix(I, .25), { label: 'Square (lit top)' })),
+      L(.74, field),
+    ];
   },
 };
 
@@ -1056,25 +1139,104 @@ const mexicanModern: EraPlateSpec = {
   },
 };
 
+/** Monstera leaf: a heart-shaped blade with pinnate slits and fenestrations (even-odd holes). `axis` points at the tip. */
+function monsteraLeaf(bx: number, by: number, Lh: number, axis: number, fill: string, vein: string, seed: number): Obj[] {
+  // drawn in leaf space (midrib on +x from the petiole notch at 0 to the tip at Lh), then turned onto `axis`
+  const r = orn.rng(seed); const W2 = .5 * Lh;
+  const half = (t: number) => W2 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, t * .9 + .1))), .75) * (1 - .18 * t);
+  const toWorld = ([x, y]: Pt): Pt => rot([bx + x, by + y], [bx, by], axis);
+  const slitT = [.2, .32, .44, .56, .68, .8];
+  const side = (sg: number): Pt[] => {
+    const pts: Pt[] = [[.02 * Lh, 0], [-.07 * Lh, sg * .1 * Lh], [-.09 * Lh, sg * .24 * Lh], [-.03 * Lh, sg * .36 * Lh], [.07 * Lh, sg * .41 * Lh]];
+    const cuts = slitT.map(t => t + (r() - .5) * .04);
+    for (let t = .14; t <= 1.0001; t += .01) {
+      const k = cuts.findIndex(ct => t > ct - .04 && t < ct + .006);
+      if (k >= 0) { const ct = cuts[k]; const inner = (.1 + r() * .08) * Lh; pts.push([(ct - .035) * Lh, sg * half(ct - .035)], [(ct - .1) * Lh, sg * inner], [(ct - .085) * Lh, sg * inner * 1.1], [(ct + .006) * Lh, sg * half(ct + .006)]); t = ct + .006; continue; }
+      pts.push([t * Lh, sg * half(t)]);
+    }
+    return pts;
+  };
+  const up = side(-1), down = side(1);
+  const outline = [...up, ...down.reverse()].map(toWorld);
+  const holes: string[] = [];
+  for (const sg of [-1, 1]) for (let i = 0; i < slitT.length - 1; i++) {
+    const t = (slitT[i] + slitT[i + 1]) / 2 - .05, hy = sg * (.08 + r() * .03) * Lh, rx = Lh * (.03 + r() * .012), ry = Lh * .014;
+    holes.push(polyD(Array.from({ length: 14 }, (_, k) => toWorld([t * Lh + rx * Math.cos(k / 14 * Math.PI * 2), hy + ry * Math.sin(k / 14 * Math.PI * 2) + sg * .25 * rx * Math.cos(k / 14 * Math.PI * 2)]))));
+  }
+  const veins = [.1, ...slitT.map((t, i) => (t + (slitT[i + 1] ?? .94)) / 2)].flatMap(t => [-1, 1].map(sg => S(polyD([toWorld([(t - .1) * Lh, sg * .02 * Lh]), toWorld([t * Lh, sg * half(t) * .9])], false), vein, 1.4, .5, 'Leaf vein')));
+  return [
+    P(ribbonD([toWorld([-.6 * Lh, .02 * Lh]), toWorld([-.3 * Lh, .02 * Lh]), toWorld([0, 0])], 12, 9), fill, { label: 'Petiole' }),
+    P(`${polyD(outline)} ${holes.join(' ')}`, fill, { label: 'Monstera leaf' }),
+    S(polyD([toWorld([0, 0]), toWorld([.97 * Lh, 0])], false), vein, 3, .8, 'Midrib'), ...veins,
+  ];
+}
+/** A feather palm frond: a rib arching out along `dir` and sagging `droop` px at the tip, leaflets hanging from both sides. */
+function palmFrond(base: Pt, dir: number, len: number, droop: number, col: string, leaf = 1, n = 22, hang = .28): Obj[] {
+  const end = polar(base[0], base[1], len, dir); const rib = bez(base, polar(base[0], base[1], len * .5, dir), [end[0], end[1] - droop * .2], [end[0], end[1] + droop], n);
+  const out: Obj[] = [P(ribbonD(rib, 6 * leaf, 1.5), col, { label: 'Frond rib' })];
+  rib.forEach(([x, y], i) => {
+    if (i < 2) return; const t = i / n; const [ax, ay] = rib[Math.max(0, i - 1)]; const tang = Math.atan2(y - ay, x - ax) * 180 / Math.PI;
+    const l = len * .34 * leaf * Math.sin(Math.PI * Math.min(1, .15 + t * .95));
+    for (const s of [-1, 1]) { const a = tang + s * (52 - hang * 20); const e = polar(x, y, l, a); const mid: Pt = [(x + e[0]) / 2, (y + e[1]) / 2 + l * hang * .6]; out.push(P(ribbonD([[x, y], mid, [e[0], e[1] + l * hang]], 7 * leaf, .8), col, { label: 'Leaflet' })); }
+  });
+  return out;
+}
+
 const tropicalModern: EraPlateSpec = {
-  cf: { kind: 'module', value: 12, label: 'Breeze-block module (68 px)', governs: 'Blocks, fin spacing and the shadow throw are whole or half modules.' },
+  cf: { kind: 'module', value: 12, label: 'Breeze-block module (68 px)', governs: 'Each breeze block is one module; the brise-soleil fins stand at half-module pitch, the roof, floor and pool sit on module lines and every shadow throws half a module.' },
   foil: '#E6A25A', foilStrength: .1, cta: '#D47A32', font: 'tenor', fontStyle: 'normal 400', light: true,
   build: c => {
-    const { paper: P0, ink: G, accent: O, secondary: N } = c; const u = W / c.cf.value;
-    const bx0 = .8 * u, by0 = 1.2 * u, cols = 6, rows = 8;
-    const blocks: Obj[] = [rect(bx0, by0, cols * u, rows * u, N, { label: 'Shadow behind the screen' })];
-    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const x = bx0 + i * u, y = by0 + j * u; const hole = (i + j) % 2 ? circD(x + u / 2, y + u / 2, u * .32) : polyD([[x + u / 2, y + u * .14], [x + u * .86, y + u / 2], [x + u / 2, y + u * .86], [x + u * .14, y + u / 2]]); blocks.push(P(`${polyD([[x, y], [x + u, y], [x + u, y + u], [x, y + u]])} ${hole}`, mix(P0, -.04), { stroke: mix(P0, -.2), strokeWidth: 1, label: 'Breeze block' })); }
-    const fins: Obj[] = [], shadows: Obj[] = []; const fx0 = 7.6 * u;
-    for (let k = 0; k < 6; k++) { const x = fx0 + k * u / 2; fins.push(rect(x, .6 * u, u * .22, 9.4 * u, G, { label: 'Louvre fin' })); shadows.push(P(polyD([[x, 10 * u], [x + u * .22, 10 * u], [x - 2.6 * u, CALM_Y + 60], [x - 2.9 * u, CALM_Y + 60]]), N, { opacity: .13, label: 'Fin shadow' })); }
-    const frond = chain([[[W + 20, -20], [700, 120], [620, 180], [520, 220]]]);
-    const leaflets: Obj[] = []; frond.forEach(([x, y], i) => { if (i % 2 || i < 3) return; const l = 90 - i * 2.2; for (const s of [-1, 1]) { const [ex, ey] = polar(x, y, l, 150 + s * 50 - i * 1.5); leaflets.push(P(ribbonD([[x, y], [(x + ex) / 2, (y + ey) / 2 + 6], [ex, ey]], 10, 1), G, { label: 'Leaflet' })); } });
+    const { paper: P0, ink: G, accent: O, secondary: N } = c; const u = W / c.cf.value; const r = c.r;
+    const cream = '#FAF2E1', creamShade = '#D9C8A6', pool = '#3FB0BC', poolDeep = '#1F8597', sunC: Pt = [8.8 * u, 1.75 * u];
+    const roofY = 3 * u, topY = 3.5 * u, floorY = 9.5 * u, poolY = 9.8 * u, poolY1 = 10.7 * u;
+    // brise-soleil on the right: cream fins at half-module pitch before a terracotta wall, each throwing half a module of shade
+    const wx0 = 6.5 * u, wx1 = 11 * u;
+    const wall: Obj[] = [rect(wx0, topY, wx1 - wx0, floorY - topY, O, { gradient: lg(0, [0, mix(O, -.12)], [1, mix(O, .08)]), label: 'Terracotta wall' })];
+    const fins: Obj[] = [];
+    for (let x = wx0 + u * .2; x < wx1 - u * .1; x += u / 2) {
+      wall.push(P(polyD([[x, topY], [x + u * .16, topY], [x - u * .34, floorY], [x - u * .5, floorY]]), mix(O, -.38), { opacity: .75, label: 'Fin shadow' }));
+      fins.push(rect(x, topY, u * .16, floorY - topY, cream, { label: 'Brise-soleil fin' }), rect(x, topY, u * .05, floorY - topY, creamShade, { label: 'Fin (shade side)' }));
+    }
+    // the breeze-block screen: one block per module, circles and diamonds pierced through to the cool interior
+    const bx0 = 1 * u, bx1 = 6 * u;
+    const interior: Obj[] = [rect(bx0, topY, bx1 - bx0, floorY - topY, N, { label: 'Interior shade' }), { ...circle(0, 0, 1, O), x: bx0 + u, y: topY + u * 1.5, w: 3 * u, h: 3.5 * u, gradient: rg([0, '#F2B66B', .55], [1, O, 0]), objectLabel: 'Lamp glow' }];
+    const holes: string[] = [];
+    for (let j = 0; j < 6; j++) for (let i = 0; i < 5; i++) { const x = bx0 + i * u + u / 2, y = topY + j * u + u / 2; holes.push(circD(x, y, u * .3)); if (i < 4 && j < 5) holes.push(polyD([[x + u / 2, y + u * .3], [x + u * .7, y + u / 2], [x + u / 2, y + u * .7], [x + u * .3, y + u / 2]])); }
+    const screen: Obj[] = [P(`${polyD([[bx0, topY], [bx1, topY], [bx1, floorY], [bx0, floorY]])} ${holes.join(' ')}`, cream, { label: 'Breeze-block screen' })];
+    for (let i = 1; i < 5; i++) screen.push(line(bx0 + i * u, topY, bx0 + i * u, floorY, creamShade, 1, { opacity: .6, label: 'Block joint' }));
+    for (let j = 1; j < 6; j++) screen.push(line(bx0, topY + j * u, bx1, topY + j * u, creamShade, 1, { opacity: .6, label: 'Block joint' }));
+    const structure: Obj[] = [
+      rect(bx1, topY, wx0 - bx1, floorY - topY, cream, { label: 'Column' }), rect(bx1, topY, u * .14, floorY - topY, creamShade, { label: 'Column (shade side)' }),
+      rect(.6 * u, topY, .4 * u, floorY - topY, cream, { label: 'End column' }), rect(11 * u, topY, .4 * u, floorY - topY, cream, { label: 'End column' }),
+      rect(.6 * u, floorY, 10.8 * u, poolY - floorY, cream, { label: 'Floor slab' }), rect(.6 * u, floorY, 10.8 * u, 4, creamShade),
+    ];
+    const roof: Obj[] = [rect(.2 * u, roofY, 11.6 * u, topY - roofY, cream, { label: 'Roof slab' }), rect(.2 * u, topY - 7, 11.6 * u, 7, creamShade, { label: 'Roof edge' }), rect(.6 * u, topY, 10.8 * u, u * .9, N, { gradient: lg(90, [0, N, .34], [1, N, 0]), label: 'Soffit shadow' })];
+    const water: Obj[] = [rect(0, poolY, W, poolY1 - poolY, pool, { gradient: lg(90, [0, pool], [1, poolDeep]), label: 'Pool' })];
+    for (let i = 0; i < 26; i++) { const y = poolY + 8 + r() * (poolY1 - poolY - 16), x = r() * W, l = 14 + r() * 40; water.push(line(x, y, x + l, y, '#E9FBFB', 2, { opacity: .5 + r() * .4, label: 'Ripple' })); }
+    for (let k = 0; k < 7; k++) { const y = poolY + 6 + k * (poolY1 - poolY - 10) / 7, l = u * (1.4 - k * .14); water.push(line(sunC[0] - l / 2 + (r() - .5) * 10, y, sunC[0] + l / 2 + (r() - .5) * 10, y, '#F6B867', 3, { opacity: .85, label: 'Sun on the water' })); }
+    water.push(rect(0, poolY1, W, 6, cream, { label: 'Coping' }));
+    const palm = (bx: number, top: Pt, s: number, col: string): Obj[] => {
+      const trunk = bez([bx, roofY + 4], [bx + s * 6, roofY - u * .9], [top[0] - s * 30, top[1] + u * .9], top, 20);
+      const out: Obj[] = [P(ribbonD(trunk, 16, 8), col, { label: 'Palm trunk' })];
+      [-160, -128, -96, -62, -30, 2, 168, 196].forEach((d, i) => out.push(...palmFrond(top, d, u * (1.7 + (i % 3) * .3), u * (.5 + Math.abs(Math.cos(rad(d))) * .9), col, .85, 11, .75)));
+      return out;
+    };
     return [
-      L(.06, ground(c)),
-      L(.14, circle(8.9 * u, 2.1 * u, 1.55 * u, O, { label: 'Sun' }), circle(8.9 * u, 2.1 * u, 2.4 * u, O, { opacity: .18, label: 'Sun halo' })),
-      L(.22, shadows),
-      L(.46, blocks), L(.6, fins),
-      L(.84, P(ribbonD(frond, 10, 3), G, { label: 'Palm rib' }), leaflets),
-      L(.3, rect(0, 10 * u, W, 6, G, { opacity: .5, label: 'Floor line' })),
+      L(.06, ground(c, P0, lg(90, [0, '#EDB97E'], [.28, '#F3D6A6'], [.62, P0], [1, P0]))),
+      L(.1, circle(sunC[0], sunC[1], 2.4 * u, '#F2A24E', { gradient: rg([0, '#F7B866', .55], [1, '#F2A24E', 0]), label: 'Sun halo' }), circle(sunC[0], sunC[1], 1.25 * u, O, { gradient: lg(90, [0, '#F2A84F'], [1, O]), label: 'Sun' })),
+      L(.2, palm(2.4 * u, [1.7 * u, .95 * u], -1, '#4F7D6C'), palm(4.1 * u, [4.7 * u, 1.55 * u], 1, '#3E6E61')),
+      L(.3, interior),
+      L(.38, wall),
+      L(.44, water),
+      // the title sits in the shade the louvres cast across the terrace (and a palm's dapple): faint enough to set text on
+      L(.34, fins.filter(o => o.objectLabel === 'Brise-soleil fin').map(o => P(polyD([[o.x, poolY1 + 6], [o.x + o.w, poolY1 + 6], [o.x + o.w - 2.5 * u, H], [o.x - 2.5 * u, H]]), N, { opacity: .05, label: 'Louvre shade on the terrace' })),
+        palmFrond([W + 60, 11.6 * u], 196, 5.4 * u, u * .8, N, 1.2, 22).map(o => ({ ...o, opacity: .06, objectLabel: 'Frond shadow' }))),
+      L(.5, screen),
+      L(.54, fins),
+      L(.58, structure),
+      L(.62, roof),
+      L(.86, palmFrond([W + 30, -40], 158, 4.8 * u, 1.2 * u, mix(G, -.35), 1.1, 26)),
+      L(.92, monsteraLeaf(.1 * u, 8.7 * u, 3.7 * u, -55, mix(G, -.3), mix(G, .25), c.seed)),
     ];
   },
 };

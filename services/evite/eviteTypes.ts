@@ -133,6 +133,9 @@ export interface EviteDoc {
   bringList: EviteBringItem[];
   /** Cover photo (optional) shown inside the card frame. */
   photoUrl?: string;
+  /** The invite's own link preview (1200×630, card + live text), rendered by the host's browser; ogSig = what it shows. */
+  ogImage?: string;
+  ogSig?: string;
   registryUrl?: string;
   /** Link to a Plajah ticketed event — the invite then offers tickets alongside the RSVP. */
   eventId?: string;

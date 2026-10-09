@@ -2,6 +2,7 @@
 // Assets are public, immutable and versioned in Firebase Storage: evites/<version>/{plates,depth,thumbs}/<collection>/<subject>.jpg
 // A plate id is "<collection>/<subject>", and is what an evite stores as its templateId.
 import catalog from './plateCatalog.json';
+import { eraIdOf } from './eraIds';
 
 export interface PlateCollection { id: string; label: string; plates: string[] }
 export const PLATE_COLLECTIONS: PlateCollection[] = (catalog as any).collections;
@@ -25,6 +26,13 @@ export function plateUrls(id: string) {
   const p = parsePlateId(id); if (!p) return null;
   const tail = `${p.collection}/${p.subject}.jpg`;
   return { plate: `${PLATE_BASE}/plates/${tail}`, depth: `${PLATE_BASE}/depth/${tail}`, thumb: `${PLATE_BASE}/thumbs/${tail}`, ...p };
+}
+
+/** Link-preview image (1200×630: the card centred on its own blurred art) for a catalogue plate or a design era.
+ *  Pre-rendered once per design by scripts/evite/ogImages.mjs; an invite's own preview (with its names) wins over it. */
+export function plateOgUrl(id: string): string | null {
+  const era = eraIdOf(id); if (era) return `${PLATE_BASE}/og/era/${era}.jpg`;
+  const p = parsePlateId(id); return p ? `${PLATE_BASE}/og/${p.collection}/${p.subject}.jpg` : null;
 }
 
 /** Typographic voice for the live text over a plate. Open-licensed faces only (council rule). */

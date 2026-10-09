@@ -10,9 +10,16 @@
  *
  * Text is NOT drawn here: children are live DOM on top (crisp, accessible, translatable). The stage drives them through
  * CSS variables --rv-head / --rv-details / --rv-cta (0..1) so text and plate share one clock.
+ *
+ * Settling (Art Council): the drama is the reveal. Afterwards an activity envelope (settleEnvelope) eases every loop to
+ * still over ~1.5 s — sweep, flicker and twinkle fade out, breath and ambient particles fade away, and the effect clock
+ * that drives foil shimmer, caustics, fog drift and grain slows to a stop (they freeze, so the plate's look never pops).
+ * Tilt, pointer movement and taps bring the loops back; once everything is still the stage stops requesting frames
+ * (host gets data-idle="1") and wakes on input, resize, visibility or replay. snapshot(tMs, tilt) ignores input, so a
+ * poster at a given time is deterministic.
  */
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { recipeFor, reducedRecipe, revealCurves, springStep, type EmitterKind, type MotionRecipe } from '../../services/evite/motionRecipes';
+import { recipeFor, reducedRecipe, revealCurves, settleEnvelope, springStep, SETTLE_MS, type EmitterKind, type MotionRecipe } from '../../services/evite/motionRecipes';
 
 /** snapshot: render one frame at reveal time tMs with a given tilt and return it as a JPEG data URL (posters, link previews, print, tests). */
 export interface EviteStageHandle { replay(): void; celebrate(): void; snapshot(tMs?: number, tiltX?: number, tiltY?: number): string | null }
@@ -192,15 +199,24 @@ const EviteStage = forwardRef<EviteStageHandle, EviteStageProps>(function EviteS
 
     let plateTex: WebGLTexture | null = null, depthTex: WebGLTexture | null = null, imgAspect = 2 / 3, hasDepth = false;
     let W = 0, H = 0, dpr = 1;
-    const resize = () => { const r = host.getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); W = Math.max(1, r.width); H = Math.max(1, r.height); cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); gl.viewport(0, 0, cv.width, cv.height); };
-    resize();
-    const ro = new ResizeObserver(resize); ro.observe(host);
-
     // ── state ──
     const parUV = R.parallax / 390;            // recipe px at 390px width → uv
     let t0 = performance.now(), last = t0;
     let tiltX = 0, tiltY = 0, tvx = 0, tvy = 0, targetX = 0, targetY = 0;
     let tap = { x: 0.5, y: 0.5, age: 2 };
+    // activity envelope + the effect clock it drives (loops slow to a stop instead of popping off)
+    let env = 1, tEff = 0, lastInput = -Infinity, actX = 0, actY = 0;
+    const idleFloor = R.idle ?? 0;
+    /** (Re)start the frame loop; `input` marks real guest activity, which brings the loops back. */
+    const wake = (input = false) => {
+      if (input) lastInput = performance.now();
+      if (disposed || raf || !plateTex || !visible || document.hidden) return;
+      last = performance.now(); host.dataset.idle = '0'; raf = requestAnimationFrame(frame);
+    };
+
+    const resize = () => { const r = host.getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); W = Math.max(1, r.width); H = Math.max(1, r.height); cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); gl.viewport(0, 0, cv.width, cv.height); wake(); };
+    resize();
+    const ro = new ResizeObserver(resize); ro.observe(host);
     const parts: P[] = [];
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
     const spawn = (burst: boolean, kind: EmitterKind, colors: string[], layer: 'front' | 'mid' | 'back', x?: number, y?: number) => {
@@ -214,23 +230,25 @@ const EviteStage = forwardRef<EviteStageHandle, EviteStageProps>(function EviteS
     const ambient = () => parts.filter(p => !p.burst).length;
     const burst = (x: number, y: number, n: number) => { for (let i = 0; i < n; i++) spawn(true, R.burst, R.burstColors, 'front', x, y); };
 
-    api.current.replay = () => { t0 = performance.now(); };
-    api.current.celebrate = () => { if (reduced) return; for (let i = 0; i < 3; i++) burst(W * (0.25 + 0.25 * i), H * 0.55, 8); tap = { x: 0.5, y: 0.55, age: 0 }; };
-    api.current.tap = (x, y) => { if (!reduced) burst(x, y, 10); tap = { x: x / W, y: y / H, age: 0 }; };
+    api.current.replay = () => { t0 = performance.now(); wake(); };
+    api.current.celebrate = () => { if (reduced) return; for (let i = 0; i < 3; i++) burst(W * (0.25 + 0.25 * i), H * 0.55, 8); tap = { x: 0.5, y: 0.55, age: 0 }; wake(!reduced); };
+    api.current.tap = (x, y) => { if (!reduced) burst(x, y, 10); tap = { x: x / W, y: y / H, age: 0 }; wake(!reduced); };
 
     // ── input: pointer on desktop, gyro on phones (iOS asks on first tap) ──
-    const onMove = (e: PointerEvent) => { if (e.pointerType === 'touch') return; const r = host.getBoundingClientRect(); targetX = ((e.clientX - r.left) / r.width - 0.5) * 2; targetY = ((e.clientY - r.top) / r.height - 0.5) * 2; };
-    const onLeave = () => { targetX = 0; targetY = 0; };
+    // A tilt counts as activity only past a small dead-band, so a phone resting in a hand (sensor jitter) lets the card sleep.
+    const tilted = () => { if (Math.abs(targetX - actX) + Math.abs(targetY - actY) < 0.03) return; actX = targetX; actY = targetY; if (!reduced) wake(true); };
+    const onMove = (e: PointerEvent) => { if (e.pointerType === 'touch') return; const r = host.getBoundingClientRect(); targetX = ((e.clientX - r.left) / r.width - 0.5) * 2; targetY = ((e.clientY - r.top) / r.height - 0.5) * 2; tilted(); };
+    const onLeave = () => { targetX = 0; targetY = 0; tilted(); };
     let gyroOn = false;
-    const onOrient = (e: DeviceOrientationEvent) => { if (e.gamma == null || e.beta == null) return; gyroOn = true; targetX = Math.max(-1, Math.min(1, e.gamma / 25)); targetY = Math.max(-1, Math.min(1, (e.beta - 45) / 25)); };
+    const onOrient = (e: DeviceOrientationEvent) => { if (e.gamma == null || e.beta == null) return; gyroOn = true; targetX = Math.max(-1, Math.min(1, e.gamma / 25)); targetY = Math.max(-1, Math.min(1, (e.beta - 45) / 25)); tilted(); };
     const askGyro = async () => { const D: any = (window as any).DeviceOrientationEvent; if (gyroOn || !D) return; try { if (typeof D.requestPermission === 'function') { if ((await D.requestPermission()) !== 'granted') return; } window.addEventListener('deviceorientation', onOrient); } catch { /* user said no: pointer only */ } };
     const onDown = (e: PointerEvent) => { const r = host.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top; api.current.tap(x, y); onTap?.(x, y); askGyro(); };
     host.addEventListener('pointermove', onMove); host.addEventListener('pointerleave', onLeave); host.addEventListener('pointerdown', onDown);
     if (!(typeof (window as any).DeviceOrientationEvent?.requestPermission === 'function')) window.addEventListener('deviceorientation', onOrient);
 
-    const io = new IntersectionObserver(es => { visible = es.some(e => e.isIntersecting); if (visible && !raf) raf = requestAnimationFrame(frame); }, { threshold: 0.01 });
+    const io = new IntersectionObserver(es => { visible = es.some(e => e.isIntersecting); wake(); }, { threshold: 0.01 });
     io.observe(host);
-    const onVis = () => { if (!document.hidden && visible && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+    const onVis = () => wake();
     document.addEventListener('visibilitychange', onVis);
     const onLost = (e: Event) => { e.preventDefault(); setFallback(true); };
     cv.addEventListener('webglcontextlost', onLost);
@@ -249,9 +267,17 @@ const EviteStage = forwardRef<EviteStageHandle, EviteStageProps>(function EviteS
       if (disposed || !plateTex) return;
       if (!forced && (!visible || document.hidden)) return;
       const dt = forced ? 1 / 60 : Math.min(0.05, (now - last) / 1000); if (!forced) last = now;
-      const tMs = forced ? forced.t : now - t0, t = forced ? forced.t / 1000 : now / 1000;
+      const tMs = forced ? forced.t : now - t0;
       if (forced) { tiltX = forced.tx; tiltY = forced.ty; tvx = 0; tvy = 0; targetX = forced.tx; targetY = forced.ty; }
       const rv = revealCurves(tMs, R.revealMs);
+      // activity: full through the reveal and while the guest moves, then a smooth release to still. Rising is eased too
+      // (~0.2 s) so a first touch never pops the loops on. Snapshots ignore input: same tMs → same frame.
+      const goal = settleEnvelope(tMs, R.revealMs, forced ? Infinity : now - lastInput, idleFloor);
+      if (!forced) env = goal >= env ? env + (goal - env) * (1 - Math.exp(-dt / 0.2)) : goal;
+      const act = forced ? goal : env;
+      // the effect clock runs at the envelope's rate, so shimmer, caustics, fog and grain slow to a stop rather than vanish
+      if (!forced) tEff += dt * act;
+      const t = forced ? forced.t / 1000 : tEff;
       [tiltX, tvx] = springStep(tiltX, tvx, reduced ? 0 : targetX, dt, R.spring);
       [tiltY, tvy] = springStep(tiltY, tvy, reduced ? 0 : targetY, dt, R.spring);
       host.style.setProperty('--rv-head', rv.headline.toFixed(3)); host.style.setProperty('--rv-details', rv.details.toFixed(3)); host.style.setProperty('--rv-cta', rv.cta.toFixed(3));
@@ -262,22 +288,24 @@ const EviteStage = forwardRef<EviteStageHandle, EviteStageProps>(function EviteS
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, depthTex); gl.uniform1i(uni.depth, 1); gl.uniform1i(uni.hasDepth, hasDepth ? 1 : 0);
       gl.uniform2f(uni.res, cv.width, cv.height); gl.uniform1f(uni.imgAspect, imgAspect);
       gl.uniform2f(uni.tilt, tiltX, tiltY); gl.uniform1f(uni.par, parUV); gl.uniform1f(uni.pop, R.popIn); gl.uniform1f(uni.settle, rv.settle);
-      gl.uniform1f(uni.exposure, rv.exposure); gl.uniform1f(uni.breathe, R.breathe * Math.sin((t * 2 * Math.PI) / R.breathePeriod)); gl.uniform1f(uni.time, t);
-      gl.uniform3f(uni.sweep, R.sweep.strength, R.sweep.period, R.sweep.angle); gl.uniform3f(uni.foilColor, foilRGB[0], foilRGB[1], foilRGB[2]); gl.uniform1f(uni.foil, R.foil.strength);
-      gl.uniform1f(uni.flicker, R.flicker); gl.uniform1f(uni.caustics, R.caustics); gl.uniform1f(uni.fog, R.fog); gl.uniform1f(uni.twinkle, R.twinkle);
+      gl.uniform1f(uni.exposure, rv.exposure); gl.uniform1f(uni.breathe, act * R.breathe * Math.sin((t * 2 * Math.PI) / R.breathePeriod)); gl.uniform1f(uni.time, t);
+      // loops that would look like artefacts if frozen (a parked sweep band, a dimmed flicker, stuck sparkles) fade out
+      gl.uniform3f(uni.sweep, act * R.sweep.strength, R.sweep.period, R.sweep.angle); gl.uniform3f(uni.foilColor, foilRGB[0], foilRGB[1], foilRGB[2]); gl.uniform1f(uni.foil, R.foil.strength);
+      gl.uniform1f(uni.flicker, act * R.flicker); gl.uniform1f(uni.caustics, R.caustics); gl.uniform1f(uni.fog, R.fog); gl.uniform1f(uni.twinkle, act * R.twinkle);
       gl.uniform1f(uni.warmth, R.warmth); gl.uniform1f(uni.contrast, R.contrast); gl.uniform3f(uni.tap, tap.x, tap.y, tap.age);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
       // particles
-      if (R.emitter && rv.exposure > 0.6) while (ambient() < R.emitter.count) spawn(false, R.emitter.kind, R.emitter.colors, R.emitter.layer);
+      // ambient particles live only while the card is active; they fade with the envelope (bursts are always the guest's)
+      if (R.emitter && rv.exposure > 0.6 && act > 0.5) while (ambient() < R.emitter.count) spawn(false, R.emitter.kind, R.emitter.colors, R.emitter.layer);
       let n = 0;
       for (let i = parts.length - 1; i >= 0; i--) {
         const p = parts[i]; p.life += dt;
         if (p.burst) { p.vy += 520 * dt; p.vx *= 0.985; } else { p.vx += Math.sin(t * 0.7 + i) * 6 * dt; }
         p.x += p.vx * dt + tiltX * (p.layer > 1 ? 18 : 6) * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
         const out = p.y > H + 30 || p.y < -60 || p.x < -40 || p.x > W + 40;
-        if (p.life > p.max || out) { parts.splice(i, 1); continue; }
-        const fade = p.burst ? 1 - p.life / p.max : Math.min(1, p.life / 0.8) * Math.min(1, (p.max - p.life) / 0.8);
+        if (p.life > p.max || out || (!p.burst && act < 0.01)) { parts.splice(i, 1); continue; }
+        const fade = p.burst ? 1 - p.life / p.max : Math.min(1, p.life / 0.8) * Math.min(1, (p.max - p.life) / 0.8) * act;
         const o = n * STRIDE; pdata.set([p.x * dpr, p.y * dpr, p.size, p.rot, fade * (p.kind === 6 ? 0.55 : 0.9), p.kind, p.layer, p.col[0], p.col[1], p.col[2]], o); n++;
         if (n >= MAX_P) break;
       }
@@ -287,9 +315,22 @@ const EviteStage = forwardRef<EviteStageHandle, EviteStageProps>(function EviteS
         gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, depthTex); gl.uniform1i(puni.depth, 1); gl.uniform1i(puni.hasDepth, hasDepth ? 1 : 0);
         gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.drawArrays(gl.POINTS, 0, n); gl.disable(gl.BLEND);
       }
-      if (!forced) raf = requestAnimationFrame(frame);
+      if (forced) return;
+      // everything still (reveal over, loops released, tilt at rest, no ring, no particles): stop drawing until woken
+      const tx = reduced ? 0 : targetX, ty = reduced ? 0 : targetY;
+      const still = act <= 0.001 && goal <= 0.001 && rv.done && tap.age >= 1 && parts.length === 0
+        && Math.abs(tiltX - tx) < 1e-3 && Math.abs(tiltY - ty) < 1e-3 && Math.abs(tvx) < 1e-3 && Math.abs(tvy) < 1e-3;
+      if (still) host.dataset.idle = '1'; else raf = requestAnimationFrame(frame);
     }
-    api.current.snapshot = (t = R.revealMs + 1500, x = 0, y = 0) => { if (!plateTex) return null; frame(performance.now(), { t, tx: x, ty: y }); try { return cv.toDataURL('image/jpeg', 0.9); } catch { return null; } };
+    api.current.snapshot = (t = R.revealMs + SETTLE_MS, x = 0, y = 0) => {
+      if (!plateTex) return null;
+      // a poster frame must not disturb the live card: keep its tilt, then let it redraw itself
+      const keep = [tiltX, tiltY, tvx, tvy, targetX, targetY] as const;
+      frame(performance.now(), { t, tx: x, ty: y });
+      let url: string | null = null; try { url = cv.toDataURL('image/jpeg', 0.9); } catch { url = null; }
+      [tiltX, tiltY, tvx, tvy, targetX, targetY] = keep; wake();
+      return url;
+    };
 
     (async () => {
       try {
@@ -297,8 +338,8 @@ const EviteStage = forwardRef<EviteStageHandle, EviteStageProps>(function EviteS
         if (disposed) return;
         imgAspect = plate.naturalWidth / plate.naturalHeight;
         plateTex = tex(plate, 0); depthTex = tex(depth, 1); hasDepth = !!depth;
-        t0 = performance.now(); last = t0;
-        raf = requestAnimationFrame(frame);
+        t0 = performance.now(); last = t0; env = 1; tEff = 0;
+        wake();
       } catch (e) { console.warn('[EviteStage]', e); setFallback(true); }
     })();
 

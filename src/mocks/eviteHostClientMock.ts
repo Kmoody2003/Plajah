@@ -51,3 +51,11 @@ export async function provisionExtras(inv: EviteDoc, opts: { room: boolean; pool
   return { invite: await saveInvite({ id: inv.id, clubId: opts.room ? inv.clubId || 'club_' + inv.id : inv.clubId, clubInvite: opts.room ? 'ABC123' : inv.clubInvite, photoPoolId: opts.pool ? inv.photoPoolId || 'pool_' + inv.id : inv.photoPoolId }), problems: [] as string[] };
 }
 export function downloadCsv(name: string, csv: string) { console.log('[mock] download', name, csv.length); }
+export async function publishOgImage(inv: EviteDoc, art?: any, accent = '#FF8C00') {
+  // Preview: render for real so the image can be inspected (window.__lastOg), skip the upload.
+  const og = await import('../../services/evite/eviteOg');
+  const blob = await og.renderInviteOg({ plateId: inv.templateId, fields: inv.fields, accent: inv.look?.accent || accent, art, showLaw: inv.look?.showLaw });
+  (window as any).__lastOg = URL.createObjectURL(blob);
+  console.log('[mock] og preview', blob.size, (window as any).__lastOg);
+  return null;
+}

@@ -175,7 +175,8 @@ describe('server', () => {
     assert.equal(pub.body.invite.art, undefined);
     assert.equal(pub.body.invite.look.showLaw, undefined);
     const page = await h.call('GET /i/:id', { params: { id } });
-    assert.match(String(page.body), /og:image" content="https:\/\/plajah\.com\/og-default\.png"/);
+    // Each era has a pre-rendered 1200×630 preview on the plate bucket (scripts/evite/ogImages.mjs).
+    assert.match(String(page.body), /og:image" content="https:\/\/[^"]+\/evites\/v1\/og\/era\/art-deco\.jpg"/);
     assert.match(String(page.body), /og:image:width" content="1200"/);
   });
 });

@@ -298,3 +298,31 @@ describe('reminders', () => {
     assert.equal(r2.invites, 0, 'only once');
   });
 });
+
+describe('link previews', () => {
+  test('only the owner’s own preview file for this invite is accepted', async () => {
+    const { isOwnOgUrl } = await import('../services/evite/eviteServer');
+    const ok = 'https://firebasestorage.googleapis.com/v0/b/x.firebasestorage.app/o/users%2Fhost1%2Fevites%2Fabcd2345%2Fog.jpg?alt=media&token=1b2c-3d';
+    assert.equal(isOwnOgUrl(ok, 'host1', 'abcd2345'), true);
+    assert.equal(isOwnOgUrl(ok, 'host2', 'abcd2345'), false, 'someone else’s folder');
+    assert.equal(isOwnOgUrl(ok, 'host1', 'zzzz9999'), false, 'another invite');
+    assert.equal(isOwnOgUrl('https://evil.example/og.jpg', 'host1', 'abcd2345'), false);
+    assert.equal(isOwnOgUrl(ok.replace('og.jpg', 'og.jpg%2F..%2Fx'), 'host1', 'abcd2345'), false);
+  });
+  test('/i/:id tags: the invite’s own card first, then the design’s 1200×630 preview', async () => {
+    const h = harness(); (h.deps as any).readIndexHtml = async () => '<html><head><title>x</title></head><body></body></html>';
+    const routes: Record<string, any> = {};
+    const app = { get: (p: string, ...f: any[]) => { routes[`GET ${p}`] = f[f.length - 1]; }, post: () => {} };
+    registerEviteRoutes({ ...(h.deps as any), app });
+    const id = (await h.call('POST /api/evite/save', { uid: 'host1', body: { templateId: 'wedding/floral-arch', fields: { headline: 'Mira & Ellis', startsAt: Date.UTC(2027, 0, 22) }, status: 'live' } })).body.invite.id;
+    const page = async () => { let out = ''; await routes['GET /i/:id']({ params: { id }, headers: {} }, { set() { return this; }, type() { return this; }, status() { return this; }, send(b: string) { out = b; return this; } }, () => {}); return out; };
+    let html = await page();
+    assert.match(html, /og:image" content="[^"]*\/og\/wedding\/floral-arch\.jpg"/); assert.match(html, /og:image:width" content="1200"/); assert.match(html, /summary_large_image/);
+    const own = `https://firebasestorage.googleapis.com/v0/b/x/o/users%2Fhost1%2Fevites%2F${id}%2Fog.jpg?alt=media&token=ab-12`;
+    await h.call('POST /api/evite/save', { uid: 'host1', body: { id, ogImage: own, ogSig: 's1' } });
+    html = await page();
+    assert.ok(html.includes(`og:image" content="${own.replace(/&/g, '&amp;')}"`), 'own preview wins');
+    await h.call('POST /api/evite/save', { uid: 'host1', body: { id, templateId: 'wedding/olive' } });
+    assert.match(await page(), /\/og\/wedding\/olive\.jpg/, 'a new design drops the stale preview');
+  });
+});

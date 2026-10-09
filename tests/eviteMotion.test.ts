@@ -3,7 +3,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import manifest from '../docs/evites/production/manifest.json';
-import { recipeFor, reducedRecipe, revealCurves, springStep, foilFor, COLLECTION_MOTION } from '../services/evite/motionRecipes';
+import { recipeFor, reducedRecipe, revealCurves, springStep, foilFor, settleEnvelope, SETTLE_MS, COLLECTION_MOTION } from '../services/evite/motionRecipes';
 
 const plates = (manifest as any).grids.flatMap((g: any) => g.subjects.map((s: string) => [g.collection, s] as [string, string]));
 
@@ -55,6 +55,18 @@ describe('timing', () => {
     assert.ok(early.exposure > 0 && early.headline === 0);
     assert.ok(mid.headline > 0.5 && mid.cta === 0);
     assert.equal(end.done, true); assert.equal(end.cta, 1); assert.equal(end.headline, 1);
+  });
+  test('effects settle after the reveal and come back only with input (Art Council)', () => {
+    const rev = 1870;
+    assert.equal(settleEnvelope(500, rev, Infinity), 1, 'full through the reveal');
+    assert.equal(settleEnvelope(rev + SETTLE_MS, rev, Infinity), 0, 'still once the reveal has released');
+    let prev = 1;
+    for (let t = rev; t <= rev + SETTLE_MS; t += 50) { const e = settleEnvelope(t, rev, Infinity); assert.ok(e <= prev + 1e-9 && prev - e < 0.1, `smooth release at ${t}`); prev = e; }
+    assert.equal(settleEnvelope(rev + 9000, rev, 50), 1, 'tilting brings the loops back');
+    assert.ok(settleEnvelope(rev + 9000, rev, 900) > 0 && settleEnvelope(rev + 9000, rev, 900) < 1, 'easing back');
+    assert.equal(settleEnvelope(rev + 9000, rev, SETTLE_MS), 0, 'still ~1.5 s after input stops');
+    assert.equal(settleEnvelope(rev + 9000, rev, Infinity, 0.3), 0.3, 'a recipe can opt into a gentle idle');
+    for (const [c, s] of plates) assert.ok(!recipeFor(c, s).idle, `${c}/${s}: no shipped recipe keeps looping at rest`);
   });
   test('kids spring settles in under a second without exploding', () => {
     let x = 0, v = 0; for (let i = 0; i < 60; i++) [x, v] = springStep(x, v, 1, 1 / 60, [320, 28]);

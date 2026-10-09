@@ -47,10 +47,20 @@ export interface EraEvite {
 
 const eraEntry = (eraId: string): TelaStyleEra | undefined => { const e = TELA_STYLE_ERAS.find(x => x.id === eraId); return e ? resolveStyleEra(e) : undefined; };
 
+/** Where the invitation's art reads differently from the Tela template's lesson (the Tela page teaches graphic
+ *  Brutalism; the invitation is an architectural plate), the card's own words win. */
+const EVITE_LESSONS: Record<string, { label?: string; principle: string; history: string }> = {
+  brutalist: {
+    label: 'Brutalism',
+    principle: 'Let the material speak: raw board-formed concrete, honest structure, and heavy masses that cantilever out into light and shadow.',
+    history: 'Named from Le Corbusier’s béton brut (“raw concrete”) and the “New Brutalism” label critics gave it in the 1950s, the style shaped civic buildings, campuses and housing into the 1970s, from Boston City Hall to London’s Barbican. Its architects showed how a building was made instead of hiding it: the grain of the timber formwork, the exposed structure, the repeated bay.',
+  },
+};
+
 export const ERA_EVITES: EraEvite[] = TELA_STYLE_ERAS.filter(e => ERA_PLATES[e.id] && ERA_DESIGNS[e.id] && isEraId(eraPlateId(e.id))).map(e0 => {
-  const e = resolveStyleEra(e0); const s = ERA_PLATES[e.id]; const lesson = ERA_LESSONS[e.id];
+  const e = resolveStyleEra(e0); const s = ERA_PLATES[e.id]; const lesson = EVITE_LESSONS[e.id] || ERA_LESSONS[e.id];
   return {
-    id: eraPlateId(e.id), eraId: e.id, label: e.name, period: e.period, category: e.category,
+    id: eraPlateId(e.id), eraId: e.id, label: EVITE_LESSONS[e.id]?.label || e.name, period: e.period, category: e.category,
     lesson: lesson?.principle || e.description, history: lesson?.history || e.description,
     cantusFirmus: s.cf, preset: ERA_PRESET, foil: s.foil, cta: s.cta, palette: e.palette,
     font: s.font, display: fontCss(s.font), displayStyle: s.fontStyle, relief: !!s.relief, light: s.light,

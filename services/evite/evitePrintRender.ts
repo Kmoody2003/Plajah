@@ -27,7 +27,7 @@ export const PRINT_FONTS_CSS = 'https://fonts.googleapis.com/css2?family=Outfit:
 const SANS = 'Inter, system-ui, sans-serif';
 
 const plateCache = new Map<string, Promise<HTMLImageElement>>();
-function loadPlate(src: string): Promise<HTMLImageElement> {
+export function loadPlate(src: string): Promise<HTMLImageElement> {
   let p = plateCache.get(src);
   if (!p) {
     p = new Promise<HTMLImageElement>((res, rej) => {

@@ -52,6 +52,13 @@ export interface MotionRecipe {
   /** grade: warmth -1..1, contrast 0.8..1.3 */
   warmth: number;
   contrast: number;
+  /**
+   * Opt-out from settling (Art Council: effects idle after the reveal). Omitted/0 = after the reveal every loop — sweep,
+   * flicker, twinkle, breath, fog drift, foil shimmer, grain, ambient particles — eases to still and the stage stops
+   * drawing until the guest tilts, moves the pointer or taps. 0..1 keeps that fraction of the loops alive at rest (and
+   * the stage keeps drawing — a battery cost, so no shipped recipe sets it today).
+   */
+  idle?: number;
 }
 
 const base: MotionRecipe = {
@@ -193,6 +200,24 @@ export function springStep(x: number, v: number, target: number, dt: number, [k,
 }
 
 /** Reveal progress curves (0..1 over revealMs): plate exposure, pop-in settle, text stagger. */
+/** How long the living loops take to ease back to still, after the reveal ends or after the guest's last input. */
+export const SETTLE_MS = 1500;
+/** Input keeps the loops at full strength this long before the release begins (gyro/pointer events arrive in bursts). */
+export const INPUT_HOLD_MS = 150;
+
+/**
+ * Activity envelope 0..1 for the living loops (Art Council ruling): 1 through the reveal and while the guest is tilting,
+ * moving the pointer or tapping; a smoothstep release to `idle` (default 0) over ~SETTLE_MS once both have stopped.
+ * `sinceInputMs` = ms since the last real input (Infinity if none). Pure: snapshots pass Infinity, so a poster at a given
+ * tMs is deterministic.
+ */
+export function settleEnvelope(tMs: number, revealMs: number, sinceInputMs: number, idle = 0): number {
+  const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
+  const reveal = tMs < revealMs ? 1 : 1 - smooth((tMs - revealMs) / SETTLE_MS);
+  const input = 1 - smooth((sinceInputMs - INPUT_HOLD_MS) / (SETTLE_MS - INPUT_HOLD_MS));
+  return Math.max(reveal, input, Math.max(0, Math.min(1, idle)));
+}
+
 export function revealCurves(tMs: number, revealMs: number) {
   const p = Math.max(0, Math.min(1, tMs / revealMs));
   const ease = (x: number) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);

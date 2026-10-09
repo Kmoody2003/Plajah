@@ -14,7 +14,7 @@ import { isEraId } from '../../services/evite/eraIds';
 /** Design picker tab for the procedural "Design eras" collection (not a catalogue collection id). */
 const ERAS = 'eras';
 import { PLATE_COLLECTIONS, plateUrls, parsePlateId, isAlternate, prettySubject } from '../../services/evite/plateCatalog';
-import { saveInvite, myInvites, inviteGuests, removeRsvp, removeNote, provisionExtras, downloadCsv, type GuestsResult } from '../../services/evite/eviteHostClient';
+import { saveInvite, myInvites, inviteGuests, removeRsvp, removeNote, provisionExtras, downloadCsv, publishOgImage, type GuestsResult } from '../../services/evite/eviteHostClient';
 import { planTimeline } from '../../services/evite/playbooks';
 import { playFor } from '../../services/evite/playGames';
 import { themeIdOf, themeArt, type ThemeArt } from '../../services/evite/eviteThemes';
@@ -103,9 +103,14 @@ export default function EviteStudio({ currentUser, editId, initialPlate, host, o
 
   const persist = async (extra: Partial<EviteDoc> = {}) => {
     if (!currentUser) { onSignIn?.(); throw new Error('Sign in to save your invitation.'); }
-    const body = { ...draft, ...extra, fields: previewFields };
+    const { ogImage: _og, ogSig: _sig, ...rest } = draft;   // the server owns the preview fields
+    const body = { ...rest, ...extra, fields: previewFields };
     const saved = await saveInvite(body as any);
-    setDraft(saved); return saved;
+    setDraft(saved);
+    // A live invite gets its own link preview (card + names + date), re-rendered only when what it shows changed.
+    if (saved.status === 'live') void publishOgImage(saved, art, cardAccent(saved.templateId, saved.look?.accent))
+      .then(r => { if (r) setDraft(d => (d.id === saved.id ? { ...d, ...r } : d)); }).catch(e => console.warn('[evite] link preview', e));
+    return saved;
   };
   const goto = async (next: Step) => {
     setMsg('');

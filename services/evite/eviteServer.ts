@@ -22,7 +22,7 @@ import {
   checkRsvp, applyCapacity, cleanHost, dueForReminder, reminderEmail, isEmail, confirmedHeadcount, promoteWaitlist, isClosed, toPublicView, buildIcs, summarize, partySize, rsvpsToCsv,
 } from './eviteCore';
 import { DEFAULT_GIFTS, DEFAULT_SETTINGS, type EviteDoc, type EviteRsvp, type EviteWallNote } from './eviteTypes';
-import { isPlateId, plateUrls } from './plateCatalog';
+import { isPlateId, plateUrls, plateOgUrl } from './plateCatalog';
 import { isEraId } from './eraIds';
 
 type Row = Record<string, any>;
@@ -98,6 +98,9 @@ export function registerEviteRoutes(d: EviteDeps) {
         bringList: b.bringList === undefined ? (inv?.bringList || []) : cleanBringList(b.bringList, inv?.bringList),
         gifts: cleanGifts(b.gifts, inv?.gifts || DEFAULT_GIFTS),
         photoUrl: b.photoUrl === undefined ? inv?.photoUrl : safeHttpUrl(b.photoUrl) || undefined,
+        // The invite's own link preview, rendered by the host's browser into THEIR Storage folder for THIS invite only.
+        ogImage: b.ogImage === undefined ? (templateId === inv?.templateId ? inv?.ogImage : undefined) : (inv && isOwnOgUrl(b.ogImage, inv.ownerUid, inv.id) ? b.ogImage : undefined),
+        ogSig: b.ogSig === undefined ? inv?.ogSig : clampStr(b.ogSig, 1500) || undefined,
         registryUrl: b.registryUrl === undefined ? inv?.registryUrl : safeHttpUrl(b.registryUrl) || undefined,
         eventId: b.eventId === undefined ? inv?.eventId : clampStr(b.eventId, 80) || undefined,
         photoPoolId: b.photoPoolId === undefined ? inv?.photoPoolId : clampStr(b.photoPoolId, 80) || undefined,
@@ -301,17 +304,29 @@ export function registerEviteRoutes(d: EviteDeps) {
       const inv = await loadInvite(req.params.id);
       if (!inv || inv.status === 'draft') return res.status(404).type('html').send(html);
       const origin = d.trustedRequestOrigin(req);
-      // Design eras are drawn in the browser, so there is no plate raster to preview: the site's default card stands in.
-      const eraOg = isEraId(inv.templateId) && !inv.photoUrl;
-      const ogArt = eraOg ? `${origin}/og-default.png` : !isPlateId(inv.templateId) && d.resolveArt ? (await d.resolveArt(inv.templateId).catch(() => null))?.plate : undefined;
+      // Preview image, best first: the invite's own card with its names (1200×630, rendered at publish) → the host's
+      // cover photo → the design's pre-rendered preview (1200×630, catalogue plates + design eras) → a creator theme's plate.
+      const og: { url: string; w?: number; h?: number } | null =
+        inv.ogImage ? { url: inv.ogImage, w: 1200, h: 630 }
+        : inv.photoUrl ? { url: inv.photoUrl }
+        : plateOgUrl(inv.templateId) ? { url: plateOgUrl(inv.templateId)!, w: 1200, h: 630 }
+        : d.resolveArt ? await d.resolveArt(inv.templateId).then(a => a?.plate ? { url: a.plate, w: 812, h: 1224 } : null).catch(() => null)
+        : null;
       const title = esc(`${inv.fields.hostName ? inv.fields.hostName + ' invited you: ' : 'You’re invited: '}${inv.fields.headline}`);
       const when = new Date(inv.fields.startsAt).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: inv.fields.timezone || 'UTC' });
       const desc = esc([when, inv.settings.revealAddressAfterYes ? '' : inv.fields.venueName, 'Tap to see the invitation and reply. No account needed.'].filter(Boolean).join(' · '));
-      const tags = `<title>${title}</title><meta property="og:type" content="website"><meta property="og:site_name" content="Plajah Events"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:url" content="${esc(origin)}/i/${inv.id}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${desc}">${(() => { const img = inv.photoUrl || plateUrls(inv.templateId)?.plate || ogArt; return img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="${eraOg ? 1200 : 812}"><meta property="og:image:height" content="${eraOg ? 630 : 1224}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''; })()}`;
+      const tags = `<title>${title}</title><meta property="og:type" content="website"><meta property="og:site_name" content="Plajah Events"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:url" content="${esc(origin)}/i/${inv.id}"><meta name="twitter:card" content="${og ? 'summary_large_image' : 'summary'}"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${desc}">${og ? `<meta property="og:image" content="${esc(og.url)}">${og.w ? `<meta property="og:image:width" content="${og.w}"><meta property="og:image:height" content="${og.h}">` : ''}<meta property="og:image:alt" content="${title}"><meta name="twitter:image" content="${esc(og.url)}">` : ''}`;
       const stripped = html.replace(/<title>[\s\S]*?<\/title>/i, '').replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
       res.set('Cache-Control', 'no-cache').type('html').send(stripped.replace('</head>', `${tags}</head>`));
     } catch { next(); }
   });
+}
+
+/** An invite's preview image must be a Firebase Storage download URL inside the owner's folder for that invite. */
+export function isOwnOgUrl(u: unknown, ownerUid: string, inviteId: string): u is string {
+  if (typeof u !== 'string' || u.length > 1500 || !ownerUid || !inviteId) return false;
+  const m = u.match(/^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/[a-z0-9.\-_]+\/o\/([^?#]+)\?alt=media(&token=[a-f0-9-]+)?$/i);
+  return !!m && decodeURIComponent(m[1]) === `users/${ownerUid}/evites/${inviteId}/og.jpg`;
 }
 
 /** One reminder pass (daily cron): emails Going/Maybe guests who left an email, ~24 h before. Idempotent per invite. */

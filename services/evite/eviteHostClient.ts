@@ -43,3 +43,23 @@ export function downloadCsv(name: string, csv: string) {
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+/**
+ * Render the invite's own link preview (card + live text, 1200×630) in this browser, upload it to the host's Storage
+ * folder (users/{uid}/evites/{id}/og.jpg — public read, owner write) and save its URL on the invite. Skipped when the
+ * preview already shows the current wording/design (ogSig). Best effort: a failure leaves the design's static preview.
+ */
+export async function publishOgImage(inv: EviteDoc, art?: { plate: string; preset: string; voice?: string; light?: boolean } | null, accent = '#FF8C00'): Promise<Pick<EviteDoc, 'ogImage' | 'ogSig'> | null> {
+  const og = await import('./eviteOg');
+  const input = { plateId: inv.templateId, fields: inv.fields, accent: inv.look?.accent || accent, art, showLaw: inv.look?.showLaw };
+  const sig = og.ogSignature(input);
+  if (inv.ogSig === sig && inv.ogImage) return null;
+  const blob = await og.renderInviteOg(input);
+  const [{ storage, auth }, st] = await Promise.all([import('../firebase'), import('firebase/storage')]);
+  const uid = auth.currentUser?.uid; if (!uid || uid !== inv.ownerUid) return null;
+  const ref = st.ref(storage, `users/${uid}/evites/${inv.id}/og.jpg`);
+  await st.uploadBytes(ref, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=300' });
+  const url = await st.getDownloadURL(ref);
+  const saved = await saveInvite({ id: inv.id, ogImage: url, ogSig: sig });
+  return { ogImage: saved.ogImage, ogSig: saved.ogSig };
+}
