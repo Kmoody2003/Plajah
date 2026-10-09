@@ -37,6 +37,8 @@ import { MatteEngine } from './engine/matting/matteEngine';
 import { MidiController, MidiStatusHud } from './components/MidiController';
 import Controls from './components/Controls';
 import DraggablePanel from './components/DraggablePanel';
+import MotionCouncilPanel from '../motion/council/MotionCouncilPanel';
+import { PIXELS_APPLY_KINDS, pixelsTargetFrameRate } from '../../services/motion/council/motionApply';
 import {
     AtDepth, DepthProvider, InspectorProvider, Inspector, ModeBar, SettingsShell,
     surfacesForMode, type PixMode,
@@ -284,6 +286,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     const [shaderParams, setShaderParams] = useState<number[]>([0.5, 0.5, 0.5, 0.5]);
     const [shaderError, setShaderError] = useState<string | null>(null);
     const [showShaderPanel, setShowShaderPanel] = useState(false);
+    const [showMotionCouncil, setShowMotionCouncil] = useState(false); // Motion Council + Studio Roster (floating)
     // Per-layer shaders from clip launcher (layerIdx → shader state)
     type LayerShaderEntry = { src: string; blendMode: string; opacity: number; params: number[]; startTimeMs: number };
     const [layerShaders, setLayerShaders] = useState<Record<number, LayerShaderEntry | null>>({});
@@ -1731,6 +1734,29 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                 </DraggablePanel>
             )}
 
+            {/* ─── Motion Council — direction for the set from the six directors + a Studio Roster crew ─── */}
+            {showMotionCouncil && !uiHidden && (
+                <DraggablePanel
+                    id="motioncouncil"
+                    defaultPos={{ x: Math.max(16, (typeof window !== 'undefined' ? window.innerWidth : 1280) - 640), y: 96 }}
+                    zIndex={38}
+                    label="Motion Council"
+                    onClose={() => setShowMotionCouncil(false)}
+                >
+                    <div className="w-[600px] max-w-[calc(100vw-32px)] max-h-[70vh] overflow-y-auto">
+                        <MotionCouncilPanel
+                            supports={PIXELS_APPLY_KINDS}
+                            initial={{ ask: 'How should this set build into the drop?', medium: 'vj-loop', delivery: config.targetFrameRate === 60 ? 'web' : 'broadcast' }}
+                            onApply={a => {
+                                if (a.kind !== 'fps') return false;
+                                setConfig(prev => ({ ...prev, targetFrameRate: pixelsTargetFrameRate(a.fps) }));
+                                return true;
+                            }}
+                        />
+                    </div>
+                </DraggablePanel>
+            )}
+
             {/* ─── 3D panel — scene / day-night / camera presets ─── */}
             {/* ─── 3D Scene Panel — fixed right-side slide-in (always on top) ─── */}
             <AnimatePresence>
@@ -2093,6 +2119,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                     className={`relative w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${perfAuto ? 'bg-[#FF8C00]/35 border-[#FF8C00]/55' : perfMode ? 'bg-green-600/40 border-green-500/50' : 'bg-black/40 border-white/10 hover:bg-green-600/30'}`}>
                     <Gauge className="w-4 h-4 text-white/80" />
                     {perfAuto && <span className="absolute -bottom-0.5 -right-0.5 text-[6px] font-black px-1 rounded-full bg-[#FF8C00] text-black leading-tight">A</span>}
+                </button>
+                {/* Studio: Motion Council (six directors + Studio Roster crew) */}
+                <button onClick={() => setShowMotionCouncil(v => !v)} title="Motion Council — ask the directors and a studio crew how to move this set"
+                    className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showMotionCouncil ? 'bg-[#3DD6FF]/30 border-[#3DD6FF]/55' : 'bg-black/40 border-white/10 hover:bg-[#3DD6FF]/20'}`}>
+                    <Film className="w-4 h-4 text-white/80" />
                 </button>
                 <button onClick={() => setShowFps(v => !v)} title="Toggle FPS meter"
                     className={`w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${showFps ? 'bg-white/20 border-white/30' : 'bg-black/40 border-white/10 hover:bg-white/10'}`}>

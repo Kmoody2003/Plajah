@@ -111,6 +111,13 @@ import LowerThirdGallery from "./LowerThirdGallery";
 import LowerThirdInspector from "./LowerThirdInspector";
 import BroadcastGraphicMonitor from "./BroadcastGraphicMonitor";
 import MotionTemplateMonitor, { MotionTemplateClipFields } from "./MotionTemplateMonitor";
+import MotionCouncilPanel from "../motion/council/MotionCouncilPanel";
+import MotionCouncilBuilder from "../motion/council/MotionCouncilBuilder";
+import { recipeToFabulaClips } from "../../services/motion/council/motionBuild";
+import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
+import { FABULA_BROADCAST_PACKS } from "../../services/fabula/broadcastPacks";
+import { makeBroadcastTemplate } from "../../services/fabula/broadcastTemplateFactory";
+import { FABULA_APPLY_KINDS, easeToKeyframe, setKeyframeEase, stepKeyframes, hasAnyKeyframes, beatGridTimes, mergeMarkerTimes, nearestFps, deliveryFor } from "../../services/motion/council/motionApply";
 import { motionSpecFromItem } from "../../services/universalLibrary/amboItems";
 import { motionTemplateName, motionTemplateDurations } from "../../services/tela/telaMotionTemplate";
 import { findLowerThird } from "../../services/fabula/lowerThirdRegistry";
@@ -725,6 +732,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const [colorTab, setColorTab] = useState("wheels"); // color room control-bar tab: looks|wheels|curves|primaries
   const [audioTab, setAudioTab] = useState("mixer");  // audio room control-band tab: mixer|voice|clips
   const [vfxTab, setVfxTab] = useState("nodes");      // vfx room: nodes (primary, Mockup B) | comp | lottie | capture
+  const [councilMode, setCouncilMode] = useState("build"); // vfx room → MOTION COUNCIL: build (council builds from your assets) | advise
   const [eyedrop, setEyedrop] = useState(false);      // qualifier eyedropper armed → next monitor click samples a key
   const [gradeLayer, setGradeLayer] = useState(0);    // color room: which grade layer the tabs edit (0 = base)
   const [colorStills, setColorStills] = useState([]); // grabbed reference stills {id,url,label} (session)
@@ -4036,6 +4044,80 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     if (!isDropCapable(p.defaults.format.fps)) p.defaults.format.drop = false;
   });
 
+  // Motion Council one-click moves (VFX room → MOTION COUNCIL). Returns false when there is nothing to act on,
+  // so the panel does not mark the move applied. Translation lives in services/motion/council/motionApply.
+  // Motion Council BUILDS (VFX room → MOTION COUNCIL → Build). The council's option is a host-neutral recipe; it is
+  // bound to the chosen pool assets and committed as ONE undoable applyClips. A "swap" removes the previous council
+  // build (clips tagged councilBuild) and lays the new option in the same place.
+  const councilCatalog = { effects: FX_EFFECTS.map((e) => e.id), transitions: FORGE_TRANSITIONS.map((t) => t.id), looks: FORGE_LOOKS.map((l) => l.id) };
+  const buildCouncilOption = (opt, sources, placement, replaceBuildId) => {
+    const vids = tracks.filter((t) => t.type === "video").map((t) => t.id);
+    const auds = tracks.filter((t) => t.type === "audio").map((t) => t.id);
+    if (!vids.length) { ping("Add a video track first"); return false; }
+    const picture = vids.includes("v1") ? "v1" : vids[vids.length - 1];
+    const overlay = vids.includes("v2") ? "v2" : vids.find((id) => id !== picture) || picture;
+    const music = auds[0] || "a1", sourceAudio = auds[1] || auds[0] || "a1";
+    const prevBuild = replaceBuildId ? clips.filter((c) => c.councilBuild === replaceBuildId) : [];
+    const base = replaceBuildId ? clips.filter((c) => c.councilBuild !== replaceBuildId) : clips;
+    const baseEnd = base.reduce((m, c) => Math.max(m, c.start + c.duration), 0);
+    const at = prevBuild.length ? Math.min(...prevBuild.map((c) => c.start)) : qFrame(placement === "playhead" ? playhead : baseEnd);
+    const buildId = "cb-" + uid();
+    const visuals = sources.filter((a) => a.type !== "audio"), audios = sources.filter((a) => a.type === "audio");
+    const lookStack = (id) => { const l = FORGE_LOOKS.find((x) => x.id === id); return l ? instantiateLook(l, (effectId, i) => `${effectId}-${uid()}-${i}`) : []; };
+    let built;
+    try {
+      built = recipeToFabulaClips(opt.recipe, visuals, audios, at, { picture, overlay, music, sourceAudio },
+        { uid, mkEffect: createEffectInstance, mkTransition: createForgeTransition, lookStack }, buildId);
+    } catch (e) { setError?.(`The council could not build this option: ${e.message}`); return false; }
+    if (!built.length) { ping("Nothing to build — choose a visual source"); return false; }
+    applyClips([...base, ...built]);
+    setMarkers((m) => mergeMarkerTimes(m, opt.recipe.markers.map((t) => at + t), vfmt.fps || 24, (t) => ({ id: uid(), t })));
+    setPlayhead(at);
+    ping(`${replaceBuildId ? "Swapped in" : "The council built"} "${opt.title}" — ${built.length} clips at ${fmtTc(at, vfmt)} (undo to remove)`);
+    return buildId;
+  };
+  const addCouncilPlatformTemplate = (d) => {
+    if (d.family === "broadcast-pack") {
+      const pack = FABULA_BROADCAST_PACKS.find((p) => p.id === d.templateId);
+      if (!pack) return false;
+      addBroadcastGraphic(makeBroadcastTemplate(pack, "OPENER"));
+      ping(`${pack.name} opener — directed by ${d.lead.toLowerCase().replace(/_/g, " ")}`); return true;
+    }
+    const spec = findLowerThird(d.templateId);
+    if (!spec) return false;
+    addLowerThird(spec); return true;
+  };
+
+  // keyframe rewrites go through applyClips so they land in undo history (updateFx does not)
+  const setClipKf = (clipId, kf) => applyClips(clips.map((c) => (c.id === clipId ? { ...c, fx: { ...ensureFx(c), kf } } : c)));
+  const applyMotionCouncil = (a) => {
+    const fps = vfmt.fps || 24;
+    const kfClip = selClip && hasAnyKeyframes(selClip.fx?.kf) ? selClip : null;
+    switch (a.kind) {
+      case "fps": { const f = nearestFps(a.fps, FPS_OPTIONS); setFormat({ fps: f }); ping(`Project frame rate → ${f} fps`); return true; }
+      case "aspect": if (!ASPECTS.includes(a.value)) { ping(`Fabula has no ${a.value} aspect`); return false; }
+        updateProd((p) => { p.defaults.aspect = a.value; }); ping(`Aspect → ${a.value}`); return true;
+      case "beatGrid": {
+        const times = beatGridTimes(a.bpm, Math.max(seqEnd, 60 / a.bpm * 16), a.division);
+        setMarkers((m) => mergeMarkerTimes(m, times, fps, (t) => ({ id: uid(), t })));
+        setSnapOn(true);
+        ping(`Beat grid: ${times.length} markers at ${a.bpm} BPM — snapping is on, cuts land on the beat`);
+        return true;
+      }
+      case "ease": {
+        if (!kfClip) { ping("Select a keyframed clip, then apply the ease"); return false; }
+        const e = easeToKeyframe(a.preset);
+        setClipKf(kfClip.id, setKeyframeEase(kfClip.fx.kf, e)); ping(`Keyframes on "${kfClip.label}" → ${e} (undo to restore)`); return true;
+      }
+      case "stepping": {
+        if (!kfClip) { ping("Select a keyframed clip to animate it on ones / twos / threes"); return false; }
+        setClipKf(kfClip.id, stepKeyframes(kfClip.fx.kf, a.every, fps));
+        ping(`"${kfClip.label}" now steps on ${["", "ones", "twos", "threes"][a.every] || a.every} at ${fps} fps (undo to restore)`); return true;
+      }
+      default: return false;
+    }
+  };
+
   const createMulticam = () => {
     const angles = mcSel.map((id) => ({ assetId: id, offset: 0, tc: "" }));
     const srcAssets = mcSel.map((id) => prod.mediaPool.find((a) => a.id === id)).filter(Boolean);
@@ -4566,7 +4648,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     // Edge-snap: pull a value toward the playhead or any neighbouring clip edge on this track.
     const edgeSnap = (val, dur) => {
       if (!snapOn) return val;
-      const pts = [0, playhead];
+      const pts = [0, playhead, ...markers.map((m) => m.t)]; // markers are snap points (the Motion Council's beat grid lands cuts here)
       clips.forEach((x) => { if (x.trackId === d.trackId && x.id !== d.clipId) { pts.push(x.start, x.start + x.duration); } });
       const thresh = 0.2;
       let best = val, bestD = thresh;
@@ -8010,7 +8092,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                 {editWs === "vfx" && (() => {
                   // Four-band VFX/COMP: monitor + inspector reference surface; the three authoring
                   // tools (comp / lottie / capture) become a tabbed control band.
-                  const VTABS = [["nodes", "NODE GRAPH"], ["comp", "AI COMPOSITE"], ["data", "DATA MOTION"], ["systems", "BROADCAST SYSTEMS"], ["lottie", "LOTTIE"], ["capture", "PERFORM CAPTURE"]];
+                  const VTABS = [["nodes", "NODE GRAPH"], ["comp", "AI COMPOSITE"], ["data", "DATA MOTION"], ["systems", "BROADCAST SYSTEMS"], ["lottie", "LOTTIE"], ["capture", "PERFORM CAPTURE"], ["council", "MOTION COUNCIL"]];
                   return (
                     <div className="vfxroom">
                       <div className="vfxstage edit-upper" style={{ height: panelSize("vfx viewer height", 280) }}>
@@ -8050,6 +8132,24 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                           {vfxTab === "data" && <DataVizBuilder ping={ping} onAddToPool={(chart,nm) => { const asset={id:uid(),name:nm+' (data)',type:'graphic',generated:true,duration:8,bin:'data motion',chart};updateProd(p=>{p.mediaPool.push(asset)}); }} />}
                           {vfxTab === "systems" && <BroadcastSystemsLibrary ping={ping} onAddTemplate={(template) => addBroadcastGraphic(template)} />}
                           {vfxTab === "capture" && <PerformCapture onTake={addTakeToPool} ping={ping} />}
+                          {vfxTab === "council" && (
+                            <div style={{ maxWidth: 900, margin: "0 auto", padding: "8px 0", overflowY: "auto", height: "100%" }}>
+                              <div className="segx" style={{ marginBottom: 8 }}>
+                                <button className={councilMode === "build" ? "on" : ""} onClick={() => setCouncilMode("build")}>BUILD FROM MY ASSETS</button>
+                                <button className={councilMode === "advise" ? "on" : ""} onClick={() => setCouncilMode("advise")}>ASK FOR DIRECTION</button>
+                              </div>
+                              {councilMode === "build" ? (
+                                <MotionCouncilBuilder
+                                  assets={(prod?.mediaPool || []).filter((a) => a && !a.offline).map((a) => ({ id: a.id, name: a.name || "untitled", type: a.type, duration: a.duration }))}
+                                  initialSelected={selClip?.assetId ? [selClip.assetId] : []}
+                                  fps={vfmt.fps || 24} aspect={prod?.defaults?.aspect} catalog={councilCatalog}
+                                  onBuild={buildCouncilOption} onAddPlatformTemplate={addCouncilPlatformTemplate} />
+                              ) : (
+                                <MotionCouncilPanel onApply={applyMotionCouncil} supports={FABULA_APPLY_KINDS}
+                                  initial={{ ask: selClip ? `How should "${selClip.label}" move?` : "How should this title enter?", medium: selClip?.kind === "title" || selClip?.kind === "subtitle" ? "title" : selClip ? "mograph" : "title", delivery: deliveryFor(vfmt.fps, prod?.defaults?.aspect) }} />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -1,0 +1,2418 @@
+{
+ "generatedBy": "scripts/council/runMotionTemplateCouncil.ts",
+ "note": "Motion direction from the Motion Council for every platform template. Deterministic; regenerate after adding templates.",
+ "count": 114,
+ "recipes": 63,
+ "directions": [
+  {
+   "templateId": "shader-tidal-identity",
+   "templateName": "Tidal Identity",
+   "family": "lower-third",
+   "lead": "CHROME_80S",
+   "counterpoint": "MODERNIST_TITLE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle.",
+    "Title enters with tracking (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "shader-signal-bloom",
+   "templateName": "Signal Bloom",
+   "family": "lower-third",
+   "lead": "SATSUEI",
+   "counterpoint": "CEL_OVA",
+   "editor": "COMPOSITOR",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 3
+   },
+   "notes": [
+    "Lead — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source.",
+    "Title enters with blurIn (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Cel-Era Painter: two-tone cel shading with a hard highlight shape, once.",
+    "Editor — The Compositor: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "shader-prism-ledger",
+   "templateName": "Prism Ledger",
+   "family": "lower-third",
+   "lead": "VISUAL_MUSIC",
+   "counterpoint": "AFRO_PATTERN",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Visual Music Abstractionist: abstract forms choreographed to musical phrases, not just beats.",
+    "Title enters with fadeIn (minimal), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Afrofuturist Pattern Animator: pattern blocks that weave and unweave on a polyrhythmic grid (3 against 2), once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "shader-deep-current",
+   "templateName": "Deep Current",
+   "family": "lower-third",
+   "lead": "DEMOSCENE",
+   "counterpoint": "ABSTRACT_LOOP",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.5,
+    "holdSec": 6
+   },
+   "notes": [
+    "Lead — The Demoscene Coder: ray-marched signed-distance scenes.",
+    "Title enters with scramble (modern), ease linear; animated on ones.",
+    "Counterpoint — The Abstract 3D Loop Artist: seamless loops where frame N equals frame 0, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "shader-nebula-manifesto",
+   "templateName": "Nebula Manifesto",
+   "family": "full-page",
+   "lead": "PIXEL_ART",
+   "counterpoint": "LOWPOLY_RETRO",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 12,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.5,
+    "holdSec": 8
+   },
+   "notes": [
+    "Lead — The Pixel-Art Sprite Animator: 4–8 frame cycles with strong key poses.",
+    "Title enters with typeOn (modern), ease linear; animated on ones.",
+    "Counterpoint — The Low-Poly Retro Renderer: vertex snapping and jitter on movement, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "shader-ocean-index",
+   "templateName": "Ocean Index",
+   "family": "full-page",
+   "lead": "AFRO_PATTERN",
+   "counterpoint": "VISUAL_MUSIC",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 0.75,
+    "holdSec": 6.5
+   },
+   "notes": [
+    "Lead — The Afrofuturist Pattern Animator: pattern blocks that weave and unweave on a polyrhythmic grid (3 against 2).",
+    "Title enters with wordSlide (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Visual Music Abstractionist: abstract forms choreographed to musical phrases, not just beats, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe.",
+    "Kente, adinkra and bògòlanfini come from specific peoples (Asante and Ewe, Akan, Bamana) with meanings; name the source, keep symbol meanings correct, and collaborate with practitioners for commercial work."
+   ]
+  },
+  {
+   "templateId": "shader-constellation-grid",
+   "templateName": "Constellation Grid",
+   "family": "full-page",
+   "lead": "VISUAL_MUSIC",
+   "counterpoint": "AFRO_PATTERN",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Visual Music Abstractionist: abstract forms choreographed to musical phrases, not just beats.",
+    "Title enters with fadeIn (minimal), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Afrofuturist Pattern Animator: pattern blocks that weave and unweave on a polyrhythmic grid (3 against 2), once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "shader-liquid-monolith",
+   "templateName": "Liquid Monolith",
+   "family": "full-page",
+   "lead": "PSYCHEDELIC",
+   "counterpoint": "DATA_STORY",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Psychedelic Colourist: liquid morphing letterforms in an Art Nouveau line.",
+    "Title enters with blurIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Data Storyteller: bars and lines grow from a zero baseline in order of the story, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "newsline",
+   "templateName": "Newsline",
+   "family": "lower-third",
+   "lead": "CHROME_80S",
+   "counterpoint": "MODERNIST_TITLE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle.",
+    "Title enters with tracking (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "documentary-id",
+   "templateName": "Documentary ID",
+   "family": "lower-third",
+   "lead": "DATA_STORY",
+   "counterpoint": "PSYCHEDELIC",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Data Storyteller: bars and lines grow from a zero baseline in order of the story.",
+    "Title enters with typeOn (minimal), ease ease-out; animated on ones.",
+    "Counterpoint — The Psychedelic Colourist: liquid morphing letterforms in an Art Nouveau line, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "sports-velocity",
+   "templateName": "Sports Velocity",
+   "family": "lower-third",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "warm-interview",
+   "templateName": "Warm Interview",
+   "family": "lower-third",
+   "lead": "SHOUJO",
+   "counterpoint": "STRUCTURAL",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Shoujo Romanticist: emotional backgrounds: flowers, sparkles or bubbles replacing the set on a feeling.",
+    "Title enters with blurIn (classic), ease ease-in-out; animated on threes.",
+    "Counterpoint — The Structural Filmmaker: alternating single frames in rhythmic patterns, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "gallery-caption",
+   "templateName": "Gallery Caption",
+   "family": "lower-third",
+   "lead": "INSTALLATION",
+   "counterpoint": "WEBTOON",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 4.6
+   },
+   "notes": [
+    "Lead — The Projection & Installation Artist: animation mapped to architectural edges and surfaces.",
+    "Title enters with tracking (minimal), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Webtoon Motion Artist: vertical camera travel that paces like a scroll, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "creator-interview",
+   "templateName": "Creator Handle",
+   "family": "lower-third",
+   "lead": "EXPLAINER",
+   "counterpoint": "COLLAGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 3
+   },
+   "notes": [
+    "Lead — The Explainer Systematist: one consistent ease curve across the whole piece.",
+    "Title enters with wordSlide (minimal), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Collage Zinester: torn-paper cutouts animated on threes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "signal-bar",
+   "templateName": "Signal Bar",
+   "family": "lower-third",
+   "lead": "CHROME_80S",
+   "counterpoint": "MODERNIST_TITLE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle.",
+    "Title enters with tracking (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "deco-marquee",
+   "templateName": "Deco Marquee",
+   "family": "lower-third",
+   "lead": "ART_DECO",
+   "counterpoint": "COLLAGE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Art Deco Showman: sunburst rays unfolding from centre on the downbeat.",
+    "Title enters with tracking (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Collage Zinester: torn-paper cutouts animated on threes, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-bauhaus",
+   "templateName": "Bauhaus",
+   "family": "lower-third",
+   "lead": "CONSTRUCTIVIST",
+   "counterpoint": "UI_MOTION",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Constructivist Agitator: type slabs slamming in on diagonals.",
+    "Title enters with dropIn (modern), ease linear; animated on ones.",
+    "Counterpoint — The Interface Motion Designer: spring physics instead of fixed durations, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-swiss",
+   "templateName": "Swiss Grid",
+   "family": "lower-third",
+   "lead": "MIDCENTURY",
+   "counterpoint": "GOLDEN_AGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Golden-Age Feature Naturalist: full animation on ones for acting scenes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-constructivist",
+   "templateName": "Constructivist",
+   "family": "lower-third",
+   "lead": "CONSTRUCTIVIST",
+   "counterpoint": "UI_MOTION",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.5,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Constructivist Agitator: type slabs slamming in on diagonals.",
+    "Title enters with dropIn (modern), ease linear; animated on ones.",
+    "Counterpoint — The Interface Motion Designer: spring physics instead of fixed durations, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-de-stijl",
+   "templateName": "De Stijl",
+   "family": "lower-third",
+   "lead": "MECHA",
+   "counterpoint": "GAG",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "anticipation",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Mecha Choreographer: slow heavy moves on threes with a sharp drawn ease at the end of each step.",
+    "Title enters with tracking (modern), ease anticipation; animated on threes.",
+    "Counterpoint — The Gag Comedian: snap into a super-deformed chibi pose for the reaction, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-art-deco",
+   "templateName": "Art Deco ID",
+   "family": "lower-third",
+   "lead": "ART_DECO",
+   "counterpoint": "COLLAGE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Art Deco Showman: sunburst rays unfolding from centre on the downbeat.",
+    "Title enters with tracking (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Collage Zinester: torn-paper cutouts animated on threes, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-art-nouveau",
+   "templateName": "Art Nouveau",
+   "family": "lower-third",
+   "lead": "SHOUJO",
+   "counterpoint": "STRUCTURAL",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Shoujo Romanticist: emotional backgrounds: flowers, sparkles or bubbles replacing the set on a feeling.",
+    "Title enters with blurIn (classic), ease ease-in-out; animated on threes.",
+    "Counterpoint — The Structural Filmmaker: alternating single frames in rhythmic patterns, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-victorian",
+   "templateName": "Victorian Playbill",
+   "family": "lower-third",
+   "lead": "TRICK_FILM",
+   "counterpoint": "SAKUGA",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 12,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Silent-Era Trick-Film Magician: substitution cuts — an object vanishes or becomes another in one frame.",
+    "Title enters with typeOn (classic), ease linear; animated on ones.",
+    "Counterpoint — The Sakuga Key Animator: 1–3 frame impact frames — flat colour or inverted value on the hit, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-gothic",
+   "templateName": "Gothic Window",
+   "family": "lower-third",
+   "lead": "PUPPET",
+   "counterpoint": "SURREAL",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": "mixed",
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 4.6
+   },
+   "notes": [
+    "Lead — The Armature Puppeteer: ball-and-socket puppet animation on ones for creatures, twos for acting.",
+    "Title enters with fadeUp (classic), ease ease-in-out; ones on the hit, twos on the hold.",
+    "Counterpoint — The Surrealist Object Animator: real objects animated with unsettling life, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-memphis",
+   "templateName": "Memphis",
+   "family": "lower-third",
+   "lead": "PIXILATION",
+   "counterpoint": "PIXEL_ART",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 12,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.35,
+    "holdSec": 4.3
+   },
+   "notes": [
+    "Lead — The Pixilation Prankster: performers sliding across the ground frame by frame.",
+    "Title enters with typeOn (modern), ease linear; animated on ones.",
+    "Counterpoint — The Pixel-Art Sprite Animator: 4–8 frame cycles with strong key poses, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-punk",
+   "templateName": "Punk Xerox",
+   "family": "lower-third",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 3.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-vaporwave",
+   "templateName": "Vaporwave",
+   "family": "lower-third",
+   "lead": "CHROME_80S",
+   "counterpoint": "MODERNIST_TITLE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle.",
+    "Title enters with tracking (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-y2k",
+   "templateName": "Y2K Chrome",
+   "family": "lower-third",
+   "lead": "Y2K",
+   "counterpoint": "INK_WASH",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Y2K Interface Futurist: glossy translucent bubbles with specular highlights.",
+    "Title enters with blurIn (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Ink-Wash Animator: ink bleeding and diffusing into wet paper, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-new-wave",
+   "templateName": "New Wave",
+   "family": "lower-third",
+   "lead": "MIDCENTURY",
+   "counterpoint": "GOLDEN_AGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 3
+   },
+   "notes": [
+    "Lead — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Golden-Age Feature Naturalist: full animation on ones for acting scenes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-psychedelic",
+   "templateName": "Psychedelic",
+   "family": "lower-third",
+   "lead": "PSYCHEDELIC",
+   "counterpoint": "DATA_STORY",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Psychedelic Colourist: liquid morphing letterforms in an Art Nouveau line.",
+    "Title enters with blurIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Data Storyteller: bars and lines grow from a zero baseline in order of the story, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-grunge",
+   "templateName": "Grunge",
+   "family": "lower-third",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-brutalist",
+   "templateName": "Brutalist",
+   "family": "lower-third",
+   "lead": "STRUCTURAL",
+   "counterpoint": "GAME_VFX",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.35,
+    "holdSec": 5.3
+   },
+   "notes": [
+    "Lead — The Structural Filmmaker: alternating single frames in rhythmic patterns.",
+    "Title enters with fadeIn (minimal), ease linear; animated on ones.",
+    "Counterpoint — The Stylised Game VFX Artist: anticipation-impact-dissipation in under a second, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-minimalist",
+   "templateName": "Minimalist",
+   "family": "lower-third",
+   "lead": "STRUCTURAL",
+   "counterpoint": "GAME_VFX",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.35,
+    "holdSec": 6.3
+   },
+   "notes": [
+    "Lead — The Structural Filmmaker: alternating single frames in rhythmic patterns.",
+    "Title enters with fadeIn (minimal), ease linear; animated on ones.",
+    "Counterpoint — The Stylised Game VFX Artist: anticipation-impact-dissipation in under a second, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-midcentury",
+   "templateName": "Mid-Century",
+   "family": "lower-third",
+   "lead": "MIDCENTURY",
+   "counterpoint": "GOLDEN_AGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Golden-Age Feature Naturalist: full animation on ones for acting scenes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-space-age",
+   "templateName": "Space Age",
+   "family": "lower-third",
+   "lead": "ARCADE",
+   "counterpoint": "SAKUGA",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Arcade Attract-Mode Showman: vector lines with phosphor glow and persistence trails.",
+    "Title enters with typeOn (modern), ease linear; animated on ones.",
+    "Counterpoint — The Sakuga Key Animator: 1–3 frame impact frames — flat colour or inverted value on the hit, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-harlem",
+   "templateName": "Harlem Renaissance",
+   "family": "lower-third",
+   "lead": "RUBBER_HOSE",
+   "counterpoint": "ROTOSCOPE",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Rubber-Hose Vaudevillian: the whole frame bounces on the beat — props included.",
+    "Title enters with dropIn (classic), ease overshoot; animated on twos.",
+    "Counterpoint — The Rotoscope Painter: traced linework that wobbles slightly frame to frame, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-ukiyoe",
+   "templateName": "Ukiyo-e",
+   "family": "lower-third",
+   "lead": "MIDCENTURY",
+   "counterpoint": "GOLDEN_AGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Golden-Age Feature Naturalist: full animation on ones for acting scenes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "lt-islamic-geometry",
+   "templateName": "Islamic Geometry",
+   "family": "lower-third",
+   "lead": "GEOMETRIC_CALLIGRAPHIC",
+   "counterpoint": "FLASH_INDIE",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Geometric & Calligraphic Animator: tessellations that grow from a single compass construction.",
+    "Title enters with typeOn (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Flash-Era Indie Animator: vector symbol puppets with tweened limbs, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe.",
+    "Never use Quranic or other sacred text as decoration; real Arabic/Persian text must be correct and reviewed by a reader of the language."
+   ]
+  },
+  {
+   "templateId": "lt-mexican-modern",
+   "templateName": "Mexican Modern",
+   "family": "lower-third",
+   "lead": "FOLK_GRAPHIC",
+   "counterpoint": "LIGNE_CLAIRE",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Latin American Folk-Graphic Animator: papel picado banners fluttering in a breeze.",
+    "Title enters with dropIn (modern), ease overshoot; animated on twos.",
+    "Counterpoint — The Ligne Claire Animator: uniform-weight outlines with no hatching, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Día de Muertos is a living family and religious practice, not a costume theme; Latin America is many cultures — name the country and region, and consult community makers."
+   ]
+  },
+  {
+   "templateId": "lt-afrofuturist",
+   "templateName": "Afrofuturist",
+   "family": "lower-third",
+   "lead": "AFRO_PATTERN",
+   "counterpoint": "VISUAL_MUSIC",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Afrofuturist Pattern Animator: pattern blocks that weave and unweave on a polyrhythmic grid (3 against 2).",
+    "Title enters with wordSlide (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Visual Music Abstractionist: abstract forms choreographed to musical phrases, not just beats, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe.",
+    "Kente, adinkra and bògòlanfini come from specific peoples (Asante and Ewe, Akan, Bamana) with meanings; name the source, keep symbol meanings correct, and collaborate with practitioners for commercial work."
+   ]
+  },
+  {
+   "templateId": "rinpa-gold-rain",
+   "templateName": "Rinpa · Gold Rain",
+   "family": "broadcast-pack",
+   "lead": "ART_DECO",
+   "counterpoint": "COLLAGE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Art Deco Showman: sunburst rays unfolding from centre on the downbeat.",
+    "Title enters with tracking (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Collage Zinester: torn-paper cutouts animated on threes, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "ukiyo-current",
+   "templateName": "Ukiyo Current",
+   "family": "broadcast-pack",
+   "lead": "MIDCENTURY",
+   "counterpoint": "GOLDEN_AGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Golden-Age Feature Naturalist: full animation on ones for acting scenes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "sumi-space",
+   "templateName": "Sumi Space",
+   "family": "broadcast-pack",
+   "lead": "INK_WASH",
+   "counterpoint": "Y2K",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Ink-Wash Animator: ink bleeding and diffusing into wet paper.",
+    "Title enters with blurIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Y2K Interface Futurist: glossy translucent bubbles with specular highlights, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Cite the Chinese ink-painting and Shanghai Animation Film Studio traditions specifically; do not mix with unrelated East Asian motifs as interchangeable \"oriental\" decoration."
+   ]
+  },
+  {
+   "templateId": "song-mist",
+   "templateName": "Song Mist Atlas",
+   "family": "broadcast-pack",
+   "lead": "SATSUEI",
+   "counterpoint": "CEL_OVA",
+   "editor": "COMPOSITOR",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source.",
+    "Title enters with blurIn (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Cel-Era Painter: two-tone cel shading with a hard highlight shape, once.",
+    "Editor — The Compositor: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "dancheong-rhythm",
+   "templateName": "Dancheong Rhythm",
+   "family": "broadcast-pack",
+   "lead": "SHOUJO",
+   "counterpoint": "STRUCTURAL",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Shoujo Romanticist: emotional backgrounds: flowers, sparkles or bubbles replacing the set on a feeling.",
+    "Title enters with blurIn (classic), ease ease-in-out; animated on threes.",
+    "Counterpoint — The Structural Filmmaker: alternating single frames in rhythmic patterns, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "persian-garden",
+   "templateName": "Persian Garden Index",
+   "family": "broadcast-pack",
+   "lead": "GEOMETRIC_CALLIGRAPHIC",
+   "counterpoint": "FLASH_INDIE",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Geometric & Calligraphic Animator: tessellations that grow from a single compass construction.",
+    "Title enters with typeOn (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Flash-Era Indie Animator: vector symbol puppets with tweened limbs, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe.",
+    "Never use Quranic or other sacred text as decoration; real Arabic/Persian text must be correct and reviewed by a reader of the language."
+   ]
+  },
+  {
+   "templateId": "zellige-signal",
+   "templateName": "Maghrebi Zellige Signal",
+   "family": "broadcast-pack",
+   "lead": "VISUAL_MUSIC",
+   "counterpoint": "AFRO_PATTERN",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Visual Music Abstractionist: abstract forms choreographed to musical phrases, not just beats.",
+    "Title enters with fadeIn (minimal), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Afrofuturist Pattern Animator: pattern blocks that weave and unweave on a polyrhythmic grid (3 against 2), once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "mashrabiya-light",
+   "templateName": "Mashrabiya Light",
+   "family": "broadcast-pack",
+   "lead": "SAKUGA",
+   "counterpoint": "PASTORAL",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": "mixed",
+    "ease": "anticipation",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sakuga Key Animator: 1–3 frame impact frames — flat colour or inverted value on the hit.",
+    "Title enters with dropIn (modern), ease anticipation; ones on the hit, twos on the hold.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "mughal-album",
+   "templateName": "Mughal Album Motion",
+   "family": "broadcast-pack",
+   "lead": "STRUCTURAL",
+   "counterpoint": "GAME_VFX",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.35,
+    "holdSec": 5.3
+   },
+   "notes": [
+    "Lead — The Structural Filmmaker: alternating single frames in rhythmic patterns.",
+    "Title enters with fadeIn (minimal), ease linear; animated on ones.",
+    "Counterpoint — The Stylised Game VFX Artist: anticipation-impact-dissipation in under a second, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "chandigarh-grid",
+   "templateName": "Chandigarh Civic Modern",
+   "family": "broadcast-pack",
+   "lead": "MIDCENTURY",
+   "counterpoint": "GOLDEN_AGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Golden-Age Feature Naturalist: full animation on ones for acting scenes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "sahel-earth-signal",
+   "templateName": "Sahel Earth Signal",
+   "family": "broadcast-pack",
+   "lead": "CHROME_80S",
+   "counterpoint": "MODERNIST_TITLE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle.",
+    "Title enters with tracking (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "diaspora-cosmic-score",
+   "templateName": "Diaspora Cosmic Score",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "anishinaabe-led-screen",
+   "templateName": "Anishinaabe-led Living Screen",
+   "family": "broadcast-pack",
+   "lead": "PIXEL_ART",
+   "counterpoint": "LOWPOLY_RETRO",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 12,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Pixel-Art Sprite Animator: 4–8 frame cycles with strong key poses.",
+    "Title enters with typeOn (modern), ease linear; animated on ones.",
+    "Counterpoint — The Low-Poly Retro Renderer: vertex snapping and jitter on movement, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Collaboration required — credit and involve the tradition this pack draws from."
+   ]
+  },
+  {
+   "templateId": "diné-led-horizon",
+   "templateName": "Diné-led Horizon System",
+   "family": "broadcast-pack",
+   "lead": "CHROME_80S",
+   "counterpoint": "MODERNIST_TITLE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle.",
+    "Title enters with tracking (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe.",
+    "Collaboration required — credit and involve the tradition this pack draws from."
+   ]
+  },
+  {
+   "templateId": "vitruvian-counterpoint",
+   "templateName": "Vitruvian Counterpoint",
+   "family": "broadcast-pack",
+   "lead": "GOLDEN_AGE",
+   "counterpoint": "MIDCENTURY",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Golden-Age Feature Naturalist: full animation on ones for acting scenes.",
+    "Title enters with fadeUp (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "wet-paint-insurrection",
+   "templateName": "Wet Paint Insurrection",
+   "family": "broadcast-pack",
+   "lead": "STRUCTURAL",
+   "counterpoint": "GAME_VFX",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.35,
+    "holdSec": 5.3
+   },
+   "notes": [
+    "Lead — The Structural Filmmaker: alternating single frames in rhythmic patterns.",
+    "Title enters with fadeIn (minimal), ease linear; animated on ones.",
+    "Counterpoint — The Stylised Game VFX Artist: anticipation-impact-dissipation in under a second, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "post-gravity-protocol",
+   "templateName": "Post-Gravity Protocol",
+   "family": "broadcast-pack",
+   "lead": "CHROME_80S",
+   "counterpoint": "MODERNIST_TITLE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle.",
+    "Title enters with tracking (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "atlas-of-encounters",
+   "templateName": "Atlas of Encounters",
+   "family": "broadcast-pack",
+   "lead": "DATA_STORY",
+   "counterpoint": "PSYCHEDELIC",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Data Storyteller: bars and lines grow from a zero baseline in order of the story.",
+    "Title enters with typeOn (minimal), ease ease-out; animated on ones.",
+    "Counterpoint — The Psychedelic Colourist: liquid morphing letterforms in an Art Nouveau line, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "gilded-tempest",
+   "templateName": "Gilded Tempest",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "quiet-monolith",
+   "templateName": "Quiet Monolith",
+   "family": "broadcast-pack",
+   "lead": "PASTORAL",
+   "counterpoint": "SAKUGA",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth.",
+    "Title enters with fadeUp (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Sakuga Key Animator: 1–3 frame impact frames — flat colour or inverted value on the hit, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "arena-carbon",
+   "templateName": "Arena Carbon",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "varsity-letterpress",
+   "templateName": "Varsity Letterpress",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "continental-football",
+   "templateName": "Continental Football",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "neon-hardwood",
+   "templateName": "Neon Hardwood",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "scorebook-classic",
+   "templateName": "Scorebook Classic",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "telemetry-redline",
+   "templateName": "Telemetry Redline",
+   "family": "broadcast-pack",
+   "lead": "STRUCTURAL",
+   "counterpoint": "GAME_VFX",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.35,
+    "holdSec": 5.3
+   },
+   "notes": [
+    "Lead — The Structural Filmmaker: alternating single frames in rhythmic patterns.",
+    "Title enters with fadeIn (minimal), ease linear; animated on ones.",
+    "Counterpoint — The Stylised Game VFX Artist: anticipation-impact-dissipation in under a second, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "tale-of-tape",
+   "templateName": "Tale of the Tape",
+   "family": "broadcast-pack",
+   "lead": "GAME_VFX",
+   "counterpoint": "STRUCTURAL",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "anticipation",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Stylised Game VFX Artist: anticipation-impact-dissipation in under a second.",
+    "Title enters with dropIn (modern), ease anticipation; animated on ones.",
+    "Counterpoint — The Structural Filmmaker: alternating single frames in rhythmic patterns, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "velocity-lanes",
+   "templateName": "Velocity Lanes",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "ice-prism",
+   "templateName": "Ice Prism",
+   "family": "broadcast-pack",
+   "lead": "EXPLAINER",
+   "counterpoint": "COLLAGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Explainer Systematist: one consistent ease curve across the whole piece.",
+    "Title enters with wordSlide (minimal), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Collage Zinester: torn-paper cutouts animated on threes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "tidal-tour",
+   "templateName": "Tidal Tour",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "hologrid-esports",
+   "templateName": "Hologrid Esports",
+   "family": "broadcast-pack",
+   "lead": "FEATURE_CG",
+   "counterpoint": "SCREWBALL",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Feature CG Character Animator: blocking in stepped keys, then splining.",
+    "Title enters with fadeUp (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Screwball Cartoon Timer: extreme take: anticipation squash, stretched take, settle with a vibrate, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "global-games-ceremony",
+   "templateName": "Global Games Ceremony",
+   "family": "broadcast-pack",
+   "lead": "PIXEL_ART",
+   "counterpoint": "LOWPOLY_RETRO",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 12,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Pixel-Art Sprite Animator: 4–8 frame cycles with strong key poses.",
+    "Title enters with typeOn (modern), ease linear; animated on ones.",
+    "Counterpoint — The Low-Poly Retro Renderer: vertex snapping and jitter on movement, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "olympian-measure",
+   "templateName": "Olympian Measure",
+   "family": "broadcast-pack",
+   "lead": "GOLDEN_AGE",
+   "counterpoint": "MIDCENTURY",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Golden-Age Feature Naturalist: full animation on ones for acting scenes.",
+    "Title enters with fadeUp (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "street-court-uprising",
+   "templateName": "Street Court Uprising",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "quantum-league",
+   "templateName": "Quantum League",
+   "family": "broadcast-pack",
+   "lead": "SIM_TD",
+   "counterpoint": "CLAY",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Simulation Technical Director: fluid and smoke sims at true world scale.",
+    "Title enters with blurIn (minimal), ease linear; animated on ones.",
+    "Counterpoint — The Clay Animator: visible thumbprints and slight surface boil frame to frame, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "nomad-games-atlas",
+   "templateName": "Nomad Games Atlas",
+   "family": "broadcast-pack",
+   "lead": "PIXEL_ART",
+   "counterpoint": "LOWPOLY_RETRO",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 12,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Pixel-Art Sprite Animator: 4–8 frame cycles with strong key poses.",
+    "Title enters with typeOn (modern), ease linear; animated on ones.",
+    "Counterpoint — The Low-Poly Retro Renderer: vertex snapping and jitter on movement, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "baroque-victory",
+   "templateName": "Baroque Victory",
+   "family": "broadcast-pack",
+   "lead": "DATA_STORY",
+   "counterpoint": "PSYCHEDELIC",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Data Storyteller: bars and lines grow from a zero baseline in order of the story.",
+    "Title enters with typeOn (minimal), ease ease-out; animated on ones.",
+    "Counterpoint — The Psychedelic Colourist: liquid morphing letterforms in an Art Nouveau line, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "essential-score",
+   "templateName": "Essential Score",
+   "family": "broadcast-pack",
+   "lead": "STRUCTURAL",
+   "counterpoint": "GAME_VFX",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "linear",
+    "enterSec": 0.35,
+    "holdSec": 5.3
+   },
+   "notes": [
+    "Lead — The Structural Filmmaker: alternating single frames in rhythmic patterns.",
+    "Title enters with fadeIn (minimal), ease linear; animated on ones.",
+    "Counterpoint — The Stylised Game VFX Artist: anticipation-impact-dissipation in under a second, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "editorial-window",
+   "templateName": "Editorial Window",
+   "family": "broadcast-pack",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "paper-rip-reveal",
+   "templateName": "Paper Rip Reveal",
+   "family": "broadcast-pack",
+   "lead": "SILHOUETTE",
+   "counterpoint": "SATSUEI",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight.",
+    "Title enters with fadeIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Shadow-puppet traditions such as wayang kulit carry religious and community meaning — cite the tradition, transform rather than copy specific figures, and involve practitioners for sacred characters."
+   ]
+  },
+  {
+   "templateId": "silhouette-halo",
+   "templateName": "Silhouette Halo",
+   "family": "broadcast-pack",
+   "lead": "SILHOUETTE",
+   "counterpoint": "SATSUEI",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight.",
+    "Title enters with fadeIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Shadow-puppet traditions such as wayang kulit carry religious and community meaning — cite the tradition, transform rather than copy specific figures, and involve practitioners for sacred characters."
+   ]
+  },
+  {
+   "templateId": "contact-sheet-motion",
+   "templateName": "Contact Sheet Motion",
+   "family": "broadcast-pack",
+   "lead": "SILHOUETTE",
+   "counterpoint": "SATSUEI",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight.",
+    "Title enters with fadeIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Shadow-puppet traditions such as wayang kulit carry religious and community meaning — cite the tradition, transform rather than copy specific figures, and involve practitioners for sacred characters."
+   ]
+  },
+  {
+   "templateId": "polaroid-constellation",
+   "templateName": "Instant Print Constellation",
+   "family": "broadcast-pack",
+   "lead": "DATA_STORY",
+   "counterpoint": "PSYCHEDELIC",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Data Storyteller: bars and lines grow from a zero baseline in order of the story.",
+    "Title enters with typeOn (minimal), ease ease-out; animated on ones.",
+    "Counterpoint — The Psychedelic Colourist: liquid morphing letterforms in an Art Nouveau line, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "liquid-matte",
+   "templateName": "Liquid Matte",
+   "family": "broadcast-pack",
+   "lead": "PSYCHEDELIC",
+   "counterpoint": "DATA_STORY",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Psychedelic Colourist: liquid morphing letterforms in an Art Nouveau line.",
+    "Title enters with blurIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Data Storyteller: bars and lines grow from a zero baseline in order of the story, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "prism-portrait",
+   "templateName": "Prism Portrait",
+   "family": "broadcast-pack",
+   "lead": "SILHOUETTE",
+   "counterpoint": "SATSUEI",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight.",
+    "Title enters with fadeIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Shadow-puppet traditions such as wayang kulit carry religious and community meaning — cite the tradition, transform rather than copy specific figures, and involve practitioners for sacred characters."
+   ]
+  },
+  {
+   "templateId": "film-strip-depth",
+   "templateName": "Film Strip Depth",
+   "family": "broadcast-pack",
+   "lead": "VIRTUAL_PROD",
+   "counterpoint": "STYLIZED_3D",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Virtual Production Cinematographer: physically plausible camera moves with operator shake.",
+    "Title enters with fadeUp (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Stylised-3D Rebel: 3D characters animated on twos while the camera stays on ones, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "architectural-cutout",
+   "templateName": "Architectural Cutout",
+   "family": "broadcast-pack",
+   "lead": "SILHOUETTE",
+   "counterpoint": "SATSUEI",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight.",
+    "Title enters with fadeIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Shadow-puppet traditions such as wayang kulit carry religious and community meaning — cite the tradition, transform rather than copy specific figures, and involve practitioners for sacred characters."
+   ]
+  },
+  {
+   "templateId": "botanical-occlusion",
+   "templateName": "Botanical Occlusion",
+   "family": "broadcast-pack",
+   "lead": "SILHOUETTE",
+   "counterpoint": "SATSUEI",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight.",
+    "Title enters with fadeIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Shadow-puppet traditions such as wayang kulit carry religious and community meaning — cite the tradition, transform rather than copy specific figures, and involve practitioners for sacred characters."
+   ]
+  },
+  {
+   "templateId": "ink-collage",
+   "templateName": "Ink Collage",
+   "family": "broadcast-pack",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "mirror-stage",
+   "templateName": "Mirror Stage",
+   "family": "broadcast-pack",
+   "lead": "SILHOUETTE",
+   "counterpoint": "SATSUEI",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight.",
+    "Title enters with fadeIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Shadow-puppet traditions such as wayang kulit carry religious and community meaning — cite the tradition, transform rather than copy specific figures, and involve practitioners for sacred characters."
+   ]
+  },
+  {
+   "templateId": "classical-portico",
+   "templateName": "Classical Portico",
+   "family": "broadcast-pack",
+   "lead": "GOLDEN_AGE",
+   "counterpoint": "MIDCENTURY",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Golden-Age Feature Naturalist: full animation on ones for acting scenes.",
+    "Title enters with fadeUp (classic), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "spray-cutout",
+   "templateName": "Spray Cutout",
+   "family": "broadcast-pack",
+   "lead": "SILHOUETTE",
+   "counterpoint": "SATSUEI",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight.",
+    "Title enters with fadeIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Digital Compositing Director: god rays and lens bloom motivated by a visible light source, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe.",
+    "Shadow-puppet traditions such as wayang kulit carry religious and community meaning — cite the tradition, transform rather than copy specific figures, and involve practitioners for sacred characters."
+   ]
+  },
+  {
+   "templateId": "lightfield-avatar",
+   "templateName": "Lightfield Avatar",
+   "family": "broadcast-pack",
+   "lead": "LIVE2D",
+   "counterpoint": "SILHOUETTE",
+   "editor": "CHARACTER",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "ease-in-out",
+    "enterSec": 1.2,
+    "holdSec": 3.6
+   },
+   "notes": [
+    "Lead — The Live2D Rigger: idle breathing and blink cycles.",
+    "Title enters with fadeUp (modern), ease ease-in-out; animated on ones.",
+    "Counterpoint — The Silhouette & Cutout Animator: black hinged silhouettes against a coloured or gradient backlight, once.",
+    "Editor — The Animator: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "travelogue-layers",
+   "templateName": "Travelogue Layers",
+   "family": "broadcast-pack",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "baroque-cameo",
+   "templateName": "Baroque Cameo",
+   "family": "broadcast-pack",
+   "lead": "SPORTS_BROADCAST",
+   "counterpoint": "PASTORAL",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Sports Broadcast Designer: skewed plates and chevrons slamming in on a hard cut.",
+    "Title enters with wordSlide (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Pastoral Naturalist: wind that travels through the frame in sequence — grass, then hair, then cloth, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "single-aperture",
+   "templateName": "Single Aperture",
+   "family": "broadcast-pack",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "punk-xerox-stack",
+   "templateName": "Punk Xerox Stack",
+   "family": "broadcast-pack",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "riot-grrrl-cutpaste",
+   "templateName": "Riot Grrrl Cut & Paste",
+   "family": "broadcast-pack",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "hardcore-stencil",
+   "templateName": "Hardcore Stencil",
+   "family": "broadcast-pack",
+   "lead": "MODERNIST_TITLE",
+   "counterpoint": "CHROME_80S",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "postpunk-coldgrid",
+   "templateName": "Post-Punk Cold Grid",
+   "family": "broadcast-pack",
+   "lead": "MIDCENTURY",
+   "counterpoint": "GOLDEN_AGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Golden-Age Feature Naturalist: full animation on ones for acting scenes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "grunge-misregister",
+   "templateName": "Grunge Misregister",
+   "family": "broadcast-pack",
+   "lead": "MIDCENTURY",
+   "counterpoint": "GOLDEN_AGE",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Mid-Century Modernist: pose-to-pose with few in-betweens — the pose is the drawing.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Golden-Age Feature Naturalist: full animation on ones for acting scenes, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "acid-house-flyer",
+   "templateName": "Acid House Flyer",
+   "family": "broadcast-pack",
+   "lead": "PSYCHEDELIC",
+   "counterpoint": "DATA_STORY",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-in-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Psychedelic Colourist: liquid morphing letterforms in an Art Nouveau line.",
+    "Title enters with blurIn (classic), ease ease-in-out; animated on twos.",
+    "Counterpoint — The Data Storyteller: bars and lines grow from a zero baseline in order of the story, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "newwave-elastic",
+   "templateName": "New Wave Elastic Type",
+   "family": "broadcast-pack",
+   "lead": "MODERNIST_TITLE",
+   "counterpoint": "CHROME_80S",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "neo-dada-broadcast",
+   "templateName": "Neo-Dada Broadcast",
+   "family": "broadcast-pack",
+   "lead": "CHROME_80S",
+   "counterpoint": "MODERNIST_TITLE",
+   "editor": "CINEMATIC",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle.",
+    "Title enters with tracking (modern), ease ease-out; animated on ones.",
+    "Counterpoint — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence, once.",
+    "Editor — The 3D Dramatist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "deconstructed-editorial",
+   "templateName": "Deconstructed Editorial",
+   "family": "broadcast-pack",
+   "lead": "MODERNIST_TITLE",
+   "counterpoint": "CHROME_80S",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "radical-typeset",
+   "templateName": "Radical Typeset",
+   "family": "broadcast-pack",
+   "lead": "MODERNIST_TITLE",
+   "counterpoint": "CHROME_80S",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "cyber-collage",
+   "templateName": "Cyber Collage",
+   "family": "broadcast-pack",
+   "lead": "Y2K",
+   "counterpoint": "INK_WASH",
+   "editor": "GENERATIVE",
+   "timing": {
+    "fps": 30,
+    "on": 1,
+    "ease": "overshoot",
+    "enterSec": 0.5,
+    "holdSec": 5
+   },
+   "notes": [
+    "Lead — The Y2K Interface Futurist: glossy translucent bubbles with specular highlights.",
+    "Title enters with blurIn (modern), ease overshoot; animated on ones.",
+    "Counterpoint — The Ink-Wash Animator: ink bleeding and diffusing into wet paper, once.",
+    "Editor — The Generative Artist: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "artschool-assemblage",
+   "templateName": "Art School Assemblage",
+   "family": "broadcast-pack",
+   "lead": "MODERNIST_TITLE",
+   "counterpoint": "CHROME_80S",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "black-ink-barricade",
+   "templateName": "Black Ink Barricade",
+   "family": "broadcast-pack",
+   "lead": "MODERNIST_TITLE",
+   "counterpoint": "CHROME_80S",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "aerosol-palimpsest",
+   "templateName": "Aerosol Palimpsest",
+   "family": "broadcast-pack",
+   "lead": "MODERNIST_TITLE",
+   "counterpoint": "CHROME_80S",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "wheatpaste-city",
+   "templateName": "Wheatpaste City",
+   "family": "broadcast-pack",
+   "lead": "MODERNIST_TITLE",
+   "counterpoint": "CHROME_80S",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 24,
+    "on": 2,
+    "ease": "ease-out",
+    "enterSec": 1,
+    "holdSec": 4
+   },
+   "notes": [
+    "Lead — The Modernist Title Designer: one symbolic graphic shape that transforms through the sequence.",
+    "Title enters with wordSlide (minimal), ease ease-out; animated on twos.",
+    "Counterpoint — The Chrome Broadcast Designer: chrome logo flying in with a star-filter glint on the settle, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "marker-riot",
+   "templateName": "Marker Riot",
+   "family": "broadcast-pack",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "toner-avalanche",
+   "templateName": "Toner Avalanche",
+   "family": "broadcast-pack",
+   "lead": "COLLAGE",
+   "counterpoint": "EXPLAINER",
+   "editor": "SIGNAL",
+   "timing": {
+    "fps": 24,
+    "on": 3,
+    "ease": "linear",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Collage Zinester: torn-paper cutouts animated on threes.",
+    "Title enters with scramble (modern), ease linear; animated on threes.",
+    "Counterpoint — The Explainer Systematist: one consistent ease curve across the whole piece, once.",
+    "Editor — The Signal Bender: hold long enough to read twice; keep it inside title-safe."
+   ]
+  },
+  {
+   "templateId": "rust-and-noise",
+   "templateName": "Rust & Noise",
+   "family": "broadcast-pack",
+   "lead": "UI_MOTION",
+   "counterpoint": "CONSTRUCTIVIST",
+   "editor": "KINETIC",
+   "timing": {
+    "fps": 60,
+    "on": 1,
+    "ease": "ease-out",
+    "enterSec": 0.75,
+    "holdSec": 4.5
+   },
+   "notes": [
+    "Lead — The Interface Motion Designer: spring physics instead of fixed durations.",
+    "Title enters with fadeUp (minimal), ease ease-out; animated on ones.",
+    "Counterpoint — The Constructivist Agitator: type slabs slamming in on diagonals, once.",
+    "Editor — The Kinetic Typographer: hold long enough to read twice; keep it inside title-safe."
+   ]
+  }
+ ]
+}

@@ -1,12 +1,16 @@
 // MotionCouncilPanel — ask the Motion Graphics & VFX Council about a moving visual. You give it the piece's
 // spec (medium, delivery target, tempo) and it renders the deliberation: each director's proposal, where they
 // split, and the ranked, frame-accurate plan. Optional onApply wires the one-click moves (fps / beat-grid /
-// shutter / ease) into the host surface (Pixels / Fabula). Aria is the voice; these are the team behind her.
+// shutter / ease / stepping) into the host surface (Pixels / Fabula). Aria is the voice; these are the team behind her.
+// A crew from the Studio Roster (anime, cartoon, graphic, CG, stop-motion, experimental, games, world traditions)
+// is auto-cast from the ask, medium, guild and era — or pinned by hand from the roster browser — and sits in.
 // Mirrors components/melos/council/MusicCouncilPanel.
-import React, { useState } from 'react';
-import { Users, Loader2, Sparkles, Check, History, Film } from 'lucide-react';
-import { deliberate, MOTION_PERSONAS } from '../../../services/motion/council/motionCouncilService';
-import type { MotionDeliberation, MotionSpec, MotionMedium, MotionPersonaId, ApplyAction } from '../../../services/motion/council/motionCouncilTypes';
+import React, { useMemo, useState } from 'react';
+import { Loader2, Sparkles, Check, History, Film, X, Pin, BookUser } from 'lucide-react';
+import { deliberate, speakerName } from '../../../services/motion/council/motionCouncilService';
+import type { MotionDeliberation, MotionSpec, MotionMedium, ApplyAction, SpeakerId } from '../../../services/motion/council/motionCouncilTypes';
+import { castCrew, rosterMember, eraFacets, ROSTER_GUILDS, type RosterGuild } from '../../../services/motion/council/motionRoster';
+import MotionRosterBrowser, { GUILD_HUE } from './MotionRosterBrowser';
 import { MOTION_DELIVERIES, deliveryTarget } from '../../../services/motion/council/motionKnowledge';
 import { saveSession, markUsed, leadCounts, listSessions } from '../../../services/motion/council/motionCouncilStore';
 
@@ -21,11 +25,18 @@ const MEDIA: { id: MotionMedium; label: string }[] = [
 ];
 const ENERGY: { label: string; v: number }[] = [{ label: 'calm', v: 0.3 }, { label: 'medium', v: 0.55 }, { label: 'high', v: 0.85 }];
 
-export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAction) => void }) {
-  const [ask, setAsk] = useState('How should this logo enter?');
-  const [medium, setMedium] = useState<MotionMedium>('logo-sting');
-  const [delivery, setDelivery] = useState('web');
-  const [tempo, setTempo] = useState<string>('120');
+export default function MotionCouncilPanel({ onApply, supports, initial }: {
+  /** apply a one-click move on the host; return false if it could not (e.g. nothing selected) so it is not marked applied */
+  onApply?: (a: ApplyAction) => boolean | void;
+  /** the ApplyAction kinds this host can honestly perform — others render without an Apply button (default: all) */
+  supports?: ApplyAction['kind'][];
+  /** seed the brief from the host (its medium, delivery target, tempo) */
+  initial?: { ask?: string; medium?: MotionMedium; delivery?: string; tempo?: number };
+}) {
+  const [ask, setAsk] = useState(initial?.ask ?? 'How should this logo enter?');
+  const [medium, setMedium] = useState<MotionMedium>(initial?.medium ?? 'logo-sting');
+  const [delivery, setDelivery] = useState(initial?.delivery ?? 'web');
+  const [tempo, setTempo] = useState<string>(initial?.tempo ? String(Math.round(initial.tempo)) : '120');
   const [energy, setEnergy] = useState(0.55);
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<MotionDeliberation | null>(null);
@@ -34,8 +45,26 @@ export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAct
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [tick, setTick] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
+  // ── Studio Roster crew ──
+  const [pinned, setPinned] = useState<string[]>([]);
+  const [excluded, setExcluded] = useState<string[]>([]);
+  const [guild, setGuild] = useState<RosterGuild | ''>('');
+  const [era, setEra] = useState<number | ''>('');
+  const [crewSize, setCrewSize] = useState(4);
+  const [showRoster, setShowRoster] = useState(false);
+  const decades = useMemo(eraFacets, []);
+  const crew = useMemo(() => {
+    if (crewSize === 0) return pinned.slice();
+    const cast = castCrew({ ask, medium, guilds: guild ? [guild] : undefined, era: era === '' ? undefined : era, pinned, size: crewSize + excluded.length });
+    return cast.filter(m => !excluded.includes(m.id)).slice(0, Math.max(crewSize, pinned.length)).map(m => m.id);
+  }, [ask, medium, guild, era, pinned, excluded, crewSize]);
+  const togglePin = (id: string) => {
+    setPinned(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+    setExcluded(x => x.filter(e => e !== id));
+  };
+  const dropFromCrew = (id: string) => { setPinned(p => p.filter(x => x !== id)); setExcluded(x => x.includes(id) ? x : [...x, id]); };
   const counts = leadCounts();
-  const topLead = (Object.entries(counts) as [MotionPersonaId, number][]).sort((a, b) => b[1] - a[1])[0];
+  const topLead = (Object.entries(counts) as [SpeakerId, number][]).sort((a, b) => b[1] - a[1])[0];
 
   const run = async () => {
     if (busy || !ask.trim()) return;
@@ -44,14 +73,15 @@ export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAct
       const dt = deliveryTarget(delivery);
       const spec: MotionSpec = { delivery, fps: dt?.fps, aspect: dt?.aspect, energy };
       const bpm = parseInt(tempo, 10); if (!Number.isNaN(bpm) && bpm > 0) spec.tempo = bpm;
-      const d = await deliberate({ ask: ask.trim(), medium }, spec);
+      const d = await deliberate({ ask: ask.trim(), medium, crew }, spec);
       setRes(d);
-      const sess = saveSession({ ask: ask.trim(), medium }, d);
+      const sess = saveSession({ ask: ask.trim(), medium, crew }, d);
       setSessionId(sess.id); setTick(t => t + 1);
     } catch { /* deliberate already falls back */ }
     finally { setBusy(false); }
   };
-  const doApply = (a: ApplyAction | undefined, key: string) => { if (!a || !onApply) return; onApply(a); setApplied(s => new Set(s).add(key)); };
+  const canApply = (a: ApplyAction | undefined) => !!a && !!onApply && (!supports || supports.includes(a.kind));
+  const doApply = (a: ApplyAction | undefined, key: string) => { if (!a || !onApply) return; if (onApply(a) === false) return; setApplied(s => new Set(s).add(key)); };
   const followed = () => { if (sessionId) { markUsed(sessionId); setUsed(true); setTick(t => t + 1); } };
 
   return (
@@ -59,7 +89,7 @@ export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAct
       <div className="flex items-center gap-2 mb-3">
         <Film size={15} style={{ color: AC }} />
         <span className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">Motion Council</span>
-        <span className="text-[9px] text-white/25">kinetic · animator · compositor · generative · signal · 3d</span>
+        <span className="text-[9px] text-white/25">kinetic · animator · compositor · generative · signal · 3d + studio roster</span>
       </div>
 
       <input value={ask} onChange={e => setAsk(e.target.value)} onKeyDown={e => e.key === 'Enter' && run()}
@@ -86,6 +116,40 @@ export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAct
         </button>
       </div>
 
+      <div className="rounded-xl border border-white/8 bg-white/[0.015] px-3 py-2 mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+          <span className="text-[9px] font-black uppercase tracking-widest text-white/45">Studio crew</span>
+          <select value={guild} onChange={e => setGuild(e.target.value as RosterGuild | '')} className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] font-bold text-white outline-none">
+            <option value="" className="bg-[#0c0f14]">Any guild</option>
+            {ROSTER_GUILDS.map(g => <option key={g.id} value={g.id} className="bg-[#0c0f14]">{g.label}</option>)}
+          </select>
+          <select value={era === '' ? '' : String(era)} onChange={e => setEra(e.target.value ? parseInt(e.target.value, 10) : '')} className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] font-bold text-white outline-none">
+            <option value="" className="bg-[#0c0f14]">Any era</option>
+            {decades.map(d => <option key={d} value={d} className="bg-[#0c0f14]">{d}s</option>)}
+          </select>
+          <select value={String(crewSize)} onChange={e => setCrewSize(parseInt(e.target.value, 10))} title="How many roster members sit in (0 = only the ones you pin)" className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] font-bold text-white outline-none">
+            {[0, 2, 3, 4, 5, 6].map(n => <option key={n} value={n} className="bg-[#0c0f14]">{n === 0 ? 'pinned only' : `${n} sit in`}</option>)}
+          </select>
+          {excluded.length > 0 && <button onClick={() => setExcluded([])} className="text-[9px] uppercase tracking-widest text-white/35 hover:text-white/70">recast</button>}
+          <button onClick={() => setShowRoster(v => !v)} className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-widest rounded-full px-2 py-1" style={{ color: AC, background: `${AC}14`, border: `1px solid ${AC}40` }}>
+            <BookUser size={11} /> {showRoster ? 'Hide roster' : 'Roster'}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {crew.map(id => {
+            const m = rosterMember(id); if (!m) return null; const hue = GUILD_HUE[m.guild];
+            return (
+              <span key={id} className="flex items-center gap-1 text-[10px] font-bold rounded-full pl-2 pr-1 py-0.5" style={{ color: hue, background: `${hue}14`, border: `1px solid ${hue}40` }}>
+                {pinned.includes(id) && <Pin size={9} />}{m.name.replace(/^The /, '')}
+                <button onClick={() => dropFromCrew(id)} title="Leave this one out" className="opacity-60 hover:opacity-100"><X size={10} /></button>
+              </span>
+            );
+          })}
+          {crew.length === 0 && <span className="text-[10px] text-white/30">Council only — pin someone from the roster, or let the ask cast a crew.</span>}
+        </div>
+        {showRoster && <div className="mt-2"><MotionRosterBrowser pinned={pinned} onTogglePin={togglePin} crew={crew} /></div>}
+      </div>
+
       {res && (
         <div className="space-y-3">
           <p className="text-[12px] text-white/60 italic leading-relaxed">{res.intro}</p>
@@ -93,7 +157,7 @@ export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAct
             {res.proposals.map((p, i) => (
               <div key={i} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: AC_SOFT }}>{MOTION_PERSONAS[p.personaId as MotionPersonaId]?.name || p.personaId}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest shrink-0" style={{ color: rosterMember(p.personaId) ? GUILD_HUE[rosterMember(p.personaId)!.guild] : AC_SOFT }}>{speakerName(p.personaId)}</span>
                   <span className="text-[10px] text-white/40">{p.headline}</span>
                 </div>
                 <ul className="space-y-0.5">
@@ -101,7 +165,7 @@ export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAct
                     <li key={j} className="text-[12px] text-white/70 flex gap-2 items-start">
                       <span className="flex-1">{m.text}</span>
                       {m.where && <span className="shrink-0 text-[9px] font-mono rounded px-1.5 py-0.5 self-start" style={{ color: AC, background: `${AC}1a`, border: `1px solid ${AC}40` }}>{m.where}</span>}
-                      {m.apply && onApply && (
+                      {canApply(m.apply) && (
                         applied.has(`${i}:${j}`)
                           ? <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[#3DFFC0] flex items-center gap-0.5 self-start"><Check size={11} /> applied</span>
                           : <button onClick={() => doApply(m.apply, `${i}:${j}`)} className="shrink-0 text-[9px] font-black uppercase tracking-widest self-start transition-colors rounded px-1.5 py-0.5" style={{ color: AC, background: `${AC}1a`, border: `1px solid ${AC}4d` }}>Apply</button>
@@ -139,7 +203,7 @@ export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAct
       {(topLead || listSessions().length > 0) && (
         <div className="mt-3 pt-3 border-t border-white/8" key={tick}>
           <button onClick={() => setShowHistory(v => !v)} className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/35 hover:text-white/60">
-            <History size={11} /> {topLead ? `${MOTION_PERSONAS[topLead[0]].name} has led ${topLead[1]} you've kept` : 'Council history'}
+            <History size={11} /> {topLead ? `${speakerName(topLead[0])} has led ${topLead[1]} you've kept` : 'Council history'}
           </button>
           {showHistory && (
             <div className="mt-2 space-y-1">
@@ -147,7 +211,7 @@ export default function MotionCouncilPanel({ onApply }: { onApply?: (a: ApplyAct
                 <div key={s.id} className="flex items-center gap-2 text-[11px]">
                   {s.used && <Check size={10} className="text-[#3DFFC0] shrink-0" />}
                   <span className="flex-1 truncate text-white/50">{s.ask}</span>
-                  {s.leadPersona && <span className="shrink-0 text-[9px] uppercase tracking-widest" style={{ color: `${AC}b3` }}>{s.leadPersona.toLowerCase()}</span>}
+                  {s.leadPersona && <span className="shrink-0 text-[9px] uppercase tracking-widest" style={{ color: `${AC}b3` }}>{speakerName(s.leadPersona).replace(/^The /, '').toLowerCase()}</span>}
                 </div>
               ))}
               {listSessions().length === 0 && <p className="text-[10px] text-white/25">No sessions yet.</p>}

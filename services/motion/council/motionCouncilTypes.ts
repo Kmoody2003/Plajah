@@ -53,7 +53,12 @@ export interface MotionBrief {
   ask: string;          // the question, e.g. "how should this logo enter?"
   medium?: MotionMedium;
   spec?: MotionSpec;
+  /** Studio Roster members sitting in on this deliberation (ids from motionRoster.ts) — see castCrew */
+  crew?: string[];
 }
+
+/** Who can speak in a deliberation: one of the six council directors, or a Studio Roster member id. */
+export type SpeakerId = MotionPersonaId | (string & {});
 
 /** A move the user can apply in one click on the consuming surface (Pixels / Fabula). */
 export type ApplyAction =
@@ -61,10 +66,11 @@ export type ApplyAction =
   | { kind: 'beatGrid'; bpm: number; division: number }  // snap keyframes/cuts to a 1/division grid at bpm
   | { kind: 'shutter'; angle: number }                   // motion-blur shutter angle in degrees
   | { kind: 'ease'; preset: string }                     // an easing preset id
-  | { kind: 'aspect'; value: string };
+  | { kind: 'aspect'; value: string }
+  | { kind: 'stepping'; every: 1 | 2 | 3 };             // hold each drawing/pose N frames — on ones / twos / threes
 
-export interface CouncilMove { text: string; where?: string; personaId?: MotionPersonaId; apply?: ApplyAction; }
-export interface Proposal { personaId: MotionPersonaId; headline: string; moves: CouncilMove[]; }
+export interface CouncilMove { text: string; where?: string; personaId?: SpeakerId; apply?: ApplyAction; }
+export interface Proposal { personaId: SpeakerId; headline: string; moves: CouncilMove[]; }
 
 export interface MotionDeliberation {
   intro: string;                // Aria's opening line
@@ -72,6 +78,7 @@ export interface MotionDeliberation {
   tensions: string[];           // the disagreements said out loud
   plan: CouncilMove[];          // the synthesised, ranked, actionable moves
   summary: string;              // Aria's synthesis, no averaging
+  crew?: string[];              // the Studio Roster members who sat in
   grounded: boolean;            // true = anchored to a real spec (tempo/fps/delivery) vs pure model
   source: 'ai' | 'local';       // where the deliberation came from
 }

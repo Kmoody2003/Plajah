@@ -2,7 +2,7 @@
 // asked, and running counts of which director LED the plan you actually used. The art council keeps evolving
 // profiles server-side; the motion council is client-only for now, so this lives in localStorage. Mirrors
 // services/melos/council/musicCouncilStore.
-import type { MotionBrief, MotionDeliberation, MotionPersonaId } from './motionCouncilTypes';
+import type { MotionBrief, MotionDeliberation, SpeakerId } from './motionCouncilTypes';
 
 const KEY = 'plajah_motion_council_v1';
 const MAX = 40;
@@ -12,12 +12,13 @@ export interface CouncilSession {
   at: number;
   ask: string;
   medium?: string;
-  leadPersona?: MotionPersonaId;   // whose move topped the plan
+  leadPersona?: SpeakerId;         // whose move topped the plan — a director or a roster member
+  crew?: string[];                 // roster members who sat in
   grounded: boolean;
   source: 'ai' | 'local';
   used?: boolean;                  // the user marked the plan as followed
 }
-interface Store { sessions: CouncilSession[]; leadCounts: Partial<Record<MotionPersonaId, number>>; }
+interface Store { sessions: CouncilSession[]; leadCounts: Partial<Record<SpeakerId, number>>; }
 
 function load(): Store {
   try { const s = JSON.parse(localStorage.getItem(KEY) || ''); if (s && Array.isArray(s.sessions)) return s; } catch { /* */ }
@@ -32,7 +33,7 @@ export function saveSession(brief: MotionBrief, del: MotionDeliberation): Counci
   const sess: CouncilSession = {
     id: 'ms' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
     at: Date.now(), ask: brief.ask, medium: brief.medium,
-    leadPersona: lead, grounded: del.grounded, source: del.source,
+    leadPersona: lead, crew: del.crew, grounded: del.grounded, source: del.source,
   };
   s.sessions.unshift(sess);
   if (s.sessions.length > MAX) s.sessions = s.sessions.slice(0, MAX);
@@ -51,6 +52,6 @@ export function markUsed(id: string): void {
 }
 
 export function listSessions(): CouncilSession[] { return load().sessions; }
-export function leadCounts(): Partial<Record<MotionPersonaId, number>> { return load().leadCounts; }
+export function leadCounts(): Partial<Record<SpeakerId, number>> { return load().leadCounts; }
 export function totalUsed(): number { return load().sessions.filter(x => x.used).length; }
 export function clearCouncilHistory(): void { save({ sessions: [], leadCounts: {} }); }
