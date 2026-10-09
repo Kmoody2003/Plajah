@@ -1,6 +1,0 @@
-@import "tailwindcss" source(none);
-@source "./components/academia/creator";
-@import "./styles/plajah-ds.css";
-:root { --bg-color:#07070c; --text-primary:#fff; }
-body { margin:0; background:#07070c; font-family: Inter, system-ui, sans-serif; }
-.no-scrollbar::-webkit-scrollbar{display:none}
