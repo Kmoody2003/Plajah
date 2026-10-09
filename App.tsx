@@ -3955,10 +3955,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                controls (?djOut=controls). Output only — same reasoning as amboOut. */
             <Suspense fallback={null}><DjOutputWindow /></Suspense>
           ) : typeof window !== 'undefined' && window.location.pathname.startsWith('/link') ? (
+            <Suspense fallback={null}><TvLinkApproval /></Suspense>
           ) : typeof window !== 'undefined' && /^\/delete-account\/?$/.test(window.location.pathname) ? (
             /* Tested before view routing like /ds and /link: a fresh load computes view = 'LANDING'. */
             <Suspense fallback={null}><DeleteAccountPage onBack={() => { window.location.href = '/'; }} /></Suspense>
-            <Suspense fallback={null}><TvLinkApproval /></Suspense>
           ) : (view === 'LIVE_FX_LAB' || (typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('view') === 'live-fx-lab' || new URLSearchParams(window.location.search).get('lab') === 'livefx'))) ? (
             <Suspense fallback={<div className="min-h-screen bg-[#05060a] flex items-center justify-center text-white/40 text-xs font-mono uppercase tracking-widest">Loading Live FX Studio…</div>}>
               <LiveAudioFxAuditionLab onBack={() => {
