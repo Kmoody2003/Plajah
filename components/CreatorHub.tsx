@@ -23,10 +23,11 @@ import {
   Megaphone, LayoutDashboard, Disc3, Grid3x3,
   DollarSign, CheckCircle2, CheckSquare, FileText, Calendar, CalendarDays,
   Users, Send, BookMarked, ClipboardList, Eye, Search, Newspaper, Receipt,
-  Flag, Coffee,
+  Flag, Coffee, GraduationCap,
 } from 'lucide-react';
 import type { UserProfile, Album, IPWorld } from '../types';
 import MarketingKit from './MarketingKit';
+import CourseEntryCard from './academia/creator/CourseEntryCard';
 import { fetchUserAlbums, fetchUserWorlds } from '../services/backendService';
 import { listWritingProjects } from '../services/loreaProjectsService';
 import { listMyManifests, listTelaDocs } from '../services/telaStore';
@@ -237,6 +238,7 @@ const MORE_TOOLS: { id: string; label: string; icon: Lucide }[] = [
   { id: 'TERRA',          label: 'Terra',             icon: MapPin },
   { id: 'APPS',           label: 'Apps',              icon: AppWindow },
   { id: 'CROSSOVER',      label: 'Crossover',         icon: Repeat },
+  { id: 'CREATOR_COURSES', label: 'Creator Courses',  icon: GraduationCap },
 ];
 
 /* ── Artist Manager surface — the professional workflow layer. Creator Hub
@@ -526,6 +528,7 @@ export default function CreatorHub({
     { label: 'New Music', icon: Music2, hue: '#FF8C00', isNew: true, run: () => onNavigate('MELOS') },
     { label: 'New Film', icon: Film, hue: '#A855F7', isNew: true, run: () => onNavigate('FABULA') },
     { label: 'New Book / Article', icon: BookOpen, hue: '#06B6D4', isNew: true, run: () => onNavigate('BOOKS') },
+    { label: 'New Course', icon: GraduationCap, hue: '#D40055', run: () => onNavigate('CREATOR_COURSES') },
     { label: 'New Doc', icon: PenLine, run: () => onNavigate('TELA') },
     { label: 'Newsroom', icon: Newspaper, run: () => onNavigate('JOURNALIST_DESK') },
     { label: 'Go Live', icon: Radio, run: () => (onGoLive ? onGoLive() : onNavigate('LIVE_HUB')) },
@@ -937,6 +940,10 @@ export default function CreatorHub({
                     reveal={reveal(Math.min(i, 5) * 0.04)}
                   />
                 ))}
+            {/* Teach a course: the creator-courses entry (Academia). Spans the full studio grid. */}
+            {!loadingProjects && (
+              <CourseEntryCard uid={user?.uid} onNavigate={onNavigate} className="sm:col-span-2 lg:col-span-3" />
+            )}
           </div>
 
           {/* ── Recently edited rail ── */}
