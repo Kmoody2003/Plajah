@@ -1,0 +1,208 @@
+{
+  "intro": "I took this to the room and brought in the Explainer Systematist, the Simulation Technical Director, the Abstract 3D Loop Artist, the Collage Zinester from the studio roster. Here's where they agree, where they split, and what I'd do.",
+  "crew": [
+    "EXPLAINER",
+    "SIM_TD",
+    "ABSTRACT_LOOP",
+    "COLLAGE"
+  ],
+  "proposals": [
+    {
+      "personaId": "KINETIC",
+      "headline": "Text earns its place in 1.5 s flat — hierarchy first, decoration second, never faster than the eye.",
+      "moves": [
+        {
+          "text": "Hero headline scales from 92% to 100% opacity 0→1 over 18 frames (0.3 s) with ease-out cubic, tracked at 0 so no kerning drift during entrance; readable by frame 18 at 390 px wide.",
+          "where": "frames 0–18 / ease-out cubic / 60 fps"
+        },
+        {
+          "text": "Date and RSVP subline staggers in 6 frames after headline settles, opacity 0→1 over 12 frames ease-out, font-size locked — no scaling that could blur the sub-px hinting on a mid-range Android.",
+          "where": "frames 24–36 / ease-out cubic / 60 fps"
+        },
+        {
+          "text": "During idle loop, headline holds absolutely still — only the decorative layer beneath breathes — protecting the 1.5 s read window on every loop cycle.",
+          "where": "idle / 0 px movement / static hold"
+        },
+        {
+          "text": "RSVP 'yes' burst: type scales 100%→108%→100% in 10 frames with ease-in-out, then snaps back; overshoot ceiling is 108% so letterforms never degrade past safe legibility at 390 px.",
+          "where": "frames 0–10 post-tap / ease-in-out cubic / 60 fps"
+        },
+        {
+          "text": "Reduced-motion: all text entrances collapse to opacity-only, 0→1 over 20 frames, zero translate or scale — still feels like a reveal, never a flash.",
+          "where": "prefers-reduced-motion / 20 frames / ease-out linear"
+        }
+      ]
+    },
+    {
+      "personaId": "CINEMATIC",
+      "headline": "The reveal earns its scale: darkness first, then a single source of light, then the flag — the beat before the moment is everything.",
+      "moves": [
+        {
+          "text": "Entrance opens on a near-black plate (luma 8/255) for 12 frames; a radial vignette light source blooms from top-centre over frames 12–48 ease-out expo, reaching 60% plate brightness — anticipation before the flag is seen.",
+          "where": "frames 0–48 / ease-out expo / 60 fps"
+        },
+        {
+          "text": "Generated art plate translates upward 18 px over frames 36–90 ease-out cubic, simulating a slow crane-up reveal that lands the flag centred at frame 90 — the camera move has a reason.",
+          "where": "frames 36–90 / ease-out cubic / 18 px / 60 fps"
+        },
+        {
+          "text": "Memorial Day mode: after entrance settles, a single point-light on the WebGL layer pulses from 55%→65% brightness over 180 frames (3 s) ease-in-out sine, looping — stillness with one breath of life.",
+          "where": "idle / 180-frame sine loop / 60 fps"
+        },
+        {
+          "text": "Interactive fireworks tap: camera-layer (parallax root) lurches 0→-6 px Y with 4-frame anticipation ease-in, then snaps back over 18 frames ease-out — the frame reacts like a body before the explosion.",
+          "where": "tap / 4-frame anticipation + 18-frame recovery / 60 fps"
+        },
+        {
+          "text": "Reduced-motion: plate brightness bloom still runs (it is light, not motion) but the 18 px crane translate is cut to 0 px — depth is preserved through light alone.",
+          "where": "prefers-reduced-motion / bloom only / 0 px translate"
+        }
+      ]
+    },
+    {
+      "personaId": "GENERATIVE",
+      "headline": "Every particle and flag thread is a live system with a rule — nothing is baked, everything responds to pointer, time, and the occasion flag passed at load.",
+      "moves": [
+        {
+          "text": "Flag cloth is a 24×14 vertex grid WebGL sim driven by a noise field (seed = Date.now() % 1000) with wind-force amplitude 0.4 and frequency 0.8 Hz; each vertex offsets Z ±6 px so the wave is never the same twice but always reads as cloth.",
+          "where": "idle / noise-field sim / 60 fps / Z ±6 px per vertex"
+        },
+        {
+          "text": "Fireworks particle system: on tap, emit 120 particles from pointer XY, each with randomised angle 0–360°, velocity 4–9 px/frame, gravity 0.18 px/frame², lifespan 40–70 frames, colour sampled from a 5-stop palette (red #B22234, white #FFFFFF, blue #3C3B6E, gold #FFD700, silver #C0C0C0).",
+          "where": "tap / 120 particles / 40–70 frame lifespan / 60 fps"
+        },
+        {
+          "text": "Occasion flag ('celebration' | 'remembrance') passed as a URL param switches the particle system off and replaces it with a single candle-flicker shader (simplex noise, amplitude 2 px, 0.3 Hz) for remembrance — one rule, two outputs.",
+          "where": "load-time param / system branch / no bake"
+        },
+        {
+          "text": "Tilt response feeds deviceorientation beta/gamma (clamped ±20°) into the noise-field wind vector in real time, so tilting the phone changes the flag's direction of wave — the system answers to the hand.",
+          "where": "tilt / ±20° input / real-time wind vector update"
+        },
+        {
+          "text": "Reduced-motion: noise-field amplitude drops to 0.05 (nearly still), particle count drops to 0 (no burst), candle flicker amplitude drops to 0.5 px — the system still runs, it just whispers.",
+          "where": "prefers-reduced-motion / amplitude × 0.1 / system still live"
+        }
+      ]
+    },
+    {
+      "personaId": "COMPOSITOR",
+      "headline": "The cutouts must sit inside the plate — light-wrap, matched motion blur at 8.3 ms, and grain that belongs to the sensor, not the after-effects panel.",
+      "moves": [
+        {
+          "text": "Each of the 2–4 transparent cutout layers gets a 3 px light-wrap sampled from the plate's luminance at that cutout's edge, blended at 60% screen — the flag light bleeds onto the eagle or star cutout so they share the same sun.",
+          "where": "composite / 3 px light-wrap / 60% screen blend"
+        },
+        {
+          "text": "Motion blur on all moving layers is locked to 180° shutter equivalent at 60 fps = 8.3 ms; WebGL fragment shader applies a 2-sample velocity-vector blur in the direction of each layer's per-frame delta — no layer moves without its shadow of motion.",
+          "where": "all moving layers / 8.3 ms blur / velocity-vector 2-sample"
+        },
+        {
+          "text": "Grain: a single 390×844 px Gaussian noise texture (σ = 4, monochrome) is generated at load, tiled, and composited at 6% opacity over the entire stack in multiply — one grain source for the whole card so cutouts and plate share one sensor.",
+          "where": "composite top / σ=4 grain / 6% multiply / single source"
+        },
+        {
+          "text": "Black point: plate blacks are lifted to luma 8/255 and cutout blacks match; no pure-black (#000000) anywhere — on OLED screens a matched lifted black reads as depth, not a void.",
+          "where": "colour grade / luma floor 8/255 / all layers"
+        },
+        {
+          "text": "Reduced-motion: motion blur shader still runs at 8.3 ms on any layer that moves (the light pulse is not motion, so no blur added there) — integration is never sacrificed for accessibility.",
+          "where": "prefers-reduced-motion / blur shader on / only applied to moving layers"
+        }
+      ]
+    },
+    {
+      "personaId": "SIM_TD",
+      "headline": "The flag cloth and fireworks shells are physics-directed, not hand-keyed — set up the world truthfully at real scale, then art-direct the seed.",
+      "moves": [
+        {
+          "text": "Flag cloth: 24×14 vertex mass-spring grid, rest length = (flag width / 23) px per segment, spring stiffness k=0.35, damping 0.08, wind force applied as a sinusoidal vector (amplitude 0.4, frequency 0.8 Hz) with per-vertex noise offset — physics runs on the GPU via WebGL compute or a JS verlet loop at 60 fps.",
+          "where": "idle / verlet 60 fps / k=0.35 / damping 0.08"
+        },
+        {
+          "text": "Fireworks shell: on tap, one 'shell' particle rises from bottom-centre at 7 px/frame with gravity -0.15 px/frame², reaches apex at ~frame 23, then the GENERATIVE burst fires — the rise gives the explosion its earned scale.",
+          "where": "tap / shell rise 23 frames / apex burst at frame 23 / 60 fps"
+        },
+        {
+          "text": "Remembrance candle: a 2D fluid advection sim (8×16 grid, velocity field updated each frame) drives a flame sprite's UV distortion — the flicker is turbulence, not a sine wave, so it breathes unevenly.",
+          "where": "remembrance idle / 8×16 advection grid / 60 fps / UV distortion"
+        },
+        {
+          "text": "All sim seeds are stored as a URL-safe integer so the host can share a specific 'run' of the card — the happy accident is repeatable.",
+          "where": "load-time / seed param / repeatable output"
+        },
+        {
+          "text": "Reduced-motion: cloth sim stiffness k rises to 0.98 (nearly rigid), wind amplitude drops to 0.02 — the mesh still updates (no bake) but displacement is sub-pixel; candle sim velocity scale × 0.1.",
+          "where": "prefers-reduced-motion / k=0.98 / wind 0.02 / sim still live"
+        }
+      ]
+    },
+    {
+      "personaId": "EXPLAINER",
+      "headline": "Every entrance teaches cause and effect: the flag appears, then the text, then the date — one thing moves, then its consequence, 2–4 frames apart.",
+      "moves": [
+        {
+          "text": "Entrance sequence: plate blooms (frames 0–48), flag cutout fades+translates Y from +12 px to 0 over frames 48–72 ease-out cubic, headline enters frames 74–92 ease-out cubic, date subline enters frames 94–108 ease-out cubic — each step is the consequence of the last, 2-frame gap between each.",
+          "where": "frames 0–108 / 2-frame stagger / ease-out cubic / 60 fps"
+        },
+        {
+          "text": "RSVP button enters last at frame 110–126 ease-out cubic, translating Y from +8 px to 0 — the call-to-action is always the final consequence of reading the card, never competing with the headline.",
+          "where": "frames 110–126 / ease-out cubic / Y +8→0 px / 60 fps"
+        },
+        {
+          "text": "One global ease curve for all shape and text entrances: cubic-bezier(0.22, 1, 0.36, 1) — consistent feel across all 390 px of card width so nothing feels out of system.",
+          "where": "all entrances / cubic-bezier(0.22,1,0.36,1) / global"
+        },
+        {
+          "text": "Idle loop: only the flag cloth and particle layers move; all text and UI layers are locked — the system teaches that the flag is alive and the information is stable.",
+          "where": "idle / text 0 px / flag sim only"
+        },
+        {
+          "text": "Reduced-motion: stagger collapses to opacity-only, 0→1 over 16 frames each with 2-frame gap, same cubic curve — the sequence still teaches order, just without translate.",
+          "where": "prefers-reduced-motion / opacity stagger / 2-frame gap / 16 frames each"
+        }
+      ]
+    }
+  ],
+  "tensions": [
+    "SIGNAL is absent from proposals but would object loudly to SIM_TD and GENERATIVE: the flag cloth and fireworks are a clean physics sim with no signal texture — no dropout, no bleed, no honest imperfection of the medium; SIGNAL would demand the WebGL noise field be routed through a feedback loop so the flag occasionally tears or the particle trail bleeds into the grain layer, making the performance feel played in the room rather than rendered to spec; SIM_TD counters that a feedback artifact on a 390 px evite viewed once is chaos with no art direction, and the sim seed already provides honest non-repeatability without faking medium noise.",
+    "COLLAGE demands torn-paper cutout edges with a per-frame boil shimmer (re-noise the edge mask every 2 frames at 24 fps on 3s) so the card looks hand-made and specific to the occasion; EXPLAINER fires back that a shimmering edge on a 390 px phone screen at 60 fps reads as a rendering glitch on a mid-range Android, not as craft, and that clarity is a form of respect for a guest who opened an evite — the edge must be clean enough to composite (COMPOSITOR agrees: a boiling alpha on a WebGL mask will alias badly below 400 px width and destroy the light-wrap seam)."
+  ],
+  "plan": [
+    {
+      "text": "ENTRANCE (0–132 frames, 2.2 s): plate blooms from luma 8/255 to 60% brightness frames 0–48 ease-out expo; flag cutout translates Y +12→0 px and opacity 0→1 frames 48–72 ease-out cubic(0.22,1,0.36,1); headline opacity+scale 92%→100% frames 74–92 same curve; date subline frames 94–108; RSVP button frames 110–126; 2-frame gap between each step; all layers receive 8.3 ms velocity-vector motion blur during translate.",
+      "where": "frames 0–132 / 60 fps / ease-out cubic(0.22,1,0.36,1) / 8.3 ms blur"
+    },
+    {
+      "text": "IDLE LOOP (celebration): flag cloth verlet sim runs at 60 fps (k=0.35, damping 0.08, wind 0.4 amplitude 0.8 Hz noise field), Z-displacement ±6 px per vertex; foil/light WebGL layer pulses 55%→65% brightness over 180-frame sine loop; all text and UI layers hold at 0 px — nothing competes with readability.",
+      "where": "idle / 180-frame sine loop / cloth sim continuous / text locked"
+    },
+    {
+      "text": "IDLE LOOP (remembrance): cloth sim stiffness rises to k=0.75 (gentle drape, minimal wave), wind amplitude 0.08; candle-flicker 2D advection sim (8×16 grid) drives a single point-light UV distortion, 0.3 Hz irregular; particle system disabled; plate held at 60% brightness with 3-second slow bloom breath ease-in-out sine.",
+      "where": "idle remembrance / k=0.75 / 0.3 Hz candle / 180-frame breath loop"
+    },
+    {
+      "text": "TILT RESPONSE: deviceorientation beta/gamma clamped ±20° mapped linearly to: cutout parallax layers translate ±8 px X / ±5 px Y (layer 1 near) and ±4 px X / ±2.5 px Y (layer 2 far), interpolated each frame with 0.12 lerp factor (smooth follow, no snap); wind vector in cloth sim updates in real time from tilt gamma so flag waves toward the tilt direction; 8.3 ms blur applied to parallax delta.",
+      "where": "tilt / ±20° input / 0.12 lerp / ±8 px near / ±4 px far / cloth wind live"
+    },
+    {
+      "text": "INTERACTIVE MOMENT — celebration fireworks tap: camera-root layer 4-frame ease-in anticipation Y -3 px, then snap to 0 over 18 frames ease-out; shell particle rises from bottom-centre 7 px/frame gravity -0.15 px/frame² for 23 frames to apex; at apex burst: 120 particles, angle 0–360°, velocity 4–9 px/frame, gravity 0.18 px/frame², lifespan 40–70 frames, palette #B22234/#FFFFFF/#3C3B6E/#FFD700/#C0C0C0; each particle fades opacity 1→0 over last 20 frames of lifespan.",
+      "where": "tap / 4-frame anticipation / shell 23 frames / 120 particles 40–70 frame lifespan / 60 fps"
+    },
+    {
+      "text": "INTERACTIVE MOMENT — remembrance stillness tap: on tap, candle-flicker sim velocity scale ramps from 1.0 to 1.6 over 12 frames then decays back to 1.0 over 48 frames ease-out — the flame surges then steadies, a breath of acknowledgement; no particles, no burst, no camera lurch.",
+      "where": "tap remembrance / 12-frame surge / 48-frame decay ease-out / candle sim only"
+    },
+    {
+      "text": "RSVP YES CELEBRATION: headline scales 100%→108%→100% over 10 frames ease-in-out cubic; 120-particle burst fires from RSVP button centre (same fireworks spec as interactive moment); confetti-style second burst of 60 flat quads (4×4 px, same palette) rotates 0→720° over 50 frames with gravity 0.25 px/frame²; all text re-reads within 12 frames of tap so the message is never lost in the celebration.",
+      "where": "RSVP tap / scale 10 frames / 120 particles / 60 quads 50 frames / text stable by frame 12"
+    },
+    {
+      "text": "PREFERS-REDUCED-MOTION: all translates and scales collapse to opacity-only (0→1, 16 frames, cubic-bezier(0.22,1,0.36,1), 2-frame stagger preserved for sequence teaching); cloth sim k=0.98 wind 0.02 (sub-pixel, still live); candle sim velocity ×0.1; particle count 0; light bloom still runs (it is luminance, not motion); grain, light-wrap, and motion blur shader remain active on any residual micro-movement — the card feels finished, not frozen.",
+      "where": "prefers-reduced-motion / opacity stagger 16 frames / sims live at 0.1× amplitude / bloom on / particles off"
+    }
+  ],
+  "summary": "LEAD is EXPLAINER (cause-and-effect entrance sequencing, one global ease curve, text always wins), with CINEMATIC as COUNTERPOINT (the 12-frame darkness hold and light bloom before the flag is seen — the beat before the moment earns the reveal), and COMPOSITOR as EDITOR fitting everything to a 390 px mid-range Android: the entrance runs 132 frames (2.2 s) as a strict consequence chain — light, then flag, then headline, then date, then button, each 2 frames apart on cubic-bezier(0.22,1,0.36,1); idle splits by occasion flag (celebration: cloth sim + foil pulse; remembrance: near-still drape + candle advection + slow breath); tilt feeds deviceorientation into both the parallax stack (±8 px near / ±4 px far, 0.12 lerp) and the cloth wind vector live; the celebration interactive moment earns its scale with a 23-frame shell rise before the 120-particle burst; remembrance answers a tap with a candle surge and nothing else; RSVP yes fires the same burst from the button centre while text re-stabilises by frame 12; reduced-motion keeps every system alive at 0.1× amplitude — opacity reveals, sub-pixel cloth, dim candle, light bloom — so the card is always finished, the flag always breathes, and the 8.3 ms motion blur seam is never broken.",
+  "grounded": true,
+  "source": "ai"
+}

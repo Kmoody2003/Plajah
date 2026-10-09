@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import CreateEventButton from '../events/CreateEventButton';
 import { PenTool, ScanLine, Library, Wand2, ClipboardCheck, BarChart3, Users, Plus, GraduationCap, AlertTriangle, LayoutGrid, FileText } from 'lucide-react';
 import TodayDueFirst from './TodayDueFirst';
 import EduFeedPanel from './EduFeedPanel';
@@ -78,7 +79,8 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
       <div className="max-w-5xl mx-auto px-5 py-8">
         <div className="flex items-center gap-2 mb-2 text-[#FF8C00]"><GraduationCap size={18} /><span className="text-[11px] font-black uppercase tracking-[0.3em]">Teacher Studio</span></div>
         <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-[1.05]">Good to see you, {first}.</h1>
-        <p className="text-white/55 text-sm mt-1 mb-6">Build lessons, turn paper into worksheets, and see how every class is really doing.</p>
+        <p className="text-white/55 text-sm mt-1 mb-4">Build lessons, turn paper into worksheets, and see how every class is really doing.</p>
+        <div className="mb-6"><CreateEventButton compact label="Plan a class event" host={{ kind: 'teacher', id: uid, label: first ? `${first}’s class` : 'My class' }} /></div>
 
         <div className="mb-9">
           <TodayDueFirst uid={uid} role="teacher"

@@ -218,7 +218,8 @@ const DesktopLauncherOverlay = retryLazy(() => import('./components/DesktopLaunc
 const TelaEmbedDemo = retryLazy(() => import('./components/tela/TelaEmbedDemo'));
 const DossierHall = retryLazy(() => import('./components/dossier/DossierHall'));
 import { requestDossier } from './data/dossier/registry';
-const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
+// Photo pool v2 (components/eventPool): geofenced check-in, public/private curation, photos + videos + live.
+const EventPhotoPoolView = retryLazy(() => import('./components/eventPool/EventPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
 import { canDM, isStudentAccount } from './services/educationChat';
@@ -514,6 +515,8 @@ const PlajahPlusLandingModal = retryLazy(() => import('./components/PlajahPlusLa
 const AlbumAdBillboard = retryLazy(() => import('./components/AlbumAdBillboard'));
 const AdBillboardRenderer = retryLazy(() => import('./components/AdBillboardRenderer'));
 const RelloView = retryLazy(() => import('./components/RelloView'));
+const EventsHome = retryLazy(() => import('./components/events/EventsHome'));
+const EviteStudio = retryLazy(() => import('./components/evite/EviteStudio'));
 
 import { useGlobalPlayer, useGlobalPlayerState, useGlobalPlayerProgress } from './contexts/GlobalPlayerContext';
 
@@ -940,6 +943,17 @@ const App: React.FC = () => {
     const h = () => setView('PROJECT_FIRSTLIGHT');
     window.addEventListener('plajah:openFirstlight', h as EventListener);
     return () => window.removeEventListener('plajah:openFirstlight', h as EventListener);
+  // Create an event from anywhere: profile, org, business, school, teacher (components/events/CreateEventButton.tsx)
+  useEffect(() => {
+    const h = (event: Event) => {
+      const d = (event as CustomEvent)?.detail || {};
+      setEviteCtx({ editId: d.editId, plateId: d.plateId, host: d.host });
+      setView('EVITE_STUDIO');
+    };
+    window.addEventListener('plajah:createEvent', h as EventListener);
+    return () => window.removeEventListener('plajah:createEvent', h as EventListener);
+  }, [setView]);
+
   }, [setView]);
 
   // ── Windows Native Media File Launch Activation ─────────────────────────────
@@ -1596,6 +1610,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     navWarnTimer.current = setTimeout(() => setNavWarning(null), 3200);
   }, []);
   // Network degradation toast — surfaced by the NetworkMonitor when the user's
+  // Plajah Evites studio: which invite to edit, which design to start from, and who is hosting (you / org / business / school / teacher)
+  const [eviteCtx, setEviteCtx] = useState<{ editId?: string; plateId?: string; host?: any } | null>(null);
   // connection drops to a warning/critical level.
   const [netAlert, setNetAlert] = useState<{ msg: string; severity: 'info' | 'warning' | 'critical' } | null>(null);
   const netAlertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3032,6 +3048,28 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               setView('BOOK_READER');
               document.title = `Read-Along · ${book.title} | Plajah`;
             }
+      // Deep-link: ?create=evite — "Make your own" from a guest's invitation page opens the evite studio.
+      // Back from a print checkout (/?evite=<id>&print=thanks): land on that invitation's manage view.
+      const eviteParam = params.get('evite');
+      if (eviteParam && /^[a-z0-9]{6,14}$/.test(eviteParam)) {
+        setEviteCtx({ editId: eviteParam });
+        setView('EVITE_STUDIO');
+        setIsLoading(false);
+        return;
+      }
+      if (params.get('create') === 'evite') {
+        setEviteCtx({});
+        setView('EVITE_STUDIO');
+        setIsLoading(false);
+        return;
+      }
+      // Creator-theme share link / return from theme Checkout: Events home opens on its Themes tab.
+      if (params.has('evite_theme')) {
+        setView('EVENTS');
+        setIsLoading(false);
+        return;
+      }
+
           } else if (p && p.isActive !== false && p.kind === 'LISTEN') {
             const m = await import('./services/backendService');
             const alb = await m.fetchAlbumById(p.content.id).catch(() => null);
@@ -6648,12 +6686,31 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'EVENTS' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <LiveEventsGallery
-                  onSelectEvent={id => {
-                    setSelectedEventId(id);
-                    setView('EVENT_DETAIL');
-                  }}
-                  onCreateEvent={() => setView('EVENT_CREATE')}
+                <EventsHome
+                  currentUser={userProfile ? { uid: userProfile.uid, displayName: userProfile.displayName } : null}
+                  onCreate={opts => { setEviteCtx({ plateId: opts?.plateId, host: opts?.host }); setView('EVITE_STUDIO'); }}
+                  onManage={id => { setEviteCtx({ editId: id }); setView('EVITE_STUDIO'); }}
+                  onOpenEvent={id => { setSelectedEventId(id); setView('EVENT_DETAIL'); }}
+                  onCreateTicketed={() => (userProfile ? setView('EVENT_CREATE') : loginWithGoogle())}
+                  onOpenTicketing={() => (userProfile ? setView('EVENT_DASHBOARD') : loginWithGoogle())}
+                  onOpenProduction={() => (user ? setView('EVENT_PRODUCTION_STUDIO') : loginWithGoogle())}
+                  onSignIn={() => loginWithGoogle()}
+                />
+              </Suspense>
+            )}
+
+            {view === 'EVITE_STUDIO' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <EviteStudio
+                  key={`${eviteCtx?.editId || 'new'}-${eviteCtx?.plateId || ''}`}
+                  currentUser={userProfile ? { uid: userProfile.uid, displayName: userProfile.displayName, photoURL: (userProfile as any).photoURL } : null}
+                  editId={eviteCtx?.editId}
+                  initialPlate={eviteCtx?.plateId}
+                  host={eviteCtx?.host}
+                  onBack={() => setView('EVENTS')}
+                  onSignIn={() => loginWithGoogle()}
+                  onOpenProduction={() => setView('EVENT_PRODUCTION_STUDIO')}
+                  onOpenTicketing={id => { if (id) { setSelectedEventId(id); setView('EVENT_DETAIL'); } else setView('EVENT_DASHBOARD'); }}
                 />
               </Suspense>
             )}

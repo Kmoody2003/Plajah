@@ -1,0 +1,182 @@
+{
+  "intro": "I took this to the room and brought in the Explainer Systematist, the Y2K Interface Futurist, the Data Storyteller, the Collage Zinester from the studio roster. Here's where they agree, where they split, and what I'd do.",
+  "crew": [
+    "EXPLAINER",
+    "Y2K",
+    "DATA_STORY",
+    "COLLAGE"
+  ],
+  "proposals": [
+    {
+      "personaId": "KINETIC",
+      "headline": "Text lands readable in 1.5 s — every word earns its entrance on a subdivision of the beat, nothing moves faster than 390 px / 18 frames",
+      "moves": [
+        {
+          "text": "Event title scales from 80% to 100% opacity 0→1 over 18 frames (0.3 s) ease-out cubic, no motion blur exceeding 8.3 ms (half-frame at 60 fps), letter-spacing collapses from +8 px to 0 across the same 18 frames so the word snaps readable by frame 18",
+          "where": "frames 0–18 / entrance / ease-out cubic / 60 fps"
+        },
+        {
+          "text": "Date and host line staggers in 8 frames after title settles (frame 26), translating Y +12 px → 0, opacity 0→1, ease-out cubic — never overlapping the title's reading window",
+          "where": "frames 26–44 / stagger / ease-out cubic"
+        },
+        {
+          "text": "RSVP button fades in last at frame 60 (1.0 s), scale 95%→100% over 12 frames ease-out, ensuring full card is readable by frame 90 (1.5 s)",
+          "where": "frames 60–72 / ease-out / completes at frame 90"
+        },
+        {
+          "text": "Idle loop: title breathes scale 100%→100.4%→100% over 180 frames (3.0 s) linear — below perception threshold, never re-triggering a reading interruption",
+          "where": "loop / linear / 180-frame period / ±0.4% scale"
+        },
+        {
+          "text": "Reduced-motion: all Y translations drop to 0 px, opacity fades only, stagger collapses to 4 frames, RSVP button appears at frame 60 with no scale change — card still fully readable at 1.5 s",
+          "where": "prefers-reduced-motion / opacity only / 60-frame total entrance"
+        }
+      ]
+    },
+    {
+      "personaId": "CHARACTER",
+      "headline": "Every entrance has weight — the lamp swings on an arc, the cap has anticipation, the confetti cannon has recoil, and nothing interpolates linearly",
+      "moves": [
+        {
+          "text": "Art plate cutouts enter with 6-frame anticipation (scale 102%, Y +4 px) before snapping to rest on frame 20 with 3-frame overshoot (scale 98.5%) then settling — classic squash-and-settle arc, not a tween",
+          "where": "frames 0–29 / anticipation 6 f / overshoot 3 f / ease-out back"
+        },
+        {
+          "text": "Diwali lamp interactive: on tap, lamp swings on a 14-frame pendulum arc (rotation ±18°, ease-in-out sine, 3 cycles decaying by 40% each) with flame particle burst following the arc with 4-frame overlap",
+          "where": "gesture / 14-frame arc / 3 decaying cycles / overlapping action 4 f"
+        },
+        {
+          "text": "Graduation cap toss: 4-frame anticipation (cap dips Y +8 px, scale 96%), then launches Y −180 px over 22 frames ease-out, rotates 360° with slight arc, falls back with ease-in over 18 frames — total 44 frames",
+          "where": "gesture / 44 frames / anticipation 4 f / arc rotation / ease-out then ease-in"
+        },
+        {
+          "text": "RSVP Yes celebration: confetti cannon fires with 3-frame recoil (element shifts X −6 px) then 40 particles burst in a 120° fan arc, each with individual ease-out on Y and linear on X, overlapping tails trailing 6 frames behind the head",
+          "where": "celebration / 3-frame recoil / 40 particles / 6-frame overlap tails"
+        },
+        {
+          "text": "Idle loop: all cutout layers drift on independent sine paths, largest layer ±3 px / 240 frames, smallest ±7 px / 160 frames — different periods prevent synchrony and read as alive",
+          "where": "loop / sine / 240 f and 160 f periods / ±3–7 px"
+        }
+      ]
+    },
+    {
+      "personaId": "GENERATIVE",
+      "headline": "Every particle, every flame, every confetti burst is a live procedural system — no baked sprites, no looping GIFs, responsive to pointer and audio",
+      "moves": [
+        {
+          "text": "Diwali flame: a noise-field particle emitter (simplex noise seed advancing at 0.02 per frame) spawns 8–14 particles per frame, each with lifetime 18–28 frames, colour sampled from a saffron-to-white gradient driven by vertical position — the rule is the system, no two frames identical",
+          "where": "WebGL / simplex noise / 8–14 particles/frame / 18–28 f lifetime"
+        },
+        {
+          "text": "String-light idle: each bulb's flicker is an independent low-frequency oscillator (0.3–1.1 Hz randomly assigned per bulb) modulating opacity 70%–100% — 12 bulbs, 12 different clocks, emergent shimmer",
+          "where": "loop / 12 independent LFOs / 0.3–1.1 Hz / opacity 70–100%"
+        },
+        {
+          "text": "Confetti cannon on RSVP Yes: 60 procedural quads, each with randomised hue (holiday palette), initial velocity sampled from a cone distribution (±60° from up), drag coefficient 0.04 per frame, gravity 0.18 px/frame², rotation rate ±4°/frame — physics rule, not keyframes",
+          "where": "celebration / 60 quads / cone distribution ±60° / drag 0.04 / gravity 0.18 px/f²"
+        },
+        {
+          "text": "Tilt/pointer parallax: pointer X/Y mapped through a low-pass filter (RC time constant 8 frames) to layer offsets — foreground cutout ±14 px, midground ±8 px, background ±3 px — filter prevents jitter on mid-range Android",
+          "where": "tilt / 3 layers / ±3–14 px / 8-frame RC low-pass"
+        },
+        {
+          "text": "Lunar New Year lantern: procedural cloth simulation on 6-segment ribbon tail, each segment spring-connected (stiffness 0.6, damping 0.85), responds to device tilt in real time — the tail is always live, never baked",
+          "where": "idle + tilt / 6-segment spring chain / stiffness 0.6 / damping 0.85"
+        }
+      ]
+    },
+    {
+      "personaId": "COMPOSITOR",
+      "headline": "The generated plate and the cut-out layers share one grain structure and one motion-blur budget — if the seam is visible, the card is broken",
+      "moves": [
+        {
+          "text": "All WebGL layers composite with matched film grain: luminance noise amplitude 3.2 at ISO-equivalent 800, grain tile 128×128 px re-seeded every frame — applied post-composite so cutouts and plate share one grain pass, not layered separately",
+          "where": "composite / grain 3.2 amplitude / 128 px tile / per-frame reseed"
+        },
+        {
+          "text": "Motion blur on all moving elements: 180° shutter at 60 fps = 8.3 ms exposure, implemented as 3-sample velocity-stretch in WebGL — no element exceeds 8.3 ms blur arc, static elements receive zero blur to preserve text readability",
+          "where": "all motion / 180° / 8.3 ms / 3-sample velocity blur / text excluded"
+        },
+        {
+          "text": "Cutout edges get a 1.2 px light-wrap pass sampling the plate's luminance within 8 px of the edge — warm plates push warm fringe, cool plates push cool, so no cutout looks pasted",
+          "where": "cutout edges / 1.2 px light-wrap / 8 px sample radius / per-frame"
+        },
+        {
+          "text": "Black point: plate blacks clamped to RGB (12,11,13) to match a mid-range OLED floor; cutout shadows lifted to match — no pure-black element on a lifted plate",
+          "where": "grade / black clamp RGB(12,11,13) / applied to plate and all layers"
+        },
+        {
+          "text": "Reduced-motion: grain amplitude halves to 1.6, motion blur samples drop to 1 (effectively off), light-wrap remains — card still feels textured and integrated without any moving parts triggering vestibular sensitivity",
+          "where": "prefers-reduced-motion / grain 1.6 / 1-sample blur / light-wrap retained"
+        }
+      ]
+    },
+    {
+      "personaId": "EXPLAINER",
+      "headline": "Cause then effect — the lamp lights, then the glow spreads; the cap flies, then the text reveals; one consistent ease curve so the system teaches itself",
+      "moves": [
+        {
+          "text": "Entrance staging: art plate fades in frames 0–12 (ease-out cubic), then first cutout translates Y +20→0 px frames 14–32 (ease-out cubic), then text layers stagger in 4-frame intervals starting frame 34 — one rule, applied in sequence, viewer learns the grammar by the third element",
+          "where": "entrance / 4-frame stagger / ease-out cubic / all elements same curve"
+        },
+        {
+          "text": "Lamp gesture: tap causes glow radius to expand 0→40 px over 20 frames (ease-out cubic), then text 'You're invited' scales 95%→100% over 12 frames — the gesture causes the reveal, not just decoration",
+          "where": "gesture / glow 0→40 px / 20 f ease-out / text reveal 12 f"
+        },
+        {
+          "text": "RSVP Yes: button scales 100%→96% on press (6 frames ease-in), then celebration fires — the press causes the effect, clear cause-and-effect chain, no surprise",
+          "where": "RSVP / press 6 f ease-in scale 96% / then celebration fires"
+        },
+        {
+          "text": "Idle: only one element moves at a time per 3-second window — string lights shift phase, then parallax settles, then a single cutout drifts — sequential, never simultaneous, so attention is never split",
+          "where": "loop / one element active per 180 f / sequential not simultaneous"
+        },
+        {
+          "text": "Reduced-motion: stagger collapses to 2-frame intervals, all Y translations become opacity-only, the cause-and-effect chain is preserved in timing order even without movement — the grammar still teaches",
+          "where": "prefers-reduced-motion / 2-frame stagger / opacity only / order preserved"
+        }
+      ]
+    }
+  ],
+  "tensions": [
+    "GENERATIVE insists every flame, lantern tail and confetti burst must be a live procedural system with no baked frames, which CHARACTER accepts for particles but rejects for the gesture arcs — CHARACTER argues the graduation cap toss and lamp swing must be hand-timed with explicit anticipation and overshoot frames (6-frame anticipation dip, 3-frame overshoot settle) because a physics solver will produce correct-but-weightless motion that reads as robotic, and GENERATIVE's spring-chain lantern tail (stiffness 0.6, damping 0.85) risks looking like a simulation demo rather than a performance choice; the unresolved question is whether the gesture arcs are authored keyframe performances layered on top of the generative particle system, or whether the entire gesture is surrendered to the physics rule.",
+    "KINETIC demands text is fully readable within 1.5 s and the idle loop must never re-trigger a reading interruption (scale breath capped at ±0.4%), but SIGNAL argues that a Diwali or Lunar New Year evite opened on a phone in a festive room should feel alive and slightly unpredictable — a perfectly metered 0.4% breath is sterile, and the honest signal texture of a live celebration includes flicker and drift that exceed KINETIC's readability budget; KINETIC's pushback is that on a 390 px wide phone browser, any motion within the text bounding box at reading time is a failure of the designer's duty to the reader."
+  ],
+  "plan": [
+    {
+      "text": "Entrance: art plate fades opacity 0→1 over 12 frames (ease-out cubic), foreground cutout translates Y +20→0 px over 18 frames starting frame 6 with 3-frame overshoot settle (ease-out back), midground cutout follows 8 frames later same curve — all motion completes by frame 36 (0.6 s)",
+      "where": "frames 0–36 / ease-out cubic + ease-out back overshoot / 60 fps"
+    },
+    {
+      "text": "Text entrance: event title scales 80%→100% opacity 0→1 over 18 frames (ease-out cubic) starting frame 36, letter-spacing +8→0 px across same 18 frames; date/host line staggers in 8 frames later (frame 62) Y +12→0 px ease-out cubic; RSVP button appears frame 72 scale 95%→100% ease-out — full card readable by frame 90 (1.5 s); 180° shutter blur on all moving elements, 8.3 ms cap, text excluded from blur",
+      "where": "frames 36–90 / ease-out cubic / 8.3 ms motion blur cap / text blur-exempt"
+    },
+    {
+      "text": "Idle loop: string-light bulbs flicker via 12 independent LFOs (0.3–1.1 Hz, opacity 70–100%); cutout layers drift on independent sine paths (foreground ±3 px / 240 f, midground ±5 px / 190 f, background ±7 px / 160 f); title breathes scale ±0.4% / 180 f linear — three different periods prevent synchrony, no element moves within the text bounding box during the reading window",
+      "where": "loop / linear sine / 160–240 f periods / ±3–7 px / ±0.4% scale"
+    },
+    {
+      "text": "Tilt/pointer parallax: pointer X/Y filtered through 8-frame RC low-pass to prevent mid-range Android jitter, mapped to layer offsets: foreground cutout ±14 px, midground ±8 px, background plate ±3 px — offsets update every frame at 60 fps, never exceed 14 px total displacement",
+      "where": "tilt / 8-frame RC filter / 3 layers / ±3–14 px / 60 fps"
+    },
+    {
+      "text": "Holiday gesture (authored arcs over generative particles): tap triggers a 6-frame anticipation keyframe (lamp dips Y +4 px, scale 96%) then snaps to gesture peak over 14 frames ease-out back with 3-frame overshoot — CHARACTER's authored timing wins for the arc; inside that arc, GENERATIVE's simplex-noise flame emitter (8–14 particles/frame, 18–28 f lifetime, saffron-to-white gradient) and spring-chain lantern tail (6 segments, stiffness 0.6, damping 0.85) run live; graduation cap: 4-frame anticipation dip Y +8 px scale 96%, launch Y −180 px / 22 f ease-out with arc rotation 360°, fall-back 18 f ease-in, 44 frames total",
+      "where": "gesture / authored: 6 f anticipation + 14 f arc + 3 f overshoot / generative: simplex emitter + spring chain / cap: 44 f total"
+    },
+    {
+      "text": "RSVP Yes celebration: button press 6-frame scale 100%→96% ease-in (cause), then 60 procedural confetti quads burst from button centre in ±60° cone, drag 0.04/frame, gravity 0.18 px/frame², random hue from holiday palette, each with 6-frame overlapping tail; 3-frame recoil on the cannon element X −6 px; celebration settles in 90 frames (1.5 s); grain and light-wrap remain live throughout",
+      "where": "celebration / press 6 f / 60 quads / drag 0.04 / gravity 0.18 / 90 f settle"
+    },
+    {
+      "text": "Composite integration: all layers share one grain pass (luminance noise 3.2 amplitude, 128 px tile, reseeded per frame); cutout edges get 1.2 px light-wrap sampling plate within 8 px; black point clamped to RGB(12,11,13) across plate and all cutouts; motion blur 3-sample velocity-stretch at 8.3 ms on moving elements, zero on static text",
+      "where": "composite / grain 3.2 / light-wrap 1.2 px / black RGB(12,11,13) / 8.3 ms blur"
+    },
+    {
+      "text": "Prefers-reduced-motion: all Y/X translations drop to 0 px, entrance is opacity-only with 4-frame stagger preserved (cause-and-effect order intact), grain halves to 1.6 amplitude, motion blur to 1 sample (off), light-wrap and LFO bulb flicker retained at 30% amplitude so card feels textured and finished — no movement within vestibular sensitivity range, full readability at 1.5 s unchanged",
+      "where": "reduced-motion / opacity only / 4-frame stagger / grain 1.6 / light-wrap retained / 1.5 s readable"
+    }
+  ],
+  "summary": "KINETIC leads: the card is readable at 1.5 s, full stop — text entrance is the spine and nothing moves inside the text bounding box during the reading window. CHARACTER's authored anticipation and overshoot frames (6-frame dip, 3-frame overshoot) own the gesture arcs, because a physics solver alone produces correct-but-weightless motion; GENERATIVE's procedural systems (simplex flame, spring lantern tail, 60-quad confetti physics) run live inside those authored envelopes, never replacing the performance with a simulation. COMPOSITOR's grain (3.2 amplitude, per-frame reseed), 1.2 px light-wrap and RGB(12,11,13) black clamp are non-negotiable — if the cutout seam is visible on a mid-range Android OLED, the card is broken. EXPLAINER's cause-and-effect staging order is preserved in both full and reduced-motion versions. The tension between GENERATIVE's fully-live system and CHARACTER's hand-timed arcs is resolved by layering: the arc is authored, the texture inside it is live. The tension between KINETIC's readability floor and SIGNAL's festive unpredictability is resolved by geography: flicker and drift live in the background and cutout layers, never in the text bounding box during the 0–1.5 s reading window.",
+  "grounded": true,
+  "source": "ai"
+}

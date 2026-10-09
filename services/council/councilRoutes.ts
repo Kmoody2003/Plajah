@@ -134,7 +134,12 @@ export function createCouncil(deps: CouncilDeps) {
     try {
       // 1. Propose — in parallel; each director knows who else is at the table.
       const proposals = (await Promise.all(ids.map(async i => {
-        try { return readProposal(i, parseJson(await ask(directorSystem(i, profiles[i]), proposalUser(brief, ids.filter(o => o !== i)), 1100))); }
+        try {
+          // 2400: a detailed brief draws long proposals; at 1100 the JSON was cut off and silently dropped.
+          const p = readProposal(i, parseJson(await ask(directorSystem(i, profiles[i]), proposalUser(brief, ids.filter(o => o !== i)), 2400)));
+          if (!p) console.warn('[council] proposal unreadable (truncated or malformed)', i);
+          return p;
+        }
         catch (e) { console.warn('[council] proposal failed', i, (e as Error).message); return null; }
       }))).filter(Boolean) as DirectorProposal[];
       if (proposals.length < 2) throw new Error('Fewer than two directors answered');
@@ -144,7 +149,7 @@ export function createCouncil(deps: CouncilDeps) {
       const present = proposals.map(p => p.directorId);
       if (depth === 'FULL') {
         d.disputes = (await Promise.all(present.map(async i => {
-          try { return readDispute(i, parseJson(await ask(directorSystem(i, profiles[i]), disputeUser(i, proposals), 500)), present); }
+          try { return readDispute(i, parseJson(await ask(directorSystem(i, profiles[i]), disputeUser(i, proposals), 900)), present); }
           catch { return null; }
         }))).filter(Boolean) as Dispute[];
       } else {
@@ -153,7 +158,7 @@ export function createCouncil(deps: CouncilDeps) {
       await store.set(path, d);
 
       // 3. Synthesise — Aria decides. Without averaging.
-      const synthesis = readSynthesis(parseJson(await ask(synthesisSystem(), synthesisUser(brief, proposals, d.disputes), 1600)), present);
+      const synthesis = readSynthesis(parseJson(await ask(synthesisSystem(), synthesisUser(brief, proposals, d.disputes), 2600)), present);
       if (!synthesis) throw new Error('Aria could not reach a synthesis');
       d.synthesis = synthesis; d.status = 'DONE'; await store.set(path, d);
 

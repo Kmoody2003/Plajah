@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import CreateEventButton from './events/CreateEventButton';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Store, ShoppingBag, Radio, Monitor, Users, Plus, X, Check, Edit3,
@@ -334,6 +335,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 <div className="text-[9px] text-white/40 truncate uppercase tracking-widest font-black">{vertical.label}</div>
               </div>
             </div>
+            <div className="px-2 pb-4"><CreateEventButton compact host={{ kind: 'business', id: activePage.id, label: activePage.businessName }} /></div>
             <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-visible pb-1 -mx-1 px-1">
               {TAB_GROUPS.map(g => {
                 const items = g.ids

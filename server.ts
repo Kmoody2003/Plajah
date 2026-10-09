@@ -32,6 +32,12 @@ import { registerTicketRoutes, ticketSaleHooks } from './services/ticketServer';
 import { registerLaundryRoutes, loadWalletPromo } from './services/laundryServer';
 import { computeTopUpBonus, bonusIdemKey } from './services/walletPromoCore';
 import { registerAutoRoutes } from './services/autoServer';
+import { registerEviteRoutes, recordEviteGift } from './services/evite/eviteServer';
+import { registerPoolRoutes, nominatimGeocoder, googleGeocoder } from './services/eventPool/poolServer';
+import { registerEviteThemeRoutes,mayUseTemplate as themeMayUse, resolveArt as themeArt, recordThemePurchase } from './services/evite/eviteThemeServer';
+import { registerEvitePrintRoutes, fulfillEvitePrint, createGelatoAdapter } from './services/evite/evitePrintServer';
+// Evite print orders: one Gelato adapter shared by the routes and the Stripe webhook. No key → PRINT_NOT_CONFIGURED.
+const evitePrintGelato = createGelatoAdapter({ apiKey: () => process.env.GELATO_API_KEY, draftOrders: () => process.env.EVITE_PRINT_DRAFT_ORDERS === '1' });
 import { buildLinearMediaPlaylist, currentProgrammeMasterUrl, buildM3uLineup, type M3uChannel } from './services/fastChannelHls';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -211,6 +217,8 @@ async function gcsObjectExists(objectPath: string): Promise<boolean> {
 }
 
 async function gcsUpload(objectPath: string, data: Buffer, contentType: string): Promise<boolean> {
+/** Evite creator-theme deps, set where the routes register; the Stripe webhook uses them for `evite_theme`. */
+let eviteThemeDeps: any = null;
   const token = await getGoogleAccessToken();
   if (!token) return false;
   try {
@@ -2691,6 +2699,12 @@ async function startServer() {
           break;
         }
         case 'charge.dispute.created': case 'charge.dispute.closed':
+          // ── Evite gifts: Stripe Checkout straight to the host, no platform cut (services/evite/eviteServer.ts) ──
+          if (meta.type === 'evite_gift') await recordEviteGift({ firestoreCreateOnce }, session);
+          // Creator theme sale: destination charge with the 5% application fee (NOT a CREATOR_PAYMENT_TYPES payout).
+          if (meta.type === 'evite_theme' && eviteThemeDeps) await recordThemePurchase(eviteThemeDeps, session);
+          if (meta.type === 'evite_print') await fulfillEvitePrint({ firestoreRead, firestoreWrite, firestoreCreateOnce, gelato: evitePrintGelato } as any, session);
+
           await applyDispute(obj, event.type.endsWith('created') ? 'created' : 'closed', acct);
           break;
       }
@@ -9093,7 +9107,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();   // /t/* = public ticket page (ticketServer)
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
       try {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
         if (req.query.type) {
@@ -10167,6 +10181,55 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (!/^[a-f0-9]{48}$/.test(token)) return next();
       const link = await firestoreRead('posReceipts', token);
       const order = link ? await firestoreRead('storeOrders', String(link.orderId)) : null;
+  // ── EVITE CREATOR THEMES (services/evite/eviteThemeServer.ts): /api/evite-themes/* — make, trade, sell (5%), Sanctuary-gate ──
+  eviteThemeDeps = {
+    app, express, rateLimit, authMiddleware, firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc, fsQueryDocs,
+    getStripe, trustedRequestOrigin, firestoreIncrement: (p: string, inc: Record<string, number>) => firestoreIncrement(p, inc),
+    uploadThemeFile: async (objectPath: string, data: Buffer, contentType: string) => {   // immutable copies on publish
+      const dl = nodeCrypto.randomUUID();
+      return (await gcsUploadWithDownloadToken(objectPath, data, contentType, dl))
+        ? `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media&token=${dl}` : null;
+    },
+    feeParams: () => ({ rate: process.env.STRIPE_FEE_RATE ? Number(process.env.STRIPE_FEE_RATE) : undefined, fixedCents: process.env.STRIPE_FEE_FIXED_CENTS ? Number(process.env.STRIPE_FEE_FIXED_CENTS) : undefined }),
+  };
+  registerEviteThemeRoutes(eviteThemeDeps);
+  // ── EVITES (services/evite/eviteServer.ts): /api/evite/*, public /i/:id, QR + calendar files ──
+  registerEviteRoutes({
+    app, express, rateLimit, authMiddleware,
+    firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc: firestoreDeleteDoc, fsQueryDocs, getStripe, trustedRequestOrigin,
+    mayUseTemplate: (uid: string, t: string) => themeMayUse(eviteThemeDeps, uid, t),
+    resolveArt: (t: string) => themeArt(eviteThemeDeps, t),
+    readIndexHtml: async () => { try { return await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8'); } catch { return null; } },
+    cronAuthorized: (req: any) => { const key = req.headers['x-cron-key']; return secretsEqual(key, process.env.ADMIN_SEED_KEY) || secretsEqual(key, process.env.CRON_SECRET); },
+    sendEmail: process.env.RESEND_API_KEY ? async (to: string, subject: string, text: string) => {
+      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to, subject, text }) });
+      return r.ok;
+    } : undefined,
+  } as any);
+  // ── EVENT PHOTO POOLS v2 (services/eventPool/poolServer.ts): /api/pool/* — check-in, curation, streams ──
+  // Location services default to Google Maps (GOOGLE_MAPS_API_KEY, Geocoding API enabled). POOL_GEOCODER=nominatim
+  // switches to OpenStreetMap; POOL_GEOCODER=off disables lookups. With no provider, a pool's pin comes from the
+  // ticketed event's coordinates or the host's "set pin to my location".
+  registerPoolRoutes({
+    app, express, rateLimit, authMiddleware,
+    firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc, fsQueryDocs,
+    verifyIdToken: verifyFirebaseToken,
+    storageBucket: STORAGE_BUCKET,
+    geocode: process.env.POOL_GEOCODER === 'off' ? undefined
+      : process.env.POOL_GEOCODER === 'nominatim' ? nominatimGeocoder({ userAgent: 'Plajah/1.0 (+https://plajah.com)', email: process.env.NOMINATIM_EMAIL })
+      : process.env.GOOGLE_MAPS_API_KEY ? googleGeocoder({ apiKey: process.env.GOOGLE_MAPS_API_KEY }) : undefined,
+  } as any);
+  registerEvitePrintRoutes({
+    app, express, rateLimit, authMiddleware, firestoreRead, firestoreWrite, firestoreCreateOnce, getStripe, trustedRequestOrigin,
+    gelato: evitePrintGelato,
+    uploadPrintFile: async (objectPath: string, data: Buffer, contentType: string) => {
+      const dl = nodeCrypto.randomUUID();
+      return (await gcsUploadWithDownloadToken(objectPath, data, contentType, dl))
+        ? `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media&token=${dl}` : null;
+    },
+    feeParams: () => ({ rate: process.env.STRIPE_FEE_RATE ? Number(process.env.STRIPE_FEE_RATE) : undefined, fixedCents: process.env.STRIPE_FEE_FIXED_CENTS ? Number(process.env.STRIPE_FEE_FIXED_CENTS) : undefined }),
+  } as any);
       if (!link || !order) return res.status(404).type('html').send('<!doctype html><title>Receipt</title><p style="font-family:sans-serif;padding:24px">Receipt not found.</p>');
       res.set('Cache-Control', 'private, no-store').type('html').send(renderReceiptHtml(order, String(link.businessName || 'Receipt')));
     } catch { res.status(500).send('Could not load receipt.'); }

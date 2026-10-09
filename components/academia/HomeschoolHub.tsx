@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import CreateEventButton from '../events/CreateEventButton';
 import { Home, Plus, Download, Printer, Settings2, Check } from 'lucide-react';
 import { listChildProfiles, createChildProfile } from '../../services/backendService';
 import { loadHomeschool, saveHomeschool, emptyDoc, weekKey, totalMinutesBySubject, hoursCsv, DEFAULT_SUBJECTS, type HomeschoolDoc } from '../../services/homeschoolService';
@@ -112,6 +113,7 @@ const HomeschoolHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
           <div>
             <div className="flex items-center gap-2 mb-2 text-[#3FB98E]"><Home size={18} /><span className="text-[11px] font-black uppercase tracking-[0.3em]">{sp.name || 'Home school'}</span></div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-[1.05]">Your home school</h1>
+            <div className="mt-3"><CreateEventButton compact label="Plan a school event" host={{ kind: 'school', label: 'Our school' }} /></div>
             <p className="text-white/55 text-sm mt-1">{configured ? describeProfile(sp) : 'Plan the week, log your hours, keep a portfolio, and print a record.'}</p>
           </div>
           <button type="button" onClick={() => setSetup(true)} className="rounded-full border border-white/15 px-4 py-2 text-[11px] font-black uppercase tracking-wider hover:bg-white/10 inline-flex items-center gap-1.5"><Settings2 size={13} /> {configured ? 'Our school' : 'Set up your school'}</button>

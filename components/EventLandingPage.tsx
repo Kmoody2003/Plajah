@@ -46,7 +46,7 @@ const PurchaseModal: React.FC<{ tier: TicketTier; event: PlajahEvent; currentUse
 
   const packagesTotal = selectedPackages.reduce((sum, p) => sum + (p.priceCents || 0), 0);
   const subtotal = tier.priceCents * qty + (physical && packaging ? tier.customPackagingFeeCents : 0) + packagesTotal;
-  const platformFee = Math.round(subtotal * 0.10);
+  // No platform cut on tickets yet (rate for ticketed public events is undecided); checkout charges none.
 
   const handleBuy = async () => {
     if (!holderName.trim() || !holderEmail.trim()) { setError('Name and email are required'); return; }
@@ -189,7 +189,6 @@ const PurchaseModal: React.FC<{ tier: TicketTier; event: PlajahEvent; currentUse
               </div>
             )}
             {physical && packaging && <div className="flex justify-between text-white/50"><span>Custom packaging</span><span>{fmt(tier.customPackagingFeeCents)}</span></div>}
-            <div className="flex justify-between text-white/30 text-[10px]"><span>Platform fee (10%)</span><span>{fmt(platformFee)}</span></div>
             <div className="h-px bg-white/8" />
             <div className="flex justify-between font-black text-white"><span>Total</span><span>{fmt(subtotal)}</span></div>
           </div>
@@ -568,7 +567,7 @@ const EventLandingPage: React.FC<Props> = ({ eventId, currentUser, onBack, onSig
                 {event.printingEnabled && <div className="flex items-center gap-2 text-[10px] text-white/40 p-2 bg-white/[0.03] rounded-xl border border-white/8"><Printer size={11} />Physical ticket printing available</div>}
               </div>
 
-              <p className="text-[8px] text-white/20 text-center mt-4 uppercase tracking-widest">Secure checkout by Stripe · 10% platform fee</p>
+              <p className="text-[8px] text-white/20 text-center mt-4 uppercase tracking-widest">Secure checkout by Stripe</p>
             </div>
 
             {/* Date / time summary card */}

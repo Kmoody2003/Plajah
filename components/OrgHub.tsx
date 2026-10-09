@@ -5,6 +5,7 @@
 // (orgType 'BRAND'); the same page will serve churches (orgType 'CHURCH') in Part 3.
 
 import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import CreateEventButton from './events/CreateEventButton';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
@@ -385,6 +386,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             </div>
             <p className="text-[10px] font-black uppercase tracking-widest text-small-orange/80 mt-1">{org.orgType}{org.category ? ` · ${org.category}` : ''}</p>
           </div>
+          {hasOps && <div className="pb-2 shrink-0"><CreateEventButton compact host={{ kind: 'org', id: org.id, label: org.name }} /></div>}
           {hasOps && (
             <div className="pb-2 flex items-center rounded-full bg-white/5 border border-white/10 p-0.5 shrink-0">
               <button onClick={() => setView('public')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${view === 'public' ? 'bg-white text-black' : 'text-white/50'}`}>Public view</button>

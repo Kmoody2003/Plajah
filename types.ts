@@ -3554,7 +3554,7 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'CHORA_MIXER'
   | 'PROJECT_FIRSTLIGHT'
   | 'WELCOME_PACKAGE'
-  | 'EVENTS' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'
+  | 'EVENTS' | 'EVITE_STUDIO' | 'EVENT_DETAIL' | 'EVENT_CREATE' | 'EVENT_DASHBOARD' | 'MY_TICKETS' | 'EVENT_KIOSK'
   | 'EVENT_PRODUCTION' | 'EVENT_PRODUCTION_DETAIL' | 'ARTIST_SERVICES'
   // Internal pitch documents — not linked in nav. Access via ?view=pitch-music|pitch-film|pitch-writer
   | 'PITCH_MUSIC' | 'PITCH_FILM' | 'PITCH_WRITER'

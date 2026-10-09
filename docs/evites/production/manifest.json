@@ -1,0 +1,481 @@
+{
+ "note": "Magnific One draft grids (8 tiles, 4x2, tile order left-to-right, top-to-bottom) for Plajah Evites production. One plate per theme; extra tiles are alternates.",
+ "grids": [
+  {
+   "id": "UPVoBaowny",
+   "collection": "kids_everyone",
+   "subjects": [
+    "zoo",
+    "circus",
+    "pajama-party",
+    "bounce-house",
+    "mad-science",
+    "farm",
+    "camping",
+    "magic-show"
+   ]
+  },
+  {
+   "id": "YMQ1kU6WeC",
+   "collection": "kids_everyone",
+   "subjects": [
+    "slime-lab",
+    "bubbles",
+    "pool-splash",
+    "superstar",
+    "zoo-alt",
+    "circus-alt",
+    "camping-alt",
+    "magic-alt"
+   ]
+  },
+  {
+   "id": "WDFr1yOcXe",
+   "collection": "kids_boy",
+   "subjects": [
+    "dino",
+    "rocket",
+    "truck",
+    "soccer",
+    "pirate",
+    "hero",
+    "robot",
+    "shark"
+   ]
+  },
+  {
+   "id": "huwN9TmvqL",
+   "collection": "kids_boy",
+   "subjects": [
+    "safari",
+    "knight",
+    "racecar",
+    "ninja",
+    "dino-alt",
+    "rocket-alt",
+    "pirate-alt",
+    "robot-alt"
+   ]
+  },
+  {
+   "id": "jUnDMQGLD0",
+   "collection": "kids_girl",
+   "subjects": [
+    "unicorn",
+    "princess",
+    "mermaid",
+    "fairy",
+    "butterfly",
+    "ballet",
+    "bakery",
+    "rainbow"
+   ]
+  },
+  {
+   "id": "huwN9dEvqL",
+   "collection": "kids_girl",
+   "subjects": [
+    "kitty",
+    "art",
+    "carousel",
+    "popstar",
+    "unicorn-alt",
+    "mermaid-alt",
+    "butterfly-alt",
+    "bakery-alt"
+   ]
+  },
+  {
+   "id": "8alyOp4IrU",
+   "collection": "kids_kaiju",
+   "subjects": [
+    "cake-eruption",
+    "disco",
+    "kelp-rave",
+    "space-countdown",
+    "haunted-creep",
+    "jungle-gym",
+    "pillow-fort",
+    "premiere"
+   ]
+  },
+  {
+   "id": "6AIEC42iJO",
+   "collection": "kids_kaiju",
+   "subjects": [
+    "picnic-stampede",
+    "wave-crash",
+    "skate-bowl",
+    "snow-howl",
+    "presents",
+    "pool-party",
+    "camping",
+    "dance-off"
+   ]
+  },
+  {
+   "id": "iGtuu5d3uK",
+   "collection": "gaming",
+   "subjects": [
+    "pixel-arcade",
+    "retro-8bit",
+    "esports",
+    "lan-party",
+    "voxel-builder",
+    "voxel-adventure",
+    "obstacle-course",
+    "laser-tag"
+   ]
+  },
+  {
+   "id": "vQ766n7a47",
+   "collection": "gaming",
+   "subjects": [
+    "vr-arcade",
+    "racing-game",
+    "controller",
+    "game-show",
+    "pixel-shooter",
+    "voxel-castle",
+    "claw-machine",
+    "couch-coop"
+   ]
+  },
+  {
+   "id": "rgGVVvTxtc",
+   "collection": "sports_kids",
+   "subjects": [
+    "golf",
+    "swimming",
+    "gymnastics",
+    "boxing",
+    "skate",
+    "cheer",
+    "track",
+    "martial-arts"
+   ]
+  },
+  {
+   "id": "UPVoobfwny",
+   "collection": "sports_adult",
+   "subjects": [
+    "basketball",
+    "football",
+    "soccer",
+    "baseball",
+    "hockey",
+    "racing",
+    "tennis",
+    "volleyball"
+   ]
+  },
+  {
+   "id": "5jRWWa7Kxe",
+   "collection": "sports_adult",
+   "subjects": [
+    "golf",
+    "swimming",
+    "gymnastics",
+    "boxing",
+    "skate",
+    "cheer",
+    "track",
+    "martial-arts"
+   ]
+  },
+  {
+   "id": "VX5ssAWMMU",
+   "collection": "patriotic",
+   "subjects": [
+    "independence-day",
+    "memorial-day",
+    "labor-day",
+    "flag-day",
+    "block-party",
+    "fireworks-finale",
+    "sparklers-alt",
+    "porch-bunting-alt"
+   ]
+  },
+  {
+   "id": "dtxwwTbXSL",
+   "collection": "military",
+   "subjects": [
+    "welcome-home",
+    "deployment-sendoff",
+    "promotion",
+    "retirement",
+    "veterans-day",
+    "homecoming",
+    "change-of-command",
+    "military-ball"
+   ]
+  },
+  {
+   "id": "gO0X8pWSXO",
+   "collection": "sports_kids",
+   "subjects": [
+    "basketball",
+    "football",
+    "soccer",
+    "baseball",
+    "hockey",
+    "racing",
+    "tennis",
+    "volleyball"
+   ]
+  },
+  {
+   "id": "rgGVpTPxtc",
+   "collection": "adult",
+   "subjects": [
+    "cocktail",
+    "wine",
+    "champagne",
+    "whiskey",
+    "casino",
+    "disco",
+    "masquerade",
+    "speakeasy"
+   ]
+  },
+  {
+   "id": "gO0X8BySXO",
+   "collection": "adult",
+   "subjects": [
+    "dinner",
+    "brunch",
+    "bbq",
+    "tiki",
+    "dicegame",
+    "bonfire",
+    "karaoke",
+    "blacktie"
+   ]
+  },
+  {
+   "id": "MBKlUSMDCm",
+   "collection": "adult",
+   "subjects": [
+    "milestone-cake",
+    "milestone-toast",
+    "balloon-arch",
+    "rooftop",
+    "sunset",
+    "retire",
+    "champagne-fling",
+    "neon80s"
+   ]
+  },
+  {
+   "id": "gO0X8tNSXO",
+   "collection": "life",
+   "subjects": [
+    "baby-shower",
+    "gender-reveal",
+    "bridal-shower",
+    "engagement",
+    "graduation",
+    "sweet16",
+    "quinceanera",
+    "retirement"
+   ]
+  },
+  {
+   "id": "IfgPNZmtvE",
+   "collection": "life",
+   "subjects": [
+    "farewell",
+    "celebration-of-life",
+    "reunion",
+    "housewarming",
+    "baby-shower-alt",
+    "graduation-alt",
+    "engagement-alt",
+    "bridal-shower-alt"
+   ]
+  },
+  {
+   "id": "1lATD8Wr4r",
+   "collection": "holidays",
+   "subjects": [
+    "christmas",
+    "hanukkah",
+    "diwali",
+    "eid",
+    "lunar-new-year",
+    "kwanzaa",
+    "halloween",
+    "friendsgiving"
+   ]
+  },
+  {
+   "id": "8aly9GrIrU",
+   "collection": "holidays",
+   "subjects": [
+    "new-years-eve",
+    "galentines",
+    "st-patricks",
+    "easter",
+    "juneteenth",
+    "dia-de-los-muertos",
+    "solstice",
+    "office-holiday"
+   ]
+  },
+  {
+   "id": "lJcdI39gv9",
+   "collection": "faith",
+   "subjects": [
+    "baptism",
+    "christening",
+    "first-communion",
+    "confirmation",
+    "bar-mitzvah",
+    "bat-mitzvah",
+    "church-homecoming",
+    "vow-renewal"
+   ]
+  },
+  {
+   "id": "yidhE0NPW9",
+   "collection": "anniversary",
+   "subjects": [
+    "rings",
+    "hearts",
+    "silver25",
+    "roses",
+    "toast",
+    "moonlit",
+    "golden50",
+    "keyhole"
+   ]
+  },
+  {
+   "id": "BhLJ9k5oQR",
+   "collection": "anniversary",
+   "subjects": [
+    "treerings",
+    "pairstars",
+    "lace",
+    "arcs",
+    "photo-frame-alt",
+    "shoes-alt",
+    "dinner-alt",
+    "hourglass-alt"
+   ]
+  },
+  {
+   "id": "mEU9RlthJQ",
+   "collection": "general",
+   "subjects": [
+    "balloons",
+    "potluck",
+    "stringlights",
+    "confetti",
+    "opendoor",
+    "fireworks",
+    "bunting",
+    "picnic"
+   ]
+  },
+  {
+   "id": "iGtubI63uK",
+   "collection": "general",
+   "subjects": [
+    "boardgames",
+    "sparkler",
+    "snow",
+    "sunflower",
+    "firepit-alt",
+    "rooftop-alt",
+    "bookclub-alt",
+    "blockparty-alt"
+   ]
+  },
+  {
+   "id": "TdbLU53VNR",
+   "collection": "wedding",
+   "subjects": [
+    "floral-arch",
+    "olive",
+    "eucalyptus",
+    "blossom",
+    "magnolia",
+    "orchid",
+    "lavender",
+    "wreath"
+   ]
+  },
+  {
+   "id": "eIrUysZdqL",
+   "collection": "wedding",
+   "subjects": [
+    "pampas",
+    "goldbotanical",
+    "sprigs",
+    "ribbon",
+    "waxseal",
+    "lace-wed",
+    "greenhouse",
+    "vineyard"
+   ]
+  },
+  {
+   "id": "8aly6OvIrU",
+   "collection": "wedding",
+   "subjects": [
+    "villa",
+    "cypress",
+    "lemons",
+    "bougainvillea",
+    "vineyard-farmhouse",
+    "coastal",
+    "courtyard",
+    "desert"
+   ]
+  },
+  {
+   "id": "LwYp8plswO",
+   "collection": "wedding",
+   "subjects": [
+    "candelabra",
+    "cathedral",
+    "terra-arches",
+    "winter-chapel",
+    "doves",
+    "lakeside",
+    "wisteria",
+    "cliff-chapel"
+   ]
+  },
+  {
+   "id": "3zmQKHdREY",
+   "collection": "wedding",
+   "subjects": [
+    "emerald-deco",
+    "navy-fan",
+    "marble",
+    "moonphase",
+    "celestial",
+    "waxseal-deco",
+    "sapphire",
+    "rosegold-geo"
+   ]
+  },
+  {
+   "id": "p81SyJEehw",
+   "collection": "wedding",
+   "subjects": [
+    "jade-cloud",
+    "gatsby-chandelier",
+    "pearl-arch",
+    "burgundy-baroque",
+    "nouveau-lily",
+    "sunburst",
+    "palm-deco",
+    "opal-arch"
+   ]
+  }
+ ]
+}

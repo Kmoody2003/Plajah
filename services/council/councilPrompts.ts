@@ -11,6 +11,23 @@ import type { CouncilBrief, CouncilDirectorId, Deliberation, DirectorProfile, Di
 const recent = <T extends { at: number }>(items: T[], n: number) => [...items].sort((a, b) => b.at - a.at).slice(0, n);
 
 /** The director as an agent: who they are, how they have been changing, how the team works. */
+/**
+ * Production policy. GENERATIVE (current, set by Kenne 2026-10-08): the council must reach a high-end result with no
+ * real-world material, because there is no budget to commission painters, shoots or builds yet. Flip to PHYSICAL
+ * (env COUNCIL_PRODUCTION_POLICY=PHYSICAL) once there is a budget; the original human-trace rule comes back.
+ */
+export type CouncilProductionPolicy = 'GENERATIVE' | 'PHYSICAL';
+export const councilProductionPolicy = (): CouncilProductionPolicy =>
+  (typeof process !== 'undefined' && process.env?.COUNCIL_PRODUCTION_POLICY === 'PHYSICAL') ? 'PHYSICAL' : 'GENERATIVE';
+export function productionRules(policy: CouncilProductionPolicy = councilProductionPolicy()): string[] {
+  if (policy === 'PHYSICAL') return ['- Every direction keeps a perceptible human trace: pressure, gesture, photographed material, physical light, field observation, a constructed model, performance timing.'];
+  return [
+    '- PRODUCTION POLICY: GENERATIVE ONLY. Every asset is made with generative image/video models, shaders, procedural code, or renders of assets Plajah already owns. No commissioned painting, photo shoot, physical build, maquette, or scan. Do not propose one, even as a "later" step.',
+    '- Your job under this policy is a high-end result at a fraction of the cost. The human trace survives in what you direct: simulated material (paper tooth, ink bleed, film grain, foil), physically-plausible light, editorial selection, composition, and performance timing.',
+    '- Name only open-licensed typefaces (Google Fonts / OFL). A paid foundry face is a cost the team cannot carry yet.',
+  ];
+}
+
 export function directorSystem(id: CouncilDirectorId, profile?: DirectorProfile): string {
   const d = COUNCIL_DIRECTORS[id];
   const notes = profile ? recent(profile.styleNotes, 5).map(n => `- ${n.text}`).join('\n') : '';
@@ -31,7 +48,7 @@ export function directorSystem(id: CouncilDirectorId, profile?: DirectorProfile)
     '',
     'Rules for you:',
     '- Propose work that is materially different from what the others would propose — geometry, typography, image logic, texture, motion, production method. Never a palette swap.',
-    '- Every direction keeps a perceptible human trace: pressure, gesture, photographed material, physical light, field observation, a constructed model, performance timing.',
+    ...productionRules(),
     '- Cultural references must be specific, attributable and transformed; anything that belongs to a living community is collaboration-gated and you say so.',
     '- You are one voice on the team. Disagree openly and name who you disagree with and why. Concede when a colleague is right about something.',
     '- You are not Aria. Aria speaks to the user; you speak to the team. Never address the user directly.',
@@ -72,7 +89,12 @@ Choose the ONE you most disagree with and say why — about the work, specifical
 export function synthesisSystem(): string {
   return `You are Aria, the single AI presence across Plajah. You convened the council — six art directors who work as a team behind you. You speak to the user; they do not. Refer to them as "the council" or "the team", and name an individual director only when quoting them or crediting a position. You may quote at most two directors in their own words.
 
-Synthesise WITHOUT averaging: choose a lead philosophy, one counterpoint, and one editor. Keep the tension — say plainly where the team disagreed and which side you took, and why. The user has the final say; end with the one decision that is theirs to make. Warm, direct, concise. No sycophancy. Answer ONLY with JSON.`;
+Synthesise WITHOUT averaging: choose a lead philosophy, one counterpoint, and one editor. Keep the tension — say plainly where the team disagreed and which side you took, and why. The user has the final say; end with the one decision that is theirs to make. Warm, direct, concise. No sycophancy.
+
+${productionRules().join('\n')}
+Apply that policy when you choose the direction; reject any element that needs real-world material.
+
+Answer ONLY with JSON.`;
 }
 
 export function synthesisUser(brief: CouncilBrief, proposals: DirectorProposal[], disputes: Dispute[]): string {

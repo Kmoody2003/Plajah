@@ -1,0 +1,192 @@
+{
+  "id": "muzu8uqy0j56ng",
+  "uid": "hiP7PGj15eTq0r0ZH2XwN00AS2h1",
+  "createdAt": 1791482197930,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Set the art direction for 12 kids' evites starring Plajah's own kaiju mascots, Chora (music note on the belly, purple goggle markings) and Reello (camera, orange goggle markings). Decide the 12 scenarios, how the mascots perform inside the invite (they can be animated 2D puppets or the rigged 3D models), and how a guest's tap or game makes them react.",
+    "audience": "Kids and parents; also brand-building for Plajah itself.",
+    "feeling": "Our characters, our world: mischievous, warm, unmistakably Plajah.",
+    "constraints": [
+      "Surface: Plajah Evites, an invitation opened on a phone browser by guests who never sign up; also shared as a link preview and QR.",
+      "Build method (fixed): each design is a layered Tela document: a generated art plate, separate transparent foreground cut-outs that drift and react to phone tilt, a WebGL effects layer (foil shimmer, light leaks, bokeh, particles, candle flicker) revealed through masks, and live text in Tela. Names, dates and venues are never baked into the art.",
+      "Bar: consumer-facing, jaw-dropping, high-end professional. Must stay legible at 390px wide, honour reduced motion, and load fast on mobile data.",
+      "No copyrighted characters; kids art is original or Plajah-owned.",
+      "The mascots must stay on-model (wide mochi head, white face, chevron cap with navy gem, goggle patches, angular magenta/orange ruff, cat-ear horns)."
+    ],
+    "references": [
+      "Exploration grid A: Chora and Reello at a birthday party, one holding a frosted cake with candles, the other with a party horn, balloons and string lights, confetti; on-model, polished 3D.",
+      "Exploration grid B: the two dancing on a light-up disco floor under a mirror ball; on-model, energetic."
+    ],
+    "surface": "Plajah Evites",
+    "domain": "invitation design"
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Architectural Toybox: Twelve Suites",
+      "idea": "A series of twelve structured invitation chambers where Chora and Reello inhabit proportional architectural frameworks, acting as physical caryatids that react to phone tilt with the precise, weighted counterpoint of a mechanical clock.",
+      "geometry": "A strict tripartite grid built on the golden ratio (1:1.618), utilizing bilateral symmetry with a defined central hearth for typography and flanking columns for mascot placement.",
+      "typography": "Sabon Roman and Small Caps for elegant, spaced-out hierarchy, balanced with Futura Bold for functional, high-contrast event details to maintain absolute legibility at three hundred and ninety pixels.",
+      "imageLogic": "Rigged 3D models of Chora and Reello rendered with a single, dramatic light source at a forty-five-degree angle, giving them the physical presence of glazed bisque porcelain figurines.",
+      "texture": "The tactile surface of heavy, deckle-edged cotton paper with deep metal-plate debossing around the text, accented by a WebGL gilded gold-leaf shimmer on the structural borders.",
+      "motion": "A measured, multi-planar parallax where the foreground elements drift slightly with phone tilt, always resolving back to perfect balance like a pendulum coming to rest.",
+      "productionMethod": "We will render the 3D mascots with physical light-bounce maps, exporting them as layered assets to be placed within vector-masked architectural arches in the Tela document.",
+      "humanTrace": "The slight, organic ink-squeeze of a physical letterpress and the subtle, irregular micro-textures of hand-cast ceramic figurines under natural light.",
+      "risk": "This direction risks being deemed too formal or austere for a modern child's party, but the risk is worth taking because it transforms a fleeting digital notification into an enduring heirloom that commands attention.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebellious Hand will call this structural grid a cage and demand asymmetrical, chaotic gestures; I argue that a mark without underlying structure is merely noise with confidence, leaving the parent with an illegible screen and an unearned mess."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "The Raw Wheatpaste Jam",
+      "idea": "Chora and Reello tearing up cardboard and wheatpasting DIY gig posters for the birthday party, using low-fi stop-motion puppet assets instead of sterile 3D models.",
+      "geometry": "Asymmetrical, heavy bottom weight, forced overlaps, raw forty-five-degree slashes, and deliberate registration misalignments.",
+      "typography": "Druk Condensed for loud, raw slab titles; custom hand-carved linocut glyphs for dates; live text set in heavy, unpolished GT Flexa.",
+      "imageLogic": "High-contrast physical paper cutouts of the mascots, photographed under a harsh copy-stand light to capture real shadow depth, then thresholded to mimic cheap risograph printing.",
+      "texture": "Heavy paper tooth, wet brayer ink-bleeds, visible corrugated cardboard edges, and coarse forty-line halftone screens that would survive being photocopied four times.",
+      "motion": "Choppy eight-frame-per-second stop-motion transitions; on tap, a heavy ink-splat mask reveals the WebGL foil layer which shifts with a rough, mechanical stutter instead of a smooth drift.",
+      "productionMethod": "We physically screenprint the mascot assets on recycled cardboard, cut them out with utility knives, photograph the physical layers, and assemble them as a multi-depth Tela document.",
+      "humanTrace": "The visible fibers of torn cardboard, thumbprints left in wet black ink on the margins, and the uneven pressure of a manual brayer on the background plate.",
+      "risk": "It risks looking too aggressive or unpolished for parents expecting a sterile Pixar clone, but it wins by treating kids like they have real taste and giving them something that looks like a human actually made it.",
+      "arguesWith": {
+        "directorId": "FUTURIST",
+        "why": "The Futurist wants rigged, simulated 3D models that look like shiny plastic toys. I refuse this sterile simulation; a flat, physical paper cutout with real shadow depth has ten times the soul and actually exists in the physical world."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Responsive Coordinate Systems",
+      "idea": "A series of 12 responsive toy coordinate systems—spanning acoustic resonance, optical refraction, gravity wells, and kinetic meshes—where rigged 3D Chora and Reello function as physical attractors reacting dynamically to real-time touch and gyroscopic forces.",
+      "geometry": "A parametric, grid-subdivided viewport where the margin values dynamically compress or expand based on the device aspect ratio, using the mascots' coordinate points to anchor the live-text bounding boxes.",
+      "typography": "Space Grotesk for high-contrast, structured headers, paired with JetBrains Mono for the invitation metadata, set in strict uppercase with tracking that scales dynamically based on scroll velocity.",
+      "imageLogic": "Real-time, low-poly glTF assets of Chora and Reello rendered with custom WebGL shaders that calculate light direction using the phone's gyroscope, rejecting static baked-lighting textures for dynamic, simulated depth.",
+      "texture": "Polarized, micro-etched glass surfaces, self-illuminating emission maps, and refractive chromatic dispersion that splits background light when the user tilts the device.",
+      "motion": "Zero canned keyframes; all movement is driven by a spring-mass-damper physics simulation where a user's tap sends a radial force vector through the scene, causing the mascots to squash, stretch, and settle organically.",
+      "productionMethod": "Rigged 3D models exported as highly optimized glTF files, integrated into a three.js WebGL layer within the Tela document, running a custom vertex shader for real-time mesh deformation based on coordinate inputs.",
+      "humanTrace": "The manual calibration of the spring-mass coefficients, tuned by hand-testing physics values to replicate the satisfying, heavy elastic resistance of physical rubber and silicone toys.",
+      "risk": "This direction risks feeling overly technical or clinical if the spring physics are tuned too tightly, but the risk is worth taking because it elevates a children's invitation from a passive cartoon card into a highly interactive, computationally honest toy that respects a child's spatial intelligence."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Folk-Toy Automata and Block-Printed Play",
+      "idea": "We frame Chora and Reello's 12 celebration scenarios as hand-carved wooden pull-toys and puppets, set against rich, block-printed textile backdrops sourced from specific European workshop traditions.",
+      "geometry": "Asymmetrical, inspired by the structured, tabbed layout of a naturalist's field diary, organizing event details into clear, uncrowded ledger columns.",
+      "typography": "Fedra Sans by Peter Biľak for clear, multilingual utility, paired with the warm, wood-carved serif gestures of Hahmlet for headers.",
+      "imageLogic": "High-resolution studio photography of physically carved limewood mascot maquettes under natural window light, isolated as transparent cutouts, layered over scanned indigo-dyed linen block prints.",
+      "texture": "Visible softwood grain, chipped tempera paint on Chora's goggle markings, raw hand-spun linen weave, and the characteristic ink-squeeze edges of manual block printing.",
+      "motion": "A charmingly stepped, 12-frames-per-second mechanical pivot mimicking a wooden pull-toy or puppet joint, reacting to phone tilt with physical inertia rather than smooth digital easing.",
+      "productionMethod": "Hand-carve 30cm wooden models of Chora and Reello in our studio, paint them with natural pigments, photograph them in a multi-angle rig to generate the CSS sprite-sheets, and scan hand-pressed linocuts for the WebGL-masked backgrounds.",
+      "humanTrace": "The slight tool marks of the carving chisel on the mascots' ruffs, and the uneven indigo ink distribution where the physical printing block met the linen.",
+      "risk": "This risks looking too historic or quiet for an audience accustomed to high-saturated, flashing digital invite platforms, but the tactile warmth makes it a keepsake parents will actually screenshot and save.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist wants to strip the invites down to flat, 'universal' primary-color vectors to ensure fast loading. I refuse this sterile flattening; kids deserve to see the texture of wood and the thumbprint of the maker, proving that high performance on mobile doesn't require erasing the material world."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "The Grand Toy Theater of Chora and Reello",
+      "idea": "A series of twelve operatic, high-contrast spectacles where Chora and Reello perform exaggerated, slow-motion celebratory feats inside a deep-box digital proscenium stage.",
+      "geometry": "A deep, forced-perspective proscenium arch with heavy, layered side-wings that frame a deeply recessed central stage using a dramatic 4:5 vertical ratio.",
+      "typography": "Ogg Roman by Sharp Type for dramatic, calligraphic, high-contrast headers, paired with the sturdy, block-carved Albertus for highly legible, un-baked live event details.",
+      "imageLogic": "Rigged 3D models of Chora and Reello lit with dramatic, single-source chiaroscuro spotlighting, casting long, volumetric shadows across the stage floor with rich, physical bounce-light from their props.",
+      "texture": "Crushed crimson velvet drapery, gilded gold-leaf proscenium borders, flickering WebGL candlelight, and the heavy, tactile grain of watercolor paper.",
+      "motion": "A slow, suspenseful rising-curtain reveal upon page load, followed by a sudden, breathtaking burst of golden WebGL glitter on guest tap, with the foreground layers tilting on a heavy, weighted physical pendulum.",
+      "productionMethod": "Physical path-tracing in Blender to capture realistic light-bounce on the 3D mascots, exported as optimized depth-mapped layers with alpha channels, integrated with custom WebGL fragment shaders for the candle-flicker and foil-shimmer masks.",
+      "humanTrace": "The physical lighting reference photos taken using hand-sculpted clay maquettes of Chora and Reello under a single spotlight to map the exact chiaroscuro falloff and shadow depth.",
+      "risk": "This direction risks feeling too opulent or operatic for a standard children's birthday, but it is worth it because children possess an innate sense of grand wonder and deserve a breathtaking theatrical event rather than flat, timid cartooning.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist will complain that a gilded proscenium is 'clutter' and beg for flat, empty space. But empty space is just an empty stage—an alibi for not deciding what the work actually feels like. Children do not want restraint; they want the curtain to rise on a world of breathtaking excess."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "The Architecture of Play",
+      "idea": "Reduce the noisy party to a single, hyper-focused spatial relationship between the mascot and one towering, quiet geometric element to let the character's warmth breathe.",
+      "geometry": "A strict 1:1 square viewport nested in a vast, silent off-white frame. The mascot is positioned precisely at the lower-right intersection of a golden ratio grid, offset by extreme negative space.",
+      "typography": "A single weight of Helvetica Neue LT Pro 45 Light. Microscopic scale, all lowercase, with generous 200/1000em tracking to isolate each letter like architectural columns. No bold, no decorative weights.",
+      "imageLogic": "The 3D models are rendered in a absolute void with zero environmental clutter—no disco floors, no balloons. A single, high-contrast, directional architectural light source casts a long, soft, physically accurate shadow across the empty plane.",
+      "texture": "A tactile, uncalendered cotton paper texture for the background plate; the mascots are rendered with a matte, unglazed bisque porcelain finish that absorbs light rather than reflecting it.",
+      "motion": "No frantic dancing. A single, rhythmic, slow-motion blink of the mascot's eyes every eight seconds. The parallax layer shifts the mascot and its shadow by a mere two pixels on phone tilt, preserving absolute stillness.",
+      "productionMethod": "Offline-rendered 3D models baked into static WebP plates with a single transparent depth-pass layer. The WebGL layer is restricted to a microscopic, single-pixel flame flicker on a solitary candle, mapped via an alpha mask.",
+      "humanTrace": "The light falloff is derived from photographic studies of physical light passing through a hand-cut cardboard architectural maquette, preventing the shadow gradients from looking mathematically sterile.",
+      "risk": "It risks being perceived by some parents as too quiet or unconventional for a child's party, but this is exactly why it succeeds—it cuts through the screaming digital noise of typical evites with the authority of a gallery poster.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Dramatist wants to flood the screen with disco floors, string lights, and flying confetti. This clutter suffocates the character and makes the invitation unreadable. I remove the entire party to let the mascot and the child's name exist in absolute, beautiful focus."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "A layout where grid boundaries compress dynamically and typographic tracking fluctuates based on scroll velocity abdicates the fundamental duty of the measure. If the frame constantly shifts to accommodate the device's posture, the composition loses its structural consequence and can never be read twice the same way. This is a system that behaves when it should hold.",
+      "concession": "I concede, however, that the rigorous, hand-tuned calibration of the spring-mass coefficients establishes a satisfying sense of weight and physical resistance that prevents the motion from feeling mathematically sterile."
+    },
+    {
+      "from": "REBEL",
+      "against": "RADICAL_MINIMAL",
+      "objection": "This is designed for an empty gallery, not the street. If you run that microscopic, single-weight Helvetica through a cheap copier four times, it completely disintegrates into gray mist. You've scrubbed out the noise of a celebration to protect a silent, sterile grid that risks absolutely nothing.",
+      "concession": "But using a physical cardboard maquette to study how real shadows fall is a decent way to keep the light from looking like a math equation."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "CLASSICAL",
+      "objection": "Your proposal builds a static monument inside a rigid, symmetrical grid, treating a highly responsive viewport as if it were a printed, double-page book layout. Parallax that merely drifts and resolves back to dead center is not interactive behavior; it is a photograph of design that refuses to let the system's state adapt to the user's velocity.",
+      "concession": "However, your pairing of Sabon Roman and Futura Bold creates a highly functional typographic system that successfully balances classical editorial legibility with modern digital constraints."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "The Dramatist reaches for gilded borders and operatic velvet before asking whose gold we are borrowing, treating deep traditions of craft as mere theatrical wallpaper. To stage a grand spectacle without identifying the specific lineages of these gilding and carving techniques—whether we are looking toward the gold-leaf beaters of Kamigyo-ku in Kyoto or the 18th-century plaster carvers of Puebla—is to flatten human labor into a generic luxury.",
+      "concession": "I do, however, deeply respect the decision to use hand-sculpted clay maquettes under physical spotlights to map the light, as it grounds the digital frame in real, patient observation."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "To banish this celebration into an absolute void of microscopic, lowercase whispers is to mistake a funeral for a birthday feast. Where is the blood, the heat, the grand gesture of the reveal when our characters are frozen in a silent, off-white desert, permitted only a tragic blink every eight seconds? This is not restraint; it is a refusal to let the stage breathe with the glorious, chaotic scale of real joy.",
+      "concession": "Yet, I must applaud how they have captured the light falloff from a physical architectural maquette; that soft, cast shadow has a genuine, heartbreaking weight to it that digital mathematics could never replicate."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The velvet, the gilded borders, and the flickering candlelight are redundant gestures that smother the message. By burying the celebration under an operatic stage set, the event itself becomes secondary to the decoration. This is noise, not communication.",
+      "concession": "The discipline of using hand-sculpted clay maquettes to study how a single, physical light source falls across a form is correct."
+    }
+  ],
+  "reflections": [],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "REBEL",
+    "editor": "RADICAL_MINIMAL",
+    "direction": "The layout organizes live text using Hahmlet and Fedra Sans within a structured, journal-like grid. Chora and Reello are rendered as hand-carved wooden pull-toys with chipped paint details, set against scanned indigo block-printed backdrops. The mascots pivot on a stepped, 12-frames-per-second mechanical arc that reacts to phone tilt. WebGL masks introduce a subtle gold-foil shimmer to the block print borders, maintaining sharp legibility at 390px wide.",
+    "keepFromCounterpoint": "The high-contrast physical shadow depth and raw, wet brayer ink-bleed textures on the margins to prevent the folk-toy aesthetic from looking overly digital or sanitized.",
+    "editorCut": "The editor cut the multi-layered CSS sprite-sheet animation loops and complex background textile layers, collapsing them into single-pass optimized WebP plates to ensure the invitations load instantly under poor mobile data conditions.",
+    "openDecision": "The selection of the 12 specific narrative scenarios that Chora and Reello will perform across the invitation suite.",
+    "ariaSummary": "The council was fiercely divided on how to represent our mascots, pitting sterile 3D rendering against raw, physical textures. The Rebellious Hand demanded a chaotic, screen-printed poster aesthetic, while the Minimalist fought to banish all detail to a silent void. I took the side of the World-Eclectic Traveler: Chora and Reello are characters of warmth, and they belong in a tactile world that feels crafted, not programmed.\n\nBy framing them as hand-carved wooden automata, we honor their design with real material weight. We have kept the raw, heavy shadows of the rebellious approach to keep it grounded, but the Radical Minimalist stepped in as editor to strip away redundant animation code so the invitations perform flawlessly on a phone screen.\n\nThe system is set. The final creative spark belongs to you.",
+    "quotes": [
+      {
+        "directorId": "WORLD_ECLECTIC",
+        "line": "I refuse this sterile flattening; kids deserve to see the texture of wood and the thumbprint of the maker."
+      },
+      {
+        "directorId": "REBEL",
+        "line": "A flat, physical paper cutout with real shadow depth has ten times the soul and actually exists in the physical world."
+      }
+    ]
+  }
+}

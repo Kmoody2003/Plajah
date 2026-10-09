@@ -1,0 +1,182 @@
+{
+  "intro": "I took this to the room and brought in the Explainer Systematist, the Simulation Technical Director, the Abstract 3D Loop Artist, the Collage Zinester from the studio roster. Here's where they agree, where they split, and what I'd do.",
+  "crew": [
+    "EXPLAINER",
+    "SIM_TD",
+    "ABSTRACT_LOOP",
+    "COLLAGE"
+  ],
+  "proposals": [
+    {
+      "personaId": "KINETIC",
+      "headline": "Text earns its place in 1.5 s or it hasn't earned it at all — every word locks on a beat, never earlier.",
+      "moves": [
+        {
+          "text": "Sport title (e.g. 'BASKETBALL') enters at frame 12 of the entrance: 18-frame ease-out (cubic-bezier 0.0,0.0,0.2,1.0), scale 110%→100%, opacity 0→1, so the word is fully settled and readable by frame 30 (0.5 s) — never faster than 8.3 ms per glyph at 60 fps.",
+          "where": "Frames 12–30 / 60 fps / ease-out cubic / 390 px wide, text ≥20 px cap-height"
+        },
+        {
+          "text": "Date and CTA lines stagger in at frames 32 and 38 respectively, each a 12-frame ease-out translate-Y +16 px→0, so hierarchy reads top-to-bottom in reading order within 0.8 s of title lock.",
+          "where": "Frames 32–44, 38–50 / 12-frame ease-out / stagger 6 frames / 60 fps"
+        },
+        {
+          "text": "During idle loop, text layer holds dead still — zero parallax on type — because 1–2 px drift per second on a 20 px cap-height breaks legibility; only the art plate and cut-outs move.",
+          "where": "Idle loop / text layer parallax = 0 px / all motion below type z-index"
+        },
+        {
+          "text": "On tap (interactive moment), sport word scales 100%→106% over 6 frames ease-out then 106%→100% over 10 frames ease-in — a legibility-safe pulse that confirms the hit without losing the word.",
+          "where": "Tap frames 0–6 ease-out, 6–16 ease-in / total 16 frames / 60 fps"
+        },
+        {
+          "text": "RSVP 'YES' celebration: 'YOU'RE IN' locks at frame 8 of celebration, 20-frame ease-out scale 120%→100%, then holds fully static for minimum 60 frames so the confirmation is unambiguous before any particle layer fires.",
+          "where": "Celebration frames 0–8 hold, 8–28 settle / static hold frames 28–88 / 60 fps"
+        }
+      ]
+    },
+    {
+      "personaId": "CINEMATIC",
+      "headline": "The arena light is the drama — every sport gets one motivated key, one reveal, and a camera that earns its move.",
+      "moves": [
+        {
+          "text": "Entrance: generated art plate begins at exposure -1.5 stops (near black), motivated arena-rim light rakes in from top-right over 48 frames (0–0.8 s) as a WebGL spotlight mask expanding radially at cubic-bezier 0.4,0.0,0.6,1.0, peaking at full exposure by frame 60 (1.0 s).",
+          "where": "Frames 0–60 / WebGL spotlight mask / radial expand / 60 fps / 390 px wide"
+        },
+        {
+          "text": "Cut-out layer 1 (athlete silhouette) translates from Y +40 px to Y 0 over frames 20–50 with ease-out (cubic-bezier 0.0,0.0,0.2,1.0), arriving just as light peaks — the reveal earns the figure.",
+          "where": "Frames 20–50 / +40 px→0 translate-Y / ease-out / 60 fps"
+        },
+        {
+          "text": "Idle loop: a slow virtual camera drift — WebGL UV offset on art plate moves +3 px horizontally over 300 frames then reverses, linear, so the arena feels breathing without perspective break.",
+          "where": "Idle loop / 300-frame cycle / ±3 px UV drift / linear / 60 fps"
+        },
+        {
+          "text": "Interactive moment (sport action): a 4-frame anticipation flash — spotlight briefly pulls to 80% intensity (4 frames ease-in), then bursts to 130% over 6 frames ease-out simulating a stadium flash-bulb on the action beat.",
+          "where": "Tap: frames 0–4 dim ease-in, 4–10 burst ease-out / WebGL exposure / 60 fps"
+        },
+        {
+          "text": "prefers-reduced-motion: hold art plate at full exposure from frame 0, no camera drift, no spotlight sweep — static composition with full depth, still reads as cinematic because light is baked into the generated plate.",
+          "where": "Reduced-motion / frame 0 static / no WebGL animation / all layers visible at final positions"
+        }
+      ]
+    },
+    {
+      "personaId": "GENERATIVE",
+      "headline": "Each sport is a rule-set, not a baked clip — particle behaviour, light response and physics seed from sport identity and live audio amplitude.",
+      "moves": [
+        {
+          "text": "A WebGL particle system per sport (basketball: 120 orange spheres with ballistic arcs; football: 60 elongated ellipsoids in tight spiral paths; soccer: 80 hexagon-patterned discs with Magnus-curve drift; racing: 200 streak particles along radial velocity lines) — each system driven by a noise field seeded from sport ID, re-randomised on every card load so no two openings are identical.",
+          "where": "Idle loop / WebGL shader / 60 fps / particle count per sport / noise seed = hash(sportId + timestamp)"
+        },
+        {
+          "text": "Tilt response: device orientation quaternion maps to the noise field's time offset — tilting 15° left/right shifts field phase by ±0.3 units, making particles visibly respond to the hand holding the phone, 1:1 with no smoothing lag beyond 2-frame lerp.",
+          "where": "Tilt / orientation API / ±0.3 field phase / 2-frame lerp / 60 fps"
+        },
+        {
+          "text": "Interactive moment: on tap, emit a one-shot burst of 300 particles from tap XY — sport-specific shape (basketball: sphere scatter radius 80 px; soccer: radial hex burst; racing: horizontal streak 120 px long) — all particles governed by the same noise field, not a canned animation.",
+          "where": "Tap / one-shot emit / 300 particles / origin = tapXY / decay over 40 frames / ease-in opacity out"
+        },
+        {
+          "text": "RSVP celebration: switch noise field to 'celebration' seed — particles converge inward for 20 frames then explode outward at 2× velocity, sustaining for 90 frames before damping back to idle rule, all procedural, no keyframes.",
+          "where": "Celebration / seed swap / 20-frame converge + 90-frame sustain + 30-frame damp / 60 fps"
+        },
+        {
+          "text": "prefers-reduced-motion: freeze noise field at t=0, particles rendered as static dots at their first-frame positions — the system is still alive (data is real) but time is paused; remove all animation, keep all visual density.",
+          "where": "Reduced-motion / field.timeScale = 0 / static render / WebGL still frame"
+        }
+      ]
+    },
+    {
+      "personaId": "COMPOSITOR",
+      "headline": "The generated plate lives in a phone screen — light-wrap, matched grain and correct black levels are the only thing between 'graphic' and 'real'.",
+      "moves": [
+        {
+          "text": "Arena plate grain: WebGL shader applies 24×24 px Gaussian noise at 6% luminance variance, refreshed every 2 frames (matching 30 fps sensor cadence on a mid-range Android camera), so grain structure reads as authentic capture rather than decoration.",
+          "where": "Idle + entrance / WebGL grain shader / 6% luminance / 2-frame refresh / 60 fps"
+        },
+        {
+          "text": "Cut-out edges: each transparent cut-out receives a 3 px WebGL light-wrap pass — arena key colour sampled from the plate at the cut-out boundary and feathered inward 3 px, updated every frame so parallax drift never exposes a clean-edged float.",
+          "where": "All frames / WebGL light-wrap / 3 px feather / per-frame update / 60 fps"
+        },
+        {
+          "text": "Motion blur on moving cut-outs during entrance: 180° shutter equivalent = 8.3 ms at 60 fps; WebGL velocity-based blur stretches each cut-out pixel by its per-frame delta — entrance translate of +40 px over 30 frames = 1.33 px/frame blur length, applied as a 2-sample directional blur.",
+          "where": "Entrance frames 20–50 / 2-sample directional blur / 1.33 px length / 180° equivalent / 60 fps"
+        },
+        {
+          "text": "Black point: plate blacks are clamped to sRGB 12/255 (not 0) to simulate lifted arena shadow, and all overlay layers inherit the same black floor via a CSS mix-blend-mode:multiply guard — no layer can go pure black and break the integration.",
+          "where": "All frames / CSS + WebGL black clamp = 12/255 / mix-blend-mode:multiply on overlays"
+        },
+        {
+          "text": "prefers-reduced-motion: grain shader still runs at 2-frame refresh (it is texture, not animation), light-wrap bakes to a static pass, motion blur removed — the seam stays invisible even with no motion.",
+          "where": "Reduced-motion / grain active / light-wrap static bake / blur disabled"
+        }
+      ]
+    },
+    {
+      "personaId": "EXPLAINER",
+      "headline": "The card is an argument: sport identity → event details → action — one consistent ease curve, one idea per beat, cause before effect.",
+      "moves": [
+        {
+          "text": "Entrance stages in three beats on a single ease curve (cubic-bezier 0.42,0,0.58,1.0 across the whole piece): beat 1 = art plate (frames 0–18), beat 2 = cut-outs + sport title (frames 18–42), beat 3 = date/venue/CTA (frames 42–66) — viewer reads cause then effect, never simultaneously.",
+          "where": "Frames 0–66 / 3 beats / same ease-in-out cubic across all layers / 60 fps / total entrance 1.1 s"
+        },
+        {
+          "text": "Sport icon (basketball/ball, football/helmet, soccer/cleat, racing/helmet) morphs via SVG path interpolation from a neutral circle to the sport shape over 18 frames ease-in-out, teaching the sport identity before the title word appears.",
+          "where": "Frames 0–18 / SVG path morph / circle→sport icon / ease-in-out / 60 fps"
+        },
+        {
+          "text": "Idle loop: icon pulses scale 100%→102%→100% over 120 frames linear, the only moving element besides particles — one moving thing at a time so attention is never split.",
+          "where": "Idle / 120-frame linear pulse / ±2% scale / icon layer only / 60 fps"
+        },
+        {
+          "text": "Interactive moment: tap triggers a cause-effect chain — icon animates the sport action (ball arc, kick, launch) over 24 frames ease-out, then an arrow or line traces the consequence (net, goal, finish line) appearing 6 frames after the action peak, so the viewer reads physics as explanation.",
+          "where": "Tap: action 0–24 ease-out, consequence at frame 30 / 6-frame stagger / 60 fps"
+        },
+        {
+          "text": "prefers-reduced-motion: all animation removed; the three-beat layout is the static composition — plate, cut-outs and text at final positions, icon at sport shape (not circle), CTA visible — the argument still reads without any motion.",
+          "where": "Reduced-motion / static / all layers at beat-3 final state / no transitions"
+        }
+      ]
+    }
+  ],
+  "tensions": [
+    "GENERATIVE insists the particle system must be a live rule with no baked keyframes and re-seeds on every load so no two openings are identical — KINETIC pushes back hard: a re-seeded noise field can produce a frame where particles occlude the sport title during the critical 0–1.5 s readability window, and a system with no deterministic guard on the text safe-zone is a system that sometimes fails the reader; GENERATIVE must clamp the noise field's influence to outside a 320×80 px text-safe rectangle from frame 0 to frame 90, or the rule is not honest, it is just unpredictable.",
+    "EXPLAINER argues the entrance must be a single consistent ease curve (cubic-bezier 0.42,0,0.58,1.0) across every layer so the viewer reads one coherent system — CINEMATIC rejects this because the arena spotlight reveal requires a custom radial-expand curve (cubic-bezier 0.4,0.0,0.6,1.0) on the WebGL mask that does not match the shape-layer curve, and forcing one curve onto a light-reveal flattens the drama of the moment; EXPLAINER concedes the WebGL spotlight mask is a different medium and may use its own curve, but all CSS-animated layers must share the single system ease."
+  ],
+  "plan": [
+    {
+      "text": "LEAD — CINEMATIC: Entrance opens on near-black arena plate, motivated rim light sweeps radially (WebGL spotlight mask, cubic-bezier 0.4,0.0,0.6,1.0) from -1.5 stops to full exposure over frames 0–60 (1.0 s); athlete cut-out translates Y +40 px→0 ease-out frames 20–50 with 1.33 px directional motion blur (180° / 8.3 ms equivalent); sport title locks at frame 72 (1.2 s) — full readable card complete at frame 90 (1.5 s).",
+      "where": "Entrance frames 0–90 / 60 fps / WebGL + CSS / total 1.5 s"
+    },
+    {
+      "text": "COMPOSITOR integration on every frame: arena plate grain shader at 6% luminance, 2-frame refresh; 3 px light-wrap on all cut-out edges updated per frame during parallax; black floor clamped to sRGB 12/255 on plate and all overlay layers via mix-blend-mode:multiply guard.",
+      "where": "All frames / WebGL grain + light-wrap / CSS black clamp / 60 fps"
+    },
+    {
+      "text": "GENERATIVE particle system per sport (basketball 120 ballistic spheres / football 60 spiral ellipsoids / soccer 80 Magnus-curve discs / racing 200 radial streaks), noise field seeded from hash(sportId + timestamp), particle influence clamped outside 320×80 px text-safe rectangle frames 0–90 to satisfy KINETIC's readability guard.",
+      "where": "Idle loop + entrance / WebGL shader / 60 fps / text-safe clamp = 320×80 px centred on title"
+    },
+    {
+      "text": "KINETIC text hierarchy: sport title ease-out (cubic-bezier 0.0,0.0,0.2,1.0) scale 110%→100% opacity 0→1 over frames 72–90; date stagger frame 92–104 translate-Y +16 px→0 ease-out; CTA stagger frame 96–108 same curve; text layer parallax = 0 px always.",
+      "where": "Frames 72–108 / ease-out cubic / stagger 4 frames / text parallax locked / 60 fps"
+    },
+    {
+      "text": "Idle loop — three simultaneous slow systems: (1) CINEMATIC UV drift ±3 px on art plate, 300-frame linear cycle; (2) GENERATIVE noise field advancing at 0.4× speed, particles drifting within sport-specific paths; (3) EXPLAINER sport icon pulse 100%→102%→100% 120-frame linear — all below text z-index.",
+      "where": "Idle / 300-frame UV + 120-frame icon pulse + continuous particle drift / 60 fps / linear"
+    },
+    {
+      "text": "Tilt / pointer parallax: device orientation quaternion maps to (1) cut-out layers ±8 px X / ±5 px Y at 2-frame lerp, (2) GENERATIVE noise field phase ±0.3 units at 2-frame lerp, (3) CINEMATIC UV offset ±2 px additive — text layer excluded from all tilt; COMPOSITOR light-wrap updates per frame to track cut-out drift.",
+      "where": "Tilt response / orientation API / ±8 px cut-outs / ±0.3 field phase / 2-frame lerp / 60 fps"
+    },
+    {
+      "text": "Interactive moment (sport action on tap): 4-frame anticipation spotlight dim to 80% ease-in; frame 4–10 burst to 130% ease-out (CINEMATIC flash-bulb); simultaneous GENERATIVE one-shot burst 300 sport-specific particles from tapXY decaying over 40 frames ease-in opacity; KINETIC sport title pulse 100%→106% ease-out 6 frames then 106%→100% ease-in 10 frames; EXPLAINER sport-icon action morph (ball arc / kick / launch) frames 0–24 ease-out with consequence trace appearing frame 30.",
+      "where": "Tap / frames 0–40 / WebGL spotlight + particles + CSS title pulse + SVG icon / 60 fps"
+    },
+    {
+      "text": "RSVP 'YES' celebration: GENERATIVE seed swaps to 'celebration' — particles converge 20 frames then explode 2× velocity sustaining 90 frames, damping 30 frames; KINETIC 'YOU'RE IN' locks frame 8 scale 120%→100% ease-out 20 frames then static hold 60 frames; CINEMATIC spotlight peaks at 140% for 12 frames then settles to 110% over 30 frames — total celebration 140 frames (2.3 s) before idle resumes. | prefers-reduced-motion: plate at full exposure frame 0 static, grain shader active (texture not animation), light-wrap baked static, all CSS and WebGL animation disabled, all layers at beat-3 final positions, text fully visible — finished card, no motion.",
+      "where": "Celebration frames 0–140 / 60 fps / 2.3 s | Reduced-motion: static / grain active / no transitions"
+    }
+  ],
+  "summary": "CINEMATIC leads because the arena light is the only thing that earns the scale of a sports evite on a 390 px screen — the reveal must feel like the lights coming up in a stadium, not a shape layer fading in. The entrance is a motivated spotlight sweep (0–1.0 s) that uncovers an athlete cut-out, then text locks in reading order by 1.5 s; COMPOSITOR wraps every edge and matches grain so the generated plate sits inside a real phone screen rather than floating above it; GENERATIVE runs a sport-specific particle rule seeded fresh each load but clamped outside the text-safe zone — KINETIC's non-negotiable — so the system is alive without ever eating the words; EXPLAINER's single ease curve governs all CSS layers while CINEMATIC's spotlight keeps its own WebGL curve, a compromise both can live with; tilt moves cut-outs ±8 px and shifts the particle field phase, making the card feel physical in the hand; the tap fires a sport-specific flash-bulb, particle burst and icon action as one simultaneous system — cause and effect in a single gesture; the celebration swaps the generative seed and holds 'YOU'RE IN' static long enough to be read; and prefers-reduced-motion is a finished composition at full exposure with grain texture still running, because stillness is not an apology.",
+  "grounded": true,
+  "source": "ai"
+}

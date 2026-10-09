@@ -1,5 +1,6 @@
 ﻿import FastImage from './ui/FastImage';
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import CreateEventButton from './events/CreateEventButton';
 import { gridSrc } from '../services/imageDerivatives';
 import { createPortal } from 'react-dom';
 import { 
@@ -846,6 +847,11 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             <span className="truncate">Live · Join Room</span>
           </button>
         ) : null}
+        {isOwnProfile && (
+          <div className={`absolute ${isMobile ? 'top-14 right-3' : 'top-[4.5rem] right-6'}`} style={{ zIndex: 30 }}>
+            <CreateEventButton compact host={{ kind: 'user' }} />
+          </div>
+        )}
       </div>
 
       {/* Profile Info — floats up over the bleed zone */}

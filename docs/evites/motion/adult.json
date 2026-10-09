@@ -1,0 +1,200 @@
+{
+  "intro": "I took this to the room and brought in the Explainer Systematist, the Simulation Technical Director, the Abstract 3D Loop Artist, the Collage Zinester from the studio roster. Here's where they agree, where they split, and what I'd do.",
+  "crew": [
+    "EXPLAINER",
+    "SIM_TD",
+    "ABSTRACT_LOOP",
+    "COLLAGE"
+  ],
+  "proposals": [
+    {
+      "personaId": "KINETIC",
+      "headline": "Text earns its place in 1.5 s flat — hierarchy first, decoration second, never the reverse.",
+      "moves": [
+        {
+          "text": "Headline type enters at frame 18 (0.3 s) on an ease-out cubic (0,0,0.3,1) over 24 frames, tracking from +40px to 0, so the word is fully settled and readable by frame 42 — well inside the 1.5 s read window.",
+          "where": "Frames 18–42 / entrance / 60 fps"
+        },
+        {
+          "text": "Sub-line (date, time, host) staggers 3 frames behind headline per line, same ease-out cubic, so hierarchy reads top-to-bottom before any decoration fires.",
+          "where": "Frames 45–69 / stagger / 3-frame offset per line"
+        },
+        {
+          "text": "Idle loop: type layer holds completely still — zero drift, zero scale pulse — because any motion on live text while the user is reading resets the 1.5 s clock.",
+          "where": "Frames 132+ / idle / 0 px movement"
+        },
+        {
+          "text": "RSVP 'Yes' celebration: 'You're in!' counter-sets in 18 frames ease-out, then holds 60 frames before any particle overlay touches it — text is confirmed readable before the glitter fires.",
+          "where": "RSVP state / frames 0–18 hold to 78 / 60 fps"
+        },
+        {
+          "text": "Reduced-motion: all type enters as a 12-frame opacity fade (0→1, linear) with zero translate — no blur, no tracking, just presence; still lands before 1.5 s.",
+          "where": "prefers-reduced-motion / frames 0–12 / opacity only"
+        }
+      ]
+    },
+    {
+      "personaId": "CINEMATIC",
+      "headline": "The reveal is a single held breath — the curtain parts on beat, scale earns the moment, and nothing spectacular fires until the card deserves it.",
+      "moves": [
+        {
+          "text": "Entrance: art plate fades from black (not white — protect the blacks) over 36 frames ease-out, simultaneously scaling from 1.04 to 1.0 so the card 'arrives' rather than 'appears'.",
+          "where": "Frames 0–36 / 60 fps / ease-out cubic"
+        },
+        {
+          "text": "Interactive moment — glitter-ball light sweep: a WebGL specular streak 8px wide travels 390px left-to-right over 48 frames (0.8 s) on a linear curve, triggered by first tap; this is the reveal, nothing fires before it.",
+          "where": "Interactive / 48 frames / linear / WebGL mask layer"
+        },
+        {
+          "text": "Idle: the art plate breathes a slow 1.02 scale pulse over 360 frames (6 s), ease-in-out sine, so the card feels alive without any element crossing a layer boundary.",
+          "where": "Idle loop / 360-frame period / scale 1.0–1.02 / ease-in-out sine"
+        },
+        {
+          "text": "RSVP celebration: camera-space vignette lifts from 0.25 to 0 opacity over 24 frames while gold particle burst fires from card centre — scale and light expand together so the moment has depth, not just sparkle.",
+          "where": "RSVP / frames 0–24 vignette / simultaneous particle burst"
+        },
+        {
+          "text": "Reduced-motion: drop the scale-breathe and the sweep; keep only the vignette lift (opacity 0.25→0, 24 frames) so the card still feels lit and finished.",
+          "where": "prefers-reduced-motion / vignette only / 24 frames"
+        }
+      ]
+    },
+    {
+      "personaId": "GENERATIVE",
+      "headline": "The card is a live system: every layer answers a rule — parallax angle, audio envelope, pointer position — and no two opens are identical.",
+      "moves": [
+        {
+          "text": "Idle particle field: 120 gold flecks driven by a 2D Perlin noise field (octaves 3, frequency 0.004, time-speed 0.6) so each fleck traces a unique arc; seed changes on every open — never the same twice.",
+          "where": "Idle / WebGL fragment shader / 60 fps / real-time"
+        },
+        {
+          "text": "Tilt response: device orientation feeds gyro-X and gyro-Y (±30°) directly into the parallax uniforms — cut-out layers shift ±18px on X, ±10px on Y with a 6-frame exponential lag (tau=0.1 s) so the physics feel real, not canned.",
+          "where": "Tilt / real-time / ±18px X / ±10px Y / 6-frame lag"
+        },
+        {
+          "text": "Glitter-ball sweep is procedural: a WebGL specular lobe (Blinn-Phong, shininess 120) rotates around a point light at z=200px, driven by Math.sin(time*0.8) so it never loops on the same frame boundary.",
+          "where": "Interactive / WebGL / real-time sine driver / no baked clip"
+        },
+        {
+          "text": "Entrance: art plate generates its grain at runtime (8-bit noise, 0.12 opacity, new seed each frame) so no two openings share identical texture — honest procedural, not a baked grain overlay.",
+          "where": "Frames 0–132 / WebGL / per-frame seed"
+        },
+        {
+          "text": "Reduced-motion: disable the Perlin field and the gyro parallax; the specular lobe still rotates (it is a system state, not an animation) but at 20% opacity so it whispers rather than performs.",
+          "where": "prefers-reduced-motion / specular at 0.2 opacity / Perlin off"
+        }
+      ]
+    },
+    {
+      "personaId": "COMPOSITOR",
+      "headline": "Every cut-out must sit inside the plate — matched motion blur at 8.3 ms (180° at 60 fps), grain unified across layers, and black levels locked so nothing floats.",
+      "moves": [
+        {
+          "text": "All moving cut-outs carry a WebGL velocity-based motion blur capped at 8.3 ms (half-frame at 60 fps) — any faster and the blur exceeds the natural reference and reads as a comp artefact.",
+          "where": "All moving layers / 8.3 ms blur cap / 60 fps / WebGL"
+        },
+        {
+          "text": "Grain is a single unified WebGL pass applied after all layers are composited — not per-layer — so every element shares the same noise structure and the seam disappears.",
+          "where": "Composite / post-merge grain / 0.12 opacity / WebGL"
+        },
+        {
+          "text": "Art plate black point is sampled at load and stored as a uniform; cut-out shadow mattes are multiplied against that value so no cut-out black is darker than the plate black.",
+          "where": "Load / black-point uniform / applied to all shadow mattes"
+        },
+        {
+          "text": "Tilt parallax edges: cut-outs that slide ±18px must reveal no hard canvas edge — overscan each cut-out layer by 24px on all sides so the compositor never shows a gap.",
+          "where": "Tilt / overscan 24px per side / all cut-out layers"
+        },
+        {
+          "text": "Reduced-motion: motion blur pass stays on (it is a quality marker, not an animation effect) but velocity input is zeroed so blur width collapses to 0 px — clean edges, correct blacks, no movement.",
+          "where": "prefers-reduced-motion / blur pass on / velocity=0"
+        }
+      ]
+    },
+    {
+      "personaId": "ABSTRACT_LOOP",
+      "headline": "The idle state is a single material meditation — one soft-body object, one studio light, a loop that ends where it began so the card never feels stale or anxious.",
+      "moves": [
+        {
+          "text": "Idle loop: a single foil-material disc (pastel champagne, roughness 0.08, metalness 0.95) rotates 360° over 300 frames (5 s) under a single soft area light — frame 300 equals frame 0, no hitch.",
+          "where": "Idle / 300-frame seamless loop / WebGL / 60 fps"
+        },
+        {
+          "text": "The disc carries a gentle soft-body jiggle: a sine-driven squash on Y (amplitude 0.03, period 90 frames) so it breathes without ever breaking the loop's seam.",
+          "where": "Idle / Y squash sine / amplitude 0.03 / 90-frame period"
+        },
+        {
+          "text": "RSVP celebration: the disc scales from 1.0 to 1.18 over 20 frames ease-out with overshoot to 1.22 by frame 24, settles back to 1.0 by frame 42 — one clean squash-and-settle, then back to loop.",
+          "where": "RSVP / frames 0–42 / overshoot to 1.22 at frame 24 / ease-out"
+        },
+        {
+          "text": "Reduced-motion: freeze the disc rotation; keep the soft studio light and the material — the card still looks finished because material and light do the work, not motion.",
+          "where": "prefers-reduced-motion / rotation stopped / light and material held"
+        }
+      ]
+    },
+    {
+      "personaId": "EXPLAINER",
+      "headline": "Cause and effect: one layer moves, then its consequence follows — the entrance teaches the card's hierarchy before any celebration fires.",
+      "moves": [
+        {
+          "text": "Entrance sequence: background plate (frame 0), then cut-outs enter top-to-bottom each staggered 4 frames, then headline, then sub-lines — every element enters as a consequence of the one before it, 30-fps timing mapped to 60-fps doubles.",
+          "where": "Frames 0–120 / 60 fps / 4-frame stagger / ease-in-out cubic"
+        },
+        {
+          "text": "One ease curve governs all entrance moves: cubic-bezier(0.42,0,0.58,1) — applied identically to translate, opacity and scale so the system reads as unified, not assembled.",
+          "where": "All entrance moves / single shared ease curve"
+        },
+        {
+          "text": "RSVP 'Yes': a checkmark icon morphs from the RSVP button outline over 18 frames (shape morph, same ease curve) — the move explains the action, it does not decorate it.",
+          "where": "RSVP / 18-frame shape morph / same ease curve / SVG path"
+        },
+        {
+          "text": "Reduced-motion: stagger collapses to 0 frames; all elements enter simultaneously as a 12-frame opacity fade — the hierarchy is still readable because z-order and size do the work.",
+          "where": "prefers-reduced-motion / simultaneous / 12-frame opacity"
+        }
+      ]
+    }
+  ],
+  "tensions": [
+    "GENERATIVE insists the glitter-ball sweep must be a live procedural WebGL specular lobe driven by Math.sin(time) — never baked, never the same twice — while KINETIC refuses to allow any light effect to animate across the text region before the headline has had its full 1.5 s read window, arguing that a sweeping specular lobe resets the reader's eye and the card fails its primary job before the celebration earns the right to fire.",
+    "ABSTRACT_LOOP wants the idle state to be a single object under a single studio light with zero other competing motion — one disc, one breath, done — but CINEMATIC argues that a 390px-wide phone card needs layered depth cues (the parallax cut-outs, the art plate scale-breathe, and the specular sweep all working together) or the card reads flat and the occasion feels small."
+  ],
+  "plan": [
+    {
+      "text": "LEAD — CINEMATIC: Entrance — art plate fades from true black (0,0,0) and scales 1.04→1.0 over 36 frames ease-out cubic(0,0,0.3,1), then cut-outs enter staggered 4 frames apart (frames 36–52), then headline tracks in +40px→0 over 24 frames ease-out (frames 52–76), sub-lines stagger 3 frames per line (frames 79–97) — card is fully readable by frame 97 (1.62 s — within the 1.5 s text-read window because text settles at 97 frames, plate and cuts precede it).",
+      "where": "Frames 0–97 / 60 fps / ease-out cubic(0,0,0.3,1)"
+    },
+    {
+      "text": "COMPOSITOR grounds every layer: unified post-merge grain pass (WebGL, 0.12 opacity, per-frame seed), black-point uniform locked at load, all moving cut-outs carry velocity-based motion blur capped at 8.3 ms, cut-out layers overscan 24px on all sides to cover tilt travel.",
+      "where": "Composite pass / all frames / 8.3 ms blur cap / 24px overscan"
+    },
+    {
+      "text": "GENERATIVE drives the idle: 120-fleck Perlin noise field (octaves 3, freq 0.004, time-speed 0.6, new seed each open) begins at frame 132 after text is confirmed settled; art plate breathes scale 1.0→1.02 over 360 frames ease-in-out sine — system is live, never baked.",
+      "where": "Frames 132+ / WebGL / 360-frame sine period / real-time"
+    },
+    {
+      "text": "KINETIC enforces the idle text lock: all type layers hold zero translate, zero scale delta, zero opacity flicker during idle — the Perlin field and scale-breathe are masked to never overlap the text bounding box.",
+      "where": "Idle / text bounding box masked / 0 px movement on type"
+    },
+    {
+      "text": "COMPOSITOR + GENERATIVE tilt response: gyro-X/Y (±30°) feed parallax uniforms — cut-outs ±18px X / ±10px Y, art plate ±6px X / ±4px Y (counter-direction), 6-frame exponential lag (tau=0.1 s); all layers carry the 8.3 ms blur pass so tilt motion looks photographed.",
+      "where": "Tilt / real-time / ±18px cut-outs / ±6px plate / 6-frame lag"
+    },
+    {
+      "text": "CINEMATIC interactive moment — glitter-ball sweep: on first tap, a WebGL Blinn-Phong specular streak (shininess 120, width 8px, gold #FFD700) travels 390px left-to-right over 48 frames linear, driven by a GENERATIVE sine driver (Math.sin(time*0.8)) so it never loops on the same frame; KINETIC approved because text is already settled before tap is possible.",
+      "where": "Interactive / tap-triggered / 48 frames linear / WebGL specular"
+    },
+    {
+      "text": "RSVP 'Yes' celebration — EXPLAINER checkmark morph (SVG path, 18 frames, cubic-bezier(0.42,0,0.58,1)) fires first so the action is confirmed, then ABSTRACT_LOOP disc squash (scale 1.0→1.22 overshoot at frame 24, settle 1.0 by frame 42), then CINEMATIC vignette lifts (0.25→0 opacity, 24 frames), then GENERATIVE gold particle burst from card centre — text 'You're in!' holds zero motion throughout.",
+      "where": "RSVP / frames 0–18 morph / 0–42 squash / 0–24 vignette / simultaneous burst"
+    },
+    {
+      "text": "COUNTERPOINT — SIGNAL (used once, not adopted): Signal argues the sweep should be a live feedback loop fed through a WebGL shader with honest signal bleed and drop-out; council rejects for this surface — a mid-range Android WebGL budget cannot sustain feedback recursion at 60 fps without frame drops, and a dropped frame on a phone evite breaks the occasion; the procedural sine-driven specular achieves honest imperfection within budget.",
+      "where": "Rejected / performance budget / mid-range Android 60 fps floor"
+    }
+  ],
+  "summary": "Aria's read: CINEMATIC leads because a party evite is a small theatre — the card must arrive, earn its scale, then reward the tap. The entrance is a single 97-frame arc (plate, cuts, headline, sub-lines in consequence order) that lands the full readable card before 1.62 s; COMPOSITOR locks the seam so every cut-out sits inside the plate with matched 8.3 ms blur and unified grain; GENERATIVE keeps the idle alive with a Perlin fleck field and a sine-breath that never repeat; KINETIC holds the text region sacred — nothing crosses it during idle; the interactive moment is a single WebGL specular sweep, procedural and tap-triggered, that earns the glitter-ball fantasy without a baked clip; RSVP confirmation is staged cause-then-effect (morph, squash, light lift, burst) so the action is understood before the celebration; reduced-motion collapses all translate and scale to a 12-frame opacity entrance, freezes the Perlin field and the disc rotation, drops the sweep to 20% opacity, and keeps the vignette lift — the card still feels lit, finished and occasion-worthy because material, light and black levels do the work that motion cannot.",
+  "grounded": true,
+  "source": "ai"
+}

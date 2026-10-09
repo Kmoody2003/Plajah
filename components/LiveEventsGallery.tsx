@@ -516,7 +516,7 @@ const EventCard: React.FC<{ event: LiveEvent; onOpen: (e: LiveEvent) => void; fe
 
 // ─── Event Detail Modal ────────────────────────────────────────────────────────
 
-const EventModal: React.FC<{ event: LiveEvent; onClose: () => void }> = ({ event, onClose }) => {
+const EventModal: React.FC<{ event: LiveEvent; onClose: () => void; onSelectEvent?: (eventId: string) => void }> = ({ event, onClose, onSelectEvent }) => {
   const soldPct = Math.round((event.soldCount / event.capacity) * 100);
   const catMeta = CATEGORY_META[event.category];
 

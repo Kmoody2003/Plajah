@@ -1,0 +1,162 @@
+{
+  "intro": "I took this to the room and brought in the Interface Motion Designer, the Pixel-Art Sprite Animator, the Stylised Game VFX Artist, the Constructivist Agitator from the studio roster. Here's where they agree, where they split, and what I'd do.",
+  "crew": [
+    "UI_MOTION",
+    "PIXEL_ART",
+    "GAME_VFX",
+    "CONSTRUCTIVIST"
+  ],
+  "proposals": [
+    {
+      "personaId": "KINETIC",
+      "headline": "Text earns its place in 1.5 s or it moves aside — every word lands on a beat subdivision, nothing faster than 18 frames of read-hold.",
+      "moves": [
+        {
+          "text": "Party-name headline slams in at frame 1 on a cubic-bezier(0.0,0.0,0.2,1.0) ease-out over 14 frames (233 ms), translating from y+40px to y+0, then holds a minimum 18-frame read-hold before any secondary element moves.",
+          "where": "frames 1–14 entrance / frames 14–32 hold / 60 fps, 9:16"
+        },
+        {
+          "text": "Date-time line fades and rises 12px on ease-out over 10 frames (167 ms) at frame 33, kerning expands from 0 to tracked value over the same 10 frames so letters never collide mid-arrival.",
+          "where": "frames 33–43 / cubic-bezier(0.0,0.0,0.2,1.0)"
+        },
+        {
+          "text": "Theme badge (dino / space / unicorn etc.) scales from 0.8 to 1.0 with a 6-frame overshoot to 1.04 then settles, giving playful arrival without obscuring the name still in read-hold.",
+          "where": "frames 45–57 / spring overshoot, stiffness 280, damping 22"
+        },
+        {
+          "text": "RSVP CTA fades in at frame 100 (1.67 s) — after the full 1.5 s read window closes — on a 12-frame ease-out fade, no translate, so the eye is not pulled from the card copy.",
+          "where": "frames 100–112 / opacity 0→1 / cubic-bezier(0.0,0.0,0.2,1.0)"
+        },
+        {
+          "text": "Idle loop: headline holds completely still; only sub-text breathes at ±0.4px vertical over 180 frames (3 s) on a linear sine so reading is never interrupted.",
+          "where": "loop frames 132–312 / linear / amplitude 0.4px"
+        }
+      ]
+    },
+    {
+      "personaId": "UI_MOTION",
+      "headline": "One spring constant governs every interactive moment so the phone feels alive and consistent — fast, interruptible, and reduced-motion-safe.",
+      "moves": [
+        {
+          "text": "Define the shared spring as stiffness 320, damping 28 (approx. 200 ms settle, slight overshoot) — used identically for tap-game targets bouncing in, scratch-reveal curl, parallax layer return, and RSVP celebration pop.",
+          "where": "all interactive moments / spring(320,28) / 60 fps floor on mid-range Android"
+        },
+        {
+          "text": "Tilt/pointer parallax: front cut-out layer moves ±6px x/±4px y, back plate moves ±2px x/±1px y, both driven by the same spring(320,28) so they lag naturally and snap back on pointer-leave without a fixed duration.",
+          "where": "idle + tilt / spring(320,28) / max displacement 6px at full device tilt"
+        },
+        {
+          "text": "Tap-game: each target spawns with a 6-frame spring-in from scale 0→1.08→1.0, is tappable immediately (no lock-out), and on hit collapses to scale 0 over 5 frames ease-in — interruptible at any frame.",
+          "where": "tap-game / spawn spring(320,28) / collapse cubic-bezier(0.4,0.0,1.0,1.0) 5 frames"
+        },
+        {
+          "text": "prefers-reduced-motion: replace all translates with opacity crossfades at identical durations; spring feel preserved via opacity-only spring (no movement), parallax disabled, tap-game targets fade in/out instead of scaling.",
+          "where": "reduced-motion branch / opacity only / same spring timing, zero displacement"
+        },
+        {
+          "text": "RSVP 'yes' celebration: confetti particles spawn at pointer position with spring(320,28) initial velocity burst, each particle lifespan 45 frames, so the burst feels physically launched not baked.",
+          "where": "celebration / spring(320,28) burst / 45-frame particle life / 60 fps"
+        }
+      ]
+    },
+    {
+      "personaId": "GAME_VFX",
+      "headline": "Every theme's interactive moment is a three-beat sentence — anticipation, impact, dissipation — readable in chaos on a 390px phone screen.",
+      "moves": [
+        {
+          "text": "Tap-game hit: 2-frame anticipation squish (scale x0.9 y1.1), 1-frame impact flash (white overlay opacity 0.6), 3-frame dissipation burst of 6 hand-painted sprite shards radiating outward 24px then fade — total 6 frames, under 100 ms.",
+          "where": "tap hit / frames: -2 anticipation, 0 impact, +1–3 dissipation / 60 fps"
+        },
+        {
+          "text": "Scratch-reveal: the foil mask erodes along pointer path using a shader-driven circle SDF expanding at 40px/frame; a 2-frame sparkle flipbook (4 frames, 12 fps sub-sampled) trails the finger at ±8px offset.",
+          "where": "scratch / SDF shader / 40px per frame erosion / 4-frame flipbook at 12 fps"
+        },
+        {
+          "text": "Theme-specific shape language baked into dissipation: dino = bone shards (angular), space = star points (5-point), unicorn = heart sparks (round), mermaid = scale arcs, circus = confetti rectangles, slime = blob droplets — all same timing, different silhouette.",
+          "where": "all themes / dissipation frames +1–3 / shape driven by theme token"
+        },
+        {
+          "text": "Impact hit-pause: freeze all background layers for exactly 2 frames on a successful tap, then resume — gives weight without breaking the 60 fps floor.",
+          "where": "tap hit / 2-frame hold / background layers only / frame 0–1 post-impact"
+        }
+      ]
+    },
+    {
+      "personaId": "PIXEL_ART",
+      "headline": "The theme character in the cut-out layer is a 6-frame sprite cycle at 12 fps — every pixel earns its place, integer-scaled to 390px, nearest-neighbour only.",
+      "moves": [
+        {
+          "text": "Idle character cycle: 6 key frames at 12 fps (5-frame hold each at 60 fps = frames held 5,5,5,5,5,5), strong silhouette change between frames 1 and 4 so the pose reads at a glance even at 48px sprite height.",
+          "where": "idle loop / 6 frames / 12 fps / 5-frame holds at 60 fps playback"
+        },
+        {
+          "text": "On tap-game hit near the character, play a 3-frame smear frame (stretched sprite 1.5x wide, 0.7x tall) for 1 frame at 60 fps then snap to impact pose — conveys speed without motion blur that breaks the pixel grid.",
+          "where": "tap hit / 1-frame smear / scale 1.5x 0.7x / nearest-neighbour / integer scale only"
+        },
+        {
+          "text": "Palette cycling: water (mermaid theme) and fire (circus theme) animated by cycling 3 palette entries through a 4-step hue shift every 5 frames at 60 fps — no new geometry, zero draw-call cost.",
+          "where": "mermaid + circus themes / palette cycle / 4 steps / every 5 frames / shader uniform"
+        }
+      ]
+    },
+    {
+      "personaId": "CINEMATIC",
+      "headline": "The entrance is a reveal, not a load — depth separates the world from the card, and the beat before the name lands is the moment that makes it feel like a gift.",
+      "moves": [
+        {
+          "text": "Entrance: plate and cut-outs start at z-depth 0 (flat), then over frames 1–24 the back plate scales 0.92→1.0 and front cut-out scales 1.08→1.0 on ease-out, creating a push-in parallax reveal that feels like opening a pop-up book.",
+          "where": "frames 1–24 / back plate cubic-bezier(0.0,0.0,0.2,1.0) scale 0.92→1.0 / front 1.08→1.0"
+        },
+        {
+          "text": "The beat-before: hold all layers at their scaled position for 6 frames (100 ms) before the headline text enters — this pause is the dramatic intake of breath that makes the name's arrival feel earned.",
+          "where": "frames 24–30 / full hold / no motion / 6 frames"
+        },
+        {
+          "text": "WebGL light layer: a soft specular highlight drifts across the foil cut-out in the idle loop, travelling 60px over 240 frames (4 s) on a linear path, 8.3 ms motion blur (half-frame, matching 180° shutter at 60 fps) so it reads as real reflected light.",
+          "where": "idle loop / 240-frame period / 60px travel / 8.3 ms blur / linear"
+        }
+      ]
+    }
+  ],
+  "tensions": [
+    "CONSTRUCTIVIST (not rostered as lead but filing a standing objection) argues the entrance should slam in on a diagonal at frame 1 with zero ease — 'a birthday is a declaration, not a gentle reveal' — while UI_MOTION insists a 14-frame ease-out entrance at spring(320,28) is the floor for mid-range Android not dropping frames and for not startling a child who just tapped open a link; KINETIC sides with UI_MOTION because a slam that outruns 8.3 ms natural blur at 60 fps reads as strobing, not energy.",
+    "PIXEL_ART demands nearest-neighbour integer scaling only for the sprite character, which conflicts with COMPOSITOR's requirement for sub-pixel motion blur (8.3 ms at 60 fps) on the cut-out layers — COMPOSITOR notes that applying the WebGL blur pass after the integer-scaled sprite composite preserves the pixel grid in the sprite while letting the layer as a whole sit in the scene with correct motion blur, resolving the conflict at the compositing stage."
+  ],
+  "plan": [
+    {
+      "text": "ENTRANCE (0–2.2 s): back plate scales 0.92→1.0 + front cut-out scales 1.08→1.0 on cubic-bezier(0.0,0.0,0.2,1.0) over frames 1–24 (400 ms), then a 6-frame dramatic hold (frames 24–30), then headline slams in y+40px→0 ease-out over frames 31–44 (233 ms) with 18-frame read-hold, then date line rises 12px ease-out frames 63–73, then theme badge spring-in scale 0.8→1.04→1.0 frames 75–87, then RSVP CTA fade frames 100–112 — card fully readable at frame 112 = 1.87 s, under 2.2 s ceiling.",
+      "where": "frames 1–112 / 60 fps / 9:16 / 390px"
+    },
+    {
+      "text": "IDLE LOOP: character sprite cycles 6 frames at 12 fps (5-frame holds), palette cycling on mermaid/circus every 5 frames; specular highlight drifts 60px over 240 frames linear; sub-text breathes ±0.4px over 180 frames linear sine; headline holds completely still; WebGL foil shimmer applies 8.3 ms blur matching 180° shutter reference.",
+      "where": "loop start frame 132 / linear / 240-frame period / 8.3 ms blur on WebGL layer"
+    },
+    {
+      "text": "TILT RESPONSE: front cut-out ±6px x / ±4px y, mid layer ±3px x / ±2px y, back plate ±2px x / ±1px y — all driven by spring(320,28) so layers lag and snap back without fixed duration; max displacement at full device tilt; WebGL light layer offset ±4px x tracking tilt for specular believability.",
+      "where": "pointer/tilt events / spring(320,28) / max 6px front / 2px back / continuous"
+    },
+    {
+      "text": "INTERACTIVE MOMENT (tap game or scratch-reveal, shared spring): tap-game targets spawn spring(320,28) scale 0→1.08→1.0 over 6 frames, hit triggers 2-frame anticipation squish + 1-frame impact flash (white overlay 0.6 opacity) + 2-frame hit-pause on background layers + 3-frame dissipation burst of theme-shaped shards radiating 24px; scratch-reveal uses SDF shader eroding foil mask at 40px/frame along pointer path with 4-frame sparkle flipbook trailer; both share spring(320,28) for all physics.",
+      "where": "tap hit: 6-frame spawn + 6-frame impact sequence / scratch: 40px/frame erosion / spring(320,28) universal"
+    },
+    {
+      "text": "RSVP YES CELEBRATION: on confirm-tap, confetti particles burst from pointer position with spring(320,28) initial velocity, 24 particles, each 45-frame lifespan, theme-shaped silhouettes (dino bones, stars, hearts, scales, rectangles, blobs), character sprite plays a 3-frame smear then a held cheer pose for 30 frames, headline scales 1.0→1.06→1.0 over 12 frames with spring overshoot — no baked clip, all driven by particle system.",
+      "where": "celebration / spring(320,28) / 45-frame particle life / 12-frame headline spring / 60 fps"
+    },
+    {
+      "text": "PREFERS-REDUCED-MOTION: all translates and scales replaced with opacity crossfades at identical frame durations (entrance: opacity 0→1 over same 14-frame windows); parallax disabled (layers locked); tap-game targets fade in/out opacity 0→1→0 over 6+5 frames; scratch-reveal opacity-erodes mask instead of SDF sweep; celebration fades confetti in then out over 45 frames, no position change; spring timing preserved in opacity domain so the feel is consistent.",
+      "where": "reduced-motion branch / opacity only / zero displacement / same frame counts / spring(320,28) opacity"
+    },
+    {
+      "text": "COMPOSITOR INTEGRATION: integer-scaled nearest-neighbour sprite composite first, then WebGL effects pass applies 8.3 ms motion blur (half-frame at 60 fps) to the full layer composite so pixel grid is preserved in the sprite while the cut-out layer sits in the scene with physically correct blur; grain structure matched to plate at 0.4 intensity; black levels unified across plate, cut-outs and WebGL layer before final output.",
+      "where": "WebGL pass / 8.3 ms blur / 0.4 grain / black-level unity / post sprite composite"
+    },
+    {
+      "text": "PERFORMANCE FLOOR (mid-range Android, 60 fps): all spring calculations run on the main thread as CSS custom property animations where possible; WebGL effects layer renders at 50% resolution then upscaled bilinear to 390px; particle system caps at 24 particles with object pooling; sprite palette cycle is a shader uniform swap, zero geometry cost; tap-game targets limited to 6 simultaneous on screen.",
+      "where": "runtime / CSS spring / WebGL at 195px internal / 24-particle cap / 6 targets max"
+    }
+  ],
+  "summary": "Aria's read: PIXEL_ART leads the character layer with frame economy and palette discipline; UI_MOTION's spring(320,28) is the single physics constant that unifies every interactive moment from tap-game to RSVP celebration to tilt response — no other spring, no fixed durations where a spring can do the work. The entrance is CINEMATIC's pop-up-book reveal (back plate in, front plate out, 6-frame breath, then KINETIC's headline on a read-timed ease-out), not a slam — because at 60 fps on a mid-range Android, 8.3 ms natural motion blur is the floor and a frame-1 impact strobes rather than energises. GAME_VFX's anticipation-impact-dissipation sentence (2+1+3 frames, 2-frame hit-pause) gives every tap its physical weight without a baked clip. The reduced-motion version is not a stripped-down fallback — it is a fully designed opacity-domain version of the same choreography, spring timing intact, zero displacement, finished on its own terms.",
+  "grounded": true,
+  "source": "ai"
+}

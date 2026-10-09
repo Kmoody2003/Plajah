@@ -45,6 +45,12 @@ const FullApp = React.lazy(loadFullApp);
 // shell — no App bundle, no Firebase, no auth/connectivity gates — so a photo opens immediately.
 const LocalMediaLaunch = React.lazy(() => import('./components/LocalMediaLaunch'));
 const reviewMatch = window.location.pathname.match(/^\/review\/([A-Za-z0-9_-]+)\/?$/);
+// Plajah Evites guest page /i/:id — account-free, its own light entry (no platform shell, no auth gate).
+const inviteMatch = window.location.pathname.match(/^\/i\/([a-z0-9]{6,14})\/?$/);
+const EviteGuestPage = React.lazy(() => import('./components/evite/EviteGuestPage'));
+// /pool/:id — an event's photo pool (v2), opened from an invitation, a QR code or the host's tools.
+const poolMatch = window.location.pathname.match(/^\/pool\/([A-Za-z0-9_-]{3,80})\/?$/);
+const EventPoolView = React.lazy(() => import('./components/eventPool/EventPoolView'));
 const reviewToken = new URLSearchParams(window.location.search).get('t') || '';
 
 // ── Force the whole app onto the discrete GPU (NVIDIA), not the integrated one ──
@@ -354,6 +360,23 @@ if (isProgramOut) {
     <ErrorBoundary>
         <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#08070C' }} />}>
           <UniversalLibraryLab />
+        </React.Suspense>
+      </ErrorBoundary>
+  );
+} else if (inviteMatch) {
+  // An invitation opened from a text, a QR code or a link preview. Guests never sign in here.
+  root.render(
+    <ErrorBoundary>
+        <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#0b0713' }} />}>
+          <EviteGuestPage id={inviteMatch[1]} />
+        </React.Suspense>
+      </ErrorBoundary>
+  );
+} else if (poolMatch) {
+  root.render(
+    <ErrorBoundary>
+        <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#0b0713' }} />}>
+          <EventPoolView poolId={poolMatch[1]} onBack={() => location.assign('/')} onRequestSignIn={() => location.assign('/')} />
         </React.Suspense>
       </ErrorBoundary>
   );

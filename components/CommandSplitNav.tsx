@@ -20,7 +20,7 @@ import {
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
   Briefcase, MapPin, TrendingUp, Ticket, Home, LayoutPanelTop, Megaphone,
   Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
-  ChevronRight, LogOut, Command, RotateCcw, X, Disc3, Grid3x3, Lightbulb,
+  ChevronRight, LogOut, Command, RotateCcw, X, Disc3, Grid3x3, Lightbulb, CalendarDays,
 } from 'lucide-react';
 import UniversalCommandResults from './UniversalCommandResults';
 
@@ -81,6 +81,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
   ]},
   { key: 'Community', icon: UsersRound, items: [
+    { id: 'EVENTS', label: 'Events', icon: CalendarDays },
     { id: 'CLUBS', label: 'Clubs', icon: Users },
     { id: 'CHAT', label: 'Chat', icon: MessageSquare },
     { id: 'DISCUSSION', label: 'Discussion', icon: MessageCircle },

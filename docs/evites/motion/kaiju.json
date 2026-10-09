@@ -1,0 +1,208 @@
+{
+  "intro": "I took this to the room and brought in the Simulation Technical Director, the Abstract 3D Loop Artist, the Feature CG Character Animator, the Clay Animator from the studio roster. Here's where they agree, where they split, and what I'd do.",
+  "crew": [
+    "SIM_TD",
+    "ABSTRACT_LOOP",
+    "FEATURE_CG",
+    "CLAY"
+  ],
+  "proposals": [
+    {
+      "personaId": "KINETIC",
+      "headline": "Text earns its place on the beat: readable within 1.5 s, hierarchy locked before mascots breathe.",
+      "moves": [
+        {
+          "text": "Event title fades + tracks up 12 px in 18 frames (0–0.3 s), ease-out cubic, 180° shutter at 60 fps = 8.3 ms blur on ascent; hold complete and still by frame 90 so readers have 1.2 s to absorb it before any idle motion begins.",
+          "where": "frames 0–18, ease-out cubic, 8.3 ms motion blur"
+        },
+        {
+          "text": "Date/time line enters at frame 54 (0.9 s), tracking up 8 px over 12 frames, ease-out cubic, staggered 36 frames after title so hierarchy reads in sequence — never simultaneous.",
+          "where": "frames 54–66, ease-out cubic, 8 px ascent"
+        },
+        {
+          "text": "RSVP CTA button pops at frame 96 (1.6 s) with a 4-frame overshoot scale (1.0 → 1.08 → 1.0), ease-out back, ensuring the card reads complete before any mascot idle loop begins at frame 132.",
+          "where": "frames 96–100, ease-out back, scale overshoot 1.08"
+        },
+        {
+          "text": "All type layers are frozen from frame 132 onward during idle — zero translation, zero scale drift — so parallax and mascot motion never compete with reading.",
+          "where": "frame 132+, static, no motion blur"
+        },
+        {
+          "text": "Reduced-motion: title and date appear at frame 0 at full opacity, no translation, no blur — finished card in 0 frames of animation, just a cross-dissolve over 12 frames at 60 fps.",
+          "where": "frames 0–12, opacity 0→1, no translate"
+        }
+      ]
+    },
+    {
+      "personaId": "FEATURE_CG",
+      "headline": "Chora and Reello enter with weight and personality — blocking in stepped keys, then splined arcs, asymmetric and alive.",
+      "moves": [
+        {
+          "text": "Chora drops in from top-off-screen, anticipation squash on frame 18 (scale Y 0.92, X 1.06), then freefall arc 19–42 frames landing at rest position with a 6-frame settle (ease-out quint into ease-in-out bounce), fins overlapping 8 frames behind body — 24 fps timing baked to 60 fps on 1.",
+          "where": "frames 18–48, ease-out quint + bounce, fin overlap +8 frames"
+        },
+        {
+          "text": "Reello slides in from screen-right at frame 30 on a shallow arc (12 px vertical dip at midpoint), 20-frame travel ease-out cubic, with a 3-frame anticipation lean-back before slide, and tail/fin secondary motion trailing 10 frames behind body stop.",
+          "where": "frames 27–50, ease-out cubic, arc dip 12 px, secondary +10 frames"
+        },
+        {
+          "text": "Both mascots hold a moving hold from frame 90 onward — micro breathing cycle: chest scale ±1.5% over 80 frames, ease-in-out sine, never a dead freeze, asymmetric so Chora peaks on frame 110, Reello on frame 130.",
+          "where": "frames 90+, ease-in-out sine, ±1.5% scale, 80-frame cycle"
+        },
+        {
+          "text": "Tap interaction: 4-frame anticipation squash (Y 0.88, X 1.1) then burst scale 1.0 → 1.6 over 8 frames ease-out expo, character punches past frame edge with arc trajectory, fins and face rig secondary motion trails 12 frames.",
+          "where": "tap frames 0–8, ease-out expo, scale 1.6, secondary +12 frames"
+        },
+        {
+          "text": "RSVP YES: both mascots jump simultaneously — 6-frame anticipation crouch, 10-frame leap to top of safe zone, 8-frame hold at apex with squash 1.1 Y, then 12-frame fall with ease-in quart landing bounce, confetti particles spawned on landing frame.",
+          "where": "frames 0–36 of celebration, ease-out quart up / ease-in quart down"
+        }
+      ]
+    },
+    {
+      "personaId": "GENERATIVE",
+      "headline": "Every particle, every fin spring, every parallax offset is a live rule — nothing baked, everything responding to pointer and audio.",
+      "moves": [
+        {
+          "text": "Spring-physics fins on both mascots are a real damped oscillator (stiffness k=180, damping c=22) evaluated per frame at 60 fps — on tap, inject a 40 px displacement impulse into the spring solver; the ring-down takes ~1.4 s and never plays identically twice.",
+          "where": "60 fps, spring k=180 c=22, impulse 40 px on tap"
+        },
+        {
+          "text": "WebGL foil layer is a live shader: UV offset driven by pointer XY (mapped ±20 px → ±0.04 UV), updated every frame — no baked texture, iridescence shifts in real time with device tilt via DeviceOrientation API (β mapped to hue rotation 0–30°).",
+          "where": "per-frame WebGL, ±0.04 UV, hue 0–30° on tilt"
+        },
+        {
+          "text": "Idle particle field (kaiju breath mist) is a GPU particle system: 200 particles, lifetime 90–150 frames randomised per particle, velocity noise field (simplex, scale 0.8, speed 0.4 px/frame), opacity 0.0–0.18 — system re-seeds on each card open, never the same cloud.",
+          "where": "200 particles, 90–150 frame lifetime, simplex noise v=0.4 px/frame"
+        },
+        {
+          "text": "Tap burst spawns a radial particle ring: 60 particles emitted in 1 frame, radial velocity 8–14 px/frame randomised, lifetime 30–50 frames, ease-in quad opacity exit — rule-based, seeded from tap timestamp so no two bursts are identical.",
+          "where": "60 particles, 1 frame emit, v 8–14 px/frame, lifetime 30–50 frames"
+        },
+        {
+          "text": "Reduced-motion: spring solver still runs (fin physics stays live) but displacement impulse cap drops to 4 px and particle count drops to 0 — the system is alive but invisible to motion-sensitive users.",
+          "where": "spring cap 4 px, particles 0, solver still evaluates at 60 fps"
+        }
+      ]
+    },
+    {
+      "personaId": "COMPOSITOR",
+      "headline": "The WebGL layer and cut-outs must sit inside the phone's ambient light — light-wrap, matched grain, and black levels that don't float.",
+      "moves": [
+        {
+          "text": "Art plate grain: sample the JPEG compression noise of a mid-range Android screen render (approx. 0.8% luminance noise at ISO-equivalent 400) and match it on the WebGL layer via a screen-space grain shader — grain scale 1.2 px, strength 0.012, animated at 60 fps with a new seed per frame so it reads as sensor noise not a filter.",
+          "where": "grain shader, 1.2 px, strength 0.012, per-frame seed"
+        },
+        {
+          "text": "Cut-out edges get a 1.5 px feathered light-wrap: sample the art plate within 8 px of each cut-out alpha edge, blur 4 px, blend mode Add at 0.22 opacity — applied in WebGL so it updates with parallax offset every frame.",
+          "where": "8 px sample radius, 4 px blur, Add 0.22, per-frame"
+        },
+        {
+          "text": "Black point lock: all layers clamp their minimum luminance to 0.04 (10-bit: ~41/1023) matching the art plate's crushed blacks — no floating CG blacks that read as lifted against the plate.",
+          "where": "min luminance 0.04, applied in fragment shader"
+        },
+        {
+          "text": "Motion blur on mascots during entrance: 180° shutter at 60 fps = 8.3 ms — rendered as a 3-sample velocity-stretched sprite blur (weights 0.25, 0.5, 0.25) along the arc direction, disabled once mascots reach rest at frame 90.",
+          "where": "frames 0–90, 3-sample blur, 8.3 ms window, arc-direction"
+        },
+        {
+          "text": "Tap burst: the burst particles inherit the art plate's colour temperature (sample 5×5 px region under tap point, shift particle hue ±8° toward sampled value) so the burst feels like it belongs to the plate rather than floating above it.",
+          "where": "per-tap, 5×5 px sample, ±8° hue shift on particles"
+        }
+      ]
+    },
+    {
+      "personaId": "CINEMATIC",
+      "headline": "The entrance is a reveal — depth builds from plate to mascots to text, camera choreography earns the scale of a kaiju on a phone.",
+      "moves": [
+        {
+          "text": "Art plate enters at z=0, Chora and Reello parallax layers start 24 px below final rest and drift up to 0 over 36 frames ease-out cubic — depth is established before text appears, so the card feels like a stage being set.",
+          "where": "frames 0–36, ease-out cubic, 24 px z-parallax drift"
+        },
+        {
+          "text": "A 2-frame held black frame before frame 0 acts as a beat-pause — the reveal begins from silence, giving the entrance scale it would not have if it just appeared.",
+          "where": "frames -2 to 0, hold black, 2 frames"
+        },
+        {
+          "text": "Idle: the entire parallax stack breathes on a slow sinusoidal camera drift — ±3 px X, ±2 px Y over 240 frames (4 s), ease-in-out sine — giving the card a sense of living depth without motion that competes with reading.",
+          "where": "240-frame cycle, ±3 px X / ±2 px Y, ease-in-out sine"
+        },
+        {
+          "text": "Tap burst: the mascot's layer z-scales from 1.0 to 1.6 (8 frames ease-out expo) while the art plate counter-scales 1.0 to 0.97 (same 8 frames) — the push-pull of depth layers makes the burst feel like it punches through the screen plane.",
+          "where": "tap frames 0–8, mascot z-scale 1.6, plate counter-scale 0.97"
+        },
+        {
+          "text": "RSVP YES: a radial vignette pulses from 0.0 to 0.35 opacity over 12 frames then decays over 24 frames (ease-out cubic) — the screen darkens at the edges so the celebrating mascots hold centre stage at peak joy.",
+          "where": "celebration frames 0–36, vignette 0→0.35→0, ease-out cubic"
+        }
+      ]
+    },
+    {
+      "personaId": "SIM_TD",
+      "headline": "Spring fins and burst particles are real solvers — set up the physics truthfully, art-direct the seeds, repeat with new values.",
+      "moves": [
+        {
+          "text": "Fin spring solver: Verlet integration at 60 fps, stiffness 180 N/m, damping ratio 0.35 (underdamped for visible ring-down), fin tip mass 0.04 kg — on entrance landing, inject 35 px/frame velocity; ring-down to <1 px amplitude in ~1.3 s (78 frames), art-directed by adjusting damping per character (Chora 0.35, Reello 0.28 for personality difference).",
+          "where": "Verlet 60 fps, k=180, damping Chora 0.35 / Reello 0.28, 78-frame ring-down"
+        },
+        {
+          "text": "Kaiju breath particle sim: simplex noise velocity field (octaves 2, persistence 0.5, lacunarity 2.0, time scroll 0.003/frame), particles advected through field, gravity 0.04 px/frame², emit rate 2/frame from mouth position — scale is calibrated so particles travel 60–90 px over lifetime, matching a breath plume at kaiju scale.",
+          "where": "2 particles/frame, simplex 2-oct, gravity 0.04 px/frame², 60–90 px travel"
+        },
+        {
+          "text": "Tap burst rigid impulse: 60 particles emitted at tap point, initial velocity sampled from a cone ±25° around outward normal, speed 10–16 px/frame (uniform random), drag coefficient 0.04/frame, gravity 0.06 px/frame² — particles arc outward and fall, never floating.",
+          "where": "60 particles, cone ±25°, drag 0.04, gravity 0.06 px/frame²"
+        },
+        {
+          "text": "Face rig secondary on tap: jaw and brow controls driven by a secondary spring (k=90, damping 0.45) with a 6-frame delay relative to body — the face reacts after the body, not with it, giving the impression of a creature surprised by its own burst.",
+          "where": "k=90, damping 0.45, 6-frame delay from body"
+        },
+        {
+          "text": "All sims are seeded from a hash of the invite URL so every recipient sees the same physics run, but a re-open with a different URL seed gives a fresh sim — reproducible art direction, not a baked clip.",
+          "where": "seed = hash(URL), deterministic per invite, re-seeded on new URL"
+        }
+      ]
+    }
+  ],
+  "tensions": [
+    "FEATURE_CG insists the tap burst needs a 4-frame anticipation squash before the scale-up so the mascot telegraphs intent and reads as a living creature making a choice — SIM_TD argues that injecting the spring impulse on the tap frame with zero anticipation is more physically honest and more surprising, because a real creature startled by a touch does not pre-wind; the anticipation should come from the spring ring-down after the burst, not before it.",
+    "GENERATIVE demands the foil WebGL shader update every frame from live pointer data with no baked fallback — COMPOSITOR counters that on a mid-range Android at the 60 fps floor, a per-frame full-screen fragment shader plus particle system plus parallax will drop frames, and a 4-frame throttled shader update (15 fps effective for the foil, invisible to the eye given its slow iridescence drift) is the correct compositing choice to protect the 60 fps mascot animation budget."
+  ],
+  "plan": [
+    {
+      "text": "LEAD: FEATURE_CG — entrance, idle, and tap burst are directed as character performance: stepped keys first, then splined arcs, asymmetric mascot timing, moving holds, and face-rig secondary motion on all interactions.",
+      "where": "all sections, 60 fps on 1, ease-out quint entrance / ease-in-out sine idle"
+    },
+    {
+      "text": "2-frame held black before frame 0 (CINEMATIC beat-pause), then art plate and parallax cut-outs drift up 24 px over frames 0–36 ease-out cubic, establishing depth before text or mascots appear.",
+      "where": "frames -2 to 36, ease-out cubic, 24 px depth drift"
+    },
+    {
+      "text": "Chora enters frames 18–48 (top-to-rest arc, anticipation squash frame 18 Y 0.92/X 1.06, ease-out quint landing, 6-frame settle bounce, fin spring k=180 damping 0.35 ring-down 78 frames); Reello enters frames 27–50 (side-slide arc dip 12 px, ease-out cubic, tail secondary +10 frames); both reach moving-hold breathe cycle by frame 90.",
+      "where": "frames 18–90, Chora ease-out quint, Reello ease-out cubic, spring ring-down to frame 168"
+    },
+    {
+      "text": "Title text enters frames 0–18 tracking up 12 px ease-out cubic 8.3 ms motion blur; date line enters frames 54–66 tracking up 8 px ease-out cubic; RSVP button pops frames 96–100 scale overshoot 1.08 ease-out back — full readable card locked by frame 90, text frozen from frame 132.",
+      "where": "frames 0–132, ease-out cubic / ease-out back, 8.3 ms blur on text ascent"
+    },
+    {
+      "text": "Idle loop from frame 132: parallax stack breathes ±3 px X / ±2 px Y over 240-frame sine cycle; mascot breathing scale ±1.5% 80-frame asymmetric sine; fin spring at rest (sub-1 px ambient noise from simplex field); 200-particle breath mist, 2/frame emit, simplex noise advection, opacity max 0.18 — all generative/procedural, no baked clip.",
+      "where": "frame 132+, 240-frame parallax cycle, 80-frame breathe cycle, 200 particles"
+    },
+    {
+      "text": "Tilt/pointer response (COUNTERPOINT from COMPOSITOR resolving the tension with GENERATIVE): foil WebGL shader updates at 15 fps effective (every 4 frames) — UV offset ±0.04 per pointer XY, hue rotation 0–30° per device β — saving GPU budget for mascot spring sim and particles at full 60 fps; cut-out parallax layers offset ±8 px X / ±5 px Y at full 60 fps via CSS transform (GPU-composited, zero shader cost).",
+      "where": "foil 15 fps effective, parallax CSS 60 fps, ±8 px X / ±5 px Y"
+    },
+    {
+      "text": "Tap interaction: on tap, inject 35 px/frame spring impulse into tapped mascot's fin solver (k=180, damping per character); body burst scale 1.0→1.6 in 8 frames ease-out expo (FEATURE_CG: 4-frame anticipation squash Y 0.88/X 1.1 retained as a compromise — 2 frames pre-squash + 2 frames hold — short enough not to feel mechanical, long enough to telegraph); face rig secondary delayed 6 frames; 60 burst particles cone ±25° speed 10–16 px/frame drag 0.04 gravity 0.06; plate counter-scales 0.97 over 8 frames; light-wrap edges update per frame.",
+      "where": "tap frames 0–8 burst, secondary frames 6–18, particle lifetime 30–50 frames"
+    },
+    {
+      "text": "RSVP YES celebration: both mascots 6-frame crouch anticipation, 10-frame leap ease-out quart, 8-frame apex hold scale Y 1.1, 12-frame fall ease-in quart with landing bounce; radial vignette 0→0.35→0 over 36 frames; confetti particle burst 120 particles on landing frame, radial + gravity, lifetime 60–90 frames ease-in quad opacity exit; prefers-reduced-motion version: title and date at frame 0 full opacity no translate, spring solver runs with 4 px cap, particles 0, foil shader active at 15 fps — finished card in 12-frame cross-dissolve, no kinetic text, no burst, celebration is a single scale pulse 1.0→1.04→1.0 on the RSVP button over 18 frames ease-in-out sine.",
+      "where": "celebration frames 0–36 full; reduced-motion: 0–12 dissolve, button pulse 18 frames ease-in-out sine"
+    }
+  ],
+  "summary": "The card is directed as a FEATURE_CG character performance — Chora and Reello have weight, arcs, asymmetric timing, and faces that react after their bodies — with SIM_TD's spring solver running the fins honestly (Verlet, k=180, damping tuned per character) so the ring-down is physics, not a keyframe. CINEMATIC's 2-frame black beat and 24 px depth drift set the stage before text or mascots appear. KINETIC locks readable hierarchy by frame 90 and freezes all type from frame 132, so the idle never competes with reading. COMPOSITOR resolves the GPU tension with GENERATIVE by throttling the foil shader to 15 fps effective while keeping mascot physics and CSS parallax at full 60 fps — the seam stays invisible because iridescence drifts slowly enough that 15 fps is imperceptible. The tap burst retains a compressed 2-frame anticipation squash as a compromise between FEATURE_CG's performance instinct and SIM_TD's physical honesty, then the spring impulse and particle cone take over with deterministic seeds so every recipient's invite is reproducible but no two burst animations are identical. The prefers-reduced-motion version is not a stripped stub — it is a finished card: cross-dissolve entrance, live spring solver at 4 px cap, foil shader active, and a single button pulse for the celebration — motion-sensitive users get a complete artefact, not an apology.",
+  "grounded": true,
+  "source": "ai"
+}
