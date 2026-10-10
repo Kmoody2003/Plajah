@@ -15,11 +15,13 @@ const KaijuStage2D = React.lazy(() => import('./stage2d/KaijuStage2D'));
 import type { KaijuStyle } from './kaijuAudio';
 
 export const KAIJU_PRESETS: { name: string; style: KaijuStyle | 'auto'; clips?: boolean; stage3d?: boolean; stage2d?: boolean }[] = [
-  { name: 'Kaiju Party (Auto)', style: 'auto' },
-  { name: 'Meditation Float', style: 'zen' },
-  { name: 'EDM Rave', style: 'edm' },
-  { name: 'Rock Headbang', style: 'rock' },
-  { name: 'Ballet & Cinema', style: 'ballet' },
+  // The five style presets run on the 2D DIRECTOR stage (camera director, light-up floor, props that follow the energy,
+  // mocap dances, expressions). The old SVG-node KaijuDanceStage is only used for the Clips preset.
+  { name: 'Kaiju Party (Auto)', style: 'auto', stage2d: true },
+  { name: 'Meditation Float', style: 'zen', stage2d: true },
+  { name: 'EDM Rave', style: 'edm', stage2d: true },
+  { name: 'Rock Headbang', style: 'rock', stage2d: true },
+  { name: 'Ballet & Cinema', style: 'ballet', stage2d: true },
   { name: 'Kaiju Music Video (Clips)', style: 'auto', clips: true },
   { name: 'Kaiju Disco 2D (Lorik & Lumi)', style: 'auto', stage2d: true },
   { name: 'Kaiju Disco 3D (Chora & Reello)', style: 'auto', stage3d: true },
