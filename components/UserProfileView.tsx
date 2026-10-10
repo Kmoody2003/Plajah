@@ -830,16 +830,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           <ArrowLeft size={isMobile ? 18 : 20} />
         </button>
 
-        {/* Rooms on accounts: own profile → Start a Room; others' profile → Join if they're live */}
-        {isOwnProfile ? (
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
-            className={`absolute ${isMobile ? 'top-3 right-3' : 'top-6 right-6'} flex items-center gap-2 px-3 lg:px-4 py-2 lg:py-2.5 bg-[#FF8C00] text-black rounded-full hover:brightness-110 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl`}
-            style={{ zIndex: 30 }}
-          >
-            <span className="w-2 h-2 rounded-full bg-[#e23b3b] animate-pulse" /> Start a Room
-          </button>
-        ) : hostLiveRoom ? (
+        {/* Rooms on accounts: others' profile → Join if they're live (own profile: Start a Room sits in the action row below) */}
+        {!isOwnProfile && hostLiveRoom ? (
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-room', { detail: { roomId: hostLiveRoom.id } }))}
             title={hostLiveRoom.title}
@@ -850,11 +842,6 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             <span className="truncate">Live · Join Room</span>
           </button>
         ) : null}
-        {isOwnProfile && (
-          <div className={`absolute ${isMobile ? 'top-14 right-3' : 'top-[4.5rem] right-6'}`} style={{ zIndex: 30 }}>
-            <CreateEventButton compact host={{ kind: 'user' }} />
-          </div>
-        )}
       </div>
 
       {/* Profile Info — floats up over the bleed zone */}
@@ -1133,6 +1120,13 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     isOwnProfile={true}
                     onOpenLanding={() => setShowPlajahPlusLanding(true)}
                   />
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
+                    className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-[#FF8C00] px-4 text-[10px] font-black uppercase tracking-widest text-black transition-all hover:brightness-110"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-[#e23b3b] animate-pulse" /> Start a Room
+                  </button>
+                  <CreateEventButton host={{ kind: 'user' }} className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] px-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:brightness-110" />
                   {(profile.xUrl || profile.xHandle) && (
                     <button
                       onClick={() => { setFeedInitialType('X_FEED'); setFeedKey(k => k + 1); setActiveTab('FEED'); }}
