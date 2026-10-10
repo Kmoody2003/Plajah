@@ -97,33 +97,32 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
     else if (x > 0.67) go(rtl ? -1 : 1);
   };
 
-  const Btn: React.FC<{ on?: boolean; onClick: () => void; title: string; children: React.ReactNode }> = ({ on, onClick, title, children }) => (
-    <button onClick={onClick} title={title} className={`p-2.5 rounded-lg transition-colors ${on ? 'bg-small-orange text-black' : 'text-white/50 hover:text-white hover:bg-white/10'}`}>{children}</button>
+  const Btn: React.FC<{ on?: boolean; onClick: () => void; title: string; children: React.ReactNode; hide?: string }> = ({ on, onClick, title, children, hide }) => (
+    <button onClick={onClick} title={title} className={`${hide ?? ''} p-2.5 rounded-lg transition-colors ${on ? 'bg-small-orange text-black' : 'text-white/50 hover:text-white hover:bg-white/10'}`}>{children}</button>
   );
 
   return (
     <div className="flex flex-col h-full w-full">
       {/* Reader toolbar */}
-      <div className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-2xl bg-black/40 border border-white/8 mb-3 self-center backdrop-blur-md">
+      <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-2xl bg-black/40 border border-white/8 mb-2 self-center backdrop-blur-md max-w-full overflow-x-auto no-scrollbar">
         <Btn on={mode === 'page'} onClick={() => setMode('page')} title="Single page"><Square size={15} /></Btn>
-        <Btn on={mode === 'spread'} onClick={() => setMode('spread')} title="Two-page spread"><BookOpen size={15} /></Btn>
-        <Btn on={mode === 'webtoon'} onClick={() => setMode('webtoon')} title="Webtoon (vertical scroll)"><Rows3 size={15} /></Btn>
+        <Btn hide={liveBar ? 'max-sm:hidden' : undefined} on={mode === 'spread'} onClick={() => setMode('spread')} title="Two-page spread"><BookOpen size={15} /></Btn>
+        <Btn hide={liveBar ? 'max-sm:hidden' : undefined} on={mode === 'webtoon'} onClick={() => setMode('webtoon')} title="Webtoon (vertical scroll)"><Rows3 size={15} /></Btn>
         <span className="w-px h-4 bg-white/10 mx-1" />
-        {mode !== 'webtoon' && <>
+        {mode !== 'webtoon' && <span className={`flex items-center gap-1 ${liveBar ? 'max-sm:hidden' : ''}`}>
           <Btn on={fit === 'height'} onClick={() => setFit('height')} title="Fit height"><Maximize2 size={15} /></Btn>
           <Btn on={fit === 'width'} onClick={() => setFit('width')} title="Fit width"><ArrowLeftRight size={15} /></Btn>
           <Btn onClick={() => setZoom(z => Math.max(1, +(z - 0.25).toFixed(2)))} title="Zoom out"><ZoomOut size={15} /></Btn>
           <span className="text-[10px] text-white/40 w-9 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
           <Btn onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))} title="Zoom in"><ZoomIn size={15} /></Btn>
           <span className="w-px h-4 bg-white/10 mx-1" />
-        </>}
+        </span>}
         {mode !== 'webtoon' && <Btn on={showAnim} onClick={() => setShowAnim(v => !v)} title="Page animation"><Settings2 size={15} /></Btn>}
-        <Btn on={rtl} onClick={() => setRtl(v => !v)} title="Manga reading direction (right-to-left)">
+        <Btn hide={liveBar ? 'max-sm:hidden' : undefined} on={rtl} onClick={() => setRtl(v => !v)} title="Manga reading direction (right-to-left)">
           <span className="text-[9px] font-black uppercase tracking-widest px-1">{rtl ? 'RTL' : 'LTR'}</span>
         </Btn>
+        {liveBar && <><span className="w-px h-4 bg-white/10 mx-1 shrink-0" />{liveBar}</>}
       </div>
-
-      {liveBar}
 
       {/* Reading area */}
       {mode === 'webtoon' ? (

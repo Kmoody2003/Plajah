@@ -65,5 +65,5 @@ export function useLivingPictureBook(album: Album, bundle: BookTelaBundle | null
   }, [on, doc, living, audio, lp.reduced, lp.soundOn, lp.narrate, lp.hints, album.id, goTo]);
 
   if (!on) return null;
-  return { livePage, bar: <LivingReaderBar flat prefs={lp} onReplay={() => liveRef.current?.replay()} onReadNow={() => liveRef.current?.narrate()} /> };
+  return { livePage, bar: <LivingReaderBar compact prefs={lp} onReplay={() => liveRef.current?.replay()} onReadNow={() => liveRef.current?.narrate()} /> };
 }

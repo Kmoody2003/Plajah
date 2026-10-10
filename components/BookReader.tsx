@@ -1708,7 +1708,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
           <div className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize group" onClick={(e) => { e.stopPropagation(); (dirForTapSide('left', readerRtl) === 1 ? nextPage : prevPage)(); }}>
             {!sideArrowHidden('left') && (
               <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <span className="pj-side-arrow flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl ring-1 ring-white/25 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition" style={{ background: 'var(--pj-grad-warm)' }}>
+                <span className="pj-side-arrow flex h-14 w-14 max-sm:h-10 max-sm:w-10 items-center justify-center rounded-full text-white shadow-xl ring-1 ring-white/25 opacity-80 max-sm:opacity-65 group-hover:opacity-100 group-hover:scale-110 transition" style={{ background: 'var(--pj-grad-warm)' }}>
                   <ChevronLeft size={34} strokeWidth={3} />
                 </span>
               </div>
@@ -1717,7 +1717,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
           <div className="absolute inset-y-0 right-0 w-1/4 cursor-e-resize group" onClick={(e) => { e.stopPropagation(); (dirForTapSide('right', readerRtl) === 1 ? nextPage : prevPage)(); }}>
             {!sideArrowHidden('right') && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <span className="pj-side-arrow flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl ring-1 ring-white/25 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition" style={{ background: 'var(--pj-grad-warm)' }}>
+                <span className="pj-side-arrow flex h-14 w-14 max-sm:h-10 max-sm:w-10 items-center justify-center rounded-full text-white shadow-xl ring-1 ring-white/25 opacity-80 max-sm:opacity-65 group-hover:opacity-100 group-hover:scale-110 transition" style={{ background: 'var(--pj-grad-warm)' }}>
                   <ChevronRight size={34} strokeWidth={3} />
                 </span>
               </div>

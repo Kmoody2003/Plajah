@@ -58,9 +58,39 @@ export function useLivingPrefs(defaults?: { narrate?: NarrateMode }): LivingPref
 
 const btn = 'h-11 min-w-[44px] px-3 rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap';
 
-export function LivingReaderBar({ prefs, onReplay, onReadNow, canNarrate = true, flat = false }: { prefs: LivingPrefs; onReplay: () => void; onReadNow: () => void; canNarrate?: boolean; /** Sit inside another reader's shell (a rounded bar in the flow) instead of sticking under a Tela reader's header. */ flat?: boolean }) {
+export function LivingReaderBar({ prefs, onReplay, onReadNow, canNarrate = true, flat = false, compact = false }: { prefs: LivingPrefs; onReplay: () => void; onReadNow: () => void; canNarrate?: boolean; /** Sit inside another reader's shell (a rounded bar in the flow) instead of sticking under a Tela reader's header. */ flat?: boolean; /** Icon-only buttons with no frame of their own, to sit inside another reader's toolbar row. */ compact?: boolean }) {
   const soundLabel = prefs.soundOn ? 'Sound on' : prefs.soundPref === 'off' ? 'Sound off' : prefs.gesture ? 'Sound off' : 'Sound: tap to start';
   const motion = prefs.reducedPref === 'system' ? `Motion: system${prefs.reduced ? ' (reduced)' : ''}` : prefs.reducedPref === 'on' ? 'Reduced motion: on' : 'Reduced motion: off';
+  if (compact) {
+    const cb = (on: boolean) => `h-10 w-10 shrink-0 rounded-lg flex items-center justify-center transition-colors ${on ? 'bg-small-orange text-black' : 'text-white/60 hover:text-white hover:bg-white/10'}`;
+    const next: NarrateMode = prefs.narrate === 'off' ? 'on-demand' : prefs.narrate === 'on-demand' ? 'auto' : 'off';
+    const narrLabel = prefs.narrate === 'off' ? 'Read to me: off' : prefs.narrate === 'on-demand' ? 'Read to me: on request' : 'Read to me: auto';
+    return (
+      <div role="toolbar" aria-label="Living page controls" data-living-bar className="flex items-center gap-0.5 shrink-0">
+        <button type="button" onClick={prefs.toggleSound} aria-pressed={prefs.soundOn} aria-label={soundLabel} title={soundLabel} className={cb(prefs.soundOn)}>
+          {prefs.soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        </button>
+        {canNarrate && (
+          <button type="button" onClick={() => prefs.setNarrate(next)} aria-label={`${narrLabel} (tap to change)`} title={`${narrLabel} (tap to change)`} className={`${cb(prefs.narrate !== 'off')} relative`}>
+            <Headphones size={16} />
+            {prefs.narrate === 'auto' && <span className="absolute -top-0.5 -right-0.5 text-[8px] font-black leading-none bg-black text-white rounded px-0.5">A</span>}
+          </button>
+        )}
+        {canNarrate && prefs.narrate !== 'off' && (
+          <button type="button" onClick={onReadNow} disabled={!prefs.soundOn} aria-label="Read this page aloud" title={prefs.soundOn ? 'Read this page aloud' : 'Turn sound on to hear the story'} className={`${cb(false)} disabled:opacity-30`}>
+            <span className="text-[10px] font-black uppercase tracking-wider">Read</span>
+          </button>
+        )}
+        <button type="button" onClick={prefs.cycleReduced} aria-label={motion} title={`${motion} (tap to change)`} className={cb(prefs.reducedPref === 'on')}>
+          {prefs.reduced ? <Ban size={16} /> : <Sparkles size={16} />}
+        </button>
+        <button type="button" onClick={prefs.toggleHints} aria-pressed={prefs.hints} aria-label={prefs.hints ? 'Hints on' : 'Hints off'} title={prefs.hints ? 'Hints on' : 'Hints off'} className={cb(prefs.hints)}>
+          <Hand size={16} />
+        </button>
+        <button type="button" onClick={onReplay} aria-label="Play this page again" title="Play this page again" className={cb(false)}><RotateCcw size={16} /></button>
+      </div>
+    );
+  }
   return (
     <div role="toolbar" aria-label="Living page controls" data-living-bar className={flat ? 'shrink-0 flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 mb-3 self-center rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md' : 'sticky top-[60px] z-10 flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 bg-[#0A0A0A]/90 backdrop-blur border-b border-white/10'}>
       <button type="button" onClick={prefs.toggleSound} aria-pressed={prefs.soundOn} aria-label={soundLabel} className={`${btn} ${prefs.soundOn ? 'bg-amber-400 text-black' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}>
