@@ -117,7 +117,7 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
           <Btn onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))} title="Zoom in"><ZoomIn size={15} /></Btn>
           <span className="w-px h-4 bg-white/10 mx-1" />
         </span>}
-        {mode !== 'webtoon' && <Btn on={showAnim} onClick={() => setShowAnim(v => !v)} title="Page animation"><Settings2 size={15} /></Btn>}
+        {mode !== 'webtoon' && !hideScrubber && <Btn on={showAnim} onClick={() => setShowAnim(v => !v)} title="Page animation"><Settings2 size={15} /></Btn>}
         <Btn hide={liveBar ? 'max-sm:hidden' : undefined} on={rtl} onClick={() => setRtl(v => !v)} title="Manga reading direction (right-to-left)">
           <span className="text-[9px] font-black uppercase tracking-widest px-1">{rtl ? 'RTL' : 'LTR'}</span>
         </Btn>

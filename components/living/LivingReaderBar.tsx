@@ -1,6 +1,6 @@
 // Reader controls for living pages: Sound, Read-to-me, Reduced motion, Play again. Choices are remembered (localStorage, guarded).
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Headphones, RotateCcw, Volume2, VolumeX, Sparkles, Ban, Hand, Play } from 'lucide-react';
+import { Headphones, RotateCcw, Volume2, VolumeX, Sparkles, Ban, Hand, Play, BookOpen, Music2 } from 'lucide-react';
 
 export type NarrateMode = 'off' | 'on-demand' | 'auto';
 type SoundPref = 'on' | 'off' | null;
@@ -68,17 +68,17 @@ export function LivingReaderBar({ prefs, onReplay, onReadNow, canNarrate = true,
     return (
       <div role="toolbar" aria-label="Living page controls" data-living-bar className="flex items-center gap-1.5 shrink-0">
         <button type="button" onClick={prefs.toggleSound} aria-pressed={prefs.soundOn} aria-label={soundLabel} title={soundLabel} className={cb(prefs.soundOn)}>
-          {prefs.soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          {prefs.soundOn ? <Music2 size={16} /> : <Play size={16} fill="currentColor" />}
         </button>
         {canNarrate && (
           <button type="button" onClick={() => prefs.setNarrate(next)} aria-label={`${narrLabel} (tap to change)`} title={`${narrLabel} (tap to change)`} className={`${cb(prefs.narrate !== 'off')} relative`}>
-            <Headphones size={16} />
+            <Volume2 size={16} />
             {prefs.narrate === 'auto' && <span className="absolute -top-0.5 -right-0.5 text-[8px] font-black leading-none bg-black text-white rounded px-0.5">A</span>}
           </button>
         )}
         {canNarrate && prefs.narrate !== 'off' && (
           <button type="button" onClick={onReadNow} disabled={!prefs.soundOn} aria-label="Read this page aloud" title={prefs.soundOn ? 'Read this page aloud' : 'Turn sound on to hear the story'} className="ml-1.5 h-10 shrink-0 rounded-lg px-2.5 sm:px-3 flex items-center justify-center gap-1.5 text-white/80 border border-white/15 hover:bg-white/10 disabled:opacity-30">
-            <Play size={13} fill="currentColor" /><span className="max-sm:hidden text-[10px] font-black uppercase tracking-wider">Read page</span>
+            <BookOpen size={14} /><span className="max-sm:hidden text-[10px] font-black uppercase tracking-wider">Read page</span>
           </button>
         )}
         <button type="button" onClick={prefs.cycleReduced} aria-label={motion} title={`${motion} (tap to change)`} className={cb(prefs.reducedPref === 'on')}>

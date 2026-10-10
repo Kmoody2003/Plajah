@@ -51,3 +51,10 @@ Every page also has quiet **idle life** (breathing, blinking, twinkling, driftin
 - Export to PDF/EPUB: pages look exactly like today; the fidelity report lists what the export dropped.
 - Performance: pages stay near 60 fps on a mid phone-class budget (transform/opacity only; idle pages sleep); no sound until a gesture.
 - Nothing is verified "on device" until it actually is: be explicit.
+
+## Later: Read aloud -> Plajah Academia Voca (noted 2026-10-10, not built)
+The reader's "Read page" button should hand the page's story to **Plajah Academia Voca** (the read-aloud / fluency tech) instead of only playing the narrator:
+the child performs the page, Voca scores it, and the performance is added to the student's **Education Ledger / records**.
+- A student account: the performance goes to their ledger as usual (see the Education Ledger and Homeroom + Voca notes in memory).
+- Anyone not a student: it still works, and the performance is added automatically to that user's Academia activity, shown under **Continue learning**.
+- Integration into Lorea (the BookReader / living pages, `components/living/LivingReaderBar.tsx` compact bar) is a later task. Until then "Read page" plays the narrator for that page.
