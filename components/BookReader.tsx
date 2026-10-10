@@ -28,6 +28,7 @@ import PlajahPlusButton from './PlajahPlusButton';
 import { BookOpeningScene } from './BookOpeningScene';
 import { BuyToOwn, useOwnership } from './BuyToOwn';
 import { useTelaEdition } from './bookTela/useTelaEdition';
+import { isLivingPictureBook, useLivingPictureBook } from './living/useLivingPictureBook';
 // Tela edition (services/bookTela): lazy, so the classic reader pays nothing unless the author upgraded the book.
 const TelaBookReader = React.lazy(() => import('./bookTela/TelaBookReader'));
 import BuyPrintEdition from './pod/BuyPrintEdition';
@@ -238,6 +239,10 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
   const s = getThemeStyles();
   const [currentPageIndex, setCurrentPageIndex] = useState(savedPos.page);
+  // A living picture book (showcase books) is read in THIS reader, same shell as every other book: the page images become live pages.
+  const livingPicture = telaEdition.status === 'tela' && isLivingPictureBook(book, telaEdition.bundle);
+  const goToLivePage = useCallback((i: number) => setCurrentPageIndex(Math.max(0, i)), []);
+  const livingBook = useLivingPictureBook(book, telaEdition.status === 'tela' ? telaEdition.bundle : null, livingPicture, goToLivePage);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [showControls, setShowControls] = useState(true);
@@ -1653,6 +1658,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   readingDir={(book as any).readingDir === 'rtl' ? 'rtl' : 'ltr'}
                   title={book.title}
                   pageTurnAuthor={pageTurnAuthor}
+                  livePage={livingBook?.livePage}
+                  liveBar={livingBook?.bar}
+                  hideScrubber
                 />
               </div>
             ) : isLoadingContent ? (
@@ -2483,7 +2491,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   if (telaEdition.status === 'loading') {
     return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0A0A0A]"><Loader2 className="animate-spin text-white/50" size={22} /></div>;
   }
-  if (telaEdition.status === 'tela') {
+  if (telaEdition.status === 'tela' && !livingPicture) {
     return (
       <React.Suspense fallback={<div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0A0A0A]"><Loader2 className="animate-spin text-white/50" size={22} /></div>}>
         <TelaBookReader album={book} bundle={telaEdition.bundle} pin={telaEdition.pin} uid={currentUser?.uid} isOwner={isBookOwner} isPaid={isPaidBook} license={bookOwnership.license} onBack={onBack} />

@@ -23,9 +23,15 @@ interface Props {
   title?: string;
   /** The author's page-turn choice for this book (sanitized by the caller). */
   pageTurnAuthor?: AuthorPageTurn;
+  /** Living picture books: the live version of page i (0-based), or null to keep the image. Single-page mode only. */
+  livePage?: (i: number, active: boolean) => React.ReactNode | null;
+  /** Controls for the living pages (sound, read to me...), shown under the toolbar. */
+  liveBar?: React.ReactNode;
+  /** The host reader already has a page bar (arrows + progress): do not draw a second one. */
+  hideScrubber?: boolean;
 }
 
-const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir = 'ltr', title, pageTurnAuthor }) => {
+const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir = 'ltr', title, pageTurnAuthor, livePage, liveBar, hideScrubber }) => {
   const [mode, setMode] = useState<Mode>('page');
   const [fit, setFit] = useState<Fit>('height');
   const [zoom, setZoom] = useState(1);
@@ -48,6 +54,7 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
   // Keyboard nav (RTL swaps left/right meaning).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.('[data-living-page-frame]')) return;   // arrow keys belong to the living page's own controls there
       if (e.key === 'ArrowRight') go(rtl ? -1 : 1);
       else if (e.key === 'ArrowLeft') go(rtl ? 1 : -1);
       else if (e.key === 'ArrowDown' || e.key === ' ') { if (mode !== 'webtoon') { e.preventDefault(); go(1); } }
@@ -83,6 +90,7 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
   // Tap zones: click left/right thirds to page (RTL aware).
   const tap = (e: React.MouseEvent) => {
     if (mode === 'webtoon') return;
+    if (livePage && mode === 'page') return;   // taps play the living page; turn with the arrows, swipe or the page bar
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width;
     if (x < 0.33) go(rtl ? 1 : -1);
@@ -115,6 +123,8 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
         </Btn>
       </div>
 
+      {liveBar}
+
       {/* Reading area */}
       {mode === 'webtoon' ? (
         <div ref={webtoonRef} className="flex-1 overflow-y-auto flex flex-col items-center gap-1 scrollbar-hide">
@@ -135,14 +145,18 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
           {!atEnd && <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 text-white/20 pointer-events-none"><ChevronRight size={30} /></div>}
           {(() => {
             // One view = one page, or two for a spread. PageTurn animates between views and also renders the neighbouring view for drags.
-            const view = (i: number) => (
+            const view = (i: number) => {
+              const live = livePage && mode === 'page' ? livePage(i, i === index) : null;
+              if (live) return <div className="flex items-center justify-center h-full w-full" style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}>{live}</div>;
+              return (
               <div className="flex gap-3 items-center justify-center h-full w-full" style={{ transform: `scale(${zoom})`, transformOrigin: 'center', flexDirection: rtl && mode === 'spread' ? 'row-reverse' : 'row' }}>
                 {pages[i] && <img src={pages[i].url} alt={`Page ${i + 1}`} referrerPolicy="no-referrer"
                   className={`${imgClass} object-contain rounded-lg shadow-2xl ring-1 ring-white/10`} />}
                 {mode === 'spread' && pages[i + 1] && <img src={pages[i + 1].url} alt={`Page ${i + 2}`} referrerPolicy="no-referrer"
                   className={`${imgClass} object-contain rounded-lg shadow-2xl ring-1 ring-white/10`} />}
               </div>
-            );
+              );
+            };
             const nb = (dir: 1 | -1) => { const j = index + dir * step; return j < 0 || j >= n ? null : j; };
             return (
               <PageTurn pageKey={`${mode}:${index}`} order={Math.floor(index / step)} turn={pt.turn} rtl={rtl} spread={mode === 'spread'}
@@ -158,13 +172,13 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
       )}
 
       {/* Scrubber + counter */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-2 mt-2 self-center rounded-full bg-black/40 border border-white/8 backdrop-blur-md">
+      {!hideScrubber && <div className="shrink-0 flex items-center gap-3 px-4 py-2 mt-2 self-center rounded-full bg-black/40 border border-white/8 backdrop-blur-md">
         <button onClick={() => go(rtl ? 1 : -1)} disabled={rtl ? atEnd : atStart} className="text-white/50 hover:text-white disabled:opacity-20"><ChevronLeft size={18} /></button>
         <input type="range" min={0} max={Math.max(0, n - 1)} value={index} onChange={e => onIndexChange(clamp(Number(e.target.value)))}
           className="w-40 accent-small-orange" style={{ direction: rtl ? 'rtl' : 'ltr' }} />
         <span className="text-[10px] font-black uppercase tracking-widest text-white/50 tabular-nums whitespace-nowrap">{index + 1} / {n}</span>
         <button onClick={() => go(rtl ? -1 : 1)} disabled={rtl ? atStart : atEnd} className="text-white/50 hover:text-white disabled:opacity-20"><ChevronRight size={18} /></button>
-      </div>
+      </div>}
     </div>
   );
 };

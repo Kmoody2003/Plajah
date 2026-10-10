@@ -54,11 +54,11 @@ export function useLivingPrefs(defaults?: { narrate?: NarrateMode }): LivingPref
 
 const btn = 'h-11 min-w-[44px] px-3 rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap';
 
-export function LivingReaderBar({ prefs, onReplay, onReadNow, canNarrate = true }: { prefs: LivingPrefs; onReplay: () => void; onReadNow: () => void; canNarrate?: boolean }) {
+export function LivingReaderBar({ prefs, onReplay, onReadNow, canNarrate = true, flat = false }: { prefs: LivingPrefs; onReplay: () => void; onReadNow: () => void; canNarrate?: boolean; /** Sit inside another reader's shell (a rounded bar in the flow) instead of sticking under a Tela reader's header. */ flat?: boolean }) {
   const soundLabel = prefs.soundOn ? 'Sound on' : prefs.soundPref === 'off' ? 'Sound off' : prefs.gesture ? 'Sound off' : 'Sound: tap to start';
   const motion = prefs.reducedPref === 'system' ? `Motion: system${prefs.reduced ? ' (reduced)' : ''}` : prefs.reducedPref === 'on' ? 'Reduced motion: on' : 'Reduced motion: off';
   return (
-    <div role="toolbar" aria-label="Living page controls" data-living-bar className="sticky top-[60px] z-10 flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 bg-[#0A0A0A]/90 backdrop-blur border-b border-white/10">
+    <div role="toolbar" aria-label="Living page controls" data-living-bar className={flat ? 'shrink-0 flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 mb-3 self-center rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md' : 'sticky top-[60px] z-10 flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 bg-[#0A0A0A]/90 backdrop-blur border-b border-white/10'}>
       <button type="button" onClick={prefs.toggleSound} aria-pressed={prefs.soundOn} aria-label={soundLabel} className={`${btn} ${prefs.soundOn ? 'bg-amber-400 text-black' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}>
         {prefs.soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}<span>{soundLabel}</span>
       </button>
