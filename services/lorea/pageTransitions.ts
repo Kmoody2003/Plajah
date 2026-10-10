@@ -226,7 +226,10 @@ export function resolvePageTurn(o: {
     else { id = defaultStyleForKind(o.kind); reason = 'format-default'; }
   }
   if (id === 'none') return mk('none', reason);
-  if (o.pref === 'reduce' || o.systemReducedMotion) {
+  // The device's reduced-motion setting softens anything the reader did not choose (the author's pick, the format default). A style the reader
+  // picked themselves in the page-animation menu is a deliberate opt-in and plays: otherwise a PC with Windows animations switched off (common
+  // for performance) would show every style as the same quick fade and the menu would look broken. 'Reduce' and 'Off' stay one tap away.
+  if (o.pref === 'reduce' || (o.systemReducedMotion && reason !== 'user')) {
     // Motion-sensitive readers get a short fade, never a sweep, spin or zoom. No drag-following either.
     return { id: 'dissolve', durationMs: REDUCED_DURATION_MS, interactive: false, reason: o.pref === 'reduce' ? 'reduced-pref' : 'reduced-system' };
   }

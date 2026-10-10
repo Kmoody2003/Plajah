@@ -16,8 +16,8 @@ const Lab: React.FC = () => {
     getDoc(doc(db, 'albums', id)).then(async s => {
       if (!s.exists()) return setErr('album not found');
       const album: any = { id: s.id, ...s.data(), skipOpeningScene: true };
-      // ?living=1 : read the LIVING edition built locally from the real designers + data/showcase/living (no publish, no private album read).
-      if (new URLSearchParams(location.search).get('living') === '1') {
+      // default : read the LIVING edition built locally from the real designers + data/showcase/living (no publish, no private album read).
+      if (new URLSearchParams(location.search).get('living') !== '0' && id.startsWith('showcase_')) {   // living by default for the showcase books; ?living=0 = the flat edition
         const bookId = id.replace(/^showcase_(zz_test_)?/, '');
         const tdoc = await loadShowcaseTelaDoc(bookId);
         const bundle = makeShowcaseBundle(tdoc, 'lab-living', Date.now(), 'lab', { albumId: id });

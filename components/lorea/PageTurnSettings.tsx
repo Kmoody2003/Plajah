@@ -20,7 +20,7 @@ interface Props {
 
 const REASON: Record<ResolvedPageTurn['reason'], string> = {
   off: 'Animation is off.',
-  'reduced-system': 'Your device asks for reduced motion, so pages fade quickly.',
+  'reduced-system': 'Your device asks for reduced motion, so pages fade quickly. Pick a style below to use it anyway.',
   'reduced-pref': 'Reduced motion: pages fade quickly.',
   user: 'Your choice.',
   'author-page': "The author's choice for this page.",
@@ -48,7 +48,7 @@ export default function PageTurnSettings({ pref, onPref, sound, onSound, resolve
       </div>
       <p className="text-[11px] opacity-50 mt-3 leading-relaxed" role="status">
         Playing: <strong>{PAGE_TURNS.find(t => t.id === resolved.id)?.label ?? 'None'}</strong>. {REASON[resolved.reason]}
-        {reducedMotion && resolved.reason !== 'reduced-system' ? ' (Your device prefers reduced motion; it will override this.)' : ''}
+        {reducedMotion && resolved.reason === 'user' ? ' (Your device prefers reduced motion, but you picked this style, so it plays.)' : ''}
       </p>
       <label className="flex items-center gap-3 mt-4 min-h-[44px] cursor-pointer">
         <input type="checkbox" checked={sound} onChange={e => onSound(e.target.checked)} className="h-5 w-5" disabled={resolved.id === 'none' || resolved.reason === 'reduced-system' || resolved.reason === 'reduced-pref'} />

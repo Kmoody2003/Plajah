@@ -87,11 +87,15 @@ describe('mapping to the Fabula/Pixels transition modules', () => {
 
 describe('reduced motion + reader/author resolution', () => {
   const base = { kind: 'novel' as const, systemReducedMotion: false };
-  it('system reduced motion turns every real animation into a short fade with no drag-following', () => {
+  it("a style the reader picked themselves plays even when the device asks for reduced motion (a deliberate opt-in)", () => {
     for (const id of PICKABLE_STYLES) {
       const r = resolvePageTurn({ ...base, pref: id, systemReducedMotion: true });
-      assert.equal(r.id, 'dissolve'); assert.equal(r.durationMs, REDUCED_DURATION_MS); assert.equal(r.interactive, false); assert.equal(r.reason, 'reduced-system');
+      assert.equal(r.id, id); assert.equal(r.reason, 'user');
     }
+  });
+  it('system reduced motion softens the author pick and the format default into a short fade with no drag-following', () => {
+    const f = resolvePageTurn({ ...base, pref: 'author', systemReducedMotion: true });
+    assert.equal(f.id, 'dissolve'); assert.equal(f.durationMs, REDUCED_DURATION_MS); assert.equal(f.interactive, false); assert.equal(f.reason, 'reduced-system');
     const a = resolvePageTurn({ ...base, pref: 'author', systemReducedMotion: true, author: { style: 'curl' } });
     assert.equal(a.id, 'dissolve'); assert.equal(a.reason, 'reduced-system');
   });
