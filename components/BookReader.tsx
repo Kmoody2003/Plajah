@@ -1303,7 +1303,8 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 <BookIcon size={20} />
               </button>
 
-              <div className="hidden lg:flex items-center bg-white/5 rounded-full p-1 border border-white/10 group overflow-hidden">
+              {/* Single/two-page view is for text books; picture and comic books have their own page modes in the toolbar below. */}
+              {pages.length === 0 && <div className="hidden lg:flex items-center bg-white/5 rounded-full p-1 border border-white/10 group overflow-hidden">
                 <button 
                   onClick={() => setViewMode('SINGLE')}
                   className={`p-2 rounded-full transition-all ${viewMode === 'SINGLE' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
@@ -1316,17 +1317,17 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 >
                   <Columns size={16} />
                 </button>
-              </div>
+              </div>}
 
-              {/* MAI Voice 2 Narration button */}
-              <button
+              {/* MAI Voice 2 Narration button: it reads chapter TEXT, so picture/comic books (image pages) have none; a living book's own read-to-me is the one audio control there. */}
+              {pages.length === 0 && <button
                 onClick={() => setShowNarrationPanel(n => !n)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-full transition-all text-[9px] font-black uppercase tracking-widest ${showNarrationPanel ? s.activeBtn : s.btnHover}`}
                 title="AI Narration — MAI Voice 2"
               >
                 <Headphones size={16} />
                 <span className="hidden sm:inline">AI Voice</span>
-              </button>
+              </button>}
 
               {/* Audiobook Exhibition Pavilion button */}
               <button

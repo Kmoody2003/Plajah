@@ -1,6 +1,6 @@
 // Reader controls for living pages: Sound, Read-to-me, Reduced motion, Play again. Choices are remembered (localStorage, guarded).
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Headphones, RotateCcw, Volume2, VolumeX, Sparkles, Ban, Hand } from 'lucide-react';
+import { Headphones, RotateCcw, Volume2, VolumeX, Sparkles, Ban, Hand, Play } from 'lucide-react';
 
 export type NarrateMode = 'off' | 'on-demand' | 'auto';
 type SoundPref = 'on' | 'off' | null;
@@ -66,7 +66,7 @@ export function LivingReaderBar({ prefs, onReplay, onReadNow, canNarrate = true,
     const next: NarrateMode = prefs.narrate === 'off' ? 'on-demand' : prefs.narrate === 'on-demand' ? 'auto' : 'off';
     const narrLabel = prefs.narrate === 'off' ? 'Read to me: off' : prefs.narrate === 'on-demand' ? 'Read to me: on request' : 'Read to me: auto';
     return (
-      <div role="toolbar" aria-label="Living page controls" data-living-bar className="flex items-center gap-0.5 shrink-0">
+      <div role="toolbar" aria-label="Living page controls" data-living-bar className="flex items-center gap-1.5 shrink-0">
         <button type="button" onClick={prefs.toggleSound} aria-pressed={prefs.soundOn} aria-label={soundLabel} title={soundLabel} className={cb(prefs.soundOn)}>
           {prefs.soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
         </button>
@@ -77,8 +77,8 @@ export function LivingReaderBar({ prefs, onReplay, onReadNow, canNarrate = true,
           </button>
         )}
         {canNarrate && prefs.narrate !== 'off' && (
-          <button type="button" onClick={onReadNow} disabled={!prefs.soundOn} aria-label="Read this page aloud" title={prefs.soundOn ? 'Read this page aloud' : 'Turn sound on to hear the story'} className={`${cb(false)} disabled:opacity-30`}>
-            <span className="text-[10px] font-black uppercase tracking-wider">Read</span>
+          <button type="button" onClick={onReadNow} disabled={!prefs.soundOn} aria-label="Read this page aloud" title={prefs.soundOn ? 'Read this page aloud' : 'Turn sound on to hear the story'} className="ml-1.5 h-10 shrink-0 rounded-lg px-2.5 sm:px-3 flex items-center justify-center gap-1.5 text-white/80 border border-white/15 hover:bg-white/10 disabled:opacity-30">
+            <Play size={13} fill="currentColor" /><span className="max-sm:hidden text-[10px] font-black uppercase tracking-wider">Read page</span>
           </button>
         )}
         <button type="button" onClick={prefs.cycleReduced} aria-label={motion} title={`${motion} (tap to change)`} className={cb(prefs.reducedPref === 'on')}>
