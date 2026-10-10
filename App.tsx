@@ -239,6 +239,7 @@ const ProjectFirstlightLandingView = retryLazy(() => import('./components/sports
 const AthleteShowcaseView = retryLazy(() => import('./components/AthleteShowcaseView'));
 const MatchFanRoomsView = retryLazy(() => import('./components/MatchFanRoomsView'));
 const RoomView = retryLazy(() => import('./components/RoomView'));
+const ShuffleView = retryLazy(() => import('./components/shuffle/ShuffleView'));
 const PodcastStudio = retryLazy(() => import('./components/PodcastStudio'));
 const LiveTranslation = retryLazy(() => import('./components/LiveTranslation'));
 const PodcastCallIn = retryLazy(() => import('./components/PodcastCallIn'));
@@ -830,6 +831,7 @@ const App: React.FC = () => {
   const [callinShowId] = useState<string | undefined>(callinParam || undefined);
   const [listenShowId] = useState<string | undefined>(listenParam || undefined);
   const [showStartRoom, setShowStartRoom] = useState(false);
+  const [showShuffle, setShowShuffle] = useState(false);
   // TV-app opening ident — a random Plajah bumper plays once per launch on TV APKs, replacing the
   // static splash. Only armed on TVs; resolves to done if the library has none.
   const [tvIntroDone, setTvIntroDone] = useState(() => !getPlatformInfo().isTV);
@@ -1015,9 +1017,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const open = (e: Event) => { const id = (e as CustomEvent)?.detail?.roomId; if (id) { setCurrentRoomId(id); setView('ROOM'); } };
     const start = () => setShowStartRoom(true);
+    const shuffle = () => setShowShuffle(true);   // Shuffle: Omegle-style random 1:1 video (18+)
     window.addEventListener('plajah:open-room', open);
     window.addEventListener('plajah:start-room', start);
-    return () => { window.removeEventListener('plajah:open-room', open); window.removeEventListener('plajah:start-room', start); };
+    window.addEventListener('plajah:open-shuffle', shuffle);
+    return () => { window.removeEventListener('plajah:open-room', open); window.removeEventListener('plajah:start-room', start); window.removeEventListener('plajah:open-shuffle', shuffle); };
   }, [setView]);
 
   // Open the Chora podcast directory (from the profile "Following" library).
@@ -8160,6 +8164,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       {/* Start a Room composer (global overlay; opened via plajah:start-room) */}
       {showStartRoom && <StartRoomModal user={user} onClose={() => setShowStartRoom(false)} />}
+      {showShuffle && <Suspense fallback={<div className="fixed inset-0 z-[9998] bg-black" />}><ShuffleView onClose={() => setShowShuffle(false)} /></Suspense>}
 
       {/* Smart Guide */}
       {user && !LAUNCHED_VIA_SHARE && (

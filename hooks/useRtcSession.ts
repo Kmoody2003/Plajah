@@ -45,6 +45,9 @@ export interface UseRtcSession {
   isRecording: boolean;
   startRecording: (opts?: SessionRecorderOptions) => boolean;
   stopRecording: () => Promise<Blob | null>;
+  /** The live recording's PROGRAM (composed picture + mixed audio of everyone on stage), or null
+   *  when not recording. Resolves once the recorder has locked its canvas. */
+  programStream: () => Promise<MediaStream> | null;
   /** Low-latency data channel: reactions, polls, synced playback, cursors, etc. */
   sendData: (type: string, payload?: any) => void;
   switchCamera: (facing: 'user' | 'environment') => void;
@@ -298,6 +301,8 @@ export function useRtcSession(
     return blob;
   }, []);
 
+  const programStream = useCallback(() => recorderRef.current?.programStream() ?? null, []);
+
   const sendData = useCallback((type: string, payload?: any) => {
     sessionRef.current?.sendData(type, payload);
   }, []);
@@ -320,7 +325,7 @@ export function useRtcSession(
     peerStates: activeSessionKey === key ? peerStates : emptySession.peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
     toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, nextCameraStream, cameraStreamForDevice, publishExternalVideo, publishExternalAudio, toggleScreenShare, leave,
-    isRecording, startRecording, stopRecording, sendData,
+    isRecording, startRecording, stopRecording, programStream, sendData,
     devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
     useDesktopAudio, screenStream: activeSessionKey === key ? screenStream : null,
   };

@@ -42,6 +42,8 @@ export class SessionRecorder {
   private startedAt = 0;
   private locked = false; // single-source canvas aspect locked to the source
   private beginRecorder: (() => void) | null = null; // deferred start (after aspect lock)
+  private program: MediaStream | null = null;          // canvas video + mixed audio (what's recorded)
+  private programWaiters: Array<(s: MediaStream) => void> = [];
   recording = false;
 
   private onData: ((chunk: Blob) => void) | null;
@@ -72,6 +74,7 @@ export class SessionRecorder {
 
       if (this.opts.audioOnly) {
         const mixed = new MediaStream(this.dest.stream.getAudioTracks());
+        this.setProgram(mixed);
         const mime = this.pickMime();
         this.recorder = new MediaRecorder(mixed, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: 256_000 });
         this.chunks = [];
@@ -91,6 +94,7 @@ export class SessionRecorder {
           if (this.recorder || !this.canvas || !this.dest) return;
           const canvasStream = this.canvas.captureStream(this.opts.fps);
           const mixed = new MediaStream([...canvasStream.getVideoTracks(), ...this.dest.stream.getAudioTracks()]);
+          this.setProgram(mixed);
           const mime = this.pickMime();
           this.recorder = new MediaRecorder(mixed, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: 256_000, videoBitsPerSecond: 8_000_000 });
           this.chunks = [];
@@ -119,7 +123,20 @@ export class SessionRecorder {
     return blob.size > 0 ? blob : null;
   }
 
+  /** The PROGRAM — the exact composed picture + mixed audio being recorded (host + guests on
+   *  stage). Resolves once the canvas has locked its aspect. The live Mux relay encodes this. */
+  programStream(): Promise<MediaStream> {
+    if (this.program) return Promise.resolve(this.program);
+    return new Promise(res => this.programWaiters.push(res));
+  }
+
   // ── internals ──────────────────────────────────────────────────────────────
+  private setProgram(s: MediaStream) {
+    this.program = s;
+    const w = this.programWaiters; this.programWaiters = [];
+    w.forEach(fn => fn(s));
+  }
+
   private pickMime(): string {
     const candidates = this.opts.audioOnly
       ? ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
@@ -130,15 +147,24 @@ export class SessionRecorder {
   /** Connect any newly-present audio tracks into the mix (idempotent). */
   private reconcileAudio() {
     if (!this.audioCtx || !this.dest || !this.provider) return;
-    const streams = this.provider();
-    for (const s of streams) {
-      if (!s || this.connected.has(s.id)) continue;
-      if (s.getAudioTracks().length === 0) continue;
-      try {
-        const src = this.audioCtx.createMediaStreamSource(s);
-        src.connect(this.dest);
-        this.connected.set(s.id, src);
-      } catch { /* already connected / no audio */ }
+    // Keyed by TRACK, not stream: a source node binds to the track present when it was created, so
+    // a hot-swapped track on the same stream (live audio mixer / voice FX via publishExternalAudio)
+    // was never recorded. Tracks that left (swapped out / guest gone) are disconnected.
+    const live = new Set<string>();
+    for (const s of this.provider()) {
+      for (const t of s?.getAudioTracks() || []) {
+        if (t.readyState !== 'live') continue;
+        live.add(t.id);
+        if (this.connected.has(t.id)) continue;
+        try {
+          const src = this.audioCtx.createMediaStreamSource(new MediaStream([t]));
+          src.connect(this.dest);
+          this.connected.set(t.id, src);
+        } catch { /* no audio */ }
+      }
+    }
+    for (const [id, src] of this.connected) {
+      if (!live.has(id)) { try { src.disconnect(); } catch { /* */ } this.connected.delete(id); }
     }
   }
 
@@ -196,7 +222,10 @@ export class SessionRecorder {
     }
 
     const n = Math.max(1, els.length);
-    const cols = Math.ceil(Math.sqrt(n));
+    // A portrait program (the live streamer locked to a phone camera) lays guests out the way
+    // TikTok/IG multi-guest does: 2 = stacked halves, 3–4 = 2×2, 5–6 = 2×3. Landscape = square-ish grid.
+    const portrait = canvas.height > canvas.width;
+    const cols = portrait ? (n <= 2 ? 1 : n <= 6 ? 2 : 3) : Math.ceil(Math.sqrt(n));
     const rows = Math.ceil(n / cols);
     // Size the canvas to a 16:9-ish grid capped at maxSize on the long edge.
     const targetW = this.opts.maxSize;
@@ -232,7 +261,7 @@ export class SessionRecorder {
     this.videoEls.forEach(v => { v.srcObject = null; });
     this.videoEls.clear();
     this.audioCtx?.close().catch(() => {});
-    this.audioCtx = null; this.dest = null; this.canvas = null;
+    this.audioCtx = null; this.dest = null; this.canvas = null; this.program = null; this.programWaiters = [];
     this.recorder = null; this.provider = null;
   }
 }

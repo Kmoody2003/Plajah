@@ -26,7 +26,7 @@ import {
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
   LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus, BarChart3,
-  HardDriveDownload, FolderOpen, Download, ShieldCheck, Clapperboard, Smile, SmilePlus,
+  HardDriveDownload, FolderOpen, Download, ShieldCheck, Clapperboard, Smile, SmilePlus, Music2,
 } from 'lucide-react';
 import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type AmbientFx } from '../services/liveComposer';
 import type { LensId } from '../services/lenses/lensEngine';
@@ -39,6 +39,11 @@ import {
   auth, db, createPost, updatePost, deletePost, notifyFollowers, uploadVideo, finalizeLiveRecording, addReplayToFastChannel, allocateChannelNumber, setChannelName, scheduleLiveInterrupt,
 } from '../services/backendService';
 import { startCloudRecording, type LiveCloudSink } from '../services/liveCloudRecorder';
+import { LiveAudioMixer, type MixSourceState } from '../services/liveAudioMixer';
+import { startMuxRelay, type MuxRelayHandle, type MuxRelayStatus } from '../services/liveMuxRelay';
+import { attachLiveHls } from '../services/liveHlsPlayback';
+import { LiveSoundSheet } from './live/LiveSoundSheet';
+import { usePresence } from '../hooks/usePresence';
 import { unlockAchievementByTrigger } from '../services/achievementService';
 import { publishLiveDiscovery, endLiveDiscovery, endLiveDiscoveryByStream, saveSessionRecording, heartbeatLiveDiscovery } from '../services/liveStreamService';
 import { HEARTBEAT_INTERVAL_MS } from '../services/liveFeedLiveness';
@@ -724,7 +729,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     try {
       if (id === 'none') {
         if (voiceFxRef.current) { voiceFxRef.current.dispose(); voiceFxRef.current = null; }
-        if (rawMicRef.current) await rtc.publishExternalAudio(rawMicRef.current);
+        await republishAudio();
         setVoiceId('none');
         return;
       }
@@ -732,13 +737,58 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       if (!rawMicRef.current) { alert('Microphone not ready yet.'); return; }
       if (!voiceFxRef.current) {
         voiceFxRef.current = new VoiceFX(new MediaStream([rawMicRef.current]));
-        await rtc.publishExternalAudio(voiceFxRef.current.getStream().getAudioTracks()[0]);
+        await republishAudio();
       }
       voiceFxRef.current.setEffect(id);
       setVoiceId(id);
     } catch (e: any) { alert(e?.message || 'Could not apply that voice effect.'); }
   };
   useEffect(() => () => { voiceFxRef.current?.dispose(); voiceFxRef.current = null; }, []);
+
+  // ── Shared sound: talk OVER device audio / screen audio / a played file (services/liveAudioMixer).
+  // Engaged lazily on the first shared source, like the composer — the default path stays
+  // mic → stream with zero extra audio graph. Chain: raw mic → (voice FX) → mixer → published track.
+  const mixerRef = useRef<LiveAudioMixer | null>(null);
+  const [mixState, setMixState] = useState<MixSourceState[]>([]);
+  const [soundOpen, setSoundOpen] = useState(false);
+  const micOnRef = useRef(true);
+  const voiceTrack = () => voiceFxRef.current?.getStream().getAudioTracks()[0] || rawMicRef.current;
+  const republishAudio = async () => {
+    const v = voiceTrack();
+    const m = mixerRef.current;
+    if (m) { if (v) m.setTrack('mic', v); await rtc.publishExternalAudio(m.track); }
+    else if (v) await rtc.publishExternalAudio(v);
+  };
+  const ensureMixer = async (): Promise<LiveAudioMixer> => {
+    if (mixerRef.current) return mixerRef.current;
+    if (!rawMicRef.current) rawMicRef.current = rtc.localStream?.getAudioTracks()[0] || null;
+    const m = new LiveAudioMixer();
+    m.onChange = () => setMixState(m.state());
+    mixerRef.current = m;
+    m.resume();
+    await republishAudio();
+    // Mic mute now gates the RAW mic only, so shared music keeps playing while you're muted.
+    if (rawMicRef.current) rawMicRef.current.enabled = micOnRef.current;
+    rtc.setAudio(true);
+    setMixState(m.state());
+    return m;
+  };
+  useEffect(() => () => { mixerRef.current?.dispose(); mixerRef.current = null; }, []);
+  // Screen-share modes bring the shared tab/system sound with them → lay it under the mic.
+  useEffect(() => {
+    const screenish = camMode === 'screen-pip' || camMode === 'screen-mask';
+    const a = screenish ? composerRef.current?.getScreenAudioTrack() : null;
+    if (a) ensureMixer().then(m => m.setTrack('screen', a)).catch(() => {});
+    else mixerRef.current?.remove('screen');
+  }, [camMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Audience on Mux: the program (host + guests + mixed audio) is relayed to a Mux live stream
+  // and viewers watch HLS on Plajah (services/liveMuxRelay). Guests stay on the real-time stage.
+  // Private / club streams stay direct-only (a Mux public playback id would be watchable by link).
+  const relayRef = useRef<MuxRelayHandle | null>(null);
+  const [relayStatus, setRelayStatus] = useState<MuxRelayStatus>('off');
+  const [relayDetail, setRelayDetail] = useState('');
+  useEffect(() => () => { relayRef.current?.stop(); relayRef.current = null; }, []);
 
   // Color grade / LUTs — grading lives in the composer, so picking a look first ensures
   // the composer is publishing (entering plain front mode if it wasn't).
@@ -950,7 +1000,11 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   // a full WebGL compositor + trackers every frame when nobody asked for an effect was
   // pegging the GPU (overheating, lag, frozen viewport) for no benefit.
   // Bridge the existing mic/cam/flip UI setters to the backbone.
-  useEffect(() => { rtc.setAudio(micOn); }, [micOn]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    micOnRef.current = micOn;
+    if (mixerRef.current && rawMicRef.current) { rawMicRef.current.enabled = micOn; rtc.setAudio(true); }
+    else rtc.setAudio(micOn);
+  }, [micOn]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { rtc.setVideo(camOn); }, [camOn]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!didMountRef.current) { didMountRef.current = true; return; } // skip initial (already user-facing)
@@ -1004,16 +1058,17 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   };
   // Live viewer count / peak ← backbone participants; mirrored to the streams doc
   // so the viewer side can display it.
+  const audiencePresence = usePresence(streamId ? `live_${streamId}` : null, { publishSelf: false });
   useEffect(() => {
     if (!isLive) return;
-    const c = rtc.participants.length;
+    const c = Math.max(rtc.participants.length, audiencePresence.count);
     setViewerCount(c);
     setPeakViewers(prev => {
       const peak = Math.max(prev, c);
       updateDoc(doc(db, 'streams', streamId), { viewerCount: c, peakViewers: peak }).catch(() => {});
       return peak;
     });
-  }, [rtc.participants, isLive]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rtc.participants, audiencePresence.count, isLive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live timer
   useEffect(() => {
@@ -1093,6 +1148,15 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     try { cloudSinkRef.current = startCloudRecording({ streamId: id, mime: 'video/webm' }); } catch { cloudSinkRef.current = null; }
     // Feed every chunk to BOTH sinks (cloud primary + local backup). Always request onData now.
     rtc.startRecording({ onData: c => { localSinkRef.current?.write(c); cloudSinkRef.current?.write(c); } });
+    if (!isPrivate && !clubId) {
+      relayRef.current?.stop();
+      relayRef.current = startMuxRelay({
+        streamId: id,
+        program: () => rtc.programStream(),
+        getToken: () => auth.currentUser?.getIdToken() ?? Promise.resolve(null),
+        onStatus: (st, d) => { setRelayStatus(st); setRelayDetail(d || ''); },
+      });
+    }
 
     // ── Lifecycle side effects (all fire-and-forget; the stream never blocks) ──
     if (user) {
@@ -1142,6 +1206,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   // ── End flow: stop everything, then prompt save vs delete ──────────────────
   const endStream = async () => {
+    // Tell the relay first so the Mux live stream is torn down (viewers see "ended", not a stall).
+    relayRef.current?.end(); relayRef.current = null;
     // Stop + keep the recording (the save/delete prompt uses it), then leave.
     try { recordedBlobRef.current = await rtc.stopRecording(); } catch {}
     // Finalize the cloud upload (flush the last segment + write the manifest) — the replay is now
@@ -1524,6 +1590,21 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 <Eye size={11} className="text-white/60" />
                 <span className="text-[11px] font-bold text-white/80">{viewerCount}</span>
               </div>
+              {/* Audience delivery: Mux (scales) vs direct P2P (fallback). */}
+              {relayStatus !== 'off' && (
+                <div title={relayDetail || undefined}
+                  className={`flex items-center gap-1 px-2 py-1.5 backdrop-blur rounded-full text-[9px] font-black uppercase tracking-widest ${
+                    relayStatus === 'live' ? 'bg-emerald-500/80 text-white'
+                    : relayStatus === 'connecting' || relayStatus === 'reconnecting' ? 'bg-amber-500/80 text-black'
+                    : 'bg-black/60 text-white/60'}`}>
+                  {relayStatus === 'live' ? 'Mux live' : relayStatus === 'connecting' ? 'Linking' : relayStatus === 'reconnecting' ? 'Relinking' : 'Direct'}
+                </div>
+              )}
+              {/* Sound — share device audio / a file under your mic */}
+              <button onClick={() => setSoundOpen(v => !v)} aria-label="Sound"
+                className={`w-9 h-9 rounded-full backdrop-blur flex items-center justify-center ${mixState.some(x => x.active && x.id !== 'mic') ? 'bg-red-500/80' : 'bg-black/60'}`}>
+                <Music2 size={16} className="text-white" />
+              </button>
               {/* Guests — bring viewers on stage. Badge shows pending requests. */}
               <button onClick={() => setShowGuestPanel(v => !v)}
                 className="relative w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center">
@@ -1548,6 +1629,10 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 return <PeerTile key={p.peerId} stream={p.stream} name={p.name || g?.name} onRemove={g ? () => removeGuest(g) : undefined} />;
               })}
             </div>
+          )}
+
+          {soundOpen && (
+            <LiveSoundSheet mixer={mixerRef.current} state={mixState} ensureMixer={ensureMixer} onClose={() => setSoundOpen(false)} />
           )}
 
           {/* Guest management panel — approve requests, remove guests */}
@@ -2180,16 +2265,101 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatMsgs = useLiveChat(streamId);
 
+  // Audience on Mux: once the host's relay is live, an audience member watches the Mux HLS program
+  // (host + guests composed) instead of pulling a P2P copy from the host's phone. Guests on stage
+  // stay real-time on WebRTC. Any HLS failure falls back to P2P for this viewer.
+  const [muxLive, setMuxLive] = useState<{ playbackId?: string; state?: string } | null>(null);
+  const [hlsFailed, setHlsFailed] = useState(false);
+  const onMux = !isGuest && !hlsFailed && !!muxLive?.playbackId && (muxLive.state === 'live' || muxLive.state === 'reconnecting');
+  usePresence(streamLive ? `live_${streamId}` : null);   // the host counts Mux viewers from presence
+
   // 'stage' topology: normally a recv-only viewer, but once the host brings me on I re-key as a
   // 'participant' and publish my cam/mic (this is a guest coming on stage). The host's stream is
   // still the main video for everyone; guests render as tiles.
-  const rtc = useRtcSession({
+  const rtc = useRtcSession(onMux ? null : {
     sessionId: streamId,
     topology: 'stage',
     role: isGuest ? 'participant' : 'viewer',
     media: isGuest ? { audio: true, video: { facingMode: 'user' } } : { audio: false, video: false },
     displayName: auth.currentUser?.displayName || 'Guest',
   });
+
+  // ── Guest share: screen / screen + cut-out me (composer) and shared sound (mixer) ─────────────
+  const guestCompRef = useRef<LiveComposer | null>(null);
+  const guestRawCamRef = useRef<MediaStreamTrack | null>(null);
+  const [guestShare, setGuestShare] = useState<'camera' | 'screen-pip' | 'screen-mask'>('camera');
+  const [guestShareBusy, setGuestShareBusy] = useState(false);
+  const [guestMenu, setGuestMenu] = useState<null | 'share' | 'sound'>(null);
+  const guestMixerRef = useRef<LiveAudioMixer | null>(null);
+  const guestRawMicRef = useRef<MediaStreamTrack | null>(null);
+  const [guestMix, setGuestMix] = useState<MixSourceState[]>([]);
+  const [guestMicOn, setGuestMicOn] = useState(true);
+  const canScreenShare = typeof navigator !== 'undefined' && typeof (navigator.mediaDevices as any)?.getDisplayMedia === 'function';
+
+  const ensureGuestMixer = async (): Promise<LiveAudioMixer> => {
+    if (guestMixerRef.current) return guestMixerRef.current;
+    const mic = rtc.localStream?.getAudioTracks()[0] || null;
+    guestRawMicRef.current = mic;
+    const m = new LiveAudioMixer();
+    m.onChange = () => setGuestMix(m.state());
+    guestMixerRef.current = m;
+    m.resume();
+    if (mic) { m.setTrack('mic', mic); mic.enabled = guestMicOn; }
+    await rtc.publishExternalAudio(m.track);
+    // Mute now gates the RAW mic only, so shared sound keeps playing while the guest is muted.
+    rtc.setAudio(true);
+    setGuestMix(m.state());
+    return m;
+  };
+  const toggleGuestMic = () => {
+    if (guestMixerRef.current && guestRawMicRef.current) {
+      const on = !guestMicOn; guestRawMicRef.current.enabled = on; setGuestMicOn(on);
+    } else { setGuestMicOn(!rtc.audioEnabled); rtc.toggleAudio(); }
+  };
+  const setGuestShareMode = async (mode: 'camera' | 'screen-pip' | 'screen-mask') => {
+    if (guestShareBusy || mode === guestShare) { setGuestMenu(null); return; }
+    setGuestShareBusy(true);
+    try {
+      if (mode === 'camera') {
+        guestMixerRef.current?.remove('screen');
+        // Back to the raw camera — rtc kept it alive under the canvas (publishExternalVideo keepOld).
+        const raw = guestRawCamRef.current;
+        if (raw && raw.readyState === 'live') await rtc.publishExternalVideo(raw);
+        guestCompRef.current?.dispose(); guestCompRef.current = null;
+      } else {
+        let comp = guestCompRef.current;
+        if (!comp) {
+          const cam = rtc.localStream?.getVideoTracks()[0] || null;
+          comp = new LiveComposer(() => { setGuestShareMode('camera'); });
+          // A CLONE feeds the composer, so tearing it down later never stops the real camera.
+          if (cam) { guestRawCamRef.current = cam; await comp.adoptFrontTrack(cam.clone()); }
+          guestCompRef.current = comp;
+          await comp.setMode(mode);
+          await rtc.publishExternalVideo(comp.getStream().getVideoTracks()[0]);
+        } else {
+          await comp.setMode(mode);
+        }
+        const a = comp.getScreenAudioTrack();
+        if (a) (await ensureGuestMixer()).setTrack('screen', a);
+      }
+      setGuestShare(mode);
+    } catch (e: any) {
+      alert(e?.message || 'Could not start sharing on this device.');
+      const raw = guestRawCamRef.current;
+      if (raw && raw.readyState === 'live') rtc.publishExternalVideo(raw).catch(() => {});
+      guestCompRef.current?.dispose(); guestCompRef.current = null;
+      setGuestShare('camera');
+    } finally { setGuestShareBusy(false); setGuestMenu(null); }
+  };
+  // Leaving the stage (or the host removing me) tears the guest's share graph down.
+  useEffect(() => {
+    if (isGuest) return;
+    guestCompRef.current?.dispose(); guestCompRef.current = null;
+    guestMixerRef.current?.dispose(); guestMixerRef.current = null;
+    guestRawMicRef.current = null; guestRawCamRef.current = null;
+    setGuestShare('camera'); setGuestMix([]); setGuestMenu(null); setGuestMicOn(true);
+  }, [isGuest]);
+  useEffect(() => () => { guestCompRef.current?.dispose(); guestMixerRef.current?.dispose(); }, []);
 
   const requestToJoin = async () => {
     if (!myUid) { alert('Sign in to join the stream.'); return; }
@@ -2219,6 +2389,8 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
         setAuraOn(data.auraOn === true);
         setGuests(Array.isArray(data.guests) ? data.guests : []);
         setOwnerUid(typeof data.ownerUid === 'string' ? data.ownerUid : null);
+        const ml = data.muxLive && typeof data.muxLive === 'object' ? data.muxLive : null;
+        setMuxLive(ml ? { playbackId: typeof ml.playbackId === 'string' ? ml.playbackId : undefined, state: ml.state } : null);
       }
     });
   }, [streamId]);
@@ -2230,7 +2402,17 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
 
   // Attach the HOST's stream as the main video — identified by role, not "first" (with guests on
   // stage there are multiple publishers; the first could be a guest). Falls back to any stream.
+  // Mux program → the same <video> (lenses, emotes and taps stay bound to it).
   useEffect(() => {
+    const v = videoRef.current;
+    if (!onMux || !v || !muxLive?.playbackId) return;
+    const detach = attachLiveHls(v, muxLive.playbackId, () => setHlsFailed(true));
+    setConnected(true); setConnecting(false);
+    return detach;
+  }, [onMux, muxLive?.playbackId]);
+
+  useEffect(() => {
+    if (onMux) return;
     const host = rtc.remotePeers.find(p => p.role === 'host');
     const main = host?.stream || rtc.remotePeers[0]?.stream;
     if (videoRef.current && main) {
@@ -2238,7 +2420,7 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
       setConnected(true);
       setConnecting(false);
     }
-  }, [rtc.remotePeers]);
+  }, [rtc.remotePeers, onMux]);
 
   // Stop the spinner after a grace period even if nothing connects.
   useEffect(() => {
@@ -2389,8 +2571,14 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
           {isGuest ? (
             <>
               <span className="px-3 py-1.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> You're on stage</span>
-              <button onClick={rtc.toggleAudio} className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center">{rtc.audioEnabled ? <Mic size={15} className="text-white" /> : <MicOff size={15} className="text-red-400" />}</button>
-              <button onClick={rtc.toggleVideo} className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center"><Video size={15} className={rtc.videoEnabled ? 'text-white' : 'text-red-400'} /></button>
+              <button onClick={toggleGuestMic} aria-label="Mic" className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center">{(guestMixerRef.current ? guestMicOn : rtc.audioEnabled) ? <Mic size={15} className="text-white" /> : <MicOff size={15} className="text-red-400" />}</button>
+              <button onClick={rtc.toggleVideo} aria-label="Camera" className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center"><Video size={15} className={rtc.videoEnabled ? 'text-white' : 'text-red-400'} /></button>
+              {canScreenShare && (
+                <button onClick={() => setGuestMenu(m => m === 'share' ? null : 'share')} aria-label="Share screen"
+                  className={`w-9 h-9 rounded-full backdrop-blur flex items-center justify-center ${guestShare !== 'camera' ? 'bg-red-500/80' : 'bg-black/60'}`}><Monitor size={15} className="text-white" /></button>
+              )}
+              <button onClick={() => setGuestMenu(m => m === 'sound' ? null : 'sound')} aria-label="Sound"
+                className={`w-9 h-9 rounded-full backdrop-blur flex items-center justify-center ${guestMix.some(x => x.active && x.id !== 'mic') ? 'bg-red-500/80' : 'bg-black/60'}`}><Music2 size={15} className="text-white" /></button>
               <button onClick={leaveStage} className="px-3 py-1.5 rounded-full bg-white/15 text-white text-[9px] font-black uppercase tracking-widest">Leave stage</button>
             </>
           ) : requested ? (
@@ -2401,6 +2589,26 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
             </button>
           )}
         </div>
+      )}
+
+      {isGuest && guestMenu === 'share' && (
+        <div className="absolute left-1/2 -translate-x-1/2 z-30 w-[min(92vw,340px)] rounded-2xl bg-zinc-950/95 border border-white/10 p-2 space-y-1"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 144px)' }}>
+          {([
+            { id: 'camera', label: 'Camera', icon: <Video size={15} /> },
+            { id: 'screen-pip', label: 'Screen + camera', icon: <MonitorSmartphone size={15} /> },
+            { id: 'screen-mask', label: 'Screen + cut-out me', icon: <Monitor size={15} /> },
+          ] as const).map(o => (
+            <button key={o.id} disabled={guestShareBusy} onClick={() => setGuestShareMode(o.id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold ${guestShare === o.id ? 'bg-white text-black' : 'text-white hover:bg-white/10'}`}>
+              {o.icon} {o.label}
+            </button>
+          ))}
+          <p className="text-[9px] text-white/40 px-2 pt-1">Turn on "Share audio" in the picker to bring the screen's sound too.</p>
+        </div>
+      )}
+      {isGuest && guestMenu === 'sound' && (
+        <LiveSoundSheet compact mixer={guestMixerRef.current} state={guestMix} ensureMixer={ensureGuestMixer} onClose={() => setGuestMenu(null)} />
       )}
 
       {/* Creator info */}

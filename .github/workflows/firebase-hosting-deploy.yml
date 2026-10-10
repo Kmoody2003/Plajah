@@ -196,8 +196,11 @@ jobs:
             --memory 2Gi \
             --cpu 2 \
             --cpu-boost \
-            --timeout 300 \
+            --timeout 3600 \
             --update-env-vars NODE_ENV=production,VITE_FIREBASE_DB_ID=plajah-prod,VITE_FIREBASE_PROJECT_ID=gen-lang-client-0665118474
+        # --timeout 3600: the Reello Live → Mux relay is a WebSocket held for the whole broadcast, and Cloud Run
+        # cuts any request at --timeout (300 s dropped every relay at 5 min). The client reconnects at the cap;
+        # Mux's reconnect_window keeps it one continuous live (services/liveMuxRelayServer.ts).
         # ↑ The server transpiles ~6k lines via tsx at boot; on 1 vCPU that raced the Cloud Run
         # startup health-check and the revision was killed as "failed to start in time". More CPU +
         # startup CPU boost + memory headroom lets it bind $PORT well inside the window.

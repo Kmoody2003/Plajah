@@ -438,6 +438,8 @@ export class LiveComposer {
     if (this.night) await this.setNightMode(true).catch(() => {});
     if (restartVtuber) await this.ensureVtuber();
   }
+  /** Audio that came with the current screen share (null when none / not shared). */
+  getScreenAudioTrack(): MediaStreamTrack | null { return this.screenStream?.getAudioTracks()[0] ?? null; }
   /** The composer's current front-slot video track (for picking the NEXT camera on a flip). */
   getFrontTrack(): MediaStreamTrack | null { return this.frontStream?.getVideoTracks()[0] ?? null; }
   private async ensureFront() {
@@ -456,7 +458,14 @@ export class LiveComposer {
     if (this.screenStream) return;
     const md: any = navigator.mediaDevices;
     if (typeof md.getDisplayMedia !== 'function') throw new Error("Screen sharing isn't supported on this device.");
-    this.screenStream = await md.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: false });
+    // audio: the share's own sound (tab / system) — surfaced via getScreenAudioTrack() so the live
+    // audio mixer can lay it UNDER the mic instead of replacing it. Browsers that can't share audio
+    // just return no audio track.
+    this.screenStream = await md.getDisplayMedia({
+      video: { frameRate: { ideal: 30 } },
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      systemAudio: 'include',
+    });
     this.screenEl.srcObject = this.screenStream; await this.screenEl.play().catch(() => {});
     this.screenStream.getVideoTracks()[0]?.addEventListener('ended', () => { this.releaseScreen(); this.onScreenEnded?.(); });
   }

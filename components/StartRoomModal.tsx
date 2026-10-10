@@ -3,7 +3,7 @@
 // and opens the room. Triggered globally via the `plajah:start-room` event (feed + profile CTAs).
 
 import React, { useState } from 'react';
-import { Radio, X, Loader2 } from 'lucide-react';
+import { Radio, X, Loader2, Shuffle } from 'lucide-react';
 import { createRoom, setRoomPost, ALLOWED_DURATIONS } from '../services/roomService';
 import { createPost } from '../services/backendService';
 
@@ -58,6 +58,12 @@ const StartRoomModal: React.FC<{ user?: any; onClose: () => void }> = ({ user, o
 
         <button onClick={start} disabled={busy || !title.trim()} className="w-full flex items-center justify-center gap-2 py-3.5 bg-small-orange text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <><Radio size={14} /> Go live</>}
+        </button>
+
+        {/* Shuffle — Omegle-style: meet a random adult 1:1 instead of hosting a room. */}
+        <button onClick={() => { window.dispatchEvent(new CustomEvent('plajah:open-shuffle')); onClose(); }}
+          className="w-full mt-3 flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+          <Shuffle size={14} /> Or meet someone new · Shuffle 18+
         </button>
       </div>
     </div>

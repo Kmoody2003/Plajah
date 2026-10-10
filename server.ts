@@ -64,6 +64,8 @@ import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
 import { createRtcIceRouter } from './routes/rtcIce';
+import { registerShuffleRoutes } from './services/shuffle/shuffleServer';
+import { createDefaultShuffleDeps } from './services/shuffle/shuffleDeps';
 import { decideVerifiedAgentTier, type VerifiedAgentTier, type VerifiedFacts } from './services/aria/ariaTier';
 import { isVerifiedAdmin } from './services/platformAdmin';
 import { socialServerRouter } from './routes/socialServer';
@@ -12047,6 +12049,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Access = verified owner email / admins collection / active Plajah+ subscription (all server-side).
   // Short-lived TURN credentials for WebRTC (routes/rtcIce.ts). Dark until CLOUDFLARE_TURN_* or METERED_* is set.
   app.use('/api/rtc/ice', createRtcIceRouter({ authMiddleware, limiter: apiLimiter }));
+  // Shuffle — Omegle-style random 1:1 video (18+, server-only matchmaking; services/shuffle/*).
+  registerShuffleRoutes(app, { authMiddleware, limiter: apiLimiter, deps: createDefaultShuffleDeps() });
 
   app.use('/api/aria/speak', createAriaSpeakRouter({
     authMiddleware, requireRegisteredUser, limiter: aiLimiter,
@@ -12780,6 +12784,19 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Rendezvous relay for phones to reach a LAN Blackmagic bridge (see services/bmRelayServer.ts).
   if (process.env.BM_RELAY_DISABLED !== '1') {
     import('./services/bmRelayServer.js').then(m => m.attachBmRelay(server)).catch(e => console.warn('[bm-relay] not started:', e?.message));
+  }
+  // Reello Live → Mux: the host's program (host + guests + mixed audio) is relayed through ffmpeg to a
+  // Mux live stream so the audience watches HLS on Plajah (see services/liveMuxRelayServer.ts).
+  if (process.env.MUX_RELAY_DISABLED !== '1') {
+    import('./services/liveMuxRelayServer.js').then(m => m.attachLiveMuxRelay(server, {
+      verifyToken: verifyFirebaseToken,
+      getDoc: firestoreGetDeep,
+      patchDoc: firestorePatchDeep,
+      canGoLive: async (uid: string) => {
+        try { const { getStanding } = await import('./routes/enforcement.js'); return (await getStanding(uid)).canGoLive !== false; }
+        catch { return true; } // Fair Process: fail open on our own outage
+      },
+    })).catch(e => console.warn('[mux-relay] not started:', e?.message));
   }
   server.requestTimeout = 120_000;
   server.headersTimeout = 65_000;

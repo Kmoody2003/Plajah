@@ -14,6 +14,7 @@ import MeetingControls from './chat/MeetingControls';
 import { useRtcSession } from '../hooks/useRtcSession';
 import { saveSessionRecording } from '../services/liveStreamService';
 import RomanceFXOverlay from './RomanceFXOverlay';
+import { CallControlBar, ReactionBar, ReactionFloats } from './call/CallControls';
 import { ChatProduction } from '../services/chatProduction';
 import { queueCallShow } from '../services/ambo/liveCallShows';
 
@@ -57,13 +58,11 @@ const StreamTile: React.FC<{ stream: MediaStream; label: string; muted?: boolean
  * in-call chat panel, live device/source switching (camera, mic, screen, desktop
  * audio), add-a-caller, and a local self + screen preview.
  */
-const REACTIONS = ['❤️', '😂', '👍', '🔥', '👏', '🎉'];
 
 const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = 'VIDEO', ringingName, onInvite, contacts = [] }) => {
   const selfId = auth.currentUser?.uid;
   const [floats, setFloats] = useState<{ id: string; emoji: string; x: number }[]>([]);
   const [showSettings, setShowSettings] = useState(false);
-  const [srcMenu, setSrcMenu] = useState<'mic' | 'cam' | null>(null);
   const [isFull, setIsFull] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -418,118 +417,10 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
         </div>
       </div>
 
-      {/* Floating reactions (data channel) */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
-        <AnimatePresence>
-          {floats.map(f => (
-            <motion.div key={f.id}
-              initial={{ y: 0, opacity: 1, scale: 0.6 }}
-              animate={{ y: -window.innerHeight * 0.5, opacity: 0, scale: 1.5 }}
-              exit={{}} transition={{ duration: 2.5, ease: 'easeOut' }}
-              className="absolute bottom-32 text-4xl" style={{ left: `${f.x}%` }}>
-              {f.emoji}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Reaction bar */}
-      <div className="flex items-center justify-center gap-2 pb-1">
-        {REACTIONS.map(e => (
-          <button key={e} onClick={() => react(e)}
-            className="text-2xl hover:scale-125 active:scale-95 transition-transform p-1.5 rounded-full hover:bg-white/10">
-            {e}
-          </button>
-        ))}
-      </div>
-
-      {/* Controls */}
-      <div className="p-3 sm:p-8 pt-2 bg-gradient-to-t from-black to-transparent flex items-center justify-center gap-2 sm:gap-4 flex-wrap" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
-        {/* Mic + source dropdown */}
-        <div className="relative flex items-center">
-          <button onClick={rtc.toggleAudio}
-            className={`p-4 sm:p-6 rounded-l-full rounded-r-lg transition-all hover:scale-105 ${!rtc.audioEnabled ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
-            {!rtc.audioEnabled ? <MicOff size={24} /> : <Mic size={24} />}
-          </button>
-          <button onClick={() => { setSrcMenu(m => m === 'mic' ? null : 'mic'); rtc.refreshDevices(); }}
-            className="px-1.5 py-4 sm:py-6 rounded-r-full rounded-l-lg bg-white/10 text-white/50 hover:bg-white/20 transition-all"><ChevronUp size={14} /></button>
-          <AnimatePresence>
-            {srcMenu === 'mic' && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setSrcMenu(null)} />
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-                  className="absolute bottom-full mb-3 left-0 z-50 w-64 bg-[#0c0c0f] border border-white/10 rounded-2xl shadow-2xl p-2">
-                  <div className="px-2 py-1.5 text-[9px] font-black uppercase tracking-widest text-white/40">Microphone</div>
-                  {rtc.devices.mics.length === 0 && <div className="px-2 py-2 text-[10px] text-white/30">No microphone found</div>}
-                  {rtc.devices.mics.map((d, i) => {
-                    const active = rtc.activeDevices.micId === d.deviceId;
-                    return (
-                      <button key={d.deviceId || i} onClick={() => { rtc.switchAudioDevice(d.deviceId); setSrcMenu(null); }}
-                        className={`w-full text-left px-2 py-2 rounded-lg text-[11px] font-semibold flex items-center gap-2 ${active ? 'bg-small-orange/20 text-small-orange' : 'text-white/70 hover:bg-white/5'}`}>
-                        <Mic size={12} /> <span className="truncate">{d.label || `Microphone ${i + 1}`}</span>
-                      </button>
-                    );
-                  })}
-                  <div className="h-px bg-white/10 my-1.5" />
-                  <button onClick={() => { rtc.useDesktopAudio(); setSrcMenu(null); }}
-                    className="w-full text-left px-2 py-2 rounded-lg text-[11px] font-semibold flex items-center gap-2 text-white/70 hover:bg-white/5">
-                    <MonitorSpeaker size={12} /> Desktop / system audio
-                  </button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Camera + source dropdown */}
-        <div className="relative flex items-center">
-          <button onClick={rtc.toggleVideo}
-            className={`p-4 sm:p-6 rounded-l-full rounded-r-lg transition-all hover:scale-105 ${!rtc.videoEnabled ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
-            {!rtc.videoEnabled ? <VideoOff size={24} /> : <Video size={24} />}
-          </button>
-          <button onClick={() => { setSrcMenu(m => m === 'cam' ? null : 'cam'); rtc.refreshDevices(); }}
-            className="px-1.5 py-4 sm:py-6 rounded-r-full rounded-l-lg bg-white/10 text-white/50 hover:bg-white/20 transition-all"><ChevronUp size={14} /></button>
-          <AnimatePresence>
-            {srcMenu === 'cam' && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setSrcMenu(null)} />
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-                  className="absolute bottom-full mb-3 left-0 z-50 w-64 bg-[#0c0c0f] border border-white/10 rounded-2xl shadow-2xl p-2">
-                  <div className="px-2 py-1.5 text-[9px] font-black uppercase tracking-widest text-white/40">Camera</div>
-                  {rtc.devices.cameras.length === 0 && <div className="px-2 py-2 text-[10px] text-white/30">No camera found</div>}
-                  {rtc.devices.cameras.map((d, i) => {
-                    const active = rtc.activeDevices.cameraId === d.deviceId;
-                    return (
-                      <button key={d.deviceId || i} onClick={() => { rtc.switchVideoDevice(d.deviceId); setSrcMenu(null); }}
-                        className={`w-full text-left px-2 py-2 rounded-lg text-[11px] font-semibold flex items-center gap-2 ${active ? 'bg-small-orange/20 text-small-orange' : 'text-white/70 hover:bg-white/5'}`}>
-                        <Video size={12} /> <span className="truncate">{d.label || `Camera ${i + 1}`}</span>
-                      </button>
-                    );
-                  })}
-                  <div className="h-px bg-white/10 my-1.5" />
-                  <button onClick={() => { rtc.toggleScreenShare(); setSrcMenu(null); }}
-                    className={`w-full text-left px-2 py-2 rounded-lg text-[11px] font-semibold flex items-center gap-2 ${rtc.sharingScreen ? 'bg-small-orange/20 text-small-orange' : 'text-white/70 hover:bg-white/5'}`}>
-                    <Monitor size={12} /> {rtc.sharingScreen ? 'Stop sharing screen' : 'Share screen'}
-                  </button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <button onClick={rtc.toggleScreenShare}
-          className={`hidden sm:flex p-4 sm:p-6 rounded-full transition-all hover:scale-110 ${rtc.sharingScreen ? 'bg-small-orange text-white shadow-[0_0_30px_rgba(255,140,0,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
-          <Monitor size={24} />
-        </button>
-        <button onClick={toggleRecord} title={rtc.isRecording ? 'Stop recording' : 'Record'}
-          className={`hidden sm:flex p-4 sm:p-6 rounded-full transition-all hover:scale-110 ${rtc.isRecording ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)] animate-pulse' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
-          <Circle size={24} fill={rtc.isRecording ? 'currentColor' : 'none'} />
-        </button>
-        <button onClick={end}
-          className="p-4 sm:p-6 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-[0_0_50px_rgba(220,38,38,0.4)]">
-          <PhoneOff size={24} />
-        </button>
-      </div>
+      {/* Floating reactions (data channel) + reaction bar + controls — shared call chrome */}
+      <ReactionFloats floats={floats} />
+      <ReactionBar onReact={react} />
+      <CallControlBar rtc={rtc} onEnd={end} record={{ active: rtc.isRecording, toggle: toggleRecord }} />
       </div>
 
       {/* In-call chat side panel */}
