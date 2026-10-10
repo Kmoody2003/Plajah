@@ -45,6 +45,17 @@ export function useLivingPictureBook(album: Album, bundle: BookTelaBundle | null
   }, [on, living]);
   useEffect(() => { if (audio) audio.setGains({ music: living?.defaults?.musicGain, sfx: living?.defaults?.sfxGain }); }, [audio, living]);
   useEffect(() => { if (audio) audio.setMuted(!lp.soundOn); }, [audio, lp.soundOn]);
+  // Browsers keep audio locked until a real gesture. The Tela reader catches the first touch on its root; here the reader shell is BookReader,
+  // so listen for the first pointer/key press anywhere on the page, then unlock the engine (also when the engine finishes loading after it).
+  const { markGesture, gesture } = lp;
+  useEffect(() => {
+    if (!on || gesture) return;
+    const first = () => markGesture();
+    window.addEventListener('pointerdown', first, { capture: true, once: true });
+    window.addEventListener('keydown', first, { capture: true, once: true });
+    return () => { window.removeEventListener('pointerdown', first, true); window.removeEventListener('keydown', first, true); };
+  }, [on, gesture, markGesture]);
+  useEffect(() => { if (audio && gesture) void audio.unlock(); }, [audio, gesture]);
   useEffect(() => { (audio as { setAudience?: (a: 'children' | 'general') => void } | null)?.setAudience?.(isChildrensBook(album) ? 'children' : 'general'); }, [audio, album]);
   useEffect(() => () => { audio?.stopAll(); }, [audio]);
 
