@@ -70,20 +70,32 @@ export interface CallControlBarProps {
   /** Surface-specific actions, rendered before the end button. */
   extra?: React.ReactNode;
   compact?: boolean;
+  /** Overlay mode (over a full-screen stream): no gradient band, smaller padding. */
+  overlay?: boolean;
+  /** Overrides for surfaces whose audio/video graph sits between the devices and rtc
+   *  (Reello guests: mixer + composer). Default = rtc's own mute / device switching. */
+  mic?: { on: boolean; toggle: () => void };
+  onPickMic?: (deviceId: string) => void;
+  onPickCamera?: (deviceId: string) => void;
 }
 
-export function CallControlBar({ rtc, onEnd, endLabel = 'End call', desktopAudio = true, screenShare = true, record, extra, compact }: CallControlBarProps) {
+export function CallControlBar({ rtc, onEnd, endLabel = 'End call', desktopAudio = true, screenShare = true, record, extra, compact, overlay, mic, onPickMic, onPickCamera }: CallControlBarProps) {
   const [srcMenu, setSrcMenu] = useState<'mic' | 'cam' | null>(null);
+  const micOn = mic ? mic.on : rtc.audioEnabled;
+  const toggleMic = mic ? mic.toggle : rtc.toggleAudio;
+  const pickMic = onPickMic ?? rtc.switchAudioDevice;
+  const pickCamera = onPickCamera ?? rtc.switchVideoDevice;
+  if (overlay) compact = true;
   const pad = compact ? 'p-3.5' : 'p-4 sm:p-6';
   const padSplit = compact ? 'py-3.5' : 'py-4 sm:py-6';
   const icon = compact ? 20 : 24;
   return (
-    <div className={`${compact ? 'p-3 pt-2' : 'p-3 sm:p-8 pt-2'} bg-gradient-to-t from-black to-transparent flex items-center justify-center gap-2 sm:gap-4 flex-wrap`} style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+    <div className={`${overlay ? 'px-2 py-1.5 rounded-[2rem] bg-black/55 backdrop-blur' : compact ? 'p-3 pt-2 bg-gradient-to-t from-black to-transparent' : 'p-3 sm:p-8 pt-2 bg-gradient-to-t from-black to-transparent'} flex items-center justify-center gap-2 sm:gap-4 flex-wrap`} style={overlay ? undefined : { paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
       {/* Mic + source dropdown */}
       <div className="relative flex items-center">
-        <button onClick={rtc.toggleAudio} aria-label={rtc.audioEnabled ? 'Mute' : 'Unmute'}
-          className={`${pad} rounded-l-full rounded-r-lg transition-all hover:scale-105 ${!rtc.audioEnabled ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
-          {!rtc.audioEnabled ? <MicOff size={icon} /> : <Mic size={icon} />}
+        <button onClick={toggleMic} aria-label={micOn ? 'Mute' : 'Unmute'}
+          className={`${pad} rounded-l-full rounded-r-lg transition-all hover:scale-105 ${!micOn ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
+          {!micOn ? <MicOff size={icon} /> : <Mic size={icon} />}
         </button>
         <button onClick={() => { setSrcMenu(m => m === 'mic' ? null : 'mic'); rtc.refreshDevices(); }} aria-label="Choose microphone"
           className={`px-1.5 ${padSplit} rounded-r-full rounded-l-lg bg-white/10 text-white/50 hover:bg-white/20 transition-all`}><ChevronUp size={14} /></button>
@@ -98,7 +110,7 @@ export function CallControlBar({ rtc, onEnd, endLabel = 'End call', desktopAudio
                 {rtc.devices.mics.map((d, i) => {
                   const active = rtc.activeDevices.micId === d.deviceId;
                   return (
-                    <button key={d.deviceId || i} onClick={() => { rtc.switchAudioDevice(d.deviceId); setSrcMenu(null); }}
+                    <button key={d.deviceId || i} onClick={() => { pickMic(d.deviceId); setSrcMenu(null); }}
                       className={`w-full text-left px-2 py-2 rounded-lg text-[11px] font-semibold flex items-center gap-2 ${active ? 'bg-small-orange/20 text-small-orange' : 'text-white/70 hover:bg-white/5'}`}>
                       <Mic size={12} /> <span className="truncate">{d.label || `Microphone ${i + 1}`}</span>
                     </button>
@@ -138,7 +150,7 @@ export function CallControlBar({ rtc, onEnd, endLabel = 'End call', desktopAudio
                 {rtc.devices.cameras.map((d, i) => {
                   const active = rtc.activeDevices.cameraId === d.deviceId;
                   return (
-                    <button key={d.deviceId || i} onClick={() => { rtc.switchVideoDevice(d.deviceId); setSrcMenu(null); }}
+                    <button key={d.deviceId || i} onClick={() => { pickCamera(d.deviceId); setSrcMenu(null); }}
                       className={`w-full text-left px-2 py-2 rounded-lg text-[11px] font-semibold flex items-center gap-2 ${active ? 'bg-small-orange/20 text-small-orange' : 'text-white/70 hover:bg-white/5'}`}>
                       <Video size={12} /> <span className="truncate">{d.label || `Camera ${i + 1}`}</span>
                     </button>

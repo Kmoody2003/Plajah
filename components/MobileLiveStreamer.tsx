@@ -44,6 +44,7 @@ import { startMuxRelay, type MuxRelayHandle, type MuxRelayStatus } from '../serv
 import { attachLiveHls } from '../services/liveHlsPlayback';
 import { LiveSoundSheet } from './live/LiveSoundSheet';
 import { usePresence } from '../hooks/usePresence';
+import { CallControlBar } from './call/CallControls';
 import { unlockAchievementByTrigger } from '../services/achievementService';
 import { publishLiveDiscovery, endLiveDiscovery, endLiveDiscoveryByStream, saveSessionRecording, heartbeatLiveDiscovery } from '../services/liveStreamService';
 import { HEARTBEAT_INTERVAL_MS } from '../services/liveFeedLiveness';
@@ -2316,6 +2317,34 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
       const on = !guestMicOn; guestRawMicRef.current.enabled = on; setGuestMicOn(on);
     } else { setGuestMicOn(!rtc.audioEnabled); rtc.toggleAudio(); }
   };
+  // Device pickers (shared call bar) must go THROUGH the guest's graph when it's engaged: rtc's own
+  // switch would replace the published mixer / composer track and silently drop the shared sound
+  // or screen. Plain guests just use rtc's hot swap.
+  const pickGuestMic = async (deviceId: string) => {
+    const m = guestMixerRef.current;
+    if (!m) { rtc.switchAudioDevice(deviceId); return; }
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId }, echoCancellation: true, noiseSuppression: true } });
+      const t = st.getAudioTracks()[0];
+      if (!t) return;
+      t.enabled = guestMicOn;
+      guestRawMicRef.current?.stop();
+      guestRawMicRef.current = t;
+      m.setTrack('mic', t);
+    } catch (e) { console.warn('[guest] mic switch failed', e); }
+  };
+  const pickGuestCamera = async (deviceId: string) => {
+    const comp = guestCompRef.current;
+    if (!comp) { rtc.switchVideoDevice(deviceId); return; }
+    try {
+      const st = await rtc.cameraStreamForDevice(deviceId);
+      const t = st.getVideoTracks()[0];
+      if (!t) return;
+      await comp.adoptFrontTrack(t.clone());
+      guestRawCamRef.current?.stop();
+      guestRawCamRef.current = t;
+    } catch (e) { console.warn('[guest] camera switch failed', e); }
+  };
   const setGuestShareMode = async (mode: 'camera' | 'screen-pip' | 'screen-mask') => {
     if (guestShareBusy || mode === guestShare) { setGuestMenu(null); return; }
     setGuestShareBusy(true);
@@ -2569,18 +2598,22 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
       {streamLive && (
         <div className="absolute left-1/2 -translate-x-1/2 z-20 flex items-center gap-2" style={{ bottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}>
           {isGuest ? (
-            <>
+            <div className="flex flex-col items-center gap-2">
               <span className="px-3 py-1.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> You're on stage</span>
-              <button onClick={toggleGuestMic} aria-label="Mic" className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center">{(guestMixerRef.current ? guestMicOn : rtc.audioEnabled) ? <Mic size={15} className="text-white" /> : <MicOff size={15} className="text-red-400" />}</button>
-              <button onClick={rtc.toggleVideo} aria-label="Camera" className="w-9 h-9 rounded-full bg-black/60 backdrop-blur flex items-center justify-center"><Video size={15} className={rtc.videoEnabled ? 'text-white' : 'text-red-400'} /></button>
-              {canScreenShare && (
-                <button onClick={() => setGuestMenu(m => m === 'share' ? null : 'share')} aria-label="Share screen"
-                  className={`w-9 h-9 rounded-full backdrop-blur flex items-center justify-center ${guestShare !== 'camera' ? 'bg-red-500/80' : 'bg-black/60'}`}><Monitor size={15} className="text-white" /></button>
-              )}
-              <button onClick={() => setGuestMenu(m => m === 'sound' ? null : 'sound')} aria-label="Sound"
-                className={`w-9 h-9 rounded-full backdrop-blur flex items-center justify-center ${guestMix.some(x => x.active && x.id !== 'mic') ? 'bg-red-500/80' : 'bg-black/60'}`}><Music2 size={15} className="text-white" /></button>
-              <button onClick={leaveStage} className="px-3 py-1.5 rounded-full bg-white/15 text-white text-[9px] font-black uppercase tracking-widest">Leave stage</button>
-            </>
+              {/* Same call bar as meetings + Shuffle (components/call/CallControls); Share + Sound are
+                  Reello's own, and mute / device picks go through the guest's mixer + composer. */}
+              <CallControlBar overlay rtc={rtc} onEnd={leaveStage} endLabel="Leave stage" screenShare={false} desktopAudio={false}
+                mic={{ on: guestMixerRef.current ? guestMicOn : rtc.audioEnabled, toggle: toggleGuestMic }}
+                onPickMic={pickGuestMic} onPickCamera={pickGuestCamera}
+                extra={<>
+                  {canScreenShare && (
+                    <button onClick={() => setGuestMenu(m => m === 'share' ? null : 'share')} aria-label="Share screen"
+                      className={`p-3.5 rounded-full transition-all hover:scale-105 ${guestShare !== 'camera' ? 'bg-small-orange text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}><Monitor size={20} /></button>
+                  )}
+                  <button onClick={() => setGuestMenu(m => m === 'sound' ? null : 'sound')} aria-label="Sound"
+                    className={`p-3.5 rounded-full transition-all hover:scale-105 ${guestMix.some(x => x.active && x.id !== 'mic') ? 'bg-small-orange text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}><Music2 size={20} /></button>
+                </>} />
+            </div>
           ) : requested ? (
             <span className="px-4 py-2 rounded-full bg-black/60 backdrop-blur text-white/70 text-[9px] font-black uppercase tracking-widest">Requested — waiting for host…</span>
           ) : (
@@ -2593,7 +2626,7 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
 
       {isGuest && guestMenu === 'share' && (
         <div className="absolute left-1/2 -translate-x-1/2 z-30 w-[min(92vw,340px)] rounded-2xl bg-zinc-950/95 border border-white/10 p-2 space-y-1"
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 144px)' }}>
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 204px)' }}>
           {([
             { id: 'camera', label: 'Camera', icon: <Video size={15} /> },
             { id: 'screen-pip', label: 'Screen + camera', icon: <MonitorSmartphone size={15} /> },
