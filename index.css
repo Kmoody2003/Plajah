@@ -4,6 +4,13 @@
    (videos, image sheets, rigs) that sessions drop in untracked; scanning it stalls the dev
    server's index.css indefinitely. It never contains app classes. */
 @source not "./docs";
+/* Same for public/ (hundreds of MB, incl. 27 MB scripture XML), scripts/, tests/ and scratch dirs: none of them hold app classes, and scanning
+   them made every index.css rebuild take ~30 s, so the app looked stuck after each edit. */
+@source not "./public";
+@source not "./scripts";
+@source not "./tests";
+@source not "./scratch";
+@source not "./.tela-proofs";
 /* Canonical design-system tokens + control layer. Spec: docs/PLAJAH_DESIGN_SYSTEM.md */
 @import "./styles/plajah-ds.css";
 /* Ora — personal productivity & wellbeing. Consumes DS tokens, defines no colours. */
