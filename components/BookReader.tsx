@@ -1440,7 +1440,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       <div className="flex-1 flex overflow-hidden w-full h-full relative">
         <div 
           ref={readerGestureRef}
-          className={`flex-1 relative flex items-center justify-center overflow-auto p-2 sm:p-4 lg:p-6 pt-16 pb-16 no-scrollbar transition-all duration-500 ${(showComments || showNotes || showTOC || showSettings) ? 'lg:mr-[400px]' : ''}`}
+          className={`flex-1 relative flex items-center justify-center overflow-auto p-2 sm:p-4 lg:p-6 pt-20 pb-20 sm:pt-24 sm:pb-24 lg:pt-24 lg:pb-24 no-scrollbar transition-all duration-500 ${(showComments || showNotes || showTOC || showSettings) ? 'lg:mr-[400px]' : ''}`}
           onClick={() => setShowControls(!showControls)}
         >
           <div 

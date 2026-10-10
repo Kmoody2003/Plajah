@@ -35,7 +35,7 @@ async function getAuthToken(): Promise<string | null> {
 export function getBookAudio(): BookAudioEx {
   if (!instance) {
     const hasWindow = typeof window !== 'undefined';
-    const o: EngineOptions = { aria: hasWindow ? createAriaClient({ getToken: getAuthToken }) : null };
+    const o: EngineOptions = { aria: hasWindow ? createAriaClient({ getToken: getAuthToken, style: 'storybook' }) : null };
     instance = createBookAudio(o);
   }
   return instance;

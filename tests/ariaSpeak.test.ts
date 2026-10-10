@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
-import { createAriaSpeakRouter, decideAriaVoiceAccess, type AriaVoiceAccess } from '../routes/ariaSpeak';
+import { createAriaSpeakRouter, decideAriaVoiceAccess, voiceSettingsFor, type AriaVoiceAccess } from '../routes/ariaSpeak';
 
 const realFetch = globalThis.fetch;
 let server: http.Server;
@@ -115,4 +115,10 @@ test('upstream failure is a clean 502 that does not leak the upstream body', asy
   process.env.ARIA_TTS_DAILY_CHARS = '12';
   assert.equal((await post('hello there', 'failuser')).status, 200);
   delete process.env.ARIA_TTS_DAILY_CHARS;
+});
+
+test('storybook delivery is steadier than the approved default; unknown styles fall back to the default', () => {
+  const book = voiceSettingsFor('storybook') as any, def = voiceSettingsFor(undefined) as any;
+  assert.ok(book.stability > def.stability); assert.equal(book.style, 0); assert.ok(book.speed < def.speed);
+  assert.deepEqual(voiceSettingsFor('whisper'), def);
 });

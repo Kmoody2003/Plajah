@@ -62,6 +62,15 @@ function configured() {
   return key && voiceId ? { key, voiceId } : null;
 }
 
+/**
+ * Aria's approved delivery is stability 0.5 (expressive). Reading to children wants steadier, plainer inflection: 'storybook' raises
+ * stability, drops style exaggeration and slows a touch, so nothing reads as breathy or suggestive. Only this fixed name is honoured.
+ */
+export function voiceSettingsFor(style: unknown): Record<string, number | boolean> {
+  if (style === 'storybook') return { stability: 0.8, similarity_boost: 0.75, style: 0, speed: 0.95 };
+  return { stability: 0.5, similarity_boost: 0.75, speed: 1.0 };
+}
+
 export function createAriaSpeakRouter({ authMiddleware, requireRegisteredUser, limiter, resolveAccess }: Deps): Router {
   const r = Router();
 
@@ -101,7 +110,7 @@ export function createAriaSpeakRouter({ authMiddleware, requireRegisteredUser, l
           body: JSON.stringify({
             text,
             model_id: process.env.ELEVENLABS_ARIA_MODEL || DEFAULT_MODEL,
-            voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1.0 },
+            voice_settings: voiceSettingsFor(req.body?.style),
           }),
           signal: AbortSignal.timeout(30000),
         },

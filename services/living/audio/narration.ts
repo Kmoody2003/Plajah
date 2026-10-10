@@ -136,7 +136,7 @@ export interface AriaClient {
   fetchAudio(text: string, signal?: AbortSignal): Promise<ArrayBuffer | null>;
 }
 
-export function createAriaClient(deps: { getToken: () => Promise<string | null>; fetchImpl?: typeof fetch; base?: string }): AriaClient {
+export function createAriaClient(deps: { getToken: () => Promise<string | null>; fetchImpl?: typeof fetch; base?: string; /** Delivery profile sent to the proxy. 'storybook' = steadier, plainer reading for children (less inflection). */ style?: 'storybook' }): AriaClient {
   const f = (...a: Parameters<typeof fetch>) => (deps.fetchImpl ?? fetch)(...a);
   const base = deps.base ?? '/api/aria/speak';
   let ok = false; let checkedAt = 0; let inflight: Promise<boolean> | null = null;
@@ -168,10 +168,10 @@ export function createAriaClient(deps: { getToken: () => Promise<string | null>;
     probe,
     isAvailable: () => ok,
     async fetchAudio(text, signal) {
-      const hit = cache.get(text); if (hit) return hit;
+      const hit = cache.get(text); if (hit) return hit;   // one client = one style, so the text alone is the key
       try {
         const token = await deps.getToken(); if (!token) return null;
-        const res = await f(base, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ text }), signal });
+        const res = await f(base, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(deps.style ? { text, style: deps.style } : { text }), signal });
         if (!res.ok) { if (res.status === 403 || res.status === 503) { ok = false; checkedAt = Date.now(); } return null; }
         const buf = await res.arrayBuffer();
         cache.set(text, buf); if (cache.size > 24) cache.delete(cache.keys().next().value as string);
