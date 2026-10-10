@@ -304,13 +304,23 @@ export interface FeaturedProjectView {
 }
 
 const albumKindLabel = (a: Album): string => {
-  if (a.subType === 'PODCAST') return 'Podcast';
-  if (a.subType === 'MIX') return 'Mix';
-  if (a.type === 'BOOK') return 'Book';
-  if (a.type === 'VIDEO' || a.subType === 'MOVIE') return 'Film';
-  if (a.type === 'PHOTO') return 'Photo album';
+  // Name the kind of work (book, film, music...), never the storage shape ("album"). Subtype first: it is the most specific signal.
+  switch (a.subType) {
+    case 'PODCAST': return 'Podcast';
+    case 'MIX': return 'Mix';
+    case 'AUDIOBOOK': return 'Audiobook';
+    case 'GRAPHIC_NOVEL': return 'Graphic novel';
+    case 'NOVEL': return 'Book';
+    case 'MOVIE': return 'Film';
+    case 'TV_SERIES': return 'Series';
+    case 'PLAYLIST': return 'Playlist';
+  }
+  if (a.type === 'BOOK' || (a.bookChapters?.length ?? 0) > 0) return 'Book';
+  if (a.type === 'VIDEO') return 'Film';
+  if (a.type === 'PHOTO') return 'Photos';
+  if (a.type === 'GAME') return 'Game';
   const n = a.tracks?.length || 0;
-  return n === 1 ? 'Single' : n > 0 ? `Album · ${n} tracks` : 'Album';
+  return n === 1 ? 'Music · single' : n > 1 ? `Music · ${n} tracks` : 'Music';
 };
 
 /**
