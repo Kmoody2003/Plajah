@@ -212,7 +212,7 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
         return (
           <div key={f.id} style={{ width: w, margin: "0 auto" }} data-living-page-frame={i + 1}>
             <TelaLivePage ref={active ? liveRef : undefined} objects={objs} width={size.width} height={size.height} living={livingPageFor(living, i + 1)!}
-              audio={audio} reducedMotion={lp.reduced} soundEnabled={lp.soundOn} active={active} autoNarrate={lp.narrate === 'auto'} label={f.label || undefined}
+              audio={audio} reducedMotion={lp.reduced} soundEnabled={lp.soundOn} active={active} autoNarrate={lp.narrate === 'auto'} hints={lp.hints} label={f.label || undefined}
               onGoto={p => goTo(p === 'next' ? i + 1 : p === 'prev' ? i - 1 : p - 1)}
               onGoal={(pg, id) => { const k = `plajah-living-goals-${album.id}`; writeJson(k, { ...readJson<Record<string, number>>(k, {}), [`${pg}:${id}`]: Date.now() }); }} />
           </div>

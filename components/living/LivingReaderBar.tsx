@@ -1,16 +1,16 @@
 // Reader controls for living pages: Sound, Read-to-me, Reduced motion, Play again. Choices are remembered (localStorage, guarded).
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Headphones, RotateCcw, Volume2, VolumeX, Sparkles, Ban } from 'lucide-react';
+import { Headphones, RotateCcw, Volume2, VolumeX, Sparkles, Ban, Hand } from 'lucide-react';
 
 export type NarrateMode = 'off' | 'on-demand' | 'auto';
 type SoundPref = 'on' | 'off' | null;
 type ReducedPref = 'system' | 'on' | 'off';
 
 const KEY = 'plajah-living-prefs';
-interface Stored { sound: SoundPref; reduced: ReducedPref; narrate: NarrateMode | null }
+interface Stored { sound: SoundPref; reduced: ReducedPref; narrate: NarrateMode | null; hints: boolean }
 const read = (): Stored => {
-  try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') return { sound: v.sound === 'on' || v.sound === 'off' ? v.sound : null, reduced: ['system', 'on', 'off'].includes(v.reduced) ? v.reduced : 'system', narrate: ['off', 'on-demand', 'auto'].includes(v.narrate) ? v.narrate : null }; } catch { /* blocked or corrupt */ }
-  return { sound: null, reduced: 'system', narrate: null };
+  try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') return { sound: v.sound === 'on' || v.sound === 'off' ? v.sound : null, reduced: ['system', 'on', 'off'].includes(v.reduced) ? v.reduced : 'system', narrate: ['off', 'on-demand', 'auto'].includes(v.narrate) ? v.narrate : null, hints: v.hints !== false }; } catch { /* blocked or corrupt */ }
+  return { sound: null, reduced: 'system', narrate: null, hints: true };
 };
 const write = (s: Stored) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage full or blocked */ } };
 
@@ -27,6 +27,9 @@ export interface LivingPrefs {
   toggleSound(): void;
   cycleReduced(): void;
   setNarrate(m: NarrateMode): void;
+  /** Show the visual "you can touch this" cues on the page. */
+  hints: boolean;
+  toggleHints(): void;
 }
 
 /** Sound is OFF until the first gesture (contract rule 2); after it, on unless the reader muted it earlier. */
@@ -49,6 +52,7 @@ export function useLivingPrefs(defaults?: { narrate?: NarrateMode }): LivingPref
     toggleSound: () => update(s => ({ ...s, sound: soundOn ? 'off' : 'on' })),
     cycleReduced: () => update(s => ({ ...s, reduced: s.reduced === 'system' ? 'on' : s.reduced === 'on' ? 'off' : 'system' })),
     setNarrate: m => update(s => ({ ...s, narrate: m })),
+    hints: st.hints !== false, toggleHints: () => update(s => ({ ...s, hints: s.hints === false })),
   }), [soundOn, gesture, st, sys, narrate, markGesture, update]);
 }
 
@@ -76,6 +80,7 @@ export function LivingReaderBar({ prefs, onReplay, onReadNow, canNarrate = true,
       <button type="button" onClick={prefs.cycleReduced} aria-label={motion} title="Click to change: system, on, off" className={`${btn} ${prefs.reducedPref === 'on' ? 'bg-sky-300 text-black' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}>
         {prefs.reduced ? <Ban size={16} /> : <Sparkles size={16} />}<span>{motion}</span>
       </button>
+      <button type="button" onClick={prefs.toggleHints} aria-pressed={prefs.hints} aria-label={prefs.hints ? 'Hints on' : 'Hints off'} title="Show where you can touch" className={`${btn} ${prefs.hints ? 'bg-white/20 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}><Hand size={16} /><span>{prefs.hints ? 'Hints' : 'Hints off'}</span></button>
       <button type="button" onClick={onReplay} aria-label="Play this page again" className={`${btn} bg-white/10 text-white/85 hover:bg-white/20`}><RotateCcw size={16} /><span>Play again</span></button>
     </div>
   );

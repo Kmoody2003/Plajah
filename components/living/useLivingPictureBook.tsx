@@ -57,12 +57,12 @@ export function useLivingPictureBook(album: Album, bundle: BookTelaBundle | null
       <div key={f.id} data-living-page-frame={i + 1} className="rounded-lg shadow-2xl ring-1 ring-white/10 overflow-hidden"
         style={{ height: '100%', maxWidth: '100%', aspectRatio: `${size.width} / ${size.height}` }}>
         <TelaLivePage ref={active ? liveRef : undefined} objects={objs} width={size.width} height={size.height} living={livingPageFor(living, i + 1)!}
-          audio={audio} reducedMotion={lp.reduced} soundEnabled={lp.soundOn} active={active} autoNarrate={lp.narrate === 'auto'} label={f.label || undefined}
+          audio={audio} reducedMotion={lp.reduced} soundEnabled={lp.soundOn} active={active} autoNarrate={lp.narrate === 'auto'} hints={lp.hints} label={f.label || undefined}
           onGoto={p => goTo(p === 'next' ? i + 1 : p === 'prev' ? i - 1 : p - 1)}
           onGoal={(pg, id) => { const k = `plajah-living-goals-${album.id}`; writeJson(k, { ...readJson<Record<string, number>>(k, {}), [`${pg}:${id}`]: Date.now() }); }} />
       </div>
     );
-  }, [on, doc, living, audio, lp.reduced, lp.soundOn, lp.narrate, album.id, goTo]);
+  }, [on, doc, living, audio, lp.reduced, lp.soundOn, lp.narrate, lp.hints, album.id, goTo]);
 
   if (!on) return null;
   return { livePage, bar: <LivingReaderBar flat prefs={lp} onReplay={() => liveRef.current?.replay()} onReadNow={() => liveRef.current?.narrate()} /> };

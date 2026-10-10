@@ -50,6 +50,18 @@ export interface InteractiveItem {
   hint: string;
   ids: string[];
   box: { x: number; y: number; w: number; h: number };
+  /** Drag only: which way the drag goes (page units), for the visual hint. */
+  vec?: { dx: number; dy: number };
+}
+
+type DragTrigger = { axis?: 'x' | 'y' | 'both'; bounds?: { minX?: number; maxX?: number; minY?: number; maxY?: number }; snapTo?: Array<{ x: number; y: number }> };
+export function dragVec(on: DragTrigger): { dx: number; dy: number } {
+  const s = on.snapTo?.[0]; if (s && Math.hypot(s.x, s.y) > 8) return { dx: s.x, dy: s.y };
+  const b = on.bounds; let dx = 0, dy = 0;
+  if (b && on.axis !== 'y') dx = Math.abs(b.maxX ?? 0) >= Math.abs(b.minX ?? 0) ? (b.maxX ?? 0) : (b.minX ?? 0);
+  if (b && on.axis !== 'x') dy = Math.abs(b.maxY ?? 0) >= Math.abs(b.minY ?? 0) ? (b.maxY ?? 0) : (b.minY ?? 0);
+  if (!dx && !dy) { if (on.axis === 'y') dy = 1; else dx = 1; }
+  return { dx, dy };
 }
 
 interface ObjState { x: number; y: number; fx: number; fy: number; px: number; py: number; rot: number; sc: number; opacity: number; visible: boolean }
@@ -720,7 +732,7 @@ export class LivingEngine implements RuntimeHost {
       const box = ids.includes(PAGE_ID) ? { x: 0, y: 0, w: this.o.width, h: this.o.height } : unionBox(ids, this.o.objects); if (!box) continue;
       const cur = items.get(key);
       if (cur) { cur.behaviorIds.push(b.id); if (!cur.hint && b.hint) cur.hint = b.hint; }
-      else items.set(key, { key, family, behaviorIds: [b.id], hint: b.hint ?? '', ids, box });
+      else items.set(key, { key, family, behaviorIds: [b.id], hint: b.hint ?? '', ids, box, ...(b.on.type === 'drag' ? { vec: dragVec(b.on) } : {}) });
     }
     return [...items.values()].map(i => ({ ...i, hint: i.hint || 'Interactive element' }));
   }

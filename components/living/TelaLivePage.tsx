@@ -17,6 +17,7 @@ import type { BookAudioApi, LivingPage, Scalar, Score } from '../../services/liv
 import { objectToSvg } from '../../services/tela/telaSvg';
 import { LivingEngine, type InteractiveItem } from '../../services/living/runtime/engine';
 import { narrationObjects, objectInfos } from '../../services/living/runtime/objects';
+import LiveHints from './LiveHints';
 
 export interface TelaLivePageHandle {
   replay(): void;
@@ -56,6 +57,8 @@ export interface TelaLivePageProps {
   style?: React.CSSProperties;
   label?: string;
   onNarrationWord?: (i: number) => void;
+  /** Draw the visual "you can touch this" cues (components/living/LiveHints.tsx). Default true. */
+  hints?: boolean;
 }
 
 // ── audio ownership: the page that is active owns the music. A page that is left does not stop music a newer page already took over.
@@ -71,7 +74,7 @@ const ObjectG = memo(function ObjectG({ o, html }: { o: TelaVectorObject; html: 
 let instanceCounter = 0;
 
 const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function TelaLivePage(props, ref) {
-  const { objects, width, height, living, audio, soundEnabled, onGoto, onGoal, active = true, background, pageAudio = true, autoNarrate, writerTexts, className, style, label, onNarrationWord } = props;
+  const { objects, width, height, living, audio, soundEnabled, onGoto, onGoal, active = true, background, pageAudio = true, autoNarrate, writerTexts, className, style, label, onNarrationWord, hints = true } = props;
   const [reducedOverride, setReducedOverride] = useState<boolean | null>(null);
   const reduced = reducedOverride ?? props.reducedMotion;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -81,6 +84,8 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<LivingEngine | null>(null);
   const [items, setItems] = useState<InteractiveItem[]>([]);
+  const [discovered, setDiscovered] = useState<ReadonlySet<string>>(() => new Set());
+  const [busyTick, setBusyTick] = useState(0);
   const [said, setSaid] = useState('');
   const [inView, setInView] = useState(true);
   const prefix = useMemo(() => `lv${++instanceCounter}_`, []);
@@ -109,7 +114,7 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
       onWord: i => cb.current.onNarrationWord?.(i),
     });
     engineRef.current = eng;
-    setItems(eng.interactiveItems());
+    setItems(eng.interactiveItems()); setDiscovered(new Set());
     return () => { eng.stop(); eng.destroy(); if (engineRef.current === eng) engineRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [infos, living, width, height, narr]);
@@ -190,7 +195,14 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
   };
   // Enter/Space on tap/proximity/drag controls arrive as `click` with detail 0 (also what screen readers send).
   const onItemClick = (item: InteractiveItem) => (e: React.MouseEvent) => {
-    if (e.detail !== 0) return; unlock(); engineRef.current?.activateItem(item, 'tap');
+    if (e.detail !== 0) return; unlock(); markTried(item.key); engineRef.current?.activateItem(item, 'tap');
+  };
+  const markTried = (key: string) => { setBusyTick(t => t + 1); setDiscovered(prev => (prev.has(key) ? prev : new Set(prev).add(key))); };
+  /** A touch on a spot counts as trying it: that spot stops hinting. Any touch also quiets the hints for a moment. */
+  const noteTouch = (e: React.PointerEvent) => {
+    const r = rootRef.current?.getBoundingClientRect(); setBusyTick(t => t + 1); if (!r || !r.width) return;
+    const x = (e.clientX - r.left) / r.width * width, y = (e.clientY - r.top) / r.height * height, pad = width * 0.05;
+    for (const it of items) if (x >= it.box.x - pad && x <= it.box.x + it.box.w + pad && y >= it.box.y - pad && y <= it.box.y + it.box.h + pad) markTried(it.key);
   };
 
   const cls = `pj-live-page ${className ?? ''}`;
@@ -198,7 +210,7 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
   const descId = `${prefix}desc`;
   return (
     <div ref={rootRef} className={cls} data-live-page={living.page} data-reduced={reduced ? '1' : '0'} data-active={active ? '1' : '0'} role="group" aria-label={label || summary || `Page ${living.page}, interactive`} aria-describedby={instr ? descId : undefined}
-      onPointerDownCapture={unlock}
+      onPointerDownCapture={e => { unlock(); noteTouch(e); }}
       style={{ position: 'relative', width: '100%', aspectRatio: `${width} / ${height}`, touchAction: living.behaviors.some(b => b.on.type === 'drag' || b.on.type === 'press') ? 'none' : 'pan-y pinch-zoom',   // a drag that starts on a full-page texture would otherwise be claimed by the browser's pan
       userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent', overflow: 'hidden', ...style } as React.CSSProperties}>
       <style>{`.pj-live-page .pj-live-hit:focus-visible{outline:3px solid #ff8c00;outline-offset:2px;background:rgba(255,140,0,.14)!important}`}</style>
@@ -210,6 +222,7 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
         <rect ref={tintRef} width={width} height={height} fill="#000" style={{ opacity: 0, pointerEvents: 'none' }} data-tint="1" />
       </svg>
       <canvas ref={canvasRef} aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
+      {active ? <LiveHints items={items} width={width} height={height} reduced={reduced} enabled={hints} discovered={discovered} busyTick={busyTick} /> : null}
       {active && items.map(it => {
         const cx = (it.box.x + it.box.w / 2) / width * 100, cy = (it.box.y + it.box.h / 2) / height * 100;
         return (
