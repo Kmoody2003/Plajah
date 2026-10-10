@@ -242,6 +242,12 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   // A living picture book (showcase books) is read in THIS reader, same shell as every other book: the page images become live pages.
   const livingPicture = telaEdition.status === 'tela' && isLivingPictureBook(book, telaEdition.bundle);
   const goToLivePage = useCallback((i: number) => setCurrentPageIndex(Math.max(0, i)), []);
+  // Side arrows: hide the one that would go nowhere (first / last image page). Other formats keep both.
+  const sideArrowHidden = (side: 'left' | 'right'): boolean => {
+    const n = (book.bookChapters?.[0]?.pages?.length ?? 0); if (!n || (book.bookChapters?.length ?? 0) !== 1) return false;
+    const forward = dirForTapSide(side, (book as any).readingDir === 'rtl') === 1;
+    return forward ? currentPageIndex >= n - 1 : currentPageIndex <= 0;
+  };
   const livingBook = useLivingPictureBook(book, telaEdition.status === 'tela' ? telaEdition.bundle : null, livingPicture, goToLivePage);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -1700,14 +1706,22 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
           {/* Navigation Overlays */}
           <div className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize group" onClick={(e) => { e.stopPropagation(); (dirForTapSide('left', readerRtl) === 1 ? nextPage : prevPage)(); }}>
-            <div className="absolute inset-y-0 left-0 w-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-black/40 to-transparent">
-              <ChevronLeft size={48} className="text-white/40" />
-            </div>
+            {!sideArrowHidden('left') && (
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <span className="pj-side-arrow flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl ring-1 ring-white/25 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition" style={{ background: 'var(--pj-grad-warm)' }}>
+                  <ChevronLeft size={34} strokeWidth={3} />
+                </span>
+              </div>
+            )}
           </div>
           <div className="absolute inset-y-0 right-0 w-1/4 cursor-e-resize group" onClick={(e) => { e.stopPropagation(); (dirForTapSide('right', readerRtl) === 1 ? nextPage : prevPage)(); }}>
-            <div className="absolute inset-y-0 right-0 w-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-black/40 to-transparent">
-              <ChevronRight size={48} className="text-white/40" />
-            </div>
+            {!sideArrowHidden('right') && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <span className="pj-side-arrow flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl ring-1 ring-white/25 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition" style={{ background: 'var(--pj-grad-warm)' }}>
+                  <ChevronRight size={34} strokeWidth={3} />
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2390,8 +2404,8 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             <div className="flex-1 flex items-center gap-3 sm:gap-6">
               <div className={`flex-1 h-1.5 ${s.progressBg} rounded-full overflow-hidden relative group/progress cursor-pointer`}>
                 <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-small-orange"
-                  style={{ width: isEpubReader
+                  className="h-full"
+                  style={{ background: 'linear-gradient(90deg, var(--pj-purple), var(--pj-magenta) 55%, var(--pj-orange))', width: isEpubReader
                     ? `${epubProgress}%`
                     : parsedChapters.length > 0
                       ? `${((activeParsedChapter * parsedChapters[0].pages.length + activeParsedPage + 1) / parsedChapters.reduce((s, c) => s + c.pages.length, 0) * 100).toFixed(1)}%`

@@ -27,7 +27,7 @@ interface Props {
   livePage?: (i: number, active: boolean) => React.ReactNode | null;
   /** Controls for the living pages (sound, read to me...), shown under the toolbar. */
   liveBar?: React.ReactNode;
-  /** The host reader already has a page bar (arrows + progress): do not draw a second one. */
+  /** The host reader already has its own page controls (bottom bar + side arrows): do not draw a second set. */
   hideScrubber?: boolean;
 }
 
@@ -141,8 +141,8 @@ const ComicReader: React.FC<Props> = ({ pages, index, onIndexChange, readingDir 
             </div>
           )}
           {/* tap hint arrows */}
-          {!atStart && <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 text-white/20 pointer-events-none"><ChevronLeft size={30} /></div>}
-          {!atEnd && <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 text-white/20 pointer-events-none"><ChevronRight size={30} /></div>}
+          {!hideScrubber && !atStart && <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 text-white/20 pointer-events-none"><ChevronLeft size={30} /></div>}
+          {!hideScrubber && !atEnd && <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10 text-white/20 pointer-events-none"><ChevronRight size={30} /></div>}
           {(() => {
             // One view = one page, or two for a spread. PageTurn animates between views and also renders the neighbouring view for drags.
             const view = (i: number) => {
