@@ -105,7 +105,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const { theme } = useGlobalPlayerState();
 
   // Restore last-read position from localStorage (respecting initialChapterIndex / skipOpeningScene)
-  const savedPos = loadSavedPosition(book.id);
+  const savedPos = (() => {
+    // The Tela reader writes the same `lorea_pos_<id>` key with a different meaning (its "chapter" is a Tela chapter, one per page in the picture books).
+    // Never trust it blindly: a chapter that does not exist here would open "No visual data".
+    const raw = loadSavedPosition(book.id); const chs = book.bookChapters ?? [];
+    if (!chs.length) return raw;
+    if (chs.length === 1 && (chs[0].pages?.length ?? 0) > 0) { const n = chs[0].pages!.length; return { chapter: 0, page: Math.max(0, Math.min(n - 1, raw.chapter > 0 ? raw.chapter + raw.page : raw.page)) }; }
+    return raw.chapter >= chs.length ? { chapter: chs.length - 1, page: 0 } : raw;
+  })();
   const initialChapter = typeof (book as any).initialChapterIndex === 'number'
     ? (book as any).initialChapterIndex
     : savedPos.chapter;
