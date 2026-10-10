@@ -744,13 +744,13 @@ async function resolveShareCover(type: string, id: string, track?: string): Prom
   const doc = await fetchFirebaseDoc(collection, id);
   const f = doc?.fields;
   if (!f) return '';
-  if ((type === 'album' || type === 'track') && track) {
-    const arr = f?.tracks?.arrayValue?.values || [];
-    const tf = arr.find((t: any) => t.mapValue?.fields?.id?.stringValue === track)?.mapValue?.fields;
   if (collection === 'videos' && isFutureRelease({
     isScheduled: f?.isScheduled?.booleanValue === true, isPremiere: f?.isPremiere?.booleanValue === true,
     releaseDate: f?.releaseDate?.integerValue ?? f?.releaseDate?.doubleValue,
   })) return '';
+  if ((type === 'album' || type === 'track') && track) {
+    const arr = f?.tracks?.arrayValue?.values || [];
+    const tf = arr.find((t: any) => t.mapValue?.fields?.id?.stringValue === track)?.mapValue?.fields;
     const tc = tf?.coverImage?.stringValue || tf?.coverImageUrl?.stringValue || tf?.artworkUrl?.stringValue;
     if (tc) return tc;
   }
@@ -1149,9 +1149,6 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    const dbData = await fetchFirebaseDoc(collection, id);
    if (!dbData || !dbData.fields) return html;
    const f = dbData.fields;
-   // First non-empty string field from a list of candidates (schemas vary by type).
-   const pick = (keys: string[]): string => { for (const k of keys) { const v = f?.[k]?.stringValue; if (v) return v; } return ''; };
-   const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl', 'thumbnail'];
    // An embargoed article must not leak its title/image through a share card before its release time.
    if (String(type) === 'article' && Number(f?.embargoUntil?.integerValue ?? f?.embargoUntil?.doubleValue ?? 0) > Date.now()) return html;
    // Same for a scheduled ("Release later") video: no title/thumbnail in a share card until releaseDate (services/releases/visibility.ts).
@@ -1159,6 +1156,9 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
      isScheduled: f?.isScheduled?.booleanValue === true, isPremiere: f?.isPremiere?.booleanValue === true,
      releaseDate: f?.releaseDate?.integerValue ?? f?.releaseDate?.doubleValue,
    })) return html;
+   // First non-empty string field from a list of candidates (schemas vary by type).
+   const pick = (keys: string[]): string => { for (const k of keys) { const v = f?.[k]?.stringValue; if (v) return v; } return ''; };
+   const IMG = ['thumbnailUrl', 'coverImageUrl', 'coverImage', 'coverUrl', 'artworkUrl', 'imageUrl', 'videoThumbnail', 'posterUrl', 'thumbnail'];
 
    let title = '';
    let image = '';
@@ -5482,10 +5482,10 @@ async function startServer() {
       const channel: EpgChannel = { id: `plajah.${ownerId}`, name: meta.name || 'Channel', number: meta.number, category: meta.category, logoUrl: meta.logoUrl };
       const vids = await queryFirebase('videos', [{ field: 'ownerId', value: ownerId }, { field: 'allowInFastChannel', value: true }], 300);
       const items: MrssItem[] = (vids || [])
+        .filter((v: any) => !isFutureRelease(v))   // scheduled ("Release later") videos stay out of the public feed until release
         .map((v: any) => {
           const url = v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : v.url;
           if (!url) return null;
-        .filter((v: any) => !isFutureRelease(v))   // scheduled ("Release later") videos stay out of the public feed until release
           return { id: v.id || v.identifier || url, title: v.title || 'Untitled', description: cleanDescription(v.description) || undefined, url,
             thumbnailUrl: v.muxPlaybackId ? `https://image.mux.com/${v.muxPlaybackId}/thumbnail.png?width=640&height=360&time=5` : (v.thumbnailUrl || v.coverImageUrl),
             durationSec: Number(v.duration) || undefined };
@@ -6109,9 +6109,6 @@ async function startServer() {
     }
   });
 
-  app.post('/api/cron/publish-due-posts', express.json(), async (req: any, res: any) => {
-    const key = req.headers['x-cron-key'];
-    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) {
   // ── Release announcements ─────────────────────────────────────────────────────────────────────────────────────
   // Scheduled content (albums, books, movies, videos, embargoed articles) becomes VISIBLE exactly on time because every reader
   // compares its release date to the clock. Nothing runs at that moment, so this sweep is what ANNOUNCES it: one feed post from the
@@ -6139,6 +6136,9 @@ async function startServer() {
     }
   });
 
+  app.post('/api/cron/publish-due-posts', express.json(), async (req: any, res: any) => {
+    const key = req.headers['x-cron-key'];
+    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const token = await getGoogleAccessToken();
@@ -8040,13 +8040,13 @@ async function startServer() {
 
     const dbData = await fetchFirebaseDoc(collection, id);
     if (!dbData?.fields) return res.status(404).json({ error: 'not found' });
-
-    const host = req.get('host') || 'plajah.com';
-    const title = dbData.fields?.title?.stringValue || 'Plajah';
     if (collection === 'videos' && isFutureRelease({
       isScheduled: dbData.fields?.isScheduled?.booleanValue === true, isPremiere: dbData.fields?.isPremiere?.booleanValue === true,
       releaseDate: dbData.fields?.releaseDate?.integerValue ?? dbData.fields?.releaseDate?.doubleValue,
     })) return res.status(404).json({ error: 'not found' });
+
+    const host = req.get('host') || 'plajah.com';
+    const title = dbData.fields?.title?.stringValue || 'Plajah';
     const cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue || '';
     const embedUrl = `https://${host}/embed?type=${type}&id=${id}${track ? `&track=${track}` : ''}`;
     const safeTitle = htmlEscape(title);
@@ -8093,13 +8093,13 @@ async function startServer() {
 
     const dbData = await fetchFirebaseDoc(collection, id as string);
     if (!dbData || !dbData.fields) return res.status(404).send('Not Found');
-
-    // Album embed: ALWAYS render the full player — album art + the whole track list +
-    // an audio player — whether or not a specific track was requested. (Previously a
     if (collection === 'videos' && isFutureRelease({
       isScheduled: dbData.fields?.isScheduled?.booleanValue === true, isPremiere: dbData.fields?.isPremiere?.booleanValue === true,
       releaseDate: dbData.fields?.releaseDate?.integerValue ?? dbData.fields?.releaseDate?.doubleValue,
     })) return res.status(404).send('Not Found');
+
+    // Album embed: ALWAYS render the full player — album art + the whole track list +
+    // an audio player — whether or not a specific track was requested. (Previously a
     // share link without a &track= resolved no media and returned "No Media Found",
     // so album/music embeds showed nothing. This is the fix.)
     if (type === 'album') {

@@ -7687,13 +7687,13 @@ export interface TelaDoc {
   devices: Record<string, TelaDevice>;
   /** The binding graph (P1). Optional for back-compat with P0 bundles. */
   bindings?: TelaBinding[];
-  createdAt: number;
-  updatedAt: number;
-  /** Last structural assignment formatting pass. Source content remains editable. */
   /** Living layer: behaviours, music scores and narration that make the document's pages interactive in the reader. See services/living/contracts.ts. Export strips it. */
   living?: import('./services/living/contracts').LivingBook;
   /** Self-description of a published picture book (the showcase books): who wrote it, under what licence, for what ages, and how it was made. */
   publication?: { kind: 'picture-book'; bookId: string; templateId: string; author: string; license: string; licenseId?: string; ageMin: number; ageMax: number; language: string; aiDisclosure: string; pageCount: number };
+  createdAt: number;
+  updatedAt: number;
+  /** Last structural assignment formatting pass. Source content remains editable. */
   assignmentFormat?: {
     profile: 'PLAJAH_PLUS';
     version: 1;
