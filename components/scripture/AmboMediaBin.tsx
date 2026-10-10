@@ -25,6 +25,8 @@ export interface AmboMediaSourceItem {
   tags?: string[];
   /** Live network feeds only: false once the source stopped being announced. */
   online?: boolean;
+  /** Files in a linked folder: the subfolder it sits in ("Easter/Photos"), '' at the folder's top. */
+  folderDir?: string;
 }
 
 interface AmboMediaBinProps {

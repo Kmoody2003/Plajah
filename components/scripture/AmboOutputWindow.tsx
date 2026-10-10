@@ -18,6 +18,7 @@ import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import { installRemoteAmboAnalyser } from '../../services/ambo/amboAudioEngine';
 import { setVideoSyncRole } from '../../services/ambo/videoSync';
 import type { LiveStack } from '../../services/ambo/showModel';
+import type { ProgramTake } from '../../services/ambo/outputRouter';
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -32,6 +33,9 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   const [output, setOutput] = useState<AmboOutput | null>(null);
   const [stack, setStack] = useState<LiveStack>({});
   const [timers, setTimers] = useState<Record<string, number>>({});
+  const [take, setTake] = useState<ProgramTake | undefined>(undefined);
+  /** The take this window has already transitioned for — the first state it hears is shown as-is. */
+  const shownTakeRef = useRef<number | null>(null);
   const [connected, setConnected] = useState(false);
   const [clock, setClock] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -63,6 +67,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
       setOutput(prev => (prev && JSON.stringify(prev) === JSON.stringify(mine) ? prev : mine));
       if (m.stack) setStack(m.stack);
       if (m.timers) setTimers(m.timers);
+      if (m.take) setTake(prev => (prev?.seq === m.take!.seq ? prev : m.take));
     });
     return off;
   }, [id]);
@@ -143,8 +148,13 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     const r = rendererRef.current;
     if (!r || !output) return;
     r.setOptions({ timers, outputMask: output.mask, outputTransform: output.transform, fit: output.fit });
+    if (take && shownTakeRef.current !== take.seq) {
+      // Stage displays cut — confidence monitors should never lag the speaker.
+      if (shownTakeRef.current !== null && output.kind !== 'STAGE') r.beginTransition(take);
+      shownTakeRef.current = take.seq;
+    }
     r.setStack(stackForOutput(stack, output));
-  }, [stack, output, timers, renderWidth, renderHeight]);
+  }, [stack, output, timers, take, renderWidth, renderHeight]);
 
   if (!id) {
     return (

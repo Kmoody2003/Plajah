@@ -758,6 +758,11 @@ export interface NativeMessage {
   path?: string;      // for DEEP_LINK
   experience?: string; // for LAUNCH_EXPERIENCE (launcher-icon slug, see src/lib/launchTarget.ts)
   files?: NativeDroppedFile[]; // for NATIVE_FILES_DROPPED
+  /** NATIVE_FILES_DROPPED: the folders that were dropped (their files are in `files`, relativePath inside each). */
+  folders?: Array<{ name: string; path: string }>;
+  /** NATIVE_FILES_DROPPED: drop point in page CSS px (absent from older shells). */
+  x?: number;
+  y?: number;
   activeFile?: WindowsPickedFile; // for OPEN_MEDIA_FILE
   folderFiles?: WindowsPickedFile[]; // for OPEN_MEDIA_FILE
   deltaFrames?: number; // for HARDWARE_JOG_EVENT

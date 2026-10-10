@@ -1839,6 +1839,9 @@ public sealed partial class MainWindow : Window
                         if (commaIdx >= 0) cleanBase64 = cleanBase64.Substring(commaIdx + 1);
 
                         var bytes = Convert.FromBase64String(cleanBase64);
+                        // Imports of a dropped folder keep its subfolders — create them on demand.
+                        var targetDir = Path.GetDirectoryName(targetPath);
+                        if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
                         await File.WriteAllBytesAsync(targetPath, bytes);
 
                         var fi = new FileInfo(targetPath);
@@ -1891,8 +1894,12 @@ public sealed partial class MainWindow : Window
         var def = e.GetDeferral();
         try
         {
+            // Where it landed (DIPs == CSS px at 100% zoom), so the page can route the drop to
+            // whatever is under the cursor — slide deck vs. media library.
+            var dropPoint = e.GetPosition(Web);
             var items = await e.DataView.GetStorageItemsAsync();
             var files = new List<object>();
+            var folders = new List<object>();
 
             var mediaExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -1919,6 +1926,7 @@ public sealed partial class MainWindow : Window
                 }
                 else if (item is StorageFolder sFolder)
                 {
+                    folders.Add(new { name = sFolder.Name, path = sFolder.Path });
                     await System.Threading.Tasks.Task.Run(() =>
                     {
                     using var eco = PowerQos.EcoThread();   // bulk I/O scan → efficiency cores
@@ -1949,9 +1957,9 @@ public sealed partial class MainWindow : Window
                 }
             }
 
-            if (files.Count > 0)
+            if (files.Count > 0 || folders.Count > 0)
             {
-                PostNativeMessage("NATIVE_FILES_DROPPED", new { files });
+                PostNativeMessage("NATIVE_FILES_DROPPED", new { files, folders, x = dropPoint.X, y = dropPoint.Y });
             }
         }
         catch (Exception ex)

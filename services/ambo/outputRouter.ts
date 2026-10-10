@@ -70,6 +70,7 @@ export interface DetectedScreenInfo {
 }
 
 import type { FitSpec } from './outputFit';
+import type { TakeTransition } from './layerRenderer';
 
 export interface AmboOutput {
   id: string;
@@ -186,8 +187,13 @@ export interface OutputMessage {
   timers?: Record<string, number>;
   /** Map of outputId -> array of cleared layer slots for per-bus independent clearing. */
   busClearing?: Record<string, LayerSlot[]>;
+  /** The last program take: a window dissolves when `seq` changes (and never on a plain resend). */
+  take?: ProgramTake;
   at: number;
 }
+
+/** One TAKE to program, numbered so every renderer transitions exactly once per take. */
+export interface ProgramTake extends TakeTransition { seq: number; }
 
 type Listener = (m: OutputMessage) => void;
 
@@ -205,6 +211,7 @@ export class OutputRouter {
   private nativeOpen = new Set<string>();
   private lastStack: LiveStack = {};
   private lastTimers?: Record<string, number>;
+  private lastTake?: ProgramTake;
   private seq = 0;
   outputs: AmboOutput[] = [];
 
@@ -268,9 +275,10 @@ export class OutputRouter {
   }
 
   /** Broadcast the live stack to every open output window. */
-  send(stack: LiveStack, timers?: Record<string, number>): void {
+  send(stack: LiveStack, timers?: Record<string, number>, take?: ProgramTake): void {
     this.lastStack = stack;
     this.lastTimers = timers;
+    if (take) this.lastTake = take;
     this.post();
   }
 
@@ -293,6 +301,7 @@ export class OutputRouter {
       outputs: this.outputs,
       timers: this.lastTimers,
       busClearing,
+      take: this.lastTake,
       at: Date.now(),
     };
     try { this.channel?.postMessage(msg); } catch (e) {

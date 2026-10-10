@@ -394,7 +394,7 @@ export interface ImportedMedia {
  * gesture (drop/click) so a lapsed browser permission can be re-requested. Never throws per
  * file: a failed copy falls back to a blob URL with a note.
  */
-export async function importFilesIntoTarget(files: File[], targetOverride?: ImportTarget | null): Promise<ImportedMedia[]> {
+export async function importFilesIntoTarget(files: File[], targetOverride?: ImportTarget | null, opts: { subpath?: string } = {}): Promise<ImportedMedia[]> {
   const target = targetOverride ?? getImportTarget();
   const out: ImportedMedia[] = [];
   let handle: DirEntryLike | null = null;
@@ -414,14 +414,17 @@ export async function importFilesIntoTarget(files: File[], targetOverride?: Impo
     const kind = classifyFile(file.name, file.type);
     if (target && !targetNote) {
       try {
+        // A file from a dropped folder keeps its place: "Easter/Photos/a.jpg" lands in Easter/Photos.
+        const sub = [opts.subpath, dirOf(dropRelPath(file) || '')].filter(Boolean).join('/');
         if (target.kind === 'handle' && handle) {
-          const w = await writeFileToDirectory(handle, file.name, file);
+          const w = await writeFileToDirectory(handle, file.name, file, sub || undefined);
           const url = trackUrl(target.folderId, URL.createObjectURL(w.file));
           out.push({ name: w.name, kind, url, persisted: true });
           continue;
         }
         if (target.kind === 'windows' && target.path) {
-          const w = await writeFileToWindowsFolder(target.path, file.name, file);
+          const winDir = sub ? [target.path.replace(/[\\/]+$/, ''), ...sub.split('/').map(p => sanitizeFileName(p, 'folder'))].join('\\') : target.path;
+          const w = await writeFileToWindowsFolder(winDir, file.name, file);
           out.push({ name: w.name, kind, url: w.url, persisted: true });
           continue;
         }
@@ -437,14 +440,61 @@ export async function importFilesIntoTarget(files: File[], targetOverride?: Impo
 
 // ── Dropped folders / files from the OS ─────────────────────────────────────
 
+/** Where a dropped file sat inside a dropped folder ("Easter/Photos/a.jpg"); loose files have none. */
+const dropRelPaths = new WeakMap<File, string>();
+export function dropRelPath(file: File): string | undefined { return dropRelPaths.get(file); }
+/** Tag a file with its path inside a dropped folder (for files that did not come through readDrop). */
+export function withDropPath(file: File, relPath: string): File { dropRelPaths.set(file, relPath); return file; }
+
+/** Folder part of a relative path: "a/b/c.jpg" -> "a/b", "c.jpg" -> "". */
+export function dirOf(relPath: string): string {
+  const clean = relPath.replace(/\\/g, '/').replace(/^\/+/, '');
+  const i = clean.lastIndexOf('/');
+  return i < 0 ? '' : clean.slice(0, i);
+}
+
+export interface SubfolderTile { name: string; path: string; count: number; }
+
 /**
- * Flatten a drop into Files, descending into dropped folders (getAsFileSystemHandle on
- * Chrome/Edge, webkitGetAsEntry elsewhere). DataTransferItems die after the first await,
- * so every handle/entry is captured synchronously before anything is awaited.
+ * One level of a folder tree built from flat relative paths: the files directly in `subpath`
+ * and its immediate subfolders (with how many files sit anywhere beneath each).
  */
-export async function filesFromDataTransfer(dt: DataTransfer, opts: { maxFiles?: number } = {}): Promise<File[]> {
+export function folderView<T>(items: readonly T[], dirOfItem: (it: T) => string, subpath: string): { files: T[]; subfolders: SubfolderTile[] } {
+  const base = subpath.replace(/^\/+|\/+$/g, '');
+  const prefix = base ? `${base}/` : '';
+  const files: T[] = [];
+  const subs = new Map<string, number>();
+  for (const it of items) {
+    const d = dirOfItem(it);
+    if (d === base) { files.push(it); continue; }
+    if (prefix && !d.startsWith(prefix)) continue;
+    const rest = d.slice(prefix.length);
+    if (!rest) continue;
+    const name = rest.split('/')[0];
+    subs.set(name, (subs.get(name) ?? 0) + 1);
+  }
+  const subfolders = [...subs.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' }))
+    .map(([name, count]) => ({ name, path: `${prefix}${name}`, count }));
+  return { files, subfolders };
+}
+
+export interface DropContents {
+  /** Every file, folders expanded; dropRelPath() tells where each sat. */
+  files: File[];
+  /** Folder handles for dropped folders (Chrome/Edge only) — can be linked as library folders. */
+  dirs: DirEntryLike[];
+}
+
+/**
+ * Read a drop: files plus dropped folders, descending into folders (getAsFileSystemHandle on
+ * Chrome/Edge, webkitGetAsEntry elsewhere) and remembering each file's path inside its folder.
+ * DataTransferItems die after the first await, so every handle/entry is captured synchronously.
+ */
+export async function readDrop(dt: DataTransfer, opts: { maxFiles?: number } = {}): Promise<DropContents> {
   const maxFiles = opts.maxFiles ?? 500;
   const jobs: Array<Promise<File[]>> = [];
+  const dirs: DirEntryLike[] = [];
   const items = Array.from(dt.items || []);
   let usedItems = false;
 
@@ -456,7 +506,7 @@ export async function filesFromDataTransfer(dt: DataTransfer, opts: { maxFiles?:
     if (typeof anyIt.getAsFileSystemHandle === 'function') {
       const hp: Promise<any> = anyIt.getAsFileSystemHandle();
       jobs.push(hp.then(async (h: any) => {
-        if (h && h.kind === 'directory') return collectDirFiles(h, maxFiles);
+        if (h && h.kind === 'directory') { dirs.push(h); return collectDirFiles(h, maxFiles, 0, `${h.name}/`); }
         return file ? [file] : h?.getFile ? [await h.getFile()] : [];
       }).catch(() => (file ? [file] : [])));
     } else if (typeof anyIt.webkitGetAsEntry === 'function') {
@@ -467,19 +517,26 @@ export async function filesFromDataTransfer(dt: DataTransfer, opts: { maxFiles?:
       jobs.push(Promise.resolve([file]));
     }
   }
-  if (!usedItems) return Array.from(dt.files || []);
+  if (!usedItems) return { files: Array.from(dt.files || []), dirs };
   const files = (await Promise.all(jobs)).flat();
-  return files.slice(0, maxFiles);
+  return { files: files.slice(0, maxFiles), dirs };
 }
 
-async function collectDirFiles(dir: DirEntryLike, max: number, depth = 0): Promise<File[]> {
+/** Files of a drop, folders expanded (see readDrop). */
+export async function filesFromDataTransfer(dt: DataTransfer, opts: { maxFiles?: number } = {}): Promise<File[]> {
+  return (await readDrop(dt, opts)).files;
+}
+
+async function collectDirFiles(dir: DirEntryLike, max: number, depth = 0, prefix = ''): Promise<File[]> {
   const out: File[] = [];
   if (depth > 6) return out;
   for await (const e of dir.values()) {
     if (out.length >= max) break;
     if (e.name.startsWith('.')) continue;
-    if (e.kind === 'directory') out.push(...await collectDirFiles(e as DirEntryLike, max - out.length, depth + 1));
-    else if (classifyFile(e.name, '', false)) { try { out.push(await (e as FileEntryLike).getFile()); } catch { /* skip */ } }
+    if (e.kind === 'directory') out.push(...await collectDirFiles(e as DirEntryLike, max - out.length, depth + 1, `${prefix}${e.name}/`));
+    else if (classifyFile(e.name, '', false)) {
+      try { const f = await (e as FileEntryLike).getFile(); dropRelPaths.set(f, `${prefix}${e.name}`); out.push(f); } catch { /* skip */ }
+    }
   }
   return out;
 }
@@ -488,7 +545,8 @@ async function collectEntryFiles(entry: any, max: number, depth = 0): Promise<Fi
   if (depth > 6) return [];
   if (entry.isFile) {
     if (!classifyFile(entry.name, '', false)) return [];
-    return new Promise<File[]>(res => entry.file((f: File) => res([f]), () => res([])));
+    const rel = String(entry.fullPath || entry.name).replace(/^\/+/, '');
+    return new Promise<File[]>(res => entry.file((f: File) => { dropRelPaths.set(f, rel); res([f]); }, () => res([])));
   }
   const reader = entry.createReader();
   const out: File[] = [];

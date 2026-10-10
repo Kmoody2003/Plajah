@@ -15,7 +15,7 @@ import {
   Laptop, Tablet, Smartphone, Music, Film, Zap, ExternalLink, Power, RefreshCw } from 'lucide-react';
 import { type LiveStack, type Slide } from '../../services/ambo/showModel';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
-import { type AmboOutput } from '../../services/ambo/outputRouter';
+import { type AmboOutput, type ProgramTake } from '../../services/ambo/outputRouter';
 import {
   type PartyEventSession, type PartyEventDevice, type EventDeviceDutyType
 } from '../../services/ambo/amboPartyEventService';
@@ -35,6 +35,8 @@ interface AmboHorizontalMultiviewProps {
   isBlackout?: boolean;
   isMasterProgramOn?: boolean;
   activeTransition?: string;
+  /** Last TAKE to program — the Program monitor dissolves once per take. */
+  programTake?: ProgramTake;
   className?: string;
   // Party / Event Mode integration
   partySession?: PartyEventSession | null;
@@ -55,12 +57,15 @@ const ORANGE = '#FF8C00';
 const CYAN = '#00DAF3';
 const line = 'rgba(255,255,255,0.09)';
 
-const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: string }> = ({
+const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: string; take?: ProgramTake; className?: string }> = ({
   stack,
   audio,
   label,
+  take,
+  className = '',
 }) => {
   const ref = useRef<HTMLCanvasElement>(null);
+  const shownTakeRef = useRef<number | null>(take?.seq ?? null);
   const rendererRef = useRef<LayerRenderer | null>(null);
 
   useEffect(() => {
@@ -77,12 +82,17 @@ const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: st
   }, [audio]);
 
   useEffect(() => {
-    rendererRef.current?.setStack(stack);
-  }, [stack]);
+    const r = rendererRef.current;
+    if (!r) return;
+    if (take && shownTakeRef.current !== take.seq) { r.beginTransition(take); shownTakeRef.current = take.seq; }
+    r.setStack(stack);
+  }, [stack, take]);
 
   return (
-    <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
-      <canvas ref={ref} className="w-full h-full block object-contain" />
+    // Fills whatever height the tile has and letterboxes the WHOLE 16:9 frame into it. A plain
+    // aspect-video box got squeezed by the short dock and showed only a sliver of the picture.
+    <div className={`relative w-full flex-1 min-h-[56px] bg-black rounded-lg overflow-hidden border border-white/10 ${className}`}>
+      <canvas ref={ref} className="absolute inset-0 w-full h-full block object-contain" />
     </div>
   );
 };
@@ -102,6 +112,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
   isBlackout = false,
   isMasterProgramOn = true,
   activeTransition = 'Cross Dissolve',
+  programTake,
   className = '',
   partySession,
   partyDevices = [],
@@ -467,7 +478,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                     {/* Tile Monitor Content */}
                     <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden border border-white/10 flex items-center justify-center">
                       {isFollowing || duty.dutyType === 'AMBO_PROGRAM' ? (
-                        <MiniCanvasMonitor stack={liveStack} audio={!dev.isMuted} label={dev.deviceName} />
+                        <MiniCanvasMonitor stack={liveStack} audio={!dev.isMuted} label={dev.deviceName} className="h-full" />
                       ) : duty.dutyType === 'CHORA_PLAYLIST' ? (
                         <div className="w-full h-full bg-gradient-to-br from-[#19092c] to-[#0a0414] flex flex-col items-center justify-center p-2 text-center">
                           <Music size={24} className="text-purple-400 mb-1 animate-pulse" />
@@ -597,7 +608,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                 </span>
               </div>
             ) : (
-              <MiniCanvasMonitor stack={liveStack} audio label="Program" />
+              <MiniCanvasMonitor stack={liveStack} audio label="Program" take={programTake} />
             )}
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/60 truncate">
               <span className="truncate font-medium">{isBlackout ? 'Output Blanked' : liveSlide?.label || 'Audience Live'}</span>

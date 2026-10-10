@@ -27,11 +27,12 @@ import { resolveScriptureQuery, queryLabel, type ScriptureQuery } from '../../se
 import { getChapter, DEFAULT_TRANSLATION } from '../../services/scriptureText';
 import { newId, type Slide, type Show } from '../../services/ambo/showModel';
 import { GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
+import { nativeDropDir } from '../../services/ambo/mediaDrop';
 import {
   pickAndSaveBrowserFolder, loadFolderHandle, deleteFolderHandle, ensurePermission, scanBrowserFolder,
   scanWindowsMediaFolder, pickWindowsMediaFolder, revokeFolderUrls, browserFolderAccessSupported,
-  getImportTarget, setImportTarget, importFilesIntoTarget, filesFromDataTransfer, createSubfolderIn,
-  UNSUPPORTED_MESSAGE, type FolderMediaItem,
+  getImportTarget, setImportTarget, importFilesIntoTarget, createSubfolderIn,
+  UNSUPPORTED_MESSAGE, type FolderMediaItem, readDrop, saveFolderHandle, folderView, dirOf, withDropPath,
 } from '../../services/ambo/mediaFolders';
 import { type NativeSourceInfo } from '../../services/mediaEngine/bridge';
 import { type AmboMediaSourceItem } from './AmboMediaBin';
@@ -42,6 +43,7 @@ import {
   isWindowsApp,
   scanWindowsLibrary,
   pickWindowsFolder,
+  onNativeMessage,
   type WindowsPickedFile,
 } from '../../services/windowsBridgeService';
 import {
@@ -83,6 +85,14 @@ export type AmboLibraryTab =
   | 'live'
   | 'routines';
 
+/** Subfolder of `file` relative to `root` (Windows or '/' paths); '' when outside it or at its top. */
+function relDirUnder(root: string, file: string): string {
+  const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '');
+  const r = norm(root || ''), f = norm(file || '');
+  if (!r || !f.toLowerCase().startsWith(`${r.toLowerCase()}/`)) return '';
+  return dirOf(f.slice(r.length + 1));
+}
+
 interface PinnedFolder {
   id: string;
   name: string;
@@ -113,6 +123,8 @@ interface AmboTabbedLibraryProps {
   onTakeAudioTrack?: (track: AmboDJTrack) => void;
   onInsertAudioSlide?: (track: AmboDJTrack) => void;
   onInsertMediaSlide?: (item: AmboMediaSourceItem) => void;
+  /** Add every file in a (sub)folder as slides, grouped by subfolder. */
+  onInsertFolderSlides?: (folderName: string, items: Array<{ name: string; kind: string; src?: string; dir?: string }>) => void;
   /** Insert a Tela-designed slide template into the active show (Shows tab). */
   onInsertTemplateSlide?: (slide: Slide) => void;
   currentPlayingAudioId?: string | null;
@@ -339,6 +351,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   onTakeAudioTrack,
   onInsertAudioSlide,
   onInsertMediaSlide,
+  onInsertFolderSlides,
   onInsertTemplateSlide,
   currentPlayingAudioId,
   nativeSources,
@@ -658,6 +671,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   });
 
   const [activeFolderId, setActiveFolderId] = useState<string>('f_videos');
+  /** Where the operator is inside the open folder ('' = its top); '/'-separated. */
+  const [folderSubpath, setFolderSubpath] = useState('');
+  useEffect(() => { setFolderSubpath(''); }, [activeFolderId]);
   const [customFolderFiles, setCustomFolderFiles] = useState<AmboMediaSourceItem[]>([]);
   const [realFolderFiles, setRealFolderFiles] = useState<AmboMediaSourceItem[]>([]);
   const [isLoadingFolderFiles, setIsLoadingFolderFiles] = useState<boolean>(false);
@@ -683,6 +699,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       src: it.url,
       thumb: kind === 'IMAGE' ? it.url : undefined,
       tags: ['local', folder.name.toLowerCase(), kind.toLowerCase()],
+      folderDir: dirOf(it.relPath),
     };
   };
 
@@ -709,7 +726,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         const handle = await loadFolderHandle(activeFolder.id);
         if (cancelled) return;
         if (!handle) return fail('This folder is no longer linked in this browser. Remove it and add it again.');
-        const perm = await ensurePermission(handle, false);
+        const perm = await ensurePermission(handle, false, 'read'); // scanning only reads; imports ask for write
         if (cancelled) return;
         if (perm !== 'granted') return fail('The browser needs your OK to open this folder again.', 'needs-permission');
         const res = await scanBrowserFolder(activeFolder.id, handle);
@@ -744,6 +761,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 src: streamUrl,
                 thumb: kind === 'IMAGE' ? streamUrl : undefined,
                 tags: ['local', activeFolder.name.toLowerCase(), kind.toLowerCase()],
+                folderDir: relDirUnder(activeFolder.path, f.path),
               };
             }));
           } else {
@@ -891,11 +909,11 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   };
 
   /** Copy OS files into a custom folder so they persist, then rescan. */
-  const handleImportIntoFolder = async (folder: PinnedFolder, files: File[]) => {
+  const handleImportIntoFolder = async (folder: PinnedFolder, files: File[], subpath = '') => {
     if (!folder.kind || files.length === 0) return;
     if (folder.kind === 'windows' && !isWindowsApp()) { setFolderNotice('Writing to a Windows folder needs the Plajah Windows app.'); return; }
     setFolderNotice(null);
-    const res = await importFilesIntoTarget(files, { folderId: folder.id, kind: folder.kind, path: folder.kind === 'windows' ? folder.path : undefined, name: folder.name });
+    const res = await importFilesIntoTarget(files, { folderId: folder.id, kind: folder.kind, path: folder.kind === 'windows' ? folder.path : undefined, name: folder.name }, { subpath });
     const bad = res.filter(r => !r.persisted);
     setFolderNotice(bad.length ? `${res.length - bad.length} of ${res.length} copied into "${folder.name}". ${bad[0].note || 'Some files could not be copied.'}` : `Copied ${res.length} file${res.length === 1 ? '' : 's'} into "${folder.name}".`);
     setScanTick(t => t + 1);
@@ -915,6 +933,88 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       setFolderNotice(`Could not create the subfolder: ${e?.message || 'failed'}`);
     }
   };
+
+  /** Link dropped folders as library folders — they keep their structure because they ARE the folders. */
+  const linkFolders = (added: PinnedFolder[]) => {
+    if (added.length === 0) return;
+    setPinnedFolders(prev => {
+      const fresh = added.filter(a => !prev.some(p => p.kind === a.kind && p.path === a.path));
+      const list = [...prev, ...fresh];
+      try { localStorage.setItem('ambo_pinned_folders', JSON.stringify(list)); } catch {}
+      return list;
+    });
+    const existing = pinnedFolders.find(p => p.kind === added[0].kind && p.path === added[0].path);
+    setSelectedSubcat('Pinned Folders');
+    setActiveFolderId(existing?.id ?? added[0].id);
+    setScanTick(t => t + 1);
+    setFolderNotice(`Added ${added.length === 1 ? `"${added[0].name}"` : `${added.length} folders`} — open the subfolders below.`);
+  };
+
+  /**
+   * OS drop on the media grid. Into an open linked folder: copied in, subfolders kept, at the
+   * level being browsed. Otherwise dropped FOLDERS are linked as library folders.
+   */
+  const handleMediaGridDrop = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pending = readDrop(e.dataTransfer); // captures the drop's items synchronously
+    const target = activeFolderCustom;
+    const at = folderSubpath;
+    void (async () => {
+      const { files, dirs } = await pending;
+      if (target) { if (files.length) await handleImportIntoFolder(target, files, at); return; }
+      if (dirs.length) {
+        const stamp = Date.now();
+        const added: PinnedFolder[] = [];
+        for (const [k, h] of dirs.entries()) {
+          const id = `f_${stamp}_${k}`;
+          await saveFolderHandle(id, h);
+          added.push({ id, name: (h as any).name || 'Folder', path: `Dropped: ${(h as any).name || id}`, isSystem: false, itemCount: 0, kind: 'handle' });
+        }
+        linkFolders(added);
+        return;
+      }
+      setFolderNotice(files.length ? 'Open one of your folders to copy files into it, or drop a whole folder here to add it.' : 'Nothing to add from that drop.');
+    })().catch(err => setFolderNotice(`Could not add that: ${err?.message || 'drop failed'}`));
+  };
+
+  // Windows app: the shell catches Explorer drops; take the ones that land on the media grid.
+  const nativeMediaDropRef = useRef<(m: any) => void>(() => {});
+  nativeMediaDropRef.current = (msg: any) => {
+    const folders: Array<{ name: string; path: string }> = msg.folders || [];
+    const target = activeFolderCustom;
+    if (target && target.kind === 'windows') {
+      // Copy into the open folder (and current subfolder), keeping dropped folders' structure.
+      void (async () => {
+        const files: File[] = [];
+        for (const f of (msg.files || []) as Array<{ name: string; url: string; relativePath?: string; folderPath?: string }>) {
+          try {
+            const blob = await (await fetch(f.url)).blob();
+            const file = new File([blob], f.name, { type: blob.type });
+            const dir = nativeDropDir(f);
+            files.push(dir ? withDropPath(file, `${dir}/${f.name}`) : file);
+          } catch { /* unreadable — skipped */ }
+        }
+        await handleImportIntoFolder(target, files, folderSubpath);
+      })();
+      return;
+    }
+    if (folders.length) {
+      const stamp = Date.now();
+      linkFolders(folders.map((f, k) => ({ id: `f_${stamp}_${k}`, name: f.name, path: f.path, isSystem: false, itemCount: 0, kind: 'windows' as const })));
+    } else {
+      setFolderNotice('Open one of your folders to copy files into it, or drop a whole folder here to add it.');
+    }
+  };
+  useEffect(() => {
+    if (!isWindowsApp()) return;
+    return onNativeMessage((msg: any) => {
+      if (msg.type !== 'NATIVE_FILES_DROPPED' || typeof msg.x !== 'number') return;
+      const el = document.elementFromPoint(msg.x, msg.y);
+      if (el?.closest('[data-ambo-media-drop]')) nativeMediaDropRef.current(msg);
+    });
+  }, []);
 
   // ── Scripture (Lectio) Specific State ──
   const [scriptureTestament, setScriptureTestament] = useState<'ALL' | 'OT' | 'NT'>('ALL');
@@ -1389,6 +1489,11 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       const activeFolder = pinnedFolders.find(f => f.id === activeFolderId);
       if (realFolderFiles.length > 0 || activeFolder?.kind) {
         items = realFolderFiles; // a custom folder shows exactly what is on disk, even when empty
+        // Browse one level at a time; a search looks through every subfolder.
+        if (!debouncedSearch.trim()) {
+          items = folderView(items, it => it.folderDir || '', folderSubpath).files
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        }
       } else if (activeFolder) {
         items = items.filter(it => it.tags?.some(t => t.toLowerCase().includes(activeFolder.name.toLowerCase())) || it.sub?.includes(activeFolder.name));
       }
@@ -1410,7 +1515,23 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     }
 
     return items;
-  }, [selectedSubcat, activeFolderId, realFolderFiles, platformPhotos, customFolderFiles, ndiMediaSources, debouncedSearch, activeTab, pinnedFolders]);
+  }, [selectedSubcat, activeFolderId, realFolderFiles, platformPhotos, customFolderFiles, ndiMediaSources, debouncedSearch, activeTab, pinnedFolders, folderSubpath]);
+
+  /** Subfolders at the current level of the open folder (none while searching). */
+  const isFolderBrowse = (selectedSubcat === 'Pinned Folders' || selectedSubcat === 'All Folders') && realFolderFiles.length > 0;
+  const folderSubfolders = useMemo(
+    () => (isFolderBrowse && !debouncedSearch.trim() ? folderView(realFolderFiles, it => it.folderDir || '', folderSubpath).subfolders : []),
+    [isFolderBrowse, realFolderFiles, folderSubpath, debouncedSearch],
+  );
+  /** Every file at or beneath a subfolder path, in folder order. */
+  const filesUnder = (path: string) => realFolderFiles.filter(it => {
+    const d = it.folderDir || '';
+    return !path || d === path || d.startsWith(`${path}/`);
+  });
+  const folderDragPayload = (name: string, path: string) => JSON.stringify({
+    type: 'ambo-folder', name,
+    items: filesUnder(path).map(it => ({ name: it.name, kind: it.kind, src: it.src, dir: [name, (it.folderDir || '').slice(path ? path.length + 1 : 0)].filter(Boolean).join('/') })),
+  });
 
   // Drag-and-drop helper
   const handleDragStart = (e: React.DragEvent, item: AmboMediaSourceItem) => {
@@ -2167,13 +2288,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
             {/* Right Column: Media Grid with Drag & Double-click Take */}
             <div
               className="flex-1 p-3 overflow-y-auto"
-              onDragOver={e => { if (activeFolderCustom && e.dataTransfer.types.includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
-              onDrop={async e => {
-                if (!activeFolderCustom || !e.dataTransfer.types.includes('Files')) return;
-                e.preventDefault();
-                const files = await filesFromDataTransfer(e.dataTransfer);
-                void handleImportIntoFolder(activeFolderCustom, files);
-              }}
+              data-ambo-media-drop
+              onDragOver={e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
+              onDrop={handleMediaGridDrop}
             >
               {folderNotice && (
                 <div className="mb-2 px-3 py-2 rounded-lg text-[11px] flex items-start gap-2 border border-[#FF8C00]/30 bg-[#FF8C00]/10 text-[#FFD9A0]">
@@ -2181,9 +2298,39 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                   <button onClick={() => setFolderNotice(null)} className="text-white/50 hover:text-white" title="Dismiss"><X size={11} /></button>
                 </div>
               )}
+              {isFolderBrowse || activeFolderCustom ? (() => {
+                // Breadcrumb through the folder's own structure: Folder / Easter / Photos
+                const root = pinnedFolders.find(f => f.id === activeFolderId);
+                const parts = folderSubpath ? folderSubpath.split('/') : [];
+                const here = parts.length ? parts[parts.length - 1] : (root?.name || 'Folder');
+                return (
+                  <div className="mb-2 flex items-center gap-1 flex-wrap text-[11px]" aria-label="Folder path">
+                    {parts.length > 0 && (
+                      <button onClick={() => setFolderSubpath(parts.slice(0, -1).join('/'))} className="p-0.5 rounded hover:bg-white/10 text-white/60 hover:text-white" title="Up one folder">
+                        <ChevronLeft size={13} />
+                      </button>
+                    )}
+                    <button onClick={() => setFolderSubpath('')} className={`font-semibold truncate max-w-[30%] hover:underline ${parts.length ? 'text-white/60' : 'text-white'}`} title={root?.path}>{root?.name || 'Folder'}</button>
+                    {parts.map((p, i) => (
+                      <React.Fragment key={i}>
+                        <ChevronRight size={11} className="text-white/30" />
+                        <button onClick={() => setFolderSubpath(parts.slice(0, i + 1).join('/'))} className={`truncate max-w-[24%] hover:underline ${i === parts.length - 1 ? 'font-semibold text-white' : 'text-white/60'}`}>{p}</button>
+                      </React.Fragment>
+                    ))}
+                    {onInsertFolderSlides && filesUnder(folderSubpath).length > 0 && (
+                      <button
+                        onClick={() => onInsertFolderSlides(here, JSON.parse(folderDragPayload(here, folderSubpath)).items)}
+                        className="ml-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white/80 text-[10px] flex items-center gap-1"
+                        title="Add everything in this folder as slides, grouped by subfolder"
+                      >
+                        <Plus size={10} /> Slides
+                      </button>
+                    )}
+                  </div>
+                );
+              })() : null}
               {activeFolderCustom && (
                 <div className="mb-2 flex items-center gap-1.5 flex-wrap text-[10px]">
-                  <span className="font-semibold text-white/70 truncate max-w-[40%]" title={activeFolderCustom.path}>{activeFolderCustom.name}</span>
                   <span className="text-white/35">{activeFolderCustom.itemCount} item{activeFolderCustom.itemCount === 1 ? '' : 's'}{folderStatus[activeFolderCustom.id]?.truncated ? ' (first batch — folder is larger)' : ''}</span>
                   <div className="flex-1" />
                   <label className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white/80 cursor-pointer" title="Copy files from your computer into this folder">
@@ -2210,14 +2357,48 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                   <RefreshCw size={24} className="animate-spin text-[#00DAF3]" />
                   <span className="text-[12px]">Scanning disk folder...</span>
                 </div>
-              ) : activeMediaItems.length === 0 ? (
+              ) : activeMediaItems.length === 0 && folderSubfolders.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-white/40 gap-2 py-12">
                   <Folder size={32} className="text-white/20" />
                   <span className="text-[12.5px] font-medium">No media files in this folder</span>
-                  <span className="text-[11px] text-white/30">Drop desktop video, audio, or image files or add a new folder</span>
+                  <span className="text-[11px] text-white/30">{activeFolderCustom ? 'Drop files or folders from your computer to copy them in (subfolders are kept)' : 'Drop a folder from your computer here to add it — its subfolders come with it'}</span>
                 </div>
               ) : (
                 <div style={squareGridStyle()}>
+                  {folderSubfolders.map(sf => (
+                    <div
+                      key={`dir:${sf.path}`}
+                      draggable
+                      onDragStart={e => { e.dataTransfer.setData('application/json', folderDragPayload(sf.name, sf.path)); e.dataTransfer.effectAllowed = 'copy'; }}
+                      onClick={() => setFolderSubpath(sf.path)}
+                      className="group relative rounded-xl overflow-hidden border border-white/10 hover:border-[#00DAF3]/50 cursor-pointer transition-all"
+                      title="Open folder | Drag onto the slide deck to add it as slides"
+                      data-ambo-subfolder={sf.path}
+                    >
+                      <SquareFrame className="bg-[#120a1f]">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[#E3C57E]">
+                          <Folder size={34} strokeWidth={1.5} />
+                          <span className="font-mono text-[9px] text-white/50">{sf.count} item{sf.count === 1 ? '' : 's'}</span>
+                        </div>
+                        {onInsertFolderSlides && (
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                            <button onClick={e => { e.stopPropagation(); setFolderSubpath(sf.path); }} className="px-2 py-1 rounded-md text-[10px] font-bold bg-white/20 hover:bg-white/30 text-white">Open</button>
+                            <button
+                              onClick={e => { e.stopPropagation(); onInsertFolderSlides(sf.name, JSON.parse(folderDragPayload(sf.name, sf.path)).items); }}
+                              className="px-2 py-1 rounded-md text-[10px] font-bold bg-[#00DAF3]/30 hover:bg-[#00DAF3]/50 text-[#00DAF3] flex items-center gap-1"
+                              title="Add every file in this folder as slides, grouped by subfolder"
+                            >
+                              <Plus size={11} /> Slides
+                            </button>
+                          </div>
+                        )}
+                      </SquareFrame>
+                      <div className="p-2 bg-black/75">
+                        <div className="text-[11px] font-semibold text-white truncate" title={sf.name}>{sf.name}</div>
+                        <div className="text-[9px] text-white/40 truncate">Folder</div>
+                      </div>
+                    </div>
+                  ))}
                   {activeMediaItems.slice(0, renderLimit).map(item => {
                     const isLive = currentLiveInputId === item.id || currentLiveInputId === item.mode || currentLiveInputId === item.inputId;
                     const isPrev = currentPreviewInputId === item.id || currentPreviewInputId === item.inputId;

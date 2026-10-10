@@ -43,7 +43,20 @@ export interface RendererOptions {
   audioEnabled?: boolean;
 }
 
+/** A program take's transition. `cut` (or 0 s) switches instantly; every other named transition dissolves. */
+export interface TakeTransition {
+  /** Operator's transition name (Cross Dissolve, Cut, ...). */
+  kind: string;
+  durationSec: number;
+}
+
+export function isCutTransition(t: TakeTransition | null | undefined): boolean {
+  return !t || !(t.durationSec > 0) || /^cut$/i.test(t.kind.trim());
+}
+
 export class LayerRenderer {
+  /** Frozen last frame of the outgoing look, faded out over the new stack during a transition. */
+  private outgoing: { canvas: HTMLCanvasElement; start: number; ms: number; kind: string } | null = null;
   private entries = new Map<LayerSlot, Entry>();
   private raf = 0;
   private startedAt = 0;
@@ -60,6 +73,25 @@ export class LayerRenderer {
   }
 
   setOptions(o: RendererOptions) { this.opts = { ...this.opts, ...o }; }
+
+  /**
+   * Arm a transition for the NEXT setStack: the current frame is frozen and dissolved away over
+   * the incoming stack. A still of the outgoing look (rather than keeping its sources alive) is
+   * what keeps the reconciler's "a background survives the slide change" rule intact.
+   */
+  beginTransition(t: TakeTransition | null | undefined) {
+    if (isCutTransition(t) || typeof document === 'undefined') { this.outgoing = null; return; }
+    const { w, h } = this.frame;
+    const snap = this.outgoing?.canvas ?? document.createElement('canvas');
+    snap.width = w; snap.height = h;
+    const sctx = snap.getContext('2d');
+    if (!sctx) return;
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    sctx.globalAlpha = 1;
+    sctx.clearRect(0, 0, w, h);
+    try { sctx.drawImage(this.canvas, 0, 0, w, h); } catch { return; }
+    this.outgoing = { canvas: snap, start: performance.now(), ms: t!.durationSec * 1000, kind: t!.kind };
+  }
 
   /**
    * Reconcile sources against a new stack. Returns the slots that were rebuilt,
@@ -157,6 +189,7 @@ export class LayerRenderer {
 
   dispose() {
     this.stop();
+    this.outgoing = null;
     for (const e of this.entries.values()) e.source.dispose();
     this.entries.clear();
   }
@@ -216,6 +249,20 @@ export class LayerRenderer {
       if (img) drawCover(ctx, img, g.source.size(), w, h);
     }
     ctx.restore();
+
+    if (this.outgoing) {
+      const p = (performance.now() - this.outgoing.start) / this.outgoing.ms;
+      if (p >= 1) this.outgoing = null;
+      else {
+        const eased = p * p * (3 - 2 * p); // smoothstep: no hard edge at either end
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1 - eased;
+        ctx.drawImage(this.outgoing.canvas, 0, 0, w, h);
+        ctx.restore();
+      }
+    }
 
     if (this.opts.outputMask) {
       ctx.save();

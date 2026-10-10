@@ -35,7 +35,7 @@ import {
 } from '../../services/ambo/amboLoopDeckService';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import AmboRoutineHost from './AmboRoutineHost';
-import { GENERATOR_ITEMS as ROUTINE_GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
+import { GENERATOR_ITEMS as ROUTINE_GENERATOR_ITEMS, classifyFile } from '../../services/ambo/mediaLibrary';
 import { fetchPersonalPlaylists as fetchRoutinePlaylists } from '../../services/backendService';
 import { DEMO_LIBRARY, DEMO_PLAYLIST, slideText } from '../../services/ambo/servicePlanDemo';
 import {
@@ -48,7 +48,7 @@ import {
   listNativeSources, type NativeSourceInfo,
 } from '../../services/mediaEngine/bridge';
 import { useDiscoveredSources } from '../../services/mediaEngine/useDiscoveredSources';
-import { isWindowsApp, openStudioCleanFeed, closeStudioCleanFeed } from '../../services/windowsBridgeService';
+import { isWindowsApp, openStudioCleanFeed, closeStudioCleanFeed, onNativeMessage, type NativeDroppedFile } from '../../services/windowsBridgeService';
 import {
   type AmboProject,
   createDefaultProject,
@@ -109,8 +109,9 @@ import { nextVerseCue } from '../../services/ambo/scriptureNext';
 import { getAutoCueNext } from '../../services/ambo/scriptureAutoCue';
 import { applySavedLook } from '../../services/ambo/scriptureLook';
 import { noteTemplateUse, slideFieldsFor, type SavedTemplate } from '../../services/ambo/templateLibrary';
-import { importFilesIntoTarget, filesFromDataTransfer, moveBefore, insertionIndexFor } from '../../services/ambo/mediaFolders';
-import { applyMediaToSlide, slideFromMedia, sourceToDropMedia, playlistItemFromMedia, type DropMedia } from '../../services/ambo/mediaDrop';
+import { importFilesIntoTarget, filesFromDataTransfer, moveBefore, insertionIndexFor, dirOf, dropRelPath } from '../../services/ambo/mediaFolders';
+import type { ProgramTake } from '../../services/ambo/outputRouter';
+import { applyMediaToSlide, slideFromMedia, sourceToDropMedia, playlistItemFromMedia, nativeDropDir, type DropMedia } from '../../services/ambo/mediaDrop';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -129,8 +130,9 @@ const line = 'rgba(255,255,255,0.09)';
 const line2 = 'rgba(255,255,255,0.15)';
 
 /** A live canvas driven by the shared renderer — same compositor the outputs run. */
-const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; className?: string; fit?: Partial<FitSpec>; transform?: TransformSpec }>(({ stack, audio, className, fit, transform }) => {
+const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; className?: string; fit?: Partial<FitSpec>; transform?: TransformSpec; take?: ProgramTake }>(({ stack, audio, className, fit, transform, take }) => {
   const ref = useRef<HTMLCanvasElement>(null);
+  const shownTakeRef = useRef<number | null>(take?.seq ?? null);
   const rendererRef = useRef<LayerRenderer | null>(null);
   const fitRef = useRef(fit); fitRef.current = fit;
   const transformRef = useRef(transform); transformRef.current = transform;
@@ -153,7 +155,12 @@ const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; className?
     return () => { r.dispose(); rendererRef.current = null; };
   }, [audio]);
   useEffect(() => { rendererRef.current?.setOptions({ fit, outputTransform: transform }); }, [fit, transform]);
-  useEffect(() => { rendererRef.current?.setStack(stack); }, [stack]);
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!r) return;
+    if (take && shownTakeRef.current !== take.seq) { r.beginTransition(take); shownTakeRef.current = take.seq; }
+    r.setStack(stack);
+  }, [stack, take]);
   return <canvas ref={ref} className={`w-full block bg-black ${className ?? ''}`} />;
 });
 
@@ -169,6 +176,24 @@ function videoOfStack(stack: LiveStack): Extract<LayerContent, { kind: 'VIDEO' }
     }
   }
   return null;
+}
+
+/** Keep a dropped folder's slides together: by folder, then by name (numbers in natural order). Loose files keep drop order. */
+function sortByFolder(media: DropMedia[]): DropMedia[] {
+  if (!media.some(m => m.dir)) return media;
+  const cmp = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  return media.map((m, i) => ({ m, i })).sort((a, b) => {
+    if (!a.m.dir || !b.m.dir) return a.i - b.i;
+    return cmp(a.m.dir, b.m.dir) || cmp(a.m.name, b.m.name);
+  }).map(x => x.m);
+}
+
+/** The Media tab's folder drag payload (`ambo-folder`) as DropMedia, subfolders kept. */
+function folderPayloadMedia(p: { items: Array<{ name: string; kind: string; src?: string; dir?: string }> }): DropMedia[] {
+  return sortByFolder(p.items.flatMap(it => {
+    const m = sourceToDropMedia(it);
+    return m ? [{ ...m, dir: it.dir || undefined }] : [];
+  }));
 }
 
 const fmt = (s: number) => {
@@ -269,6 +294,8 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [live, setLive] = useState<LiveStack>({});
   const [liveSlideId, setLiveSlideId] = useState<string | null>(null);
   const [liveSlideObj, setLiveSlideObj] = useState<Slide | null>(null);
+  /** The last TAKE to program and its transition — every program renderer dissolves once per take. */
+  const [programTake, setProgramTake] = useState<ProgramTake | undefined>(undefined);
   const [selected, setSelected] = useState(2); // preview cursor
   const [placement, setPlacement] = useState<'right' | 'top'>('right');
   const [stageOpen, setStageOpen] = useState(false);
@@ -880,7 +907,7 @@ useEffect(() => {
   // Sync Live Stack & Timers to physical output windows
   useEffect(() => {
     if (!routerRef.current) return;
-    routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed });
+    routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed }, programTake);
   }, [effectiveLiveStack, elapsed]);
 
   // Cleanup output windows and stop orphaned audio on window close or unmount
@@ -943,7 +970,7 @@ useEffect(() => {
     if (success) {
       setIsProgramWindowOpen(true);
       // Same stack the program monitor shows — master-off and blackout included.
-      routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed });
+      routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed }, programTake);
     }
   };
 
@@ -1248,13 +1275,15 @@ useEffect(() => {
     if (unsupported.length) notes.push(`Skipped unsupported file${unsupported.length > 1 ? 's' : ''}: ${unsupported.slice(0, 3).join(', ')}${unsupported.length > 3 ? '...' : ''}.`);
     if (memoryOnly.length) notes.push(memoryOnly[0].note || 'Not saved to a folder — these files only last until you reload.');
     showDropNote(notes.length ? notes.join(' ') : null);
-    return imported.map(i => ({ name: i.name, kind: i.kind, url: i.url }));
+    // importFilesIntoTarget is 1:1 with `files`, so each result keeps its dropped-folder path.
+    return sortByFolder(imported.map((i, k) => ({ name: i.name, kind: i.kind, url: i.url, dir: dirOf(dropRelPath(files[k]) || '') || undefined })));
   };
 
   /** Reads an in-app drag payload (media library item / audio track) as DropMedia. */
   const mediaFromPayload = (parsed: any): DropMedia[] => {
     if (parsed?.type === 'ambo-audio' && parsed.track?.url) return [{ name: parsed.track.title || 'Audio', kind: 'AUDIO', url: parsed.track.url }];
     if (parsed?.type === 'ambo-source' && parsed.source) { const m = sourceToDropMedia(parsed.source); return m ? [m] : []; }
+    if (parsed?.type === 'ambo-folder' && Array.isArray(parsed.items)) return folderPayloadMedia(parsed);
     return [];
   };
 
@@ -1281,6 +1310,8 @@ useEffect(() => {
   };
 
   const [isDraggingOverDeck, setIsDraggingOverDeck] = useState(false);
+  /** When the page itself last received OS files — the Windows shell's copy of the same drop is then ignored. */
+  const webFileDropAt = useRef(0);
 
   const handleDropOnPresentationDeck = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1299,10 +1330,20 @@ useEffect(() => {
           handleInsertMediaSlide(parsed.source);
           return;
         }
+        if (parsed.type === 'ambo-folder' && Array.isArray(parsed.items)) {
+          // A folder from the Media tab: every file becomes a slide, grouped by its subfolder.
+          const newSlides = folderPayloadMedia(parsed).map(slideFromMedia).filter((x): x is Slide => !!x);
+          if (newSlides.length > 0) {
+            setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, ...newSlides] })));
+            setSelected(slides.length);
+          }
+          return;
+        }
       }
     } catch { /* not an in-app payload — treat as OS files */ }
 
     // OS files / folders. filesFromDataTransfer captures the handles synchronously, then awaits.
+    webFileDropAt.current = Date.now();
     const pending = filesFromDataTransfer(e.dataTransfer);
     void (async () => {
       try {
@@ -1394,6 +1435,7 @@ useEffect(() => {
 
     if (!targetSlide || !e.dataTransfer.types.includes('Files')) return;
     // OS files: first image/video = this card's background, audio = its cue, the REST become new slides after it.
+    webFileDropAt.current = Date.now();
     const pending = filesFromDataTransfer(e.dataTransfer);
     void (async () => {
       try {
@@ -1407,6 +1449,32 @@ useEffect(() => {
     })();
   };
 
+  // Windows app: WebView2 never sees an Explorer/desktop drop — the native shell catches it and
+  // posts NATIVE_FILES_DROPPED with localmedia.plajah URLs (real paths, so they survive a reload).
+  // Each file becomes a new slide after the selected one, like a drop on the deck.
+  const nativeDropRef = useRef<(files: NativeDroppedFile[]) => void>(() => {});
+  nativeDropRef.current = (files: NativeDroppedFile[]) => {
+    if (Date.now() - webFileDropAt.current < 3000) return;
+    const media: DropMedia[] = sortByFolder(files.map(f => ({ name: f.name, kind: classifyFile(f.name), url: f.url, dir: nativeDropDir(f) })));
+    const newSlides = media.map(slideFromMedia).filter((x): x is Slide => !!x);
+    const skipped = media.filter(m => !m.kind || m.kind === 'DOC').map(m => m.name);
+    if (skipped.length) showDropNote(`Skipped unsupported file${skipped.length > 1 ? 's' : ''}: ${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? '...' : ''}.`);
+    if (newSlides.length === 0) return;
+    const at = slides.length === 0 ? -1 : Math.min(selected, slides.length - 1);
+    insertSlidesAfter(at, newSlides);
+    setSelected(at + 1);
+  };
+  useEffect(() => {
+    if (!isWindowsApp()) return;
+    return onNativeMessage(msg => {
+      if (msg.type !== 'NATIVE_FILES_DROPPED' || !msg.files?.length) return;
+      // Dropped over the Media tab: the library links it as a folder instead (see AmboTabbedLibrary).
+      const at = typeof msg.x === 'number' && typeof msg.y === 'number' ? document.elementFromPoint(msg.x, msg.y) : null;
+      if (at?.closest('[data-ambo-media-drop]')) return;
+      nativeDropRef.current(msg.files);
+    });
+  }, []);
+
   // Drop media on the service-plan list: each file / library item becomes a plan entry.
   const handleDropOnPlaylist = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1417,6 +1485,7 @@ useEffect(() => {
       if (dataStr) payload = mediaFromPayload(JSON.parse(dataStr));
     } catch { /* ignore */ }
     const pending = payload.length === 0 && e.dataTransfer.types.includes('Files') ? filesFromDataTransfer(e.dataTransfer) : null;
+    if (pending) webFileDropAt.current = Date.now();
     void (async () => {
       try {
         const media = pending ? await mediaFromFiles(await pending) : payload;
@@ -1985,6 +2054,7 @@ useEffect(() => {
     setLive(prev => applySlide(prev, s, Date.now()));
     setLiveSlideId(s.id);
     setLiveSlideObj(s);
+    setProgramTake(prev => ({ seq: (prev?.seq ?? 0) + 1, kind: activeTransition || 'Cross Dissolve', durationSec: transitionDurationSec }));
     setPreviewBackgroundOverride(null);
 
     // A scripture slide went live: cue the next scripture — the next scripture slide in the show, else the next verse.
@@ -2389,7 +2459,7 @@ useEffect(() => {
         </span>
       </div>
       <div className="rounded-xl overflow-hidden border-2" style={{ borderColor: liveSlideId ? 'rgba(255,140,0,0.75)' : line2, boxShadow: liveSlideId ? '0 0 22px rgba(255,140,0,0.28)' : 'none' }}>
-        <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} fit={programFit} transform={programTransform} />
+        <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} fit={programFit} transform={programTransform} take={programTake} />
       </div>
       <div className="flex items-center justify-between mt-3 mb-1.5">
         <div className="flex items-center gap-1.5">
@@ -3229,7 +3299,7 @@ useEffect(() => {
                             onClick={() => {
                               if (!routerRef.current) return;
                               if (isOpen) routerRef.current.closeWindow(o.id);
-                              else if (routerRef.current.openWindow(o, cssScreens)) routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed });
+                              else if (routerRef.current.openWindow(o, cssScreens)) routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed }, programTake);
                               setOutputs(prev => [...prev]);
                             }}
                             className={`h-6 px-2 rounded text-[10px] font-bold border ${isOpen ? 'text-[#FF8C00] border-[#FF8C00]/50 bg-[#FF8C00]/15' : 'text-white/70 border-white/15 hover:bg-white/10'}`}>
@@ -3533,7 +3603,7 @@ useEffect(() => {
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: ORANGE }}>● Audience Output</div>
                 <div className="rounded-xl overflow-hidden border-2" style={{ borderColor: 'rgba(255,140,0,0.75)', boxShadow: '0 0 22px rgba(255,140,0,0.28)' }}>
-                  <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} fit={programFit} transform={programTransform} />
+                  <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} fit={programFit} transform={programTransform} take={programTake} />
                 </div>
               </div>
               <div>
@@ -3910,6 +3980,7 @@ useEffect(() => {
         isBlackout={isBlackout}
         isMasterProgramOn={isMasterProgramOn}
         activeTransition={activeTransition}
+        programTake={programTake}
         partySession={partySession}
         partyDevices={partyDevices}
         onOpenPartyModal={() => setIsPartyModalOpen(true)}
@@ -3973,6 +4044,12 @@ useEffect(() => {
           }}
           onInsertAudioSlide={handleCreateAudioSlide}
           onInsertMediaSlide={handleInsertMediaSlide}
+          onInsertFolderSlides={(_name, items) => {
+            const newSlides = folderPayloadMedia({ items }).map(slideFromMedia).filter((x): x is Slide => !!x);
+            if (newSlides.length === 0) return;
+            setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, ...newSlides] })));
+            setSelected(slides.length);
+          }}
           currentPlayingAudioId={activeDjTrack?.id}
           nativeSources={nativeSources}
           onScanNdi={handleScanNdi}

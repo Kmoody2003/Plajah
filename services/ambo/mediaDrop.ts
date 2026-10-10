@@ -8,12 +8,25 @@ export interface DropMedia {
   name: string;
   kind: MediaKindOrDoc | null;
   url: string;
+  /** Folder it came from inside a dropped folder ("Easter/Photos") — becomes the slide group. */
+  dir?: string;
 }
 
 const stem = (n: string) => n.replace(/\.[^/.]+$/, '');
 
-/** A fresh slide for one dropped file (DOC / unknown kinds produce nothing). */
+/** Slide group label for a folder path: "Easter/Photos" -> "Easter / Photos". */
+export function folderGroupLabel(dir: string): string {
+  return dir.split('/').filter(Boolean).join(' / ');
+}
+
+/** A fresh slide for one dropped file (DOC / unknown kinds produce nothing). Files from a folder are grouped by it. */
 export function slideFromMedia(m: DropMedia): Slide | null {
+  const s = slideForKind(m);
+  if (s && m.dir) s.group = folderGroupLabel(m.dir);
+  return s;
+}
+
+function slideForKind(m: DropMedia): Slide | null {
   const label = stem(m.name);
   switch (m.kind) {
     case 'AUDIO':
@@ -83,6 +96,18 @@ export function applyMediaToSlide(slide: Slide, media: DropMedia[]): { slide: Sl
     }
   }
   return { slide: { ...slide, layers, onEnter }, extra, skipped };
+}
+
+/**
+ * A file from the Windows shell's drop: files inside a dropped folder carry `relativePath`
+ * (relative to that folder) and `folderPath` (the folder itself) — the dir keeps the folder's name.
+ */
+export function nativeDropDir(f: { relativePath?: string; folderPath?: string }): string | undefined {
+  if (!f.relativePath || !f.folderPath) return undefined;
+  const root = f.folderPath.split(/[\\/]/).filter(Boolean).pop() || '';
+  const rel = f.relativePath.replace(/\\/g, '/');
+  const i = rel.lastIndexOf('/');
+  return [root, i < 0 ? '' : rel.slice(0, i)].filter(Boolean).join('/');
 }
 
 /** A media-library drag payload (`ambo-source`) as a DropMedia, or null for LIVE / GENERATOR / SHADER sources. */
