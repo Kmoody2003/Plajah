@@ -41,6 +41,7 @@ import SafeAvatarViewer from './SafeAvatarViewer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import PlajahPlusButton from './PlajahPlusButton';
+import CreateEventButton from './events/CreateEventButton';
 import RssFeedViewer from './RssFeedViewer';
 import ProfileLiveTiles from './profile/ProfileLiveTiles';
 import ProfileFeaturedProject from './profile/ProfileFeaturedProject';
@@ -367,12 +368,21 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
               <div className={`flex flex-wrap items-center gap-2.5 mt-5 ${isMobile ? 'justify-center' : ''}`}>
                 {/* Own-profile pills */}
                 {isOwnProfile && (
-                  <PlajahPlusButton
-                    creatorId={profile.uid}
-                    creatorName={profile.displayName}
-                    isOwnProfile={true}
-                    onOpenLanding={onOpenPlajahPlusLanding}
-                  />
+                  <>
+                    <PlajahPlusButton
+                      creatorId={profile.uid}
+                      creatorName={profile.displayName}
+                      isOwnProfile={true}
+                      onOpenLanding={onOpenPlajahPlusLanding}
+                    />
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
+                      className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-[#FF8C00] px-4 text-[10px] font-black uppercase tracking-widest text-black transition-all hover:brightness-110"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-[#e23b3b] animate-pulse" /> Start a Room
+                    </button>
+                    <CreateEventButton host={{ kind: 'user' }} className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] px-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:brightness-110" />
+                  </>
                 )}
 
                 {/* Visitor pills */}
