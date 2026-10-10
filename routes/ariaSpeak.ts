@@ -19,6 +19,7 @@
  */
 import { Router, json } from 'express';
 import { prepareSpeechText } from '../services/aria/ariaSpeech';
+import { childrensSpeechText } from '../services/aria/childrensSpeech';
 import { isVerifiedAdmin, type VerifiedFacts } from '../services/aria/ariaTier';
 
 /** Who may use the premium (ElevenLabs) voice. `null` = nobody (free account). */
@@ -89,7 +90,10 @@ export function createAriaSpeakRouter({ authMiddleware, requireRegisteredUser, l
       return res.status(403).json({ error: "Aria's studio voice is part of Plajah+.", code: 'PAID_ONLY' });
     }
 
-    const text = prepareSpeechText(req.body?.text);
+    // 'storybook' = reading to children: steadier delivery plus the children's pronunciation and tone pass. Only that fixed name is honoured.
+    const storybook = req.body?.style === 'storybook';
+    const prepared = prepareSpeechText(req.body?.text);
+    const text = storybook ? childrensSpeechText(prepared) : prepared;
     if (!text) return res.status(400).json({ error: 'text required' });
 
     const uid: string = req.uid;
@@ -110,7 +114,7 @@ export function createAriaSpeakRouter({ authMiddleware, requireRegisteredUser, l
           body: JSON.stringify({
             text,
             model_id: process.env.ELEVENLABS_ARIA_MODEL || DEFAULT_MODEL,
-            voice_settings: voiceSettingsFor(req.body?.style),
+            voice_settings: voiceSettingsFor(storybook ? 'storybook' : undefined),
           }),
           signal: AbortSignal.timeout(30000),
         },

@@ -133,10 +133,11 @@ export interface AriaClient {
   probe(): Promise<boolean>;
   /** Cached synchronous answer: true only after a probe said yes. */
   isAvailable(): boolean;
-  fetchAudio(text: string, signal?: AbortSignal): Promise<ArrayBuffer | null>;
+  /** `style: 'storybook'` asks the proxy for the steadier children's delivery + pronunciation/tone pass (children's books only). */
+  fetchAudio(text: string, signal?: AbortSignal, style?: 'storybook'): Promise<ArrayBuffer | null>;
 }
 
-export function createAriaClient(deps: { getToken: () => Promise<string | null>; fetchImpl?: typeof fetch; base?: string; /** Delivery profile sent to the proxy. 'storybook' = steadier, plainer reading for children (less inflection). */ style?: 'storybook' }): AriaClient {
+export function createAriaClient(deps: { getToken: () => Promise<string | null>; fetchImpl?: typeof fetch; base?: string }): AriaClient {
   const f = (...a: Parameters<typeof fetch>) => (deps.fetchImpl ?? fetch)(...a);
   const base = deps.base ?? '/api/aria/speak';
   let ok = false; let checkedAt = 0; let inflight: Promise<boolean> | null = null;
@@ -167,14 +168,15 @@ export function createAriaClient(deps: { getToken: () => Promise<string | null>;
   return {
     probe,
     isAvailable: () => ok,
-    async fetchAudio(text, signal) {
-      const hit = cache.get(text); if (hit) return hit;   // one client = one style, so the text alone is the key
+    async fetchAudio(text, signal, style) {
+      const key = style ? `${style}|${text}` : text;
+      const hit = cache.get(key); if (hit) return hit;
       try {
         const token = await deps.getToken(); if (!token) return null;
-        const res = await f(base, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(deps.style ? { text, style: deps.style } : { text }), signal });
+        const res = await f(base, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(style ? { text, style } : { text }), signal });
         if (!res.ok) { if (res.status === 403 || res.status === 503) { ok = false; checkedAt = Date.now(); } return null; }
         const buf = await res.arrayBuffer();
-        cache.set(text, buf); if (cache.size > 24) cache.delete(cache.keys().next().value as string);
+        cache.set(key, buf); if (cache.size > 24) cache.delete(cache.keys().next().value as string);
         return buf;
       } catch { return null; }
     },
@@ -182,7 +184,7 @@ export function createAriaClient(deps: { getToken: () => Promise<string | null>;
 }
 
 // ───────────── narrator ─────────────
-export interface SpeakOptions { voice?: string; rate?: number; onWord?: (wordIndex: number) => void }
+export interface SpeakOptions { voice?: string; rate?: number; onWord?: (wordIndex: number) => void; /** 'children' = a children's book: steadier Aria delivery plus the children's pronunciation and tone pass. */ audience?: 'children' }
 export interface SpeakHandle { cancel(): void; done: Promise<void> }
 export type NarrationMode = 'aria' | 'speech' | 'silent';
 
@@ -325,7 +327,7 @@ export class Narrator {
       const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const to = this.timers.setTimeout(() => ctl?.abort(), 9000);
       cleanups.push(() => { this.timers.clearTimeout(to); ctl?.abort(); });
-      const ab = await aria.fetchAudio(text, ctl?.signal);
+      const ab = await aria.fetchAudio(text, ctl?.signal, opts.audience === 'children' ? 'storybook' : undefined);
       this.timers.clearTimeout(to);
       if (!ab || my !== this.ticket || finished) return !!(my !== this.ticket || finished);       // cancelled meanwhile counts as handled
       let buf: AudioBuffer;

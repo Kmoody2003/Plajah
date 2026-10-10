@@ -15,6 +15,7 @@ import { LivingReaderBar, useLivingPrefs } from '../living/LivingReaderBar';
 import { frameObjects, frameSize, hasLiving, livingPageFor } from '../../services/living/runtime/objects';
 import { loadBookAudio } from '../../services/living/runtime/audioProvider';
 import type { BookAudioApi } from '../../services/living/contracts';
+import { isChildrensBook } from '../../services/living/audio/audience';
 import PageTurn from '../lorea/PageTurn';
 import PageTurnSettings from '../lorea/PageTurnSettings';
 import { usePageTurn } from '../lorea/usePageTurn';
@@ -87,6 +88,8 @@ export default function TelaBookReader({ album, bundle, pin, uid, isOwner, isPai
   }, [hasLive, living]);
   useEffect(() => { if (!audio) return; audio.setGains({ music: living?.defaults?.musicGain, sfx: living?.defaults?.sfxGain }); }, [audio, living]);
   useEffect(() => { if (audio) audio.setMuted(!lp.soundOn); }, [audio, lp.soundOn]);
+  // Children's books get the children's narration voice (steadier delivery + pronunciation/tone pass); everything else keeps Aria's default.
+  useEffect(() => { (audio as { setAudience?: (a: 'children' | 'general') => void } | null)?.setAudience?.(isChildrensBook(album) ? 'children' : 'general'); }, [audio, album]);
   useEffect(() => () => { audio?.stopAll(); }, [audio]);
 
   useLayoutEffect(() => {

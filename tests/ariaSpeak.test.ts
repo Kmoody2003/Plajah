@@ -122,3 +122,15 @@ test('storybook delivery is steadier than the approved default; unknown styles f
   assert.ok(book.stability > def.stability); assert.equal(book.style, 0); assert.ok(book.speed < def.speed);
   assert.deepEqual(voiceSettingsFor('whisper'), def);
 });
+
+test('storybook style runs the children\'s pass and steadier settings; without it nothing changes', async () => {
+  process.env.ELEVENLABS_API_KEY = 'test-key'; process.env.ELEVENLABS_ARIA_VOICE_ID = 'voice123';
+  const raw = 'BEEP said Lumi... and then — silence.';
+  const kids = await realFetch(`${base}/api/aria/speak`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-test-uid': 'u1' }, body: JSON.stringify({ text: raw, style: 'storybook' }) });
+  assert.equal(kids.status, 200);
+  const kb = JSON.parse(upstreamCalls.at(-1)!.init.body);
+  assert.equal(kb.text, 'Beep said Loo-mee, and then, silence.'); assert.ok(kb.voice_settings.stability > 0.5); assert.equal(kb.voice_settings.style, 0);
+  await post(raw);
+  const plain = JSON.parse(upstreamCalls.at(-1)!.init.body);
+  assert.equal(plain.text, raw); assert.equal(plain.voice_settings.stability, 0.5);
+});

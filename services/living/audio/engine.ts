@@ -23,6 +23,8 @@ export interface BookAudioEx extends BookAudioApi {
   stopTransient(): void;
   pauseSpeech(): void;
   resumeSpeech(): void;
+  /** Who is being read to. 'children' turns on the children's voice delivery + pronunciation/tone pass for narration (children's books only). */
+  setAudience(a: 'children' | 'general'): void;
   /** Current cue id, or null. */
   readonly cue: string | null;
   readonly ambienceBed: string | null;
@@ -50,6 +52,7 @@ function defaultContext(): AudioContext {
 }
 
 export function createBookAudio(opts: EngineOptions = {}): BookAudioEx {
+  let audience: 'children' | 'general' = 'general';
   let ctx: AudioContext | null = null;
   let graph: AudioGraph | null = null;
   let unlockedFlag = false;
@@ -293,8 +296,9 @@ export function createBookAudio(opts: EngineOptions = {}): BookAudioEx {
 
     speak(text, o) {
       if (disposed) return { cancel() {}, done: Promise.resolve() };
-      return narrator.speak(text, o);
+      return narrator.speak(text, audience === 'children' ? { ...o, audience: 'children' } : o);
     },
+    setAudience(a) { audience = a; },
     pauseSpeech() { narrator.pause(); },
     resumeSpeech() { narrator.resume(); },
 
