@@ -255,7 +255,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     const forward = dirForTapSide(side, (book as any).readingDir === 'rtl') === 1;
     return forward ? currentPageIndex >= n - 1 : currentPageIndex <= 0;
   };
-  const livingBook = useLivingPictureBook(book, telaEdition.status === 'tela' ? telaEdition.bundle : null, livingPicture, goToLivePage);
+  const livingBook = useLivingPictureBook(book, telaEdition.status === 'tela' ? telaEdition.bundle : null, livingPicture, goToLivePage, currentPageIndex);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [showControls, setShowControls] = useState(true);

@@ -31,12 +31,13 @@ export interface LivingPictureBook {
   bar: React.ReactNode;
 }
 
-export function useLivingPictureBook(album: Album, bundle: BookTelaBundle | null | undefined, enabled: boolean, goTo: (index: number) => void): LivingPictureBook | null {
+export function useLivingPictureBook(album: Album, bundle: BookTelaBundle | null | undefined, enabled: boolean, goTo: (index: number) => void, currentIndex: number): LivingPictureBook | null {
   const doc = bundle?.doc; const living = doc?.living;
   const on = enabled && !!doc && !!living;
   const lp = useLivingPrefs(living?.defaults ? { narrate: living.defaults.narrate } : undefined);
   const [audio, setAudio] = useState<BookAudioApi | null>(null);
   const liveRef = useRef<TelaLivePageHandle>(null);
+  const indexRef = useRef(currentIndex); indexRef.current = currentIndex;
 
   useEffect(() => {
     if (!on) return; let alive = true;
@@ -68,7 +69,7 @@ export function useLivingPictureBook(album: Album, bundle: BookTelaBundle | null
       <div key={f.id} data-living-page-frame={i + 1} className="rounded-lg shadow-2xl ring-1 ring-white/10 overflow-hidden"
         style={{ height: '100%', maxWidth: '100%', aspectRatio: `${size.width} / ${size.height}` }}>
         <TelaLivePage ref={active ? liveRef : undefined} objects={objs} width={size.width} height={size.height} living={livingPageFor(living, i + 1)!}
-          audio={audio} reducedMotion={lp.reduced} soundEnabled={lp.soundOn} active={active} autoNarrate={lp.narrate === 'auto'} hints={lp.hints} label={f.label || undefined}
+          audio={audio} reducedMotion={lp.reduced} soundEnabled={lp.soundOn} active={active} autoNarrate={lp.narrate === 'auto'} hints={lp.hints} isCurrent={() => indexRef.current === i} label={f.label || undefined}
           onGoto={p => goTo(p === 'next' ? i + 1 : p === 'prev' ? i - 1 : p - 1)}
           onGoal={(pg, id) => { const k = `plajah-living-goals-${album.id}`; writeJson(k, { ...readJson<Record<string, number>>(k, {}), [`${pg}:${id}`]: Date.now() }); }} />
       </div>

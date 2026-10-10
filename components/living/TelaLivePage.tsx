@@ -59,6 +59,9 @@ export interface TelaLivePageProps {
   onNarrationWord?: (i: number) => void;
   /** Draw the visual "you can touch this" cues (components/living/LiveHints.tsx). Default true. */
   hints?: boolean;
+  /** Asked at the moment it matters (never captured): is this page the one the reader is on? A page-turn keeps a stale copy of the page being left (still
+   *  `active` as it was when captured) alongside the incoming one; only the current page may own the music, ambience and narration. Default: yes. */
+  isCurrent?: () => boolean;
 }
 
 // ── audio ownership: the page that is active owns the music. A page that is left does not stop music a newer page already took over.
@@ -74,7 +77,7 @@ const ObjectG = memo(function ObjectG({ o, html }: { o: TelaVectorObject; html: 
 let instanceCounter = 0;
 
 const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function TelaLivePage(props, ref) {
-  const { objects, width, height, living, audio, soundEnabled, onGoto, onGoal, active = true, background, pageAudio = true, autoNarrate, writerTexts, className, style, label, onNarrationWord, hints = true } = props;
+  const { objects, width, height, living, audio, soundEnabled, onGoto, onGoal, active = true, background, pageAudio = true, autoNarrate, writerTexts, className, style, label, onNarrationWord, hints = true, isCurrent } = props;
   const [reducedOverride, setReducedOverride] = useState<boolean | null>(null);
   const reduced = reducedOverride ?? props.reducedMotion;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -142,9 +145,12 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
   const inViewRef = useRef(true); inViewRef.current = inView;
   useEffect(() => { engineRef.current?.setVisible(inView && !document.hidden); }, [inView, infos, living]);
 
+  const isCurrentRef = useRef(isCurrent); isCurrentRef.current = isCurrent;
+  const stillCurrent = () => (isCurrentRef.current ? isCurrentRef.current() : true);
+
   // ── page music / ambience (owner-aware, only with sound on)
   useEffect(() => {
-    if (!audio || !pageAudio || !active || !soundEnabled) return;
+    if (!audio || !pageAudio || !active || !soundEnabled || !stillCurrent()) return;
     const st = ownerState(audio); st.owner = token;
     const m = living.music, a = living.ambience;
     try {
@@ -162,8 +168,8 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
 
   // ── auto read-aloud
   useEffect(() => {
-    if (!autoNarrate || !active || !soundEnabled || !audio) return;
-    const t = window.setTimeout(() => engineRef.current?.narrate(), 700);
+    if (!autoNarrate || !active || !soundEnabled || !audio || !stillCurrent()) return;
+    const t = window.setTimeout(() => { if (stillCurrent()) engineRef.current?.narrate(); }, 700);
     return () => { clearTimeout(t); engineRef.current?.cancelSpeech(); };
   }, [autoNarrate, active, soundEnabled, audio, infos, living]);
 
