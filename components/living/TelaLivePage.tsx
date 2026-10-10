@@ -205,6 +205,13 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
   };
   const markTried = (key: string) => { setBusyTick(t => t + 1); setDiscovered(prev => (prev.has(key) ? prev : new Set(prev).add(key))); };
   /** A touch on a spot counts as trying it: that spot stops hinting. Any touch also quiets the hints for a moment. */
+  /** A press that starts on (or just around) something the reader can drag or hold belongs to the page, never to the page-turn swipe: the turn
+   *  gesture would otherwise win when the pointer lands on a layer that is not the thing itself (a texture, the accessible overlay) or in the mouse edge zone. */
+  const claimsPointer = (e: React.PointerEvent): boolean => {
+    const r = rootRef.current?.getBoundingClientRect(); if (!r || !r.width) return false;
+    const x = (e.clientX - r.left) / r.width * width, y = (e.clientY - r.top) / r.height * height, pad = width * 0.06;
+    return items.some(it => (it.family === 'drag' || it.family === 'press') && x >= it.box.x - pad && x <= it.box.x + it.box.w + pad && y >= it.box.y - pad && y <= it.box.y + it.box.h + pad);
+  };
   const noteTouch = (e: React.PointerEvent) => {
     const r = rootRef.current?.getBoundingClientRect(); setBusyTick(t => t + 1); if (!r || !r.width) return;
     const x = (e.clientX - r.left) / r.width * width, y = (e.clientY - r.top) / r.height * height, pad = width * 0.05;
@@ -216,7 +223,7 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
   const descId = `${prefix}desc`;
   return (
     <div ref={rootRef} className={cls} data-live-page={living.page} data-reduced={reduced ? '1' : '0'} data-active={active ? '1' : '0'} role="group" aria-label={label || summary || `Page ${living.page}, interactive`} aria-describedby={instr ? descId : undefined}
-      onPointerDownCapture={e => { unlock(); noteTouch(e); }}
+      onPointerDownCapture={e => { unlock(); noteTouch(e); if (active && claimsPointer(e)) (e.nativeEvent as PointerEvent & { pjNoPageTurn?: boolean }).pjNoPageTurn = true; }}
       style={{ position: 'relative', width: '100%', aspectRatio: `${width} / ${height}`, touchAction: living.behaviors.some(b => b.on.type === 'drag' || b.on.type === 'press') ? 'none' : 'pan-y pinch-zoom',   // a drag that starts on a full-page texture would otherwise be claimed by the browser's pan
       userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent', overflow: 'hidden', ...style } as React.CSSProperties}>
       <style>{`.pj-live-page .pj-live-hit:focus-visible{outline:3px solid #ff8c00;outline-offset:2px;background:rgba(255,140,0,.14)!important}`}</style>

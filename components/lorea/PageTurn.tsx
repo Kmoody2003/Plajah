@@ -298,6 +298,7 @@ const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageTurn(pro
       if (p.disabled || stageRef.current) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       if ((e.target as HTMLElement | null)?.closest?.('input,textarea,select,[contenteditable="true"],[data-no-pageturn]')) return;
+      if ((e as PointerEvent & { pjNoPageTurn?: boolean }).pjNoPageTurn) return;   // a living page claimed this press (drag/hold target)
       swallowClick = false;
       const rect = host.getBoundingClientRect();
       tr = { id: e.pointerId, x0: e.clientX, y0: e.clientY, rect, started: 'no', ignore: false, dir: 1, samples: [{ t: e.timeStamp, x: e.clientX }], towardSign: 1, lastDx: 0 };
