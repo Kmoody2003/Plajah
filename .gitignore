@@ -91,6 +91,7 @@ public/irs/akrt-full/
 
 # Standalone Firstlight production preview (source/assets are tracked separately)
 dist-firstlight/
+dist-kith-party/
 
 # Native build outputs (Rust cargo targets, .NET bin/obj). Besides not belonging
 # in git, Tailwind v4 scans every unignored file — these made the dev server's

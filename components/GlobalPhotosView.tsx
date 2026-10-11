@@ -65,6 +65,8 @@ import {
 import { PHOTO_ART_SCHOOL } from '../data/photoArtCurriculum';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 import ChipRail from './ui/ChipRail';
+import { addWindowsFolder, type SavedFolder } from '../services/folderRegistry';
+import { SavedFoldersMenu, lastFolder, setLastFolderId, getLastFolderId } from './ui/SavedFolders';
 
 export type GlobalPhotosMode = 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID' | 'CATALOG' | 'SPATIAL' | 'WINDOWS_PHOTOS';
 
@@ -250,16 +252,45 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
       setWindowsLibraryFolder(res.folderPath || '');
       setWindowsLibrarySubfolders([]);
       setWindowsActiveSubfolder(null);
+      // Remember it app-wide (Ambo, Fabula … list it too) and reopen it next time.
+      if (res.folderPath) setLastFolderId('photos', addWindowsFolder(res.folderPath, res.folderName, 'photos').id);
     }
   };
 
+  /** Open a folder saved in the shared folder registry (any app may have added it). */
+  const openSavedWindowsFolder = React.useCallback(async (f: SavedFolder): Promise<boolean> => {
+    if (f.kind !== 'windows') return false;
+    setWindowsLibraryLoading(true);
+    try {
+      const res = await scanWindowsLibrary('custom', f.path);
+      if (res.success) {
+        setWindowsLibraryFiles(res.files || []);
+        setWindowsLibraryFolder(res.folderPath || f.path);
+        setWindowsLibrarySubfolders(res.subfolders || []);
+        setWindowsActiveSubfolder(null);
+        setLastFolderId('photos', f.id);
+        return true;
+      }
+    } catch (e) {
+      console.warn('[GlobalPhotosView] saved folder scan failed:', e);
+    } finally {
+      setWindowsLibraryLoading(false);
+    }
+    return false;
+  }, []);
+
+  const restoredFolderRef = React.useRef(false);
   useEffect(() => {
     if (mode === 'WINDOWS_PHOTOS') {
       if (windowsLibraryFiles.length === 0) {
-        loadWindowsLibrary(windowsLibraryType);
+        // First open: restore the last folder used here, else the default library.
+        const last = !restoredFolderRef.current ? lastFolder('photos') : null;
+        restoredFolderRef.current = true;
+        if (last && last.kind === 'windows') void openSavedWindowsFolder(last).then(ok => { if (!ok) loadWindowsLibrary(windowsLibraryType); });
+        else loadWindowsLibrary(windowsLibraryType);
       }
     }
-  }, [mode, windowsLibraryType, loadWindowsLibrary, windowsLibraryFiles.length]);
+  }, [mode, windowsLibraryType, loadWindowsLibrary, openSavedWindowsFolder, windowsLibraryFiles.length]);
 
   const filteredWindowsFiles = React.useMemo(() => {
     let list = windowsLibraryFiles;
@@ -483,6 +514,9 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
   // ── Windows Photos Native Gallery Renderer ──────────────────────────────────
   const renderWindowsPhotosView = () => (
     <div className="space-y-4">
+      <div className="flex justify-end empty:hidden">
+        <SavedFoldersMenu kind="windows" activeId={getLastFolderId('photos')} onOpen={f => void openSavedWindowsFolder(f)} />
+      </div>
       {windowsLibraryLoading ? (
         <div className="py-32 flex flex-col items-center justify-center gap-4 text-white/40">
           <Loader2 size={32} className="animate-spin text-[#FF8C00]" />

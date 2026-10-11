@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Game, UserProfile } from '../types';
 import { fetchGames, updateGamePlayCount, fetchUserProfile, auth } from '../services/backendService';
 import ChipRail from './ui/ChipRail';
+const KithParty = React.lazy(() => import('./kithParty/KithParty'));
 
 interface FreeToGame {
   id: number;
@@ -27,6 +28,7 @@ interface GamesViewProps {
 }
 
 const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse }) => {
+  const [showKithParty, setShowKithParty] = useState(false);
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameOwners, setGameOwners] = useState<Record<string, UserProfile>>({});
@@ -42,6 +44,9 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   // packages/first-party-games/games/live-action/docs/platform-integration.md
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+      setIsAdmin(true);
+    }
     const u = auth.currentUser;
     if (!u) return;
     if (u.email === 'kmoody2003@gmail.com') { setIsAdmin(true); return; }
@@ -116,6 +121,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
     (g.title.toLowerCase().includes(searchQuery.toLowerCase()) || g.short_description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty onBack={() => setShowKithParty(false)} /></React.Suspense>;
+
   return (
     <div className="h-full bg-transparent text-white overflow-hidden flex flex-col">
       {/* Games Header */}
@@ -164,6 +171,36 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
           </button>
         )}
       </div>
+
+      {isAdmin && (
+        <div className="mx-8 mt-6 p-6 rounded-[2rem] border border-orange-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-left shadow-2xl relative overflow-hidden" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(255,140,0,0.25), transparent 70%), linear-gradient(135deg, rgba(107,0,153,0.45), rgba(212,0,85,0.30) 50%, rgba(255,140,0,0.22))' }}>
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-pink-600 text-white text-[8px] font-black uppercase tracking-widest shadow">Admin Only</span>
+              <span className="text-[9px] font-bold text-orange-300 uppercase tracking-wider">3D Kart Racing & World Exploration</span>
+            </div>
+            <strong className="block text-2xl md:text-3xl font-black text-white tracking-tight">✳ KITH PARTY: PRISM PARKWAY</strong>
+            <p className="text-xs text-white/70 max-w-xl mt-1">High-speed 3D kart racing with real physics, launch torque, dynamic camera warp, dual rocket exhaust jets, 3-tier drift boosts, and the fantasy cliff viaduct world.</p>
+          </div>
+          <div className="flex items-center gap-3 relative z-10 w-full md:w-auto">
+            <button
+              onClick={() => setShowKithParty(true)}
+              className="flex-1 md:flex-initial px-6 py-3.5 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider hover:scale-105 transition-all shadow-lg flex items-center justify-center gap-2"
+            >
+              <Play size={15} fill="currentColor" /> Play In Plajah
+            </button>
+            <a
+              href="http://127.0.0.1:3188/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+              title="Open standalone Kith Party window (Port 3188)"
+            >
+              <ExternalLink size={14} /> Standalone
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Platform Chip Rail treatment (components/ui/ChipRail) */}
       <div className="px-8 pt-6 pb-4 border-b border-white/5">

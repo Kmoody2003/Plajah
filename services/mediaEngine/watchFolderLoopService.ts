@@ -2,6 +2,8 @@
 // Shared across Ambo (presentation / show slides) and Pixels (VJ / visualizer background loops).
 // Handles directory picking, folder re-scanning, loop iteration tracking, and random/sequential selection.
 
+import { addHandleFolder } from '../folderRegistry';
+
 export interface WatchFolderMediaItem {
   id: string;
   name: string;
@@ -17,6 +19,8 @@ export interface WatchFolderResult {
   folderName: string;
   handle?: any; // FileSystemDirectoryHandle if available
   items: WatchFolderMediaItem[];
+  /** Saved-folder id in services/folderRegistry (set when a real handle was picked). */
+  folderId?: string;
 }
 
 export interface LoopDeckConfig {
@@ -91,7 +95,10 @@ export async function pickWatchFolder(): Promise<WatchFolderResult | null> {
       }
 
       const items = filesToMediaItems(files, folderName);
-      return { folderName, handle, items };
+      // Remember the folder app-wide (every file viewer lists it, and it survives reloads).
+      let folderId: string | undefined;
+      try { folderId = (await addHandleFolder(handle, 'watch-folder')).id; } catch { /* IndexedDB blocked — still usable this session */ }
+      return { folderName, handle, items, folderId };
     } catch (err: any) {
       if (err?.name === 'AbortError') return null;
       // If permission error or user cancelled, fall through to input picker

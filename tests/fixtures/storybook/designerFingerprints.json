@@ -1,0 +1,87 @@
+{
+ "note": "sha256(JSON(pageObjects(templateId, i).objects)) per page, frozen 2026-10-11 BEFORE the storybook ports touched the designers. tests/storybookArt.test.ts proves the ported designers still produce byte-identical pages.",
+ "books": {
+  "moon-blanket": [
+   "3e8b5d9357ec9aebcfed8dc3",
+   "238a0f89722015d5ebc1b645",
+   "2525c6f0511a9663de218879",
+   "d028dff6a5060c123c77bc2f",
+   "9bd6d297fa49c27fea6dbce0",
+   "13c4397a53ce3bdab65d4713",
+   "dc6bc6199298a4ac5205d139",
+   "ebcf55cd6542090490aaa434",
+   "374ac857369f8114ad7489a0",
+   "ddf2d94e125a02b6bf4db624",
+   "efff136f1c09328878c80bc8"
+  ],
+  "beep-block-street": [
+   "9f3825d151e87fe8da2192f7",
+   "2f9a5e6e6e59ea1320a23533",
+   "36933057579a556b279df4cb",
+   "cfde68eccf48ef5cfba9d29d",
+   "cd1b8f0d58b84e698f9ca7e2",
+   "30fd4226336d844d8d198272",
+   "3f36ad1a63e48ca0f52f3514",
+   "cc04ca5671fea8e90614672d",
+   "2b6b16b0caeab502339b48b3",
+   "ccd61a72a03755ec3cc3f897"
+  ],
+  "orbit-party": [
+   "e9f3a9cf33e2f2dd7307f2b1",
+   "5ae508aefe1b83cdfea58c1c",
+   "340f65f3b25f47b898b5ca90",
+   "4ca636037e30611d33e92381",
+   "3dff43eb2c91333b7959e5a4",
+   "3c68a4e892073b7cd567cd93",
+   "bf0bece319e317b556503d2d",
+   "673128e2f5e7792b54a03964",
+   "a4c6552da3273c7595ac4700",
+   "878678a9cf3a004dca632ff1",
+   "58f734535c5ce5430066b385"
+  ],
+  "little-fox-big-trees": [
+   "d987346e7637bf820cdd2af6",
+   "adfdb7d56e62152b432af36c",
+   "a9faee42b3023ad83f95219c",
+   "a7248ec383717f6af2ec12e6",
+   "5a61924c22740016d3cef7f6",
+   "d4e276db8a124686dca618c9",
+   "39aae9d40a7d4c7ce1d35e96",
+   "4db2a64d8dc8bba7128aeac7",
+   "840d996059918156c411c75a",
+   "e61a156173904f02f70481fe",
+   "d14d2547b28dc55eef860707"
+  ],
+  "below-the-blue": [
+   "49ea19b527a2484940b26e2f",
+   "b4e3ee1d0bb17087e568e8f8",
+   "887709feb6cd93ece537d16c",
+   "32da0dc871c87a2c810caf17",
+   "dc67d204bab60805cfadaf9c",
+   "f9cb841d2e2f698059bb9d40",
+   "413d18e9b4c4bdf834970321",
+   "c7d313c2b944a2f1dc9db924",
+   "97c2fe00c2223e914a027a0d",
+   "53e038c0bacd25970a774a8f",
+   "25fb18db26b0924573a672f3",
+   "e1687f60ec9f45c5e80f3230",
+   "7a3e37f199e2dade912c7908"
+  ],
+  "golden-thread": [
+   "4474e9ab53b1266e661027a6",
+   "5a23b2da9b6e751c704cb9c7",
+   "6fb0f97666b6e9fef8a4f601",
+   "c2962151886f2d183f2747aa",
+   "77bbfbe3e61bed003e8a654f",
+   "2ededbbc0a32f7509b2ddf5a",
+   "d20ab3a4760370522eea2195",
+   "dd29b7c46714b417aba9eeb5",
+   "139b496864f07b5890d01d5a",
+   "002f5dec0a2a193d93a02dad",
+   "f3947c4fef580c61d3c820c4",
+   "51aafb42c1ace5a1e061a36b",
+   "88b99efca342190ff70d2097",
+   "eb244a889b0640baf11184d6"
+  ]
+ }
+}

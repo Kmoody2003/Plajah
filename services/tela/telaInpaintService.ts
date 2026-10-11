@@ -5,9 +5,16 @@
  * Never modifies or destroys the underlying base photo/raster layer.
  * Always synthesizes into a NEW dedicated `TelaImageLayer` with a soft feathered
  * alpha mask, prompt metadata, and non-destructive blend modes.
+ *
+ * 2026-10-10: the default path is now REAL content-aware fill — multi-scale PatchMatch
+ * with EM voting (services/tela/raster/patchmatch.ts), run in the raster Web Worker.
+ * (The previous build painted a blurred radial gradient.) A cloud generative provider can
+ * be registered with setGenerativeFillProvider(); it is used only when one is registered
+ * AND the request carries a prompt — otherwise the local algorithm always runs.
  */
 
 import type { TelaImageLayer } from '../../types';
+import type { Bitmap8, Mask8 } from './raster/buffer';
 
 export interface InpaintParams {
   sourceImageUrl: string;
@@ -17,13 +24,30 @@ export interface InpaintParams {
   referenceImageUrl?: string;
   featherRadius?: number;
   strength?: number;
+  /** Force the local content-aware algorithm even when a generative provider exists. */
+  local?: boolean;
+  /** Optional "sampling area": white = may be copied from. */
+  sourceAreaDataUrl?: string;
+  seed?: number;
 }
 
 export interface InpaintResult {
   newLayer: TelaImageLayer;
   seed: number;
   promptApplied: string;
+  /** 'patchmatch' (local) or the provider's id. */
+  engine?: string;
+  ms?: number;
 }
+
+/** Cloud generative-fill hook: returns a full-canvas image (data/object URL) for the masked area. */
+export type GenerativeFillProvider = {
+  id: string;
+  fill(input: { image: Blob; mask: Blob; prompt: string; referenceImageUrl?: string; width: number; height: number; seed: number; strength?: number }): Promise<string>;
+};
+let provider: GenerativeFillProvider | null = null;
+export function setGenerativeFillProvider(p: GenerativeFillProvider | null) { provider = p; }
+export function getGenerativeFillProvider() { return provider; }
 
 /**
  * Generate a soft feathered mask canvas data URL from rectangular or contour coordinates.
@@ -39,20 +63,35 @@ export function generateFeatheredMask(
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
-
-  // Transparent base
   ctx.clearRect(0, 0, width, height);
-
-  // Soft feather gradient
   const rad = Math.max(2, feather);
   ctx.save();
   ctx.filter = `blur(${rad}px)`;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   ctx.restore();
-
   return canvas.toDataURL('image/png');
 }
+
+async function loadBitmap(url: string, w: number, h: number): Promise<Bitmap8> {
+  const img = new Image(); img.crossOrigin = 'anonymous';
+  await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = url; });
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!; ctx.drawImage(img, 0, 0, w, h);
+  const id = ctx.getImageData(0, 0, w, h); return { width: w, height: h, data: id.data };
+}
+/** Mask from a data URL: coverage = alpha × luminance (white-on-transparent and B/W masks both work). */
+function maskFromBitmap(bm: Bitmap8): Mask8 {
+  const m: Mask8 = { width: bm.width, height: bm.height, data: new Uint8Array(bm.width * bm.height) };
+  for (let i = 0; i < m.data.length; i++) { const k = i * 4; m.data[i] = Math.round((0.299 * bm.data[k] + 0.587 * bm.data[k + 1] + 0.114 * bm.data[k + 2]) * bm.data[k + 3] / 255); }
+  return m;
+}
+function bitmapToDataUrl(bm: Bitmap8): string {
+  const c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height;
+  c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(bm.data), bm.width, bm.height), 0, 0);
+  return c.toDataURL('image/png');
+}
+const toBlob = (bm: Bitmap8) => new Promise<Blob>(r => { const c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(bm.data), bm.width, bm.height), 0, 0); c.toBlob(b => r(b!), 'image/png'); });
 
 /**
  * Executes a Non-Destructive Generative Fill / Inpaint request.
@@ -62,78 +101,35 @@ export async function executeGenerativeInpaint(
   params: InpaintParams,
   canvasDims: { width: number; height: number }
 ): Promise<InpaintResult> {
-  const seed = Math.floor(Math.random() * 1000000);
-  const promptApplied = params.prompt?.trim() || 'Context-aware seamless background inpaint';
+  const seed = params.seed ?? Math.floor(Math.random() * 1000000);
+  const prompt = params.prompt?.trim() || '';
+  const promptApplied = prompt || 'Content-aware fill (PatchMatch)';
+  const W = Math.max(1, Math.round(canvasDims.width)), H = Math.max(1, Math.round(canvasDims.height));
+  const t0 = performance.now();
 
-  // 1. Prepare offscreen canvas to capture source crop & synthesize
-  const offscreen = document.createElement('canvas');
-  offscreen.width = canvasDims.width;
-  offscreen.height = canvasDims.height;
-  const ctx = offscreen.getContext('2d');
+  const rect = params.maskRect || { x: 0.1 * W, y: 0.1 * H, width: 0.8 * W, height: 0.8 * H };
+  const maskUrl = params.maskDataUrl || generateFeatheredMask(W, H, rect, params.featherRadius || 10);
 
-  if (ctx && params.sourceImageUrl) {
-    try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = params.sourceImageUrl;
-      });
+  const source = await loadBitmap(params.sourceImageUrl, W, H);
+  const hole = maskFromBitmap(await loadBitmap(maskUrl, W, H));
+  let synthesizedDataUrl: string; let engine = 'patchmatch';
 
-      const rect = params.maskRect || {
-        x: 0.1 * canvasDims.width,
-        y: 0.1 * canvasDims.height,
-        width: 0.8 * canvasDims.width,
-        height: 0.8 * canvasDims.height,
-      };
-
-      // Draw base
-      ctx.drawImage(img, 0, 0, canvasDims.width, canvasDims.height);
-
-      // Context-aware synthesis simulation:
-      // In web runtime, this blends adjacent edge pixels with frequency synthesis,
-      // or routes to backend / local generative fill model if connected.
-      const fillGradient = ctx.createRadialGradient(
-        rect.x + rect.width / 2,
-        rect.y + rect.height / 2,
-        Math.min(rect.width, rect.height) * 0.1,
-        rect.x + rect.width / 2,
-        rect.y + rect.height / 2,
-        Math.max(rect.width, rect.height) * 0.6
-      );
-
-      // Sample border pixel tone
-      const sample = ctx.getImageData(
-        Math.max(0, Math.floor(rect.x - 2)),
-        Math.max(0, Math.floor(rect.y - 2)),
-        1,
-        1
-      ).data;
-
-      const baseR = sample[0] || 240;
-      const baseG = sample[1] || 240;
-      const baseB = sample[2] || 240;
-
-      fillGradient.addColorStop(0, `rgba(${baseR}, ${baseG}, ${baseB}, 0.95)`);
-      fillGradient.addColorStop(1, `rgba(${baseR}, ${baseG}, ${baseB}, 0.6)`);
-
-      ctx.save();
-      ctx.fillStyle = fillGradient;
-      ctx.filter = 'blur(6px)';
-      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-      ctx.restore();
-    } catch {
-      // Fallback
-    }
+  if (provider && prompt && !params.local) {
+    synthesizedDataUrl = await provider.fill({ image: await toBlob(source), mask: await toBlob({ width: W, height: H, data: Uint8ClampedArray.from({ length: W * H * 4 }, (_, i) => (i % 4 === 3 ? 255 : hole.data[i >> 2])) }), prompt, referenceImageUrl: params.referenceImageUrl, width: W, height: H, seed, strength: params.strength });
+    engine = provider.id;
+  } else {
+    // Content-aware fill synthesizes every pixel the mask touches; the feathered mask then
+    // blends the new layer over the untouched base.
+    const binary: Mask8 = { width: W, height: H, data: hole.data.map(v => (v > 8 ? 255 : 0)) };
+    const sourceMask = params.sourceAreaDataUrl ? maskFromBitmap(await loadBitmap(params.sourceAreaDataUrl, W, H)) : undefined;
+    const { rasterWorker } = await import('./raster/workerClient');
+    const filled = await rasterWorker().run('contentAwareFill', { image: source, hole: binary, opts: { seed, sourceMask } });
+    synthesizedDataUrl = bitmapToDataUrl(filled);
   }
-
-  const synthesizedDataUrl = offscreen.toDataURL('image/png');
-  const maskUrl = params.maskDataUrl || (params.maskRect ? generateFeatheredMask(canvasDims.width, canvasDims.height, params.maskRect, params.featherRadius || 10) : undefined);
 
   const newLayer: TelaImageLayer = {
     id: `lyr_inpaint_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    name: `Gen Fill: ${promptApplied.slice(0, 24)}…`,
+    name: `${engine === 'patchmatch' ? 'Content-Aware Fill' : 'Gen Fill'}: ${promptApplied.slice(0, 24)}…`,
     src: synthesizedDataUrl,
     visible: true,
     opacity: 1,
@@ -142,18 +138,11 @@ export async function executeGenerativeInpaint(
     y: 0,
     scale: 1,
     rotation: 0,
+    intrinsicWidth: W,
+    intrinsicHeight: H,
     adjust: { brightness: 1, contrast: 1, saturate: 1, exposure: 0, blur: 0 },
-    mask: maskUrl ? {
-      kind: 'ALPHA_IMAGE',
-      enabled: true,
-      src: maskUrl,
-      invert: false,
-    } : undefined,
+    mask: { kind: 'ALPHA_IMAGE', enabled: true, src: maskUrl, invert: false },
   };
 
-  return {
-    newLayer,
-    seed,
-    promptApplied,
-  };
+  return { newLayer, seed, promptApplied, engine, ms: Math.round(performance.now() - t0) };
 }

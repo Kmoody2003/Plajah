@@ -1,0 +1,3 @@
+% Hyphenation exceptions from hyph-pt (same licence as pt.pat.txt).
+hard-ware
+soft-ware

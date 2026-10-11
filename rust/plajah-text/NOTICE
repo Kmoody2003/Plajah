@@ -1,0 +1,32 @@
+plajah-text — third-party notices
+
+Compiled into plajah_text.wasm (crates.io):
+  rustybuzz 0.20.1 ............ MIT (HarfBuzz port; github.com/harfbuzz/rustybuzz)
+  ttf-parser 0.25 ............. MIT OR Apache-2.0
+  unicode-bidi 0.3.18 ......... MIT OR Apache-2.0
+  unicode-linebreak 0.1.5 ..... Apache-2.0
+  unicode-segmentation 1.13 ... MIT OR Apache-2.0
+  unicode-script 0.5.8 ........ MIT OR Apache-2.0
+  (and their transitive dependencies; see rust/Cargo.lock)
+
+Hyphenation patterns (assets in services/text/hyphenation/patterns, loaded at runtime; each file
+keeps its original licence header):
+  en-us  hyph-en-us (G. Kuiken / Knuth–Liang) — "Copying and distribution of this file, with or
+         without modification, are permitted in any medium without royalty provided the copyright
+         notice and this notice are preserved."
+  de     hyph-de-1996 (Deutschsprachige Trennmustermannschaft) — MIT
+  es     hyph-es — MIT
+  fr     hyph-fr — MIT
+  pt     hyph-pt — BSD 3-Clause
+  it     hyph-it — MIT (multi-licensed)
+  nl     hyph-nl — MIT
+  Source: github.com/hyphenation/tex-hyphen (hyph-utf8).
+
+Algorithms studied as references (no code or data model copied; reimplemented in kp.rs):
+  DesignCraft compose/breaker.rs — github.com/storytold/designcraft @ 16a7365701f9ce8f93ca77a27a8dc2fffb807869,
+  MIT OR Apache-2.0: tiered elastic material (word → letter → glyph) inside the adjustment
+  ratio, Knuth's fitness-class pruning, and the ragged-text hyphenation zone.
+  Optical-margin protrusion values follow the published microtype (pdfTeX) default set.
+
+Fonts are not bundled; they are fetched at runtime from google/fonts (OFL-1.1 / Apache-2.0 /
+UFL-1.0) per services/text/fonts/manifest.json.

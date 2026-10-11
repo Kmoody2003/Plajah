@@ -64,6 +64,7 @@ import OfflineDownloadButton from './OfflineDownloadButton';
 import { fetchMyMemberships } from '../services/sanctuaryService';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import LockerEditModal from './LockerEditModal';
+import { addHandleFolder } from '../services/folderRegistry';
 import MelosPickerModal from './MelosPickerModal';
 import {
   listCachedItems, removeCachedMedia, clearAllOfflineMedia, getOfflineStorageUsed,
@@ -276,6 +277,8 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
         const folderName = dirHandle.name;
 
         await set(`sync_folder_${folderId}`, dirHandle);
+        // Also remember it app-wide so every file viewer (Ambo, Fabula …) lists it.
+        void addHandleFolder(dirHandle, 'library').catch(() => { /* IndexedDB blocked */ });
         
         const newSyncedFolders = [...(profile.uiSettings?.syncedFolders || []), { id: folderId, name: folderName }];
         if (onUpdate) {

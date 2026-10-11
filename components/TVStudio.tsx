@@ -42,6 +42,7 @@ import { User as FirebaseUser } from 'firebase/auth';
 import TVStudioLightingBoard from './TVStudioLightingBoard';
 import { getAppOutputStream } from '../services/mediaEngine/bridge';
 import TVStudioImportModal, { ImportedAsset, HotFolder } from './TVStudioImportModal';
+import { useSavedFolders } from './ui/SavedFolders';
 import { RtcSession } from '../services/rtcCore';
 import { fetchLiveProgramFeedsForUser } from '../services/multiSiteService';
 import { TeleprompterCanvasSource } from './teleprompter/teleprompterCanvasSource';
@@ -329,7 +330,13 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
 
   // ── Import modal ───────────────────────────────────────────────────────────
   const [showImport, setShowImport] = useState(false);
-  const [hotFolders, setHotFolders] = useState<HotFolder[]>([]);
+  // Hot folders are the app-wide saved folders (services/folderRegistry): a folder added here,
+  // in Ambo, Pixels, Fabula … is listed in every viewer and survives reloads.
+  const savedHandleFolders = useSavedFolders('handle');
+  const hotFolders = React.useMemo<HotFolder[]>(
+    () => savedHandleFolders.map(f => ({ id: f.id, label: f.name, directoryName: f.name })),
+    [savedHandleFolders],
+  );
 
   // ── NDI / AVB / Cast ───────────────────────────────────────────────────────
   const [ndiUrl, setNdiUrl]     = useState('ws://localhost:8765');
@@ -715,7 +722,6 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
             onImport={handleImportAssets}
             onClose={() => setShowImport(false)}
             hotFolders={hotFolders}
-            onAddHotFolder={hf => setHotFolders(prev => [...prev, hf])}
           />
         )}
         {showCampus && (

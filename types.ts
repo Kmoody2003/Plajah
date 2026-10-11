@@ -6993,6 +6993,10 @@ export interface TelaWriterDevice {
   blocks: TelaBlock[];
   mode?: 'DOCUMENT' | 'SONGWRITING' | 'POETRY' | 'NOTES' | 'JOURNAL';
   domainBinding?: TelaDomainBinding;
+  /** Rich text story (text engine). When present it is the source of truth and `blocks` is derived from it. See docs/tela/WRITER.md. */
+  story?: import('./services/text/model').TextStory;
+  /** Document parts beside the story: sections + page setup, styles, notes, comments, media, floats, review settings. */
+  document?: import('./services/text/document/types').WriterDocumentParts;
 }
 
 /** Cells keyed by A1-style refs; raw strings ('=A1+B2' formulas included). */
@@ -7002,6 +7006,8 @@ export interface TelaGridDevice {
   rows: number;
   cols: number;
   cells: Record<string, string>;
+  /** Full multi-sheet workbook (sheet engine). When present it is the source of truth; `cells` is the legacy view. */
+  workbook?: import('./services/tela/sheet/model').Workbook;
 }
 
 // ── Base (database) device — typed fields + rows (P1) ────────────────────────
@@ -7426,6 +7432,10 @@ export interface TelaVectorObject {
   pathOriginY?: number;
   pathOriginW?: number;
   pathOriginH?: number;
+  /** Vector-engine finish (fill rule, multi-stop/mesh/pattern paint, stroke style, material, clip); see services/tela/geometry. */
+  geom?: import('./services/tela/geometry/model').TelaGeomExt;
+  /** Studio editor metadata (live source, type story, symbol link, clip mask); art renders without it. See services/tela/studio/model.ts. */
+  studio?: import('./services/tela/studio/model').TelaStudioObjectExt;
   fontMatch?: {
     family: string;
     source: 'OPEN_FONT' | 'SYSTEM' | 'GLYPH_OUTLINE' | 'UNKNOWN';
@@ -7471,6 +7481,8 @@ export interface TelaVectorDevice {
   sourceImageSrc?: string;
   sourceCrop?: { x: number; y: number; width: number; height: number; sourceWidth: number; sourceHeight: number };
   objectLabel?: string;
+  /** Studio document data (swatches, nested groups, symbols, brushes, guides, grid). See services/tela/studio/model.ts. */
+  studio?: import('./services/tela/studio/model').TelaStudioDeviceExt;
 }
 
 // ── Image device — stacked raster layers + non-destructive adjustments (P2) ──
@@ -7549,7 +7561,16 @@ export interface TelaImageDevice {
   /** Index 0 = bottom of the stack, last = top. */
   layers: TelaImageLayer[];
   groups?: TelaImageLayerGroup[];
+  /** Raster engine document (services/tela/raster). When present it is the source of truth; `layers` is the legacy view. */
+  raster?: import('./services/tela/raster/model').RasterDocument;
+  /** Image Studio pixel-history position (`<journal epoch>:<cursor>`) paired with `raster` (components/tela/image/historyBridge.ts). */
+  rasterRev?: string;
+  /** Cached flattened composite for embeds / Fabula / print (components/tela/image/previewCache.ts). Valid while `key` matches the raster. */
+  rasterPreview?: TelaImageRasterPreview;
 }
+
+/** Flattened raster preview: an OPFS asset (this device) and/or a durable URL (other devices, Post Man recipients). */
+export interface TelaImageRasterPreview { key: string; width: number; height: number; assetId?: string; src?: string; at: number }
 
 // ── Chart device — live 2D/3D data visualization (P3) ───────────────────────
 

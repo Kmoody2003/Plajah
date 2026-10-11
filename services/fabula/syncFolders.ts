@@ -7,6 +7,7 @@
 // re-grant after a cold start, so rescans that require it are surfaced through the UI.
 
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { addHandleFolder } from '../folderRegistry';
 
 export interface SyncFolder {
   id: string;
@@ -32,9 +33,21 @@ export async function addSyncFolder(projectId: string): Promise<SyncFolder | nul
   let dir: any;
   try { dir = await (window as any).showDirectoryPicker({ id: 'fabula-sync', mode: 'read' }); }
   catch (e: any) { if (e?.name === 'AbortError') return null; throw e; }
+  // Remember it app-wide too (services/folderRegistry) so Ambo, Pixels … list it — best-effort.
+  void addHandleFolder(dir, 'fabula').catch(() => { /* IndexedDB blocked */ });
+  return addSyncFolderFromHandle(projectId, dir);
+}
+
+/** Register an already-granted directory handle (e.g. a saved folder from services/folderRegistry) as a
+ *  watch folder for the project. A handle the project already watches returns the existing folder. */
+export async function addSyncFolderFromHandle(projectId: string, dir: any): Promise<SyncFolder> {
+  const folders = await listSyncFolders(projectId);
+  for (const f of folders) {
+    const h: any = await idbGet(handleKey(f.id));
+    try { if (h && typeof h.isSameEntry === 'function' && await h.isSameEntry(dir)) return f; } catch { /* stale handle */ }
+  }
   const id = `sf_${Date.now().toString(36)}`;
   await idbSet(handleKey(id), dir);
-  const folders = await listSyncFolders(projectId);
   const folder: SyncFolder = { id, name: dir.name || 'Folder', addedAt: Date.now(), lastScan: 0, fileCount: 0, seen: [] };
   folders.push(folder); await saveMeta(projectId, folders);
   return folder;

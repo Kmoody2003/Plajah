@@ -26,6 +26,9 @@ import {
   fetchRadioTracks, auth,
 } from '../services/backendService';
 import { Video as VideoType, LiveFeed } from '../types';
+import { addHandleFolder, removeFolder } from '../services/folderRegistry';
+import { openSavedHandle, setLastFolderId, getLastFolderId } from './ui/SavedFolders';
+import { useContextMenu } from './ui/ContextMenu';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,7 +55,7 @@ export interface HotFolder {
 interface TVStudioImportModalProps {
   onImport: (assets: ImportedAsset[]) => void;
   onClose: () => void;
-  /** Existing hot folders from IndexedDB */
+  /** Saved folders (services/folderRegistry) — handles are resolved from IndexedDB on click. */
   hotFolders?: HotFolder[];
   onAddHotFolder?: (folder: HotFolder) => void;
 }
@@ -80,6 +83,25 @@ const TVStudioImportModal: React.FC<TVStudioImportModalProps> = ({
   const [liveFeeds, setLiveFeeds] = useState<LiveFeed[]>([]);
   const [fastVideos, setFastVideos] = useState<VideoType[]>([]);
   const [loading, setLoading]     = useState(false);
+  /** Saved folders whose read permission lapsed — shown with a "Reconnect" tag; a click re-grants. */
+  const [needsReconnect, setNeedsReconnect] = useState<Set<string>>(new Set());
+  const [lastHotId, setLastHotId] = useState<string | null>(() => getLastFolderId('tvstudio'));
+
+  // Check saved folders' permission without prompting (prompts need a click).
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(hotFolders.map(async hf => {
+      if (hf.handle) return null;
+      const { permission } = await openSavedHandle(hf.id, false);
+      return permission === 'granted' ? null : hf.id;
+    })).then(ids => { if (!cancelled) setNeedsReconnect(new Set(ids.filter((x): x is string => !!x))); });
+    return () => { cancelled = true; };
+  }, [hotFolders.map(h => h.id).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hotMenu = useContextMenu<HotFolder>(hf => [
+    { kind: 'header', label: hf.label },
+    { id: 'remove', label: 'Remove from saved folders', danger: true, onSelect: f => { void removeFolder(f.id); } },
+  ]);
 
   // Load data when tab changes
   useEffect(() => {
@@ -136,8 +158,13 @@ const TVStudioImportModal: React.FC<TVStudioImportModalProps> = ({
     }
     try {
       const handle: FileSystemDirectoryHandle = await (window as any).showDirectoryPicker({ mode: 'read' });
+      // Save it app-wide; the hotFolders prop refreshes from the registry.
+      let id = `hf_${Date.now()}`;
+      try { id = (await addHandleFolder(handle as any, 'tvstudio')).id; } catch { /* IndexedDB blocked */ }
+      setLastFolderId('tvstudio', id);
+      setLastHotId(id);
       onAddHotFolder?.({
-        id: `hf_${Date.now()}`,
+        id,
         label: handle.name,
         directoryName: handle.name,
         handle,
@@ -146,9 +173,21 @@ const TVStudioImportModal: React.FC<TVStudioImportModalProps> = ({
   }, [onAddHotFolder]);
 
   const handleHotFolderLoad = useCallback(async (folder: HotFolder) => {
-    if (!folder.handle) return;
+    let dir: any = folder.handle;
+    if (!dir) {
+      // A click — may prompt to re-grant access to a folder saved in an earlier session.
+      const { handle, permission } = await openSavedHandle(folder.id, true);
+      if (!handle || permission !== 'granted') {
+        setNeedsReconnect(prev => new Set(prev).add(folder.id));
+        return;
+      }
+      dir = handle;
+      setNeedsReconnect(prev => { const n = new Set(prev); n.delete(folder.id); return n; });
+    }
+    setLastFolderId('tvstudio', folder.id);
+    setLastHotId(folder.id);
     const assets: ImportedAsset[] = [];
-    for await (const [name, entry] of (folder.handle as any).entries()) {
+    for await (const [name, entry] of dir.entries()) {
       if (entry.kind === 'file') {
         const file: File = await (entry as FileSystemFileHandle).getFile();
         if (file.type.startsWith('video/') || file.type.startsWith('image/')) {
@@ -236,11 +275,14 @@ const TVStudioImportModal: React.FC<TVStudioImportModalProps> = ({
             <div className="mt-3 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
               <p className="text-[8px] opacity-25 uppercase tracking-widest px-2 mb-1">Hot Folders</p>
               {hotFolders.map(hf => (
-                <button key={hf.id} onClick={() => handleHotFolderLoad(hf)}
-                  className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] opacity-40 hover:opacity-80 transition-opacity text-left">
-                  <Folder size={10} /> {hf.label}
+                <button key={hf.id} onClick={() => handleHotFolderLoad(hf)} {...hotMenu.bind(hf)}
+                  title={needsReconnect.has(hf.id) ? 'Click to reconnect (allow access again)' : 'Load folder · right-click to remove'}
+                  className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] hover:opacity-80 transition-opacity text-left ${lastHotId === hf.id ? 'opacity-70' : 'opacity-40'}`}>
+                  <Folder size={10} /> <span className="truncate flex-1">{hf.label}</span>
+                  {needsReconnect.has(hf.id) && <span className="text-[8px] text-amber-300 shrink-0">Reconnect</span>}
                 </button>
               ))}
+              {hotMenu.node}
               <button onClick={handleAddHotFolder}
                 className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] opacity-30 hover:opacity-60 transition-opacity">
                 <Plus size={9} /> Add folder…

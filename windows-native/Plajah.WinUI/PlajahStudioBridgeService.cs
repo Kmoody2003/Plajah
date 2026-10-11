@@ -862,6 +862,24 @@ public sealed class PlajahStudioBridgeService
         }
     }
 
+    /// <summary>The address to receive an OMT source from ("omt://host:port"), or null if unknown.</summary>
+    public string? ResolveOmtSource(string id)
+    {
+        var s = _cachedOmtStreams.FirstOrDefault(x => x.Id == id);
+        if (s == null || string.IsNullOrEmpty(s.Url)) return null;
+        return s.Url.StartsWith("omt://", StringComparison.OrdinalIgnoreCase) ? s.Url : "omt://" + s.Url;
+    }
+
+    /// <summary>The NDI runtime DLL path ("" when the runtime isn't installed).</summary>
+    public string NdiDllPath => NdiProbe().dllPath ?? "";
+
+    /// <summary>The NDI name + URL behind a discovered source id ("ndi:..."), or null if unknown.</summary>
+    public (string Name, string? Url)? ResolveNdiSource(string id)
+    {
+        var s = _cachedNdiStreams.FirstOrDefault(x => x.Id == id);
+        return s == null ? null : (s.Name, string.IsNullOrEmpty(s.Url) ? null : s.Url);
+    }
+
     /// <summary>Why discovery found nothing (or is limited) — shown by the router screens instead of an empty list.</summary>
     public NdiDiscoveryInfo DiscoverNdi()
     {

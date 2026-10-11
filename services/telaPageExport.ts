@@ -1,6 +1,6 @@
-import type { TelaDoc, TelaFrame, TelaVectorDevice, TelaVectorObject } from '../types';
+import type { TelaDoc, TelaFrame, TelaVectorDevice } from '../types';
+import { deviceToSvg } from './tela/geometry/serialize';
 
-const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 const safeName = (value: string) => value.trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'tela';
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -17,21 +17,13 @@ export function downloadTelaPage(doc: TelaDoc, frame: TelaFrame) {
   downloadBlob(new Blob([JSON.stringify({ format: 'plajah-tela-page', version: 1, title: doc.title, frame, devices }, null, 2)], { type: 'application/vnd.plajah.tela-page+json' }), `${safeName(frame.label || doc.title)}.tela-page.json`);
 }
 
-function objectSvg(object: TelaVectorObject): string {
-  const transform = object.rotation ? ` transform="rotate(${object.rotation} ${object.x + object.w / 2} ${object.y + object.h / 2})"` : '';
-  const paint = `fill="${esc(object.fill)}" stroke="${esc(object.stroke)}" stroke-width="${object.strokeWidth}" opacity="${object.opacity}"${transform}`;
-  if (object.kind === 'RECT') return `<rect x="${object.x}" y="${object.y}" width="${object.w}" height="${object.h}" rx="2" ${paint}/>`;
-  if (object.kind === 'ELLIPSE') return `<ellipse cx="${object.x + object.w / 2}" cy="${object.y + object.h / 2}" rx="${object.w / 2}" ry="${object.h / 2}" ${paint}/>`;
-  if (object.kind === 'LINE' && object.points) return `<line x1="${object.points[0]}" y1="${object.points[1]}" x2="${object.points[2]}" y2="${object.points[3]}" ${paint}/>`;
-  if (object.kind === 'PATH' && object.svgPathData) return `<path d="${esc(object.svgPathData)}" ${paint}/>`;
-  if (object.kind === 'PATH' && object.points) return `<${object.pathClosed ? 'polygon' : 'polyline'} points="${object.points.reduce((rows: string[], value, index) => index % 2 ? rows : [...rows, `${value},${object.points![index + 1]}`], []).join(' ')}" ${paint}/>`;
-  if (object.kind === 'IMAGE' && object.sourceImageSrc) return `<image href="${esc(object.sourceImageSrc)}" x="${object.x}" y="${object.y}" width="${object.w}" height="${object.h}" opacity="${object.opacity}"${transform}/>`;
-  if (object.kind === 'TEXT') return `<text x="${object.x}" y="${object.y + (object.fontSize || 24)}" fill="${esc(object.fill)}" opacity="${object.opacity}" font-size="${object.fontSize || 24}" font-family="${esc(object.fontFamily || 'system-ui,sans-serif')}" font-weight="${object.fontWeight || 400}"${transform}>${esc(object.text || '')}</text>`;
-  return '';
-}
-
+/**
+ * The device as SVG, through the canonical serializer (services/tela/geometry/serialize):
+ * same drawing as the editor — wrapped text, gradients, filters, blend modes, engine paints and
+ * materials — on a white page. Hidden objects are not exported.
+ */
 export function telaVectorSvg(device: TelaVectorDevice): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${device.width}" height="${device.height}" viewBox="0 0 ${device.width} ${device.height}"><rect width="100%" height="100%" fill="#fff"/>${device.objects.map(objectSvg).join('')}</svg>`;
+  return deviceToSvg(device, { background: '#fff' });
 }
 
 export function downloadTelaVectorSvg(device: TelaVectorDevice, name: string) {

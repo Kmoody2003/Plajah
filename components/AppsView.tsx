@@ -702,6 +702,39 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                 </div>
               )}
 
+              {/* First-party prototype — Kith Party: Kart Racing & World Exploration (admin-only) */}
+              {activeTab === 'DISCOVER' && (currentUser?.role === 'admin' || currentUser?.role === 'staff' || currentUser?.email === 'kmoody2003@gmail.com' || import.meta.env.DEV) && ('kith party kart racing 3d exploration circuit games'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+                <div
+                  key="native-kith-party"
+                  onClick={() => {
+                    window.open('http://127.0.0.1:3188/', '_blank', 'noopener');
+                  }}
+                  className="group cursor-pointer space-y-6"
+                >
+                  <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-[#FF8C00]/30 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-[#0A0A0D]">
+                    <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(255,140,0,0.4), transparent 70%), linear-gradient(135deg, #4a0e68 0%, #a01d68 50%, #ea6324 100%)' }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6">
+                      <span className="text-5xl drop-shadow-[0_4px_20px_rgba(255,140,0,0.6)]">🏎️</span>
+                      <p className="text-xl font-black uppercase tracking-tight text-white mt-1">Kith Party</p>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#00DAF3]">3D Kart Racing</span>
+                    </div>
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-white text-[8px] font-black uppercase tracking-widest shadow-md">Admin Only</div>
+                    <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-black/60 border border-white/20 text-[#00DAF3] text-[8px] font-bold">Port 3188</div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                      <Play fill="white" size={48} className="mb-3 text-white scale-75 group-hover:scale-100 transition-transform" />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white">Launch Kart Racer</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Kith Party</h3>
+                      <span className="text-[9px] font-bold text-[#FF8C00] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">Prototype</span>
+                    </div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">3D Kart Racing & World Exploration · Admin Link</p>
+                  </div>
+                </div>
+              )}
+
               {/* Native platform app — Melos Beats (the Chora DAW room: pads + step sequencer) */}
               {activeTab === 'DISCOVER' && ('melos beats daw drum machine step sequencer maschine groove sampler dawproject'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
                 <div

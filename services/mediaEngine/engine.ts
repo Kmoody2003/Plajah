@@ -5,6 +5,7 @@
 // engine-side). In the browser it drives real WebRTC/webcam sources; a native build
 // would back the same API with the Rust/GStreamer engine.
 
+import { isNativeLiveInput, subscribeLiveFrames } from '../ambo/liveInputs';
 import {
   Capabilities, RouterState, SwitcherState, SyncEngine, VideoSource, Destination,
   Salvo, TransitionType, MasterClock, DEFAULT_HOUSE_FORMAT, SourceHealth, SourceKind,
@@ -27,8 +28,33 @@ export class NativeSource implements IVideoSource {
   id: string; label: string; kind: NativeSourceInfo['kind'];
   formats: NativeSourceInfo['formats']; latencyMs: number; clockDomain?: string;
   url?: string; machineName?: string; streamName?: string; status?: string; discoveryMethod?: string;
-  tally: IVideoSource['tally'] = 'off'; stream = null; connected = false;
+  tally: IVideoSource['tally'] = 'off'; connected = false;
   private cbs: ((f: FrameRef) => void)[] = [];
+  private liveStream: MediaStream | null = null;
+  private stopFrames: (() => void) | null = null;
+
+  /**
+   * NDI / OMT network feeds as a real MediaStream: the Windows shell receives the feed (see
+   * services/ambo/liveInputs + NdiReceiverService) and its frames are drawn into a canvas whose
+   * captureStream feeds the switcher's monitors, thumbnails, program compositor and recorder.
+   * Started the first time anything looks at the input; video only (feed audio stays muted).
+   */
+  get stream(): MediaStream | null {
+    if (this.liveStream || typeof document === 'undefined' || !isNativeLiveInput(this.id)) return this.liveStream;
+    const c = document.createElement('canvas');
+    c.width = 1280; c.height = 720;
+    const ctx = c.getContext('2d');
+    if (!ctx || typeof (c as any).captureStream !== 'function') return null;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, c.width, c.height);
+    this.stopFrames = subscribeLiveFrames(this.id, 1280, bmp => {
+      if (c.width !== bmp.width || c.height !== bmp.height) { c.width = bmp.width; c.height = bmp.height; }
+      ctx.drawImage(bmp, 0, 0);
+    });
+    this.liveStream = (c as any).captureStream(30) as MediaStream;
+    this.connected = true;
+    return this.liveStream;
+  }
+  set stream(_: MediaStream | null) { /* derived from the native feed */ }
   constructor(info: NativeSourceInfo) {
     this.id = info.id; this.label = info.label; this.kind = info.kind;
     this.formats = info.formats || []; this.latencyMs = info.latencyMs ?? 0; this.clockDomain = info.clockDomain;
@@ -37,7 +63,11 @@ export class NativeSource implements IVideoSource {
   }
   async connect() { const r = await connectNativeSource(this.id); this.connected = !!r; if (r?.textureId) for (const cb of this.cbs) cb({ textureId: r.textureId }); }
   onFrame(cb: (f: FrameRef) => void) { this.cbs.push(cb); }
-  dispose() { disconnectNativeSource(this.id); this.connected = false; this.cbs = []; }
+  dispose() {
+    this.stopFrames?.(); this.stopFrames = null;
+    this.liveStream?.getTracks().forEach(t => t.stop()); this.liveStream = null;
+    disconnectNativeSource(this.id); this.connected = false; this.cbs = [];
+  }
 }
 
 export type AutoDirectorMode = 'off' | 'assist' | 'auto';

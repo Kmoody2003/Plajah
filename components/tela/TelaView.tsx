@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Feather, FileDown, FilePlus2, FileText, FileUp, Folder, FormInput,
   Grid3X3, Image as ImageIcon, ImagePlus, LayoutPanelTop, Link as LinkIcon, Link2, Loader2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, PenLine, PenTool, Plus, Scan, Shapes, Sparkles, Square, TextQuote, Trash2, Type, Wand2, X,
+  Minus, Monitor, MousePointer2, MousePointerClick, Music2, PenLine, PenTool, Plus, Redo2, Scan, Shapes, Sparkles, Square, TextQuote, Trash2, Type, Undo2, Wand2, X,
 } from 'lucide-react';
 import type {
   TelaAssignmentAudienceRole, TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
@@ -54,6 +54,7 @@ import type { LibraryItem } from '../../services/universalLibrary/libraryModel';
 import { isLottieFileName } from '../../services/tela/telaLottie';
 import TelaImage, { TelaImageLayerControls, ImageLayerRow, makeImageLayer } from './TelaImage';
 import { PRESETS, applyTelaOp, type TelaOp } from './telaOps';
+import { emptyHistory, recordOp, recordReplace, undo as historyUndo, redo as historyRedo, sealStep, isNativeUndoTarget, type TelaHistory } from './telaHistory';
 import { renderDevice as renderTelaDevice, type RenderDeviceCtx } from './renderDevice';
 import TelaFlyingMenu, { resolveFlyingTarget, type FlyingRef } from './TelaFlyingMenu';
 import TelaAssignmentBuilder from './TelaAssignmentBuilder';
@@ -358,6 +359,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const vectorClipboard = useRef<TelaVectorObject | null>(null);
   const imageClipboard = useRef<TelaImageLayer | null>(null);
   docRef.current = doc;
+  // Document undo/redo (components/tela/telaHistory.ts). The ref is the truth;
+  // the counters only drive the Edit menu's enabled state.
+  const historyRef = useRef<TelaHistory>(emptyHistory());
+  const activeFrameIdRef = useRef<string | null>(null);
+  activeFrameIdRef.current = activeFrameId;
+  const [historyDepth, setHistoryDepth] = useState({ past: 0, future: 0 });
+  const setHistory = (h: TelaHistory) => { historyRef.current = h; setHistoryDepth(d => (d.past === h.past.length && d.future === h.future.length ? d : { past: h.past.length, future: h.future.length })); };
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeFrame = doc?.frames.find(f => f.id === activeFrameId) || null;
@@ -384,6 +392,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   }, [initialDocId]);
 
   const openDoc = (d: TelaDoc) => {
+    setHistory(emptyHistory());
     setDoc(d);
     const first = d.frames.find(f => f.kind === 'PAPER') || d.frames[0] || null;
     setActiveFrameId(first?.id || null);
@@ -487,6 +496,43 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
   // ── Ops + autosave ─────────────────────────────────────────────────────────
 
+  const scheduleSave = useCallback(() => {
+    setSaveState('dirty');
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const cur = docRef.current;
+      if (!cur) return;
+      setSaveState('saving');
+      const { ok, synced } = await saveTelaDoc(cur);
+      setSaveState(ok ? (synced ? 'synced' : 'saved') : 'dirty');
+    }, 900);
+  }, []);
+
+  /** Undo/redo restore whole snapshots; re-push any domain-bound device whose content changed. */
+  const resyncDomains = (from: TelaDoc, to: TelaDoc) => {
+    for (const [id, device] of Object.entries(to.devices)) {
+      const prev = from.devices[id];
+      if (!prev || prev === device) continue;
+      if (device.type === 'WRITER' && prev.type === 'WRITER') syncTelaWriterToDomain(prev, device.blocks);
+      if (device.type === 'NOTES' && prev.type === 'NOTES') syncTelaNotesToDomain(prev, device);
+    }
+  };
+  const stepHistory = useCallback((dir: 'undo' | 'redo') => {
+    const current = docRef.current;
+    if (!current || current.locked) return;
+    const result = dir === 'undo' ? historyUndo(historyRef.current, current) : historyRedo(historyRef.current, current);
+    if (!result) return;
+    resyncDomains(current, result.doc);
+    setHistory(result.history);
+    docRef.current = result.doc;
+    setDoc(result.doc);
+    if (!result.doc.frames.some(frame => frame.id === activeFrameIdRef.current)) setActiveFrameId(result.doc.frames[0]?.id || null);
+    scheduleSave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleSave]);
+  /** Pointer-up / blur: the next edit starts a new undo step even if it repeats this one. */
+  const sealHistoryStep = useCallback(() => setHistory(sealStep(historyRef.current)), []);
+
   const dispatchOp = useCallback((op: TelaOp) => {
     const current = docRef.current;
     if (current && op.type === 'SET_WRITER_BLOCKS') {
@@ -501,17 +547,21 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       const notes = current.devices[op.deviceId];
       if (notes?.type === 'NOTES') syncTelaNotesToDomain(notes, { ...notes, ...op.patch, id: notes.id, type: 'NOTES' });
     }
-    setDoc(d => (d ? applyTelaOp(d, op) : d));
-    setSaveState('dirty');
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      const cur = docRef.current;
-      if (!cur) return;
-      setSaveState('saving');
-      const { ok, synced } = await saveTelaDoc(cur);
-      setSaveState(ok ? (synced ? 'synced' : 'saved') : 'dirty');
-    }, 900);
+    if (current) {
+      // Apply synchronously so two ops in one tick both see the latest doc
+      // (and history records the true "before" of each).
+      const next = applyTelaOp(current, op);
+      if (next !== current) setHistory(recordOp(historyRef.current, current, op));
+      if (op.type === 'WRITER_EDIT') {
+        const before = current.devices[op.deviceId], after = next.devices[op.deviceId];
+        if (before?.type === 'WRITER' && after?.type === 'WRITER' && after.blocks !== before.blocks) syncTelaWriterToDomain(before, after.blocks);
+      }
+      docRef.current = next;
+      setDoc(next);
+    }
+    scheduleSave();
   }, []);
+
 
   // Flush on unmount.
   useEffect(() => () => {
@@ -780,6 +830,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     try {
       const formatted = autoFormatTelaAssignment(current, activeFrameId || undefined);
       setAutoFormatUndo(current);
+      setHistory(recordReplace(historyRef.current, current, 'Auto format'));
       setAutoFormatReport(formatted.report);
       docRef.current = formatted.doc;
       setDoc(formatted.doc);
@@ -1610,13 +1661,24 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     const onKey = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
+      if ((key === 'z' || key === 'y') && !isNativeUndoTarget(event.target)) {
+        event.preventDefault();
+        stepHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo');
+        return;
+      }
       if (key === 's') { event.preventDefault(); const current = docRef.current; if (current) void saveTelaDoc(current).then(({ ok, synced }) => setSaveState(ok ? (synced ? 'synced' : 'saved') : 'dirty')); }
       if (key === 'o') { event.preventDefault(); fileRef.current?.click(); }
       if (key === 'n') { event.preventDefault(); void createCanvas(); }
       if (key === 'p') { event.preventDefault(); const current = docRef.current; const target = current?.frames.find(frame => frame.id === activeFrameId) || current?.frames.find(frame => frame.kind === 'PAPER') || current?.frames[0]; if (target) setPrintFrameId(target.id); }
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
-  }, [activeFrameId]);
+  }, [activeFrameId, stepHistory]);
+
+  // A finished gesture (drag, slider scrub) seals its undo step.
+  useEffect(() => {
+    window.addEventListener('pointerup', sealHistoryStep);
+    return () => window.removeEventListener('pointerup', sealHistoryStep);
+  }, [sealHistoryStep]);
 
   // The standards-based model-viewer element supplies orbit/zoom controls for
   // GLB and glTF assets. Other 3D formats remain preserved as downloadable files.
@@ -1986,6 +2048,9 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               {(['PORTRAIT','LANDSCAPE'] as const).map(orientation => <button key={orientation} className={menuBarItem} disabled={!activeFrame} onClick={() => { if (activeFrame) dispatchOp({ type: 'SET_FRAME_ORIENTATION', frameId: activeFrame.id, orientation }); setAppMenuOpen(null); }} style={{ color: (activeFrame?.orientation || (activeFrame && activeFrame.h >= activeFrame.w ? 'PORTRAIT' : 'LANDSCAPE')) === orientation ? '#D0BCFF' : undefined }}><LayoutPanelTop size={14} style={{ transform: orientation === 'LANDSCAPE' ? 'rotate(90deg)' : undefined }}/>{orientation[0] + orientation.slice(1).toLowerCase()}</button>)}
             </>}
             {menu === 'EDIT' && <>
+              <button className={menuBarItem} onClick={() => { stepHistory('undo'); setAppMenuOpen(null); }} disabled={!historyDepth.past || !!doc.locked}><Undo2 size={14}/>Undo{historyRef.current.past.length ? ` ${historyRef.current.past[historyRef.current.past.length - 1].label.toLowerCase()}` : ''}<span className="ml-auto text-[9px] text-white/25">Ctrl+Z</span></button>
+              <button className={menuBarItem} onClick={() => { stepHistory('redo'); setAppMenuOpen(null); }} disabled={!historyDepth.future || !!doc.locked}><Redo2 size={14}/>Redo{historyRef.current.future.length ? ` ${historyRef.current.future[historyRef.current.future.length - 1].label.toLowerCase()}` : ''}<span className="ml-auto text-[9px] text-white/25">Ctrl+Shift+Z</span></button>
+              <div className="h-px my-1 bg-white/[.07]"/>
               <button className={menuBarItem} onClick={selectAllStudioItems} disabled={!studioFocus}><Scan size={14}/>Select all objects/layers<span className="ml-auto text-[9px] text-white/25">Ctrl+A</span></button>
               <div className="px-3 py-1 text-[9px] text-white/32">Hold Shift while clicking to add or remove items.</div>
               <button className={menuBarItem} disabled={!studioSelIds.length} onClick={() => {

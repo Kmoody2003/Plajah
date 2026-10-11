@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "strict": true, "noEmit": true, "noUnusedLocals": false },
+  "include": ["services/text/**/*.ts", "components/text/**/*.tsx", "components/tela/writer/**/*.ts", "components/tela/writer/**/*.tsx", "tests/telaWriter*.test.ts", "tests/textEngine*.test.ts"],
+  "exclude": ["node_modules", "dist"]
+}

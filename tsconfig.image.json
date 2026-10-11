@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "strict": true, "noUnusedLocals": false, "skipLibCheck": true },
+  "include": ["components/tela/image/**/*.ts", "components/tela/image/**/*.tsx", "tests/telaImageStudio*.test.ts"]
+}

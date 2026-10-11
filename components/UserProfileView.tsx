@@ -1,4 +1,4 @@
-﻿import FastImage from './ui/FastImage';
+import FastImage from './ui/FastImage';
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { filterReleased } from '../services/releases/visibility';
 // Scheduled ("Release later") videos stay hidden from visitors; the owner keeps seeing their own.
@@ -143,6 +143,7 @@ import { unavailableReason } from '../services/tvCapabilities';
 import SignInPrompt from './SignInPrompt';
 import UserAnalyticsDashboard from './UserAnalyticsDashboard';
 import PlajahPlusButton from './PlajahPlusButton';
+import { UniversalPassportShowcase } from './UniversalPassportShowcase';
 import PlajahPlusLanding from './PlajahPlusLanding';
 import ProfileSmartCard from './ProfileSmartCard';
 import AthleteCareerCard from './AthleteCareerCard';
@@ -3353,6 +3354,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
+                {/* Universal Gaming Identity & Cross-Platform GamerScore */}
+                <UniversalPassportShowcase userId={profile.id} username={profile.displayName} />
+
                 {isOwnProfile && (
                   <div className="flex justify-end gap-3">
                     {onOpenCreator && (

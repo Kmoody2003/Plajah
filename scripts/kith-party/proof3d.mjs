@@ -1,0 +1,32 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+const out='artifacts/kith-party/v2';await fs.mkdir(out,{recursive:true});
+const browser=await chromium.launch({channel:'msedge',headless:true,args:['--no-proxy-server','--enable-unsafe-swiftshader']});
+const errors=[];
+try {
+ const page=await browser.newPage({viewport:{width:1440,height:1080}});page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+ await page.goto('http://127.0.0.1:3188/',{waitUntil:'networkidle'});
+ await page.locator('.kp-hero h1').waitFor();await page.evaluate(()=>Promise.all([...document.images].map(i=>i.decode())));
+ await page.screenshot({path:`${out}/gallery-desktop.png`,fullPage:true});
+ assert.equal(await page.locator('.kp-sidebar').isVisible(),true);
+ await page.locator('.kp-sidebar>button').filter({hasText:'Kith collection'}).click();
+ assert.equal(await page.locator('.kp-type-badge').count(),11);assert.equal(new Set(await page.locator('.kp-roster-grid em').allTextContents()).size,10);
+ await page.screenshot({path:`${out}/species-desktop.png`,fullPage:true});
+ await page.getByRole('button',{name:'Let’s play',exact:false}).click();await page.getByRole('button',{name:'Ready, let’s go',exact:false}).click();
+ await page.waitForFunction(()=>Number(document.querySelector('canvas')?.dataset.drawCalls)>0,{},{timeout:60000});
+ assert.equal(await page.locator('canvas').getAttribute('data-renderer'),'three-webgl');
+ await page.keyboard.down('ArrowUp');await page.waitForFunction(()=>parseFloat(document.querySelector('.kp-timer')?.textContent||'0')>4);await page.keyboard.down('ArrowRight');await page.keyboard.down('Space');await page.waitForFunction(()=>document.body.textContent.includes('DRIFT READY'));await page.keyboard.up('Space');await page.keyboard.up('ArrowRight');await page.waitForFunction(()=>document.body.textContent.includes('TURBO'));
+ await page.screenshot({path:`${out}/racer-3d.png`});await page.locator('canvas').screenshot({path:`${out}/racer-field.png`});await page.keyboard.up('ArrowUp');
+ await page.getByRole('button',{name:'Pause game',exact:true}).click();const timer=await page.locator('.kp-timer').innerText();await page.waitForTimeout(500);assert.equal(await page.locator('.kp-timer').innerText(),timer);
+ await page.getByRole('button',{name:'Leave game',exact:true}).click();
+ await page.locator('.kp-game-card').filter({hasText:'Kith Circuit'}).click();await page.getByRole('button',{name:'Two local players',exact:false}).click();
+ await page.locator('.kp-player-tabs>button').nth(0).click();await page.locator('.kp-roster-grid>button').filter({hasText:'Nori'}).click();await page.locator('.kp-player-tabs>button').nth(1).click();await page.locator('.kp-roster-grid>button').filter({hasText:'Pippa'}).click();
+ await page.getByRole('button',{name:'Let’s play',exact:false}).click();await page.getByRole('button',{name:'Ready, let’s go',exact:false}).click();await page.waitForFunction(()=>Number(document.querySelector('canvas')?.dataset.drawCalls)>0,{},{timeout:60000});await page.keyboard.down('ArrowUp');await page.keyboard.down('KeyW');await page.waitForFunction(()=>parseFloat(document.querySelector('.kp-timer')?.textContent||'0')>2);await page.screenshot({path:`${out}/racer-split.png`});await page.keyboard.up('ArrowUp');await page.keyboard.up('KeyW');
+ await page.getByRole('button',{name:'Pause game',exact:true}).click();await page.getByRole('button',{name:'Leave game',exact:true}).click();
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:`${out}/gallery-mobile.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.getByRole('button',{name:'Let’s have a party',exact:false}).click();await page.screenshot({path:`${out}/species-mobile.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.getByRole('button',{name:'Let’s play',exact:false}).click();await page.getByRole('button',{name:'Ready, let’s go',exact:false}).click();await page.waitForFunction(()=>Number(document.querySelector('canvas')?.dataset.drawCalls)>0,{},{timeout:60000});await page.waitForFunction(()=>parseFloat(document.querySelector('.kp-timer')?.textContent||'0')>0);await page.screenshot({path:`${out}/racer-mobile.png`,fullPage:true});
+ assert.deepEqual(errors,[]);await fs.writeFile(`${out}/verification.json`,JSON.stringify({passed:true,checks:['Plajah gallery layout','10 distinct species and types','real WebGL scene renders','keyboard acceleration','drift and boost','pause freezes race','two player split-screen','multiple species in 3D','mobile roster and 3D racing','no runtime errors'],errors},null,2));console.log('3D and Plajah design browser proof passed.');
+}catch(e){const p=browser.contexts()[0]?.pages()[0];if(p)await p.screenshot({path:out+'/failure.png',fullPage:true}).catch(()=>{});console.log(errors);throw e;}finally{await browser.close();}

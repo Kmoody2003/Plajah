@@ -28,6 +28,7 @@ import { InkLayer, type NoteTool } from '../ink';
 import { strokeInBox, pathData, type InkStyle } from '../../services/inkMath';
 import { TelaLottieCanvas, TelaLottieInspector } from './TelaLottie';
 import { TelaMotionTemplateCanvas, TelaMotionTemplateInspector } from './TelaMotionTemplate';
+import { objectToSvg } from '../../services/tela/geometry/serialize';
 
 export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text' | 'ink';
 
@@ -73,7 +74,19 @@ function textLines(o: TelaVectorObject, writerTexts?: Record<string, string>): s
   return layoutTextLines(o, src);
 }
 
-const ObjectEl: React.FC<{
+// Engine-finished objects (geom: materials, engine gradients, mesh, clips, stroke alignment,
+// engine-set type glyphs) render through the ONE canonical serialiser, so the editor, Page /
+// Board postures, Fabula's timeline and Post Man letters show exactly what exports show.
+// Objects without geom keep the JSX path below untouched (proven by scripts/telaThumbOracle).
+const geomSvgCache = new WeakMap<TelaVectorObject, string>();
+export const usesSerializer = (o: TelaVectorObject) => !!o.geom && ((o.kind === 'PATH' && !!o.svgPathData) || (o.kind === 'TEXT' && !!o.geom.glyphs?.length) || !!o.geom.clip);
+function geomSvg(o: TelaVectorObject, writerTexts?: Record<string, string>): string {
+  const cacheable = !(o.kind === 'TEXT' && !o.geom?.glyphs?.length);
+  const hit = cacheable ? geomSvgCache.get(o) : undefined; if (hit !== undefined) return hit;
+  const svg = objectToSvg(o, writerTexts); if (cacheable) geomSvgCache.set(o, svg); return svg;
+}
+
+export const ObjectEl: React.FC<{
   o: TelaVectorObject;
   writerTexts?: Record<string, string>;
   interactive: boolean;
@@ -85,6 +98,10 @@ const ObjectEl: React.FC<{
   onPointerCancel?: (e: React.PointerEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }> = ({ o, writerTexts, interactive, staticRender, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
+  if (usesSerializer(o)) {
+    return <g data-tela-geom="1" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu}
+      style={{ cursor: interactive ? 'move' : 'default' }} dangerouslySetInnerHTML={{ __html: geomSvg(o, writerTexts) }} />;
+  }
   const b = objBounds(o);
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   const gradientId = `tela_gradient_${o.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;

@@ -89,8 +89,10 @@ import { sampleTrack, sampleParam as kfSample, isAnimated as kfIsAnimated, hasKe
 import { quickStems, separateStemsCloud } from "../../services/fabula/stemSeparation";
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount, setUploadsPaused, uploadsPaused, clearUploadQueue } from "../../services/fabula/resumableUpload";
-import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen, getFileFromFolder, foldersNeedingAuth, reconnectFolders } from "../../services/fabula/syncFolders";
-import { isWindowsApp, pickWindowsFolder, pickWindowsFile, convertWindowsPickedFileToFile, getStudioDisplays, openStudioCleanFeed, closeStudioCleanFeed, onNativeMessage, extractStudioThumbnails } from "../../services/windowsBridgeService";
+import { listSyncFolders, addSyncFolder, addSyncFolderFromHandle, removeSyncFolder, rescanNew, markSeen, getFileFromFolder, foldersNeedingAuth, reconnectFolders } from "../../services/fabula/syncFolders";
+import { addWindowsFolder } from "../../services/folderRegistry";
+import { SavedFoldersMenu, setLastFolderId, openSavedHandle } from "../ui/SavedFolders";
+import { isWindowsApp, pickWindowsFolder, pickWindowsFile, scanWindowsLibrary, convertWindowsPickedFileToFile, getStudioDisplays, openStudioCleanFeed, closeStudioCleanFeed, onNativeMessage, extractStudioThumbnails } from "../../services/windowsBridgeService";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import RunwayPluginPanel from "./RunwayPluginPanel";
@@ -3539,6 +3541,45 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       if (interactive || n) ping(`Read ${r.total} file${r.total === 1 ? "" : "s"} from ${r.folder.name} · imported ${n} into the media pool`);
     } catch (e) { if (interactive) ping("Sync failed: " + (e?.message || e)); }
   };
+  // Import the media of a Windows folder (picked now, or a saved one from services/folderRegistry).
+  const importWindowsFolderFiles = async (files, folderPath, folderName) => {
+    if (!files?.length) {
+      ping("The selected folder contains no recognized media files.");
+      return;
+    }
+    const domFiles = [];
+    for (const f of files) {
+      try {
+        const df = await convertWindowsPickedFileToFile(f);
+        domFiles.push(df);
+      } catch { /* skip unreadable */ }
+    }
+    if (domFiles.length) {
+      const count = await importFilesToBins(domFiles, { folderId: folderPath });
+      ping(`Imported ${count} native file${count === 1 ? "" : "s"} from ${folderName}`);
+    }
+  };
+  // One click on a folder saved anywhere in Plajah (Ambo, Pixels, Photos …): Windows paths import
+  // straight from disk; browser handles become a watch folder for this project, exactly like ＋ ADD.
+  const addSavedFolderNow = async (folder) => {
+    if (!prod?.id || !folder) return;
+    setLastFolderId("fabula", folder.id);
+    setFolderSyncing(true);
+    try {
+      if (folder.kind === "windows") {
+        const res = await scanWindowsLibrary("custom", folder.path);
+        if (!res?.success) { ping(res?.error || `Couldn't read ${folder.name} — moved, renamed, or offline?`); return; }
+        await importWindowsFolderFiles(res.files, res.folderPath || folder.path, folder.name);
+        return;
+      }
+      // A click — may prompt to re-grant access to a folder saved in an earlier session.
+      const { handle, permission } = await openSavedHandle(folder.id, true);
+      if (!handle || permission !== "granted") { ping(`Allow access to ${folder.name} to import it`); return; }
+      const f = await addSyncFolderFromHandle(prod.id, handle);
+      await refreshSyncFolders(); ping("Watching folder — reading files…"); await rescanSyncFolder(f.id, true); await refreshSyncFolders();
+    } catch (e) { ping("Couldn't add that folder: " + (e?.message || e)); }
+    finally { setFolderSyncing(false); }
+  };
   const addSyncFolderNow = async () => {
     if (!prod?.id) return;
     if (isWindowsApp()) {
@@ -3546,21 +3587,9 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         setFolderSyncing(true);
         const folderResult = await pickWindowsFolder();
         if (!folderResult || folderResult.cancelled) return;
-        if (!folderResult.files?.length) {
-          ping("The selected folder contains no recognized media files.");
-          return;
-        }
-        const domFiles = [];
-        for (const f of folderResult.files) {
-          try {
-            const df = await convertWindowsPickedFileToFile(f);
-            domFiles.push(df);
-          } catch { /* skip unreadable */ }
-        }
-        if (domFiles.length) {
-          const count = await importFilesToBins(domFiles, { folderId: folderResult.folderPath });
-          ping(`Imported ${count} native file${count === 1 ? "" : "s"} from ${folderResult.folderName}`);
-        }
+        // Remember the folder app-wide — every Plajah file viewer lists it, and it survives reloads.
+        if (folderResult.folderPath) setLastFolderId("fabula", addWindowsFolder(folderResult.folderPath, folderResult.folderName, "fabula").id);
+        await importWindowsFolderFiles(folderResult.files, folderResult.folderPath, folderResult.folderName);
         return;
       } catch (e) {
         ping("Windows folder import failed: " + (e?.message || e));
@@ -5106,6 +5135,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         <span className="lbl" style={{ margin: 0 }}>📁 SYNC FOLDERS</span>
                         <span className="dim small" style={{ letterSpacing: 0 }}>auto-import</span>
                         <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8 }} disabled={folderSyncing} onClick={addSyncFolderNow} title="Watch a folder on this computer — new files auto-import as you add them, and the media/clip bins mirror the folder structure. Reads local-first + uploads to the cloud in the background.">{folderSyncing ? "…" : "＋ ADD"}</button>
+                        <SavedFoldersMenu className="minibtn" label="SAVED" onOpen={addSavedFolderNow} title="Folders you've added anywhere in Plajah (Ambo, Pixels, Photos …) — one click to import" />
                         {syncFolders.length > 0 && <button className="minibtn" style={{ fontSize: 8 }} disabled={folderSyncing} onClick={() => rescanAll(true)} title="Rescan all watched folders now">↻</button>}
                       </div>
                       {syncFolders.length === 0
@@ -7106,6 +7136,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                     <div className="lbl">MEDIA ASSETS — the production’s single file source. Import a folder (kept as a watch folder that auto-updates); its subfolders become bins, names matching your Cast or World auto-tag into those libraries, and the edit page’s media pool mirrors this exactly. Drop <strong>.txt / .fountain</strong> scripts anywhere here and Lorea structures them into the Structure page.</div>
                     <div className="btnrow" style={{ marginTop: 10, flexWrap: "wrap" }}>
                       <button className="cta" onClick={addSyncFolderNow} disabled={folderSyncing} title="Pick a folder — it becomes a watch folder that auto-imports new/changed files, mirroring its structure"><FolderOpen size={13} /> {folderSyncing ? "IMPORTING…" : "IMPORT FOLDER (WATCH)"}</button>
+                      <SavedFoldersMenu className="minibtn" label="SAVED FOLDERS" onOpen={addSavedFolderNow} title="Folders you've added anywhere in Plajah (Ambo, Pixels, Photos …) — one click to import" />
                       <button className="minibtn" onClick={() => mirrorFolderRef.current?.click()} title="One-time folder import (mirrors structure, no watch)"><Upload size={12} /> FOLDER (ONCE)</button>
                       <button className="minibtn" onClick={() => mediaFilesRef.current?.click()}><Upload size={12} /> FILES</button>
                       <button className="minibtn" onClick={() => scriptFilesRef.current?.click()} disabled={scriptImporting} title="Structure a .txt / .md / .fountain script into scenes with Lorea, then auto-run the SLATE breakdown"><FileText size={12} /> {scriptImporting ? (scriptMsg || "STRUCTURING…") : "IMPORT SCRIPT"}</button>

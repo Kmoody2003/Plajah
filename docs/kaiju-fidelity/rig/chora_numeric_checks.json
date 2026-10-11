@@ -1,0 +1,163 @@
+{
+ "pose_edge_stretch": {
+  "arm_L raised 90": {
+   "max_stretch": 7.374,
+   "p999_stretch": 3.832,
+   "min_compress": 0.224,
+   "edges_over_1p5": 761,
+   "max_vertex_move": 0.362
+  },
+  "arm_L raised 150": {
+   "max_stretch": 9.546,
+   "p999_stretch": 4.995,
+   "min_compress": 0.157,
+   "edges_over_1p5": 1086,
+   "max_vertex_move": 0.495
+  },
+  "both arms overhead": {
+   "max_stretch": 10.713,
+   "p999_stretch": 6.135,
+   "min_compress": 0.124,
+   "edges_over_1p5": 2118,
+   "max_vertex_move": 0.508
+  },
+  "hand_R wave": {
+   "max_stretch": 8.937,
+   "p999_stretch": 3.924,
+   "min_compress": 0.141,
+   "edges_over_1p5": 811,
+   "max_vertex_move": 0.415
+  },
+  "arms forward 90": {
+   "max_stretch": 8.235,
+   "p999_stretch": 4.672,
+   "min_compress": 0.107,
+   "edges_over_1p5": 1505,
+   "max_vertex_move": 0.378
+  },
+  "leg_L fwd 40, leg_R back 30": {
+   "max_stretch": 7.313,
+   "p999_stretch": 2.216,
+   "min_compress": 0.18,
+   "edges_over_1p5": 421,
+   "max_vertex_move": 0.154
+  },
+  "deep squat": {
+   "max_stretch": 10.191,
+   "p999_stretch": 2.297,
+   "min_compress": 0.198,
+   "edges_over_1p5": 580,
+   "max_vertex_move": 0.381
+  },
+  "head tilt 25": {
+   "max_stretch": 5.221,
+   "p999_stretch": 1.669,
+   "min_compress": 0.25,
+   "edges_over_1p5": 88,
+   "max_vertex_move": 0.292
+  },
+  "head turn 30": {
+   "max_stretch": 7.664,
+   "p999_stretch": 1.997,
+   "min_compress": 0.232,
+   "edges_over_1p5": 161,
+   "max_vertex_move": 0.197
+  },
+  "head nod 20": {
+   "max_stretch": 4.662,
+   "p999_stretch": 1.375,
+   "min_compress": 0.322,
+   "edges_over_1p5": 28,
+   "max_vertex_move": 0.242
+  },
+  "head back 20": {
+   "max_stretch": 5.506,
+   "p999_stretch": 1.824,
+   "min_compress": 0.614,
+   "edges_over_1p5": 143,
+   "max_vertex_move": 0.242
+  },
+  "hips yaw 40 + spine twist": {
+   "max_stretch": 5.078,
+   "p999_stretch": 2.343,
+   "min_compress": 0.098,
+   "edges_over_1p5": 402,
+   "max_vertex_move": 0.318
+  },
+  "chest lean 30": {
+   "max_stretch": 6.652,
+   "p999_stretch": 2.026,
+   "min_compress": 0.14,
+   "edges_over_1p5": 254,
+   "max_vertex_move": 0.588
+  },
+  "tail +35": {
+   "max_stretch": 3.755,
+   "p999_stretch": 2.327,
+   "min_compress": 0.226,
+   "edges_over_1p5": 233,
+   "max_vertex_move": 0.321
+  },
+  "tail -35": {
+   "max_stretch": 3.798,
+   "p999_stretch": 2.371,
+   "min_compress": 0.295,
+   "edges_over_1p5": 247,
+   "max_vertex_move": 0.321
+  },
+  "fins bend +25 (local X)": {
+   "max_stretch": 3.136,
+   "p999_stretch": 2.393,
+   "min_compress": 0.084,
+   "edges_over_1p5": 927,
+   "max_vertex_move": 0.085
+  },
+  "fins bend -25 (local X)": {
+   "max_stretch": 2.922,
+   "p999_stretch": 2.163,
+   "min_compress": 0.052,
+   "edges_over_1p5": 769,
+   "max_vertex_move": 0.085
+  },
+  "fins bend +25 (local Z)": {
+   "max_stretch": 2.772,
+   "p999_stretch": 1.944,
+   "min_compress": 0.097,
+   "edges_over_1p5": 361,
+   "max_vertex_move": 0.085
+  },
+  "fins bend -25 (local Z)": {
+   "max_stretch": 3.0,
+   "p999_stretch": 2.04,
+   "min_compress": 0.209,
+   "edges_over_1p5": 353,
+   "max_vertex_move": 0.085
+  },
+  "horns tilt +20 / -20 (X, Z)": {
+   "max_stretch": 1.912,
+   "p999_stretch": 1.499,
+   "min_compress": 0.156,
+   "edges_over_1p5": 55,
+   "max_vertex_move": 0.073
+  },
+  "head chain (_0 only) +25 X": {
+   "max_stretch": 2.674,
+   "p999_stretch": 2.038,
+   "min_compress": 0.104,
+   "edges_over_1p5": 517,
+   "max_vertex_move": 0.056
+  }
+ },
+ "clip_first_last_frame_max_vertex_gap_m": {
+  "idle": 0.0,
+  "listen": 0.0,
+  "encourage": 0.0,
+  "excited": 0.0,
+  "think": 0.0,
+  "hop": 0.0,
+  "nod_yes": 0.0,
+  "almost": 0.0036,
+  "cheer": 0.0002,
+  "wave": 0.0
+ }
+}

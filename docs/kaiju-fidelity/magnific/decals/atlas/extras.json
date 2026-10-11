@@ -1,0 +1,165 @@
+{
+ "cols": 4,
+ "rows": 3,
+ "cell": 384,
+ "source": "extras_raw.png",
+ "side": null,
+ "states": [
+  {
+   "name": "blush",
+   "col": 0,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.651,
+    0.2891
+   ]
+  },
+  {
+   "name": "blush_big",
+   "col": 1,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9193,
+    0.375
+   ]
+  },
+  {
+   "name": "tear",
+   "col": 2,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9193,
+    0.3776
+   ]
+  },
+  {
+   "name": "tear_streams",
+   "col": 3,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.0703,
+    0.2292
+   ]
+  },
+  {
+   "name": "sweat",
+   "col": 0,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.487,
+    0.9193
+   ]
+  },
+  {
+   "name": "anger",
+   "col": 1,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9193,
+    0.7917
+   ]
+  },
+  {
+   "name": "heart",
+   "col": 2,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9193,
+    0.8932
+   ]
+  },
+  {
+   "name": "sparkle",
+   "col": 3,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.6224,
+    0.9193
+   ]
+  },
+  {
+   "name": "zzz",
+   "col": 0,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.5339,
+    0.7135
+   ]
+  },
+  {
+   "name": "notes",
+   "col": 1,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9193,
+    0.3672
+   ]
+  },
+  {
+   "name": "exclaim",
+   "col": 2,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.0755,
+    0.388
+   ]
+  },
+  {
+   "name": "question",
+   "col": 3,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.2786,
+    0.7578
+   ]
+  }
+ ]
+}

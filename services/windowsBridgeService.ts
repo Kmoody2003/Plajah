@@ -473,11 +473,26 @@ export async function scanWindowsLibrary(
       error: 'Not running in Windows application shell'
     };
   }
+  // Every scan carries its own id and only accepts the answer with that id. Without it, two
+  // folders scanned back to back took each other's results (Music showing up in Videos).
+  // Older shells don't echo the id; for those, match on the folder that was asked for.
+  const requestId = `scan_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   return requestNativeResponse<WindowsLibraryScanResult>(
     'SCAN_WINDOWS_LIBRARY',
     'SCAN_WINDOWS_LIBRARY_RESULT',
-    { libraryType, folderPath }
+    { libraryType, folderPath, requestId },
+    (m: any) => {
+      if (m.requestId) return m.requestId === requestId;
+      const norm = (p?: string) => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+      if (folderPath) return norm(m.folderPath) === norm(folderPath);
+      return !m.libraryType || m.libraryType === String(libraryType).toLowerCase();
+    },
   );
+}
+
+/** Windows' own cached shell thumbnail for a local photo/video (instant; no full-file decode). */
+export function shellThumbUrl(fullPath: string, size = 256): string {
+  return `https://localmedia.plajah/__thumb?size=${size}&path=${encodeURIComponent(fullPath)}`;
 }
 
 /**
@@ -681,7 +696,7 @@ export async function extractStudioThumbnails(paths: string[], targetSize: numbe
   }
 }
 
-function requestNativeResponse<T>(requestType: string, responseType: string, payload: object = {}): Promise<T> {
+function requestNativeResponse<T>(requestType: string, responseType: string, payload: object = {}, matches?: (message: any) => boolean): Promise<T> {
   return new Promise((resolve, reject) => {
     const webview = (window as any).chrome?.webview;
     if (!webview) {
@@ -700,6 +715,7 @@ function requestNativeResponse<T>(requestType: string, responseType: string, pay
         return;
       }
       if (message?.type !== responseType) return;
+      if (matches && !matches(message)) return; // another request's answer
       window.clearTimeout(timeout);
       webview.removeEventListener('message', onMessage);
       resolve(message as T);

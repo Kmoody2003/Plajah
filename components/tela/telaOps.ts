@@ -12,6 +12,11 @@ import type {
 } from '../../types';
 import type { LivingBook, LivingPage } from '../../services/living/contracts';
 import { setLivingPage } from '../../services/living/authoring/livingDoc';
+import { applyLegacyBlocks, applyWriterEdit } from './writer/writerModel';
+import type { RasterDocument } from '../../services/tela/raster/model';
+import type { TelaImageRasterPreview } from '../../types';
+import { mirrorLegacyAdd, mirrorLegacyDelete, mirrorLegacyUpdate } from './image/rasterLegacyBridge';
+import { setCellInput as gridSetCellInput, type Workbook as GridWorkbook } from '../../services/tela/sheet';
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 // CSS px at 96dpi, so 816px prints as exactly 8.5in via @page.
@@ -39,8 +44,17 @@ export type TelaOp =
   | { type: 'SET_FRAME_ORIENTATION'; frameId: string; orientation: 'PORTRAIT' | 'LANDSCAPE' }
   | { type: 'DELETE_FRAME'; frameId: string }
   | { type: 'SET_WRITER_BLOCKS'; deviceId: string; blocks: TelaBlock[] }
+  /** Writer document edit (text engine): serialisable WriterOps on the story / document parts.
+   *  Typing bursts in one story share `coalesce` so undo takes back a burst, not a keystroke. */
+  | { type: 'WRITER_EDIT'; deviceId: string; ops: import('../../services/text/document/ops').WriterOp[]; label?: string; coalesce?: string | null }
   | { type: 'UPDATE_NOTES_DEVICE'; deviceId: string; patch: Partial<TelaNotesDevice> }
   | { type: 'SET_GRID_CELL'; deviceId: string; key: string; value: string }
+  // Grid workbook (sheet engine): the whole immutable workbook after one user
+  // action (edit, paste, sort…). Workbooks share untouched rows, so this is a
+  // pointer swap, and history keeps one doc per action. `cells/rows/cols` carry
+  // the derived legacy view; `cacheOnly` marks a cached-values refresh that is
+  // not an edit (never recorded in undo history).
+  | { type: 'GRID_WORKBOOK'; deviceId: string; workbook: GridWorkbook; cells?: Record<string, string>; rows?: number; cols?: number; label?: string; coalesce?: string; cacheOnly?: boolean }
   // ── Base (database) ops ────────────────────────────────────────────────────
   | { type: 'ADD_BASE_FIELD'; deviceId: string; field: TelaField }
   | { type: 'UPDATE_BASE_FIELD'; deviceId: string; fieldId: string; patch: Partial<TelaField> }
@@ -61,6 +75,10 @@ export type TelaOp =
   | { type: 'DELETE_VECTOR_OBJECT'; deviceId: string; objectId: string }
   | { type: 'REORDER_VECTOR_OBJECT'; deviceId: string; objectId: string; toIndex: number }
   | { type: 'REPLACE_VECTOR_OBJECTS'; deviceId: string; objects: TelaVectorObject[] }
+  /** Studio vector editor: one atomic, single-undo-step edit of a vector device — a full object
+   *  list OR per-object patches, plus optional device-level Studio data (groups, symbols,
+   *  swatches…). `coalesce` merges a scrub (slider, live drag) into one step; `label` names it. */
+  | { type: 'EDIT_VECTOR_DEVICE'; deviceId: string; objects?: TelaVectorObject[]; patches?: Record<string, Partial<TelaVectorObject>>; studio?: import('../../services/tela/studio/model').TelaStudioDeviceExt; size?: { width: number; height: number }; label?: string; coalesce?: string }
   // ── Image (raster) ops ──────────────────────────────────────────────────────
   | { type: 'ADD_IMAGE_LAYER'; deviceId: string; layer: TelaImageLayer }
   | { type: 'UPDATE_IMAGE_LAYER'; deviceId: string; layerId: string; patch: Partial<TelaImageLayer> }
@@ -69,6 +87,8 @@ export type TelaOp =
   | { type: 'ADD_IMAGE_GROUP'; deviceId: string; group: TelaImageLayerGroup }
   | { type: 'UPDATE_IMAGE_GROUP'; deviceId: string; groupId: string; patch: Partial<TelaImageLayerGroup> }
   | { type: 'DELETE_IMAGE_GROUP'; deviceId: string; groupId: string }
+  /** Image Studio: the raster document (source of truth) + its pixel-history rev. `persistOnly` swaps runtime asset keys for stored ids and is not an undo step. */
+  | { type: 'SET_IMAGE_RASTER'; deviceId: string; raster: RasterDocument | undefined; rev?: string; preview?: TelaImageRasterPreview | null; label?: string; coalesce?: string; persistOnly?: boolean }
   // ── Binding graph ops ───────────────────────────────────────────────────────
   | { type: 'ADD_BINDING'; binding: TelaBinding }
   | { type: 'REMOVE_BINDING'; bindingId: string }
@@ -138,7 +158,13 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
     case 'SET_WRITER_BLOCKS': {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'WRITER') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, blocks: op.blocks } }, updatedAt: now };
+      // Story-backed Writers fold legacy block edits (metadata, Aria, flying menu) into the story.
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: d.story ? applyLegacyBlocks(d, op.blocks) : { ...d, blocks: op.blocks } }, updatedAt: now };
+    }
+    case 'WRITER_EDIT': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'WRITER' || !op.ops.length) return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: applyWriterEdit(d, op.ops) }, updatedAt: now };
     }
     case 'UPDATE_NOTES_DEVICE': {
       const d = doc.devices[op.deviceId];
@@ -150,7 +176,17 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       if (!d || d.type !== 'GRID') return doc;
       const cells = { ...d.cells };
       if (op.value === '') delete cells[op.key]; else cells[op.key] = op.value;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, cells } }, updatedAt: now };
+      // Workbook-backed grids: the legacy key addresses sheet 1 of the workbook.
+      let workbook = d.workbook;
+      if (workbook?.sheets[0]) { try { workbook = gridSetCellInput(workbook, workbook.sheets[0].id, op.key, op.value).workbook; } catch { /* bad key: legacy view only */ } }
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, cells, ...(workbook ? { workbook } : {}) } }, updatedAt: now };
+    }
+    case 'GRID_WORKBOOK': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'GRID') return doc;
+      if (d.workbook === op.workbook && !op.cells) return doc;
+      const next = { ...d, workbook: op.workbook, ...(op.cells ? { cells: op.cells } : {}), ...(op.rows ? { rows: op.rows } : {}), ...(op.cols ? { cols: op.cols } : {}) };
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: next }, updatedAt: now };
     }
 
     // ── Base ────────────────────────────────────────────────────────────────
@@ -241,6 +277,14 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       if (!d || d.type !== 'VECTOR') return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, objects: reorderById(d.objects, op.objectId, op.toIndex) } }, updatedAt: now };
     }
+    case 'EDIT_VECTOR_DEVICE': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'VECTOR') return doc;
+      let objects = op.objects ?? d.objects;
+      if (op.patches) { const P = op.patches; objects = objects.map(o => P[o.id] ? { ...o, ...P[o.id] } : o); }
+      const next = { ...d, objects, ...(op.studio ? { studio: op.studio } : {}), ...(op.size ? { width: op.size.width, height: op.size.height } : {}) };
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: next }, updatedAt: now };
+    }
     case 'REPLACE_VECTOR_OBJECTS': {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'VECTOR') return doc;
@@ -251,17 +295,17 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
     case 'ADD_IMAGE_LAYER': {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'IMAGE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: [...d.layers, op.layer] } }, updatedAt: now };
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: [...d.layers, op.layer], ...mirrorLegacyAdd(d, op.layer) } }, updatedAt: now };
     }
     case 'UPDATE_IMAGE_LAYER': {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'IMAGE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: d.layers.map(l => l.id === op.layerId ? { ...l, ...op.patch } : l) } }, updatedAt: now };
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: d.layers.map(l => l.id === op.layerId ? { ...l, ...op.patch } : l), ...mirrorLegacyUpdate(d, op.layerId, op.patch) } }, updatedAt: now };
     }
     case 'DELETE_IMAGE_LAYER': {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'IMAGE') return doc;
-      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: d.layers.filter(l => l.id !== op.layerId) } }, updatedAt: now };
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, layers: d.layers.filter(l => l.id !== op.layerId), ...mirrorLegacyDelete(d, op.layerId) } }, updatedAt: now };
     }
     case 'REORDER_IMAGE_LAYER': {
       const d = doc.devices[op.deviceId];
@@ -279,6 +323,13 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
     case 'DELETE_IMAGE_GROUP': {
       const d = doc.devices[op.deviceId]; if (!d || d.type !== 'IMAGE') return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, groups: (d.groups || []).filter(group => group.id !== op.groupId), layers: d.layers.map(layer => layer.groupId === op.groupId ? { ...layer, groupId: undefined } : layer) } }, updatedAt: now };
+    }
+
+    case 'SET_IMAGE_RASTER': {
+      const d = doc.devices[op.deviceId]; if (!d || d.type !== 'IMAGE') return doc;
+      const next = { ...d, raster: op.raster, rasterRev: op.rev };
+      if (op.preview !== undefined) { if (op.preview) next.rasterPreview = op.preview; else delete next.rasterPreview; }
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: next }, updatedAt: now };
     }
 
     // ── Binding graph ─────────────────────────────────────────────────────────

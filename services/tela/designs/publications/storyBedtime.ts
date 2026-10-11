@@ -13,7 +13,7 @@
 // Text is sized and wrapped with real font metrics (bookText.ts); a page that cannot fit its words throws instead of truncating.
 import { rect } from '../../templateKit';
 import {
-  type O, type Pt, FT, felt, stitchLine, thread, button, embroTitle, stitchedText, quiltGround, feltVignette, halo,
+  type O, type Pt, FT, felt, stitchLine, thread, button, embroTitle, stitchedText, quiltGround, feltVignette, halo, sniWidth,
 } from './feltKit';
 import { rn, roundRectPts, bevel, bumpy, starPts, blob, strokesPath } from './paintKit';
 import { rad } from './kidsArtB';
@@ -28,10 +28,19 @@ const disc = (cx: number, cy: number, r: number, seed = 1, n = 22): Pt[] => blob
 const ov = (cx: number, cy: number, rx: number, ry: number, seed = 1, rot = 0, n = 20): Pt[] => blob(cx, cy, rx, ry, seed, .012, n, rot);
 const P = (cx: number, cy: number, s: number, a: Array<[number, number]>): Pt[] => a.map(([u, v]) => [cx + u * s, cy + v * s] as Pt);
 
-/** Locked looks from the Character Bible (data/showcase/books/moonBlanket.ts). */
-const BR = { fur: '#C98B4B', cream: '#F3E2C0', patch: '#E0A82E', eye: '#1B1530' };
-const FL = { wing: '#F28C28', spot: '#FFF1D0', plum: '#6B2D5C', plumL: '#8A4378' };
-const MOON = '#FBEFC6', CHEEK = '#F4A6A0';
+/** Locked looks from the Character Bible (data/showcase/books/moonBlanket.ts). A StoryBook remix may recolour the cast
+ *  (bedtimePage's `cast` option, services/storybook/art/ported.ts); these are the defaults and the showcase look. */
+const DEF_BR = { fur: '#C98B4B', cream: '#F3E2C0', patch: '#E0A82E', eye: '#1B1530' };
+const DEF_FL = { wing: '#F28C28', spot: '#FFF1D0', plum: '#6B2D5C', plumL: '#8A4378' };
+const DEF_MOON = '#FBEFC6', DEF_CHEEK = '#F4A6A0';
+let BR = DEF_BR, FL = DEF_FL, MOON = DEF_MOON, CHEEK = DEF_CHEEK;
+/** Cast colours for one page (the bear, the moth, the moon). Unset fields keep the Moon Blanket look. */
+export interface BedtimeCast { bear?: Partial<typeof DEF_BR>; moth?: Partial<typeof DEF_FL>; moon?: { face?: string; cheek?: string } }
+export interface BedtimePageOptions {
+  /** Which occurrence of this spread's beat this is (0 = first hero page...). Default: counted from book.spreads, so any page order works. */
+  occurrence?: number;
+  cast?: BedtimeCast;
+}
 
 // ── Appliqué motifs ──────────────────────────────────────────────────────────
 const star = (cx: number, cy: number, s: number, color: string, seed: number, o: { lite?: boolean; rot?: number } = {}): O[] =>
@@ -180,8 +189,18 @@ const sdata = (book: ShowcaseBook, i: number): ShowcaseSpread => {
   const s = book.spreads[i]; if (!s) throw new Error(`Moon Blanket has no spread ${i + 1}`); return s;
 };
 
-/** One page of the book by index; the words come from the book's data. */
-export function bedtimePage(i: number, seed: number, book: ShowcaseBook): O[] {
+/** How many earlier spreads share spread i's beat. */
+const occurrenceOf = (book: ShowcaseBook, i: number) => { let k = 0; for (let j = 0; j < i; j++) if (book.spreads[j].beat === book.spreads[i].beat) k++; return k; };
+
+/** One page of the book by index; the words come from the book's data. Variants of a beat are chosen by occurrence (first hero page, second hero page...). */
+export function bedtimePage(i: number, seed: number, book: ShowcaseBook, o: BedtimePageOptions = {}): O[] {
+  const prev = [BR, FL, MOON, CHEEK] as const;
+  BR = { ...DEF_BR, ...o.cast?.bear }; FL = { ...DEF_FL, ...o.cast?.moth }; MOON = o.cast?.moon?.face ?? DEF_MOON; CHEEK = o.cast?.moon?.cheek ?? DEF_CHEEK;
+  try { return bedtimeSpread(i, seed, book, o.occurrence ?? occurrenceOf(book, i)); }
+  finally { [BR, FL, MOON, CHEEK] = prev; }
+}
+
+function bedtimeSpread(i: number, seed: number, book: ShowcaseBook, occ: number): O[] {
   const r = rn(seed);
   const sp = sdata(book, i);
   const words = sp.text;
@@ -199,14 +218,18 @@ export function bedtimePage(i: number, seed: number, book: ShowcaseBook): O[] {
       art.push(...candle(668, 800, 1.1, { halo: 300 }));
       art.push(...moth(470, 722, 30, { rot: -10, seed: 8 }));
       art.push(artSlot(60, 420, 640, 520, 'Cover illustration slot'));
-      const [a, b] = words.split(/\s+/);
-      const txt: O[] = [...embroTitle(384, 36, a, 176, [FT.mustard, FT.cream, FT.mustard, FT.cream], 3, { tilt: 5 }), ...embroTitle(384, 214, b, 142, [FT.cream, FT.roseL, FT.mustard, FT.cream, FT.roseL, FT.mustard, FT.cream], 7, { tilt: 5 })];
+      // the title in two stitched lines (first half of the words, then the rest), shrunk only if a line would not fit the page
+      const ws = words.split(/\s+/).filter(Boolean); const cut = Math.max(1, Math.floor(ws.length / 2));
+      const a = ws.slice(0, cut).join(' '), b = ws.slice(cut).join(' ');
+      const fitTo = (str: string, size: number) => Math.min(size, Math.floor(size * 700 / Math.max(1, sniWidth(str, size))));
+      const txt: O[] = [...embroTitle(384, 36, a, fitTo(a, 176), [FT.mustard, FT.cream, FT.mustard, FT.cream], 3, { tilt: 5 })];
+      if (b) txt.push(...embroTitle(384, 214, b, fitTo(b, 142), [FT.cream, FT.roseL, FT.mustard, FT.cream, FT.roseL, FT.mustard, FT.cream], 7, { tilt: 5 }));
       return finish(art, txt, .35);
     }
 
     // ── HERO: Bramble in his bed, the blanket spread behind him like a pale moon ──
     case 'hero': {
-      if (i === 1) {
+      if (occ === 0) {
         const art: O[] = [...quiltGround(W, H, FT.indigoD, 2, { cell: 160 })];
         art.push(...scatterStars(r, 6, 20, 20, 730, 620, [FT.mustard, FT.roseL, FT.cream], 12, 20, [[70, 40, 630, 600]]));
         art.push(...felt(bumpy(384, 330, 292, 282, 16, .05, 3, 3), MOON, 12, { lift: 10, stitch: FT.mustard, dash: [10, 8], inset: 14, label: 'Moon-coloured blanket spread out' }));
@@ -230,7 +253,7 @@ export function bedtimePage(i: number, seed: number, book: ShowcaseBook): O[] {
 
     // ── REVEAL: close-up of the blanket, one tiny hole, one button eye looking through ──
     case 'reveal': {
-      if (i === 3) {
+      if (occ === 0) {
         const art: O[] = [...quiltGround(W, H, '#E9DAB0', 4, { cell: 190, stitch: '#BFA170', puff: 1.4, weave: .12 })];
         art.push(...felt(roundRectPts(26, 40, 330, 230, 30, 7, 1.5), FT.cream, 91, { lift: 6, stitch: FT.teal, inset: 11, label: 'Blanket patch (moon-coloured felt)' }), ...felt(roundRectPts(430, 580, 320, 220, 30, 8, 1.5), '#F2DDAA', 92, { lift: 6, stitch: FT.burgundy, inset: 11, label: 'Blanket patch (moon-coloured felt)' }));
         const cx = 384, cy = 345;
@@ -243,7 +266,7 @@ export function bedtimePage(i: number, seed: number, book: ShowcaseBook): O[] {
         art.push(artSlot(180, 140, 410, 410, 'Peeking-through-the-hole slot'));
         return finish(art, patch(384, 792, words, { maxW: 660, maxH: 270, max: 54, fill: FT.burgundy, ink: FT.cream, stitch: FT.cream, seed: 6 }), .3);
       }
-      // i === 6: Flit, huge for a moment, a stitched tear on her cheek; Bramble tiny beside her
+      // second reveal: Flit, huge for a moment, a stitched tear on her cheek; Bramble tiny beside her
       const art: O[] = [...quiltGround(W, H, FT.burgundyD, 7, { cell: 160, stitch: '#D8708F' })];
       art.push(...moth(384, 330, 238, { seed: 11, big: true, tear: true, lite: false }));
       art.push(...bear(92, 600, 46, { mood: 'wow', body: true, seed: 3, look: -.4 }));
@@ -254,7 +277,7 @@ export function bedtimePage(i: number, seed: number, book: ShowcaseBook): O[] {
     // ── STRIP: three tall quilt panels, a guessing game: mouse? cat? moon? ──
     case 'strip': {
       const art: O[] = [...quiltGround(W, H, FT.night, 3, { cell: 150, stitch: '#6F66C9' })];
-      const lines = words.split('\n'); const head = lines[0]; const guesses = lines.slice(1);
+      const lines = words.split('\n'); const head = lines[0]; const guesses = lines.slice(1, 4);
       const xs = [26, 275, 524], pw = 218, py = 172, ph = 490; const cols = [FT.teal, FT.burgundy, FT.indigo];
       xs.forEach((x, k) => art.push(...felt(roundRectPts(x, py, pw, ph, 28, 10 + k, 1.2), cols[k], 10 + k, { lift: 9, stitch: FT.thread, inset: 11, label: 'Quilt panel' })));
       // 1 the mouse
@@ -295,7 +318,7 @@ export function bedtimePage(i: number, seed: number, book: ShowcaseBook): O[] {
 
     // ── QUIET: almost empty. A candle, a hole in a corner of blanket, two antennae ──
     case 'quiet': {
-      if (i === 5) {
+      if (occ === 0) {
         const art: O[] = [...quiltGround(W, H, FT.night, 6, { cell: 170, stitch: '#5C54B8', puff: .8 })];
         art.push(...candle(120, 880, .95, { halo: 330 }));
         art.push(...felt(roundRectPts(290, 640, 520, 420, 40, 9, 1.5), '#EBDDB0', 51, { lift: 9, stitch: FT.mustard, inset: 14, label: 'Blanket corner (moon-coloured felt)' }));
@@ -310,7 +333,7 @@ export function bedtimePage(i: number, seed: number, book: ShowcaseBook): O[] {
         art.push(artSlot(100, 560, 640, 380, 'Quiet page illustration slot'));
         return finish(art, patch(384, 250, words, { maxW: 560, maxH: 330, max: 46, fill: FT.indigo, ink: FT.cream, stitch: FT.thread, seed: 9 }), .5);
       }
-      // i === 9: Goodnight. The window, the sleeping moon, the blanket mound rising and falling, a last stitched star
+      // second quiet page: Goodnight. The window, the sleeping moon, the blanket mound rising and falling, a last stitched star
       const art: O[] = [...quiltGround(W, H, FT.indigoD, 10, { cell: 160, puff: .9 })];
       art.push(...moon(384, 372, 112, { face: 'sleepy', seed: 6, smile: 1.45 }));
       art.push(...scatterStars(r, 4, 20, 270, 730, 100, [FT.mustard, FT.cream, FT.roseL], 10, 18, [[260, 260, 250, 300]]));

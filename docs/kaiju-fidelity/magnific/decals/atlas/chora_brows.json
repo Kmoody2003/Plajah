@@ -1,0 +1,165 @@
+{
+ "cols": 3,
+ "rows": 4,
+ "cell": 384,
+ "source": "chora_brows_raw.png",
+ "side": null,
+ "states": [
+  {
+   "name": "angry",
+   "col": 0,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7682,
+    0.3958
+   ]
+  },
+  {
+   "name": "flat",
+   "col": 1,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9193,
+    0.1615
+   ]
+  },
+  {
+   "name": "raised",
+   "col": 2,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8151,
+    0.3047
+   ]
+  },
+  {
+   "name": "sad",
+   "col": 0,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.6953,
+    0.3385
+   ]
+  },
+  {
+   "name": "worried",
+   "col": 1,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7865,
+    0.2786
+   ]
+  },
+  {
+   "name": "skeptic",
+   "col": 2,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7448,
+    0.3047
+   ]
+  },
+  {
+   "name": "furrowed",
+   "col": 0,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.75,
+    0.3151
+   ]
+  },
+  {
+   "name": "thin",
+   "col": 1,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7708,
+    0.1771
+   ]
+  },
+  {
+   "name": "surprised",
+   "col": 2,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7057,
+    0.276
+   ]
+  },
+  {
+   "name": "villain",
+   "col": 0,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.75,
+    0.3542
+   ]
+  },
+  {
+   "name": "soft",
+   "col": 1,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7422,
+    0.263
+   ]
+  },
+  {
+   "name": "wavy",
+   "col": 2,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7943,
+    0.2083
+   ]
+  }
+ ]
+}

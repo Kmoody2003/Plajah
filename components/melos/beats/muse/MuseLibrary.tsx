@@ -5,7 +5,7 @@
 // (key / tempo / length), single-click auditions it, the play-triangle does too, and "Add to
 // project" drops audio onto a new track or loads a preset. Cloud-folder listing is the next source.
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Search, FolderPlus, Play, Plus, Folder, Box, LayoutGrid, Cloud } from 'lucide-react';
 import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
@@ -18,6 +18,11 @@ import { analyzeBuffer, keyLabel, CATEGORY_FOR, type MuseAsset, type MuseAnalysi
 import { listCloudAssets, resolveCloudFile, cloudSupported } from '../../../../services/melos/beats/muse/cloudSource';
 import { coverCss, accentFor } from '../../../../services/melos/instruments/presetArt';
 import { PLAYHEAD, SELECT, SURFACE } from '../theme';
+import { addHandleFolder, type SavedFolder } from '../../../../services/folderRegistry';
+import { SavedFoldersMenu, lastFolder, setLastFolderId, openSavedHandle } from '../../../ui/SavedFolders';
+
+/** Per-app key for the last-used saved folder (services/folderRegistry). */
+const LAST_FOLDER_APP = 'melos-muse';
 
 interface Props { doc: GrooveDoc; onMutate: (fn: (d: GrooveDoc) => void) => void; onClose: () => void; docked?: boolean; }
 
@@ -40,6 +45,9 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose, docked = 
   const [localRows, setLocalRows] = useState<Row[]>([]);
   const [cloudRows, setCloudRows] = useState<Row[] | null>(null); // null = not loaded yet
   const [status, setStatus] = useState('');
+  const [folderId, setFolderId] = useState<string | null>(null);
+  /** Saved folder whose permission lapsed since last session — a click on "Reconnect" re-grants. */
+  const [reconnect, setReconnect] = useState<SavedFolder | null>(null);
   const analyzed = useRef(new Map<string, { analysis: MuseAnalysis; buffer: AudioBuffer }>());
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
@@ -87,21 +95,50 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose, docked = 
   const selAnalysis = sel ? analyzed.current.get(sel)?.analysis : undefined;
 
   // ── add a local folder ──
+  const loadDir = useCallback(async (dir: any, id: string | null, show: boolean) => {
+    const found: Row[] = [];
+    for await (const [name, handle] of dir.entries()) {
+      if (handle.kind === 'file' && AUDIO_RE.test(name)) {
+        found.push({ id: `l:${name}`, kind: 'audio', name: name.replace(/\.[^.]+$/, ''), source: 'local', ref: { fileName: name }, tags: [], category: 'Audio files', getFile: () => handle.getFile() });
+      }
+    }
+    found.sort((a, b) => a.name.localeCompare(b.name));
+    setLocalRows(found); setFolderId(id); setReconnect(null);
+    if (id) setLastFolderId(LAST_FOLDER_APP, id);
+    if (show) { setSource('local'); setStatus(`${found.length} audio files in ${dir.name}`); }
+  }, []);
+
   const addFolder = useCallback(async () => {
     const picker = (window as unknown as { showDirectoryPicker?: (o: { mode: string }) => Promise<any> }).showDirectoryPicker;
     if (!picker) { setStatus('This browser has no folder access — try Chrome/Edge'); return; }
     try {
       const dir = await picker({ mode: 'read' });
-      const found: Row[] = [];
-      for await (const [name, handle] of dir.entries()) {
-        if (handle.kind === 'file' && AUDIO_RE.test(name)) {
-          found.push({ id: `l:${name}`, kind: 'audio', name: name.replace(/\.[^.]+$/, ''), source: 'local', ref: { fileName: name }, tags: [], category: 'Audio files', getFile: () => handle.getFile() });
-        }
-      }
-      found.sort((a, b) => a.name.localeCompare(b.name));
-      setLocalRows(found); setSource('local'); setStatus(`${found.length} audio files in ${dir.name}`);
+      // Remember it app-wide (every file viewer lists it, and it is restored next time).
+      let id: string | null = null;
+      try { id = (await addHandleFolder(dir, 'melos')).id; } catch { /* IndexedDB blocked */ }
+      await loadDir(dir, id, true);
     } catch { /* user cancelled */ }
-  }, []);
+  }, [loadDir]);
+
+  // Open a saved folder from a click (may prompt to re-grant access).
+  const openSaved = useCallback(async (f: SavedFolder) => {
+    const { handle, permission } = await openSavedHandle(f.id, true);
+    if (handle && permission === 'granted') await loadDir(handle, f.id, true);
+    else { setReconnect(f); setStatus(`Allow access to ${f.name} to browse it`); }
+  }, [loadDir]);
+
+  // Restore the last-used folder silently (never prompts; lapsed access shows "Reconnect").
+  useEffect(() => {
+    const f = lastFolder(LAST_FOLDER_APP);
+    if (!f || f.kind !== 'handle') return;
+    let cancelled = false;
+    void openSavedHandle(f.id, false).then(({ handle, permission }) => {
+      if (cancelled) return;
+      if (handle && permission === 'granted') void loadDir(handle, f.id, false).catch(() => {});
+      else if (handle) setReconnect(f);
+    });
+    return () => { cancelled = true; };
+  }, [loadDir]);
 
   // ── decode + analyse + audition ──
   const auditionSrc = useRef<AudioBufferSourceNode | null>(null);
@@ -206,6 +243,13 @@ export const MuseLibrary: React.FC<Props> = ({ doc, onMutate, onClose, docked = 
             </button>
             <SourceBtn id="local" icon={<Folder size={14} />} label="Local folder" count={source === 'local' ? localRows.length : undefined} />
             <button onClick={() => void addFolder()} className="w-full h-8 mt-2 rounded-lg border border-dashed border-white/15 text-white/45 hover:text-white text-[11px] flex items-center justify-center gap-1.5"><FolderPlus size={12} /> Add a folder</button>
+            {reconnect && (
+              <button onClick={() => void openSaved(reconnect)} title={`Allow access to ${reconnect.name} again`} className="w-full h-8 mt-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 text-amber-200 text-[11px] truncate px-2">Reconnect {reconnect.name}</button>
+            )}
+            <div className="mt-1.5">
+              <SavedFoldersMenu kind="handle" activeId={folderId} onOpen={(f) => void openSaved(f)}
+                className="w-full h-8 rounded-lg border border-white/10 text-white/45 hover:text-white text-[11px] flex items-center justify-center gap-1.5" />
+            </div>
             {categories.length > 0 && (<>
               <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold px-1 mt-4 mb-1.5">Type</p>
               <button onClick={() => setCategory(null)} className="w-full text-left px-2 py-1 rounded-lg text-[11px]" style={!category ? { color: '#fff', background: 'rgba(255,255,255,0.06)' } : { color: 'rgba(255,255,255,0.45)' }}>All</button>

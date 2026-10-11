@@ -35,6 +35,19 @@
     </Content>
   </ItemGroup>
 
+  <!-- Open Media Transport (MIT) — official libomtnet v1.0.0.19 release binaries from
+       github.com/openmediatransport/libomtnet: the managed library + its native VMX codec. -->
+  <ItemGroup>
+    <Reference Include="libomtnet">
+      <HintPath>..\third_party\omt\win-x64\libomtnet.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Content Include="..\third_party\omt\win-x64\libvmx.dll">
+      <Link>libvmx.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup Condition="Exists('..\..\dist')">
     <Content Include="..\..\dist\**\*.*">
       <Link>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>

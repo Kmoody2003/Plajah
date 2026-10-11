@@ -25,6 +25,8 @@ public sealed partial class MainWindow : Window
     private const string AppUrl = "https://plajah.com"; // production site — one codebase, native shell
     private AppWindow? _appWindow;
     private readonly PlajahStudioBridgeService _studioBridge;
+    private readonly NdiReceiverService _ndiRecv = new();
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _liveLevelTimer;
     private DateTime _lastNavRecovery = DateTime.MinValue;
     private DateTime _lastRendererRecovery = DateTime.MinValue;
     private bool _localShellAvailable;
@@ -244,6 +246,21 @@ public sealed partial class MainWindow : Window
                                 "Access-Control-Max-Age: 86400"
                             );
                             args.Response = preflight;
+                            return;
+                        }
+
+                        // Live-input frames: the newest JPEG of a received NDI source.
+                        if (reqUri.AbsolutePath.Equals("/__live", StringComparison.OrdinalIgnoreCase))
+                        {
+                            ServeLiveFrame(core, args, reqUri);
+                            return;
+                        }
+
+                        // Shell thumbnails (Windows' own cached thumbnails for photos AND videos) so
+                        // library grids show pictures at once instead of decoding full files.
+                        if (reqUri.AbsolutePath.Equals("/__thumb", StringComparison.OrdinalIgnoreCase))
+                        {
+                            ServeShellThumbnail(core, args, reqUri);
                             return;
                         }
 
@@ -1419,8 +1436,49 @@ public sealed partial class MainWindow : Window
                 {
                     result = _studioBridge.GetAvbClockStatus();
                 }
-                else if (cmd == "connect_source" || cmd == "disconnect_source")
+                else if (cmd == "connect_source")
                 {
+                    // Live-input previews: actually RECEIVE the source (was a no-op stub).
+                    var srcId = argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty("id", out var sid) ? sid.GetString() ?? "" : "";
+                    if (srcId.StartsWith("ndi:"))
+                    {
+                        var src = _studioBridge.ResolveNdiSource(srcId);
+                        if (src == null)
+                        {
+                            await _studioBridge.DiscoverNdiSourcesAsync(1500, quick: true);
+                            src = _studioBridge.ResolveNdiSource(srcId);
+                        }
+                        var err = src == null ? "This NDI source is no longer on the network." : _ndiRecv.Connect(srcId, src.Value.Name, src.Value.Url, _studioBridge.NdiDllPath);
+                        EnsureLiveLevelTimer();
+                        result = new { success = err == null, error = err };
+                    }
+                    else if (srcId.StartsWith("omt"))
+                    {
+                        // Open Media Transport via the official libomtnet library.
+                        var addr = _studioBridge.ResolveOmtSource(srcId);
+                        if (addr == null)
+                        {
+                            await _studioBridge.DiscoverOmtSourcesAsync(1500, quick: true);
+                            addr = _studioBridge.ResolveOmtSource(srcId);
+                        }
+                        var err = addr == null ? "This OMT source is no longer on the network." : _ndiRecv.ConnectOmt(srcId, addr);
+                        EnsureLiveLevelTimer();
+                        result = new { success = err == null, error = err };
+                    }
+                    else result = new { success = true };
+                }
+                else if (cmd == "disconnect_source")
+                {
+                    var srcId = argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty("id", out var sid) ? sid.GetString() ?? "" : "";
+                    _ndiRecv.Disconnect(srcId);
+                    result = new { success = true };
+                }
+                else if (cmd == "live_audio")
+                {
+                    // Live inputs are muted until the operator deliberately turns one on.
+                    var srcId = argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty("id", out var sid) ? sid.GetString() ?? "" : "";
+                    var on = argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty("enabled", out var en) && en.ValueKind == JsonValueKind.True;
+                    _ndiRecv.SetAudio(srcId, on);
                     result = new { success = true };
                 }
                 else if (cmd == "route" || cmd == "set_program" || cmd == "set_sync" || cmd == "set_transition")
@@ -1618,10 +1676,26 @@ public sealed partial class MainWindow : Window
             }
             else if (type == "SCAN_WINDOWS_LIBRARY")
             {
+                // Echoed back so the page can match each answer to its own request (two folders
+                // scanned back to back used to swap results), and run OFF the UI thread.
+                var scanRequestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() : null;
+                var libTypeArg = root.TryGetProperty("libraryType", out var lt) ? lt.GetString()?.ToLowerInvariant() : "pictures";
+                var customPathArg = root.TryGetProperty("folderPath", out var fp) ? fp.GetString() : null;
+                _ = System.Threading.Tasks.Task.Run(() =>
+                {
+                using var eco = PowerQos.EcoThread();
+                void Reply(object payload)
+                {
+                    var node = System.Text.Json.JsonSerializer.SerializeToNode(payload) as System.Text.Json.Nodes.JsonObject ?? new System.Text.Json.Nodes.JsonObject();
+                    if (scanRequestId != null) node["requestId"] = scanRequestId;
+                    node["type"] = "SCAN_WINDOWS_LIBRARY_RESULT";
+                    var json = node.ToJsonString();
+                    DispatcherQueue.TryEnqueue(() => { try { Web.CoreWebView2?.PostWebMessageAsString(json); } catch { } });
+                }
                 try
                 {
-                    var libType = root.TryGetProperty("libraryType", out var lt) ? lt.GetString()?.ToLowerInvariant() : "pictures";
-                    var customPath = root.TryGetProperty("folderPath", out var fp) ? fp.GetString() : null;
+                    var libType = libTypeArg;
+                    var customPath = customPathArg;
                     string targetDir;
 
                     if (!string.IsNullOrEmpty(customPath) && Directory.Exists(customPath))
@@ -1706,7 +1780,7 @@ public sealed partial class MainWindow : Window
                         }
                         catch { }
 
-                        PostNativeMessage("SCAN_WINDOWS_LIBRARY_RESULT", new
+                        Reply(new
                         {
                             success = true,
                             libraryType = libType,
@@ -1718,7 +1792,7 @@ public sealed partial class MainWindow : Window
                     }
                     else
                     {
-                        PostNativeMessage("SCAN_WINDOWS_LIBRARY_RESULT", new
+                        Reply(new
                         {
                             success = false,
                             libraryType = libType,
@@ -1729,8 +1803,9 @@ public sealed partial class MainWindow : Window
                 }
                 catch (Exception ex)
                 {
-                    PostNativeMessage("SCAN_WINDOWS_LIBRARY_RESULT", new { success = false, error = ex.Message });
+                    Reply(new { success = false, error = ex.Message });
                 }
+                });
             }
             else if (type == "SHOW_IN_EXPLORER")
             {
@@ -1993,6 +2068,90 @@ public sealed partial class MainWindow : Window
             }
         }
         catch { }
+    }
+
+    /// <summary>
+    /// GET https://localmedia.plajah/__thumb?path=C:\...&amp;size=256 — Windows' shell thumbnail for a
+    /// photo or video (the same cached thumbnail Explorer shows), as an image stream.
+    /// </summary>
+    private async void ServeShellThumbnail(CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs args, Uri reqUri)
+    {
+        var deferral = args.GetDeferral();
+        try
+        {
+            string? path = null;
+            uint size = 256;
+            foreach (var part in reqUri.Query.TrimStart('?').Split('&'))
+            {
+                var kv = part.Split('=', 2);
+                if (kv.Length < 2) continue;
+                if (kv[0].Equals("path", StringComparison.OrdinalIgnoreCase)) path = Uri.UnescapeDataString(kv[1]);
+                else if (kv[0].Equals("size", StringComparison.OrdinalIgnoreCase) && uint.TryParse(kv[1], out var sz)) size = Math.Clamp(sz, 64u, 1024u);
+            }
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                args.Response = core.Environment.CreateWebResourceResponse(null, 404, "Not Found", "Access-Control-Allow-Origin: *");
+                return;
+            }
+            var file = await StorageFile.GetFileFromPathAsync(path);
+            var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, size, Windows.Storage.FileProperties.ThumbnailOptions.ResizeThumbnail);
+            if (thumb == null || thumb.Size == 0)
+            {
+                args.Response = core.Environment.CreateWebResourceResponse(null, 404, "No Thumbnail", "Access-Control-Allow-Origin: *");
+                return;
+            }
+            var contentType = string.IsNullOrEmpty(thumb.ContentType) ? "image/jpeg" : thumb.ContentType;
+            args.Response = core.Environment.CreateWebResourceResponse(thumb, 200, "OK",
+                $"Content-Type: {contentType}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Thumb] {ex.Message}");
+            try { args.Response = core.Environment.CreateWebResourceResponse(null, 500, "Thumbnail Failed", "Access-Control-Allow-Origin: *"); } catch { }
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    private void ServeLiveFrame(CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs args, Uri reqUri)
+    {
+        string id = ""; int width = 320;
+        foreach (var part in reqUri.Query.TrimStart('?').Split('&'))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length < 2) continue;
+            if (kv[0] == "id") id = Uri.UnescapeDataString(kv[1]);
+            else if (kv[0] == "w" && int.TryParse(kv[1], out var w)) width = w;
+        }
+        var jpeg = _ndiRecv.LatestJpeg(id, width);
+        if (jpeg == null)
+        {
+            args.Response = core.Environment.CreateWebResourceResponse(null, 204, "No Frame", "Access-Control-Allow-Origin: *\r\nCache-Control: no-store");
+            return;
+        }
+        var ms = new InMemoryRandomAccessStream();
+        using (var writer = new DataWriter(ms.GetOutputStreamAt(0))) { writer.WriteBytes(jpeg); writer.StoreAsync().AsTask().Wait(); writer.DetachStream(); }
+        ms.Seek(0);
+        args.Response = core.Environment.CreateWebResourceResponse(ms, 200, "OK", "Content-Type: image/jpeg\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store");
+    }
+
+    /// <summary>~10x a second: every live input's audio levels + status, for the tiles' meters.</summary>
+    private void EnsureLiveLevelTimer()
+    {
+        if (_liveLevelTimer != null) return;
+        _ndiRecv.Post = json => DispatcherQueue.TryEnqueue(() => { try { Web.CoreWebView2?.PostWebMessageAsString(json); } catch { } });
+        long ticks = 0;
+        _liveLevelTimer = DispatcherQueue.CreateTimer();
+        _liveLevelTimer.Interval = TimeSpan.FromMilliseconds(100);
+        _liveLevelTimer.Tick += (_, _) =>
+        {
+            if (++ticks % 50 == 0) _ndiRecv.Sweep();
+            var levels = _ndiRecv.LevelsSnapshot();
+            if (levels != null) PostNativeMessage("LIVE_INPUT_LEVELS", new { levels });
+        };
+        _liveLevelTimer.Start();
     }
 
     private void PostNativeMessage(string type, object payload)

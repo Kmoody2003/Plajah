@@ -1,0 +1,177 @@
+<title>Kaiju Models</title>
+<style>
+  /* Layout: one full-height stage, controls in a slim bar above it, facts below. */
+  :root {
+    --bg: #f3eff7; --panel: #ffffff; --ink: #2a1840; --muted: #7b6a92; --line: #e2d8ee;
+    --accent: #d40055; --accent-ink: #ffffff; --stage-a: #ffffff; --stage-b: #e7def2;
+    --font-ui: 'Outfit', 'Segoe UI', system-ui, sans-serif; --font-num: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0d0916; --panel: #17102a; --ink: #f1eafb; --muted: #a596bd; --line: #2b2144;
+    --accent: #ff4d94; --accent-ink: #1a0b22; --stage-a: #261a42; --stage-b: #0f0a1d; color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #0d0916; --panel: #17102a; --ink: #f1eafb; --muted: #a596bd; --line: #2b2144;
+    --accent: #ff4d94; --accent-ink: #1a0b22; --stage-a: #261a42; --stage-b: #0f0a1d; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); margin: 0; padding-inline: 16px; padding-block: 16px 28px; }
+  .wrap { max-width: 1040px; margin-inline: auto; display: grid; gap: 14px; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+  h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; text-wrap: balance; }
+  .sub { color: var(--muted); font-size: 0.85rem; margin: 0; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+  .seg button, .chip { font: inherit; font-size: 0.82rem; font-weight: 700; color: var(--ink); background: transparent; border: 0; padding: 8px 14px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .chip { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .stage { position: relative; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; aspect-ratio: 4 / 3; max-height: 70vh; width: 100%;
+    background: radial-gradient(ellipse at 50% 38%, var(--stage-a), var(--stage-b)); touch-action: none; }
+  .stage canvas { display: block; width: 100%; height: 100%; }
+  .state { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 0.9rem; pointer-events: none; }
+  .state[hidden] { display: none; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .fact { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .fact b { display: block; font-family: var(--font-num); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+  .fact span { color: var(--muted); font-size: 0.78rem; }
+  .tune { gap: 6px 12px; font-size: 0.8rem; color: var(--muted); }
+  .tune input { accent-color: var(--accent); width: 130px; max-width: 40vw; }
+  .tune output { font-family: var(--font-num); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .hint { color: var(--muted); font-size: 0.78rem; margin: 0; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&family=JetBrains+Mono:wght@500&display=swap">
+
+<div class="wrap">
+  <header>
+    <h1>Kaiju Models</h1>
+    <p class="sub">Chora and Reello, generated in 3D from their turnaround sheets. Not rigged yet.</p>
+  </header>
+  <div class="bar">
+    <div class="seg" role="group" aria-label="Character">
+      <button id="b-chora" aria-pressed="true">Chora</button>
+      <button id="b-reello" aria-pressed="false">Reello</button>
+    </div>
+    <div class="seg" role="group" aria-label="View">
+      <button data-view="front" aria-pressed="true">Front</button>
+      <button data-view="q3" aria-pressed="false">3/4</button>
+      <button data-view="side" aria-pressed="false">Side</button>
+      <button data-view="back" aria-pressed="false">Back</button>
+    </div>
+    <button class="chip" id="spin" aria-pressed="false">Turntable</button>
+    <button class="chip" id="wire" aria-pressed="false">Wireframe</button>
+  </div>
+  <div class="bar tune">
+    <label for="exp">Exposure <output id="expv">0.80</output></label>
+    <input type="range" id="exp" min="0.4" max="1.4" step="0.01" value="0.8">
+    <label for="sat">Saturation <output id="satv">1.15</output></label>
+    <input type="range" id="sat" min="0.7" max="1.6" step="0.01" value="1.15">
+    <label for="lit">Light <output id="litv">0.70</output></label>
+    <input type="range" id="lit" min="0.2" max="1.4" step="0.01" value="0.7">
+  </div>
+  <div class="stage" id="stage"><div class="state" id="state">Loading model…</div></div>
+  <p class="hint">Drag to orbit, scroll or pinch to zoom, right-drag to pan.</p>
+  <div class="facts">
+    <div class="fact"><b id="f-tris">–</b><span>triangles</span></div>
+    <div class="fact"><b id="f-parts">–</b><span>meshes (one skin, no bones yet)</span></div>
+    <div class="fact"><b id="f-tex">–</b><span>base colour texture</span></div>
+    <div class="fact"><b>Meshy 7.1</b><span>image-to-3D from front, side and back views</span></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+(function () {
+  var stage = document.getElementById('stage'), stateEl = document.getElementById('state');
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.8;
+  stage.appendChild(renderer.domElement);
+  var scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(30, 4 / 3, 0.05, 100);
+  var hemi = new THREE.HemisphereLight(0xffffff, 0x6b5a85, 0.9); scene.add(hemi);
+  var key = new THREE.DirectionalLight(0xfff1e6, 2.2); key.position.set(-2, 3, 3); scene.add(key);
+  var rim = new THREE.DirectionalLight(0xff7ab8, 1.4); rim.position.set(2.5, 1.6, -3); scene.add(rim);
+  var fill = new THREE.DirectionalLight(0x9fd4ff, 0.6); fill.position.set(3, 0.5, 2); scene.add(fill);
+  var controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.08; controls.minDistance = 1.2; controls.maxDistance = 9;
+  var loader = new THREE.GLTFLoader(), cache = {}, current = null, orbitR = 4.6, targetY = 0.9;
+
+  function resize() {
+    var w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(stage); resize();
+
+  function fit(obj) {
+    // glTF is Y-up; Meshy exports ~1.9 tall. Normalise to 1.6 tall, feet at y = 0, centred.
+    var box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+    var s = 1.6 / size.y; obj.scale.setScalar(s);
+    obj.position.set(-c.x * s, -box.min.y * s, -c.z * s);
+    targetY = 0.8; orbitR = 4.4;
+  }
+  function stats(obj) {
+    var tris = 0, meshes = 0, tex = '–';
+    obj.traverse(function (o) {
+      if (!o.isMesh) return; meshes++;
+      var g = o.geometry; tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
+      var m = o.material, im = m && m.map && m.map.image; if (im && im.width) tex = im.width + ' ' + String.fromCharCode(215) + ' ' + im.height;
+    });
+    document.getElementById('f-tris').textContent = Math.round(tris).toLocaleString();
+    document.getElementById('f-parts').textContent = meshes;
+    document.getElementById('f-tex').textContent = tex;
+  }
+  var satU = { value: 1.15 };
+  function patchSat(obj) {
+    obj.traverse(function (o) {
+      if (!o.isMesh || o.userData.satPatched) return; o.userData.satPatched = true;
+      var m = o.material; m.onBeforeCompile = function (sh) {
+        sh.uniforms.uSat = satU;
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'uniform float uSat;')
+          .replace('#include <color_fragment>', '#include <color_fragment>' + String.fromCharCode(10) + ' float lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)); diffuseColor.rgb = max(vec3(0.0), mix(vec3(lum), diffuseColor.rgb, uSat));');
+      }; m.needsUpdate = true;
+    });
+  }
+  function bindTune() {
+    var e = document.getElementById('exp'), s = document.getElementById('sat'), l = document.getElementById('lit');
+    function upd() {
+      renderer.toneMappingExposure = +e.value; satU.value = +s.value; var k = +l.value;
+      hemi.intensity = 0.9 * k; key.intensity = 2.2 * k; rim.intensity = 1.4 * k; fill.intensity = 0.6 * k;
+      document.getElementById('expv').textContent = (+e.value).toFixed(2); document.getElementById('satv').textContent = (+s.value).toFixed(2); document.getElementById('litv').textContent = k.toFixed(2);
+    }
+    [e, s, l].forEach(function (x) { x.oninput = upd; }); upd();
+  }
+  var views = { front: [0, 0.08, 1], q3: [0.72, 0.12, 0.7], side: [1, 0.06, 0], back: [0, 0.08, -1] };
+  function setView(name) {
+    var v = views[name], d = new THREE.Vector3(v[0], v[1], v[2]).normalize().multiplyScalar(orbitR);
+    camera.position.set(d.x, targetY + d.y, d.z); controls.target.set(0, targetY, 0); controls.update();
+    document.querySelectorAll('[data-view]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === name)); });
+  }
+  function show(name) {
+    stateEl.hidden = false; stateEl.textContent = 'Loading ' + name + String.fromCharCode(8230);
+    document.getElementById('b-chora').setAttribute('aria-pressed', String(name === 'chora'));
+    document.getElementById('b-reello').setAttribute('aria-pressed', String(name === 'reello'));
+    function put(g) {
+      if (current) scene.remove(current); current = g; scene.add(g); stats(g); setView('front'); stateEl.hidden = true; applyWire();
+    }
+    if (cache[name]) return put(cache[name]);
+    fetch(name + '.glb.txt').then(function (r) { if (!r.ok) throw new Error('missing'); return r.text(); }).then(function (b64) {
+      var bin = atob(b64.trim()), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      loader.parse(bytes.buffer, '', function (gltf) { fit(gltf.scene); patchSat(gltf.scene); cache[name] = gltf.scene; put(gltf.scene); }, function () { stateEl.textContent = 'Could not read the model.'; });
+    }).catch(function () { stateEl.textContent = 'Could not load the model.'; });
+  }
+  function applyWire() {
+    var on = document.getElementById('wire').getAttribute('aria-pressed') === 'true';
+    if (current) current.traverse(function (o) { if (o.isMesh) o.material.wireframe = on; });
+  }
+  document.getElementById('b-chora').onclick = function () { show('chora'); };
+  document.getElementById('b-reello').onclick = function () { show('reello'); };
+  document.querySelectorAll('[data-view]').forEach(function (b) { b.onclick = function () { controls.autoRotate = false; document.getElementById('spin').setAttribute('aria-pressed', 'false'); setView(b.dataset.view); }; });
+  document.getElementById('spin').onclick = function (e) { var on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); controls.autoRotate = on; controls.autoRotateSpeed = 2.2; };
+  document.getElementById('wire').onclick = function (e) { var on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); applyWire(); };
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  (function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+  void reduce; bindTune(); show('chora');
+})();
+</script>

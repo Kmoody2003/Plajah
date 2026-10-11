@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.json","compilerOptions":{"strict":true,"noUnusedLocals":false},"include":["components/kithParty/**/*.ts","components/kithParty/**/*.tsx","src/kithParty.tsx","tests/kithParty.test.ts"]}

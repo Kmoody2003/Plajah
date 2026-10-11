@@ -1,0 +1,19 @@
+[package]
+name = "plajah-text"
+version = "0.1.0"
+edition = "2024"
+description = "Platform text engine: font registry, OpenType shaping, bidi/script itemisation, UAX#14 + Liang hyphenation, Knuth-Plass total-fit justification with optical margins, outlines and caret geometry. Compiles to wasm32 behind a flat C ABI."
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# Same contract as plajah-audio: no wasm-bindgen, no wasm-pack. The host instantiates a bare
+# module, packs requests into linear memory and reads results out of a documented word buffer.
+
+[dependencies]
+rustybuzz = "0.20.1"
+unicode-linebreak = "0.1.5"
+unicode-bidi = { version = "0.3.18", default-features = false, features = ["hardcoded-data", "std"] }
+unicode-segmentation = "1.13"
+unicode-script = "0.5.8"

@@ -1,0 +1,217 @@
+{
+ "cols": 4,
+ "rows": 4,
+ "cell": 256,
+ "source": "reello_mouths_raw.png",
+ "side": null,
+ "states": [
+  {
+   "name": "rest_frown",
+   "col": 0,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.3047,
+    0.1133
+   ]
+  },
+  {
+   "name": "smile_small",
+   "col": 1,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.4336,
+    0.1602
+   ]
+  },
+  {
+   "name": "smile_wide",
+   "col": 2,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.8047,
+    0.2383
+   ]
+  },
+  {
+   "name": "smirk",
+   "col": 3,
+   "row": 0,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.6328,
+    0.2734
+   ]
+  },
+  {
+   "name": "sad",
+   "col": 0,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.6406,
+    0.2539
+   ]
+  },
+  {
+   "name": "flat",
+   "col": 1,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.707,
+    0.1406
+   ]
+  },
+  {
+   "name": "viseme_A",
+   "col": 2,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.582,
+    0.6523
+   ]
+  },
+  {
+   "name": "viseme_E",
+   "col": 3,
+   "row": 1,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.9219,
+    0.3867
+   ]
+  },
+  {
+   "name": "viseme_I",
+   "col": 0,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.668,
+    0.293
+   ]
+  },
+  {
+   "name": "viseme_O",
+   "col": 1,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.3438,
+    0.625
+   ]
+  },
+  {
+   "name": "viseme_U",
+   "col": 2,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.3242,
+    0.2656
+   ]
+  },
+  {
+   "name": "viseme_FV",
+   "col": 3,
+   "row": 2,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.6992,
+    0.3438
+   ]
+  },
+  {
+   "name": "viseme_L",
+   "col": 0,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7891,
+    0.4883
+   ]
+  },
+  {
+   "name": "laugh",
+   "col": 1,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.625,
+    0.4727
+   ]
+  },
+  {
+   "name": "shout",
+   "col": 2,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7266,
+    0.6406
+   ]
+  },
+  {
+   "name": "tongue_out",
+   "col": 3,
+   "row": 3,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "size": [
+    0.7383,
+    0.4961
+   ]
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+// Tela sheet engine — public surface. See docs/tela/SHEET_ENGINE.md.
+export * from './address';
+export * from './values';
+export * from './model';
+export type { Node, RefNode, RangeNode } from './ast';
+export { FormulaParseError } from './ast';
+export { tokenize, parseFormula, tryParseFormula, type Token, type TokenType } from './parser';
+export { toFormula, copyFormula, shiftRelative, adjustForStructural, r1c1ToA1, transformFormula } from './serialize';
+export { numberToText, textToNumber, compareScalars, type EngineAccess, type Frame } from './coerce';
+export * from './dates';
+export * from './numfmt';
+export { SheetEngine, type ExternalResolver, type ExternalSheet, type EngineOptions, type RecalcStats } from './engine';
+export { listFunctions, suggestFunctions, functionCount, getFn, type FnInfo, type FnCategory } from './functions';
+export * from './ops';
+export * from './fill';
+export * from './conditional';
+export * from './clipboard';
+export * from './csv';
+export { importXlsx, exportXlsx, exportFormula, type XlsxImportResult, type XlsxExportOptions } from './xlsx';
+export * from './tela';

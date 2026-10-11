@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "strict": true, "noUnusedLocals": false },
+  "include": ["services/tela/geometry/**/*.ts", "tests/geometry*.test.ts", "scripts/geometrySpecimen.ts"]
+}
