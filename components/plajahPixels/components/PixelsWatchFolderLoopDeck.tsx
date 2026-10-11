@@ -15,6 +15,11 @@ import {
   selectRandomItem,
 } from '../../../services/mediaEngine/watchFolderLoopService';
 import type { BackgroundMedia } from '../types';
+import { SavedFoldersMenu, lastFolder, setLastFolderId, openSavedHandle } from '../../ui/SavedFolders';
+import type { SavedFolder } from '../../../services/folderRegistry';
+
+/** Per-app key for the last-used saved folder (services/folderRegistry id). */
+const LAST_FOLDER_APP = 'pixels-watch';
 
 interface PixelsWatchFolderLoopDeckProps {
   onClose?: () => void;
@@ -34,6 +39,10 @@ export const PixelsWatchFolderLoopDeck: React.FC<PixelsWatchFolderLoopDeckProps>
   });
   const [items, setItems] = useState<WatchFolderMediaItem[]>([]);
   const [handle, setHandle] = useState<any>(null);
+  /** Registry id of the open folder — restored automatically on reload. */
+  const [folderId, setFolderId] = useState<string | null>(null);
+  /** Saved folder whose read permission lapsed (browser restart) — needs a click to reconnect. */
+  const [reconnect, setReconnect] = useState<SavedFolder | null>(null);
   const [targetLoops, setTargetLoops] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('pixels_wf_target_loops') || '1', 10) || 1; } catch { return 1; }
   });
@@ -93,6 +102,45 @@ export const PixelsWatchFolderLoopDeck: React.FC<PixelsWatchFolderLoopDeckProps>
     }
   }, [onSetLayerMedia, setBgMedia1]);
 
+  // Load a saved folder's handle (permission already granted) into the deck.
+  const loadSavedHandle = useCallback(async (f: SavedFolder, h: any) => {
+    const { items: scanned } = await rescanDirectoryHandle(h, []);
+    setFolderName(f.name);
+    setHandle(h);
+    setItems(scanned);
+    setFolderId(f.id);
+    setReconnect(null);
+    setLastFolderId(LAST_FOLDER_APP, f.id);
+    try { localStorage.setItem('pixels_wf_name', f.name); } catch {}
+    const pool = scanned.filter(it => it.kind === 'VIDEO');
+    setNextUpcomingClip(pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null);
+  }, []);
+
+  // Open a saved folder from a click (may prompt for permission).
+  const openSaved = async (f: SavedFolder) => {
+    setIsScanning(true);
+    try {
+      const { handle: h, permission } = await openSavedHandle(f.id, true);
+      if (h && permission === 'granted') await loadSavedHandle(f, h);
+      else setReconnect(f);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Restore the last-used folder on open — never prompts; lapsed permission shows "Reconnect".
+  useEffect(() => {
+    const f = lastFolder(LAST_FOLDER_APP);
+    if (!f || f.kind !== 'handle') return;
+    let cancelled = false;
+    void openSavedHandle(f.id, false).then(({ handle: h, permission }) => {
+      if (cancelled) return;
+      if (h && permission === 'granted') void loadSavedHandle(f, h);
+      else if (h) { setFolderName(f.name); setReconnect(f); }
+    });
+    return () => { cancelled = true; };
+  }, [loadSavedHandle]);
+
   // Handle Pick Folder
   const handlePickFolder = async () => {
     setIsScanning(true);
@@ -102,7 +150,11 @@ export const PixelsWatchFolderLoopDeck: React.FC<PixelsWatchFolderLoopDeckProps>
         setFolderName(res.folderName);
         setHandle(res.handle || null);
         setItems(res.items);
+        setReconnect(null);
         try { localStorage.setItem('pixels_wf_name', res.folderName); } catch {}
+        // pickWatchFolder saved it to the shared folder registry — remember it for next open.
+        setFolderId(res.folderId ?? null);
+        if (res.folderId) setLastFolderId(LAST_FOLDER_APP, res.folderId);
 
         // Pick initial next upcoming
         const pool = res.items.filter(it => it.kind === 'VIDEO');
@@ -247,12 +299,29 @@ export const PixelsWatchFolderLoopDeck: React.FC<PixelsWatchFolderLoopDeckProps>
                 <Folder className="w-3.5 h-3.5 text-purple-400" />
                 1. Select Media Folder
               </span>
-              {items.length > 0 && (
-                <span className="text-[11px] text-purple-300 font-mono">
-                  {items.length} clips ready
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {items.length > 0 && (
+                  <span className="text-[11px] text-purple-300 font-mono">
+                    {items.length} clips ready
+                  </span>
+                )}
+                <SavedFoldersMenu kind="handle" activeId={folderId} onOpen={f => void openSaved(f)} />
+              </div>
             </div>
+
+            {reconnect && (
+              <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200">
+                <span className="flex items-center gap-1.5 truncate">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Allow access to "{reconnect.name}" again to load its clips.
+                </span>
+                <button
+                  onClick={() => void openSaved(reconnect)}
+                  className="px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 font-bold shrink-0"
+                >
+                  Reconnect
+                </button>
+              </div>
+            )}
 
             {folderName ? (
               <div className="flex items-center justify-between bg-black/40 p-3 rounded-lg border border-purple-500/30">

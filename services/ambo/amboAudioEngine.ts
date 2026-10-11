@@ -201,6 +201,17 @@ class AmboAudioEngine {
     return ctx;
   }
 
+  private progDest: MediaStreamAudioDestinationNode | null = null;
+  /** The program mix as a MediaStream (post-master), for transcription. Built on first use. */
+  programStream(): MediaStream | null {
+    const ctx = this.ensure();
+    if (!ctx || !this.m) return null;
+    if (!this.progDest) {
+      try { this.progDest = ctx.createMediaStreamDestination(); this.m.makeup.connect(this.progDest); } catch { this.progDest = null; }
+    }
+    return this.progDest?.stream ?? null;
+  }
+
   private makeStrip(id: AmboChannelId): Strip {
     const ctx = this.ctx!;
     const input = ctx.createGain();

@@ -232,11 +232,23 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
   const insert = () => {
     if (!onInsert) return;
     const title = fields.title || fields.name || fields.quote || fields.point || tpl.name;
+    let thumb: string | undefined;
+    try {
+      const c = document.createElement('canvas');
+      c.width = 480;
+      c.height = 270;
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        renderSlideTemplate(ctx, tpl.id, themeId, fields, c.width, c.height, { t: 2.5, enterP: 1, exitP: 0, reducedMotion: true });
+        thumb = thumbFromCanvas(c, 320);
+      }
+    } catch { /* thumb fallback */ }
     const slide: Slide = {
       id: newId('sl_tpl'),
       label: `${tpl.name}${title && title !== tpl.name ? ' · ' + title.slice(0, 40) : ''}`,
       group: tpl.category,
       groupColor: LILAC,
+      thumb,
       layers: [{ id: newId('ly_tpl'), slot, name: `${tpl.name} (${theme.name})`, content: { kind: 'TELA_TEMPLATE', templateId: tpl.id, fields: { ...fields }, theme: theme.id, ...(bgBlend !== 'normal' || bgOpacity < 1 ? { bgBlend, bgOpacity } : {}) } }],
     };
     onInsert(slide);

@@ -126,7 +126,9 @@ export type LayerContent =
       verseTransition?: string;
       /** Background-art blend onto the layers below + its opacity. */
       bgBlend?: string;
-      bgOpacity?: number }
+      bgOpacity?: number;
+      /** Reference size relative to the look's design (scriptureLook.refScale). */
+      refScale?: number }
   /** A Tela-designed slide template, regenerated at each output's size. */
   | { kind: 'TELA_TEMPLATE'; templateId: string; fields: Record<string, string>; theme?: string;
       /** Background-art blend onto the layers below + its opacity (text stays normal). */
@@ -138,7 +140,7 @@ export type LayerContent =
   /** Chora lyric sync. Every window computes the song position itself from
    *  the clock anchor (wall time → song time), so the type animates locally at
    *  full frame rate and a projector never waits on the studio for a frame. */
-  | { kind: 'LYRICS'; lines: Array<{ time: number; text: string }>; styleId: string;
+  | { kind: 'LYRICS'; lines: Array<{ time: number; text: string; adlib?: boolean }>; styleId: string;
       title?: string; artist?: string; trackId?: string; bpm?: number; firstBeat?: number;
       clock: LyricClock }
   | { kind: 'CLEAR' };
@@ -233,6 +235,8 @@ export interface Slide {
   stageNotes?: string;
   /** Per-slide loop count override in LoopDeck mode. */
   loopCount?: number;
+  /** Rendered or cached thumbnail for the slide card / deck */
+  thumb?: string;
 }
 
 export interface SlideGroup { name: string; slideIds: string[]; color?: string; }

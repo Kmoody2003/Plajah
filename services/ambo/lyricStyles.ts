@@ -11,7 +11,7 @@
 // congregation to sing along. A look draws onto a transparent canvas; it
 // composites over whatever is behind it on the output.
 
-export interface LyricLine { time: number; text: string }
+export interface LyricLine { time: number; text: string; /** Improvised (off-script) line — drawn in ADLIB_COLOR. */ adlib?: boolean }
 
 export interface LyricWord { text: string; start: number; end: number; /** 0..1 sung */ p: number }
 
@@ -574,6 +574,9 @@ export const SAMPLE_LYRICS: LyricLine[] = [
   { time: 6.0, text: 'There is no shadow of turning with Thee' },
 ];
 
+/** Colour that marks an adlib (off-script) line on every look. */
+export const ADLIB_COLOR = '#4FA8FF';
+
 /** Render one look at a given state onto any canvas (thumbnails, previews, the layer source). */
 export function renderLyricFrame(
   ctx: CanvasRenderingContext2D, style: LyricStyle, lines: LyricLine[], pos: number, w: number, h: number,
@@ -581,6 +584,16 @@ export function renderLyricFrame(
 ) {
   ctx.save();
   ctx.clearRect(0, 0, w, h);
-  try { style.draw(ctx, buildFrame(lines, pos, w, h, meta)); } catch { /* a look must never kill the output */ }
+  let f: LyricFrame | null = null;
+  try { f = buildFrame(lines, pos, w, h, meta); style.draw(ctx, f); } catch { /* a look must never kill the output */ }
+  // Adlib: recolour whatever the look drew (the canvas holds only type) so the
+  // room and the operator can tell an improvised line from the written lyric.
+  if (f && !f.titleCard && f.idx >= 0 && lines[f.idx]?.adlib) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 0.88;
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = ADLIB_COLOR;
+    ctx.fillRect(0, 0, w, h);
+  }
   ctx.restore();
 }

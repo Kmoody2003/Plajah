@@ -3,6 +3,7 @@
 //   video URL        -> the video's own first decoded frame (muted, paused, #t=seek) - a poster frame
 //   nothing / failed -> a rendered still (gradient + large initials + label), never an empty box.
 import React, { useEffect, useRef, useState } from 'react';
+import { thumbFor } from '../../services/ambo/localThumbs';
 
 /** Visible-on-screen flag (with margin) so off-screen cards never decode video/images. */
 export function useNearScreen<T extends Element>(): [React.RefObject<T>, boolean] {
@@ -13,11 +14,16 @@ export function useNearScreen<T extends Element>(): [React.RefObject<T>, boolean
     if (!el || typeof IntersectionObserver === 'undefined') { setOn(true); return; }
     const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) setOn(true); }, { rootMargin: '240px' });
     io.observe(el);
-    const t = setTimeout(() => {
+    // Backstop for when the observer never reports (window hidden or throttled at mount):
+    // re-check the card's position a few times instead of once, so a tile never stays blank.
+    let tries = 0;
+    const t = setInterval(() => {
       const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.bottom > -240 && r.top < (window.innerHeight || 0) + 240) setOn(true);
-    }, 1200);
-    return () => { io.disconnect(); clearTimeout(t); };
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      if (r.width > 0 && r.bottom > -240 && r.top < vh + 240) { setOn(true); clearInterval(t); }
+      else if (++tries > 20) clearInterval(t);
+    }, 700);
+    return () => { io.disconnect(); clearInterval(t); };
   }, []);
   return [ref, on];
 }
@@ -40,8 +46,22 @@ export const AmboPoster: React.FC<{
   kind?: PosterKind;
   /** Percent into the clip to freeze on. */
   seekPct?: number;
-}> = ({ label, cover, videoSrc, gradient, kind = 'other', seekPct = 10 }) => {
+  /** A full-size image with no thumbnail (local file): shown as a small cached copy, not decoded full-size per tile. */
+  imageSrc?: string;
+}> = ({ label, cover, videoSrc, gradient, kind = 'other', seekPct = 10, imageSrc }) => {
   const [ref, near] = useNearScreen<HTMLDivElement>();
+  // One small JPEG per file, made once and shared (services/ambo/localThumbs) — a grid of
+  // hundreds of clips no longer starts hundreds of video decoders.
+  const [madeThumb, setMadeThumb] = useState<string | null | undefined>(undefined);
+  const makeFrom = !cover ? (imageSrc ? { src: imageSrc, kind: 'image' as const } : videoSrc ? { src: videoSrc, kind: 'video' as const } : null) : null;
+  useEffect(() => {
+    setMadeThumb(undefined);
+    if (!near || !makeFrom) return;
+    let live = true;
+    thumbFor(makeFrom.src, makeFrom.kind).then(u => { if (live) setMadeThumb(u); });
+    return () => { live = false; };
+  }, [near, makeFrom?.src, makeFrom?.kind]);
+  if (makeFrom && madeThumb) cover = madeThumb;
   const [coverFailed, setCoverFailed] = useState(false);
   const [coverLoaded, setCoverLoaded] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
@@ -57,7 +77,8 @@ export const AmboPoster: React.FC<{
   }, [near, videoSrc, videoReady, videoFailed]);
 
   const showCover = !!cover && !coverFailed;
-  const showVideo = (!showCover || coverFailed) && !!videoSrc && !videoFailed && near;
+  // A live <video> is now only the fallback, when a frame can't be grabbed (e.g. a cross-origin clip).
+  const showVideo = (!showCover || coverFailed) && !!videoSrc && !videoFailed && near && (makeFrom?.kind !== 'video' || madeThumb === null);
   const real = (showCover && coverLoaded) || (showVideo && videoReady);
   const g = gradient || 'linear-gradient(135deg,#2a1647,#0d0a18)';
 
@@ -70,7 +91,7 @@ export const AmboPoster: React.FC<{
         </div>
       )}
       {showCover && (
-        <img src={cover} alt="" draggable={false} loading="lazy" style={abs} onLoad={() => setCoverLoaded(true)} onError={() => setCoverFailed(true)} />
+        <img src={cover} alt="" draggable={false} decoding="async" style={abs} onLoad={() => setCoverLoaded(true)} onError={() => setCoverFailed(true)} />
       )}
       {showVideo && (
         <video

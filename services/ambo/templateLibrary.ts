@@ -33,7 +33,7 @@ export interface SavedTemplate {
   fields?: Record<string, string>;
   overrides?: ThemeOverrides;
   /** Scripture look: layout + transitions + accent + blend. */
-  look?: { layoutId: string; transition?: string; verseTransition?: string; accent?: string; bgBlend?: string; bgOpacity?: number };
+  look?: { layoutId: string; transition?: string; verseTransition?: string; accent?: string; bgBlend?: string; bgOpacity?: number; refScale?: number };
   /** Small WebP/JPEG data URL for the library tile. */
   thumb?: string;
   tags?: string[];
@@ -85,19 +85,43 @@ export async function saveTemplate(t: Omit<SavedTemplate, 'ownerUid' | 'createdA
     updatedAt: now,
     uses: t.uses || 0,
   });
-  if (!user) {
+  // Always kept on this device first, so a save never fails. Signed in, it is also written to the
+  // account; if the cloud refuses (e.g. its rules aren't live yet) or is offline, the local copy is
+  // marked pending and pushed up on a later listing.
+  const keepLocal = (pending: boolean) => {
     const list = localAll().filter(x => x.id !== rec.id);
-    localWrite([rec, ...list]);
-  } else {
-    await setDoc(doc(db, COL, rec.id), rec);
+    localWrite([{ ...rec, ...(pending ? { pendingSync: true } : {}) } as SavedTemplate, ...list]);
+  };
+  if (!user) keepLocal(false);
+  else {
+    try {
+      await setDoc(doc(db, COL, rec.id), rec);
+      localWrite(localAll().filter(x => x.id !== rec.id)); // the cloud copy is now the copy
+    } catch (e: any) {
+      if (e?.code === 'permission-denied' || e?.code === 'unavailable' || e?.code === 'failed-precondition') keepLocal(true);
+      else throw e;
+    }
   }
   emit();
   return rec;
 }
 
+/** Push templates saved on this device while the cloud refused them. Best-effort. */
+async function syncPending(uid: string): Promise<void> {
+  const pending = localAll().filter((t: any) => t.pendingSync);
+  for (const t of pending) {
+    try {
+      const { pendingSync: _p, ...rec } = t as any;
+      await setDoc(doc(db, COL, rec.id), clean({ ...rec, ownerUid: uid }));
+      localWrite(localAll().filter(x => x.id !== t.id));
+    } catch { return; } // still refused — try again next time
+  }
+}
+
 export async function deleteTemplate(id: string): Promise<void> {
-  if (!auth.currentUser) localWrite(localAll().filter(x => x.id !== id));
-  else await deleteDoc(doc(db, COL, id));
+  const local = localAll();
+  if (local.some(x => x.id === id)) localWrite(local.filter(x => x.id !== id));
+  if (auth.currentUser) { try { await deleteDoc(doc(db, COL, id)); } catch (e: any) { if (!local.some(x => x.id === id)) throw e; } }
   emit();
 }
 
@@ -111,9 +135,15 @@ function rows(snap: any): SavedTemplate[] { return snap.docs.map((d: any) => ({ 
 /** My templates (newest first). */
 export async function listMyTemplates(kind?: TemplateKind): Promise<SavedTemplate[]> {
   const user = auth.currentUser;
-  if (!user) return localAll().filter(t => !kind || t.kind === kind);
-  const snap = await getDocs(query(collection(db, COL), where('ownerUid', '==', user.uid), limit(200)));
-  return rows(snap).filter(t => !kind || t.kind === kind).sort((a, b) => b.updatedAt - a.updatedAt);
+  const local = localAll();
+  if (!user) return local.filter(t => !kind || t.kind === kind);
+  let cloud: SavedTemplate[] = [];
+  try {
+    cloud = rows(await getDocs(query(collection(db, COL), where('ownerUid', '==', user.uid), limit(200))));
+    void syncPending(user.uid);
+  } catch { /* cloud unavailable: this device's templates still list */ }
+  const ids = new Set(cloud.map(t => t.id));
+  return [...cloud, ...local.filter(t => !ids.has(t.id))].filter(t => !kind || t.kind === kind).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /** Templates other people shared with me. */

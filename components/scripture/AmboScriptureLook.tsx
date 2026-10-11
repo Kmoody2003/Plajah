@@ -12,7 +12,7 @@ import {
   SCRIPTURE_LAYOUTS, SCRIPTURE_TRANSITIONS, SCRIPTURE_FORMATS, SAMPLE_SCRIPTURE,
   renderScripture, scriptureLayoutById, transitionById, type ScriptureLayout, type LayoutFamily,
 } from '../../services/ambo/scriptureLayouts';
-import { getScriptureLook, setScriptureLook, subscribeScriptureLook, BLEND_MODES, type BlendMode } from '../../services/ambo/scriptureLook';
+import { getScriptureLook, setScriptureLook, subscribeScriptureLook, BLEND_MODES, REF_SCALES, type BlendMode } from '../../services/ambo/scriptureLook';
 import { TypoScriptureBackground } from '../../services/ambo/typoScriptureBackground';
 import { chapterContextFor } from '../../services/ambo/scriptureContext';
 import { thumbFromCanvas, type SavedTemplate } from '../../services/ambo/templateLibrary';
@@ -104,11 +104,11 @@ export const AmboScriptureLook: React.FC = () => {
       if (b) {
         if (layout.background === 'transparent' || look.bgBlend !== 'normal' || look.bgOpacity < 1) stageBackdrop(b, W, H, 0);
         else { b.fillStyle = '#000'; b.fillRect(0, 0, W, H); }
-        renderScripture(b, layout.id, { w: W, h: H, t: 4, ...SAMPLE_SCRIPTURE, accent: look.accent, enterP: 1, exitP: 0, transition: 'crossfade' });
+        renderScripture(b, layout.id, { w: W, h: H, t: 4, ...SAMPLE_SCRIPTURE, accent: look.accent, refScale: look.refScale, enterP: 1, exitP: 0, transition: 'crossfade' });
         thumb = thumbFromCanvas(big, 480);
       }
     } catch { /* tile without thumb */ }
-    return { look: { layoutId: look.layoutId, transition: look.transition, verseTransition: look.verseTransition, accent: look.accent, bgBlend: look.bgBlend, bgOpacity: look.bgOpacity }, thumb };
+    return { look: { layoutId: look.layoutId, transition: look.transition, verseTransition: look.verseTransition, accent: look.accent, bgBlend: look.bgBlend, bgOpacity: look.bgOpacity, refScale: look.refScale }, thumb };
   };
 
   // Live preview: in → hold → out → gap, looping, at the chosen format.
@@ -145,7 +145,7 @@ export const AmboScriptureLook: React.FC = () => {
         const swapping = ct >= swapAt && ct < swapAt + swapLen;
         const second = ct >= swapAt;
         const verseA = SAMPLE_SCRIPTURE, verseB = SECOND_VERSE;
-        const base = { w: W, h: H, t, ...(second ? verseB : verseA), accent: look.accent, enterP, exitP, transition: tr.id, typoFrame: typo?.frame() ?? null, context, mt };
+        const base = { w: W, h: H, t, ...(second ? verseB : verseA), accent: look.accent, refScale: look.refScale, enterP, exitP, transition: tr.id, typoFrame: typo?.frame() ?? null, context, mt };
         const sp = swapping ? (ct - swapAt) / swapLen : 1;
         const drawText = (c: CanvasRenderingContext2D, deco: number | undefined) => {
           if (swapping) {
@@ -168,7 +168,7 @@ export const AmboScriptureLook: React.FC = () => {
     draw();
     const id = setInterval(draw, 33); // interval, not rAF — keeps running in background panes
     return () => { clearInterval(id); typo?.dispose(); };
-  }, [open, fmt, layout, tr, vt, look.accent, look.bgBlend, look.bgOpacity, replay]);
+  }, [open, fmt, layout, tr, vt, look.accent, look.bgBlend, look.bgOpacity, look.refScale, replay]);
 
   useEffect(() => {
     if (!open) return;
@@ -251,6 +251,16 @@ export const AmboScriptureLook: React.FC = () => {
                 <span className="font-mono w-8">{Math.round(look.bgOpacity * 100)}%</span>
               </label>
               <span className="text-[9px] text-white/35 basis-full">Multiply / overlay / soft light keep reading plates dark; screen / lighten brighten them.</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5" data-ref-size>
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 mr-1">Reference size</span>
+              {REF_SCALES.map(k => (
+                <button key={k} onClick={() => { setScriptureLook({ refScale: k }); setReplay(r => r + 1); }}
+                  className={`h-6 px-2 rounded text-[10px] font-bold border ${Math.abs(look.refScale - k) < 0.01 ? 'bg-[#D0BCFF]/25 border-[#D0BCFF]/60 text-white' : 'bg-white/5 border-white/10 text-white/60 hover:text-white'}`}
+                  title={k === 1 ? "The look's original size" : `${Math.round(k * 100)}% of the look's original size`}>
+                  {k === 1 ? 'Original' : `${Math.round(k * 100)}%`}
+                </button>
+              ))}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 mr-1">Accent</span>

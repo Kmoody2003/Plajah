@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 import { Captions, X, Radio, AlertTriangle, Check } from 'lucide-react';
 import type { LayerContent } from '../../services/ambo/showModel';
 import {
-  LYRIC_STYLES, SAMPLE_LYRICS, DEFAULT_LYRIC_STYLE, lyricStyleById, renderLyricFrame, type LyricStyle,
+  LYRIC_STYLES, SAMPLE_LYRICS, lyricStyleById, renderLyricFrame, type LyricStyle,
 } from '../../services/ambo/lyricStyles';
 import {
   getLiveLyricsPrefs, getLiveLyricsState, subscribeLiveLyrics, setLiveLyricsPrefs, startLiveLyrics, stopLiveLyrics,
@@ -21,6 +21,7 @@ import { listAudioInputs } from '../../services/ambo/liveTranscriber';
 import {
   nextLyricsContent, readFeed, subscribeLyricClocks, lyricClocksVersion, getLyricClock, type LyricSourceId,
 } from '../../services/ambo/lyricFeed';
+import { getLyricsProgram, setLyricsProgram, subscribeLyricsProgram } from '../../services/ambo/lyricsProgram';
 
 type LyricsContent = Extract<LayerContent, { kind: 'LYRICS' }>;
 
@@ -30,10 +31,12 @@ interface Props {
   onSet: (content: LyricsContent | null) => void;
 }
 
-const PREF_KEY = 'ambo_lyrics_prefs_v1';
+export const LYRIC_SOURCE_LABEL: Record<LyricSourceId, string> = {
+  bus: 'Audio playlist', dj: 'DJ deck', live: 'Live transcription', follow: 'Song follow',
+};
 
 /** A neutral stage-like backdrop so white type reads in thumbnails/previews. */
-function backdrop(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+export function backdrop(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
   const g = ctx.createLinearGradient(0, 0, w, h);
   g.addColorStop(0, '#1b1530'); g.addColorStop(0.55, '#2b1a3f'); g.addColorStop(1, '#0d1626');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
@@ -44,7 +47,7 @@ function backdrop(ctx: CanvasRenderingContext2D, w: number, h: number, t: number
   ctx.globalAlpha = 1;
 }
 
-const StyleThumb: React.FC<{ style: LyricStyle; selected: boolean; onPick: () => void }> = ({ style, selected, onPick }) => {
+export const StyleThumb: React.FC<{ style: LyricStyle; selected: boolean; onPick: () => void }> = ({ style, selected, onPick }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
@@ -125,16 +128,18 @@ export const LiveSourcePanel: React.FC = () => {
 const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
   useSyncExternalStore(subscribeLyricClocks, lyricClocksVersion);
   const [open, setOpen] = useState(false);
-  const [prefs, setPrefs] = useState<{ source: LyricSourceId; styleId: string }>(() => {
-    try { return { source: 'bus', styleId: DEFAULT_LYRIC_STYLE, ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; } catch { return { source: 'bus', styleId: DEFAULT_LYRIC_STYLE }; }
-  });
-  useEffect(() => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* */ } }, [prefs]);
-  const [wantLive, setWantLive] = useState(false);
+  // Shared with the Lyrics tab: either can take lyrics to Program.
+  const program = useSyncExternalStore(subscribeLyricsProgram, getLyricsProgram);
+  const prefs = { source: program.source, styleId: program.styleId };
+  const setPrefs = (fn: (p: { source: LyricSourceId; styleId: string }) => { source: LyricSourceId; styleId: string }) => setLyricsProgram(fn(prefs));
+  const wantLive = program.wantLive;
+  const setWantLive = (v: boolean) => setLyricsProgram({ wantLive: v });
   const [, force] = useState(0);
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const liveRef = useRef(live);
   liveRef.current = live;
+
 
   // ── sync loop: keeps the Program layer's anchor true to the music ──
   useEffect(() => {
@@ -149,6 +154,14 @@ const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
     const id = setInterval(tick, 200);
     return () => clearInterval(id);
   }, [wantLive, prefs.source, prefs.styleId, onSet]);
+
+  // Clearing from another surface (the Song Lyrics tab) only flips wantLive —
+  // take the layer down here, where the Program setter lives.
+  const wasLive = useRef(wantLive);
+  useEffect(() => {
+    if (wasLive.current && !wantLive && liveRef.current) onSet(null);
+    wasLive.current = wantLive;
+  }, [wantLive, onSet]);
 
   // status while the panel is open
   useEffect(() => {
@@ -209,8 +222,8 @@ const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
   const clear = () => { setWantLive(false); onSet(null); };
 
   const reasonText = (r?: string) =>
-    r === 'no-player' ? (prefs.source === 'live' ? 'Start listening first.' : prefs.source === 'dj' ? 'Open a song in the DJ deck first.' : 'The audio playlist isn’t ready.')
-      : r === 'no-track' ? 'Nothing is playing on this player yet.'
+    r === 'no-player' ? (prefs.source === 'live' ? 'Start listening first.' : prefs.source === 'dj' ? 'Open a song in the DJ deck first.' : prefs.source === 'follow' ? 'Open the Lyrics tab to follow a song.' : 'The audio playlist isn’t ready.')
+      : r === 'no-track' ? (prefs.source === 'follow' ? 'Pick a song in the Lyrics tab, or listen and let Ambo detect it.' : 'Nothing is playing on this player yet.')
       : r === 'no-lyrics' && prefs.source === 'live' ? 'Waiting for the first words…'
       : r === 'no-lyrics' ? 'This song has no synced lyrics — use “Sync Lyrics” on it in Chora, then come back.'
       : '';
@@ -233,15 +246,16 @@ const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
       </div>
 
       <div className="p-3 flex flex-col gap-2.5">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Follow</span>
-          {(['bus', 'dj', 'live'] as LyricSourceId[]).map(s => (
+          {(['follow', 'bus', 'dj', 'live'] as LyricSourceId[]).map(s => (
             <button
               key={s}
               onClick={() => setPrefs(p => ({ ...p, source: s }))}
+              title={s === 'follow' ? 'Follows the service: a playing file’s lyrics, or the song Ambo hears (Lyrics tab)' : undefined}
               className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all ${prefs.source === s ? 'text-[#D0BCFF] bg-[#D0BCFF]/15 border-[#D0BCFF]/35' : 'text-white/60 border-white/10 hover:text-white hover:bg-white/5'}`}
             >
-              {s === 'bus' ? 'Audio playlist' : s === 'dj' ? 'DJ deck' : 'Live transcription'}{!getLyricClock(s) && <span className="ml-1 opacity-50">(off)</span>}
+              {LYRIC_SOURCE_LABEL[s]}{!getLyricClock(s) && <span className="ml-1 opacity-50">(off)</span>}
             </button>
           ))}
           <div className="flex-1 min-w-0 text-right text-[9.5px] truncate">

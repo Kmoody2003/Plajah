@@ -15,14 +15,17 @@
 import type { LayerContent, LyricClock } from './showModel';
 import { lyricClockPos } from './showModel';
 import type { LyricLine } from './lyricStyles';
+import { registerCatalogSongs } from './songLibrary';
 
-export type LyricSourceId = 'bus' | 'dj' | 'live';
+/** bus = audio playlist · dj = DJ deck · live = raw transcription · follow = song follower (live audio aligned to a song's lyrics). */
+export type LyricSourceId = 'bus' | 'dj' | 'live' | 'follow';
 
 export interface LyricTrackMeta {
   id?: string;
   title: string;
   artist?: string;
-  timeCodedLyrics?: Array<{ time: number; text: string }>;
+  /** `adlib` marks a line the singer improvised (song follower) — drawn in the adlib colour. */
+  timeCodedLyrics?: Array<{ time: number; text: string; adlib?: boolean }>;
   bpm?: number;
 }
 
@@ -53,21 +56,25 @@ export function lyricClocksVersion(): number { return version; }
 const known = new Map<string, LyricLine[]>();
 
 /** Seconds, sorted, blank lines dropped. Chora sometimes stores milliseconds. */
-export function normalizeLyrics(raw?: Array<{ time: number; text: string }> | null): LyricLine[] {
+export function normalizeLyrics(raw?: Array<{ time: number; text: string; adlib?: boolean }> | null): LyricLine[] {
   const list = (raw || []).filter(l => l && typeof l.time === 'number' && (l.text || '').trim());
   if (!list.length) return [];
   const maxT = Math.max(...list.map(l => l.time));
   // >7200 can only be ms (a 2-hour set in seconds is 7200; any song over 7 s in ms exceeds it).
   const scale = maxT > 7200 ? 0.001 : 1;
-  return list.map(l => ({ time: l.time * scale, text: l.text.trim() })).sort((a, b) => a.time - b.time);
+  return list
+    .map(l => (l.adlib ? { time: l.time * scale, text: l.text.trim(), adlib: true } : { time: l.time * scale, text: l.text.trim() }))
+    .sort((a, b) => a.time - b.time);
 }
 
 /** The library calls this with every catalogue track it loads. */
-export function rememberLyrics(tracks: Array<{ id?: string; timeCodedLyrics?: Array<{ time: number; text: string }> }>): void {
+export function rememberLyrics(tracks: Array<{ id?: string; title?: string; artist?: string; timeCodedLyrics?: Array<{ time: number; text: string }> }>): void {
   for (const t of tracks) {
     if (!t.id || !t.timeCodedLyrics?.length) continue;
     known.set(t.id, normalizeLyrics(t.timeCodedLyrics));
   }
+  // …and the Lyrics tab / song detection can find them by words.
+  try { registerCatalogSongs(tracks); } catch { /* */ }
 }
 
 export function lyricsFor(track: LyricTrackMeta | null | undefined): LyricLine[] {

@@ -28,6 +28,8 @@ export interface ScriptureState {
   translation?: string;
   copyright?: string;
   accent: string;
+  /** Operator's reference size, relative to each look's own (1 = as designed). */
+  refScale?: number;
   /** Entrance progress 0→1 (1 = settled). */
   enterP: number;
   /** Exit progress 0→1 (0 = not exiting). */
@@ -266,7 +268,16 @@ export function drawReference(ctx: CanvasRenderingContext2D, s: ScriptureState, 
   ctx.textBaseline = 'alphabetic';
   ctx.font = `${opts.font ?? `600 ${size}px ${SANS}`}`;
   (ctx as any).letterSpacing = `${Math.round(size * (opts.tracking ?? 0.18))}px`;
-  ctx.fillText(opts.upper === false ? ref : ref.toUpperCase(), x, y);
+  // The operator's reference size scales every look's reference about its own anchor, whatever
+  // font the look chose. Kept on the canvas: a wide reference shrinks back to fit the width.
+  const label = opts.upper === false ? ref : ref.toUpperCase();
+  let k = Math.min(3, Math.max(0.5, s.refScale ?? 1));
+  const textW = ctx.measureText(label).width;
+  const room = align === 'center' ? Math.min(x, s.w - x) * 2 : align === 'left' || align === 'start' ? s.w - x : x;
+  if (textW * k > room * 0.96 && textW > 0) k = Math.max(0.5, (room * 0.96) / textW);
+  ctx.translate(x, y);
+  ctx.scale(k, k);
+  ctx.fillText(label, 0, 0);
   (ctx as any).letterSpacing = '0px';
   ctx.restore();
 }

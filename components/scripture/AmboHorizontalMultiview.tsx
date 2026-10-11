@@ -15,6 +15,7 @@ import {
   Laptop, Tablet, Smartphone, Music, Film, Zap, ExternalLink, Power, RefreshCw } from 'lucide-react';
 import { type LiveStack, type Slide } from '../../services/ambo/showModel';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
+import { useContextMenu } from '../ui/ContextMenu';
 import { type AmboOutput, type ProgramTake } from '../../services/ambo/outputRouter';
 import {
   type PartyEventSession, type PartyEventDevice, type EventDeviceDutyType
@@ -31,6 +32,9 @@ interface AmboHorizontalMultiviewProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onTakePreview?: () => void;
+  /** Right-click on Program: clear every layer / toggle blackout. */
+  onClearProgram?: () => void;
+  onToggleBlackout?: () => void;
   height?: number;
   isBlackout?: boolean;
   isMasterProgramOn?: boolean;
@@ -108,6 +112,8 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
   isCollapsed,
   onToggleCollapse,
   onTakePreview,
+  onClearProgram,
+  onToggleBlackout,
   height,
   isBlackout = false,
   isMasterProgramOn = true,
@@ -126,6 +132,15 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
   onProbeDisplays,
   displaysCount = 0,
 }) => {
+  const monitorMenu = useContextMenu<'program' | 'preview'>(which => which === 'program' ? [
+    { kind: 'header', label: 'Program' },
+    { id: 'blk', label: isBlackout ? 'End blackout' : 'Blackout', checked: isBlackout, onSelect: () => onToggleBlackout?.(), disabled: !onToggleBlackout },
+    { id: 'clear', label: 'Clear all layers', danger: true, onSelect: () => onClearProgram?.(), disabled: !onClearProgram },
+  ] : [
+    { kind: 'header', label: 'Preview' },
+    { id: 'take', label: 'Take to Program', onSelect: () => onTakePreview?.(), disabled: !onTakePreview },
+  ]);
+
   // Real-time local digital clock for stage confidence monitor
   const [timeStr, setTimeStr] = useState('');
   const [activeTab, setActiveTab] = useState<'broadcast' | 'party'>('broadcast');
@@ -572,8 +587,10 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
       {/* ── TAB 2: BROADCAST TILES & EXTRA OUTPUTS ──────────────────────────── */}
       {activeTab === 'broadcast' && (
         <div className="flex gap-2.5 p-2.5 overflow-x-auto flex-1 min-h-0 items-stretch">
+          {monitorMenu.node}
           {/* TILE 1: PROGRAM OUT */}
           <div
+            {...monitorMenu.bind('program')}
             className={`flex flex-col min-w-[200px] flex-1 rounded-lg overflow-hidden border-2 p-1.5 transition-all relative ${pgmOut?.enabled === false ? 'opacity-40' : ''}`}
             style={{
               borderColor: isBlackout ? 'rgba(239,68,68,0.85)' : 'rgba(255,140,0,0.85)',
@@ -622,6 +639,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
 
           {/* TILE 2: PREVIEW / NEXT */}
           <div
+            {...monitorMenu.bind('preview')}
             className="flex flex-col min-w-[200px] flex-1 rounded-lg overflow-hidden border p-1.5 transition-all relative"
             style={{
               borderColor: 'rgba(0,218,243,0.7)',

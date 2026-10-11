@@ -27,6 +27,8 @@ export interface FolderMediaItem {
   lastModified: number;
   /** Playable URL. Blob URLs (browser) are tracked per folder and revoked by revokeFolderUrls. */
   url?: string;
+  /** Windows folders only: the file's absolute path (shell thumbnails, Show in Explorer). */
+  fullPath?: string;
 }
 
 export interface ScanOptions {
@@ -333,6 +335,7 @@ export async function scanWindowsMediaFolder(folderId: string, path: string, kin
       id: `${folderId}:${rel}`,
       name: f.name,
       relPath: rel,
+      fullPath: (f as any).fullPath,
       kind,
       size: f.size || 0,
       lastModified: f.lastModified || 0,

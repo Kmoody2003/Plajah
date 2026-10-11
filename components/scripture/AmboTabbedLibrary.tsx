@@ -11,6 +11,7 @@
 //   6. Taleo       — Narrative series, films, documentaries
 //   7. Visualizers — Flux series VI, Series VII, GLSL shaders, Milkdrop presets, audio-reactive
 //   8. Assets      — 24 Fabula DotLottie presets, Tela documents, Lower Thirds, and Fabula Transitions
+//   +  Song Lyrics — next to Scripture: song library + live song-follow (auto-sync, adlibs, auto-detect)
 
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
@@ -19,23 +20,28 @@ import {
   Sliders, Plus, Play, Eye, Check, Radio, FileText, Flame, Activity,
   Maximize2, ChevronRight, Grid, List, Volume2, RefreshCw, X, AlignLeft,
   Type, MoveHorizontal, Compass, Clock, Folder, FolderPlus, Pin, Trash2,
-  Image, ChevronDown, ChevronUp, SlidersHorizontal, Wand2, ChevronLeft
+  Image, ChevronDown, ChevronUp, SlidersHorizontal, Wand2, ChevronLeft, Mic2
 } from 'lucide-react';
+import { listSongs, subscribeSongs, songsVersion } from '../../services/ambo/songLibrary';
 import { BOOKS, TRANSLATIONS, type BibleBook, type BibleVerse } from '../../services/bibleService';
 import { parseRef, formatRef, type ScriptureRef } from '../../services/scriptureRef';
 import { resolveScriptureQuery, queryLabel, type ScriptureQuery } from '../../services/scriptureSearch';
 import { getChapter, DEFAULT_TRANSLATION } from '../../services/scriptureText';
 import { newId, type Slide, type Show } from '../../services/ambo/showModel';
-import { GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
+import { GENERATOR_ITEMS, classifyFile } from '../../services/ambo/mediaLibrary';
 import { nativeDropDir } from '../../services/ambo/mediaDrop';
 import {
   pickAndSaveBrowserFolder, loadFolderHandle, deleteFolderHandle, ensurePermission, scanBrowserFolder,
   scanWindowsMediaFolder, pickWindowsMediaFolder, revokeFolderUrls, browserFolderAccessSupported,
   getImportTarget, setImportTarget, importFilesIntoTarget, createSubfolderIn,
-  UNSUPPORTED_MESSAGE, type FolderMediaItem, readDrop, saveFolderHandle, folderView, dirOf, withDropPath,
+  UNSUPPORTED_MESSAGE, type FolderMediaItem, readDrop, saveFolderHandle, folderView, dirOf, withDropPath, dropRelPath,
 } from '../../services/ambo/mediaFolders';
 import { type NativeSourceInfo } from '../../services/mediaEngine/bridge';
 import { type AmboMediaSourceItem } from './AmboMediaBin';
+import { useContextMenu } from '../ui/ContextMenu';
+import { AmboLiveInputTile } from './AmboLiveInputTile';
+import { isNativeLiveInput, isLiveAudioOn, setLiveAudio } from '../../services/ambo/liveInputs';
+import { savedFolders, getFolder, addWindowsFolder, addHandleFolder, removeFolder, renameFolder, touchFolder, onFoldersChanged, type SavedFolder } from '../../services/folderRegistry';
 import { type ScriptureCue } from './AmboScriptureDock';
 import AmboScriptureListenBar from './AmboScriptureListenBar';
 
@@ -44,6 +50,8 @@ import {
   scanWindowsLibrary,
   pickWindowsFolder,
   onNativeMessage,
+  showInExplorer,
+  shellThumbUrl,
   type WindowsPickedFile,
 } from '../../services/windowsBridgeService';
 import {
@@ -72,11 +80,20 @@ import { getAutoCueNext, subscribeAutoCueNext } from '../../services/ambo/script
 import { rememberLyrics } from '../../services/ambo/lyricFeed';
 import { AmboSlideTemplateEntry } from './AmboSlideTemplateGallery';
 import AmboRoutinesPanel from './AmboRoutinesPanel';
+import AmboVisualizerParamsPanel from './AmboVisualizerParamsPanel';
+import AmboSongLyricsTab from './AmboSongLyricsTab';
+import { getTypoTextState, setTypoTextPrefs, subscribeTypoText } from '../../services/ambo/typoText';
+import { vizEnergy, VIZ_ENERGIES, type VizEnergy } from '../../services/ambo/vizEnergy';
+import { registerShaderParams } from '../../services/ambo/visualizerParams';
+
+// Library shaders' named controls (Series VIII: Motion / Warmth / Light / Text-safe) → parameters panel.
+for (const s of SHADER_LIBRARY) registerShaderParams(s.src, s.params);
 
 export type AmboLibraryTab =
   | 'shows'
   | 'media'
   | 'scripture'
+  | 'lyrics'
   | 'chora'
   | 'reello'
   | 'taleo'
@@ -157,6 +174,65 @@ const LILAC = '#D0BCFF';
 const EMERALD = '#10B981';
 const line = 'rgba(255,255,255,0.09)';
 
+// ── Visualizer library sections (left column of the Visualizers tab) ──
+interface VizCategory {
+  id: string;
+  label: string;
+  hint?: string;
+  hideWhenEmpty?: boolean;
+  match: (i: AmboMediaSourceItem) => boolean;
+}
+const vizHas = (i: AmboMediaSourceItem, tag: string) => !!i.tags?.includes(tag);
+const isStudioGen = (i: AmboMediaSourceItem) =>
+  i.kind === 'GENERATOR' && !vizHas(i, 'pixels') && !vizHas(i, 'typo') && !vizHas(i, 'milkdrop');
+const VIZ_SECTIONS: Array<{ title: string; color: string; blurb: string; cats: VizCategory[] }> = [
+  {
+    title: 'Typographic',
+    color: '#D40055',
+    blurb: 'Kinetic type — spells scripture, song lyrics, live transcript, custom text or data',
+    cats: [{ id: 'viz:typo', label: 'Kinetic Typography', hint: 'Words source: scripture · lyrics · transcript · custom · data', match: i => vizHas(i, 'typo') }],
+  },
+  {
+    title: 'Sanctuary Light · VIII',
+    color: GOLD,
+    blurb: 'Church-ministry series — calm to tranquil, cinematic, text-safe',
+    cats: [{ id: 'viz:sanctuary', label: 'Sanctuary Light', hint: 'Art Director Council + Lighting Director', match: i => vizHas(i, 'series8') }],
+  },
+  {
+    title: 'Generative',
+    color: CYAN,
+    blurb: 'Procedural motion backgrounds',
+    cats: [
+      { id: 'viz:pixels', label: 'Plajah Pixels Generators', match: i => vizHas(i, 'pixels') },
+      { id: 'viz:atmosphere', label: 'Studio · Atmosphere', match: i => isStudioGen(i) && i.sub === 'Atmosphere' },
+      { id: 'viz:energy', label: 'Studio · Energy', match: i => isStudioGen(i) && i.sub === 'Energy' },
+      { id: 'viz:graphic', label: 'Studio · Graphic', match: i => isStudioGen(i) && i.sub === 'Graphic' },
+      { id: 'viz:studio-other', label: 'Studio · Other', hideWhenEmpty: true, match: i => isStudioGen(i) && !['Atmosphere', 'Energy', 'Graphic'].includes(i.sub || '') },
+    ],
+  },
+  {
+    title: '3D / Flux',
+    color: ORANGE,
+    blurb: 'Flux Series VI',
+    cats: [{ id: 'viz:flux', label: 'Flux Series VI', hideWhenEmpty: true, match: i => vizHas(i, 'flux') }],
+  },
+  {
+    title: 'Shaders',
+    color: LILAC,
+    blurb: 'GLSL / Shadertoy works',
+    cats: [
+      { id: 'viz:series7', label: 'Series VII', hideWhenEmpty: true, match: i => vizHas(i, 'series7') },
+      { id: 'viz:glsl', label: 'GLSL Library', match: i => i.kind === 'SHADER' && !vizHas(i, 'flux') && !vizHas(i, 'series7') && !vizHas(i, 'series8') },
+    ],
+  },
+  {
+    title: 'Milkdrop',
+    color: EMERALD,
+    blurb: 'Butterchurn audio-reactive presets',
+    cats: [{ id: 'viz:milkdrop', label: 'Milkdrop Presets', match: i => vizHas(i, 'milkdrop') }],
+  },
+];
+
 /** Merge playlists from the Chora service: the server copy replaces any older local copy. */
 function mergeChoraPlaylists(prev: AmboAudioPlaylist[], incoming: AmboAudioPlaylist[]): AmboAudioPlaylist[] {
   const byId = new Map(incoming.map(p => [p.id, p]));
@@ -165,37 +241,18 @@ function mergeChoraPlaylists(prev: AmboAudioPlaylist[], incoming: AmboAudioPlayl
 }
 const glass = 'rgba(255,255,255,0.035)';
 
-// ── Default OS Mapped Folders ──
-const DEFAULT_PINNED_FOLDERS: PinnedFolder[] = [
-  { id: 'f_videos', name: 'Videos', path: 'Videos', libraryType: 'videos', isSystem: true, itemCount: 18 },
-  { id: 'f_music', name: 'Music', path: 'Music', libraryType: 'music', isSystem: true, itemCount: 24 },
-  { id: 'f_photos', name: 'Pictures / Photos', path: 'Pictures', libraryType: 'pictures', isSystem: true, itemCount: 45 },
-  { id: 'f_downloads', name: 'Downloads', path: 'Downloads', libraryType: 'downloads', isSystem: true, itemCount: 12 },
-  { id: 'f_church', name: 'Church Service Media', path: 'D:\\Media\\Services\\2026', isSystem: false, itemCount: 32 },
-  { id: 'f_motion', name: 'Motion Backgrounds', path: 'D:\\Media\\Motion Loops', isSystem: false, itemCount: 50 },
+// ── Windows' own libraries (Windows app only). Everything else in the Media tab is a folder
+// the user added (services/folderRegistry) or their own cloud photos — no demo or platform media.
+const SYSTEM_LIBRARY_FOLDERS: PinnedFolder[] = [
+  { id: 'f_videos', name: 'Videos', path: 'Videos', libraryType: 'videos', isSystem: true, itemCount: 0 },
+  { id: 'f_photos', name: 'Pictures', path: 'Pictures', libraryType: 'pictures', isSystem: true, itemCount: 0 },
+  { id: 'f_music', name: 'Music', path: 'Music', libraryType: 'music', isSystem: true, itemCount: 0 },
+  { id: 'f_downloads', name: 'Downloads', path: 'Downloads', libraryType: 'downloads', isSystem: true, itemCount: 0 },
+  { id: 'f_desktop', name: 'Desktop', path: 'Desktop', libraryType: 'desktop', isSystem: true, itemCount: 0 },
 ];
 
-// ── Real Media Loops & Local Assets ──
-const DEFAULT_MEDIA_FILES: AmboMediaSourceItem[] = [
-  { id: 'mf_1', name: 'Ethereal Dawn Worship Loop', kind: 'VIDEO', sub: '4K ProRes · 30s Loop', tags: ['motion', 'worship', 'calm'], gradient: 'radial-gradient(120% 90% at 20% 10%, rgba(0,218,243,.7), transparent 60%), radial-gradient(120% 90% at 90% 90%, #6b0099, transparent 55%), #160a26' },
-  { id: 'mf_2', name: 'Prismatic Light Refractions', kind: 'VIDEO', sub: '1080p60 · Seamless', tags: ['motion', 'bright'], gradient: 'linear-gradient(120deg,#00daf3,#6b0099 60%,#d40055)' },
-  { id: 'mf_3', name: 'Deep Nebula Celestial Dust', kind: 'VIDEO', sub: '4K H.264 · 45s', tags: ['motion', 'space'], gradient: 'radial-gradient(100% 100% at 70% 30%, rgba(212,0,85,.8), transparent 55%), #0a0713' },
-  { id: 'mf_4', name: 'Golden Hour Mountain Mist', kind: 'IMAGE', sub: 'High-Res Still · 3840×2160', tags: ['photos', 'nature', 'still'], gradient: 'linear-gradient(135deg,#5e3a00,#1f1300)' },
-  { id: 'mf_5', name: 'Grace City Sanctuary Interior', kind: 'IMAGE', sub: 'Church Photography', tags: ['photos', 'sanctuary'], gradient: 'linear-gradient(135deg,#2e1c3b,#0e0914)' },
-  { id: 'mf_6', name: 'Service Countdown 5-Min Timer', kind: 'VIDEO', sub: 'Countdown Video · 5:00', tags: ['countdown', 'service'], gradient: 'linear-gradient(135deg,#00334d,#00141f)' },
-  { id: 'mf_7', name: 'Communion Bread & Cup Still', kind: 'IMAGE', sub: 'Sacrament Still · 4K', tags: ['photos', 'communion'], gradient: 'linear-gradient(135deg,#42121b,#120407)' },
-  { id: 'mf_8', name: 'Fluid Glass Waves Worship', kind: 'VIDEO', sub: '1080p60 · Seamless Loop', tags: ['motion', 'worship'], gradient: 'linear-gradient(135deg,#0d324d,#7f5a83)' },
-];
-
-// ── Plajah Photos Libraries ──
-const PLAJAH_PHOTOS: AmboMediaSourceItem[] = [
-  { id: 'ph_1', name: 'Flora Botanical Collection 01', kind: 'IMAGE', sub: 'Plajah Nature Flora', tags: ['photos', 'flora'], gradient: 'linear-gradient(135deg,#0f3822,#05140c)' },
-  { id: 'ph_2', name: 'Flora Botanical Collection 02', kind: 'IMAGE', sub: 'Plajah Nature Flora', tags: ['photos', 'flora'], gradient: 'linear-gradient(135deg,#1c452c,#0a1f13)' },
-  { id: 'ph_3', name: 'Congregational Worship Candids', kind: 'IMAGE', sub: 'Organization Media', tags: ['photos', 'organization'], gradient: 'linear-gradient(135deg,#361f47,#12091a)' },
-  { id: 'ph_4', name: 'Baptism Sunday 2026 High-Res', kind: 'IMAGE', sub: 'Organization Media', tags: ['photos', 'organization'], gradient: 'linear-gradient(135deg,#0d384d,#041117)' },
-  { id: 'ph_5', name: 'Youth Camp Sunset Fellowship', kind: 'IMAGE', sub: 'Personal Photo Library', tags: ['photos', 'personal'], gradient: 'linear-gradient(135deg,#4d2b0d,#1a0e04)' },
-  { id: 'ph_6', name: 'Candlelight Vigil Communion', kind: 'IMAGE', sub: 'Personal Photo Library', tags: ['photos', 'personal'], gradient: 'linear-gradient(135deg,#47221f,#170908)' },
-];
+/** Last listing of each folder this session, so reopening one is instant (it still refreshes). */
+const folderScanCache = new Map<string, { items: AmboMediaSourceItem[]; truncated: boolean }>();
 
 // ── Chora Worship Tracks, Hymns, Ambient Pads & Stems ──
 const CHORA_TRACKS = [
@@ -660,21 +717,39 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     });
   };
 
-  // ── Local OS Pinned Folders ──
-  const [pinnedFolders, setPinnedFolders] = useState<PinnedFolder[]>(() => {
-    try {
-      const saved = localStorage.getItem('ambo_pinned_folders');
-      return saved ? JSON.parse(saved) : DEFAULT_PINNED_FOLDERS;
-    } catch {
-      return DEFAULT_PINNED_FOLDERS;
-    }
-  });
+  // ── Folders: the platform-wide saved folders (services/folderRegistry) + Windows libraries ──
+  // A folder added here, in Fabula, Pixels... is the SAME list everywhere and survives restarts.
+  const [savedList, setSavedList] = useState<SavedFolder[]>(() => savedFolders());
+  useEffect(() => onFoldersChanged(() => setSavedList(savedFolders())), []);
+  const [folderCounts, setFolderCounts] = useState<Record<string, number>>({});
+  const pinnedFolders: PinnedFolder[] = useMemo(() => [
+    ...(isWindowsApp() ? SYSTEM_LIBRARY_FOLDERS : []),
+    ...[...savedList].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+      .map(f => ({ id: f.id, name: f.name, path: f.path, kind: f.kind, isSystem: false, itemCount: 0 })),
+  ].map(f => ({ ...f, itemCount: folderCounts[f.id] ?? f.itemCount })), [savedList, folderCounts]);
 
-  const [activeFolderId, setActiveFolderId] = useState<string>('f_videos');
+  // Reopen where the operator left off: same folder, same subfolder.
+  const [activeFolderId, setActiveFolderIdRaw] = useState<string>(() => {
+    try { return localStorage.getItem('ambo_media_folder') || ''; } catch { return ''; }
+  });
+  const setActiveFolderId = (id: string) => {
+    setActiveFolderIdRaw(id);
+    setFolderSubpathRaw('');
+    try { localStorage.setItem('ambo_media_folder', id); localStorage.setItem('ambo_media_subpath', ''); } catch {}
+    if (getFolder(id)) touchFolder(id);
+  };
   /** Where the operator is inside the open folder ('' = its top); '/'-separated. */
-  const [folderSubpath, setFolderSubpath] = useState('');
-  useEffect(() => { setFolderSubpath(''); }, [activeFolderId]);
-  const [customFolderFiles, setCustomFolderFiles] = useState<AmboMediaSourceItem[]>([]);
+  const [folderSubpath, setFolderSubpathRaw] = useState(() => {
+    try { return localStorage.getItem('ambo_media_subpath') || ''; } catch { return ''; }
+  });
+  const setFolderSubpath = (p: string) => {
+    setFolderSubpathRaw(p);
+    try { localStorage.setItem('ambo_media_subpath', p); } catch {}
+  };
+  // A remembered folder that no longer exists falls back to the first one there is.
+  useEffect(() => {
+    if (pinnedFolders.length && !pinnedFolders.some(f => f.id === activeFolderId)) setActiveFolderIdRaw(pinnedFolders[0].id);
+  }, [pinnedFolders, activeFolderId]);
   const [realFolderFiles, setRealFolderFiles] = useState<AmboMediaSourceItem[]>([]);
   const [isLoadingFolderFiles, setIsLoadingFolderFiles] = useState<boolean>(false);
   const [platformPhotos, setPlatformPhotos] = useState<AmboMediaSourceItem[]>([]);
@@ -684,44 +759,51 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const [scanTick, setScanTick] = useState(0);
   const [importTargetId, setImportTargetId] = useState<string | null>(() => getImportTarget()?.folderId ?? null);
   const setStatus = (id: string, st: FolderStatus) => setFolderStatus(prev => ({ ...prev, [id]: st }));
-  const savePinned = (list: PinnedFolder[]) => {
-    setPinnedFolders(list);
-    try { localStorage.setItem('ambo_pinned_folders', JSON.stringify(list)); } catch {}
-  };
-  const toSourceItem = (it: FolderMediaItem, folder: PinnedFolder): AmboMediaSourceItem => {
-    const kind = it.kind === 'DOC' ? 'IMAGE' : it.kind;
-    const where = it.relPath.includes('/') ? it.relPath.slice(0, it.relPath.lastIndexOf('/')) : '';
+
+  /** One file as a library card. Windows files get Windows' own shell thumbnail (instant); others are thumbnailed lazily by AmboPoster. */
+  const fileCard = (o: { id: string; name: string; kind: AmboMediaSourceItem['kind']; size: number; url?: string; fullPath?: string; relPath: string }, folder: PinnedFolder): AmboMediaSourceItem => {
+    const where = dirOf(o.relPath);
+    const visual = o.kind === 'IMAGE' || o.kind === 'VIDEO';
     return {
-      id: `fm_${it.id}`,
-      name: it.name,
-      kind,
-      sub: `${(it.size / (1024 * 1024)).toFixed(1)} MB · ${folder.name}${where ? ` / ${where}` : ''}`,
-      src: it.url,
-      thumb: kind === 'IMAGE' ? it.url : undefined,
-      tags: ['local', folder.name.toLowerCase(), kind.toLowerCase()],
-      folderDir: dirOf(it.relPath),
+      id: `fm_${folder.id}:${o.id}`,
+      name: o.name,
+      kind: o.kind,
+      sub: `${(o.size / (1024 * 1024)).toFixed(1)} MB · ${folder.name}${where ? ` / ${where}` : ''}`,
+      src: o.url,
+      thumb: visual && o.fullPath && isWindowsApp() ? shellThumbUrl(o.fullPath) : undefined,
+      tags: ['local', folder.name.toLowerCase(), o.kind.toLowerCase()],
+      folderDir: where,
+      filePath: o.fullPath,
     };
   };
+  const toSourceItem = (it: FolderMediaItem, folder: PinnedFolder): AmboMediaSourceItem =>
+    fileCard({ id: it.relPath, name: it.name, kind: it.kind === 'DOC' ? 'IMAGE' : it.kind, size: it.size, url: it.url, fullPath: it.fullPath, relPath: it.relPath }, folder);
 
-  // Scan the active folder. Custom folders: browser handle (IndexedDB, recursive) or Windows path (bridge).
+  // Scan the open folder. A folder seen this session shows its last listing AT ONCE and refreshes
+  // quietly; a first visit clears the grid so another folder's files can never linger in it.
   useEffect(() => {
+    if (activeTab !== 'media') return;
     let cancelled = false;
     const activeFolder = pinnedFolders.find(f => f.id === activeFolderId);
-    if (!activeFolder) return;
+    if (!activeFolder) { setRealFolderFiles([]); return; }
+    const cached = folderScanCache.get(activeFolder.id);
+    setRealFolderFiles(cached?.items ?? []);
+    setIsLoadingFolderFiles(!cached);
     const finish = (items: AmboMediaSourceItem[], truncated = false) => {
+      folderScanCache.set(activeFolder.id, { items, truncated });
       setIsLoadingFolderFiles(false);
       setRealFolderFiles(items);
       setStatus(activeFolder.id, { state: 'ok', truncated });
-      setPinnedFolders(prev => prev.map(pf => pf.id === activeFolder.id && pf.itemCount !== items.length ? { ...pf, itemCount: items.length } : pf));
+      setFolderCounts(prev => (prev[activeFolder.id] === items.length ? prev : { ...prev, [activeFolder.id]: items.length }));
     };
     const fail = (message: string, state: FolderStatus['state'] = 'error') => {
+      folderScanCache.delete(activeFolder.id);
       setIsLoadingFolderFiles(false);
       setRealFolderFiles([]);
       setStatus(activeFolder.id, { state, message });
     };
 
     if (activeFolder.kind === 'handle') {
-      setIsLoadingFolderFiles(true);
       (async () => {
         const handle = await loadFolderHandle(activeFolder.id);
         if (cancelled) return;
@@ -736,7 +818,6 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       })().catch(e => { if (!cancelled) fail(e?.message || 'Could not read this folder.'); });
     } else if (activeFolder.kind === 'windows') {
       if (!isWindowsApp()) { fail('This folder lives on a Windows PC — open it in the Plajah Windows app.'); return; }
-      setIsLoadingFolderFiles(true);
       scanWindowsMediaFolder(activeFolder.id, activeFolder.path)
         .then(res => {
           if (cancelled) return;
@@ -745,115 +826,73 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         })
         .catch(e => { if (!cancelled) fail(e?.message || 'Could not read this folder.'); });
     } else if (isWindowsApp()) {
-      setIsLoadingFolderFiles(true);
-      scanWindowsLibrary(activeFolder.libraryType || activeFolder.name.toLowerCase(), activeFolder.path)
+      // Built-in Windows library (Videos / Music / Pictures / Downloads / Desktop).
+      scanWindowsLibrary(activeFolder.libraryType || activeFolder.name.toLowerCase())
         .then(res => {
           if (cancelled) return;
-          if (res && res.success && res.files) {
-            finish(res.files.map(f => {
-              const kind = f.kind || (/\.(mp4|mov|webm|mkv|avi|wmv)$/i.test(f.name) ? 'VIDEO' : /\.(mp3|wav|m4a|aac|flac|ogg)$/i.test(f.name) ? 'AUDIO' : 'IMAGE');
-              const streamUrl = f.streamUrl || f.path;
-              return {
-                id: `win_${f.path}`,
-                name: f.name,
-                kind,
-                sub: `${(f.size / (1024 * 1024)).toFixed(1)} MB · ${activeFolder.name}`,
-                src: streamUrl,
-                thumb: kind === 'IMAGE' ? streamUrl : undefined,
-                tags: ['local', activeFolder.name.toLowerCase(), kind.toLowerCase()],
-                folderDir: relDirUnder(activeFolder.path, f.path),
-              };
-            }));
-          } else {
-            fail(res?.error || 'This folder is unavailable (moved, renamed, or offline).');
-          }
+          if (!res || !res.success || !res.files) return fail(res?.error || 'This folder is unavailable (moved, renamed, or offline).');
+          finish(res.files.flatMap(f => {
+            const kind = classifyFile(f.name, '', false);
+            if (kind !== 'IMAGE' && kind !== 'VIDEO' && kind !== 'AUDIO') return [];
+            const rel = (f.relativePath || f.name).replace(/\\/g, '/');
+            return [fileCard({ id: rel, name: f.name, kind, size: f.size || 0, url: f.url, fullPath: f.fullPath, relPath: rel }, activeFolder)];
+          }));
         })
         .catch(() => { if (!cancelled) fail('Could not read this folder.'); });
     } else {
-      // Plain browser, built-in shortcut folder (Videos / Music / ...): there is nothing to read.
       setRealFolderFiles([]);
+      setIsLoadingFolderFiles(false);
     }
     return () => {
       cancelled = true;
     };
-  }, [activeFolderId, activeTab, scanTick]);
+  }, [activeFolderId, activeTab, scanTick, pinnedFolders.length]);
 
-  // Load real Platform Photos and User Locker Photos
+  // The operator's OWN cloud photos (Plajah photo locker). Nothing from other people or other
+  // apps (Chora / Reello / Taleo have their own tabs) belongs in the Media tab.
   useEffect(() => {
     let cancelled = false;
-    const loadPhotos = async () => {
-      if (isFresh('photos')) {
-        setPlatformPhotos(_cache.photos.data);
-        return;
-      }
+    (async () => {
+      if (isFresh('photos')) { setPlatformPhotos(_cache.photos.data); return; }
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
       try {
-        const photos = await fetchGlobalPhotos(false);
-        if (cancelled || !photos) return;
-        let userPhotosList: Photo[] = [];
-        const currentUid = auth.currentUser?.uid;
-        if (currentUid) {
-          try {
-            userPhotosList = await fetchUserPhotos(currentUid);
-          } catch {}
-        }
+        const mine: Photo[] = await fetchUserPhotos(uid);
         if (cancelled) return;
-        const allPhotos = [...userPhotosList, ...photos];
-        const seen = new Set<string>();
-        const unique = allPhotos.filter(p => {
-          if (seen.has(p.id)) return false;
-          seen.add(p.id);
-          return true;
-        });
-
-        const mapped: AmboMediaSourceItem[] = unique.map(p => {
-          const isUser = p.ownerId === currentUid;
-          const displayTags = [
-            'photos',
-            ...(p.tags || []),
-            isUser ? 'personal' : 'organization',
-            'platform',
-          ];
-          const imgUrl = p.thumbUrl || gridSrc(p) || p.url;
-          return {
-            id: `plat_photo_${p.id}`,
-            name: p.title || p.description || 'Plajah Photo',
-            kind: 'IMAGE',
-            sub: p.tags && p.tags.length ? p.tags.slice(0, 2).join(', ') : isUser ? 'My Photo Locker' : 'Plajah Photos Library',
-            src: p.url,
-            thumb: imgUrl,
-            tags: displayTags,
-          };
-        });
+        const mapped: AmboMediaSourceItem[] = (mine || []).map(p => ({
+          id: `cloud_photo_${p.id}`,
+          name: p.title || p.description || 'Photo',
+          kind: 'IMAGE',
+          sub: 'My Cloud Photos',
+          src: p.url,
+          thumb: p.thumbUrl || gridSrc(p) || p.url,
+          tags: ['photos', 'cloud', ...(p.tags || [])],
+        }));
         setPlatformPhotos(mapped);
         _cache.photos = { data: mapped, ts: Date.now() };
-      } catch (err) {
-        // ignore
-      }
-    };
-    loadPhotos();
-
-    return () => {
-      cancelled = true;
-    };
+      } catch { /* offline / signed out: the section just stays empty */ }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleAddFolder = async () => {
     setFolderNotice(null);
-    const id = `f_${Date.now()}`;
     try {
-      let folder: PinnedFolder | null = null;
+      let folder: SavedFolder | null = null;
       if (isWindowsApp()) {
         const picked = await pickWindowsMediaFolder();
-        if (picked) folder = { id, name: picked.name, path: picked.path, isSystem: false, itemCount: 0, kind: 'windows' };
+        if (picked) folder = addWindowsFolder(picked.path, picked.name, 'ambo');
       } else if (browserFolderAccessSupported()) {
-        const picked = await pickAndSaveBrowserFolder(id);
-        if (picked) folder = { id, name: picked.name, path: `Local Folder: ${picked.name}`, isSystem: false, itemCount: 0, kind: 'handle' };
+        let handle: any = null;
+        try { handle = await (window as any).showDirectoryPicker({ id: 'ambo-media', mode: 'readwrite' }); }
+        catch (err: any) { if (err?.name === 'AbortError') return; throw err; }
+        folder = await addHandleFolder(handle, 'ambo');
       } else {
         setFolderNotice(UNSUPPORTED_MESSAGE);
         return;
       }
       if (!folder) return; // cancelled
-      savePinned([...pinnedFolders, folder]);
+      setSavedList(savedFolders());
       setSelectedSubcat('Pinned Folders');
       setActiveFolderId(folder.id);
       setScanTick(t => t + 1);
@@ -862,25 +901,30 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     }
   };
 
-  const handleRemoveFolder = (folderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleRemoveFolder = (folderId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const gone = pinnedFolders.find(f => f.id === folderId);
-    const updated = pinnedFolders.filter(f => f.id !== folderId);
-    if (gone?.kind === 'handle') { revokeFolderUrls(folderId); void deleteFolderHandle(folderId); }
+    if (!gone || gone.isSystem) return;
+    if (!window.confirm(`Remove "${gone.name}" from your saved folders? (Nothing on disk is deleted.) It disappears from every app's folder list.`)) return;
+    if (gone.kind === 'handle') revokeFolderUrls(folderId);
+    folderScanCache.delete(folderId);
     if (getImportTarget()?.folderId === folderId) { setImportTarget(null); setImportTargetId(null); }
+    void removeFolder(folderId).then(() => setSavedList(savedFolders()));
     if (activeFolderId === folderId) {
       setRealFolderFiles([]);
-      if (updated.length > 0) setActiveFolderId(updated[0].id);
+      const next = pinnedFolders.find(f => f.id !== folderId);
+      if (next) setActiveFolderId(next.id);
     }
-    savePinned(updated);
   };
 
-  const handleRenameFolder = (folderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleRenameFolder = (folderId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const f = pinnedFolders.find(x => x.id === folderId);
-    const name = f && window.prompt('Rename folder (display name only — the folder on disk is not renamed):', f.name)?.trim();
-    if (!f || !name) return;
-    savePinned(pinnedFolders.map(x => (x.id === folderId ? { ...x, name } : x)));
+    if (!f || f.isSystem) return;
+    const name = window.prompt('Rename folder (display name only — the folder on disk is not renamed):', f.name)?.trim();
+    if (!name) return;
+    renameFolder(folderId, name);
+    setSavedList(savedFolders());
     const t = getImportTarget();
     if (t?.folderId === folderId) setImportTarget({ ...t, name });
   };
@@ -900,8 +944,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     else setStatus(folderId, { state: 'needs-permission', message: 'Access was not granted. Choose Allow when the browser asks.' });
   };
 
-  const handleToggleImportTarget = (folder: PinnedFolder, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleToggleImportTarget = (folder: PinnedFolder, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!folder.kind) return;
     if (importTargetId === folder.id) { setImportTarget(null); setImportTargetId(null); return; }
     setImportTarget({ folderId: folder.id, kind: folder.kind, path: folder.kind === 'windows' ? folder.path : undefined, name: folder.name });
@@ -934,21 +978,85 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     }
   };
 
-  /** Link dropped folders as library folders — they keep their structure because they ARE the folders. */
-  const linkFolders = (added: PinnedFolder[]) => {
+  /** Link dropped folders as saved folders — they keep their structure because they ARE the folders. */
+  const showLinked = (added: SavedFolder[]) => {
     if (added.length === 0) return;
-    setPinnedFolders(prev => {
-      const fresh = added.filter(a => !prev.some(p => p.kind === a.kind && p.path === a.path));
-      const list = [...prev, ...fresh];
-      try { localStorage.setItem('ambo_pinned_folders', JSON.stringify(list)); } catch {}
-      return list;
-    });
-    const existing = pinnedFolders.find(p => p.kind === added[0].kind && p.path === added[0].path);
+    setSavedList(savedFolders());
     setSelectedSubcat('Pinned Folders');
-    setActiveFolderId(existing?.id ?? added[0].id);
+    setActiveFolderId(added[0].id);
     setScanTick(t => t + 1);
     setFolderNotice(`Added ${added.length === 1 ? `"${added[0].name}"` : `${added.length} folders`} — open the subfolders below.`);
   };
+
+  // ── Right-click menus for the Media tab (one hook each, bound per item) ──
+  const revealInExplorer = (path?: string) => { if (path && isWindowsApp()) void showInExplorer(path); };
+  const folderMenu = useContextMenu<PinnedFolder>(folder => [
+    { kind: 'header', label: folder.name },
+    { id: 'open', label: 'Open', icon: <Folder size={13} />, onSelect: f => { setSelectedSubcat('Pinned Folders'); setActiveFolderId(f.id); } },
+    { id: 'rescan', label: 'Rescan', icon: <RefreshCw size={13} />, onSelect: f => handleRescanFolder(f.id) },
+    ...(onInsertFolderSlides && folder.id === activeFolderId && realFolderFiles.length ? [{
+      id: 'slides', label: 'Add everything as slides', icon: <Plus size={13} />,
+      onSelect: () => onInsertFolderSlides(folder.name, JSON.parse(folderDragPayload(folder.name, '')).items),
+    }] : []),
+    ...(folder.kind ? [
+      { id: 'target', label: 'Copy dropped files into this folder', icon: <Pin size={13} />, checked: importTargetId === folder.id, onSelect: (f: PinnedFolder) => handleToggleImportTarget(f) },
+    ] : []),
+    ...(folder.kind === 'handle' ? [{ id: 'sub', label: 'New subfolder…', icon: <FolderPlus size={13} />, onSelect: (f: PinnedFolder) => void handleNewSubfolder(f) }] : []),
+    ...(folderStatus[folder.id]?.state === 'needs-permission' ? [{ id: 'reconnect', label: 'Reconnect', onSelect: (f: PinnedFolder) => void handleReconnectFolder(f.id) }] : []),
+    ...(folder.kind === 'windows' && isWindowsApp() ? [{ id: 'explorer', label: 'Show in File Explorer', onSelect: (f: PinnedFolder) => revealInExplorer(f.path) }] : []),
+    ...(!folder.isSystem ? [
+      { kind: 'separator' as const },
+      { id: 'rename', label: 'Rename…', icon: <Type size={13} />, onSelect: (f: PinnedFolder) => handleRenameFolder(f.id) },
+      { id: 'remove', label: 'Remove from saved folders', icon: <Trash2 size={13} />, danger: true, onSelect: (f: PinnedFolder) => handleRemoveFolder(f.id) },
+    ] : []),
+  ]);
+  const mediaItemMenu = useContextMenu<AmboMediaSourceItem>(item => [
+    { kind: 'header', label: item.name },
+    { id: 'preview', label: 'Cue to Preview', icon: <Eye size={13} />, shortcut: 'Click', onSelect: it => onPreviewSource(it) },
+    { id: 'take', label: 'Take to Program', icon: <Play size={13} />, shortcut: 'Dbl-click', onSelect: it => onProgramSource(it) },
+    ...(onInsertMediaSlide ? [{ id: 'slide', label: 'Add as new slide', icon: <Plus size={13} />, onSelect: (it: AmboMediaSourceItem) => onInsertMediaSlide(it) }] : []),
+    ...(item.filePath && isWindowsApp() ? [
+      { kind: 'separator' as const },
+      { id: 'explorer', label: 'Show in File Explorer', onSelect: (it: AmboMediaSourceItem) => revealInExplorer(it.filePath) },
+    ] : []),
+    { id: 'copy', label: 'Copy name', onSelect: it => { void navigator.clipboard?.writeText(it.name).catch(() => {}); } },
+  ]);
+  const subfolderMenu = useContextMenu<{ name: string; path: string }>(sf => [
+    { kind: 'header', label: sf.name },
+    { id: 'open', label: 'Open', icon: <Folder size={13} />, onSelect: x => setFolderSubpath(x.path) },
+    ...(onInsertFolderSlides ? [{ id: 'slides', label: 'Add as slides (grouped by subfolder)', icon: <Plus size={13} />, onSelect: (x: { name: string; path: string }) => onInsertFolderSlides(x.name, JSON.parse(folderDragPayload(x.name, x.path)).items) }] : []),
+  ]);
+
+  const liveMenu = useContextMenu<AmboMediaSourceItem>(item => {
+    const id = item.inputId || item.id;
+    const native = isNativeLiveInput(id);
+    return [
+      { kind: 'header', label: item.name },
+      { id: 'preview', label: 'Cue to Preview', icon: <Eye size={13} />, shortcut: 'Click', onSelect: it => onPreviewSource(it) },
+      { id: 'take', label: 'Take to Program', icon: <Play size={13} />, shortcut: 'Dbl-click', onSelect: it => onProgramSource(it) },
+      ...(native ? [
+        { kind: 'separator' as const },
+        { id: 'audio', label: isLiveAudioOn(id) ? 'Mute this feed' : 'Turn this feed’s audio on', icon: isLiveAudioOn(id) ? <Volume2 size={13} /> : <X size={13} />, onSelect: () => setLiveAudio(id, !isLiveAudioOn(id)) },
+      ] : []),
+    ];
+  });
+
+  const verseMenu = useContextMenu<BibleVerse>(v => [
+    { kind: 'header', label: `${activeBook?.name || 'Scripture'} ${selectedChapter}:${v.verse}` },
+    { id: 'cue', label: 'Cue to Preview', icon: <Eye size={13} />, onSelect: x => { setHighlightVerseNum(x.verse); onCueScripture?.(buildScriptureCue(x)); } },
+    { id: 'fire', label: 'Take to Program', icon: <Play size={13} />, shortcut: 'Dbl-click', onSelect: x => fireVerse(x) },
+    { id: 'slide', label: 'Insert as slide', icon: <Plus size={13} />, onSelect: x => handleInsertScriptureAsSlide(x) },
+    { kind: 'separator' },
+    { id: 'copy', label: 'Copy verse text', onSelect: x => { void navigator.clipboard?.writeText(`${activeBook?.name || ''} ${selectedChapter}:${x.verse} ${x.text}`.trim()).catch(() => {}); } },
+  ]);
+  const showMenu = useContextMenu<Show>(sh => [
+    { kind: 'header', label: sh.title },
+    { id: 'open', label: 'Open show', icon: <Layers size={13} />, onSelect: x => onSelectShow?.(x.id) },
+  ]);
+  const transitionMenu = useContextMenu<{ id: string; name: string }>(tx => [
+    { kind: 'header', label: tx.name },
+    { id: 'use', label: activeTransition === tx.name ? 'Current take transition' : 'Use for TAKE', checked: activeTransition === tx.name, onSelect: x => onSelectTransition?.(x.name) },
+  ]);
 
   /**
    * OS drop on the media grid. Into an open linked folder: copied in, subfolders kept, at the
@@ -963,19 +1071,17 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     const at = folderSubpath;
     void (async () => {
       const { files, dirs } = await pending;
-      if (target) { if (files.length) await handleImportIntoFolder(target, files, at); return; }
+      // Dropped FOLDERS are added as saved folders (structure and all); loose FILES are copied
+      // into the open folder at the level being browsed.
       if (dirs.length) {
-        const stamp = Date.now();
-        const added: PinnedFolder[] = [];
-        for (const [k, h] of dirs.entries()) {
-          const id = `f_${stamp}_${k}`;
-          await saveFolderHandle(id, h);
-          added.push({ id, name: (h as any).name || 'Folder', path: `Dropped: ${(h as any).name || id}`, isSystem: false, itemCount: 0, kind: 'handle' });
-        }
-        linkFolders(added);
+        const added: SavedFolder[] = [];
+        for (const h of dirs) added.push(await addHandleFolder(h, 'ambo'));
+        showLinked(added);
         return;
       }
-      setFolderNotice(files.length ? 'Open one of your folders to copy files into it, or drop a whole folder here to add it.' : 'Nothing to add from that drop.');
+      const loose = files.filter(f => !dropRelPath(f));
+      if (target && loose.length) { await handleImportIntoFolder(target, loose, at); return; }
+      setFolderNotice(loose.length ? 'Open one of your own folders to copy files into it, or drop a whole folder here to add it.' : 'Nothing to add from that drop.');
     })().catch(err => setFolderNotice(`Could not add that: ${err?.message || 'drop failed'}`));
   };
 
@@ -983,29 +1089,25 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const nativeMediaDropRef = useRef<(m: any) => void>(() => {});
   nativeMediaDropRef.current = (msg: any) => {
     const folders: Array<{ name: string; path: string }> = msg.folders || [];
+    // Dropped folders are added as saved folders — by path, nothing is copied.
+    if (folders.length) { showLinked(folders.map(f => addWindowsFolder(f.path, f.name, 'ambo'))); return; }
     const target = activeFolderCustom;
-    if (target && target.kind === 'windows') {
-      // Copy into the open folder (and current subfolder), keeping dropped folders' structure.
+    const loose = ((msg.files || []) as Array<{ name: string; url: string; relativePath?: string }>).filter(f => !f.relativePath);
+    if (target && target.kind === 'windows' && loose.length) {
+      // Loose files: copy into the open folder at the level being browsed.
       void (async () => {
         const files: File[] = [];
-        for (const f of (msg.files || []) as Array<{ name: string; url: string; relativePath?: string; folderPath?: string }>) {
+        for (const f of loose) {
           try {
             const blob = await (await fetch(f.url)).blob();
-            const file = new File([blob], f.name, { type: blob.type });
-            const dir = nativeDropDir(f);
-            files.push(dir ? withDropPath(file, `${dir}/${f.name}`) : file);
+            files.push(new File([blob], f.name, { type: blob.type }));
           } catch { /* unreadable — skipped */ }
         }
         await handleImportIntoFolder(target, files, folderSubpath);
       })();
       return;
     }
-    if (folders.length) {
-      const stamp = Date.now();
-      linkFolders(folders.map((f, k) => ({ id: `f_${stamp}_${k}`, name: f.name, path: f.path, isSystem: false, itemCount: 0, kind: 'windows' as const })));
-    } else {
-      setFolderNotice('Open one of your folders to copy files into it, or drop a whole folder here to add it.');
-    }
+    setFolderNotice('Open one of your own folders to copy files into it, or drop a whole folder here to add it.');
   };
   useEffect(() => {
     if (!isWindowsApp()) return;
@@ -1278,6 +1380,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         s.series ? `series${s.series.toLowerCase()}` : '',
         s.series === 'VI' ? 'flux' : '',
         s.series === 'VII' ? 'series7' : '',
+        s.series === 'VIII' ? 'series8' : '',
+        s.series === 'VIII' ? 'sanctuary' : '',
+        s.energy ? `energy:${s.energy}` : '',
         s.name.toLowerCase(),
       ].filter(Boolean),
       gradient:
@@ -1285,6 +1390,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
           ? 'linear-gradient(135deg, #FF8C00, #D40055)'
           : s.series === 'VII'
           ? 'linear-gradient(135deg, #D0BCFF, #6B0099)'
+          : s.series === 'VIII'
+          ? 'linear-gradient(135deg, #1b1530, #E3C57E)'
           : 'linear-gradient(135deg, #0d9488, #111827)',
     }));
 
@@ -1351,6 +1458,102 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     ];
   }, [milkdropNames]);
   const [hoverVizId, setHoverVizId] = useState<string | null>(null);
+  // Visualizer whose parameters the right-hand panel edits (falls back to the live one).
+  const [selectedViz, setSelectedViz] = useState<AmboMediaSourceItem | null>(null);
+  // Temperament filter (Tranquil … Chaotic); empty = show all.
+  const [vizEnergyOn, setVizEnergyOn] = useState<VizEnergy[]>([]);
+  const vizEnergyById = useMemo(() => new Map(visualizerItems.map(i => [i.id, vizEnergy(i)] as const)), [visualizerItems]);
+
+  const renderVizCard = (item: AmboMediaSourceItem) => {
+    const isLive = currentLiveInputId === item.mode;
+    const isPrev = currentPreviewInputId === item.mode;
+    const isSel = selectedViz?.id === item.id;
+    return (
+      <div
+        key={item.id}
+        {...mediaItemMenu.bind(item)} draggable
+        onDragStart={e => handleDragStart(e, item)}
+        onClick={() => { setSelectedViz(item); onPreviewSource(item); }}
+        onDoubleClick={() => onProgramSource(item)}
+        onMouseEnter={() => setHoverVizId(item.id)}
+        onMouseLeave={() => setHoverVizId(h => (h === item.id ? null : h))}
+        className={`group relative rounded-xl overflow-hidden border cursor-pointer transition-all ${
+          isLive
+            ? 'border-[#FF8C00] shadow-[0_0_18px_rgba(255,140,0,0.3)] ring-1 ring-[#FF8C00]'
+            : isPrev
+            ? 'border-[#00DAF3] shadow-[0_0_14px_rgba(0,218,243,0.2)]'
+            : isSel
+            ? 'border-white/60'
+            : 'border-white/10 hover:border-white/30'
+        }`}
+        title="Single-click preview + edit parameters | Double-click take to Program Out"
+      >
+        <SquareFrame style={{ background: item.gradient || '#120a1f' }}>
+          <AmboVisualizerThumb item={item} hovered={hoverVizId === item.id} />
+          <div className="absolute top-1 left-1 px-1 py-0.2 rounded bg-black/60 font-mono text-[8px] text-white/80 max-w-[90%] truncate">
+            {item.sub || 'GLSL'}
+          </div>
+          {isLive && (
+            <div className="absolute top-1 right-1 px-1.5 py-0.2 rounded bg-[#FF8C00] font-mono text-[8px] font-bold text-[#1a1405]">
+              LIVE
+            </div>
+          )}
+          {!isLive && isPrev && (
+            <div className="absolute top-1 right-1 px-1.5 py-0.2 rounded bg-[#00DAF3] font-mono text-[8px] font-bold text-[#04222a]">
+              PREVIEW
+            </div>
+          )}
+
+          {/* Quick Action Overlay */}
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity z-20">
+            {onInsertMediaSlide && (
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  onInsertMediaSlide(item);
+                }}
+                className="px-2 py-1 rounded bg-white/20 hover:bg-white/40 text-[10px] font-bold text-white transition-colors"
+                title="Insert as visualizer slide"
+              >
+                + Slide
+              </button>
+            )}
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                setSelectedViz(item);
+                onPreviewSource(item);
+              }}
+              className="px-2 py-1 rounded bg-[#00DAF3]/80 hover:bg-[#00DAF3] text-[10px] font-bold text-black transition-colors"
+              title="Cue in Preview"
+            >
+              Preview
+            </button>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                setSelectedViz(item);
+                onProgramSource(item);
+              }}
+              className="px-2 py-1 rounded bg-[#FF8C00]/90 hover:bg-[#FF8C00] text-[10px] font-bold text-black transition-colors"
+              title="Take to Program Out"
+            >
+              Take
+            </button>
+          </div>
+        </SquareFrame>
+        <div className="p-2 bg-black/60">
+          <div className="text-[11px] font-semibold text-white truncate">{item.name}</div>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {(() => { const e = VIZ_ENERGIES.find(x => x.id === vizEnergyById.get(item.id)); return e ? (
+              <span className="flex-none px-1 rounded text-[7.5px] font-black uppercase tracking-wide" style={{ color: e.color, background: `${e.color}1f` }} title={e.hint}>{e.label}</span>
+            ) : null; })()}
+            <div className="text-[9px] text-white/40 truncate">{item.kind === 'SHADER' || item.mode?.startsWith(MILKDROP_PREFIX) ? (item.kind === 'SHADER' ? 'GLSL shader' : 'Milkdrop') : item.mode}</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ── Combined Reello Videos List (Platform + User Uploads + Fallback) ──
   const activeReelloClips = useMemo(() => {
@@ -1480,45 +1683,22 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     return [...core, ...native];
   }, [nativeSources]);
 
-  // Combined Media Tab files
+  // Media tab = the open local folder, or the operator's own cloud photos. Nothing else.
+  const isCloudView = selectedSubcat === 'My Cloud Photos';
   const activeMediaItems: AmboMediaSourceItem[] = useMemo(() => {
-    const allPhotos = platformPhotos.length > 0 ? platformPhotos : PLAJAH_PHOTOS;
-    let items = [...DEFAULT_MEDIA_FILES, ...allPhotos, ...customFolderFiles, ...ndiMediaSources];
-
-    if (selectedSubcat === 'Pinned Folders' || selectedSubcat === 'All Folders') {
-      const activeFolder = pinnedFolders.find(f => f.id === activeFolderId);
-      if (realFolderFiles.length > 0 || activeFolder?.kind) {
-        items = realFolderFiles; // a custom folder shows exactly what is on disk, even when empty
-        // Browse one level at a time; a search looks through every subfolder.
-        if (!debouncedSearch.trim()) {
-          items = folderView(items, it => it.folderDir || '', folderSubpath).files
-            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-        }
-      } else if (activeFolder) {
-        items = items.filter(it => it.tags?.some(t => t.toLowerCase().includes(activeFolder.name.toLowerCase())) || it.sub?.includes(activeFolder.name));
-      }
-    } else if (selectedSubcat === 'Personal Photos') {
-      items = allPhotos.filter(p => p.tags?.includes('personal'));
-    } else if (selectedSubcat === 'Organization Photos') {
-      items = allPhotos.filter(p => p.tags?.includes('organization') || p.tags?.includes('sanctuary'));
-    } else if (selectedSubcat === 'Flora Stills') {
-      items = allPhotos.filter(p => p.tags?.includes('flora'));
-    } else if (selectedSubcat === 'Motion Backgrounds') {
-      items = DEFAULT_MEDIA_FILES.filter(m => m.kind === 'VIDEO');
-    } else if (selectedSubcat === 'NDI Network') {
-      items = ndiMediaSources;
+    let items = isCloudView ? platformPhotos : realFolderFiles;
+    const q = activeTab === 'media' ? debouncedSearch.toLowerCase().trim() : '';
+    if (q) return items.filter(it => it.name.toLowerCase().includes(q) || it.sub?.toLowerCase().includes(q));
+    if (!isCloudView) {
+      // Browse one level at a time; a search (above) looks through every subfolder.
+      items = folderView(items, it => it.folderDir || '', folderSubpath).files
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
     }
-
-    if (debouncedSearch.trim() && activeTab === 'media') {
-      const q = debouncedSearch.toLowerCase().trim();
-      items = items.filter(it => it.name.toLowerCase().includes(q) || it.sub?.toLowerCase().includes(q));
-    }
-
     return items;
-  }, [selectedSubcat, activeFolderId, realFolderFiles, platformPhotos, customFolderFiles, ndiMediaSources, debouncedSearch, activeTab, pinnedFolders, folderSubpath]);
+  }, [isCloudView, realFolderFiles, platformPhotos, debouncedSearch, activeTab, folderSubpath]);
 
   /** Subfolders at the current level of the open folder (none while searching). */
-  const isFolderBrowse = (selectedSubcat === 'Pinned Folders' || selectedSubcat === 'All Folders') && realFolderFiles.length > 0;
+  const isFolderBrowse = !isCloudView && realFolderFiles.length > 0;
   const folderSubfolders = useMemo(
     () => (isFolderBrowse && !debouncedSearch.trim() ? folderView(realFolderFiles, it => it.folderDir || '', folderSubpath).subfolders : []),
     [isFolderBrowse, realFolderFiles, folderSubpath, debouncedSearch],
@@ -1539,14 +1719,19 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     e.dataTransfer.effectAllowed = 'copyMove';
   };
 
-  const activeFolderCustom = selectedSubcat === 'Pinned Folders' ? pinnedFolders.find(f => f.id === activeFolderId && f.kind) : undefined;
-  const activeFolderStatus = selectedSubcat === 'Pinned Folders' ? folderStatus[activeFolderId] : undefined;
+  const activeFolderCustom = !isCloudView ? pinnedFolders.find(f => f.id === activeFolderId && f.kind) : undefined;
+  const activeFolderStatus = !isCloudView ? folderStatus[activeFolderId] : undefined;
+
+  const songsVer = useSyncExternalStore(subscribeSongs, songsVersion);
+  const songCount = useMemo(() => listSongs().length, [songsVer]);
+  const typoTextState = useSyncExternalStore(subscribeTypoText, getTypoTextState);
 
   // 8 Tabs configuration
   const tabs = [
     { id: 'shows', label: 'Shows', icon: <Layers size={13} />, count: shows.length || 3 },
     { id: 'media', label: 'Media', icon: <Film size={13} />, count: activeMediaItems.length },
     { id: 'scripture', label: 'Scripture', icon: <BookOpen size={13} />, count: 66, highlight: true },
+    { id: 'lyrics', label: 'Song Lyrics', icon: <Mic2 size={13} />, count: songCount },
     { id: 'chora', label: 'Chora', icon: <Music size={13} />, count: CHORA_TRACKS.length + CHORA_PADS.length },
     { id: 'reello', label: 'Reello', icon: <Video size={13} />, count: activeReelloClips.length },
     { id: 'taleo', label: 'Taleo', icon: <Film size={13} />, count: activeTaleoSeries.length },
@@ -1990,6 +2175,21 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     ? 'Take a verse and the next one is cued into Preview — one tap to follow the reading.'
                     : 'Auto-cue is off — cue verses yourself, or turn it on to preview the next verse automatically.'}
                 </span>
+                <label
+                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-semibold cursor-pointer select-none ${
+                    typoTextState.prefs.sendScripture ? 'border-[#D40055]/60 bg-[#D40055]/15 text-[#ff7aa8]' : 'border-white/10 text-white/45'
+                  }`}
+                  title="Feed the live scripture text to typographic visualizers (kinetic type spells the verse)"
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-[#D40055]"
+                    checked={typoTextState.prefs.sendScripture}
+                    onChange={e => setTypoTextPrefs({ sendScripture: e.target.checked })}
+                  />
+                  <Sparkles size={11} />
+                  Send to visualizer
+                </label>
               </div>
 
               {/* Live audio → scripture: pick a source (the live mic is always offered) and the operator can just say it */}
@@ -2020,6 +2220,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                           if (el) verseItemRefs.current.set(v.verse, el);
                           else verseItemRefs.current.delete(v.verse);
                         }}
+                        {...verseMenu.bind(v)}
                         onClick={() => handleVerseClick(v)}
                         onDoubleClick={() => handleVerseDoubleClick(v)}
                         className={`group relative rounded-xl p-3 border transition-all cursor-pointer ${
@@ -2146,6 +2347,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 return (
                   <div
                     key={show.id}
+                    {...showMenu.bind(show)}
                     onClick={() => onSelectShow && onSelectShow(show.id)}
                     className={`rounded-xl overflow-hidden border cursor-pointer transition-all ${
                       isActive
@@ -2176,6 +2378,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         {/* ========================================================================= */}
         {activeTab === 'media' && (
           <div className="flex-1 flex min-h-0 overflow-hidden">
+            {folderMenu.node}
+            {subfolderMenu.node}
             {/* Left Column: Folders & Hot-Switching Navigation */}
             <div className="w-60 border-r p-2 flex flex-col gap-1.5 flex-none min-h-0 overflow-y-auto" style={{ borderColor: line, background: 'rgba(0,0,0,0.2)' }}>
               <div className="flex items-center justify-between px-1 mb-0.5">
@@ -2190,13 +2394,14 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 </button>
               </div>
 
-              {/* Pinned Folders List with Hot-Switching */}
+              {/* Folders: Windows libraries + every folder saved in any Plajah app. Right-click for actions. */}
               <div className="space-y-1">
                 {pinnedFolders.map(folder => {
-                  const isSelected = selectedSubcat === 'Pinned Folders' && activeFolderId === folder.id;
+                  const isSelected = !isCloudView && activeFolderId === folder.id;
                   return (
                     <div
                       key={folder.id}
+                      {...folderMenu.bind(folder)}
                       onClick={() => {
                         setSelectedSubcat('Pinned Folders');
                         setActiveFolderId(folder.id);
@@ -2206,6 +2411,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                           ? 'bg-[#00DAF3]/15 text-[#00DAF3] font-bold border border-[#00DAF3]/30'
                           : 'text-white/70 hover:text-white hover:bg-white/5 border border-transparent'
                       }`}
+                      title={folder.path}
                     >
                       <div className="flex items-center gap-2 truncate">
                         <Folder size={13} className={isSelected ? 'text-[#00DAF3]' : 'text-white/40'} />
@@ -2215,74 +2421,29 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                         {folderStatus[folder.id]?.state === 'needs-permission' && (
                           <span className="font-mono text-[8.5px] text-[#FF8C00]" title="Needs reconnecting">!</span>
                         )}
-                        <span className="font-mono text-[9px] text-white/30">{folder.kind || folderStatus[folder.id]?.state === 'ok' ? folder.itemCount : '–'}</span>
-                        {folder.kind && (
-                          <>
-                            <button
-                              onClick={e => handleToggleImportTarget(folder, e)}
-                              className={`p-0.5 transition-opacity hover:text-[#E3C57E] ${importTargetId === folder.id ? 'opacity-100 text-[#E3C57E]' : 'opacity-0 group-hover:opacity-100'}`}
-                              title={importTargetId === folder.id ? 'Dropped files are copied into this folder (click to stop)' : 'Copy dropped files into this folder'}
-                            >
-                              <Pin size={10} />
-                            </button>
-                            <button onClick={e => handleRescanFolder(folder.id, e)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-[#00DAF3] transition-opacity" title="Rescan folder">
-                              <RefreshCw size={10} />
-                            </button>
-                            <button onClick={e => handleRenameFolder(folder.id, e)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-white transition-opacity" title="Rename">
-                              <Type size={10} />
-                            </button>
-                          </>
-                        )}
-                        {!folder.isSystem && (
-                          <button
-                            onClick={e => handleRemoveFolder(folder.id, e)}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 transition-opacity"
-                            title="Unpin folder"
-                          >
-                            <Trash2 size={10} />
-                          </button>
-                        )}
+                        {importTargetId === folder.id && <Pin size={10} className="text-[#E3C57E]" aria-label="Import target" />}
+                        <span className="font-mono text-[9px] text-white/30">{folderStatus[folder.id]?.state === 'ok' ? folder.itemCount : ''}</span>
                       </div>
                     </div>
                   );
                 })}
+                {pinnedFolders.length === 0 && (
+                  <div className="px-2.5 py-2 text-[10.5px] text-white/40">No folders yet. Add one, or drop a folder from your computer onto the grid.</div>
+                )}
               </div>
 
               <div className="h-px bg-white/10 my-1.5" />
 
-              {/* Subcategories & Photo Libraries */}
-              <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 px-1 mb-0.5">
-                Media Collections
-              </div>
-              {[
-                { id: 'all', label: 'All Media Items' },
-                { id: 'Personal Photos', label: 'Personal Photos' },
-                { id: 'Organization Photos', label: 'Organization Photos' },
-                { id: 'Flora Stills', label: 'Flora Nature Stills' },
-                { id: 'Motion Backgrounds', label: 'Motion Backgrounds' },
-                { id: 'NDI Network', label: 'NDI Network Video' },
-              ].map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedSubcat(cat.id)}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                    selectedSubcat === cat.id ? 'bg-white/15 text-white font-bold' : 'text-white/60 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-
-              <div className="mt-auto pt-2 border-t border-white/10">
-                <button
-                  onClick={onScanNdi}
-                  disabled={isScanningNdi}
-                  className="w-full py-1.5 rounded-lg text-[10px] font-semibold text-[#00DAF3] bg-[#00DAF3]/10 hover:bg-[#00DAF3]/20 border border-[#00DAF3]/30 transition-all flex items-center justify-center gap-1.5"
-                >
-                  <RefreshCw size={11} className={isScanningNdi ? 'animate-spin' : ''} />
-                  <span>Scan NDI on LAN</span>
-                </button>
-              </div>
+              <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 px-1 mb-0.5">Cloud</div>
+              <button
+                onClick={() => setSelectedSubcat('My Cloud Photos')}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all flex items-center justify-between ${
+                  isCloudView ? 'bg-white/15 text-white font-bold' : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>My Cloud Photos</span>
+                <span className="font-mono text-[9px] text-white/30">{platformPhotos.length || ''}</span>
+              </button>
             </div>
 
             {/* Right Column: Media Grid with Drag & Double-click Take */}
@@ -2368,6 +2529,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                   {folderSubfolders.map(sf => (
                     <div
                       key={`dir:${sf.path}`}
+                      {...subfolderMenu.bind({ name: sf.name, path: sf.path })}
                       draggable
                       onDragStart={e => { e.dataTransfer.setData('application/json', folderDragPayload(sf.name, sf.path)); e.dataTransfer.effectAllowed = 'copy'; }}
                       onClick={() => setFolderSubpath(sf.path)}
@@ -2405,6 +2567,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     return (
                       <div
                         key={item.id}
+                        {...mediaItemMenu.bind(item)}
                         draggable
                         onDragStart={e => handleDragStart(e, item)}
                         onClick={() => onPreviewSource(item)}
@@ -2421,7 +2584,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                         <SquareFrame className="bg-[#120a1f]" style={item.gradient ? { background: item.gradient } : undefined}>
                           <AmboPoster
                             label={item.name}
-                            cover={item.thumb || (item.kind === 'IMAGE' ? item.src : undefined)}
+                            cover={item.thumb}
+                            imageSrc={item.kind === 'IMAGE' && !item.thumb ? item.src : undefined}
                             videoSrc={item.kind === 'VIDEO' ? item.src : undefined}
                             gradient={item.gradient}
                             kind={item.kind === 'VIDEO' ? 'video' : item.kind === 'IMAGE' ? 'image' : item.kind === 'AUDIO' ? 'audio' : 'other'}
@@ -2497,6 +2661,11 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
             </div>
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* SONG LYRICS (next to Scripture): song library + live song-follow           */}
+        {/* ========================================================================= */}
+        {activeTab === 'lyrics' && <AmboSongLyricsTab />}
 
         {/* ========================================================================= */}
         {/* TAB 4: CHORA (All Artists, Albums, Personal Music Locker, Playlists & DJ) */}
@@ -2575,7 +2744,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                   return (
                     <div
                       key={r.id}
-                      draggable
+                      {...mediaItemMenu.bind(item)} draggable
                       onDragStart={e => handleDragStart(e, item)}
                       onClick={() => onPreviewSource(item)}
                       onDoubleClick={() => onProgramSource(item)}
@@ -2682,7 +2851,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                   return (
                     <div
                       key={t.id}
-                      draggable
+                      {...mediaItemMenu.bind(item)} draggable
                       onDragStart={e => handleDragStart(e, item)}
                       onClick={() => onPreviewSource(item)}
                       onDoubleClick={() => onProgramSource(item)}
@@ -2747,134 +2916,112 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         {/* ========================================================================= */}
         {/* TAB 7: VISUALIZERS (Flux Series VI, Series VII, GLSL, Butterchurn) */}
         {/* ========================================================================= */}
-        {activeTab === 'visualizers' && (
+        {activeTab === 'visualizers' && (() => {
+          const q = debouncedSearch.trim().toLowerCase();
+          const matchesSearch = (item: AmboMediaSourceItem) =>
+            (!vizEnergyOn.length || vizEnergyOn.includes(vizEnergyById.get(item.id) ?? 'medium')) && (!q ||
+            item.name.toLowerCase().includes(q) || !!item.mode?.toLowerCase().includes(q) || !!item.sub?.toLowerCase().includes(q));
+          const allCats = VIZ_SECTIONS.flatMap(s => s.cats);
+          const inCat = (catId: string) => {
+            const cat = allCats.find(c => c.id === catId);
+            return visualizerItems.filter(i => matchesSearch(i) && (cat ? cat.match(i) : true));
+          };
+          const selected = selectedSubcat === 'all' ? 'All Visualizers' : selectedSubcat;
+          const renderGrid = (items: AmboMediaSourceItem[]) => (
+            <div className={SQUARE_GRID_CLASS} style={squareGridStyle()}>{items.map(renderVizCard)}</div>
+          );
+          return (
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            <div className="w-56 border-r p-2 flex flex-col gap-1 flex-none" style={{ borderColor: line, background: 'rgba(0,0,0,0.2)' }}>
-              <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 mb-1">Visualizer Modes</div>
-              {[
-                'All Visualizers',
-                'Plajah Pixels Generators',
-                'Flux Series VI',
-                'Series VII (ADC)',
-                'GLSL Shaders',
-                'Milkdrop Presets',
-                'Atmosphere',
-                'Energy',
-                'Graphic'
-              ].map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedSubcat(cat)}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                    selectedSubcat === cat ? 'bg-white/15 text-white font-bold' : 'text-white/60 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {cat}
-                </button>
+            <div className="w-56 border-r p-2 flex flex-col gap-0.5 flex-none overflow-y-auto custom-scrollbar" style={{ borderColor: line, background: 'rgba(0,0,0,0.2)' }}>
+              <button
+                onClick={() => setSelectedSubcat('All Visualizers')}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all flex items-center justify-between ${
+                  selected === 'All Visualizers' ? 'bg-white/15 text-white font-bold' : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>All Visualizers</span>
+                <span className="font-mono text-[9px] text-white/35">{visualizerItems.filter(matchesSearch).length}</span>
+              </button>
+              {VIZ_SECTIONS.map(sec => (
+                <div key={sec.title} className="mt-2">
+                  <div className="px-1 text-[9px] font-extrabold uppercase tracking-wider mb-0.5 flex items-center gap-1" style={{ color: sec.color }}>
+                    {sec.title}
+                  </div>
+                  {sec.cats.map(cat => {
+                    const n = inCat(cat.id).length;
+                    if (!n && cat.hideWhenEmpty) return null;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedSubcat(cat.id)}
+                        title={cat.hint}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all flex items-center justify-between ${
+                          selected === cat.id ? 'bg-white/15 text-white font-bold' : 'text-white/60 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="truncate">{cat.label}</span>
+                        <span className="font-mono text-[9px] text-white/35">{n}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               ))}
             </div>
-            <div className={`${SQUARE_GRID_CLASS} p-3`} style={squareGridStyle()}>
-              {visualizerItems
-                .filter(item => {
-                  if (debouncedSearch.trim() && activeTab === 'visualizers') {
-                    const q = debouncedSearch.toLowerCase().trim();
-                    const match =
-                      item.name.toLowerCase().includes(q) ||
-                      (item.mode && item.mode.toLowerCase().includes(q)) ||
-                      (item.sub && item.sub.toLowerCase().includes(q));
-                    if (!match) return false;
-                  }
-                  if (selectedSubcat === 'Plajah Pixels Generators') return item.tags?.includes('generator') || item.tags?.includes('pixels');
-                  if (selectedSubcat === 'Flux Series VI') return item.tags?.includes('flux');
-                  if (selectedSubcat === 'Series VII (ADC)') return item.tags?.includes('series7');
-                  if (selectedSubcat === 'GLSL Shaders') return item.tags?.includes('shader') || item.tags?.includes('glsl');
-                  if (selectedSubcat === 'Milkdrop Presets') return item.tags?.includes('milkdrop');
-                  if (selectedSubcat !== 'all' && selectedSubcat !== 'All Visualizers') return item.sub === selectedSubcat;
-                  return true;
-                })
-                .map(item => {
-                  const isLive = currentLiveInputId === item.mode;
-                  const isPrev = currentPreviewInputId === item.mode;
+            <div className="flex-1 min-w-0 overflow-y-auto p-3 custom-scrollbar">
+              {/* Temperament / energy filter */}
+              <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 mr-1">Energy</span>
+                <button
+                  onClick={() => setVizEnergyOn([])}
+                  className={`px-2 h-6 rounded-full text-[10px] font-bold border ${!vizEnergyOn.length ? 'text-black bg-white border-white' : 'text-white/55 border-white/15 hover:text-white'}`}
+                >All</button>
+                {VIZ_ENERGIES.map(e => {
+                  const on = vizEnergyOn.includes(e.id);
+                  const n = visualizerItems.filter(i => vizEnergyById.get(i.id) === e.id).length;
                   return (
-                    <div
-                      key={item.id}
-                      draggable
-                      onDragStart={e => handleDragStart(e, item)}
-                      onClick={() => onPreviewSource(item)}
-                      onDoubleClick={() => onProgramSource(item)}
-                      onMouseEnter={() => setHoverVizId(item.id)}
-                      onMouseLeave={() => setHoverVizId(h => (h === item.id ? null : h))}
-                      className={`group relative rounded-xl overflow-hidden border cursor-pointer transition-all ${
-                        isLive
-                          ? 'border-[#FF8C00] shadow-[0_0_18px_rgba(255,140,0,0.3)] ring-1 ring-[#FF8C00]'
-                          : isPrev
-                          ? 'border-[#00DAF3] shadow-[0_0_14px_rgba(0,218,243,0.2)]'
-                          : 'border-white/10 hover:border-white/30'
-                      }`}
-                      title="Single-click preview | Double-click take to Program Out"
+                    <button
+                      key={e.id}
+                      title={`${e.hint} · click to toggle, several can be on`}
+                      onClick={() => setVizEnergyOn(cur => (on ? cur.filter(x => x !== e.id) : [...cur, e.id]))}
+                      className="px-2 h-6 rounded-full text-[10px] font-bold border flex items-center gap-1.5 transition-all"
+                      style={on ? { color: '#0b0910', background: e.color, borderColor: e.color } : { color: e.color, borderColor: `${e.color}55`, background: `${e.color}10` }}
                     >
-                      <SquareFrame style={{ background: item.gradient || '#120a1f' }}>
-                        <AmboVisualizerThumb item={item} hovered={hoverVizId === item.id} />
-                        <div className="absolute top-1 left-1 px-1 py-0.2 rounded bg-black/60 font-mono text-[8px] text-white/80 max-w-[90%] truncate">
-                          {item.sub || 'GLSL'}
-                        </div>
-                        {isLive && (
-                          <div className="absolute top-1 right-1 px-1.5 py-0.2 rounded bg-[#FF8C00] font-mono text-[8px] font-bold text-[#1a1405]">
-                            LIVE
-                          </div>
-                        )}
-                        {!isLive && isPrev && (
-                          <div className="absolute top-1 right-1 px-1.5 py-0.2 rounded bg-[#00DAF3] font-mono text-[8px] font-bold text-[#04222a]">
-                            PREVIEW
-                          </div>
-                        )}
-
-                        {/* Quick Action Overlay */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity z-20">
-                          {onInsertMediaSlide && (
-                            <button
-                              onClick={e => {
-                                e.stopPropagation();
-                                onInsertMediaSlide(item);
-                              }}
-                              className="px-2 py-1 rounded bg-white/20 hover:bg-white/40 text-[10px] font-bold text-white transition-colors"
-                              title="Insert as visualizer slide"
-                            >
-                              + Slide
-                            </button>
-                          )}
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              onPreviewSource(item);
-                            }}
-                            className="px-2 py-1 rounded bg-[#00DAF3]/80 hover:bg-[#00DAF3] text-[10px] font-bold text-black transition-colors"
-                            title="Cue in Preview"
-                          >
-                            Preview
-                          </button>
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              onProgramSource(item);
-                            }}
-                            className="px-2 py-1 rounded bg-[#FF8C00]/90 hover:bg-[#FF8C00] text-[10px] font-bold text-black transition-colors"
-                            title="Take to Program Out"
-                          >
-                            Take
-                          </button>
-                        </div>
-                      </SquareFrame>
-                      <div className="p-2 bg-black/60">
-                        <div className="text-[11px] font-semibold text-white truncate">{item.name}</div>
-                        <div className="text-[9px] text-white/40 truncate">{item.kind === 'SHADER' || item.mode?.startsWith(MILKDROP_PREFIX) ? (item.kind === 'SHADER' ? 'GLSL shader' : 'Milkdrop') : item.mode}</div>
-                      </div>
-                    </div>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? '#0b0910' : e.color }} />
+                      {e.label}
+                      <span className="font-mono text-[9px] opacity-60">{n}</span>
+                    </button>
                   );
                 })}
+              </div>
+              {selected === 'All Visualizers' ? (
+                VIZ_SECTIONS.map(sec => {
+                  const items = visualizerItems.filter(i => matchesSearch(i) && sec.cats.some(c => c.match(i)));
+                  const unique = items.filter((it, idx) => items.findIndex(x => x.id === it.id) === idx);
+                  if (!unique.length) return null;
+                  return (
+                    <div key={sec.title} className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10.5px] font-extrabold uppercase tracking-wider" style={{ color: sec.color }}>{sec.title}</span>
+                        <span className="font-mono text-[9px] text-white/35">{unique.length}</span>
+                        <span className="text-[9.5px] text-white/35 truncate">{sec.blurb}</span>
+                        <div className="flex-1 h-px bg-white/10" />
+                      </div>
+                      {renderGrid(unique)}
+                    </div>
+                  );
+                })
+              ) : renderGrid(inCat(selected))}
+            </div>
+            <div className="w-72 border-l flex-none min-h-0" style={{ borderColor: line, background: 'rgba(0,0,0,0.25)' }}>
+              <AmboVisualizerParamsPanel
+                item={selectedViz ?? visualizerItems.find(i => i.mode && i.mode === currentLiveInputId) ?? null}
+                liveMode={currentLiveInputId}
+                previewMode={currentPreviewInputId}
+              />
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ========================================================================= */}
         {/* TAB 8: ASSETS (Fabula Lottie, Lower Thirds, Tela Docs, Transition Library) */}
@@ -2947,6 +3094,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       return (
                         <div
                           key={tx.id}
+                          {...transitionMenu.bind({ id: tx.id, name: tx.name })}
                           onClick={() => onSelectTransition && onSelectTransition(tx.name)}
                           className={`rounded-xl overflow-hidden border cursor-pointer transition-all ${
                             isSelected
@@ -3038,8 +3186,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
 
         {activeTab === 'live' && (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {liveMenu.node}
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-black/30">
-              <div className="text-[10px] text-white/50">Single-click: <span className="text-[#00DAF3] font-bold">Preview</span> · Double-click: <span className="text-[#FF8C00] font-bold">Take</span> · Drag onto a slide for a live background</div>
+              <div className="text-[10px] text-white/50">Single-click: <span className="text-[#00DAF3] font-bold">Preview</span> · Double-click: <span className="text-[#FF8C00] font-bold">Take</span> · Feeds are <span className="font-bold text-white/70">muted</span> until you turn their audio on</div>
               <button
                 onClick={onScanNdi}
                 className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white/80 bg-white/5 hover:bg-white/15 border border-white/10 flex items-center gap-1"
@@ -3057,6 +3206,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 return (
                   <div
                     key={item.id}
+                    {...liveMenu.bind(item)}
                     draggable
                     onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'ambo-source', source: item })); e.dataTransfer.effectAllowed = 'copy'; }}
                     onClick={() => onPreviewSource(item)}
@@ -3069,10 +3219,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     }}
                     title={`${item.name} — click to preview, double-click to take live`}
                   >
-                    <SquareFrame className="rounded-lg mb-2 border border-white/5" style={{ background: 'linear-gradient(135deg,#14202b,#0a0f14)' }}>
-                      <div className="w-full h-full grid place-items-center">
-                        <Radio size={30} className={isLive ? 'text-[#FF8C00]' : isPrev ? 'text-[#00DAF3]' : 'text-white/25'} />
-                      </div>
+                    <SquareFrame className="rounded-lg mb-2 border border-white/5 overflow-hidden" style={{ background: 'linear-gradient(135deg,#14202b,#0a0f14)' }}>
+                      <AmboLiveInputTile inputId={id} tint={isLive ? '#FF8C00' : isPrev ? '#00DAF3' : 'rgba(255,255,255,0.25)'} />
                     </SquareFrame>
                     <div className="text-[11px] font-semibold text-white truncate flex items-center gap-1.5">
                       <span className="truncate">{item.name}</span>
@@ -3095,6 +3243,10 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         )}
       </div>
 
+      {mediaItemMenu.node}
+      {verseMenu.node}
+      {showMenu.node}
+      {transitionMenu.node}
       <AmboNewAudioPlaylistModal
         isOpen={isNewAudioPlaylistModalOpen}
         onClose={() => setIsNewAudioPlaylistModalOpen(false)}

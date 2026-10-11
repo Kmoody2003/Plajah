@@ -27,6 +27,8 @@ export interface AmboMediaSourceItem {
   online?: boolean;
   /** Files in a linked folder: the subfolder it sits in ("Easter/Photos"), '' at the folder's top. */
   folderDir?: string;
+  /** Local files in the Windows app: the absolute path (Show in File Explorer). */
+  filePath?: string;
 }
 
 interface AmboMediaBinProps {

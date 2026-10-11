@@ -22,6 +22,7 @@ import type { TelaDoc, TelaFrame, TelaBlock, TelaVectorDevice, TelaVectorObject 
 import type { Slide, SlideLayer, LayerSlot, LayerContent, Rect, TextBlock } from './showModel';
 import { newId, LAYER_ORDER } from './showModel';
 import { FREEFORM_ID, FREEFORM_FIELD, ART_W, ART_H, encodeScene, decodeScene, sceneText } from './slideTemplates/freeform';
+import { buildSlideObjects } from './slideTemplates/registry';
 
 /** A stable Tela id for a slide, so re-opening the same slide keeps its identity. */
 export const telaIdForSlide = (slide: Slide) => `tela_ambo_${slide.id}`;
@@ -145,13 +146,42 @@ function expandFreeform(layer: SlideLayer, index: number): TelaVectorObject[] {
   });
 }
 
+/** Expand any template layer (freeform or catalogue template) into native objects so the editor is populated */
+export function expandTemplate(layer: SlideLayer, index: number): TelaVectorObject[] {
+  const c = layer.content as Extract<LayerContent, { kind: 'TELA_TEMPLATE' }>;
+  if (c.templateId === FREEFORM_ID) {
+    return expandFreeform(layer, index);
+  }
+  const slideObjs = buildSlideObjects(c.templateId, c.theme, c.fields, ART_W, ART_H);
+  if (!slideObjs || slideObjs.length === 0) {
+    return [objectFromLayer(layer, index)];
+  }
+  const shell: SlideLayer = { ...layer };
+  return slideObjs.map((o, i) => {
+    const out = clone(o);
+    if (!out.id) out.id = `${layer.id}_o${i}`;
+    if (!out.objectLabel) {
+      if (out.kind === 'TEXT') {
+        out.objectLabel = (out.text || 'Text').split('\n')[0].slice(0, 32);
+      } else if (out.templateRole === 'GROUND') {
+        out.objectLabel = 'Background';
+      } else {
+        const role = out.templateRole ? out.templateRole.charAt(0) + out.templateRole.slice(1).toLowerCase() : out.kind.toLowerCase();
+        out.objectLabel = `${role} ${i + 1}`;
+      }
+    }
+    out.amboLayer = { kind: 'scene', layer: shell, index } satisfies AmboLayerRecord;
+    return out;
+  });
+}
+
 const isFreeform = (l: SlideLayer) => l.content.kind === 'TELA_TEMPLATE' && l.content.templateId === FREEFORM_ID;
 
 /** Build a Tela document from a slide with complete layer fidelity. An empty slide gives an empty scene. */
 export function slideToTela(slide: Slide, ownerId = 'ambo', now = 0): TelaDoc {
   const objects: TelaVectorObject[] = [];
   slide.layers.forEach((layer, i) => {
-    if (isFreeform(layer)) objects.push(...expandFreeform(layer, i));
+    if (layer.content.kind === 'TELA_TEMPLATE') objects.push(...expandTemplate(layer, i));
     else objects.push(objectFromLayer(layer, i));
   });
   // z-order in the editor: slot order first (stable), then original order — what the compositor will do.

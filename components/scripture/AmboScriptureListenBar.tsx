@@ -5,14 +5,18 @@
 // already working. Pick what to listen to — the live mic is always offered
 // first — and, when the source is a mixer/USB input, the operator's own mic
 // stays live beside it so they can just say "second Peter three nine".
+//
+// While listening, a live-input waveform runs under the controls with the
+// transcript laid over it; action words (references, giving language) light up.
 
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { Mic, MicOff, Radio, AlertTriangle, Sparkles, KeyRound } from 'lucide-react';
+import { Mic, MicOff, Radio, AlertTriangle, KeyRound, BookOpen, HandHeart } from 'lucide-react';
 import {
   getAutoScripturePrefs, getAutoScriptureState, subscribeAutoScripture, setAutoScripturePrefs,
-  startAutoScripture, stopAutoScripture,
+  startAutoScripture, stopAutoScripture, type AutoScriptureHistoryItem,
 } from '../../services/ambo/autoScripture';
 import { listAudioInputs, unlockAudioInputLabels, inputLabelsHidden } from '../../services/ambo/liveTranscriber';
+import AmboLiveInputWaveform, { TAG_COLOR } from './AmboLiveInputWaveform';
 
 const GOLD = '#E3C57E';
 const GREEN = '#2BE0A8';
@@ -109,6 +113,8 @@ const AmboScriptureListenBar: React.FC = () => {
           ))}
         </div>
 
+        <IntentToggles />
+
         {on && (
           <span className="inline-flex items-center gap-1.5 text-[9.5px] text-white/50 flex-none">
             {deviceSource ? 'Input' : 'Mic'} <Meter level={state.level} color={GREEN} />
@@ -117,28 +123,56 @@ const AmboScriptureListenBar: React.FC = () => {
         )}
       </div>
 
-      {(on || state.error || state.history.length > 0) && (
+      {(on || state.starting) && <AmboLiveInputWaveform height={48} className="w-full" />}
+
+      {(state.error || state.operator.error || state.history.length > 0 || (on && !state.heard && !state.operator.heard)) && (
         <div className="flex items-center gap-2 text-[10.5px] min-w-0">
           {state.error ? (
             <span className="text-[#F5C542] truncate"><AlertTriangle size={10} className="inline mr-1" />{state.error}</span>
-          ) : state.hearing ? (
-            <span className="font-bold text-[#E3C57E] truncate"><Sparkles size={10} className="inline mr-1" />Heard “{state.hearing.label}” — confirming…</span>
-          ) : on ? (
-            <span className="text-white/55 truncate">
-              {state.heard || state.operator.heard
-                ? <>“{(state.operator.heard && !state.heard ? state.operator.heard : state.heard)}”</>
-                : <span className="text-white/35">{deviceSource && prefs.operatorMic ? 'Listening to the input and your mic…' : 'Listening… say “John three sixteen” or “turn to Psalm 23”.'}</span>}
+          ) : on && !state.heard && !state.operator.heard ? (
+            <span className="text-white/35 truncate">
+              {deviceSource && prefs.operatorMic ? 'Listening to the input and your mic…' : 'Listening… say “John three sixteen”, “turn to Psalm 23” or “tithes and offerings”.'}
             </span>
           ) : null}
           {state.operator.error && <span className="text-[#F5C542] truncate">Operator mic: {state.operator.error}</span>}
           <span className="flex-1" />
-          {state.history.slice(0, 4).map((h, i) => (
-            <span key={i} className={`px-1.5 py-0.5 rounded text-[9.5px] border flex-none ${h.ok ? 'text-white/75 border-white/15' : 'text-[#F5C542] border-[#F5C542]/30'}`}>
-              {h.label}{h.ok ? (h.delivered === 'auto' ? ' · live' : ' · cued') : ' · not found'}
-            </span>
-          ))}
+          {state.history.slice(0, 4).map((h, i) => <HistoryChip key={i} h={h} />)}
         </div>
       )}
+    </div>
+  );
+};
+
+/** One fired trigger: a verse (gold) or the giving graphic (rose). */
+export const HistoryChip: React.FC<{ h: AutoScriptureHistoryItem; size?: 'sm' | 'md' }> = ({ h, size = 'sm' }) => {
+  const giving = h.kind === 'giving';
+  const tone = !h.ok ? 'text-[#F5C542] border-[#F5C542]/30' : giving ? 'text-[#FF6FAE] border-[#FF6FAE]/40' : 'text-white/75 border-white/15';
+  const tail = h.ok ? (h.delivered === 'auto' ? ' · live' : ' · cued') : giving ? ' · no graphic' : ' · not found';
+  return (
+    <span className={`px-1.5 py-0.5 rounded border flex-none ${size === 'sm' ? 'text-[9.5px]' : 'text-[10px]'} ${tone}`}>
+      {giving && '♥ '}{h.label}{tail}
+    </span>
+  );
+};
+
+/** What Ambo acts on when it hears it: scripture references, giving language. */
+export const IntentToggles: React.FC = () => {
+  const prefs = useSyncExternalStore(subscribeAutoScripture, getAutoScripturePrefs);
+  const chip = (on: boolean, color: string) => on
+    ? { color: '#120d02', background: color, borderColor: color }
+    : { color: 'rgba(255,255,255,0.5)', background: 'transparent', borderColor: 'rgba(255,255,255,0.15)' };
+  return (
+    <div className="inline-flex items-center gap-1 flex-none" title="What Ambo acts on when it hears it">
+      <button onClick={() => setAutoScripturePrefs({ listenScripture: !prefs.listenScripture })}
+        title="Spoken references (“John three sixteen”) bring up the verse"
+        className="h-7 px-2 rounded-md text-[10px] font-bold border inline-flex items-center gap-1" style={chip(prefs.listenScripture, TAG_COLOR.scripture)}>
+        <BookOpen size={11} /> Scripture
+      </button>
+      <button onClick={() => setAutoScripturePrefs({ listenGiving: !prefs.listenGiving })}
+        title="Giving language (“let’s receive our tithes and offerings”) brings up the giving graphic"
+        className="h-7 px-2 rounded-md text-[10px] font-bold border inline-flex items-center gap-1" style={chip(prefs.listenGiving, TAG_COLOR.giving)}>
+        <HandHeart size={11} /> Giving
+      </button>
     </div>
   );
 };

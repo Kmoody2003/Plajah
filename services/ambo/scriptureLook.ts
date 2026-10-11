@@ -20,10 +20,16 @@ export interface ScriptureLook {
   /** How the look's background art composes onto the layers below (generator, video…). */
   bgBlend: BlendMode;
   bgOpacity: number;
+  /** Size of the scripture reference (book · chapter:verse · translation) relative to each look's own design. */
+  refScale: number;
 }
 
+/** Reference size choices for the picker (1 = the look's original size). */
+export const REF_SCALES = [0.8, 1, 1.2, 1.4, 1.7, 2, 2.4] as const;
+
 const KEY = 'ambo_scripture_look_v1';
-const DEFAULTS: ScriptureLook = { layoutId: DEFAULT_SCRIPTURE_LAYOUT, transition: 'crossfade', verseTransition: 'crossfade', accent: '#D4AF37', bgBlend: 'normal', bgOpacity: 1 };
+// refScale 1.4: the looks' original references read too small from the back of a room.
+const DEFAULTS: ScriptureLook = { layoutId: DEFAULT_SCRIPTURE_LAYOUT, transition: 'crossfade', verseTransition: 'crossfade', accent: '#D4AF37', bgBlend: 'normal', bgOpacity: 1, refScale: 1.4 };
 
 function read(): ScriptureLook {
   try { const raw = localStorage.getItem(KEY); if (raw) return { ...DEFAULTS, ...JSON.parse(raw) }; } catch { /* */ }
@@ -50,16 +56,17 @@ export function subscribeScriptureLook(fn: () => void): () => void { listeners.a
 export function stampScripture<T extends { kind: string }>(content: T): T {
   if (content.kind !== 'SCRIPTURE') return content;
   const c: any = content;
-  if (c.layoutId && c.transition && c.accent && c.verseTransition && c.bgBlend) return content;
+  if (c.layoutId && c.transition && c.accent && c.verseTransition && c.bgBlend && c.refScale) return content;
   return {
     ...c,
     layoutId: c.layoutId ?? look.layoutId, transition: c.transition ?? look.transition, accent: c.accent ?? look.accent,
     verseTransition: c.verseTransition ?? look.verseTransition, bgBlend: c.bgBlend ?? look.bgBlend, bgOpacity: c.bgOpacity ?? look.bgOpacity,
+    refScale: c.refScale ?? look.refScale,
   };
 }
 
 /** Make a saved look (mine, shared with me, or from the community) the current look. Values are checked, never trusted. */
-export function applySavedLook(l: { layoutId?: string; transition?: string; verseTransition?: string; accent?: string; bgBlend?: string; bgOpacity?: number } | undefined): boolean {
+export function applySavedLook(l: { layoutId?: string; transition?: string; verseTransition?: string; accent?: string; bgBlend?: string; bgOpacity?: number; refScale?: number } | undefined): boolean {
   if (!l?.layoutId) return false;
   const patch: Partial<ScriptureLook> = { layoutId: scriptureLayoutById(l.layoutId).id };
   if (l.transition) patch.transition = transitionById(l.transition).id;
@@ -67,6 +74,7 @@ export function applySavedLook(l: { layoutId?: string; transition?: string; vers
   if (l.accent && /^#[0-9a-f]{3,8}$/i.test(l.accent)) patch.accent = l.accent;
   if (l.bgBlend && (BLEND_MODES as readonly string[]).includes(l.bgBlend)) patch.bgBlend = l.bgBlend as BlendMode;
   if (typeof l.bgOpacity === 'number' && isFinite(l.bgOpacity)) patch.bgOpacity = Math.min(1, Math.max(0, l.bgOpacity));
+  if (typeof l.refScale === 'number' && isFinite(l.refScale)) patch.refScale = Math.min(3, Math.max(0.5, l.refScale));
   setScriptureLook(patch);
   return true;
 }

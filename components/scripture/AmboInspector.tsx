@@ -13,6 +13,10 @@ import {
   LAYER_ORDER, LAYER_LABEL, newId,
 } from '../../services/ambo/showModel';
 import { GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
+import { TYPO_CATALOG } from '../../services/ambo/typoCatalog';
+import { TYPO_PREFIX } from '../../services/ambo/layerSources';
+import { getVizParams } from '../../services/ambo/visualizerParams';
+import { VisualizerParamsEditor } from './AmboVisualizerParamsPanel';
 import { type NativeSourceInfo } from '../../services/mediaEngine/bridge';
 
 interface AmboInspectorProps {
@@ -300,27 +304,49 @@ export const AmboInspector: React.FC<AmboInspectorProps> = ({
               )}
 
               {/* Sub-config: GENERATOR */}
-              {currentLayer?.content?.kind === 'GENERATOR' && (
+              {currentLayer?.content?.kind === 'GENERATOR' && (() => {
+                const gen = currentLayer.content;
+                const known = GENERATOR_ITEMS.some(g => g.content.kind === 'GENERATOR' && g.content.mode === gen.mode)
+                  || TYPO_CATALOG.some(t => `${TYPO_PREFIX}${t.key}` === gen.mode);
+                return (
                 <div className="space-y-2 pt-1">
                   <span className="text-[9px] font-mono text-white/50 block">Flux / Shader Preset</span>
                   <select
-                    value={currentLayer.content.mode}
+                    value={gen.mode}
                     onChange={e => {
                       setLayerContent(selectedSlot, {
                         kind: 'GENERATOR',
                         mode: e.target.value,
+                        params: getVizParams(e.target.value),
                       });
                     }}
                     className="w-full bg-black/60 border border-white/12 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00DAF3]"
                   >
-                    {GENERATOR_ITEMS.map(g => (
-                      <option key={g.id} value={g.content.kind === 'GENERATOR' ? g.content.mode : ''}>
-                        {g.category}: {g.name}
-                      </option>
-                    ))}
+                    {!known && <option value={gen.mode}>{gen.mode}</option>}
+                    <optgroup label="Generators">
+                      {GENERATOR_ITEMS.map(g => (
+                        <option key={g.id} value={g.content.kind === 'GENERATOR' ? g.content.mode : ''}>
+                          {g.category}: {g.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Typographic">
+                      {TYPO_CATALOG.map(t => (
+                        <option key={t.key} value={`${TYPO_PREFIX}${t.key}`}>Typo: {t.name}</option>
+                      ))}
+                    </optgroup>
                   </select>
+                  <span className="text-[9px] font-mono text-white/50 block pt-1">Parameters</span>
+                  <VisualizerParamsEditor
+                    mode={gen.mode}
+                    kind="GENERATOR"
+                    params={gen.params}
+                    compact
+                    onChange={patch => setLayerContent(selectedSlot, { ...gen, params: { ...(gen.params || {}), ...patch } })}
+                  />
                 </div>
-              )}
+                );
+              })()}
 
               {/* Sub-config: TEXT */}
               {currentLayer?.content?.kind === 'TEXT' && (

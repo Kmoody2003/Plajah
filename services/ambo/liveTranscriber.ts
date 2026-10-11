@@ -32,6 +32,11 @@ export interface TranscriberEvents {
 export interface TranscriberHandle {
   stop: () => void;
   engine: 'speech' | 'whisper';
+  /**
+   * The incoming audio, for a live waveform. Null when a native engine owns
+   * the mic and only reports a level (draw from onLevel instead).
+   */
+  analyser: AnalyserNode | null;
 }
 
 const SILENCE_HANG_MS = 550;
@@ -55,6 +60,7 @@ async function startWhisper(stream: MediaStream, ev: TranscriberEvents, ownsStre
   const proc = ctx.createScriptProcessor(4096, 1, 1);
   const sink = ctx.createGain(); sink.gain.value = 0;      // keeps the processor pulling without playing anything
   src.connect(proc); proc.connect(sink); sink.connect(ctx.destination);
+  const analyser = ctx.createAnalyser(); analyser.fftSize = 1024; src.connect(analyser);
   const SR = ctx.sampleRate;
 
   let stopped = false, speaking = false, silenceMs = 0, bufSec = 0, busy = false;
@@ -97,15 +103,49 @@ async function startWhisper(stream: MediaStream, ev: TranscriberEvents, ownsStre
   ev.onStatus?.('Listening');
   return {
     engine: 'whisper',
+    analyser,
     stop: () => {
       stopped = true;
-      try { proc.disconnect(); src.disconnect(); sink.disconnect(); ctx.close(); } catch { /* */ }
+      try { proc.disconnect(); src.disconnect(); sink.disconnect(); analyser.disconnect(); ctx.close(); } catch { /* */ }
       if (ownsStream) stream.getTracks().forEach(t => t.stop());
     },
   };
 }
 
-export async function startLiveTranscription(source: TranscribeSource, ev: TranscriberEvents, lang = 'en-US'): Promise<TranscriberHandle> {
+// ── shared word tap ─────────────────────────────────────────────────────────
+// Every running session also publishes its words here. Features that only need
+// to HEAR (song follow, typographic visualizers) tap in instead of opening a
+// second session — two Web Speech sessions cannot share the mic.
+export type TranscriptTap = (text: string, final: boolean, sessionId: number) => void;
+const taps = new Set<TranscriptTap>();
+const activeSessions = new Map<number, string>();
+let sessionSeq = 0;
+const tapSubs = new Set<() => void>();
+const emitSessions = () => tapSubs.forEach(fn => { try { fn(); } catch { /* */ } });
+export const subscribeTranscript = (fn: TranscriptTap) => { taps.add(fn); return () => { taps.delete(fn); }; };
+/** Labels of the sessions currently listening (who owns the mic). */
+export const activeTranscriptions = () => [...activeSessions.values()];
+export const subscribeTranscriptionSessions = (fn: () => void) => { tapSubs.add(fn); return () => { tapSubs.delete(fn); }; };
+
+export async function startLiveTranscription(source: TranscribeSource, ev: TranscriberEvents, lang = 'en-US', label = 'Listening'): Promise<TranscriberHandle> {
+  const id = ++sessionSeq;
+  const tapped: TranscriberEvents = {
+    ...ev,
+    onWords: (text, final) => {
+      ev.onWords(text, final);
+      taps.forEach(fn => { try { fn(text, final, id); } catch { /* */ } });
+    },
+  };
+  const h = await startLiveTranscriptionRaw(source, tapped, lang);
+  activeSessions.set(id, label); emitSessions();
+  return {
+    engine: h.engine,
+    analyser: h.analyser,
+    stop: () => { h.stop(); if (activeSessions.delete(id)) emitSessions(); },
+  };
+}
+
+async function startLiveTranscriptionRaw(source: TranscribeSource, ev: TranscriberEvents, lang = 'en-US'): Promise<TranscriberHandle> {
   if (source.kind === 'mic' && listeningAvailable()) {
     const rec: Recognizer = createRecognizer({ lang });
     rec.onWords = words => { const t = words.map(w => w.text).join(' '); if (t) ev.onWords(t, false); };
@@ -126,7 +166,7 @@ export async function startLiveTranscription(source: TranscribeSource, ev: Trans
       (rec as unknown as { inputTrack: MediaStreamTrack | null }).inputTrack = meter.boostedTrack;
     }
     rec.start();
-    return { engine: 'speech', stop: () => { try { rec.stop(); } catch { /* */ } meter?.stop(); } };
+    return { engine: 'speech', analyser: meter?.analyser ?? null, stop: () => { try { rec.stop(); } catch { /* */ } meter?.stop(); } };
   }
 
   if (source.kind === 'stream') return startWhisper(source.stream, ev, false);

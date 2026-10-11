@@ -8,6 +8,7 @@ import { ISF_CATALOG, importISF, type CatalogEntry } from '../engine/isfCatalog'
 import { PROCEDURAL_PRESETS } from '../engine/presets/proceduralPresets';
 import { SIGNATURE_WORKS, signatureSource } from '../engine/presets/signatureShaders';
 import { MATERIAL_SHADER_WORKS } from '../engine/presets/materialShaders';
+import { SANCTUARY_WORKS } from '../engine/presets/sanctuaryShaders';
 
 // ─── Shader library ────────────────────────────────────────────────────────────
 // Four sources merge into one searchable/filterable library (see BASE_SHADERS):
@@ -35,6 +36,8 @@ interface ShaderEntry {
   reacts?: [string, string][];
   /** Named iParam0..3 controls a signature work reads. */
   params?: { name: string; def: number }[];
+  /** Temperament, when the work declares one (Series VIII). */
+  energy?: string;
 }
 
 const SHADERS: ShaderEntry[] = [
@@ -647,9 +650,26 @@ const MATERIAL_ENTRIES: ShaderEntry[] = MATERIAL_SHADER_WORKS.map(w => ({
   params: w.params,
 }));
 
+// Series VIII · Sanctuary Light — church-ministry works (calm → tranquil), each
+// carrying its temperament so libraries can filter by energy.
+const SANCTUARY_ENTRIES: ShaderEntry[] = SANCTUARY_WORKS.map(w => ({
+  name: w.name,
+  cat: 'cinematic',
+  src: w.src,
+  kind: 'signature' as const,
+  series: w.series,
+  setTitle: w.setTitle,
+  line: w.line,
+  credit: `${w.director} · Art Director Council, lit by the Lighting Director`,
+  reacts: w.reacts,
+  params: w.params,
+  energy: w.energy,
+}));
+
 const BASE_SHADERS: ShaderEntry[] = [
   ...SIGNATURE_ENTRIES,
   ...MATERIAL_ENTRIES,
+  ...SANCTUARY_ENTRIES,
   ...SHADERS.map(s => ({ ...s, kind: 'raw' as const })),
   ...PROCEDURAL_PRESETS.map(p => ({ name: p.name, cat: p.cat, src: p.src, kind: 'procedural' as const })),
   ...ISF_CATALOG.map(e => ({ name: e.name, cat: e.cat, src: e.src, kind: 'isf' as const, license: e.license, credit: e.credit })),
@@ -685,6 +705,8 @@ export interface ShaderLibraryEntry {
   series?: string; setTitle?: string; line?: string;
   params?: { name: string; def: number }[];
   reacts?: [string, string][];
+  /** Declared temperament (tranquil | calm | medium | high | chaotic), when known. */
+  energy?: string;
 }
 
 export const SHADER_LIBRARY: ShaderLibraryEntry[] =
@@ -700,6 +722,7 @@ export const SHADER_LIBRARY: ShaderLibraryEntry[] =
     series: s.series, setTitle: s.setTitle, line: s.line,
     params: (s as ShaderEntry & { params?: { name: string; def: number }[] }).params,
     reacts: s.reacts,
+    energy: s.energy,
   }));
 
 /**

@@ -75,6 +75,9 @@ import { AmboImportModal } from './AmboImportModal';
 import AmboDJTrackPlayer, { type AmboDJTrack } from './AmboDJTrackPlayer';
 import AmboAudioBus, { useAudioBus } from './AmboAudioBus';
 import AmboLyricsControl from './AmboLyricsControl';
+import { startTypoTextDriver, publishScriptureToTypo, setTypoTextDemand } from '../../services/ambo/typoTextDriver';
+import { getVizParams, getVizApplyTarget, lastChangedVizMode, subscribeVizParams, numericVizParams } from '../../services/ambo/visualizerParams';
+import { TYPO_PREFIX } from '../../services/ambo/layerSources';
 import AmboAutoScriptureControl from './AmboAutoScriptureControl';
 import AmboOutputFitControl from './AmboOutputFitControl';
 import type { FitSpec } from '../../services/ambo/outputFit';
@@ -99,11 +102,29 @@ import {
   pingDevice, applyPlaylistItemDuties, registerEventDevice,
 } from '../../services/ambo/amboPartyEventService';
 import { useContextMenu } from '../ui/ContextMenu';
+import { setLastFolderId, lastFolder, openSavedHandle } from '../ui/SavedFolders';
 import { auth } from '../../services/backendService';
-import { templateById } from '../../services/ambo/slideTemplates/registry';
+import { templateById, defaultFields } from '../../services/ambo/slideTemplates/registry';
 import { pendingCallShows, acknowledgeCallShow } from '../../services/ambo/liveCallShows';
 import { themeById } from '../../services/ambo/slideTemplates/themes';
 import { SlideTemplateMenu, ScriptureLookMenu, anchorOf, type MenuAnchor } from './AmboTemplateMenus';
+import { SlideThumb } from './AmboTemplateThumbs';
+import { renderSlideTemplate } from '../../services/ambo/slideTemplates/canvasRender';
+import { thumbFromCanvas } from '../../services/ambo/templateLibrary';
+
+function renderTemplateThumbSync(templateId: string, themeId: string, fields: Record<string, string>): string | undefined {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 480;
+    c.height = 270;
+    const ctx = c.getContext('2d');
+    if (ctx) {
+      renderSlideTemplate(ctx, templateId, themeId, fields, c.width, c.height, { t: 2.5, enterP: 1, exitP: 0, reducedMotion: true });
+      return thumbFromCanvas(c, 320);
+    }
+  } catch { /* ignore */ }
+  return undefined;
+}
 import { mapFieldsToTemplate, fieldsFromText, retemplate, rethemed, slideLabelFor, type TemplateContent } from '../../services/ambo/slideTemplates/convert';
 import { nextVerseCue } from '../../services/ambo/scriptureNext';
 import { getAutoCueNext } from '../../services/ambo/scriptureAutoCue';
@@ -900,6 +921,40 @@ useEffect(() => {
     });
   }, []);
 
+  // ── Typographic visualizer text + Song follow (studio-wide, survive tab switches) ──
+  useEffect(() => startTypoTextDriver(), []);
+  // The verse on Program feeds kinetic type (used when "Send to visualizer" is on).
+  const liveScriptureContent = live.scripture?.content.kind === 'SCRIPTURE' ? live.scripture.content : null;
+  useEffect(() => { publishScriptureToTypo(liveScriptureContent); }, [liveScriptureContent]);
+  // Typographic visualizer up somewhere → playback transcription may run for its words.
+  useEffect(() => {
+    const isTypo = (c?: LayerContent | null) => c?.kind === 'GENERATOR' && c.mode.startsWith(TYPO_PREFIX);
+    setTypoTextDemand(Object.values(live).some(l => isTypo(l?.content)) || isTypo(previewBackgroundOverride));
+  }, [live, previewBackgroundOverride]);
+  // Parameters panel edits → the matching visualizer on Preview / Program, in place.
+  useEffect(() => subscribeVizParams(() => {
+    const mode = lastChangedVizMode();
+    if (!mode) return;
+    const params = getVizParams(mode);
+    const shaderParams = numericVizParams(mode);
+    const patch = (c: LayerContent): LayerContent =>
+      c.kind === 'GENERATOR' && c.mode === mode ? { ...c, params }
+      : c.kind === 'SHADER' && c.src === mode ? { ...c, params: shaderParams }
+      : c;
+    const target = getVizApplyTarget();
+    if (target !== 'preview') {
+      setLive(prev => {
+        const bg = prev.background;
+        if (!bg) return prev;
+        const next = patch(bg.content);
+        return next === bg.content ? prev : { ...prev, background: { ...bg, content: next } };
+      });
+    }
+    if (target !== 'program') {
+      setPreviewBackgroundOverride(prev => (prev ? patch(prev) : prev));
+    }
+  }), []);
+
   // Build the Ambo mixer up front so every visualizer reads the real mix from
   // the first frame. The playlist must not outlive its controls.
   useEffect(() => { amboAudio.ensure(); return () => { audioBus.release(); setProgramVideoAudible(false); }; }, []);
@@ -1072,9 +1127,9 @@ useEffect(() => {
     if (item.kind === 'LIVE') {
       setPreviewBackgroundOverride({ kind: 'LIVE', inputId: item.inputId || item.id, label: item.name });
     } else if (item.kind === 'GENERATOR') {
-      setPreviewBackgroundOverride({ kind: 'GENERATOR', mode: item.mode || 'STUDIO_AURORA' });
+      setPreviewBackgroundOverride({ kind: 'GENERATOR', mode: item.mode || 'STUDIO_AURORA', params: getVizParams(item.mode) });
     } else if (item.kind === 'SHADER') {
-      setPreviewBackgroundOverride({ kind: 'SHADER', src: item.mode || item.src || '' });
+      setPreviewBackgroundOverride({ kind: 'SHADER', src: item.mode || item.src || '', params: numericVizParams(item.mode || item.src) });
     } else if (item.kind === 'IMAGE') {
       setPreviewBackgroundOverride({ kind: 'IMAGE', src: item.src || '' });
     } else if (item.kind === 'VIDEO') {
@@ -1095,7 +1150,7 @@ useEffect(() => {
       setLive(prev => ({
         ...prev,
         background: {
-          content: { kind: 'GENERATOR', mode: item.mode || 'STUDIO_AURORA' },
+          content: { kind: 'GENERATOR', mode: item.mode || 'STUDIO_AURORA', params: getVizParams(item.mode) },
           since: Date.now(),
         },
       }));
@@ -1103,7 +1158,7 @@ useEffect(() => {
       setLive(prev => ({
         ...prev,
         background: {
-          content: { kind: 'SHADER', src: item.mode || item.src || '' },
+          content: { kind: 'SHADER', src: item.mode || item.src || '', params: numericVizParams(item.mode || item.src) },
           since: Date.now(),
         },
       }));
@@ -1959,14 +2014,16 @@ useEffect(() => {
         const layers = sl.layers.map((ly, k) => (k === i ? { ...ly, name: `${tpl.name} (${th.name})`, content: next } : ly));
         const regroup = oldTpl && sl.group === oldTpl.category;
         const relabel = oldTpl && (sl.label || '').startsWith(oldTpl.name);
-        return { ...sl, layers, label: relabel ? slideLabelFor(tpl, next.fields) : sl.label, ...(regroup ? { group: tpl.category } : {}) };
+        const thumb = renderTemplateThumbSync(templateId, themeId, next.fields);
+        return { ...sl, layers, thumb: thumb || sl.thumb, label: relabel ? slideLabelFor(tpl, next.fields) : sl.label, ...(regroup ? { group: tpl.category } : {}) };
       }
       // A plain text slide becomes a template slide; its words fill the new template.
       const fields = fieldsFromText(slideTexts(sl), templateId);
       const layer = { id: newId('ly_tpl'), slot: 'slide' as const, name: `${tpl.name} (${th.name})`, content: { kind: 'TELA_TEMPLATE' as const, templateId, fields, theme: themeId } };
       const at = sl.layers.findIndex(l => l.content.kind === 'TEXT');
       const layers = at >= 0 ? sl.layers.map((ly, k) => (k === at ? layer : ly)).filter((ly, k) => !(k !== at && ly.content.kind === 'TEXT')) : [...sl.layers, layer];
-      return { ...sl, layers };
+      const thumb = renderTemplateThumbSync(templateId, themeId, fields);
+      return { ...sl, layers, thumb: thumb || sl.thumb };
     });
   };
   const changeSlideTheme = (index: number, themeId: string) => {
@@ -1976,7 +2033,8 @@ useEffect(() => {
       const cur = sl.layers[i].content as TemplateContent;
       const next = rethemed(cur, themeId); if (next === cur) return sl;
       const tpl = templateById(cur.templateId);
-      return { ...sl, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: `${tpl?.name ?? 'Template'} (${themeById(themeId).name})`, content: next } : ly)) };
+      const thumb = renderTemplateThumbSync(cur.templateId, themeId, next.fields);
+      return { ...sl, thumb: thumb || sl.thumb, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: `${tpl?.name ?? 'Template'} (${themeById(themeId).name})`, content: next } : ly)) };
     });
   };
   const applyThemeToAllSlides = (themeId: string) => {
@@ -1985,7 +2043,8 @@ useEffect(() => {
       const cur = sl.layers[i].content as TemplateContent;
       const next = rethemed(cur, themeId); if (next === cur) return sl;
       const tpl = templateById(cur.templateId);
-      return { ...sl, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: `${tpl?.name ?? 'Template'} (${themeById(themeId).name})`, content: next } : ly)) };
+      const thumb = renderTemplateThumbSync(cur.templateId, themeId, next.fields);
+      return { ...sl, thumb: thumb || sl.thumb, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: `${tpl?.name ?? 'Template'} (${themeById(themeId).name})`, content: next } : ly)) };
     });
   };
   /** A saved template (mine / shared / community) lends its template, theme and palette; the slide keeps its words. */
@@ -2004,9 +2063,10 @@ useEffect(() => {
       if (ov.__ground) fields.__ground = ov.__ground;
       const content: TemplateContent = { ...(cur ?? {}), kind: 'TELA_TEMPLATE', templateId: base.id, theme: th.id, fields };
       const layer = { id: i >= 0 ? sl.layers[i].id : newId('ly_tpl'), slot: 'slide' as const, name: `${saved.name} (${th.name})`, content };
-      if (i >= 0) return { ...sl, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: layer.name, content } : ly)) };
+      const thumb = saved.thumb || renderTemplateThumbSync(base.id, th.id, fields);
+      if (i >= 0) return { ...sl, thumb: thumb || sl.thumb, layers: sl.layers.map((ly, k) => (k === i ? { ...ly, name: layer.name, content } : ly)) };
       const at = sl.layers.findIndex(l => l.content.kind === 'TEXT');
-      return { ...sl, layers: at >= 0 ? sl.layers.map((ly, k) => (k === at ? layer : ly)) : [...sl.layers, layer] };
+      return { ...sl, thumb: thumb || sl.thumb, layers: at >= 0 ? sl.layers.map((ly, k) => (k === at ? layer : ly)) : [...sl.layers, layer] };
     });
     void noteTemplateUse(saved);
   };
@@ -2166,13 +2226,40 @@ useEffect(() => {
   };
 
   // Auto scripture (speech → verse) delivers through the same paths as the operator's hands.
-  const autoScriptureActions = useRef({ fire: fireScripture, cue: cueScriptureToPreview, clear: clearScripture });
-  autoScriptureActions.current = { fire: fireScripture, cue: cueScriptureToPreview, clear: clearScripture };
+  // Heard giving intent ("tithes and offerings") brings up the show's own Giving slide; with
+  // none in the show a Giving template slide is added — and only ever cued, since its
+  // placeholder link and QR must not go straight to the wall.
+  const isGivingSlide = (sl: Slide) =>
+    sl.group === 'Giving'
+    || sl.layers.some(l => l.content.kind === 'TELA_TEMPLATE' && templateById((l.content as TemplateContent).templateId)?.category === 'Giving')
+    || /\b(?:giving|offering|offertory|tithes?|generosity)\b/i.test(sl.label || '');
+  const fireGivingGraphic = (delivery: 'auto' | 'cue'): 'auto' | 'cue' | null => {
+    const at = slides.findIndex(isGivingSlide);
+    if (at >= 0) {
+      if (delivery === 'auto') take(slides[at]); else cueSlideToPreview(slides[at], at);
+      return delivery;
+    }
+    const tpl = templateById('giving');
+    if (!tpl) return null;
+    const used = slides.flatMap(s => s.layers).find(l => l.content.kind === 'TELA_TEMPLATE')?.content as TemplateContent | undefined;
+    const th = themeById(used?.theme);
+    const fields = defaultFields(tpl);
+    const slide: Slide = {
+      id: newId('slide'), label: slideLabelFor(tpl, fields), group: tpl.category,
+      layers: [{ id: newId('ly_tpl'), slot: 'slide', name: `${tpl.name} (${th.name})`, content: { kind: 'TELA_TEMPLATE', templateId: tpl.id, fields, theme: th.id } }],
+    };
+    setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, slide] })));
+    cueSlideToPreview(slide, slides.length);
+    return 'cue';
+  };
+  const autoScriptureActions = useRef({ fire: fireScripture, cue: cueScriptureToPreview, clear: clearScripture, giving: fireGivingGraphic });
+  autoScriptureActions.current = { fire: fireScripture, cue: cueScriptureToPreview, clear: clearScripture, giving: fireGivingGraphic };
   useEffect(() => {
     setAutoScriptureSink({
       fire: c => autoScriptureActions.current.fire(c),
       cue: c => autoScriptureActions.current.cue(c),
       clear: () => autoScriptureActions.current.clear(),
+      giving: d => autoScriptureActions.current.giving(d),
     });
     return () => setAutoScriptureSink(null);
   }, []);
@@ -2256,6 +2343,7 @@ useEffect(() => {
       setActiveShowId(newShow.id);
       setWatchFolderName(res.folderName);
       setWatchFolderHandle(res.handle || null);
+      setLastFolderId('ambo-loopdeck', res.folderId ?? null); // reconnects on the next launch
       setIsLoopDeckActive(true);
 
       const firstSlide = loopDeckMode === 'random' && newShow.slides.length > 1
@@ -2273,7 +2361,28 @@ useEffect(() => {
   const handleDisconnectWatchFolder = () => {
     setWatchFolderName(null);
     setWatchFolderHandle(null);
+    setLastFolderId('ambo-loopdeck', null);
   };
+
+  // The LoopDeck watch folder comes back on launch (no prompt; if the browser needs a fresh OK,
+  // the operator reconnects from the button, which is a click).
+  useEffect(() => {
+    const saved = lastFolder('ambo-loopdeck');
+    if (!saved || saved.kind !== 'handle') return;
+    let live = true;
+    void (async () => {
+      const { handle, permission } = await openSavedHandle(saved.id, false);
+      if (!live || !handle || permission !== 'granted') return;
+      const { items } = await rescanDirectoryHandle(handle);
+      if (!live || items.length === 0) return;
+      const show = createWatchFolderShow(saved.name, items, { loopCount: loopDeckCount, selectionMode: loopDeckMode });
+      setLibrary(prev => [show, ...prev.filter(s => !(s.tags?.includes('watch-folder') && s.title === show.title))]);
+      setWatchFolderName(saved.name);
+      setWatchFolderHandle(handle);
+    })().catch(() => { /* folder gone — the operator can pick again */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-rescan directory handle for newly dropped media
   useEffect(() => {
@@ -2386,6 +2495,41 @@ useEffect(() => {
         disabled: slides.length <= 1,
         onSelect: () => handleDeleteSlide(slideIndex),
       },
+    ];
+  });
+
+  // Show library list + service plan rows
+  const showListMenu = useContextMenu<Show>(sh => [
+    { kind: 'header', label: sh.title },
+    { id: 'open', label: 'Open', onSelect: x => setActiveShowId(x.id) },
+    { id: 'plan', label: 'Add to the service plan', onSelect: x => setPlaylist(prev => [...prev, { id: newId('pi'), title: x.title, show: x, plannedSec: 300 }]) },
+    { id: 'rename', label: 'Rename…', onSelect: x => {
+      const title = window.prompt('Rename show:', x.title)?.trim();
+      if (title) setLibrary(libs => libs.map(s => (s.id === x.id ? { ...s, title } : s)));
+    } },
+    { id: 'dup', label: 'Duplicate', onSelect: x => {
+      const copy: Show = { ...x, id: newId('show'), title: `${x.title} (copy)`, slides: x.slides.map(s => ({ ...s, id: newId('sl') })) };
+      setLibrary(libs => [...libs, copy]);
+    } },
+    { kind: 'separator' },
+    { id: 'delete', label: 'Delete show', danger: true, disabled: library.length <= 1, onSelect: x => {
+      if (!window.confirm(`Delete "${x.title}"?`)) return;
+      setLibrary(libs => libs.filter(s => s.id !== x.id));
+      setPlaylist(prev => prev.filter(p => p.show.id !== x.id));
+      if (activeShowId === x.id) { const next = library.find(s => s.id !== x.id); if (next) setActiveShowId(next.id); }
+    } },
+  ]);
+  const planMenu = useContextMenu<PlaylistItem>(pi => {
+    const i = playlist.findIndex(p => p.id === pi.id);
+    return [
+      { kind: 'header', label: pi.title },
+      { id: 'open', label: 'Open', onSelect: x => setActiveShowId(x.show.id) },
+      { id: 'take', label: 'Take first slide to Program', disabled: !pi.show.slides.length, onSelect: x => { setActiveShowId(x.show.id); if (x.show.slides[0]) take(x.show.slides[0]); } },
+      { kind: 'separator' },
+      { id: 'up', label: 'Move up', disabled: i <= 0, onSelect: () => setPlaylist(prev => moveBefore(prev, i, i - 1)) },
+      { id: 'down', label: 'Move down', disabled: i < 0 || i >= playlist.length - 1, onSelect: () => setPlaylist(prev => moveBefore(prev, i, i + 2)) },
+      { kind: 'separator' },
+      { id: 'remove', label: 'Remove from plan', danger: true, onSelect: x => setPlaylist(prev => prev.filter(p => p.id !== x.id)) },
     ];
   });
 
@@ -3467,7 +3611,7 @@ useEffect(() => {
           </div>
           <div className="px-2">
             {library.map(sh => (
-              <button key={sh.id} onClick={() => setActiveShowId(sh.id)}
+              <button key={sh.id} {...showListMenu.bind(sh)} onClick={() => setActiveShowId(sh.id)}
                 className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12.5px] text-left transition-colors"
                 style={{ background: sh.id === activeShowId ? glass : 'transparent', color: sh.id === activeShowId ? '#fff' : 'rgba(255,255,255,0.7)', fontWeight: sh.id === activeShowId ? 600 : 400 }}>
                 <span className="w-4 text-center text-white/40">{sh.kind === 'SONG' ? '♪' : sh.kind === 'SCRIPTURE' ? '✦' : sh.kind === 'MEDIA' ? '◈' : '▤'}</span>
@@ -3494,7 +3638,7 @@ useEffect(() => {
             title="Drop media here to add it to the plan"
           >
             {playlist.map(pi => (
-              <button key={pi.id} onClick={() => setActiveShowId(pi.show.id)}
+              <button key={pi.id} {...planMenu.bind(pi)} onClick={() => setActiveShowId(pi.show.id)}
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-left transition-colors"
                 style={{ background: pi.live ? 'linear-gradient(90deg, rgba(255,140,0,0.16), transparent)' : pi.show.id === activeShowId ? glass : 'transparent', color: pi.live ? '#fff' : 'rgba(255,255,255,0.6)', boxShadow: pi.live ? `inset 2px 0 0 ${ORANGE}` : undefined }}>
                 <span className="w-1.5 h-1.5 rounded-full flex-none" style={{ background: pi.live ? ORANGE : 'rgba(255,255,255,0.25)', boxShadow: pi.live ? '0 0 8px rgba(255,140,0,0.6)' : undefined }} />
@@ -3804,16 +3948,34 @@ useEffect(() => {
                           <Music size={11} />
                         </span>
                       )}
-                      <div className="aspect-square grid place-items-center px-2 text-center relative" style={{ background: 'linear-gradient(135deg,#1a0b2e,#06121f)' }}>
+                      <div className="aspect-square grid place-items-center px-2 text-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#1a0b2e,#06121f)' }}>
+                        {/* Slide Thumbnail */}
+                        {s.thumb ? (
+                          <img src={s.thumb} alt={s.label || ''} className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (() => {
+                          const tl = s.layers.find(l => l.content.kind === 'TELA_TEMPLATE');
+                          if (tl && tl.content.kind === 'TELA_TEMPLATE') {
+                            return <SlideThumb templateId={tl.content.templateId} theme={tl.content.theme} fields={tl.content.fields} square={true} className="absolute inset-0 w-full h-full object-cover" />;
+                          }
+                          const imgLayer = s.layers.find(l => l.content.kind === 'IMAGE' && l.content.src);
+                          if (imgLayer && imgLayer.content.kind === 'IMAGE') {
+                            return <img src={imgLayer.content.src} alt="" className="absolute inset-0 w-full h-full object-cover" />;
+                          }
+                          return null;
+                        })()}
+
+                        {/* Subtle gradient scrim */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
+
                         {(() => {
                           const tl = s.layers.find(l => l.content.kind === 'TELA_TEMPLATE');
                           const nm = tl && tl.content.kind === 'TELA_TEMPLATE' ? templateById(tl.content.templateId)?.name : undefined;
-                          return nm ? <span className="absolute bottom-1 left-1.5 z-[3] max-w-[70%] truncate text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(208,188,255,0.18)', color: LILAC }} title={`Template: ${nm}`}>{nm}</span> : null;
+                          return nm ? <span className="absolute bottom-1 left-1.5 z-[3] max-w-[70%] truncate text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm" style={{ background: 'rgba(16,12,28,0.85)', border: '1px solid rgba(208,188,255,0.3)', color: LILAC }} title={`Template: ${nm}`}>{nm}</span> : null;
                         })()}
-                        <span className="text-[12px] font-semibold text-white leading-tight line-clamp-3" style={{ fontFamily: 'Palatino Linotype, Palatino, Georgia, serif', textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}>
+                        <span className="text-[12px] font-semibold text-white leading-tight line-clamp-3 relative z-[2] px-1" style={{ fontFamily: 'Palatino Linotype, Palatino, Georgia, serif', textShadow: '0 1px 8px rgba(0,0,0,0.85), 0 2px 14px rgba(0,0,0,0.95)' }}>
                           {s.layers.length === 0
                             ? <span className="flex flex-col items-center gap-1 text-white/35 font-sans" data-empty-slide><span className="w-8 h-5 rounded-[3px] border border-dashed border-white/30" /><span className="text-[9.5px] font-bold uppercase tracking-wider">Empty slide</span><span className="text-[9px] font-normal normal-case tracking-normal">Double-click to design</span></span>
-                            : slideText(s)}
+                            : (!s.thumb && !s.layers.some(l => l.content.kind === 'TELA_TEMPLATE')) ? slideText(s) : null}
                         </span>
                         {/* Hover Quick Action Buttons */}
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 z-[5] p-1 pointer-events-none group-hover:pointer-events-auto">
@@ -3976,6 +4138,8 @@ useEffect(() => {
         isCollapsed={multiviewCollapsed}
         onToggleCollapse={toggleMultiviewCollapsed}
         onTakePreview={takeSelected}
+        onClearProgram={clearAll}
+        onToggleBlackout={() => setIsBlackout(v => !v)}
         height={multiviewHeight}
         isBlackout={isBlackout}
         isMasterProgramOn={isMasterProgramOn}
@@ -4093,6 +4257,8 @@ useEffect(() => {
       {/* Platform-standard Context Menus */}
       {slideMenu.node}
       {canvasMenu.node}
+      {showListMenu.node}
+      {planMenu.node}
 
       {/* Template / scripture-look dropdown (toolbar, slide hover button, slide right-click) */}
       {tplMenu && (() => {

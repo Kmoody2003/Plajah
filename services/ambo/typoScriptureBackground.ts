@@ -26,6 +26,10 @@ export class TypoScriptureBackground {
   ok = false;
   /** Optional analyser to drive the type; null = follow the Ambo master bus. */
   analyser: AnalyserNode | null = null;
+  /** Seconds each word stays highlighted as the highlight walks the text. */
+  wordPace = 0.85;
+  /** With no explicit analyser, follow the Ambo master (false = idle motion only). */
+  followMaster = true;
 
   constructor(w: number, h: number, private volumeKey: string, private text: string) {
     const scale = Math.min(1, 1280 / Math.max(w, h));
@@ -70,9 +74,9 @@ export class TypoScriptureBackground {
     // Walk the highlight through the verse slowly so the type breathes even
     // in silence; the music (Ambo master) drives the motion when present.
     const n = Math.max(1, this.ly.words.length);
-    this.ly.word = Math.floor(this.T / 0.85) % n;
+    this.ly.word = Math.floor(this.T / Math.max(0.1, this.wordPace)) % n;
     // An explicit analyser (live input, a layer's chosen source) wins over the Ambo master.
-    const an = this.analyser ?? (typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
+    const an = this.analyser ?? (this.followMaster && typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
     const A = this.audio.sample(an, true, this.T, dt);
     v.layers.forEach(L => L.tick(dt, this.ly.word));
     v.def.update(v, this.T, dt, A, this.ly);

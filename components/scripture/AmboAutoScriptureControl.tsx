@@ -6,12 +6,13 @@
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpenCheck, X, Mic, Radio, AlertTriangle, Layers, Sparkles } from 'lucide-react';
+import { BookOpenCheck, X, Mic, Radio, AlertTriangle, Layers } from 'lucide-react';
 import {
   getAutoScripturePrefs, getAutoScriptureState, subscribeAutoScripture, setAutoScripturePrefs,
   startAutoScripture, stopAutoScripture, type AutoScripturePrefs,
 } from '../../services/ambo/autoScripture';
-import { AutoScriptureSourcePicker } from './AmboScriptureListenBar';
+import { AutoScriptureSourcePicker, IntentToggles, HistoryChip } from './AmboScriptureListenBar';
+import AmboLiveInputWaveform from './AmboLiveInputWaveform';
 import { SCRIPTURE_LAYOUTS } from '../../services/ambo/scriptureLayouts';
 import { TRANSLATIONS } from '../../services/bibleService';
 
@@ -75,18 +76,23 @@ const AmboAutoScriptureControl: React.FC = () => {
       </div>
 
       <div className="p-3 flex flex-col gap-2.5 max-h-[70vh] overflow-y-auto">
-        <div className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 min-h-[54px]">
-          <div className="flex items-center gap-1.5 text-[9px] font-extrabold uppercase tracking-wider text-white/40">
-            <Mic size={10} /> Hearing
-            {on && <span className="ml-auto h-1.5 w-16 rounded-full bg-white/10 overflow-hidden"><span className="block h-full bg-[#2BE0A8] transition-all" style={{ width: `${Math.round(state.level * 100)}%` }} /></span>}
+        {on || state.starting ? (
+          <AmboLiveInputWaveform height={56} className="w-full" />
+        ) : (
+          <div className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 min-h-[54px]">
+            <div className="flex items-center gap-1.5 text-[9px] font-extrabold uppercase tracking-wider text-white/40">
+              <Mic size={10} /> Hearing
+            </div>
+            <div className="text-[11.5px] text-white/35 leading-snug mt-1 break-words">
+              Off. Turn it on and Ambo listens for verses the speaker mentions and for the offering.
+            </div>
           </div>
-          <div className="text-[11.5px] text-white/80 leading-snug mt-1 break-words">
-            {on ? (state.heard || <span className="text-white/35">Waiting for speech…</span>) : <span className="text-white/35">Off. Turn it on and Ambo listens for verses the speaker mentions.</span>}
-          </div>
-          {state.hearing && <div className="mt-1.5 text-[10.5px] font-bold text-[#E3C57E]"><Sparkles size={10} className="inline mr-1" />Heard “{state.hearing.label}” — confirming…</div>}
-          {state.error && <div className="mt-1.5 text-[10.5px] text-[#F5C542]"><AlertTriangle size={10} className="inline mr-1" />{state.error}</div>}
-        </div>
+        )}
+        {state.error && <div className="text-[10.5px] text-[#F5C542]"><AlertTriangle size={10} className="inline mr-1" />{state.error}</div>}
 
+        <Row label="Act on">
+          <IntentToggles />
+        </Row>
         <Row label="When heard">
           <Seg value={prefs.delivery} onChange={v => set({ delivery: v as any })} options={[
             ['cue', 'Cue to Preview', 'Safe: it waits in Preview, you press Take'],
@@ -143,11 +149,7 @@ const AmboAutoScriptureControl: React.FC = () => {
           <div className="border-t border-white/10 pt-2">
             <div className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 mb-1">Recent</div>
             <div className="flex flex-wrap gap-1">
-              {state.history.slice(0, 6).map((h, i) => (
-                <span key={i} className={`px-1.5 py-0.5 rounded text-[10px] border ${h.ok ? 'text-white/80 border-white/15' : 'text-[#F5C542] border-[#F5C542]/30'}`}>
-                  {h.label}{h.ok ? (h.delivered === 'auto' ? ' · live' : ' · cued') : ' · not found'}
-                </span>
-              ))}
+              {state.history.slice(0, 6).map((h, i) => <HistoryChip key={i} h={h} size="md" />)}
             </div>
           </div>
         )}
@@ -155,6 +157,7 @@ const AmboAutoScriptureControl: React.FC = () => {
         <div className="flex items-center gap-2 pt-1">
           <div className="text-[9px] text-white/40 flex-1 leading-snug">
             “turn to John three sixteen”, “Romans chapter eight verse twenty-eight”. A bare chapter needs a cue like “open to Psalm 23”.
+            {' '}Giving fires on a phrase like “let’s receive our tithes and offerings” — the show’s own Giving slide is used, or one is added and cued for you to check.
             {state.engine === 'speech' && ' Browser speech engines may send audio to their vendor.'}
           </div>
           <button onClick={() => (on ? stopAutoScripture() : void startAutoScripture())} disabled={state.starting}
@@ -171,8 +174,9 @@ const AmboAutoScriptureControl: React.FC = () => {
     <>
       <button ref={btnRef} onClick={() => setOpen(o => !o)}
         className={`px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 ${on ? 'text-black bg-[#2BE0A8] border-[#2BE0A8]' : open ? 'text-[#E3C57E] bg-[#E3C57E]/15 border-[#E3C57E]/30' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
-        title="Listen for scripture the speaker mentions and bring it on screen">
+        title="Listen for scripture and the offering, and bring them on screen">
         {on ? <Radio size={11} className="animate-pulse" /> : <Layers size={11} />} Auto scripture{on ? ' · ON' : ''}
+        {on && <AmboLiveInputWaveform compact height={14} className="w-14 ml-0.5" />}
       </button>
       {panel}
     </>

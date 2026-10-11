@@ -11,14 +11,14 @@ import {
   ZoomIn, ZoomOut, Eye, EyeOff, Lock, Unlock, Copy, ClipboardPaste, Trash2, BringToFront, SendToBack, ChevronUp, ChevronDown, Group, Ungroup,
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignHorizontalSpaceAround, AlignVerticalSpaceAround, LayoutTemplate, Save, X, Clock, Timer, BookOpen, Music2, Sparkles, Scan, Plus,
-  ListOrdered, Shapes, Layers, Link2, Palette, Pencil,
+  ListOrdered, Shapes, Layers, Link2, Palette, Pencil, Folder, Search,
 } from 'lucide-react';
 import { applyTelaOp } from '../tela/telaOps';
-import type { TelaDoc, TelaVectorObject } from '../../types';
+import type { TelaDoc, TelaVectorObject, TelaBlendMode } from '../../types';
 import { applySlide, newId, type LayerContent, type LayerSlot, type Slide, type SlideLayer } from '../../services/ambo/showModel';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import {
-  slideToTela, telaToSlide, sceneDevice, sceneObjects, amboRecord, isPromotable, isBackgroundObject,
+  slideToTela, telaToSlide, sceneDevice, sceneObjects, amboRecord, isPromotable, isBackgroundObject, expandTemplate,
   makeTextObject, makeShapeObject, makeImageObject, makeLayerObject, newObjId, ART_W, ART_H, FREEFORM_ID, layerLabel, type ShapeKind, type AmboLayerRecord,
 } from '../../services/ambo/telaSlide';
 import { FREEFORM_FIELD, encodeScene, decodeScene } from '../../services/ambo/slideTemplates/freeform';
@@ -101,6 +101,69 @@ function iconFor(o: TelaVectorObject): React.ReactNode {
 const normalize = (o: TelaVectorObject): TelaVectorObject => o.kind === 'LINE' ? { ...o, points: [o.x, o.y, o.x + o.w, o.y + o.h] } : o;
 
 const nameOf = (o: TelaVectorObject) => o.objectLabel || (o.kind === 'TEXT' ? (o.text || 'Text').split('\n')[0].slice(0, 28) : o.kind.toLowerCase());
+
+const BLEND_MODES: TelaBlendMode[] = [
+  'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten',
+  'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion',
+  'hue', 'saturation', 'color', 'luminosity',
+];
+
+const LayerThumbSwatch: React.FC<{ o: TelaVectorObject }> = ({ o }) => {
+  const r = amboRecord(o);
+  const k = r && r.kind === 'layer' ? r.layer.content.kind : o.kind;
+
+  if (k === 'IMAGE' || o.sourceImageSrc) {
+    const src = o.sourceImageSrc || (r?.layer.content as any)?.src;
+    return (
+      <div className="w-7 h-7 rounded-[4px] bg-[#120f1a] border border-white/15 overflow-hidden flex-none grid place-items-center">
+        {src ? <img src={src} alt="" className="w-full h-full object-cover" /> : <ImageIcon size={13} className="text-white/40" />}
+      </div>
+    );
+  }
+
+  if (k === 'TEXT') {
+    const textColor = o.fill && o.fill !== 'none' ? o.fill : '#ffffff';
+    return (
+      <div className="w-7 h-7 rounded-[4px] bg-[#14101e] border border-white/15 flex-none flex flex-col items-center justify-center relative overflow-hidden" title={o.text || 'Text'}>
+        <span className="text-[11px] font-black leading-none" style={{ color: textColor }}>T</span>
+        <span className="w-3.5 h-[2px] rounded-full mt-0.5" style={{ background: textColor, opacity: 0.6 }} />
+      </div>
+    );
+  }
+
+  if (o.kind === 'RECT' || o.kind === 'ELLIPSE' || o.kind === 'LINE' || o.kind === 'PATH') {
+    const fill = o.gradient ? (o.gradient.stops?.[0]?.color || '#6B0099') : (o.fill && o.fill !== 'none' ? o.fill : 'transparent');
+    const stroke = o.stroke && o.stroke !== 'none' ? o.stroke : 'rgba(255,255,255,0.2)';
+    const isGround = o.templateRole === 'GROUND';
+    if (isGround) {
+      return (
+        <div className="w-7 h-7 rounded-[4px] border border-white/20 flex-none overflow-hidden"
+          style={{ background: o.gradient ? `linear-gradient(${o.gradient.angle || 90}deg, ${o.gradient.stops.map(s => s.color).join(', ')})` : (fill === 'none' ? '#16111f' : fill) }}>
+          <div className="w-full h-full grid place-items-center text-[7.5px] font-black text-white/50 uppercase tracking-tighter">BG</div>
+        </div>
+      );
+    }
+    return (
+      <div className="w-7 h-7 rounded-[4px] bg-[#120f1a] border border-white/15 flex-none grid place-items-center p-1">
+        <svg viewBox="0 0 24 24" className="w-full h-full">
+          {o.kind === 'ELLIPSE' ? (
+            <circle cx="12" cy="12" r="9" fill={fill} stroke={stroke} strokeWidth="2" />
+          ) : o.kind === 'LINE' ? (
+            <line x1="3" y1="21" x2="21" y2="3" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
+          ) : (
+            <rect x="3" y="3" width="18" height="18" rx={o.rx ? 4 : 2} fill={fill} stroke={stroke} strokeWidth="2" />
+          )}
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-7 h-7 rounded-[4px] bg-[#151122] border border-white/15 flex-none grid place-items-center text-white/60">
+      {iconFor(o)}
+    </div>
+  );
+};
 
 export default function AmboSlideEditor({ slide, boundRef, onSave, onClose }: AmboSlideEditorProps) {
   // ── document + history (Tela doc is immutable, so a snapshot stack is cheap and exact) ──
@@ -190,6 +253,22 @@ export default function AmboSlideEditor({ slide, boundRef, onSave, onClose }: Am
     commit(d);
   };
 
+  const moveLayerTo = (dragId: string, targetId: string, position: 'above' | 'below') => {
+    let d = histRef.current.doc;
+    const dev = sceneDevice(d)!;
+    const cur = [...dev.objects];
+    const fromIndex = cur.findIndex(o => o.id === dragId);
+    const toIndex = cur.findIndex(o => o.id === targetId);
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+
+    let target = position === 'above' ? toIndex + 1 : toIndex;
+    if (fromIndex < target) target -= 1;
+    target = Math.max(0, Math.min(cur.length - 1, target));
+
+    d = applyTelaOp(d, { type: 'REORDER_VECTOR_OBJECT', deviceId: dev.id, objectId: dragId, toIndex: target });
+    commit(d);
+  };
+
   // ── clipboard / duplicate ──
   const clip = useRef<TelaVectorObject[]>([]);
   const cloneForPaste = (o: TelaVectorObject, off: number): TelaVectorObject => {
@@ -250,6 +329,20 @@ export default function AmboSlideEditor({ slide, boundRef, onSave, onClose }: Am
   const say = (m: string) => { setToast(m); window.clearTimeout(toastT.current); toastT.current = window.setTimeout(() => setToast(''), 3200); };
   const [label, setLabel] = useState(slide.label ?? '');
   const labelDirty = label !== (slide.label ?? '');
+
+  // ── layers panel state (Photoshop/Tela style) ──
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [layerFilter, setLayerFilter] = useState<'all' | 'text' | 'shape' | 'image'>('all');
+  const [layerSearch, setLayerSearch] = useState('');
+  const [dragLayerId, setDragLayerId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'above' | 'below' } | null>(null);
+  const commitRename = (id: string) => {
+    if (renameDraft.trim()) {
+      updateObjs([id], { objectLabel: renameDraft.trim() });
+    }
+    setRenamingId(null);
+  };
 
   // ── gestures ──
   const visibleOthers = (exclude: string[]) => objectsRef.current.filter(o => !exclude.includes(o.id) && !o.hidden && !isBackgroundObject(o) && !isFullFrame(o)).map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h }));
@@ -431,11 +524,12 @@ export default function AmboSlideEditor({ slide, boundRef, onSave, onClose }: Am
       if (r.layer.slot === layer.slot) return false;
       return !(r.layer.content.kind === 'TEXT' && r.layer.slot === 'slide');
     });
-    const o = makeLayerObject(layer.content, layer.slot, FULL_BOX, layer.name || 'Template');
-    (o.amboLayer as AmboLayerRecord).layer = { ...(o.amboLayer as AmboLayerRecord).layer, name: layer.name };
-    const next = layer.slot === 'background' ? [o, ...keep] : [...keep, o];
+    const expanded = layer.content.kind === 'TELA_TEMPLATE'
+      ? expandTemplate(layer, 0)
+      : [makeLayerObject(layer.content, layer.slot, FULL_BOX, layer.name || 'Template')];
+    const next = layer.slot === 'background' ? [...expanded, ...keep] : [...keep, ...expanded];
     commit(applyTelaOp(histRef.current.doc, { type: 'REPLACE_VECTOR_OBJECTS', deviceId, objects: next }));
-    setSel([o.id]); setGalleryOpen(false); say('Template applied to this slide — pick it in Layers to edit its text.');
+    setSel(expanded.map(e => e.id)); setGalleryOpen(false); say('Template applied to this slide.');
   };
 
   const buildTemplatePayload = async (): Promise<TemplatePayload> => {
@@ -475,7 +569,16 @@ export default function AmboSlideEditor({ slide, boundRef, onSave, onClose }: Am
   // ── save / cancel ──
   const save = () => {
     const out = telaToSlide(histRef.current.doc, slide);
-    onSave(labelDirty ? { ...out, label } : out);
+    let thumb: string | undefined;
+    try {
+      if (canvasRef.current) thumb = thumbFromCanvas(canvasRef.current, 320);
+    } catch { /* thumbnails are optional */ }
+    const res: Slide = {
+      ...out,
+      ...(thumb ? { thumb } : {}),
+      ...(labelDirty ? { label } : {}),
+    };
+    onSave(res);
     onClose();
   };
   const cancel = () => {
@@ -527,7 +630,23 @@ export default function AmboSlideEditor({ slide, boundRef, onSave, onClose }: Am
     { h: 'se', x: 1, y: 1, cur: 'nwse-resize' }, { h: 's', x: .5, y: 1, cur: 'ns-resize' }, { h: 'sw', x: 0, y: 1, cur: 'nesw-resize' }, { h: 'w', x: 0, y: .5, cur: 'ew-resize' },
   ];
   const canTransform = selected.length > 0 && selected.every(o => !o.locked && !isBackgroundObject(o));
-  const layersTop = [...objects].reverse();
+  const layersTop = useMemo(() => [...objects].reverse(), [objects]);
+  const filteredLayersTop = useMemo(() => {
+    return layersTop.filter(o => {
+      if (layerSearch.trim()) {
+        const query = layerSearch.toLowerCase().trim();
+        const name = (o.objectLabel || (o.kind === 'TEXT' ? o.text : '') || o.kind).toLowerCase();
+        if (!name.includes(query)) return false;
+      }
+      if (layerFilter === 'text') return o.kind === 'TEXT';
+      if (layerFilter === 'shape') return o.kind === 'RECT' || o.kind === 'ELLIPSE' || o.kind === 'LINE' || o.kind === 'PATH';
+      if (layerFilter === 'image') return o.kind === 'IMAGE' || !!o.sourceImageSrc;
+      return true;
+    });
+  }, [layersTop, layerFilter, layerSearch]);
+
+  const selectedBlend = selected.length > 0 ? (selected[0].blend || 'normal') : 'normal';
+  const selectedOpacity = selected.length > 0 ? Math.round(((selected[0].opacity ?? 1) * 100)) : 100;
   const hasSel = selected.length > 0;
 
   return (
@@ -605,25 +724,290 @@ export default function AmboSlideEditor({ slide, boundRef, onSave, onClose }: Am
 
       <div className="flex-1 min-h-0 flex">
         {/* LAYERS */}
-        <aside className="w-60 border-r flex flex-col flex-none" style={{ borderColor: line, background: 'rgba(0,0,0,0.16)' }} aria-label="Layers">
-          <div className="px-3 py-2.5 border-b text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-white/50 flex items-center gap-1.5" style={{ borderColor: line }}><Layers size={12} />Layers<span className="ml-auto text-white/30 font-mono normal-case">{objects.length}</span></div>
-          <div className="flex-1 overflow-y-auto p-1.5" role="listbox" aria-multiselectable>
-            {layersTop.length === 0 && <div className="text-[11.5px] text-white/35 text-center px-3 py-8 leading-relaxed">This slide is empty.<br />Add text, a shape, an image, or set a background.</div>}
-            {layersTop.map(o => {
+        <aside className="w-72 border-r flex flex-col flex-none select-none" style={{ borderColor: line, background: 'rgba(10,7,17,0.78)' }} aria-label="Layers">
+          {/* Header */}
+          <div className="px-3 py-2 border-b flex items-center gap-1.5" style={{ borderColor: line }}>
+            <Layers size={13} className="text-[#D0BCFF]" />
+            <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-white/60">Layers</span>
+            <span className="ml-auto text-[11px] text-white/40 font-mono">{objects.length}</span>
+          </div>
+
+          {/* Photoshop Blend Mode & Opacity Controls */}
+          <div className="px-2.5 py-2 border-b flex items-center gap-2" style={{ borderColor: line, background: 'rgba(255,255,255,0.02)' }}>
+            <div className="flex-1 min-w-0">
+              <select
+                value={selectedBlend}
+                disabled={!selected.length}
+                onChange={e => updateObjs(sel, { blend: e.target.value as TelaBlendMode })}
+                className="w-full h-7 px-2 rounded bg-white/5 border border-white/10 text-[11.5px] text-white/90 capitalize disabled:opacity-40 disabled:cursor-not-allowed outline-none focus:border-[#D0BCFF]"
+                title="Layer blend mode"
+              >
+                {BLEND_MODES.map(m => (
+                  <option key={m} value={m} className="bg-[#120e20] text-white capitalize">{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1.5 w-28 flex-none">
+              <span className="text-[10px] uppercase font-bold text-white/45">Op</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={selectedOpacity}
+                disabled={!selected.length}
+                onChange={e => updateObjs(sel, { opacity: Number(e.target.value) / 100 })}
+                className="w-14 h-1 rounded bg-white/10 accent-[#D40055] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                title={`Opacity ${selectedOpacity}%`}
+              />
+              <span className="text-[11px] font-mono text-white/70 w-7 text-right">{selectedOpacity}%</span>
+            </div>
+          </div>
+
+          {/* Filter & Search Bar */}
+          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5" style={{ borderColor: line }}>
+            <div className="relative flex-1">
+              <Search size={11} className="absolute left-2 top-2 text-white/35 pointer-events-none" />
+              <input
+                value={layerSearch}
+                onChange={e => setLayerSearch(e.target.value)}
+                placeholder="Filter layers…"
+                className="w-full h-6 pl-6 pr-2 rounded bg-white/5 border border-white/10 text-[11px] text-white placeholder-white/30 outline-none focus:border-[#D0BCFF]"
+              />
+              {layerSearch && (
+                <button type="button" onClick={() => setLayerSearch('')} className="absolute right-1.5 top-1.5 text-white/40 hover:text-white">
+                  <X size={11} />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-0.5 flex-none bg-white/5 p-0.5 rounded border border-white/10">
+              <button
+                type="button"
+                onClick={() => setLayerFilter('all')}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${layerFilter === 'all' ? 'bg-[#D0BCFF]/20 text-white' : 'text-white/50 hover:text-white'}`}
+                title="Show all layers"
+              >All</button>
+              <button
+                type="button"
+                onClick={() => setLayerFilter('text')}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${layerFilter === 'text' ? 'bg-[#D0BCFF]/20 text-white' : 'text-white/50 hover:text-white'}`}
+                title="Filter text layers"
+              >T</button>
+              <button
+                type="button"
+                onClick={() => setLayerFilter('shape')}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${layerFilter === 'shape' ? 'bg-[#D0BCFF]/20 text-white' : 'text-white/50 hover:text-white'}`}
+                title="Filter shape layers"
+              >⬡</button>
+              <button
+                type="button"
+                onClick={() => setLayerFilter('image')}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${layerFilter === 'image' ? 'bg-[#D0BCFF]/20 text-white' : 'text-white/50 hover:text-white'}`}
+                title="Filter image layers"
+              >🖼</button>
+            </div>
+          </div>
+
+          {/* Layer Rows List */}
+          <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5" role="listbox" aria-multiselectable>
+            {filteredLayersTop.length === 0 && (
+              <div className="text-[11.5px] text-white/35 text-center px-3 py-8 leading-relaxed">
+                {layerSearch || layerFilter !== 'all' ? 'No layers match filter.' : 'This slide is empty.\nAdd text, a shape, an image, or apply a template.'}
+              </div>
+            )}
+            {filteredLayersTop.map(o => {
               const on = sel.includes(o.id);
+              const isRenaming = renamingId === o.id;
+              const isDropAbove = dropTarget?.id === o.id && dropTarget.position === 'above';
+              const isDropBelow = dropTarget?.id === o.id && dropTarget.position === 'below';
+
               return (
-                <div key={o.id} role="option" aria-selected={on} tabIndex={0}
-                  onClick={e => setSel(e.shiftKey ? (on ? sel.filter(i => i !== o.id) : [...sel, o.id]) : expandGroup([o.id]))}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel(expandGroup([o.id])); } }}
-                  className={`group flex items-center gap-1.5 pl-2 pr-1 py-1.5 rounded cursor-pointer mb-0.5 outline-none focus-visible:ring-1 focus-visible:ring-[#D0BCFF] ${on ? 'bg-white/10' : 'hover:bg-white/5'}`} style={on ? { boxShadow: `inset 2px 0 0 ${CYAN}` } : undefined}>
-                  <span className="text-white/45 flex-none">{iconFor(o)}</span>
-                  <span className={`text-[12px] flex-1 truncate ${o.hidden ? 'text-white/30 line-through' : ''}`}>{nameOf(o)}</span>
-                  {o.groupId && <Group size={10} className="text-white/30 flex-none" aria-label="grouped" />}
-                  <button type="button" title={o.hidden ? 'Show' : 'Hide'} aria-label={o.hidden ? 'Show layer' : 'Hide layer'} onClick={e => { e.stopPropagation(); updateObjs([o.id], { hidden: !o.hidden }); }} className="p-1 rounded text-white/40 hover:text-white">{o.hidden ? <EyeOff size={13} /> : <Eye size={13} />}</button>
-                  <button type="button" title={o.locked ? 'Unlock' : 'Lock'} aria-label={o.locked ? 'Unlock layer' : 'Lock layer'} onClick={e => { e.stopPropagation(); updateObjs([o.id], { locked: !o.locked }); }} className="p-1 rounded text-white/40 hover:text-white">{o.locked ? <Lock size={13} style={{ color: LILAC }} /> : <Unlock size={13} />}</button>
+                <div
+                  key={o.id}
+                  role="option"
+                  aria-selected={on}
+                  tabIndex={0}
+                  draggable={!o.locked && !isBackgroundObject(o) && !isRenaming}
+                  onDragStart={e => {
+                    setDragLayerId(o.id);
+                    e.dataTransfer.setData('text/plain', o.id);
+                  }}
+                  onDragOver={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!dragLayerId || dragLayerId === o.id) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const relY = e.clientY - rect.top;
+                    const pos = relY < rect.height / 2 ? 'above' : 'below';
+                    setDropTarget({ id: o.id, position: pos });
+                  }}
+                  onDragLeave={() => {
+                    if (dropTarget?.id === o.id) setDropTarget(null);
+                  }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (dragLayerId && dragLayerId !== o.id && dropTarget) {
+                      moveLayerTo(dragLayerId, o.id, dropTarget.position);
+                    }
+                    setDragLayerId(null);
+                    setDropTarget(null);
+                  }}
+                  onDragEnd={() => {
+                    setDragLayerId(null);
+                    setDropTarget(null);
+                  }}
+                  onClick={e => {
+                    if (isRenaming) return;
+                    setSel(e.shiftKey ? (on ? sel.filter(i => i !== o.id) : [...sel, o.id]) : expandGroup([o.id]));
+                  }}
+                  onKeyDown={e => {
+                    if (isRenaming) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSel(expandGroup([o.id]));
+                    }
+                  }}
+                  className={`group relative flex items-center gap-2 pl-1.5 pr-1 py-1.5 rounded cursor-pointer transition-colors outline-none focus-visible:ring-1 focus-visible:ring-[#D0BCFF] ${
+                    on ? 'bg-white/12 border border-white/15' : 'hover:bg-white/5 border border-transparent'
+                  }`}
+                  style={{
+                    boxShadow: on ? `inset 2px 0 0 ${CYAN}` : undefined,
+                    borderTopColor: isDropAbove ? CYAN : undefined,
+                    borderTopWidth: isDropAbove ? 2 : undefined,
+                    borderBottomColor: isDropBelow ? CYAN : undefined,
+                    borderBottomWidth: isDropBelow ? 2 : undefined,
+                  }}
+                >
+                  {/* Eye Toggle */}
+                  <button
+                    type="button"
+                    title={o.hidden ? 'Show layer' : 'Hide layer'}
+                    aria-label={o.hidden ? 'Show layer' : 'Hide layer'}
+                    onClick={e => { e.stopPropagation(); updateObjs([o.id], { hidden: !o.hidden }); }}
+                    className="p-0.5 rounded text-white/40 hover:text-white flex-none"
+                  >
+                    {o.hidden ? <EyeOff size={13} className="text-white/30" /> : <Eye size={13} />}
+                  </button>
+
+                  {/* Thumbnail Swatch */}
+                  <LayerThumbSwatch o={o} />
+
+                  {/* Title / Inline Rename */}
+                  <div className="flex-1 min-w-0 mr-1" onDoubleClick={e => {
+                    e.stopPropagation();
+                    setRenamingId(o.id);
+                    setRenameDraft(nameOf(o));
+                  }}>
+                    {isRenaming ? (
+                      <input
+                        autoFocus
+                        value={renameDraft}
+                        onChange={e => setRenameDraft(e.target.value)}
+                        onBlur={() => commitRename(o.id)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') commitRename(o.id);
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        className="w-full bg-[#1b1528] text-white text-[11.5px] px-1.5 py-0.5 rounded border border-[#00DAF3] outline-none"
+                        onClick={e => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className={`text-[12px] truncate block ${o.hidden ? 'text-white/30 line-through' : on ? 'text-white font-medium' : 'text-white/85'}`} title={nameOf(o)}>
+                        {nameOf(o)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Badges */}
+                  <div className="flex items-center gap-1 flex-none">
+                    {o.groupId && (
+                      <span className="text-[8.5px] font-black px-1 py-0.2 rounded text-[#00DAF3] bg-[#00DAF3]/10 border border-[#00DAF3]/30" title="Grouped layer">GRP</span>
+                    )}
+                    {o.blend && o.blend !== 'normal' && (
+                      <span className="text-[8.5px] font-mono uppercase px-1 py-0.2 rounded text-white/50 bg-white/5 border border-white/10" title={`Blend: ${o.blend}`}>{o.blend}</span>
+                    )}
+                    {o.opacity !== undefined && o.opacity < 1 && (
+                      <span className="text-[8.5px] font-mono px-1 py-0.2 rounded text-white/50 bg-white/5 border border-white/10" title={`Opacity: ${Math.round(o.opacity * 100)}%`}>{Math.round(o.opacity * 100)}%</span>
+                    )}
+                    {/* Lock Toggle */}
+                    <button
+                      type="button"
+                      title={o.locked ? 'Unlock layer' : 'Lock layer'}
+                      aria-label={o.locked ? 'Unlock layer' : 'Lock layer'}
+                      onClick={e => { e.stopPropagation(); updateObjs([o.id], { locked: !o.locked }); }}
+                      className="p-1 rounded text-white/40 hover:text-white"
+                    >
+                      {o.locked ? <Lock size={12} style={{ color: LILAC }} /> : <Unlock size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
+                    </button>
+                  </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Photoshop Footer Action Toolbar */}
+          <div className="px-2 py-1.5 border-t flex items-center justify-between flex-none" style={{ borderColor: line, background: 'rgba(0,0,0,0.22)' }}>
+            <button
+              type="button"
+              title="Group selected layers (Ctrl+G)"
+              disabled={selected.length < 2}
+              onClick={group}
+              className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <Folder size={14} />
+            </button>
+            <button
+              type="button"
+              title="Add text layer"
+              onClick={() => addText()}
+              className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white"
+            >
+              <Type size={14} />
+            </button>
+            <button
+              type="button"
+              title="Add shape layer"
+              onClick={() => addShape('rect')}
+              className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white"
+            >
+              <Square size={14} />
+            </button>
+            <button
+              type="button"
+              title="Duplicate selected layer (Ctrl+D)"
+              disabled={!hasSel}
+              onClick={duplicate}
+              className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <Copy size={14} />
+            </button>
+            <button
+              type="button"
+              title="Bring forward"
+              disabled={!hasSel}
+              onClick={() => reorder(sel, 'up')}
+              className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronUp size={14} />
+            </button>
+            <button
+              type="button"
+              title="Send backward"
+              disabled={!hasSel}
+              onClick={() => reorder(sel, 'down')}
+              className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronDown size={14} />
+            </button>
+            <button
+              type="button"
+              title="Delete layer (Del)"
+              disabled={!hasSel}
+              onClick={() => deleteIds(sel)}
+              className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <Trash2 size={14} />
+            </button>
           </div>
         </aside>
 

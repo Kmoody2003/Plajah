@@ -24,6 +24,8 @@ import { decoAlpha, type ScriptureState } from './scriptureKit';
 import { getScriptureLook, subscribeScriptureLook } from './scriptureLook';
 import { TypoScriptureBackground } from './typoScriptureBackground';
 import { chapterContextFor } from './scriptureContext';
+import { resolveTypoText, type TypoTextSource } from './typoText';
+import { numParam, hexToRgb01 } from './visualizerParams';
 // (scripture is drawn by scriptureLayouts via ScriptureSource)
 import {
   createSlideBox, createScriptureBox, createScriptureWithReferenceBoxes,
@@ -286,6 +288,7 @@ export class ScriptureSource implements LayerSource {
       translation: this.content.translation,
       copyright: this.content.copyright,
       accent: this.accent(),
+      refScale: (this.content as any).refScale ?? getScriptureLook().refScale,
       enterP, exitP,
       transition: tr.id,
       typoFrame: this.typo?.frame(now) ?? null,
@@ -689,6 +692,12 @@ export class GeneratorSource implements LayerSource {
   private fallbackNote = 'Not available on this output';
   private disposed = false;
   private analyserNode: AnalyserNode | null = null;
+  private audioSrc = '';
+  /** Speed-scaled visual clock (params.speed), so a slider never jumps the picture. */
+  private vt = 0;
+  private lastT = -1;
+  private typoText = '';
+  private typoCheckAt = 0;
   bornAt = Date.now();
   pendingCanvas: HTMLCanvasElement | null = null;
 
@@ -696,23 +705,60 @@ export class GeneratorSource implements LayerSource {
     this.canvas = off(w, h);
     this.mode = normalizeGeneratorMode(content.mode);
     void this.init();
-    const src = (content as any).audioSource;
-    this.setAudioSource(src ?? 'ambo-playback');
+    this.setAudioSource(this.wantedAudioSource());
   }
 
   /** Which render path this source resolved to (for diagnostics / tests). */
   get renderPath(): GenPath { return this.path; }
 
+  private wantedAudioSource(): 'ambo-playback' | 'live-input' | 'none' {
+    const v = (this.content as any).audioSource ?? this.content.params?.audioSource;
+    return v === 'live-input' || v === 'none' ? v : 'ambo-playback';
+  }
+
+  /** Same visualizer, new settings: repaint with them — never a restart. */
+  update(content: Extract<LayerContent, { kind: 'GENERATOR' }>) {
+    this.content = content;
+    const a = this.wantedAudioSource();
+    if (a !== this.audioSrc) this.setAudioSource(a);
+    this.typoCheckAt = 0;   // re-resolve the words now (source / custom text may have changed)
+  }
+
+  /** The words a TYPO layer should spell now, from its params + the text bus. */
+  private resolveTypoWords(): string {
+    const p = this.content.params ?? {};
+    const src = (typeof p.textSource === 'string' ? p.textSource : 'auto') as TypoTextSource;
+    let t = resolveTypoText(src, typeof p.customText === 'string' ? p.customText : undefined) || (this.content as any).text || 'PLAJAH AMBO CHORA FABULA';
+    const max = Math.round(numParam(p, 'maxWords', 24));
+    const words = t.split(/\s+/).filter(Boolean);
+    if (words.length > max) t = words.slice(0, max).join(' ');
+    if (numParam(p, 'uppercase', 1) >= 0.5) t = t.toUpperCase();
+    return t;
+  }
+
+  private liveIn: { stream: MediaStream; ctx: AudioContext } | null = null;
+  private releaseLiveIn() {
+    if (!this.liveIn) return;
+    try { this.liveIn.stream.getTracks().forEach(t => t.stop()); void this.liveIn.ctx.close(); } catch { /* */ }
+    this.liveIn = null;
+  }
+
   setAudioSource(source: 'ambo-playback' | 'live-input' | 'none'): void {
+    this.audioSrc = source;
+    this.releaseLiveIn();
     if (source === 'ambo-playback') {
       this.analyserNode = (typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
     } else if (source === 'live-input') {
+      this.analyserNode = null;
       navigator.mediaDevices?.getUserMedia({ audio: true }).then(stream => {
+        // The operator switched again (or the layer went away) before the grant came back.
+        if (this.disposed || this.audioSrc !== 'live-input') { stream.getTracks().forEach(t => t.stop()); return; }
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const src = audioCtx.createMediaStreamSource(stream);
         this.analyserNode = audioCtx.createAnalyser();
         this.analyserNode.fftSize = 256;
         src.connect(this.analyserNode);
+        this.liveIn = { stream, ctx: audioCtx };
       }).catch(() => {});
     } else {
       this.analyserNode = null;
@@ -802,7 +848,9 @@ export class GeneratorSource implements LayerSource {
       if (mode.startsWith(TYPO_PREFIX)) {
         const key = mode.slice(TYPO_PREFIX.length) || 'SPHERE';
         this.ctx2d = this.canvas.getContext('2d');
-        this.typo = new TypoScriptureBackground(this.w, this.h, key, (this.content as any).text || 'PLAJAH AMBO CHORA FABULA');
+        this.typoText = this.resolveTypoWords();
+        this.typoCheckAt = performance.now();
+        this.typo = new TypoScriptureBackground(this.w, this.h, key, this.typoText);
         this.typo.analyser = this.analyserNode;
         this.path = 'typo';
         return;
@@ -818,23 +866,33 @@ export class GeneratorSource implements LayerSource {
 
   frame(timeSec: number) {
     if (this.disposed) return null;
-    if (!this.analyserNode && typeof window !== 'undefined') {
+    // 'none' means none: don't quietly fall back to the Ambo master.
+    if (!this.analyserNode && this.audioSrc === 'ambo-playback' && typeof window !== 'undefined') {
       this.analyserNode = (window as any).getAmboMasterAnalyser?.() ?? null;
     }
+    const p = this.content.params ?? {};
+    // Speed-scaled clock: integrate so moving the slider changes pace, never position.
+    const speed = Math.max(0, numParam(p, 'speed', 1));
+    if (this.lastT < 0) this.vt = timeSec;
+    else this.vt += Math.max(0, Math.min(0.25, timeSec - this.lastT)) * speed;
+    this.lastT = timeSec;
+    const vt = this.vt;
 
     try {
       if (this.path === 'gen' && this.gl && this.renderer && this.prog) {
         const gl = this.gl;
         if (gl.isContextLost()) { this.toFallback('Graphics context lost'); return this.frame(timeSec); }
-        feedAudioTexture(this.audio, this.analyserNode, timeSec);
-        const p = this.content.params ?? {};
-        const num = (k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : d);
+        feedAudioTexture(this.audio, this.analyserNode, vt);
 
         const tex = this.renderer.render('bg', this.mode, this.w, this.h, {
-          time: timeSec,
+          time: vt,
           audio: this.audio,
-          colors: [[0.55, 0.36, 0.95], [0.83, 0, 0.33], [1, 0.55, 0]],
-          params: [num('p0', 0.5), num('p1', 0.5), num('p2', 0.5), num('p3', 0.5)],
+          colors: [
+            hexToRgb01(p.color0, [0.55, 0.36, 0.95]),
+            hexToRgb01(p.color1, [0.83, 0, 0.33]),
+            hexToRgb01(p.color2, [1, 0.55, 0]),
+          ],
+          params: [numParam(p, 'p0', 0.5), numParam(p, 'p1', 0.5), numParam(p, 'p2', 0.5), numParam(p, 'p3', 0.5)],
         });
 
         // Present the generator texture onto the visible canvas.
@@ -854,9 +912,11 @@ export class GeneratorSource implements LayerSource {
 
       if (this.path === 'gl' && this.renderer) {
         if (this.gl?.isContextLost()) { this.toFallback('Graphics context lost'); return this.frame(timeSec); }
-        const b = bandsFrom(this.analyserNode, timeSec);
+        const b = bandsFrom(this.analyserNode, vt);
+        const col = (k: string, d: string) => (typeof p[k] === 'string' && /^#[0-9a-f]{6}$/i.test(p[k] as string) ? (p[k] as string) : d);
         this.renderer.resize();
-        this.renderer.draw(this.glKey, timeSec * 1000, b, { speed: 1, glow: 1 } as any, ['#8b5cf6', '#d40055', '#ff8c00', '#0a0612']);
+        this.renderer.draw(this.glKey, vt * 1000, b, { speed: 1, glow: numParam(p, 'glow', 1) } as any,
+          [col('color0', '#8b5cf6'), col('color1', '#d40055'), col('color2', '#ff8c00'), col('color3', '#0a0612')]);
         return this.canvas;
       }
 
@@ -885,7 +945,16 @@ export class GeneratorSource implements LayerSource {
       }
 
       if (this.path === 'typo' && this.typo) {
+        // Words from the text bus (scripture / song / transcription / custom / data), ~4×/s.
+        const nowMs = performance.now();
+        if (nowMs - this.typoCheckAt > 250) {
+          this.typoCheckAt = nowMs;
+          const words = this.resolveTypoWords();
+          if (words !== this.typoText) { this.typoText = words; this.typo.setText(words); }
+        }
+        this.typo.wordPace = numParam(p, 'wordPace', 0.85);
         this.typo.analyser = this.analyserNode;
+        this.typo.followMaster = this.audioSrc !== 'none';
         const c = this.typo.frame();
         if (c) {
           if (!this.ctx2d) this.ctx2d = this.canvas.getContext('2d');
@@ -912,6 +981,7 @@ export class GeneratorSource implements LayerSource {
   ready() { return this.path !== 'pending'; }
   dispose() {
     this.disposed = true;
+    this.releaseLiveIn();
     try { if (this.path === 'gen') { this.renderer?.dispose?.(); this.audio?.dispose?.(); } } catch { /* */ }
     try { if (this.milk) { this.milk.dispose(); loseGL(this.milk.canvas.getContext('webgl2')); } } catch { /* */ }
     try { this.typo?.dispose(); } catch { /* */ }
@@ -955,6 +1025,9 @@ export class ShaderSource implements LayerSource {
   }
 
   get renderPath() { return this.path; }
+
+  /** Same source, new params (parameters panel): picked up next frame, no recompile. */
+  update(content: Extract<LayerContent, { kind: 'SHADER' }>) { this.content = content; }
 
   private toFallback(note: string) {
     loseGL(this.gl);
@@ -1243,6 +1316,7 @@ export class ClockSource implements LayerSource {
 // ── Live Video Source (DeckLink, Switcher PGM/AUX, NDI, Camera) ─────────────
 
 import { getAppOutputStream, onAppOutputStream, onAppOutputRemoved } from '../mediaEngine/bridge';
+import { isNativeLiveInput, subscribeLiveFrames } from './liveInputs';
 
 export class LiveSource implements LayerSource {
   readonly kind = 'live';
@@ -1250,9 +1324,15 @@ export class LiveSource implements LayerSource {
   private unsubscribe?: () => void;
   private unsubscribeRemoval?: () => void;
   private isReady = false;
+  /** NDI/OMT network feeds: frames received by the Windows shell (never carries sound — see liveInputs). */
+  private bitmap: ImageBitmap | null = null;
 
   constructor(private content: Extract<LayerContent, { kind: 'LIVE' }>) {
     this.video = document.createElement('video');
+    if (isNativeLiveInput(content.inputId)) {
+      this.unsubscribe = subscribeLiveFrames(content.inputId, 1280, b => { this.bitmap = b; this.isReady = true; });
+      return;
+    }
     this.video.autoplay = true;
     this.video.muted = true;
     this.video.playsInline = true;
@@ -1281,10 +1361,12 @@ export class LiveSource implements LayerSource {
   }
 
   frame(): CanvasImageSource | null {
+    if (this.bitmap) return this.bitmap;
     return (this.isReady && this.video.readyState >= 2) ? this.video : null;
   }
 
   size(): { w: number; h: number } | null {
+    if (this.bitmap) return { w: this.bitmap.width, h: this.bitmap.height };
     return {
       w: this.video.videoWidth || 1920,
       h: this.video.videoHeight || 1080,
@@ -1292,6 +1374,7 @@ export class LiveSource implements LayerSource {
   }
 
   ready(): boolean {
+    if (this.bitmap) return true;
     return this.isReady && this.video.readyState >= 2;
   }
 

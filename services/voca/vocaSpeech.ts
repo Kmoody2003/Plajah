@@ -178,6 +178,8 @@ export class MicMeter {
   /** Current make-up gain, 1 = untouched. Grows for quiet readers so a whisper-soft child is still heard. */
   gain = 1;
   onLevel?: (level: number, speaking: boolean) => void;
+  /** The raw mic, for live waveforms (null until started / after stop). */
+  analyser: AnalyserNode | null = null;
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -198,6 +200,7 @@ export class MicMeter {
     const c = this.ctx!;
     const src = c.createMediaStreamSource(this.stream!);
     const an = c.createAnalyser(); an.fftSize = 1024; src.connect(an);
+    this.analyser = an;
     // DSP chain for the recogniser: cut rumble, lift the consonant band, even out loud/soft, then make-up gain
     let gainNode: GainNode | null = null;
     try {
@@ -236,7 +239,7 @@ export class MicMeter {
   stop() {
     if (this.timer) clearInterval(this.timer); this.timer = null;
     this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
-    try { this.ctx?.close(); } catch { /* closed */ } this.ctx = null; this.boostedTrack = null;
+    try { this.ctx?.close(); } catch { /* closed */ } this.ctx = null; this.boostedTrack = null; this.analyser = null;
   }
 }
 
