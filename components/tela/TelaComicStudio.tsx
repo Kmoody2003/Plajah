@@ -15,8 +15,13 @@ import {
   Check,
   ChevronRight,
   Layers,
-  Camera
+  Camera,
+  Volume2,
+  Mic,
+  Music
 } from 'lucide-react';
+import { plajahAudioCore } from '../../services/voice/plajahAudioCore';
+import { proceduralFoley } from '../../services/audio/proceduralFoleyEngine';
 import {
   CharacterSheet,
   ComicPageSpec,
@@ -102,13 +107,33 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
       const characterClause = currentChar ? `${currentChar.name}: ${currentChar.visualAnchor}` : 'a protagonist';
 
       try {
+        let activeLoraId: string | undefined;
+        let activeModelId = 'animagine_xl';
+        let lightingClause = 'vibrant cinematic tones';
+
+        if (stylePreset === 'manga') {
+          activeLoraId = 'flux_lora_manga_screentone';
+          activeModelId = 'flux2_klein_4b';
+          lightingClause = 'authentic manga screentone and high contrast ink';
+        } else if (stylePreset === 'storybook_watercolor') {
+          activeLoraId = 'flux_lora_storybook_cartoon';
+          activeModelId = 'flux2_klein_4b';
+          lightingClause = 'soft watercolor wash and delicate pencil outlines';
+        } else if (stylePreset === 'graphic_novel_noir') {
+          activeLoraId = 'flux_lora_cinematic_35mm';
+          activeModelId = 'flux2_klein_4b';
+          lightingClause = 'high contrast black ink and dramatic chiaroscuro shadows';
+        }
+
         const task = compileComicPanelTask({
           characterPrompt: characterClause,
           faceEmbeddingRef: currentChar?.turnaroundUrls.closeUp,
           sceneActionPrompt: panel.actionPrompt,
           cameraShot: panel.cameraShot,
-          moodLighting: stylePreset === 'graphic_novel_noir' ? 'high contrast black ink and dramatic shadows' : 'vibrant cinematic tones',
+          moodLighting: lightingClause,
           aspect: '1:1',
+          modelId: activeModelId,
+          loraId: activeLoraId,
         });
 
         const res = await executePlajahNativeTask(task);
@@ -124,6 +149,64 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
 
     setActivePanelIdx(null);
     setGenerating(false);
+  };
+
+  const [playingPageAudio, setPlayingPageAudio] = useState(false);
+  const [activeAudioBubbleId, setActiveAudioBubbleId] = useState<string | null>(null);
+
+  const handlePlayBubbleAudio = async (bubble: ComicSpeechBubble) => {
+    try {
+      setActiveAudioBubbleId(bubble.id);
+      const res = await plajahAudioCore.synthesizeFabulaDialogue({
+        text: bubble.text,
+        speakerName: currentChar?.name || 'Aria',
+        emotion: bubble.type === 'thought' ? 'whisper' : 'urgent',
+      });
+      const url = URL.createObjectURL(res.audioBlob);
+      const audio = new Audio(url);
+      audio.onended = () => setActiveAudioBubbleId(null);
+      await audio.play();
+    } catch (e) {
+      console.error('Audio synthesis failed:', e);
+      setActiveAudioBubbleId(null);
+    }
+  };
+
+  const handlePlayFullPageAudio = async () => {
+    if (playingPageAudio) return;
+    setPlayingPageAudio(true);
+    
+    try {
+      const foleyRes = proceduralFoley.renderFoley({ presetId: 'whoosh' });
+      const foleyUrl = URL.createObjectURL(foleyRes.wavBlob);
+      const foleyAudio = new Audio(foleyUrl);
+      await foleyAudio.play();
+      await new Promise((r) => setTimeout(r, 600));
+    } catch {}
+
+    for (const panel of panels) {
+      for (const bubble of panel.speechBubbles) {
+        setActiveAudioBubbleId(bubble.id);
+        try {
+          const res = await plajahAudioCore.synthesizeFabulaDialogue({
+            text: bubble.text,
+            speakerName: currentChar?.name || 'Aria',
+            emotion: bubble.type === 'thought' ? 'whisper' : 'urgent',
+          });
+          const url = URL.createObjectURL(res.audioBlob);
+          const audio = new Audio(url);
+          await new Promise<void>((resolve) => {
+            audio.onended = () => resolve();
+            audio.onerror = () => resolve();
+            audio.play().catch(() => resolve());
+          });
+          await new Promise((r) => setTimeout(r, 300));
+        } catch {}
+      }
+    }
+
+    setActiveAudioBubbleId(null);
+    setPlayingPageAudio(false);
   };
 
   const handlePushToTela = () => {
@@ -236,6 +319,24 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
               <option value="storybook_watercolor">Storybook Watercolor (Children's Book Pigments)</option>
               <option value="american_superhero">American Superhero (Bold Cel-Shading & Color)</option>
             </select>
+            {stylePreset === 'manga' && (
+              <div style={{ marginTop: '6px', fontSize: '10px', color: '#00DAF3', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Sparkles size={11} />
+                <span>FLUX.2 Klein 4B + Manga Screentone LoRA (Apache-2.0)</span>
+              </div>
+            )}
+            {stylePreset === 'storybook_watercolor' && (
+              <div style={{ marginTop: '6px', fontSize: '10px', color: '#06D6A0', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Sparkles size={11} />
+                <span>FLUX.2 Klein 4B + Whimsical Storybook LoRA (Apache-2.0)</span>
+              </div>
+            )}
+            {stylePreset === 'graphic_novel_noir' && (
+              <div style={{ marginTop: '6px', fontSize: '10px', color: '#FF8C00', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Sparkles size={11} />
+                <span>FLUX.2 Klein 4B + Cinematic 35mm LoRA (Apache-2.0)</span>
+              </div>
+            )}
           </div>
 
           {/* Page Layout Preset */}
@@ -381,6 +482,45 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
           justifyContent: 'center',
           overflowY: 'auto',
         }}>
+          {/* Comic Audio Director Bar */}
+          <div style={{
+            width: '460px',
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Volume2 size={14} color="#FF8C00" />
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>Page Audio Director</span>
+              <span style={{ fontSize: '9px', color: '#94a3b8', fontFamily: 'monospace' }}>Aria Kokoro & Fish Speech</span>
+            </div>
+            <button
+              onClick={handlePlayFullPageAudio}
+              disabled={playingPageAudio}
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '4px 10px',
+                borderRadius: '9999px',
+                backgroundColor: playingPageAudio ? '#f59e0b' : '#FF8C00',
+                color: '#000',
+                border: 'none',
+                cursor: playingPageAudio ? 'wait' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <Play size={10} />
+              <span>{playingPageAudio ? 'Reading Page…' : 'Play Full Page Audio'}</span>
+            </button>
+          </div>
+
           {/* Simulated Comic Page Preview */}
           <div style={{
             width: '460px',
@@ -428,7 +568,7 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
                     </div>
                   )}
 
-                  {/* Simulated Speech Bubble Overlay */}
+                  {/* Simulated Speech Bubble Overlay with Voice Audition Badge */}
                   {p.speechBubbles.map((bubble) => (
                     <div
                       key={bubble.id}
@@ -437,17 +577,24 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
                         top: `${bubble.yPct}%`,
                         left: `${bubble.xPct}%`,
                         backgroundColor: '#fff',
-                        border: '1.5px solid #000',
+                        border: activeAudioBubbleId === bubble.id ? '2px solid #FF8C00' : '1.5px solid #000',
                         borderRadius: bubble.type === 'thought' ? '14px' : '10px',
                         padding: '3px 8px',
                         fontSize: '10px',
                         fontWeight: 600,
                         color: '#000',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                        maxWidth: '120px',
+                        maxWidth: '130px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
+                      onClick={() => handlePlayBubbleAudio(bubble)}
+                      title="Click to audition character voice for this balloon"
                     >
-                      {bubble.text}
+                      <span style={{ flex: 1 }}>{bubble.text}</span>
+                      <Volume2 size={11} color={activeAudioBubbleId === bubble.id ? '#FF8C00' : '#475569'} />
                     </div>
                   ))}
                 </div>

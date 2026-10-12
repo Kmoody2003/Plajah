@@ -14,6 +14,7 @@ import { ReactivityConditioner, REACTIVITY_STRENGTH, getReactivityMode } from '.
 import { FluxMusicSampler } from '../fabula/fluxMusic';
 import { SILENT_AUDIO } from '../fabula/fluxNode';
 import { amboAudio } from './amboAudioEngine';
+import { bus as audioBus } from './audioBus';
 import { attachVideo, getVideoSyncRole, hasMaster as hasVideoMaster } from './videoSync';
 import type { LayerContent } from './showModel';
 import { lyricClockPos } from './showModel';
@@ -1203,25 +1204,38 @@ export async function snapshotVisualizer(
 
 export class AudioSource implements LayerSource {
   readonly kind = 'AUDIO';
-  private el: HTMLAudioElement;
+  private el: HTMLAudioElement | null = null;
   private target: number;
   /** The bed's own fade level, before the video-priority factor is applied. */
   private level: number;
   private fadeTimer: ReturnType<typeof setInterval> | null = null;
   private gone = false;
-  private offPriority: () => void;
+  private offPriority: () => void = () => {};
   private routed = false;
+  private slaved = false;
 
   constructor(content: Extract<LayerContent, { kind: 'AUDIO' }>) {
+    this.target = content.volume ?? 1;
+    const fadeIn = content.fadeInSec ?? 0;
+    this.level = fadeIn > 0 ? 0 : this.target;
+
+    // Check if this audio file is already actively playing in audioBus or DJ deck
+    const curBus = audioBus.state.queue[audioBus.state.index];
+    const isSameBus = curBus && (
+      (curBus.url && content.src && curBus.url === content.src) ||
+      curBus.id === (content as any).id
+    );
+    const busIsPlaying = isSameBus && (audioBus.isAudiblyPlaying() || audioBus.state.playing || audioBus.state.deck);
+    if (busIsPlaying) {
+      this.slaved = true;
+      return;
+    }
+
     const a = new Audio();
     a.crossOrigin = 'anonymous';
     a.loop = content.loop ?? false;
     a.preload = 'auto';
     a.src = content.src;
-    this.target = content.volume ?? 1;
-
-    const fadeIn = content.fadeInSec ?? 0;
-    this.level = fadeIn > 0 ? 0 : this.target;
     this.el = a;
     this.apply();
     // Through the Ambo mixer (Slide Audio channel): metered, limited, visible
@@ -1244,6 +1258,7 @@ export class AudioSource implements LayerSource {
   }
 
   private apply() {
+    if (!this.el) return;
     try { this.el.volume = Math.min(1, Math.max(0, this.level * otherAudioFactor())); } catch { /* */ }
   }
 
@@ -1267,13 +1282,14 @@ export class AudioSource implements LayerSource {
 
   update(content: Extract<LayerContent, { kind: 'AUDIO' }>) {
     this.target = content.volume ?? 1;
-    this.el.loop = content.loop ?? false;
+    if (this.el) this.el.loop = content.loop ?? false;
     if (!this.fadeTimer) { this.level = this.target; this.apply(); }
   }
 
   /** Fade out, then stop — so clearing a bed doesn't chop it off. */
   fadeOutAndStop(seconds: number) {
-    this.ramp(0, seconds, () => { try { this.el.pause(); } catch { /* */ } });
+    if (this.slaved) return;
+    this.ramp(0, seconds, () => { try { this.el?.pause(); } catch { /* */ } });
   }
 
   frame() { return null; }
@@ -1283,9 +1299,11 @@ export class AudioSource implements LayerSource {
   dispose() {
     this.gone = true;
     this.offPriority();
-    if (this.routed) amboAudio.detachElement(this.el);
+    if (this.routed && this.el) amboAudio.detachElement(this.el);
     if (this.fadeTimer) clearInterval(this.fadeTimer);
-    try { this.el.pause(); this.el.src = ''; } catch { /* */ }
+    if (this.el) {
+      try { this.el.pause(); this.el.src = ''; } catch { /* */ }
+    }
   }
 }
 

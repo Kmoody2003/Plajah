@@ -5756,9 +5756,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </>
           )}
 
-          <SpatialUIRoot className={`flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${navLayout.isBar && !navLayout.isPhone ? 'pt-16' : ''} ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-40 transition-all duration-500') : (isLandscape ? 'pt-2 pb-24 transition-all duration-500' : 'pt-2 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
+          {/* Workstation view detection (Tela, Ambo Pro, Pixels) — keeps full screen chrome pinned without parent scrolling away */}
+          <SpatialUIRoot className={(view === 'TELA' || view === 'TELA_EMBED_DEMO' || view === 'AMBO_PRO' || view === 'PLAJAH_PIXELS')
+            ? 'flex-1 flex flex-col w-full h-full min-h-0 overflow-hidden'
+            : `flex-1 flex flex-col w-full overflow-y-auto overflow-x-hidden custom-scrollbar ${navLayout.isBar && !navLayout.isPhone ? (shellNext.enabled ? 'pt-[100px]' : 'pt-16') : ''} ${(isMobile || theme === 'PHONE') ? (isShrunk ? (isLandscape ? 'pt-2 pb-20 transition-all duration-500' : 'pt-2 pb-40 transition-all duration-500') : (isLandscape ? 'pt-2 pb-24 transition-all duration-500' : 'pt-2 pb-64 transition-all duration-500')) : 'pb-40 lg:pb-0'}`}>
             {/* World Cup temporary banner — mobile only, expires 2026-07-29 (epoch 1753747200000) */}
-            {(isMobile || theme === 'PHONE') && !wcMobileBannerDismissed && view !== 'PLAJAH_SPORTS' && Date.now() < 1753747200000 && (
+            {view !== 'TELA' && view !== 'TELA_EMBED_DEMO' && (isMobile || theme === 'PHONE') && !wcMobileBannerDismissed && view !== 'PLAJAH_SPORTS' && Date.now() < 1753747200000 && (
               <div className="mx-3 mt-2 mb-1 flex items-center gap-3 px-4 py-3 rounded-2xl relative overflow-hidden"
                 style={{ background: 'linear-gradient(90deg, #004d00 0%, #006400 40%, #FF8C00 100%)', border: '1px solid rgba(255,255,255,0.15)' }}
               >

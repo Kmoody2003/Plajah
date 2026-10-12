@@ -8,9 +8,15 @@ import React, { useRef, useState, useSyncExternalStore } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, Volume2, VolumeX,
   ListMusic, ChevronDown, ChevronUp, X, FolderOpen, ArrowUp, ArrowDown, Trash2,
-  StickyNote, Layers, Film, TrendingDown, AlertTriangle, Disc3,
+  StickyNote, Layers, Film, TrendingDown, AlertTriangle, Disc3, Captions, Loader2,
 } from 'lucide-react';
 import { bus, registerLocalFiles, isTrackPlayable, isAudioFile, type BusTrack } from '../../services/ambo/audioBus';
+import {
+  getLiveLyricsPrefs, getLiveLyricsState, subscribeLiveLyrics,
+  setLiveLyricsPrefs, startLiveLyrics, stopLiveLyrics,
+} from '../../services/ambo/liveLyrics';
+import { lyricsFor } from '../../services/ambo/lyricFeed';
+import { setLyricsProgram, getLyricsProgram, subscribeLyricsProgram } from '../../services/ambo/lyricsProgram';
 import {
   getAudioPriority, setAudioPriority, subscribeAudioPriority,
   type VideoAudioPolicy,
@@ -50,6 +56,29 @@ export const AmboAudioBus: React.FC<{ controlsSlot?: React.ReactNode; deckOpen?:
   const curCue = cur ? getCue(cur.cueScope, cur.id) : null;
   const curHex = cueHex(curCue?.color);
 
+  const liveLyricsPrefs = useSyncExternalStore(subscribeLiveLyrics, getLiveLyricsPrefs);
+  const liveLyricsState = useSyncExternalStore(subscribeLiveLyrics, getLiveLyricsState);
+  const lyricsProgram = useSyncExternalStore(subscribeLyricsProgram, getLyricsProgram);
+  const isFeedingLyrics = lyricsProgram.wantLive && (lyricsProgram.source === 'bus' || (lyricsProgram.source === 'live' && liveLyricsState.running));
+  const isPreparingLyrics = liveLyricsState.starting && (liveLyricsPrefs.source.kind === 'playlist' || liveLyricsPrefs.source.kind === 'mic');
+
+  const toggleFeedLyrics = () => {
+    if (isFeedingLyrics || isPreparingLyrics) {
+      setLyricsProgram({ wantLive: false });
+      stopLiveLyrics();
+    } else {
+      const trackLyrics = cur ? lyricsFor(cur) : [];
+      if (trackLyrics.length > 0) {
+        setLyricsProgram({ wantLive: true, source: 'bus' });
+      } else {
+        // Fall back to live room mic (Windows Native NPU / Web Speech) - never feed mixed music audio into speech ASR
+        setLiveLyricsPrefs({ source: { kind: 'mic' } });
+        void startLiveLyrics();
+        setLyricsProgram({ wantLive: true, source: 'live' });
+      }
+    }
+  };
+
   const addFiles = (files: FileList | File[] | null) => {
     if (!files) return;
     const tracks = registerLocalFiles(files);
@@ -88,83 +117,158 @@ export const AmboAudioBus: React.FC<{ controlsSlot?: React.ReactNode; deckOpen?:
           <ListMusic size={12} className="text-[#D0BCFF]" /> Audio
         </div>
 
-        <div className="w-8 h-8 rounded-md overflow-hidden bg-white/5 flex-none grid place-items-center" style={curHex ? { boxShadow: `0 0 0 2px ${curHex}` } : undefined}>
-          {cur?.coverImage ? <img src={cur.coverImage} alt="" className="w-full h-full object-cover" /> : <ListMusic size={14} className="text-white/25" />}
-        </div>
+        {cur || s.queue.length > 0 || s.playing ? (
+          <>
+            <div className="w-8 h-8 rounded-md overflow-hidden bg-white/5 flex-none grid place-items-center" style={curHex ? { boxShadow: `0 0 0 2px ${curHex}` } : undefined}>
+              {cur?.coverImage ? <img src={cur.coverImage} alt="" className="w-full h-full object-cover" /> : <ListMusic size={14} className="text-white/25" />}
+            </div>
 
-        <div className="min-w-0 w-48 flex-none">
-          <div className="text-[11px] font-semibold text-white truncate">{cur?.title ?? 'Nothing queued'}</div>
-          <div className="text-[9.5px] text-white/45 truncate">
-            {curCue ? (
-              <span style={{ color: curHex ?? undefined }} className="font-bold">{curCue.label || 'Cue'}{curCue.note ? ' · ' : ''}</span>
-            ) : null}
-            {curCue?.note ? <span className="text-white/60">{curCue.note}</span> : (cur?.artist ?? 'Queue songs from Chora or local files')}
-          </div>
-        </div>
+            <div className="min-w-0 w-48 flex-none">
+              <div className="text-[11px] font-semibold text-white truncate">{cur?.title ?? 'Nothing queued'}</div>
+              <div className="text-[9.5px] text-white/45 truncate">
+                {curCue ? (
+                  <span style={{ color: curHex ?? undefined }} className="font-bold">{curCue.label || 'Cue'}{curCue.note ? ' · ' : ''}</span>
+                ) : null}
+                {curCue?.note ? <span className="text-white/60">{curCue.note}</span> : (cur?.artist ?? 'Queue songs from Chora or local files')}
+              </div>
+            </div>
 
-        <div className="flex items-center gap-0.5 flex-none">
-          <button onClick={() => bus.prev()} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-white/10" title="Previous"><SkipBack size={13} /></button>
-          <button
-            onClick={() => bus.toggle()}
-            disabled={!s.queue.length}
-            className="p-1.5 rounded-full bg-white text-[#0b0812] hover:scale-105 transition-transform disabled:opacity-30"
-            title={s.playing ? 'Pause' : 'Play'}
-          >{s.playing ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}</button>
-          <button onClick={() => bus.next()} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-white/10" title="Next"><SkipForward size={13} /></button>
-        </div>
+            <div className="flex items-center gap-0.5 flex-none">
+              <button onClick={() => bus.prev()} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-white/10" title="Previous"><SkipBack size={13} /></button>
+              <button
+                onClick={() => bus.toggle()}
+                disabled={!s.queue.length}
+                className="p-1.5 rounded-full bg-white text-[#0b0812] hover:scale-105 transition-transform disabled:opacity-30"
+                title={s.playing ? 'Pause' : 'Play'}
+              >{s.playing ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}</button>
+              <button onClick={() => bus.next()} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-white/10" title="Next"><SkipForward size={13} /></button>
+            </div>
 
-        <div className="flex items-center gap-2 flex-1 min-w-[120px]">
-          <span className="font-mono text-[9.5px] text-white/45 w-8 text-right">{fmt(s.currentTime)}</span>
-          <input
-            type="range" min={0} max={s.duration || 0} step={0.1} value={Math.min(s.currentTime, s.duration || 0)}
-            onChange={e => bus.seek(Number(e.target.value))}
-            className="flex-1 accent-[#D0BCFF] h-1"
-            aria-label="Seek"
-          />
-          <span className="font-mono text-[9.5px] text-white/45 w-8">{fmt(s.duration)}</span>
-        </div>
+            <div className="flex items-center gap-2 flex-1 min-w-[120px]">
+              <span className="font-mono text-[9.5px] text-white/45 w-8 text-right">{fmt(s.currentTime)}</span>
+              <input
+                type="range" min={0} max={s.duration || 0} step={0.1} value={Math.min(s.currentTime, s.duration || 0)}
+                onChange={e => bus.seek(Number(e.target.value))}
+                className="flex-1 accent-[#D0BCFF] h-1"
+                aria-label="Seek"
+              />
+              <span className="font-mono text-[9.5px] text-white/45 w-8">{fmt(s.duration)}</span>
+            </div>
 
-        {s.heldByVideo && (
-          <span className="flex-none px-1.5 py-0.5 rounded text-[9px] font-bold text-[#FF8C00] bg-[#FF8C00]/15 border border-[#FF8C00]/30" title="Paused while a video with sound is on Program — resumes when it ends">
-            HELD BY VIDEO
-          </span>
+            {s.heldByVideo && (
+              <span className="flex-none px-1.5 py-0.5 rounded text-[9px] font-bold text-[#FF8C00] bg-[#FF8C00]/15 border border-[#FF8C00]/30" title="Paused while a video with sound is on Program — resumes when it ends">
+                HELD BY VIDEO
+              </span>
+            )}
+            {pr.videoAudible && pr.policy === 'duck' && s.playing && (
+              <span className="flex-none px-1.5 py-0.5 rounded text-[9px] font-bold text-[#00DAF3] bg-[#00DAF3]/10 border border-[#00DAF3]/30">DUCKED</span>
+            )}
+
+            <div className="flex items-center gap-1 flex-none">
+              <button onClick={() => bus.setShuffle(!s.shuffle)} className={`p-1.5 rounded hover:bg-white/10 ${s.shuffle ? 'text-[#D0BCFF]' : 'text-white/45'}`} title="Shuffle"><Shuffle size={12} /></button>
+              <button
+                onClick={() => bus.setRepeat(s.repeat === 'off' ? 'all' : s.repeat === 'all' ? 'one' : 'off')}
+                className={`p-1.5 rounded hover:bg-white/10 ${s.repeat !== 'off' ? 'text-[#D0BCFF]' : 'text-white/45'}`}
+                title={`Repeat: ${s.repeat}`}
+              >{s.repeat === 'one' ? <Repeat1 size={12} /> : <Repeat size={12} />}</button>
+              <button onClick={() => bus.setMuted(!s.muted)} className="p-1.5 rounded text-white/60 hover:text-white hover:bg-white/10" title={s.muted ? 'Unmute' : 'Mute'}>
+                {s.muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+              </button>
+              <input type="range" min={0} max={1} step={0.01} value={s.volume} onChange={e => bus.setVolume(Number(e.target.value))} className="w-20 accent-[#D0BCFF] h-1" aria-label="Playlist volume" />
+              {onToggleDeck && (
+                <button
+                  onClick={onToggleDeck}
+                  disabled={!cur}
+                  className={`ml-1 px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 disabled:opacity-30 ${deckOpen ? 'text-black bg-[#FF8C00] border-[#FF8C00]' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
+                  title={deckOpen ? 'Back to the compact player — the song keeps playing' : 'Expand this song into the DJ deck — waveform, EQ, loops, hot cues (no restart)'}
+                >
+                  <Disc3 size={11} /> {deckOpen ? 'DJ Deck ▾' : 'DJ Deck'}
+                </button>
+              )}
+              {s.deck && !deckOpen && <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold text-[#FF8C00] bg-[#FF8C00]/15">ON DECK</span>}
+              <button
+                onClick={toggleFeedLyrics}
+                className={`ml-1 px-2.5 py-1 rounded text-[9.5px] font-bold border relative overflow-hidden flex items-center gap-1.5 transition-all select-none ${
+                  isFeedingLyrics
+                    ? 'text-black bg-[#2BE0A8] border-[#2BE0A8] shadow-[0_0_8px_rgba(43,224,168,0.4)]'
+                    : isPreparingLyrics
+                    ? 'text-[#2BE0A8] bg-[#2BE0A8]/10 border-[#2BE0A8]/50 shadow-[0_0_12px_rgba(43,224,168,0.25)]'
+                    : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'
+                }`}
+                title={
+                  isFeedingLyrics
+                    ? 'Currently feeding audio playlist to live lyric engine — click to stop'
+                    : isPreparingLyrics
+                    ? `Getting ready (${Math.round((liveLyricsState.progress ?? 0.2) * 100)}%) — click to cancel`
+                    : 'Feed playlist audio to live lyric transcription engine'
+                }
+              >
+                {/* Progress bar inside the button while getting ready */}
+                {isPreparingLyrics && (
+                  <>
+                    <div
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#2BE0A8]/15 via-[#2BE0A8]/30 to-[#2BE0A8]/20 transition-all duration-200 ease-out pointer-events-none"
+                      style={{ width: `${Math.max(12, Math.min(100, Math.round((liveLyricsState.progress ?? 0.2) * 100)))}%` }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-black/40 pointer-events-none">
+                      <div
+                        className="h-full bg-[#2BE0A8] transition-all duration-200 ease-out shadow-[0_0_8px_#2BE0A8]"
+                        style={{ width: `${Math.max(12, Math.min(100, Math.round((liveLyricsState.progress ?? 0.2) * 100)))}%` }}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {isPreparingLyrics ? (
+                  <Loader2 size={11} className="animate-spin text-[#2BE0A8] relative z-10 flex-none" />
+                ) : (
+                  <Captions size={11} className={`relative z-10 flex-none ${isFeedingLyrics ? 'animate-pulse' : ''}`} />
+                )}
+
+                <span className="relative z-10 flex items-center gap-1 font-semibold tracking-wide">
+                  {isFeedingLyrics ? (
+                    'Feeding Lyrics'
+                  ) : isPreparingLyrics ? (
+                    <>
+                      <span>Readying…</span>
+                      <span className="font-mono text-[8.5px] font-bold text-[#2BE0A8]">
+                        {Math.round((liveLyricsState.progress ?? 0.2) * 100)}%
+                      </span>
+                    </>
+                  ) : (
+                    'Feed Lyrics'
+                  )}
+                </span>
+              </button>
+              {controlsSlot && <span className="ml-1 flex items-center gap-1">{controlsSlot}</span>}
+              <button onClick={() => bus.fadeOut(3)} disabled={!s.playing} className="ml-1 px-2 py-1 rounded text-[9.5px] font-bold text-white/70 bg-white/5 hover:bg-white/15 border border-white/10 disabled:opacity-30" title="Fade the music out over 3 seconds">Fade out</button>
+              <button
+                onClick={() => setOpen(o => !o)}
+                className={`ml-1 px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 ${open ? 'text-[#D0BCFF] bg-[#D0BCFF]/15 border-[#D0BCFF]/30' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
+              >
+                Queue {s.queue.length > 0 && <span className="font-mono opacity-70">{s.queue.length}</span>}
+                {open ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-[10px] text-white/30 italic">Audio playlist idle</span>
+              <button
+                onClick={() => setOpen(o => !o)}
+                className={`px-2 py-0.5 rounded text-[9.5px] font-bold border transition-all flex items-center gap-1 ${open ? 'text-[#D0BCFF] bg-[#D0BCFF]/15 border-[#D0BCFF]/30' : 'text-white/50 bg-white/5 border-white/10 hover:bg-white/15 hover:text-white'}`}
+              >
+                <ListMusic size={11} /> Open Queue
+              </button>
+            </div>
+            <div className="flex items-center gap-1 flex-none">
+              {controlsSlot && <span className="ml-1 flex items-center gap-1">{controlsSlot}</span>}
+            </div>
+          </>
         )}
-        {pr.videoAudible && pr.policy === 'duck' && s.playing && (
-          <span className="flex-none px-1.5 py-0.5 rounded text-[9px] font-bold text-[#00DAF3] bg-[#00DAF3]/10 border border-[#00DAF3]/30">DUCKED</span>
-        )}
-
-        <div className="flex items-center gap-1 flex-none">
-          <button onClick={() => bus.setShuffle(!s.shuffle)} className={`p-1.5 rounded hover:bg-white/10 ${s.shuffle ? 'text-[#D0BCFF]' : 'text-white/45'}`} title="Shuffle"><Shuffle size={12} /></button>
-          <button
-            onClick={() => bus.setRepeat(s.repeat === 'off' ? 'all' : s.repeat === 'all' ? 'one' : 'off')}
-            className={`p-1.5 rounded hover:bg-white/10 ${s.repeat !== 'off' ? 'text-[#D0BCFF]' : 'text-white/45'}`}
-            title={`Repeat: ${s.repeat}`}
-          >{s.repeat === 'one' ? <Repeat1 size={12} /> : <Repeat size={12} />}</button>
-          <button onClick={() => bus.setMuted(!s.muted)} className="p-1.5 rounded text-white/60 hover:text-white hover:bg-white/10" title={s.muted ? 'Unmute' : 'Mute'}>
-            {s.muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
-          </button>
-          <input type="range" min={0} max={1} step={0.01} value={s.volume} onChange={e => bus.setVolume(Number(e.target.value))} className="w-20 accent-[#D0BCFF] h-1" aria-label="Playlist volume" />
-          {onToggleDeck && (
-            <button
-              onClick={onToggleDeck}
-              disabled={!cur}
-              className={`ml-1 px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 disabled:opacity-30 ${deckOpen ? 'text-black bg-[#FF8C00] border-[#FF8C00]' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
-              title={deckOpen ? 'Back to the compact player — the song keeps playing' : 'Expand this song into the DJ deck — waveform, EQ, loops, hot cues (no restart)'}
-            >
-              <Disc3 size={11} /> {deckOpen ? 'DJ Deck ▾' : 'DJ Deck'}
-            </button>
-          )}
-          {s.deck && !deckOpen && <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold text-[#FF8C00] bg-[#FF8C00]/15">ON DECK</span>}
-          {controlsSlot && <span className="ml-1 flex items-center gap-1">{controlsSlot}</span>}
-          <button onClick={() => bus.fadeOut(3)} disabled={!s.playing} className="ml-1 px-2 py-1 rounded text-[9.5px] font-bold text-white/70 bg-white/5 hover:bg-white/15 border border-white/10 disabled:opacity-30" title="Fade the music out over 3 seconds">Fade out</button>
-          <button
-            onClick={() => setOpen(o => !o)}
-            className={`ml-1 px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 ${open ? 'text-[#D0BCFF] bg-[#D0BCFF]/15 border-[#D0BCFF]/30' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
-          >
-            Queue {s.queue.length > 0 && <span className="font-mono opacity-70">{s.queue.length}</span>}
-            {open ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
-          </button>
-        </div>
       </div>
 
       {s.error && (

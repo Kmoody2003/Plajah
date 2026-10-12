@@ -39,7 +39,7 @@ const SpatialUIRoot: React.FC<SpatialUIRootProps> = ({ children, className }) =>
         ['--tilt-y' as any]: `${tilt.y}deg`,
       } as React.CSSProperties}
     >
-      <div className={`flex-1 flex flex-col w-full ${isSpatialMode ? 'spatial-tilt' : ''}`}>
+      <div className={`flex-1 flex flex-col w-full min-h-0 h-full ${isSpatialMode ? 'spatial-tilt' : ''}`}>
         {children}
       </div>
 

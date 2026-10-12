@@ -14,7 +14,7 @@ type FieldClass = 'kicker' | 'title' | 'body' | 'image' | 'images';
 
 const KICKER = ['kicker', 'eyebrow', 'series'];
 const TITLE = ['title', 'name', 'headline'];
-const BODY = ['subtitle', 'caption', 'detail', 'message', 'prompt', 'point', 'quote', 'text', 'bio', 'note', 'support', 'statement', 'role', 'speaker', 'reader', 'artist', 'credit', 'attribution', 'footer'];
+const BODY = ['subtitle', 'caption', 'detail', 'message', 'prompt', 'point', 'quote', 'text', 'bio', 'note', 'support', 'statement', 'role', 'speaker', 'reader', 'artist', 'credit', 'attribution', 'footer', 'lyrics', 'nextLyrics', 'info'];
 const IMAGE = ['photo', 'imageUrl', 'photoUrl', 'artUrl', 'posterUrl'];
 const IMAGES = ['photos'];
 

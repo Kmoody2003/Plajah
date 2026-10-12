@@ -7,3 +7,4 @@ export { chunkForSpeech, wordIndexAt, wordCount } from './text';
 export { webSpeechProvider, chooseVoice, webSpeechSupported } from './providers/webSpeech';
 export { kokoroProvider, createKokoroProvider, encodeWav } from './providers/kokoro';
 export { serverTtsProvider, createServerTtsProvider } from './providers/serverTts';
+export { fishSpeechProvider, FishSpeechProvider } from './providers/fishSpeech';

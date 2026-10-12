@@ -21,8 +21,24 @@ import {
   PlusCircle,
   HardDrive,
   Folder,
-  FolderOpen
+  FolderOpen,
+  History,
+  Clock,
+  Trash2,
+  Heart,
+  Copy,
+  Check,
+  Search,
+  ExternalLink
 } from 'lucide-react';
+import {
+  savePaiGeneration,
+  getPaiGenerations,
+  subscribePaiGenerations,
+  deletePaiGeneration,
+  toggleFavoritePaiGeneration,
+  type PaiGenerationItem
+} from '../../services/localAi/paiGenerationHistory';
 import { getLocalEngineStatus, LocalEngineStatus } from '../../services/localAi/localEngineDiscovery';
 import { executeCreativeStudioTask } from '../../services/localAi/creativeStudioBridge';
 import {
@@ -35,6 +51,7 @@ import {
   setModelStorageDirectory,
   ModelStorageInfo,
 } from '../../services/localAi/localModelInstaller';
+import { enhancePromptWithAi } from '../../services/localAi/promptEnhancer';
 
 interface LocalCreativeStudioProps {
   initialImage?: string;
@@ -49,7 +66,12 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   onSendToTela,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'cinema' | 'enhance' | 'relight' | 'video' | 'models'>('cinema');
+  const [activeTab, setActiveTab] = useState<'cinema' | 'enhance' | 'relight' | 'video' | 'history' | 'models'>('cinema');
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [historyItems, setHistoryItems] = useState<PaiGenerationItem[]>([]);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'favorites'>('all');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [status, setStatus] = useState<LocalEngineStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [progressMsg, setProgressMsg] = useState('');
@@ -83,10 +105,45 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   const [storageInfo, setStorageInfo] = useState<ModelStorageInfo | null>(null);
   const [customPathInput, setCustomPathInput] = useState('');
   const [isEditingPath, setIsEditingPath] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState<string>('sdxl_turbo');
+
+  // AI Prompt Enhancer Toggle & State
+  const [promptEnhanceEnabled, setPromptEnhanceEnabled] = useState<boolean>(() => {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem('plajah_prompt_enhancer_enabled') !== 'false' : true;
+  });
+  const [isEnhancing, setIsEnhancing] = useState(false);
+
+  const handleManualEnhance = async () => {
+    setIsEnhancing(true);
+    try {
+      const enhanced = await enhancePromptWithAi(prompt, {
+        lens,
+        lighting,
+        aspect,
+        style: activeTab === 'enhance' ? 'photoreal' : 'cinematic',
+      });
+      setPrompt(enhanced);
+    } catch {
+      // Non-fatal
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
 
   useEffect(() => {
     getLocalEngineStatus().then(setStatus);
-    auditInstalledModels().then(setInstalledMap);
+    auditInstalledModels().then((map) => {
+      setInstalledMap(map);
+      if (map['sdxl_turbo']) {
+        setSelectedModelId('sdxl_turbo');
+      } else if (map['animagine_xl']) {
+        setSelectedModelId('animagine_xl');
+      } else if (map['sdxl_lightning']) {
+        setSelectedModelId('sdxl_lightning');
+      } else if (map['sd15_base']) {
+        setSelectedModelId('sd15_base');
+      }
+    });
     getModelStorageInfo().then((info) => {
       setStorageInfo(info);
       setCustomPathInput(info.path);
@@ -114,16 +171,33 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
     setLoading(true);
     setProgressPct(10);
     setProgressMsg('Initiating local engine…');
+    setElapsedSec(0);
+    const startMs = Date.now();
+    const timer = setInterval(() => {
+      setElapsedSec((Date.now() - startMs) / 1000);
+    }, 100);
 
     try {
       let op: any = 'cinema_generate';
       if (activeTab === 'enhance') op = 'detail_enhance';
       if (activeTab === 'relight') op = 'relight_scene';
+      if (activeTab === 'video') op = 'cinema_motion';
+
+      let effectivePrompt = prompt;
+      if (promptEnhanceEnabled && prompt.trim().length < 250) {
+        effectivePrompt = await enhancePromptWithAi(prompt, {
+          lens,
+          lighting,
+          aspect,
+          style: activeTab === 'enhance' ? 'photoreal' : 'cinematic',
+        });
+      }
 
       const res = await executeCreativeStudioTask(
         {
           op,
-          prompt,
+          prompt: effectivePrompt,
+          modelId: selectedModelId,
           sourceImageUrl: sourceImage || undefined,
           aspect,
           lens,
@@ -145,12 +219,31 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
       if (res.outputUrls.length > 0) {
         setOutputUrl(res.outputUrls[0]);
         setMetaNote(res.note || 'Generation finished.');
+        // Automatically save to Chronological PAI History & User Photos Account
+        await savePaiGeneration({
+          url: res.outputUrls[0],
+          prompt: effectivePrompt,
+          modelId: selectedModelId,
+          aspect,
+          lens,
+          lighting,
+          hallucinationLevel: hallucination,
+          resemblance,
+          width: res.width || 1024,
+          height: res.height || 1024,
+          seed: res.seed,
+          durationMs: res.durationMs,
+          hardware: res.hardwareBackend || 'NVIDIA_TENSORRT',
+          op,
+          sourceImageUrl: sourceImage || undefined,
+        });
       } else if (res.error) {
         setMetaNote(`Error: ${res.error}`);
       }
     } catch (err: any) {
       setMetaNote(`Execution failed: ${err.message}`);
     } finally {
+      clearInterval(timer);
       setLoading(false);
       setProgressPct(100);
     }
@@ -189,7 +282,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
             borderRadius: '12px',
             color: '#94a3b8',
           }}>
-            ComfyUI Engine · Directorial Intent
+            Plajah Native Harness · Directorial Intent
           </span>
         </div>
 
@@ -253,7 +346,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           {/* Mode Switcher */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
+            gridTemplateColumns: 'repeat(6, 1fr)',
             gap: '2px',
             padding: '8px',
             backgroundColor: '#1b1d22',
@@ -264,6 +357,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               { id: 'enhance', label: 'Detail Enhancer', icon: Maximize2 },
               { id: 'relight', label: '3D Relight', icon: Sun },
               { id: 'video', label: 'Cinema Motion', icon: Sparkles },
+              { id: 'history', label: 'PAI Gallery', icon: History },
               { id: 'models', label: 'Models & Setup', icon: HardDrive },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -300,9 +394,62 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {activeTab !== 'models' && (
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
-                  Creative Prompt
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }}>
+                    Creative Prompt
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !promptEnhanceEnabled;
+                        setPromptEnhanceEnabled(next);
+                        if (typeof localStorage !== 'undefined') localStorage.setItem('plajah_prompt_enhancer_enabled', String(next));
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px 8px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        borderRadius: '12px',
+                        border: promptEnhanceEnabled ? '1px solid #10b981' : '1px solid #475569',
+                        backgroundColor: promptEnhanceEnabled ? 'rgba(16, 185, 129, 0.15)' : '#1e293b',
+                        color: promptEnhanceEnabled ? '#34d399' : '#94a3b8',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="Toggle AI prompt enhancement to automatically inject camera lenses, lighting, and textures"
+                    >
+                      <Sparkles size={11} color={promptEnhanceEnabled ? '#34d399' : '#94a3b8'} />
+                      <span>AI Enhancer: {promptEnhanceEnabled ? 'ON' : 'OFF'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleManualEnhance}
+                      disabled={isEnhancing}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px 7px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        border: '1px solid #3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        color: '#60a5fa',
+                        cursor: isEnhancing ? 'wait' : 'pointer',
+                      }}
+                      title="Enrich current prompt with directorial cinematic optics and lighting"
+                    >
+                      <Wand2 size={10} className={isEnhancing ? 'animate-spin' : ''} />
+                      <span>{isEnhancing ? '…' : 'Enhance'}</span>
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
@@ -331,6 +478,29 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
             {/* TAB: Cinema Dials */}
             {activeTab === 'cinema' && (
               <>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Active Diffusion Model</label>
+                  <select
+                    value={selectedModelId}
+                    onChange={(e) => setSelectedModelId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      backgroundColor: '#1a1c22',
+                      border: '1px solid #282b33',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <option value="sdxl_turbo">SDXL-Turbo 1.0 (Real-Time 1-Step {installedMap['sdxl_turbo'] ? '· Ready' : ''})</option>
+                    <option value="sdxl_lightning">SDXL-Lightning (4-Step 1024px {installedMap['sdxl_lightning'] ? '· Ready' : ''})</option>
+                    <option value="animagine_xl">Animagine XL 3.1 (Comics, Manga & Vector Art {installedMap['animagine_xl'] ? '· Ready' : ''})</option>
+                    <option value="sd15_base">Stable Diffusion 1.5 (Pruned FP16 {installedMap['sd15_base'] ? '· Ready' : ''})</option>
+                    <option value="flux_schnell">FLUX.1 Schnell (4-Step Cinema Stills {installedMap['flux_schnell'] ? '· Installed' : ''})</option>
+                  </select>
+                </div>
+
                 <div>
                   <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Frame Aspect</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
@@ -540,7 +710,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                   Manage the open-source neural weights installed on your computer.
                 </p>
                 <p style={{ margin: '0 0 10px 0' }}>
-                  Once weights are downloaded into your ComfyUI or sidecar directory, they run offline with zero internet access required.
+                  Once weights are downloaded into your Plajah Models directory (e.g. D:\Plajah Models), they run offline with zero setup and zero internet access required.
                 </p>
               </div>
             )}
@@ -592,8 +762,376 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           backgroundColor: '#0a0b0d',
           position: 'relative',
         }}>
-          {/* Models & Setup Management Dashboard */}
-          {activeTab === 'models' ? (
+          {/* PAI History & Gallery View */}
+          {activeTab === 'history' ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              {/* Header Bar */}
+              <div style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid #282b33',
+                backgroundColor: '#14161a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+              }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <History size={18} color="#f59e0b" />
+                    <span>PAI Generations Gallery</span>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', backgroundColor: '#232730', padding: '2px 8px', borderRadius: '12px' }}>
+                      {historyItems.length} creations
+                    </span>
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>
+                    Chronological history of all local AI generations. Automatically saved to your Photos account under "PAI Generations".
+                  </p>
+                </div>
+
+                {/* Filters */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={13} color="#64748b" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      type="text"
+                      placeholder="Search prompts…"
+                      value={historySearch}
+                      onChange={(e) => setHistorySearch(e.target.value)}
+                      style={{
+                        padding: '6px 12px 6px 30px',
+                        backgroundColor: '#1b1d22',
+                        border: '1px solid #282b33',
+                        borderRadius: '6px',
+                        color: '#fff',
+                        fontSize: '12px',
+                        width: '180px',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', backgroundColor: '#1b1d22', borderRadius: '6px', padding: '2px', border: '1px solid #282b33' }}>
+                    <button
+                      onClick={() => setHistoryFilter('all')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        backgroundColor: historyFilter === 'all' ? '#f59e0b' : 'transparent',
+                        color: historyFilter === 'all' ? '#000' : '#94a3b8',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setHistoryFilter('favorites')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        backgroundColor: historyFilter === 'favorites' ? '#f59e0b' : 'transparent',
+                        color: historyFilter === 'favorites' ? '#000' : '#94a3b8',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Heart size={11} fill={historyFilter === 'favorites' ? '#000' : 'none'} />
+                      <span>Favorites</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Gallery Grid */}
+              <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+                {(() => {
+                  const filtered = historyItems.filter((item) => {
+                    if (historyFilter === 'favorites' && !item.favorite) return false;
+                    if (historySearch && !item.prompt.toLowerCase().includes(historySearch.toLowerCase())) return false;
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
+                        <History size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
+                          {historyItems.length === 0 ? 'No generations yet' : 'No matching creations found'}
+                        </div>
+                        <div style={{ fontSize: '12px', maxWidth: '320px', margin: '6px auto 0' }}>
+                          {historyItems.length === 0
+                            ? 'Every image generated with Plajah AI is saved here automatically in full quality and synced to your Photos account.'
+                            : 'Try adjusting your search terms or filter.'}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                      gap: '16px',
+                    }}>
+                      {filtered.map((item) => {
+                        const dateStr = new Date(item.timestamp).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        });
+
+                        return (
+                          <div
+                            key={item.id}
+                            style={{
+                              backgroundColor: '#14161a',
+                              borderRadius: '8px',
+                              border: '1px solid #282b33',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              transition: 'transform 0.15s ease, border-color 0.15s ease',
+                            }}
+                          >
+                            {/* Thumbnail Box */}
+                            <div style={{
+                              position: 'relative',
+                              width: '100%',
+                              paddingTop: '65%',
+                              backgroundColor: '#0a0b0d',
+                              cursor: 'pointer',
+                              overflow: 'hidden',
+                            }}
+                            onClick={() => {
+                              setOutputUrl(item.url);
+                              setActiveTab('cinema');
+                            }}>
+                              <img
+                                src={item.url}
+                                alt={item.prompt}
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+
+                              {/* Badges Overlay */}
+                              <div style={{
+                                position: 'absolute',
+                                top: '8px',
+                                left: '8px',
+                                right: '8px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                pointerEvents: 'none',
+                              }}>
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  backgroundColor: 'rgba(0,0,0,0.75)',
+                                  color: '#38bdf8',
+                                  padding: '2px 7px',
+                                  borderRadius: '4px',
+                                  backdropFilter: 'blur(4px)',
+                                }}>
+                                  {item.modelId.includes('turbo') ? 'SDXL Turbo' : item.modelId.includes('animagine') ? 'Animagine XL' : 'SDXL'}
+                                </span>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void toggleFavoritePaiGeneration(item.id);
+                                  }}
+                                  style={{
+                                    pointerEvents: 'auto',
+                                    border: 'none',
+                                    background: 'rgba(0,0,0,0.65)',
+                                    borderRadius: '50%',
+                                    width: '26px',
+                                    height: '26px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    backdropFilter: 'blur(4px)',
+                                  }}
+                                >
+                                  <Heart
+                                    size={13}
+                                    color={item.favorite ? '#ef4444' : '#cbd5e1'}
+                                    fill={item.favorite ? '#ef4444' : 'none'}
+                                  />
+                                </button>
+                              </div>
+
+                              {/* Aspect & Dimensions pill */}
+                              <div style={{
+                                position: 'absolute',
+                                bottom: '8px',
+                                right: '8px',
+                                fontSize: '10px',
+                                backgroundColor: 'rgba(0,0,0,0.75)',
+                                color: '#94a3b8',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                backdropFilter: 'blur(4px)',
+                              }}>
+                                {item.aspect || `${item.width}×${item.height}`}
+                              </div>
+                            </div>
+
+                            {/* Details & Actions Footer */}
+                            <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#64748b' }}>
+                                <span>{dateStr}</span>
+                                {item.syncedToPhotos && (
+                                  <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <CheckCircle2 size={10} /> Photos Synced
+                                  </span>
+                                )}
+                              </div>
+
+                              <p style={{
+                                margin: 0,
+                                fontSize: '11px',
+                                color: '#cbd5e1',
+                                lineHeight: '1.4',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}>
+                                {item.prompt}
+                              </p>
+
+                              {/* Card Action Buttons */}
+                              <div style={{ display: 'flex', gap: '6px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid #1f232b' }}>
+                                {onSendToTela && (
+                                  <button
+                                    onClick={() => onSendToTela(item.url)}
+                                    title="Place onto Tela Canvas as an active layer"
+                                    style={{
+                                      flex: 1,
+                                      padding: '6px 8px',
+                                      backgroundColor: '#7c3aed',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      color: '#fff',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '4px',
+                                    }}
+                                  >
+                                    <Layers size={12} />
+                                    <span>To Tela</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => {
+                                    setPrompt(item.prompt);
+                                    if (item.aspect) setAspect(item.aspect as any);
+                                    if (item.lens) setLens(item.lens as any);
+                                    if (item.lighting) setLighting(item.lighting as any);
+                                    if (item.modelId) setSelectedModelId(item.modelId);
+                                    setOutputUrl(item.url);
+                                    setActiveTab('cinema');
+                                  }}
+                                  title="Load this prompt and directorial settings"
+                                  style={{
+                                    padding: '6px 8px',
+                                    backgroundColor: '#262930',
+                                    border: '1px solid #3b3f4a',
+                                    borderRadius: '4px',
+                                    color: '#cbd5e1',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Load
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    setSourceImage(item.url);
+                                    setActiveTab('relight');
+                                  }}
+                                  title="Send to 3D Relight studio"
+                                  style={{
+                                    padding: '6px 8px',
+                                    backgroundColor: '#262930',
+                                    border: '1px solid #3b3f4a',
+                                    borderRadius: '4px',
+                                    color: '#cbd5e1',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <Sun size={12} />
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    const a = document.createElement('a');
+                                    a.href = item.url;
+                                    a.download = `pai_${item.id}.png`;
+                                    a.click();
+                                  }}
+                                  title="Download PNG to device"
+                                  style={{
+                                    padding: '6px 8px',
+                                    backgroundColor: '#262930',
+                                    border: '1px solid #3b3f4a',
+                                    borderRadius: '4px',
+                                    color: '#cbd5e1',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <Download size={12} />
+                                </button>
+
+                                <button
+                                  onClick={() => void deletePaiGeneration(item.id)}
+                                  title="Delete from history"
+                                  style={{
+                                    padding: '6px 8px',
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid transparent',
+                                    borderRadius: '4px',
+                                    color: '#ef4444',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          ) : activeTab === 'models' ? (
             <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
               <div style={{ marginBottom: '20px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#f8fafc', margin: '0 0 6px 0' }}>
@@ -901,7 +1439,112 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               padding: '24px',
               position: 'relative',
             }}>
-              {outputUrl ? (
+              {loading ? (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '36px 32px',
+                  maxWidth: '500px',
+                  width: '90%',
+                  background: 'linear-gradient(180deg, #181b22 0%, #111317 100%)',
+                  borderRadius: '16px',
+                  border: '1px solid #2d3340',
+                  boxShadow: '0 25px 70px rgba(0,0,0,0.85), 0 0 40px rgba(245,158,11,0.06)',
+                  textAlign: 'center',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}>
+                  {/* Glowing Neural Ring */}
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(56,189,248,0.2))',
+                    border: '2px solid rgba(245,158,11,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '18px',
+                    boxShadow: '0 0 30px rgba(245,158,11,0.3)',
+                  }}>
+                    <RotateCw size={28} className="animate-spin" color="#f59e0b" />
+                  </div>
+
+                  {/* Stage Headline */}
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}>
+                    {progressPct < 25 ? 'Preparing Neural Tensors…'
+                      : progressPct < 60 ? 'Sampling on NVIDIA RTX 4070…'
+                      : progressPct < 90 ? 'Decoding VAE Latent Tensor…'
+                      : 'Finalizing Canvas…'}
+                  </div>
+
+                  {/* Real-time Stage Description */}
+                  <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '22px', minHeight: '18px' }}>
+                    {progressMsg || 'Running on-device discrete GPU diffusion…'}
+                  </div>
+
+                  {/* Animated Progress Bar */}
+                  <div style={{
+                    width: '100%',
+                    height: '8px',
+                    backgroundColor: '#232730',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '14px',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${Math.max(8, progressPct)}%`,
+                        background: 'linear-gradient(90deg, #f59e0b 0%, #38bdf8 100%)',
+                        borderRadius: '4px',
+                        transition: 'width 0.3s ease-out',
+                        boxShadow: '0 0 12px rgba(56,189,248,0.5)',
+                      }}
+                    />
+                  </div>
+
+                  {/* Real-Time Elapsed Ticker and Percentage */}
+                  <div style={{
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '11px',
+                    color: '#64748b',
+                    padding: '0 4px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock size={12} color="#94a3b8" />
+                      <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{elapsedSec.toFixed(1)}s elapsed</span>
+                    </div>
+                    <div style={{ color: '#f59e0b', fontWeight: 700 }}>
+                      {progressPct}% Completed
+                    </div>
+                  </div>
+
+                  {/* Hardware Status Pill */}
+                  <div style={{
+                    marginTop: '22px',
+                    padding: '6px 14px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    borderRadius: '20px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    color: '#34d399',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}>
+                    <Cpu size={12} />
+                    <span>NVIDIA GeForce RTX 4070 · On-Device DirectML · 0 Credits (100% Free)</span>
+                  </div>
+                </div>
+              ) : outputUrl ? (
                 <img
                   src={outputUrl}
                   alt="Rendered output"

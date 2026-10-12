@@ -551,14 +551,16 @@ class AudioBus {
    * whether it's playing (the deck starts there), or null if the playlist has
    * moved on to another song meanwhile.
    */
-  beginDeckHandoff(trackId: string, transport: DeckTransport): { time: number; playing: boolean } | null {
+  beginDeckHandoff(trackId: string, transport: DeckTransport, trackUrl?: string): { time: number; playing: boolean } | null {
     const cur = this.state.queue[this.state.index];
-    if (!cur || cur.id !== trackId) return null;
+    if (!cur) return null;
+    const match = cur.id === trackId || (trackUrl && cur.url && cur.url === trackUrl) || (cur.url && (transport as any).url && cur.url === (transport as any).url);
+    if (!match) return null;
     const e = this.a;
     const time = e ? e.currentTime : this.state.currentTime;
     const playing = this.state.playing && !this.state.heldByVideo;
     this.deckT = transport;
-    this.deckTrackId = trackId;
+    this.deckTrackId = cur.id;
     if (e) this.rampTo(0, 0.06, () => { try { e.pause(); } catch { /* */ } });
     this.set({ deck: true });
     return { time, playing };
@@ -566,11 +568,14 @@ class AudioBus {
 
   /** The deck closed (collapse to compact): resume the element where the deck was. */
   endDeckHandoff(trackId: string, time: number, playing: boolean) {
-    if (this.deckTrackId !== trackId) return;
+    if (this.deckTrackId && this.deckTrackId !== trackId) {
+      const cur = this.state.queue[this.state.index];
+      if (cur?.id !== trackId) return;
+    }
     this.deckT = null;
     this.deckTrackId = null;
     const cur = this.state.queue[this.state.index];
-    if (cur && cur.id === trackId && this.a) {
+    if (cur && this.a) {
       const e = this.a;
       try { e.currentTime = time; } catch { /* */ }
       if (playing && !this.state.heldByVideo) {
@@ -608,6 +613,7 @@ class AudioBus {
 }
 
 export const bus = new AudioBus();
+export const audioBus = bus;
 
 // The playlist is a lyric clock: lyrics can follow whatever it's playing.
 registerLyricClock('bus', {

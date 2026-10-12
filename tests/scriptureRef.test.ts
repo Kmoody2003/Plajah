@@ -97,7 +97,7 @@ describe('parseRef — the forms an operator actually types', () => {
     assert.equal(parseRef(''), null);
     assert.equal(parseRef('Hobbits 3:16'), null);
     assert.equal(parseRef('just some prose'), null);
-    assert.equal(parseRef('Corinthians 13:4'), null);  // needs its ordinal
+    assert.equal(d('Corinthians 13:4'), '1 Corinthians 13:4');  // no ordinal → the first book
   });
 
   test('validates against the real canon', () => {

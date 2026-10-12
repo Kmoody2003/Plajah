@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { TopBarTicker, useTopBarSignals, glowStyle, type TopBarNotice } from './TopBarTicker';
-import { isWindowsApp, startWindowDrag, minimizeWindow, maximizeWindow, closeWindow } from '../services/windowsBridgeService';
+import { isWindowsApp, startWindowDrag, minimizeWindow, maximizeWindow, closeWindow, requestWindowState } from '../services/windowsBridgeService';
 
 export interface DesktopGlobalToolbarProps {
   view: string;
@@ -93,7 +93,26 @@ export const DesktopGlobalToolbar: React.FC<DesktopGlobalToolbarProps> = ({
     else if (n.notif) { onOpenNotification?.(n.notif); dismiss(); }
   };
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  const [isWindowMaximized, setIsWindowMaximized] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
+
+  // Sync native window state (maximized vs restored)
+  useEffect(() => {
+    if (!isWindowsNative && !isWindowsApp()) return;
+    const handleWebviewMessage = (e: any) => {
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (data.type === 'WINDOW_STATE' || data.type === 'WINDOW_STATE_CHANGED') {
+          setIsWindowMaximized(!!data.isMaximized);
+        }
+      } catch {}
+    };
+    (window as any).chrome?.webview?.addEventListener('message', handleWebviewMessage);
+    requestWindowState();
+    return () => {
+      (window as any).chrome?.webview?.removeEventListener('message', handleWebviewMessage);
+    };
+  }, [isWindowsNative]);
 
   // Global Player Context for live playback indicator
   let playerState: any = null;
@@ -148,9 +167,7 @@ export const DesktopGlobalToolbar: React.FC<DesktopGlobalToolbarProps> = ({
   return (
     <header
       onPointerDown={handlePointerDown}
-      className={`h-10 w-full shrink-0 flex items-center justify-between select-none relative z-[100] transition-colors duration-200 border-b border-white/[0.08] bg-[#0c0816]/92 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
-        isWindowsNative && !isFullscreen ? 'pr-[144px]' : 'pr-3'
-      }`}
+      className="h-10 w-full shrink-0 flex items-center justify-between select-none relative z-[100] transition-colors duration-200 border-b border-white/[0.08] bg-[#0c0816]/92 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] pr-2"
       style={{
         WebkitAppRegion: 'drag',
         transition: 'box-shadow 400ms ease, border-color 400ms ease',
@@ -349,27 +366,58 @@ export const DesktopGlobalToolbar: React.FC<DesktopGlobalToolbarProps> = ({
           )}
         </button>
 
-        {/* Non-native Window Controls (rendered in browser/PWA desktop mode) */}
-        {!isWindowsNative && (
-          <div className="hidden sm:flex items-center gap-1 border-l border-white/10 pl-2">
+        {/* ── Native & Desktop Window Controls ── */}
+        <div className="flex items-center border-l border-white/10 pl-1.5 gap-0.5 h-full" data-no-drag="true" style={{ WebkitAppRegion: 'no-drag' }}>
+          <button
+            type="button"
+            data-no-drag="true"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isWindowsNative || isWindowsApp()) {
+                minimizeWindow();
+              } else if (document.fullscreenElement) {
+                document.exitFullscreen();
+              }
+            }}
+            className="w-8 h-7 rounded-[6px] grid place-items-center text-white/60 hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors"
+            title="Minimize window"
+            aria-label="Minimize"
+          >
+            <Minus size={13} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            data-no-drag="true"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isWindowsNative || isWindowsApp()) {
+                maximizeWindow();
+              } else {
+                onToggleFullscreen();
+              }
+            }}
+            className="w-8 h-7 rounded-[6px] grid place-items-center text-white/60 hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors"
+            title={isWindowMaximized || isFullscreen ? 'Restore window' : 'Maximize window'}
+            aria-label={isWindowMaximized || isFullscreen ? 'Restore' : 'Maximize'}
+          >
+            <Square size={11} strokeWidth={1.75} />
+          </button>
+          {(isWindowsNative || isWindowsApp()) && (
             <button
-              onClick={() => {
-                if (document.fullscreenElement) document.exitFullscreen();
+              type="button"
+              data-no-drag="true"
+              onClick={(e) => {
+                e.stopPropagation();
+                closeWindow();
               }}
-              className="w-7 h-7 rounded grid place-items-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-              title="Minimize window"
+              className="w-8 h-7 rounded-[6px] grid place-items-center text-white/60 hover:text-white hover:bg-rose-600 active:bg-rose-700 transition-colors"
+              title="Close window (Alt + F4)"
+              aria-label="Close"
             >
-              <Minus size={13} />
+              <X size={13} strokeWidth={2} />
             </button>
-            <button
-              onClick={onToggleFullscreen}
-              className="w-7 h-7 rounded grid place-items-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-              title={isFullscreen ? 'Restore' : 'Maximize'}
-            >
-              <Square size={11} />
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </header>
   );

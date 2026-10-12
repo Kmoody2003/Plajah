@@ -24,7 +24,7 @@ import {
   Film, GraduationCap, Search, Image as ImageIcon, FileText,
   Zap, Star, Check, AlertTriangle, Trash2, MessageSquare,
   Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2, Cpu, Pin, PinOff,
-  Volume2, Square,
+  Volume2, Square, Radio, Mic,
 } from 'lucide-react';
 import { usePersistentFloating } from '../hooks/usePersistentFloating';
 import {
@@ -42,6 +42,7 @@ import { ariaLocalModel, AriaLocalModel } from '../services/aria/ariaLocalModel'
 import { ariaVoice, useAriaVoice } from '../services/aria/ariaVoice';
 import { buildLocalChatMessages } from '../services/aria/ariaLocalPrompt';
 import CouncilRoom from './council/CouncilRoom';
+import AriaLiveSettingsModal from './aria/AriaLiveSettingsModal';
 
 interface Props {
   isOpen: boolean;
@@ -351,6 +352,7 @@ const PlajahAgent: React.FC<Props> = ({
   });
   const autoReadRef = useRef(autoRead);
   autoReadRef.current = autoRead && voice.available === true && voice.eligible === true;
+  const [showLiveVoiceSettings, setShowLiveVoiceSettings] = useState(false);
 
   // Warm the on-device model when the user turns the lane on.
   useEffect(() => {
@@ -772,6 +774,16 @@ const PlajahAgent: React.FC<Props> = ({
                 </button>
               )}
 
+              {/* Aria Live Voice — NVIDIA PersonaPlex Full-Duplex Settings */}
+              <button
+                onClick={() => setShowLiveVoiceSettings(true)}
+                title="Aria Live Studio Voice — NVIDIA PersonaPlex RTX Settings"
+                className="flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border transition-all bg-emerald-600/15 border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/25"
+              >
+                <Radio size={9} className="text-emerald-400" />
+                Live RTX
+              </button>
+
               {/* Expand / collapse — Atrium workspace (desktop) */}
               {!isMobile && (
                 <button onClick={() => setExpanded(e => !e)} title={expanded ? 'Collapse' : 'Expand to workspace'}
@@ -1010,6 +1022,11 @@ const PlajahAgent: React.FC<Props> = ({
                 </div>
               </div>
             )}
+
+            <AriaLiveSettingsModal
+              isOpen={showLiveVoiceSettings}
+              onClose={() => setShowLiveVoiceSettings(false)}
+            />
           </div>
         </motion.div>
       )}

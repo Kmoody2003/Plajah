@@ -43,9 +43,18 @@ interface Props {
 function analyserValue(an: AnalyserNode, buf: Float32Array): number {
   (an.getFloatTimeDomainData as (b: Float32Array) => void).call(an, buf);
   let sum = 0, peak = 0;
-  for (let i = 0; i < buf.length; i++) { const s = buf[i]; sum += s * s; const a = s < 0 ? -s : s; if (a > peak) peak = a; }
+  for (let i = 0; i < buf.length; i++) {
+    const s = buf[i];
+    sum += s * s;
+    const a = s < 0 ? -s : s;
+    if (a > peak) peak = a;
+  }
   const rms = Math.sqrt(sum / buf.length);
-  return Math.min(1, Math.pow(rms * 4.5 + peak * 0.6, 0.72));
+  // Auto-floor background room hiss
+  if (rms < 0.001 && peak < 0.003) return 0;
+  // Natural speech scaling: maps vocal dynamic range cleanly
+  const energy = Math.max(0, rms - 0.0008) * 22 + peak * 4.0;
+  return Math.min(1, Math.pow(energy, 0.6));
 }
 
 const AmboLiveInputWaveform: React.FC<Props> = ({ height = 46, showWords = true, compact = false, className = '' }) => {
@@ -89,10 +98,11 @@ const AmboLiveInputWaveform: React.FC<Props> = ({ height = 46, showWords = true,
         if (!b) { b = new Float32Array(tap.analyser.fftSize); bufs.set(tap.analyser, b); }
         try { v = analyserValue(tap.analyser, b); } catch { v = 0; }
       }
-      // Native engines only report a level; it also covers a suspended AudioContext.
-      const lv = Math.min(1, Math.pow(tap.level, 0.8));
-      const next = smooth + (Math.max(v, lv * 0.9) - smooth) * 0.45;
-      return tap.analyser ? Math.max(v, next * 0.6) : next * (0.78 + Math.random() * 0.22);
+      const lv = Math.min(1, Math.pow(tap.level, 0.75));
+      const target = Math.max(v, lv);
+      // Fast attack for vocal clarity, smooth decay
+      const rate = target > smooth ? 0.75 : 0.35;
+      return smooth + (target - smooth) * rate;
     };
 
     const tagAt = (t: number, words: LiveWord[]): WordTag | null => {

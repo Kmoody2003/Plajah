@@ -49,6 +49,56 @@ let provider: GenerativeFillProvider | null = null;
 export function setGenerativeFillProvider(p: GenerativeFillProvider | null) { provider = p; }
 export function getGenerativeFillProvider() { return provider; }
 
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Auto-register Plajah on-device discrete GPU generative fill provider
+provider = {
+  id: 'local_gpu_nvidia',
+  async fill({ image, mask, prompt, width, height, seed }) {
+    try {
+      const imgDataUrl = await blobToDataUrl(image);
+      const maskDataUrl = await blobToDataUrl(mask);
+      const eps = ['http://127.0.0.1:51122/generate', 'http://localhost:51122/generate'];
+      for (const ep of eps) {
+        try {
+          const resp = await fetch(ep, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              task: {
+                taskType: 'cinema_generate',
+                prompt: `${prompt}, seamless non-destructive inpaint composition, natural blending`,
+                dimensions: { width: Math.round(width), height: Math.round(height) },
+                seed,
+                sourceImage: imgDataUrl,
+                maskImage: maskDataUrl,
+              },
+            }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.mediaUrl) {
+              return data.mediaUrl;
+            }
+          }
+        } catch {
+          // try next
+        }
+      }
+    } catch (err) {
+      console.warn('[telaInpaintService] Local GPU sidecar failed, falling back:', err);
+    }
+    throw new Error('Local GPU inpaint unavailable; falling back to PatchMatch');
+  },
+};
+
 /**
  * Generate a soft feathered mask canvas data URL from rectangular or contour coordinates.
  */
@@ -115,8 +165,31 @@ export async function executeGenerativeInpaint(
   let synthesizedDataUrl: string; let engine = 'patchmatch';
 
   if (provider && prompt && !params.local) {
-    synthesizedDataUrl = await provider.fill({ image: await toBlob(source), mask: await toBlob({ width: W, height: H, data: Uint8ClampedArray.from({ length: W * H * 4 }, (_, i) => (i % 4 === 3 ? 255 : hole.data[i >> 2])) }), prompt, referenceImageUrl: params.referenceImageUrl, width: W, height: H, seed, strength: params.strength });
-    engine = provider.id;
+    try {
+      synthesizedDataUrl = await provider.fill({
+        image: await toBlob(source),
+        mask: await toBlob({
+          width: W,
+          height: H,
+          data: Uint8ClampedArray.from({ length: W * H * 4 }, (_, i) => (i % 4 === 3 ? 255 : hole.data[i >> 2])),
+        }),
+        prompt,
+        referenceImageUrl: params.referenceImageUrl,
+        width: W,
+        height: H,
+        seed,
+        strength: params.strength,
+      });
+      engine = provider.id;
+    } catch {
+      // Smooth fallback to local PatchMatch algorithm
+      const binary: Mask8 = { width: W, height: H, data: hole.data.map((v) => (v > 8 ? 255 : 0)) };
+      const sourceMask = params.sourceAreaDataUrl ? maskFromBitmap(await loadBitmap(params.sourceAreaDataUrl, W, H)) : undefined;
+      const { rasterWorker } = await import('./raster/workerClient');
+      const filled = await rasterWorker().run('contentAwareFill', { image: source, hole: binary, opts: { seed, sourceMask } });
+      synthesizedDataUrl = bitmapToDataUrl(filled);
+      engine = 'patchmatch';
+    }
   } else {
     // Content-aware fill synthesizes every pixel the mask touches; the feathered mask then
     // blends the new layer over the untouched base.

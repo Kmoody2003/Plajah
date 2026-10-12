@@ -3,11 +3,11 @@
 // Provides live waveform playback, 3-band EQ, dual-mode filter, delay, reverb, 8 hot cues, beat loops,
 // and tempo/pitch control for any audio played locally, from Chora, or from presentation audio slides.
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import {
   Play, Pause, Square, SkipBack, Volume2, VolumeX, Sparkles,
   Sliders, Repeat, Radio, Disc, X, ChevronDown, ChevronUp, Zap,
-  Music, Check
+  Music, Check, Captions, Loader2
 } from 'lucide-react';
 import {
   createDeck, extractPeaks, estimateBPM, pitchToRate, formatTime,
@@ -24,6 +24,12 @@ import { otherAudioFactor, subscribeAudioPriority } from '../../services/ambo/au
 import { lyricsFor, registerLyricClock } from '../../services/ambo/lyricFeed';
 import { amboAudio } from '../../services/ambo/amboAudioEngine';
 import { bus as audioBus, type DeckTransport } from '../../services/ambo/audioBus';
+import {
+  subscribeLiveLyrics, getLiveLyricsState, getLiveLyricsPrefs,
+  startLiveLyrics, stopLiveLyrics, setLiveLyricsPrefs,
+} from '../../services/ambo/liveLyrics';
+import { setLyricsProgram, getLyricsProgram, subscribeLyricsProgram } from '../../services/ambo/lyricsProgram';
+import { extractLyricsForTrack, getExtractState, subscribeExtract } from '../../services/ambo/vocalLyricExtractor';
 
 /** Decoded songs, so compact ⇄ deck toggling doesn't re-download/re-decode. */
 const decodeCache = new Map<string, AudioBuffer>();
@@ -173,7 +179,7 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
     deckRef.current = deck;
     try { deck.setVolume(otherAudioFactor()); } catch {}
     return ctx;
-  }, [track.bpm, track.key, isLiveOnProgram]);
+  }, [track.bpm, track.key]);
 
   // ── 1b. Video priority — with scope 'all', a video with sound on Program
   // ducks or silences the deck too (services/ambo/audioPriority.ts).
@@ -256,6 +262,12 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
       }
       setBuffer(audioBuf);
 
+      // Background: isolate the vocals and transcribe them (progressive, cached) so ANY track
+      // gets real time-synced lyrics for the outputs — unless it already has real lyrics.
+      if (track.url && lyricsFor(track).length === 0) {
+        void extractLyricsForTrack({ id: track.id, url: track.url, title: track.title, artist: track.artist }, audioBuf);
+      }
+
       if (!calculatedPeaks) {
         calculatedPeaks = extractPeaks(audioBuf);
       }
@@ -307,7 +319,8 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
           duration: () => deckRef.current?.duration ?? 0,
           playing: () => !!deckRef.current?.isPlaying,
         };
-        const h = audioBus.beginDeckHandoff(track.id, transport);
+        (transport as any).url = track.url;
+        const h = audioBus.beginDeckHandoff(track.id, transport, track.url);
         handedOverRef.current = !!h;
         if (h) {
           deck.seek(Math.min(h.time, Math.max(0, deck.duration - 0.05)));
@@ -319,7 +332,7 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
             for (let i = 1; i <= 6; i++) setTimeout(() => { try { deckRef.current?.setVolume(otherAudioFactor() * (i / 6)); } catch { /* */ } }, i * 10);
           }
         }
-      } else if (autoPlay && deck) {
+      } else if (autoPlay && deck && !attachedToBus) {
         deck.play();
         setIsPlaying(true);
       }
@@ -598,6 +611,40 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
   };
   const [loopInArmed, setLoopInArmed] = useState(false);
 
+  const liveLyricsRaw = useSyncExternalStore(subscribeLiveLyrics, getLiveLyricsState);
+  const extract = useSyncExternalStore(subscribeExtract, getExtractState);
+  const trackKeyNow = track ? (track.id || track.title || track.url) : '';
+  const extractPreparing = !!trackKeyNow && extract.key === trackKeyNow
+    && (extract.status === 'isolating' || extract.status === 'transcribing') && extract.lines === 0;
+  const liveLyrics = {
+    ...liveLyricsRaw,
+    starting: liveLyricsRaw.starting || extractPreparing,
+    progress: extractPreparing ? extract.progress : liveLyricsRaw.progress,
+  };
+  const liveLyricsPrefs = useSyncExternalStore(subscribeLiveLyrics, getLiveLyricsPrefs);
+  const lyricsProgram = useSyncExternalStore(subscribeLyricsProgram, getLyricsProgram);
+  const isFeedingLyrics = lyricsProgram.wantLive && !extractPreparing && (
+    lyricsProgram.source === 'dj' ||
+    (attachedToBus && lyricsProgram.source === 'bus') ||
+    (lyricsProgram.source === 'live' && liveLyrics.running)
+  );
+  const isPreparingLyrics = liveLyrics.starting && (extractPreparing || liveLyricsPrefs.source.kind === 'dj' || liveLyricsPrefs.source.kind === 'playlist' || liveLyricsPrefs.source.kind === 'mic');
+  const toggleFeedLyrics = () => {
+    if (isFeedingLyrics || isPreparingLyrics) {
+      stopLiveLyrics();
+      setLyricsProgram({ wantLive: false });
+    } else {
+      // Real lyrics (metadata / library / previously extracted) → straight to the outputs.
+      // Otherwise isolate the vocals from THIS track and transcribe them in the background;
+      // lines stream to the outputs, synced to the deck clock, as they are recognised.
+      if (track && buffer && lyricsFor(track).length === 0) {
+        void extractLyricsForTrack({ id: track.id, url: track.url, title: track.title, artist: track.artist }, buffer);
+      }
+      setLyricsProgram({ wantLive: true, source: attachedToBus ? 'bus' : 'dj' });
+    }
+  };
+
+
   const progress = duration > 0 ? currentTime / duration : 0;
 
   return (
@@ -652,6 +699,63 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
               </button>
             )
           )}
+
+          <button
+            onClick={toggleFeedLyrics}
+            className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider relative overflow-hidden transition-all flex items-center gap-1 border select-none ${
+              isFeedingLyrics
+                ? 'text-black bg-[#2BE0A8] border-[#2BE0A8] shadow-[0_0_8px_rgba(43,224,168,0.4)]'
+                : isPreparingLyrics
+                ? 'text-[#2BE0A8] bg-[#2BE0A8]/10 border-[#2BE0A8]/50 shadow-[0_0_12px_rgba(43,224,168,0.25)]'
+                : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'
+            }`}
+            title={
+              isFeedingLyrics
+                ? 'Currently feeding DJ audio to live lyric engine — click to stop'
+                : isPreparingLyrics
+                ? `Getting ready (${Math.round((liveLyrics.progress ?? 0.2) * 100)}%) — click to cancel`
+                : 'Feed DJ audio to live lyric transcription engine'
+            }
+          >
+            {/* Progress bar inside the button itself as it gets ready */}
+            {isPreparingLyrics && (
+              <>
+                <div
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#2BE0A8]/15 via-[#2BE0A8]/30 to-[#2BE0A8]/20 transition-all duration-200 ease-out pointer-events-none"
+                  style={{ width: `${Math.max(12, Math.min(100, Math.round((liveLyrics.progress ?? 0.2) * 100)))}%` }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-black/40 pointer-events-none">
+                  <div
+                    className="h-full bg-[#2BE0A8] transition-all duration-200 ease-out shadow-[0_0_6px_#2BE0A8]"
+                    style={{ width: `${Math.max(12, Math.min(100, Math.round((liveLyrics.progress ?? 0.2) * 100)))}%` }}
+                  />
+                </div>
+              </>
+            )}
+
+            {isPreparingLyrics ? (
+              <Loader2 size={10} className="animate-spin text-[#2BE0A8] relative z-10 flex-none" />
+            ) : (
+              <Captions size={10} className={`relative z-10 flex-none ${isFeedingLyrics ? 'animate-pulse' : ''}`} />
+            )}
+
+            <span className="relative z-10 flex items-center gap-1 font-semibold">
+              {isFeedingLyrics ? (
+                'Feeding Lyrics'
+              ) : isPreparingLyrics ? (
+                <>
+                  <span>Readying</span>
+                  <span className="font-mono text-[8px] font-bold text-[#2BE0A8]">
+                    {Math.round((liveLyrics.progress ?? 0.2) * 100)}%
+                  </span>
+                </>
+              ) : (
+                'Feed Lyrics'
+              )}
+            </span>
+          </button>
 
           <button
             onClick={() => setIsExpanded(!isExpanded)}

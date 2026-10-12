@@ -8,7 +8,7 @@
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Captions, X, Radio, AlertTriangle, Check } from 'lucide-react';
+import { Captions, X, Radio, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import type { LayerContent } from '../../services/ambo/showModel';
 import {
   LYRIC_STYLES, SAMPLE_LYRICS, lyricStyleById, renderLyricFrame, type LyricStyle,
@@ -47,7 +47,7 @@ export function backdrop(ctx: CanvasRenderingContext2D, w: number, h: number, t:
   ctx.globalAlpha = 1;
 }
 
-export const StyleThumb: React.FC<{ style: LyricStyle; selected: boolean; onPick: () => void }> = ({ style, selected, onPick }) => {
+export const StyleThumb: React.FC<{ style: LyricStyle; selected: boolean; onPick: () => void; onDoubleClick?: () => void }> = ({ style, selected, onPick, onDoubleClick }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
@@ -69,7 +69,8 @@ export const StyleThumb: React.FC<{ style: LyricStyle; selected: boolean; onPick
   return (
     <button
       onClick={onPick}
-      title={`${style.blurb}\nBest for: ${style.use}`}
+      onDoubleClick={onDoubleClick}
+      title={`${style.blurb}\nBest for: ${style.use}\n(Double-click to take directly to Program)`}
       className={`text-left rounded-lg overflow-hidden border transition-all ${selected ? 'border-[#D0BCFF] ring-2 ring-[#D0BCFF]/40' : 'border-white/10 hover:border-white/30'}`}
     >
       <canvas ref={ref} className="w-full aspect-video block" />
@@ -90,7 +91,12 @@ export const LiveSourcePanel: React.FC = () => {
   const streams = listLiveAudioStreams();
   const choose = (v: string) => {
     let next: LiveLyricSource = { kind: 'mic' };
-    if (v.startsWith('dev:')) next = { kind: 'device', deviceId: v.slice(4) };
+    if (v === 'auto') next = { kind: 'auto' };
+    else if (v === 'playlist') next = { kind: 'playlist' };
+    else if (v === 'dj') next = { kind: 'dj' };
+    else if (v === 'program') next = { kind: 'program' };
+    else if (v === 'system') next = { kind: 'system' };
+    else if (v.startsWith('dev:')) next = { kind: 'device', deviceId: v.slice(4) };
     else if (v.startsWith('str:')) next = { kind: 'stream', id: v.slice(4) };
     else if (v === 'url') next = { kind: 'url', url: src.kind === 'url' ? src.url : '' };
     setLiveLyricsPrefs({ source: next });
@@ -102,14 +108,49 @@ export const LiveSourcePanel: React.FC = () => {
         <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 w-12">Listen</span>
         <select value={value} onChange={e => choose(e.target.value)} disabled={ls.running}
           className="flex-1 min-w-0 h-7 rounded-md bg-white/5 border border-white/10 text-[10.5px] text-white px-1.5">
+          <option value="auto" className="bg-[#14101e]">Auto (playing track, else microphone)</option>
           <option value="mic" className="bg-[#14101e]">Default microphone</option>
+          <option value="playlist" className="bg-[#14101e]">Audio playlist playback</option>
+          <option value="dj" className="bg-[#14101e]">DJ deck playback</option>
+          <option value="program" className="bg-[#14101e]">Program master mix</option>
+          <option value="system" className="bg-[#14101e]">System / Screen audio…</option>
           {inputs.map(d => <option key={d.deviceId} value={'dev:' + d.deviceId} className="bg-[#14101e]">Input · {d.label}</option>)}
           {streams.map(s => <option key={s.id} value={'str:' + s.id} className="bg-[#14101e]">Stream · {s.label}</option>)}
           <option value="url" className="bg-[#14101e]">Stream URL (account / station)…</option>
         </select>
-        <button onClick={() => (ls.running ? stopLiveLyrics() : void startLiveLyrics())} disabled={ls.starting}
-          className={`px-2.5 h-7 rounded-md text-[10px] font-black disabled:opacity-40 ${ls.running ? 'text-white bg-white/10 border border-white/15' : 'text-black bg-[#2BE0A8]'}`}>
-          {ls.starting ? 'Starting…' : ls.running ? 'Stop' : 'Start'}
+        <button
+          onClick={() => ((ls.running || ls.starting) ? stopLiveLyrics() : void startLiveLyrics())}
+          className={`px-3 h-7 rounded-md text-[10px] font-black relative overflow-hidden flex items-center gap-1.5 transition-all select-none ${
+            ls.running
+              ? 'text-white bg-white/10 border border-white/15'
+              : ls.starting
+              ? 'text-[#2BE0A8] bg-[#2BE0A8]/10 border border-[#2BE0A8]/50 shadow-[0_0_12px_rgba(43,224,168,0.25)]'
+              : 'text-black bg-[#2BE0A8] hover:brightness-110'
+          }`}
+          title={ls.starting ? `Getting ready (${Math.round((ls.progress ?? 0.2) * 100)}%) — click to cancel` : undefined}
+        >
+          {ls.starting && (
+            <>
+              <div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#2BE0A8]/15 via-[#2BE0A8]/30 to-[#2BE0A8]/20 transition-all duration-200 pointer-events-none"
+                style={{ width: `${Math.max(12, Math.min(100, Math.round((ls.progress ?? 0.2) * 100)))}%` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-black/40 pointer-events-none">
+                <div
+                  className="h-full bg-[#2BE0A8] transition-all duration-200 shadow-[0_0_6px_#2BE0A8]"
+                  style={{ width: `${Math.max(12, Math.min(100, Math.round((ls.progress ?? 0.2) * 100)))}%` }}
+                />
+              </div>
+            </>
+          )}
+          {ls.starting ? (
+            <Loader2 size={11} className="animate-spin text-[#2BE0A8] relative z-10 flex-none" />
+          ) : null}
+          <span className="relative z-10 font-bold">
+            {ls.starting ? `Readying ${Math.round((ls.progress ?? 0.2) * 100)}%` : ls.running ? 'Stop' : 'Start'}
+          </span>
         </button>
       </div>
       {src.kind === 'url' && (
@@ -121,6 +162,11 @@ export const LiveSourcePanel: React.FC = () => {
           : ls.running ? (ls.lines.length ? ls.lines.map(l => l.text).join(' / ') : 'Listening…')
           : 'Words from this source appear on screen in the look below. Take to Program once it is listening.'}
       </div>
+      {(ls.running || ls.starting) && (
+        <div className="text-[9px] text-[#D0BCFF]/80 truncate" title={ls.status}>
+          {src.kind === 'auto' && ls.autoResolved ? `Auto → ${ls.autoResolved === 'dj' ? 'DJ deck' : ls.autoResolved === 'playlist' ? 'Playlist' : 'Microphone'} · ` : ''}{ls.status}
+        </div>
+      )}
     </div>
   );
 };
@@ -218,7 +264,13 @@ const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
     return () => { window.removeEventListener('pointerdown', down); window.removeEventListener('keydown', key); };
   }, [open]);
 
-  const take = () => { setWantLive(true); };
+  const take = () => {
+    setWantLive(true);
+    setLyricsProgram({ styleId: prefs.styleId, source: prefs.source, wantLive: true });
+    if (prefs.source === 'live' && !ls.running) {
+      void startLiveLyrics();
+    }
+  };
   const clear = () => { setWantLive(false); onSet(null); };
 
   const reasonText = (r?: string) =>
@@ -277,7 +329,21 @@ const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
 
         <div className="grid grid-cols-3 gap-1.5 max-h-[230px] overflow-y-auto pr-0.5">
           {LYRIC_STYLES.map(s => (
-            <StyleThumb key={s.id} style={s} selected={s.id === prefs.styleId} onPick={() => setPrefs(p => ({ ...p, styleId: s.id }))} />
+            <StyleThumb
+              key={s.id}
+              style={s}
+              selected={s.id === prefs.styleId}
+              onPick={() => {
+                setPrefs(p => ({ ...p, styleId: s.id }));
+                setLyricsProgram({ styleId: s.id, source: prefs.source, wantLive: isLive });
+              }}
+              onDoubleClick={() => {
+                setPrefs(p => ({ ...p, styleId: s.id }));
+                setWantLive(true);
+                setLyricsProgram({ styleId: s.id, source: prefs.source, wantLive: true });
+                if (prefs.source === 'live' && !ls.running) void startLiveLyrics();
+              }}
+            />
           ))}
         </div>
 
@@ -290,9 +356,8 @@ const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
           ) : (
             <button
               onClick={take}
-              disabled={!feed.ok}
-              className="px-3 py-1.5 rounded-lg text-[10.5px] font-black text-black bg-[#FF8C00] hover:brightness-110 disabled:opacity-30"
-              title={feed.ok ? 'Put the lyrics on Program, following the music' : reasonText(feed.reason)}
+              className="px-3 py-1.5 rounded-lg text-[10.5px] font-black text-black bg-[#FF8C00] hover:brightness-110 shadow-md active:scale-95 transition-all"
+              title="Put the lyrics on Program, following the music or live audio"
             >Take to Program</button>
           )}
         </div>

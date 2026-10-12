@@ -11,10 +11,15 @@
  * or will-change on the resting text layer — zoom is applied by the canvas to
  * the frame wrapper, never to this container itself.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bold, BookHeart, CircleHelp, Feather, Italic, Heading1, Heading2, List, Music2, Pilcrow, StickyNote, TextQuote } from 'lucide-react';
+import { Bold, BookHeart, CircleHelp, Feather, Italic, Heading1, Heading2, List, Music2, Pilcrow, Sparkles, StickyNote, TextQuote } from 'lucide-react';
 import type { TelaBlock, TelaBlockKind, TelaTextSemanticKind, TelaWriterDevice } from '../../types';
+import TextSurface from '../text/TextSurface';
+import { createTextSystem, type TextSystem, type TextStory, type TextOp, type TextFrame, type TextRange, storyText, sliceStory } from '../../services/text';
+import { writerDocumentOf, applyWriterEdit, applyLegacyBlocks, writerCoalesce } from './writer/writerModel';
+import { deriveBlocks } from '../../services/text/document';
+import type { WriterOp } from '../../services/text/document/ops';
 
 export const newBlockId = () => `blk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -127,6 +132,7 @@ interface TelaWriterProps {
   device: TelaWriterDevice;
   /** Ops-shaped block-list replacement — the whole ordered id list at once. */
   onChangeBlocks: (blocks: TelaBlock[]) => void;
+  onWriterEdit?: (ops: WriterOp[]) => void;
   readOnly?: boolean;
   onSelectionChange?: (selection: TelaWriterSelection | null) => void;
   onTurnSelectionInto?: (selection: TelaWriterSelection, kind: 'QUESTION' | 'INSTRUCTION') => void;
@@ -140,7 +146,17 @@ export interface TelaWriterSelection {
   endOffset: number;
 }
 
-const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, readOnly, onSelectionChange, onTurnSelectionInto }) => {
+let sharedTextSystemPromise: Promise<TextSystem> | null = null;
+export function getSharedTextSystem(): Promise<TextSystem> {
+  if (!sharedTextSystemPromise) {
+    sharedTextSystemPromise = createTextSystem({ preload: ['Source Serif 4', 'EB Garamond', 'Playfair Display', 'Inter'] });
+  }
+  return sharedTextSystemPromise;
+}
+
+const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, onWriterEdit, readOnly, onSelectionChange, onTurnSelectionInto }) => {
+  const [engineMode, setEngineMode] = useState<'platform' | 'blocks'>('platform');
+  const [system, setSystem] = useState<TextSystem | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [selectionTool, setSelectionTool] = useState<{ selection: TelaWriterSelection; x: number; y: number; context?: boolean } | null>(null);
   const els = useRef(new Map<string, HTMLElement>());
@@ -148,6 +164,35 @@ const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, readOnl
   // Live mirror of blocks so rapid keydowns act on the latest content.
   const blocksRef = useRef(device.blocks);
   blocksRef.current = device.blocks;
+
+  useEffect(() => {
+    let live = true;
+    getSharedTextSystem()
+      .then(sys => { if (live) setSystem(sys); })
+      .catch(err => {
+        console.warn('[TelaWriter] text engine fallback to blocks:', err);
+        if (live) setEngineMode('blocks');
+      });
+    return () => { live = false; };
+  }, []);
+
+  const doc = useMemo(() => writerDocumentOf(device), [device]);
+
+  const frames = useMemo<TextFrame[]>(() => [{
+    id: 'body',
+    x: 72,
+    y: 64,
+    width: 672,
+    height: 928,
+  }], []);
+
+  const handleEngineChange = useCallback((nextStory: TextStory, textOps: TextOp[]) => {
+    const ops: WriterOp[] = [{ type: 'text', target: { kind: 'body' }, ops: textOps }];
+    if (onWriterEdit) {
+      onWriterEdit(ops);
+    }
+    onChangeBlocks(deriveBlocks(nextStory));
+  }, [onWriterEdit, onChangeBlocks]);
 
   const registerEl = useCallback((id: string, el: HTMLElement | null) => {
     if (el) els.current.set(id, el); else els.current.delete(id);
@@ -312,65 +357,104 @@ const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, readOnl
           onMouseDown={e => e.preventDefault() /* keep the text selection */}
           style={{
             position: 'absolute', top: 6, right: 10, zIndex: 3,
-            display: 'flex', gap: 2, padding: 3,
+            display: 'flex', alignItems: 'center', gap: 4, padding: 3,
             background: '#F5F2F8', border: '1px solid #E3DEEA', borderRadius: 9,
-            opacity: focusedId ? 1 : 0.35, transition: 'opacity 160ms',
+            opacity: focusedId || engineMode === 'platform' ? 1 : 0.45, transition: 'opacity 160ms',
           }}
         >
+          <button
+            type="button"
+            title={engineMode === 'platform' ? 'Platform Text Engine (Wave 2) active — click to toggle to Classic Blocks' : 'Classic Blocks active — click to toggle to Platform Text Engine'}
+            onClick={() => setEngineMode(m => m === 'platform' ? 'blocks' : 'platform')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, height: 24, padding: '0 8px',
+              borderRadius: 6, fontSize: 10, fontWeight: 800, border: 'none', cursor: 'pointer',
+              background: engineMode === 'platform' ? 'linear-gradient(135deg,#6B0099,#00DAF3)' : 'rgba(0,0,0,0.06)',
+              color: engineMode === 'platform' ? '#fff' : '#6E6480',
+            }}
+          >
+            <Sparkles size={11} />
+            {engineMode === 'platform' ? 'Wave 2 Engine' : 'Classic Blocks'}
+          </button>
+          <span style={{ width: 1, height: 16, background: '#E3DEEA', margin: '0 2px' }} />
           <button title="Heading 1 (# )" style={toolBtn(focusedKind === 'h1')} onClick={() => setKind('h1')}><Heading1 size={14} /></button>
           <button title="Heading 2 (## )" style={toolBtn(focusedKind === 'h2')} onClick={() => setKind('h2')}><Heading2 size={14} /></button>
           <button title="Paragraph" style={toolBtn(focusedKind === 'p')} onClick={() => setKind('p')}><Pilcrow size={14} /></button>
           <button title="List item (- )" style={toolBtn(focusedKind === 'li')} onClick={() => setKind('li')}><List size={14} /></button>
-          <span style={{ width: 1, background: '#E3DEEA', margin: '3px 2px' }} />
+          <span style={{ width: 1, height: 16, background: '#E3DEEA', margin: '0 2px' }} />
           <button title="Bold (Ctrl B)" style={toolBtn(false)} onClick={() => exec('bold')}><Bold size={14} /></button>
           <button title="Italic (Ctrl I)" style={toolBtn(false)} onClick={() => exec('italic')}><Italic size={14} /></button>
         </div>
       )}
 
       {/* The text layer: opaque paper, serifed, no transform / will-change at rest. */}
-      <div
-        className="tela-writer-page"
-        style={{
-          height: '100%',
-          overflowY: 'auto',
-          background: '#FFFFFF',            // opaque ground — never composited translucently
-          color: '#1B1523',
-          fontFamily: '"Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif',
-          fontOpticalSizing: 'auto',
-          textWrap: 'pretty',               // ignored where unsupported — graceful
-          fontSize: 17,
-          padding: '64px 72px',
-          cursor: readOnly ? 'default' : 'text',
-        } as React.CSSProperties}
-        onClick={e => {
-          // Clicking the empty paper below the last block puts the caret there.
-          if (readOnly || e.target !== e.currentTarget) return;
-          const last = blocksRef.current[blocksRef.current.length - 1];
-          const el = last && els.current.get(last.id);
-          if (el) { el.focus(); placeCaret(el, true); }
-        }}
-        onPointerUp={() => setTimeout(captureSelection, 0)}
-        onKeyUp={() => setTimeout(captureSelection, 0)}
-        onContextMenu={event => {
-          const selected = window.getSelection();
-          if (!readOnly && selected && !selected.isCollapsed && selected.toString().trim()) {
-            event.preventDefault();
-            captureSelection({ x: event.clientX, y: event.clientY, context: true });
-          }
-        }}
-      >
-        {device.blocks.map(b => (
-          <BlockEl
-            key={b.id}
-            block={b}
+      {engineMode === 'platform' && system ? (
+        <div
+          className="tela-writer-page tela-writer-page-engine"
+          style={{
+            height: '100%',
+            overflowY: 'visible',
+            background: '#FFFFFF',
+            color: '#1B1523',
+            cursor: readOnly ? 'default' : 'text',
+            padding: '24px 32px',
+          }}
+        >
+          <TextSurface
+            system={system}
+            story={doc.story}
+            frames={frames}
             readOnly={readOnly}
-            onInput={handleInput}
-            onKeyDown={handleKeyDown}
-            onFocus={setFocusedId}
-            registerEl={registerEl}
+            onChange={handleEngineChange}
+            showFrames={false}
+            style={{ minHeight: '100%' }}
           />
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div
+          className="tela-writer-page"
+          style={{
+            height: '100%',
+            overflowY: 'visible',
+            background: '#FFFFFF',            // opaque ground — never composited translucently
+            color: '#1B1523',
+            fontFamily: '"Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif',
+            fontOpticalSizing: 'auto',
+            textWrap: 'pretty',               // ignored where unsupported — graceful
+            fontSize: 17,
+            padding: '64px 72px',
+            cursor: readOnly ? 'default' : 'text',
+          } as React.CSSProperties}
+          onClick={e => {
+            // Clicking the empty paper below the last block puts the caret there.
+            if (readOnly || e.target !== e.currentTarget) return;
+            const last = blocksRef.current[blocksRef.current.length - 1];
+            const el = last && els.current.get(last.id);
+            if (el) { el.focus(); placeCaret(el, true); }
+          }}
+          onPointerUp={() => setTimeout(captureSelection, 0)}
+          onKeyUp={() => setTimeout(captureSelection, 0)}
+          onContextMenu={event => {
+            const selected = window.getSelection();
+            if (!readOnly && selected && !selected.isCollapsed && selected.toString().trim()) {
+              event.preventDefault();
+              captureSelection({ x: event.clientX, y: event.clientY, context: true });
+            }
+          }}
+        >
+          {device.blocks.map(b => (
+            <BlockEl
+              key={b.id}
+              block={b}
+              readOnly={readOnly}
+              onInput={handleInput}
+              onKeyDown={handleKeyDown}
+              onFocus={setFocusedId}
+              registerEl={registerEl}
+            />
+          ))}
+        </div>
+      )}
       {!readOnly && selectionTool && createPortal(
         <div onMouseDown={event => event.preventDefault()} style={{ position: 'fixed', left: selectionTool.x, top: selectionTool.y, transform: 'translateX(-50%)', zIndex: 420, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 3, maxWidth: 460, padding: 4, borderRadius: 11, background: 'rgba(20,13,32,.97)', border: '1px solid rgba(255,255,255,.14)', boxShadow: '0 12px 36px rgba(0,0,0,.35)' }}>
           {onTurnSelectionInto && <><button type="button" onClick={() => onTurnSelectionInto(selectionTool.selection, 'QUESTION')} style={{ display: 'flex', alignItems: 'center', gap: 5, height: 30, padding: '0 9px', border: 0, borderRadius: 8, color: '#fff', background: 'linear-gradient(135deg,#6B0099,#D40055)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}><CircleHelp size={13}/> Question</button>

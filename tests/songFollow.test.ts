@@ -128,6 +128,12 @@ describe('typo text', () => {
     assert.equal(resolveTypoText('auto', undefined, base({ sendScripture: true }), now), 'For God so loved the world');
     assert.equal(resolveTypoText('auto', undefined, base(), now), 'Custom words');
   });
+  test('live transcription feeds typoText', () => {
+    const s = base();
+    s.transcript = { text: 'Praise the Lord O my soul', at: now };
+    assert.equal(resolveTypoText('transcript', undefined, s, now), 'Praise the Lord O my soul');
+    assert.equal(resolveTypoText('auto', undefined, s, now), 'Praise the Lord O my soul');
+  });
   test('data path picking', () => {
     assert.equal(pickDataPath({ a: { b: [{ c: 'deep' }] } }, 'a.b.0.c'), 'deep');
     assert.equal(dataBodyToText('{"msg":"hi"}', 'msg'), 'hi');

@@ -36,7 +36,7 @@ export function ChoraNavBar({
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-[140] flex items-center gap-2 px-3 glass-high border-b border-white/[0.08]"
+      className="sticky top-0 z-[140] w-full flex items-center gap-2 px-3 glass-high border-b border-white/[0.08]"
       // Add the safe-area inset ON TOP of the 56px bar (not into it), so the row stays centered.
       style={{ height: 'calc(3.5rem + env(safe-area-inset-top))', paddingTop: 'env(safe-area-inset-top)' }}
       aria-label="Primary"

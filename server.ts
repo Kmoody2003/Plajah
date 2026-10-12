@@ -86,6 +86,7 @@ import { initSecurityCouncil } from './services/securityCouncil/index';
 import { createSecurityCouncilRouter } from './routes/securityCouncil';
 import { homeDiscoveryRouter } from './routes/homeDiscovery';
 import { matterRouter } from './routes/matterRoutes';
+import { localAiRouter } from './routes/localAi';
 import { homeHubRouter, HOME_HUB_ORIGINS, startHomeHub } from './routes/homeHubRoutes';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 import { sweepReleaseAnnouncements } from './services/releases/releaseAnnouncer';
@@ -12734,6 +12735,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use(homeDiscoveryRouter);
   app.use(homeHubRouter);
   app.use(matterRouter);
+  app.use('/api/local-ai', express.json({ limit: '10mb' }), localAiRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER === 'true' || (process.env.NODE_ENV === 'production' && process.env.SPORTS_INGESTION_WORKER !== 'false')) {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

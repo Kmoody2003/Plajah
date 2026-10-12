@@ -1,68 +1,77 @@
-// VoiceStudio — the audio-page production toolkit: TEXT-TO-VOICE (MAI Voice 2 / Azure Neural TTS
-// → placeable clips), VOICEOVER + ADR recording (mic capture; ADR loops picture while you perform
-// to it), and a synthesized SOUND-FX / sound-design palette. Everything lands as an audio clip in
-// the media pool (and optionally straight onto a track at the playhead), so it flows through the
-// same mixer + render as any other audio.
+// VoiceStudio — the audio-page production toolkit: TEXT-TO-VOICE (Kokoro 82M / Fish Speech / Azure)
+// SLATE SCRIPT REEL (scene breakdown, dialogue casting, and video shot snapping),
+// VOICEOVER + ADR recording (mic capture; ADR loops picture while you perform to it),
+// and a synthesized SOUND-FX / procedural Foley palette powered by plajahAudioCore.
 
 import { useEffect, useRef, useState } from "react";
 import { MAI_VOICES, synthesizeNarration, getMicrosoftAIConfig } from "../../services/microsoftAIService";
 import { onDeviceVoiceEngine, KOKORO_VOICES } from "../../services/voice/onDeviceVoiceEngine";
+import { plajahAudioCore } from "../../services/voice/plajahAudioCore";
+import { proceduralFoley, FOLEY_PRESETS } from "../../services/audio/proceduralFoleyEngine";
 
-// AudioBuffer → 16-bit PCM WAV blob (for synthesized SFX; universally decodable).
-function bufferToWav(buf) {
-  const nCh = buf.numberOfChannels, len = buf.length, sr = buf.sampleRate;
-  const out = new ArrayBuffer(44 + len * nCh * 2), dv = new DataView(out);
-  const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
-  ws(0, "RIFF"); dv.setUint32(4, 36 + len * nCh * 2, true); ws(8, "WAVE"); ws(12, "fmt ");
-  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, nCh, true);
-  dv.setUint32(24, sr, true); dv.setUint32(28, sr * nCh * 2, true); dv.setUint16(32, nCh * 2, true);
-  dv.setUint16(34, 16, true); ws(36, "data"); dv.setUint32(40, len * nCh * 2, true);
-  let off = 44;
-  for (let i = 0; i < len; i++) for (let ch = 0; ch < nCh; ch++) {
-    const s = Math.max(-1, Math.min(1, buf.getChannelData(ch)[i]));
-    dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2;
-  }
-  return new Blob([out], { type: "audio/wav" });
-}
-
-// Procedural sound-design generators — each returns a rendered AudioBuffer.
-const SFX = [
-  { id: "whoosh", name: "Whoosh", dur: 0.8, build: (ctx, t) => { const n = noise(ctx, 0.8); const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(4000, t + 0.4); f.frequency.exponentialRampToValueAtTime(300, t + 0.8); f.Q.value = 1.5; const g = env(ctx, t, 0.8, 0.05, 0.5); n.connect(f); f.connect(g); return g; } },
-  { id: "impact", name: "Impact", dur: 0.6, build: (ctx, t) => { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.5); const n = noise(ctx, 0.1); const g = env(ctx, t, 0.6, 0.001, 0.5); o.connect(g); n.connect(g); o.start(t); o.stop(t + 0.6); return g; } },
-  { id: "riser", name: "Riser", dur: 1.5, build: (ctx, t) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(80, t); o.frequency.exponentialRampToValueAtTime(2000, t + 1.5); const g = env(ctx, t, 1.5, 1.4, 0.1); o.connect(g); o.start(t); o.stop(t + 1.5); return g; } },
-  { id: "boom", name: "Sub Boom", dur: 1.0, build: (ctx, t) => { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(30, t + 0.9); const g = env(ctx, t, 1.0, 0.002, 0.8); o.connect(g); o.start(t); o.stop(t + 1.0); return g; } },
-  { id: "click", name: "UI Click", dur: 0.12, build: (ctx, t) => { const o = ctx.createOscillator(); o.type = "square"; o.frequency.setValueAtTime(1200, t); const g = env(ctx, t, 0.12, 0.001, 0.08); o.connect(g); o.start(t); o.stop(t + 0.12); return g; } },
-  { id: "sparkle", name: "Sparkle", dur: 0.9, build: (ctx, t) => { const g = ctx.createGain(); g.gain.value = 0; for (let i = 0; i < 6; i++) { const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = 900 + i * 500; const e = env(ctx, t + i * 0.06, 0.3, 0.005, 0.25); o.connect(e); e.connect(g); o.start(t + i * 0.06); o.stop(t + i * 0.06 + 0.3); } g.gain.value = 1; return g; } },
-];
-function noise(ctx, dur) { const b = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = ctx.createBufferSource(); s.buffer = b; s.start(0); return s; }
-function env(ctx, t, dur, atk, rel) { const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.9, t + atk); g.gain.setValueAtTime(0.9, t + dur - rel); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); return g; }
-async function renderSfx(spec) {
-  const ctx = new OfflineAudioContext(1, Math.ceil(48000 * (spec.dur + 0.05)), 48000);
-  const out = spec.build(ctx, 0); out.connect(ctx.destination);
-  const buf = await ctx.startRendering();
-  return bufferToWav(buf);
-}
-
-export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPlaying, onPlaceClip, ping }) {
-  const [tab, setTab] = useState("tts");
+export default function VoiceStudio({ audioTracks = [], playhead, setPlayhead, setPlaying, onPlaceClip, ping, activeScene }) {
+  const [tab, setTab] = useState("slate"); // Default to Slate Script Reel in Fabula!
   const cfg = getMicrosoftAIConfig();
-  // TTS
+
+  // TTS State
   const [text, setText] = useState("");
-  const [voiceSource, setVoiceSource] = useState("kokoro"); // "kokoro" | "azure"
+  const [voiceSource, setVoiceSource] = useState("kokoro"); // "kokoro" | "fish_speech" | "azure"
   const [voiceId, setVoiceId] = useState(KOKORO_VOICES[0]?.id || "af_heart");
   const [rate, setRate] = useState(1);
+  const [emotion, setEmotion] = useState("urgent");
   const [busy, setBusy] = useState(false);
   const [track, setTrack] = useState(audioTracks[0]?.id || "a1");
-  useEffect(() => { if (!audioTracks.find((t) => t.id === track) && audioTracks[0]) setTrack(audioTracks[0].id); }, [audioTracks, track]);
 
+  // Slate Script Reel State
+  const [scriptLines, setScriptLines] = useState([
+    {
+      id: "sl_1",
+      speakerName: "Aria",
+      emotion: "urgent",
+      text: "If the transmitter goes down tonight, none of our signals reach the orbital dock.",
+      selectedTake: 2,
+      takes: [
+        { takeNum: 1, label: "Take 1 (Neutral)", dur: 2.6, emotion: "neutral" },
+        { takeNum: 2, label: "Take 2 (Urgent)", dur: 2.4, emotion: "urgent" },
+        { takeNum: 3, label: "Take 3 (Whisper)", dur: 2.8, emotion: "whisper" },
+      ],
+    },
+    {
+      id: "sl_2",
+      speakerName: "Marcus",
+      emotion: "neutral",
+      text: "The auxiliary core is holding at forty percent. We still have a narrow window.",
+      selectedTake: 1,
+      takes: [
+        { takeNum: 1, label: "Take 1 (Composed)", dur: 3.1, emotion: "neutral" },
+        { takeNum: 2, label: "Take 2 (Tense)", dur: 2.9, emotion: "urgent" },
+      ],
+    },
+  ]);
+  const [activeLineId, setActiveLineId] = useState("sl_1");
+
+  useEffect(() => {
+    if (!audioTracks.find((t) => t.id === track) && audioTracks[0]) setTrack(audioTracks[0].id);
+  }, [audioTracks, track]);
+
+  // Generate Single TTS
   const generateTTS = async () => {
     if (!text.trim() || busy) return;
     setBusy(true);
     try {
-      if (voiceSource === "kokoro" || !cfg.voiceReady) {
+      if (voiceSource === "kokoro") {
         const res = await onDeviceVoiceEngine.synthesize({ text: text.trim(), voiceId, speed: rate });
         onPlaceClip(res.audioBlob, (text.trim().slice(0, 28) || "Kokoro VO"), { trackId: track, at: playhead });
         ping?.("🎙 On-device Kokoro voice clip placed at playhead");
+      } else if (voiceSource === "fish_speech") {
+        const take = await plajahAudioCore.synthesizeFabulaDialogue({
+          text: text.trim(),
+          speakerName: "Aria",
+          emotion,
+          engine: "fish_speech",
+        });
+        onPlaceClip(take.audioBlob, (text.trim().slice(0, 28) || "Fish VO"), { trackId: track, at: playhead });
+        ping?.(`🎙 Fish Speech take placed (duration: ${take.durationSeconds.toFixed(1)}s, snap: ${take.sceneSnapSeconds}s)`);
       } else {
         const { audioBlob } = await synthesizeNarration({ text: text.trim(), voiceId, rate });
         onPlaceClip(audioBlob, (text.trim().slice(0, 28) || "VO"), { trackId: track, at: playhead });
@@ -74,8 +83,33 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
     setBusy(false);
   };
 
+  // Place Slate Script Take onto Timeline with Auto-Snap
+  const placeSlateTake = async (line, take) => {
+    setBusy(true);
+    try {
+      const dialogueTake = await plajahAudioCore.synthesizeFabulaDialogue({
+        text: line.text,
+        speakerName: line.speakerName,
+        emotion: take.emotion,
+        takeIndex: take.takeNum,
+        engine: voiceSource === "fish_speech" ? "fish_speech" : "kokoro",
+      });
+
+      onPlaceClip(dialogueTake.audioBlob, `${line.speakerName} (T${take.takeNum})`, {
+        trackId: track,
+        at: playhead,
+      });
+
+      ping?.(`🎬 ${line.speakerName} Take ${take.takeNum} placed. Video cut snapped to ${dialogueTake.sceneSnapSeconds}s!`);
+    } catch (e) {
+      ping?.("Failed placing script take: " + (e?.message || e));
+    }
+    setBusy(false);
+  };
+
   // VOICEOVER / ADR record
-  const recRef = useRef(null); const micRef = useRef(null);
+  const recRef = useRef(null);
+  const micRef = useRef(null);
   const [recording, setRecording] = useState(false);
   const [count, setCount] = useState(0);
   const stopRec = () => { try { recRef.current?.state !== "inactive" && recRef.current?.stop(); } catch { /* */ } };
@@ -87,7 +121,7 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
       const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
       micRef.current = mic;
       const startAt = playhead;
-      if (adr) { // 3-2-1 count-in, then roll picture from the playhead so you perform to it
+      if (adr) {
         for (let n = 3; n >= 1; n--) { setCount(n); await new Promise((r) => setTimeout(r, 700)); }
         setCount(0); setPlaying?.(true);
       }
@@ -102,7 +136,6 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
         if (blob.size > 1000) {
           onPlaceClip(blob, adr ? "ADR take" : "VO take", { trackId: track, at: startAt });
           ping?.(adr ? "🎬 ADR take placed" : "🎙 Voiceover placed");
-          // Background Whisper ASR subtitle recognition
           onDeviceVoiceEngine.transcribe(blob).then((t) => {
             if (t?.text) ping?.(`📝 Whisper Transcribed: "${t.text.slice(0, 36)}…"`);
           }).catch(() => {});
@@ -112,21 +145,43 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
     } catch (e) { ping?.("Mic unavailable — " + (e?.message || "permission denied")); }
   };
 
-  const placeSfx = async (spec) => {
-    try { const blob = await renderSfx(spec); onPlaceClip(blob, spec.name, { trackId: track, at: playhead }); ping?.(`🔊 ${spec.name} placed at the playhead`); }
-    catch (e) { ping?.("SFX render failed — " + (e?.message || e)); }
+  const placeProceduralFoley = (presetId) => {
+    try {
+      const res = proceduralFoley.renderFoley({ presetId });
+      onPlaceClip(res.wavBlob, res.name, { trackId: track, at: playhead });
+      ping?.(`🔊 ${res.name} placed at playhead (${res.durationSeconds.toFixed(1)}s)`);
+    } catch (e) {
+      ping?.("Foley render failed — " + (e?.message || e));
+    }
   };
 
+  const activeLine = scriptLines.find((l) => l.id === activeLineId) || scriptLines[0];
+
   return (
-    <div className="fxstudio glass-dark">
-      <div className="paneltitle">🎙 VOICE &amp; SOUND STUDIO
-        <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0 }}>text-to-voice · voiceover · ADR · sound design</span>
+    <div className="fxstudio glass-dark" style={{ border: "1px solid rgba(255,140,0,0.25)" }}>
+      <div className="paneltitle" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          🎙 PLAHAH VOICE &amp; SOUND STUDIO
+          <span className="dim small" style={{ marginLeft: 8, letterSpacing: 0, color: "#FF8C00" }}>
+            polymorphic audio core · slate breakdown · kokoro · fish speech
+          </span>
+        </div>
+        <span className="dim small font-mono" style={{ fontSize: 9, padding: "2px 8px", background: "rgba(255,140,0,0.15)", borderRadius: 9999, color: "#FF8C00" }}>
+          FABULA CINEMA REEL
+        </span>
       </div>
-      <div className="fxtabs" style={{ maxWidth: 360 }}>
-        {[["tts", "TEXT-TO-VOICE"], ["vo", "VO / ADR"], ["sfx", "SOUND FX"]].map(([id, l]) => (
+
+      <div className="fxtabs" style={{ maxWidth: 480 }}>
+        {[
+          ["slate", "🎬 SLATE SCRIPT REEL"],
+          ["tts", "🎙 TEXT-TO-VOICE"],
+          ["vo", "🔴 VO / ADR"],
+          ["sfx", "🔊 PROCEDURAL FOLEY"]
+        ].map(([id, l]) => (
           <button key={id} className={`fxtab ${tab === id ? "on" : ""}`} onClick={() => setTab(id)}>{l}</button>
         ))}
       </div>
+
       <div className="insp-row" style={{ marginBottom: 8 }}>
         <span className="lbl">TO TRACK</span>
         <select className="sel grow" value={track} onChange={(e) => setTrack(e.target.value)}>
@@ -135,6 +190,82 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
         <span className="dim small">placed at playhead {playhead != null ? playhead.toFixed(1) + "s" : ""}</span>
       </div>
 
+      {/* TAB 1: SLATE SCRIPT REEL */}
+      {tab === "slate" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span className="dim small font-mono" style={{ color: "#00DAF3" }}>
+              INGESTED FROM SLATE: SCENE {activeScene?.sceneNum || "12"} (INT. OBSERVATORY - NIGHT)
+            </span>
+            <span className="dim small font-mono">{scriptLines.length} DIALOGUE OCCURRENCES</span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 10 }}>
+            {/* Left: Script Lines */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {scriptLines.map((line) => (
+                <div
+                  key={line.id}
+                  onClick={() => setActiveLineId(line.id)}
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    border: `1px solid ${line.id === activeLineId ? "#FF8C00" : "rgba(255,255,255,0.08)"}`,
+                    background: line.id === activeLineId ? "rgba(255,140,0,0.12)" : "rgba(255,255,255,0.02)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: "bold", color: "#FF8C00", marginBottom: 2 }}>
+                    <span>{line.speakerName} ({line.emotion.toUpperCase()})</span>
+                    <span className="font-mono">T{line.selectedTake}</span>
+                  </div>
+                  <div style={{ fontSize: 11, fontStyle: "italic", color: "#fff", lineHeight: 1.3 }}>
+                    “{line.text}”
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Right: Audition & Snapping Strip */}
+            <div style={{ padding: 10, borderRadius: 8, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: 10, fontWeight: "bold", color: "#00DAF3", marginBottom: 6, textTransform: "uppercase" }}>
+                Multi-Take Audition Strip: {activeLine.speakerName}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {activeLine.takes.map((take) => (
+                  <div
+                    key={take.takeNum}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "6px 8px",
+                      borderRadius: 6,
+                      background: activeLine.selectedTake === take.takeNum ? "rgba(255,140,0,0.2)" : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${activeLine.selectedTake === take.takeNum ? "#FF8C00" : "transparent"}`,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: "bold", color: "#fff" }}>{take.label}</div>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }} className="font-mono">{take.dur}s duration</div>
+                    </div>
+                    <button
+                      className="cta sm"
+                      style={{ fontSize: 9, padding: "3px 8px" }}
+                      disabled={busy}
+                      onClick={() => placeSlateTake(activeLine, take)}
+                    >
+                      ⚡ SNAP TAKE
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: TEXT-TO-VOICE */}
       {tab === "tts" && (
         <>
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
@@ -143,7 +274,14 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
               style={{ fontSize: 9.5, padding: "3px 8px" }}
               onClick={() => { setVoiceSource("kokoro"); setVoiceId(KOKORO_VOICES[0]?.id || "af_heart"); }}
             >
-              ⚡ KOKORO ON-DEVICE (ZERO-CLOUD)
+              ⚡ KOKORO 82M (ZERO-CLOUD)
+            </button>
+            <button
+              className={`fxtab ${voiceSource === "fish_speech" ? "on" : ""}`}
+              style={{ fontSize: 9.5, padding: "3px 8px" }}
+              onClick={() => { setVoiceSource("fish_speech"); }}
+            >
+              🐟 FISH SPEECH 1.5 (CLONING)
             </button>
             <button
               className={`fxtab ${voiceSource === "azure" ? "on" : ""}`}
@@ -153,49 +291,55 @@ export default function VoiceStudio({ audioTracks, playhead, setPlayhead, setPla
               ☁ AZURE NEURAL
             </button>
           </div>
-          <textarea className="in" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type the line to speak… (narration, character VO, temp dialogue)" />
+          <textarea className="in" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type dialogue or narrative line…" />
           <div className="insp-row" style={{ marginTop: 6 }}>
-            <span className="lbl">VOICE</span>
-            <select className="sel grow" value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
-              {voiceSource === "kokoro"
-                ? KOKORO_VOICES.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)
-                : MAI_VOICES.map((v) => <option key={v.id} value={v.id}>{v.name || v.id}</option>)}
-            </select>
+            {voiceSource === "kokoro" && (
+              <>
+                <span className="lbl">VOICE</span>
+                <select className="sel grow" value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
+                  {KOKORO_VOICES.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </>
+            )}
+            {voiceSource === "fish_speech" && (
+              <>
+                <span className="lbl">EMOTION</span>
+                <select className="sel grow" value={emotion} onChange={(e) => setEmotion(e.target.value)}>
+                  <option value="urgent">Urgent / High Tension</option>
+                  <option value="whisper">Soft Whisper</option>
+                  <option value="dramatic">Dramatic Film</option>
+                  <option value="neutral">Neutral Narrative</option>
+                </select>
+              </>
+            )}
             <span className="lbl" style={{ marginLeft: 8 }}>RATE</span>
             <input type="range" min="0.6" max="1.6" step="0.05" value={rate} onChange={(e) => setRate(parseFloat(e.target.value))} />
           </div>
           <div className="btnrow" style={{ marginTop: 8 }}>
             <button className="cta sm" disabled={busy || !text.trim()} onClick={generateTTS}>
-              {busy ? "SYNTHESIZING…" : "🎙 GENERATE + PLACE"}
+              {busy ? "SYNTHESIZING…" : "🎙 GENERATE + PLACE AT PLAYHEAD"}
             </button>
           </div>
-          {voiceSource === "kokoro" ? (
-            <div className="dim small" style={{ marginTop: 6, color: "#00DAF3" }}>
-              ⚡ High-definition Kokoro 82M neural model running locally on-device. No cloud API keys required.
-            </div>
-          ) : !cfg.voiceReady && (
-            <div className="dim small" style={{ marginTop: 6 }}>
-              Placeable Azure TTS clips need a speech key (VITE_AZURE_SPEECH_KEY). Use Kokoro On-Device for instant local synthesis.
-            </div>
-          )}
         </>
       )}
 
+      {/* TAB 3: VO / ADR */}
       {tab === "vo" && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {count > 0 && <div style={{ fontSize: 40, fontWeight: 900, color: "#FF8C00", width: 60, textAlign: "center" }}>{count}</div>}
           <button className="cta sm" style={recording ? { background: "#e5484d" } : undefined} onClick={() => startRecord(false)}>{recording ? "■ STOP" : "● VOICEOVER"}</button>
           <button className="cta sm" style={recording ? { background: "#e5484d" } : undefined} onClick={() => startRecord(true)} title="Count-in, then picture rolls while you perform to it">{recording ? "■ STOP" : "🎬 ADR (to picture)"}</button>
-          <span className="dim small">Records your mic to the selected track. ADR counts you in (3-2-1) then plays the video from the playhead so you can lip-sync. Raw mic (no auto-gain) for clean captures.</span>
+          <span className="dim small">Counts you in (3-2-1) and rolls video playback for direct audio-to-picture performance.</span>
         </div>
       )}
 
+      {/* TAB 4: PROCEDURAL FOLEY */}
       {tab === "sfx" && (
-        <div className="fxgrid" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
-          {SFX.map((s) => (
-            <button key={s.id} className="fxcard" onClick={() => placeSfx(s)} title={`Render + place ${s.name}`}>
-              <span className="fxthumb gen" style={{ background: "radial-gradient(circle at 40% 30%, #31c6a8, #0a0a12 75%)" }}>🔊</span>
-              <span className="fxname">{s.name}</span>
+        <div className="fxgrid" style={{ gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+          {FOLEY_PRESETS.map((p) => (
+            <button key={p.id} className="fxcard" onClick={() => placeProceduralFoley(p.id)} title={p.description}>
+              <span className="fxthumb gen" style={{ background: "radial-gradient(circle at 40% 30%, #FF8C00, #0a0a12 75%)" }}>🔊</span>
+              <span className="fxname" style={{ fontSize: 10, fontWeight: "bold" }}>{p.name}</span>
             </button>
           ))}
         </div>

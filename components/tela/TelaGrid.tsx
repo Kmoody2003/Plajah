@@ -9,6 +9,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { TelaGridDevice } from '../../types';
+import { engineFor } from './grid/runtime';
 
 // ── A1 helpers ────────────────────────────────────────────────────────────────
 
@@ -179,6 +180,16 @@ export function evaluateFormula(
 export function displayValue(cells: Record<string, string>, key: string, ctx?: TelaFormulaContext): string {
   const raw = cells[key] ?? '';
   if (!raw.trim().startsWith('=')) return raw;
+  try {
+    const eng = engineFor({ id: 'grid_eval', rows: 100, cols: 26, cells }, ctx);
+    const m = key.match(/^([A-Z]+)([0-9]+)$/);
+    if (m) {
+      const col = colIndex(m[1]);
+      const row = parseInt(m[2], 10) - 1;
+      const formatted = eng.formatValue(0, row, col);
+      if (formatted?.text !== undefined) return formatted.text;
+    }
+  } catch {}
   const v = evaluateFormula(raw.trim(), cells, new Set(), key, ctx);
   return String(v);
 }

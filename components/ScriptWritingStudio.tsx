@@ -186,6 +186,7 @@ interface Props {
   onBack: () => void;
   user: any;
   onNavigate?: (view: string) => void;
+  onSendToTela?: (scriptData: { title: string; elements: ScriptElement[]; fountainText: string }) => void;
 }
 
 export default function ScriptWritingStudio({
@@ -195,6 +196,7 @@ export default function ScriptWritingStudio({
   onBack,
   user,
   onNavigate,
+  onSendToTela,
 }: Props) {
 
   // ── Core script state ──────────────────────────────────────────────────────
@@ -1401,6 +1403,18 @@ export default function ScriptWritingStudio({
                   className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 text-white/60 hover:bg-white/10 text-[9px] font-black uppercase tracking-widest transition-colors">
                   <Copy size={11} /> Copy as Fountain
                 </button>
+                {onSendToTela && (
+                  <button
+                    onClick={() => onSendToTela({
+                      title: titlePage.title || 'Screenplay',
+                      elements,
+                      fountainText: toFountain({ id: scriptId, format, titlePage, elements, beats }),
+                    })}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-cyan-500 hover:brightness-110 text-white font-extrabold text-[9px] uppercase tracking-widest shadow transition-all"
+                  >
+                    <PenLine size={12} /> Send Script to Tela Canvas
+                  </button>
+                )}
               </div>
 
               <div className="border-t border-white/8 pt-3 space-y-2">
@@ -1537,6 +1551,21 @@ export default function ScriptWritingStudio({
               ? <><Check size={8} className="text-green-400/60" /> Saved</>
               : null}
         </div>
+
+        {onSendToTela && (
+          <button
+            onClick={() => onSendToTela({
+              title: titlePage.title || 'Screenplay',
+              elements,
+              fountainText: toFountain({ id: scriptId, format, titlePage, elements, beats }),
+            })}
+            title="Insert this screenplay directly onto Tela Canvas as an editable Writer frame"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-cyan-500 hover:brightness-110 text-white font-extrabold text-[9px] uppercase tracking-wider transition-all shadow-md shrink-0"
+          >
+            <PenLine size={12} />
+            <span>Insert to Tela</span>
+          </button>
+        )}
 
         {/* Sidebar toggles */}
         <button onClick={() => setShowSidebar(p => !p)} className={`p-1.5 rounded-lg transition-colors ${showSidebar ? 'text-orange-400 bg-orange-500/10' : 'text-white/30 hover:text-white hover:bg-white/8'}`}>

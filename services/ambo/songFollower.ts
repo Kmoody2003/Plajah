@@ -25,7 +25,13 @@ import {
   type TranscriberHandle, type TranscribeSource,
 } from './liveTranscriber';
 
-export type FollowListenSource = { kind: 'mic' } | { kind: 'device'; deviceId: string } | { kind: 'program' };
+export type FollowListenSource =
+  | { kind: 'mic' }
+  | { kind: 'device'; deviceId: string }
+  | { kind: 'playlist' }
+  | { kind: 'dj' }
+  | { kind: 'program' }
+  | { kind: 'system' };
 
 export interface SongFollowPrefs {
   mode: 'line' | 'word';
@@ -336,11 +342,34 @@ export function capturedLines(): string[] {
 async function resolveSource(): Promise<TranscribeSource> {
   const s = prefs.source;
   if (s.kind === 'device') return { kind: 'device', deviceId: s.deviceId };
+  if (s.kind === 'playlist') {
+    const { amboAudio } = await import('./amboAudioEngine');
+    const stream = amboAudio.channelStream('playlist');
+    if (!stream) throw new Error('Audio playlist channel has no active audio stream');
+    return { kind: 'stream', stream };
+  }
+  if (s.kind === 'dj') {
+    const { amboAudio } = await import('./amboAudioEngine');
+    const stream = amboAudio.channelStream('dj');
+    if (!stream) throw new Error('DJ deck channel has no active audio stream');
+    return { kind: 'stream', stream };
+  }
   if (s.kind === 'program') {
     const { amboAudio } = await import('./amboAudioEngine');
     const stream = amboAudio.programStream();
     if (!stream) throw new Error('The Ambo program mix is not available yet');
     return { kind: 'stream', stream };
+  }
+  if (s.kind === 'system') {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) {
+      throw new Error('System audio capture is not supported in this browser');
+    }
+    const ms = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+    ms.getVideoTracks().forEach(t => t.stop());
+    if (!ms.getAudioTracks().length) {
+      throw new Error('No audio track selected in system screen share dialog. Be sure to check "Share audio".');
+    }
+    return { kind: 'stream', stream: ms };
   }
   return { kind: 'mic' };
 }

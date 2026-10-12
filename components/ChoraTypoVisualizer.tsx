@@ -15,6 +15,8 @@ import { loadAtlas, makeVol, disposeVol, lineStreams, clamp, TypoDirector, type 
 import { TYPO_VOLUMES, type TypoVolumePreset } from './chora/typo/typoVolumes';
 import { TypoAudioAnalyzer } from './chora/typo/typoAudio';
 import { AdaptiveScale } from './plajahPixels/engine/core/adaptiveScale';
+import { getTypoTextState, resolveTypoText, subscribeTypoText } from '../services/ambo/typoText';
+import { subscribeTranscript } from '../services/ambo/liveTranscriber';
 
 export type { TypoVolumePreset };
 
@@ -26,6 +28,10 @@ interface Props {
   fpsCap?: number;
   renderScale?: number;
   className?: string;
+  /** Explicit words or live transcript override */
+  text?: string;
+  /** Words source: 'auto' | 'transcript' | 'lyrics' | 'scripture' | 'track' */
+  textSource?: 'auto' | 'transcript' | 'lyrics' | 'scripture' | 'track';
 }
 
 type Line = { time: number; text: string };
@@ -42,10 +48,45 @@ function linesFor(track: any, album: any, duration: number): { lines: Line[]; lo
 
 export const ChoraTypoVisualizer: React.FC<Props> = ({
   preset = 'SPHERE', analyser, isPlaying, fpsCap = 0, renderScale = 1, className = 'w-full h-full relative',
+  text, textSource = 'auto',
 }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const player = useGlobalPlayerState();
   const { currentTime, duration } = useGlobalPlayerProgress();
+
+  const [liveWords, setLiveWords] = useState<string>('');
+
+  useEffect(() => {
+    // 1) Subscribe to live transcription word tap from ANY session (mic, dj, playlist, program, system)
+    const unTap = subscribeTranscript(t => {
+      if (t && t.trim()) {
+        setLiveWords(prev => {
+          const arr = prev.split(/\s+/).concat(t.split(/\s+/)).filter(Boolean).slice(-16);
+          return arr.join(' ');
+        });
+      }
+    });
+
+    // 2) Subscribe to typoText state
+    const unTypo = subscribeTypoText(() => {
+      const st = getTypoTextState();
+      const resolved = resolveTypoText((textSource as any) || 'auto', text, st);
+      if (resolved && resolved.trim()) {
+        setLiveWords(resolved);
+      }
+    });
+
+    // Initial check
+    const initResolved = resolveTypoText((textSource as any) || 'auto', text, getTypoTextState());
+    if (initResolved && initResolved.trim()) {
+      setLiveWords(initResolved);
+    }
+
+    return () => {
+      unTap();
+      unTypo();
+    };
+  }, [text, textSource]);
 
   const live = useRef({ preset, analyser: analyser ?? player.analyser, playing: isPlaying ?? player.isPlaying, fpsCap, renderScale });
   live.current = { preset, analyser: analyser ?? player.analyser, playing: isPlaying ?? player.isPlaying, fpsCap, renderScale };
@@ -56,8 +97,18 @@ export const ChoraTypoVisualizer: React.FC<Props> = ({
   const lyricsRef = useRef<{ lines: Line[]; loop: number | null; key: string }>({ lines: [], loop: null, key: '' });
   useEffect(() => {
     const t = player.currentTrack as any;
+    if (text?.trim()) {
+      const words = text.trim();
+      lyricsRef.current = { lines: [{ time: 0, text: words }], loop: null, key: `custom:${words}` };
+      return;
+    }
+    if (liveWords?.trim() && textSource !== 'track') {
+      const words = liveWords.trim();
+      lyricsRef.current = { lines: [{ time: 0, text: words }], loop: null, key: `live:${words}` };
+      return;
+    }
     lyricsRef.current = { ...linesFor(t, player.currentAlbum, duration), key: `${t?.id || ''}:${(t?.timeCodedLyrics?.length || 0)}:${duration | 0}` };
-  }, [player.currentTrack, player.currentAlbum, duration]);
+  }, [player.currentTrack, player.currentAlbum, duration, liveWords, text, textSource]);
 
   useEffect(() => {
     const host = hostRef.current; if (!host) return;

@@ -435,7 +435,8 @@ const CommandAudioButton: React.FC<{ onClick: () => void; compact?: boolean }> =
 
 // ── FULL: global bottom bar ──────────────────────────────────────────────────
 const FullBar: React.FC<CommandPlayerProps & { onOpenSheet: () => void; onOpenCast: () => void }> = ({ onOpenStage, onOpenQueue, onMinimize, onOpenSheet, onOpenCast }) => {
-  const { p, cover, title, artist } = useNowPlaying();
+  const { p, cover, title, artist, track } = useNowPlaying();
+  if (!track && !p.currentVideo && !p.isPlaying) return null;
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
   const { isCasting, activeDevice } = useUnifiedCasting();
   const muted = p.volume <= 0.001;
@@ -536,7 +537,8 @@ const FullBar: React.FC<CommandPlayerProps & { onOpenSheet: () => void; onOpenCa
 
 // ── NANO: floating card with a real 3D album flip ────────────────────────────
 const NanoCard: React.FC<CommandPlayerProps & { onOpenSheet: () => void; onOpenCast: () => void }> = ({ onOpenStage, onOpenQueue, onExpandFromNano, onOpenSheet, onOpenCast }) => {
-  const { p, cover, title, artist, slides } = useNowPlaying();
+  const { p, cover, title, artist, slides, track } = useNowPlaying();
+  if (!track && !p.currentVideo && !p.isPlaying) return null;
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
   const { isCasting, activeDevice } = useUnifiedCasting();
   const reduced = useMemo(() => prefersReducedMotion(), []);
@@ -686,7 +688,8 @@ const CommandPlayer: React.FC<CommandPlayerProps> = (props) => {
   }, [props.onOpenCast]);
   const closeCast = useCallback(() => setCastOpen(false), []);
 
-  const { p, cover, title, artist } = useNowPlaying();
+  const { p, cover, title, artist, track } = useNowPlaying();
+  if (!track && !p.currentVideo && !p.isPlaying) return null;
 
   return (
     <>

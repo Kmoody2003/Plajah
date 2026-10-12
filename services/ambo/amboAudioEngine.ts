@@ -212,6 +212,26 @@ class AmboAudioEngine {
     return this.progDest?.stream ?? null;
   }
 
+  private stripDests = new Map<AmboChannelId, MediaStreamAudioDestinationNode>();
+  /** Capture a single channel strip (e.g. playlist or dj) as a MediaStream for transcription/analysis. */
+  channelStream(id: AmboChannelId): MediaStream | null {
+    const ctx = this.ensure();
+    if (!ctx) return null;
+    const st = this.strips.get(id);
+    if (!st) return null;
+    let dest = this.stripDests.get(id);
+    if (!dest) {
+      try {
+        dest = ctx.createMediaStreamDestination();
+        st.input.connect(dest);
+        this.stripDests.set(id, dest);
+      } catch {
+        return null;
+      }
+    }
+    return dest.stream ?? null;
+  }
+
   private makeStrip(id: AmboChannelId): Strip {
     const ctx = this.ctx!;
     const input = ctx.createGain();

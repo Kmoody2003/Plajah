@@ -66,6 +66,7 @@ import { PHOTO_ART_SCHOOL } from '../data/photoArtCurriculum';
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 import ChipRail from './ui/ChipRail';
 import { addWindowsFolder, type SavedFolder } from '../services/folderRegistry';
+import { getPaiGenerations } from '../services/localAi/paiGenerationHistory';
 import { SavedFoldersMenu, lastFolder, setLastFolderId, getLastFolderId } from './ui/SavedFolders';
 
 export type GlobalPhotosMode = 'WATERFALL' | 'GALLERY' | 'THEMES' | 'EVENTS' | 'IMPORTS' | 'PRO' | 'SOCIAL' | 'SCHOOL' | 'SALON' | 'SYNTHETIC' | 'HYBRID' | 'CATALOG' | 'SPATIAL' | 'WINDOWS_PHOTOS';
@@ -332,8 +333,26 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
         const data = await fetchThemePresets();
         setThemes(data.filter(t => t.isPublic));
       } else {
-        const data = await fetchGlobalPhotos(mode === 'GALLERY' || mode === 'PRO');
-        setPhotos(data);
+        const [data, localPai] = await Promise.all([
+          fetchGlobalPhotos(mode === 'GALLERY' || mode === 'PRO'),
+          getPaiGenerations().catch(() => []),
+        ]);
+        const mappedPai: Photo[] = localPai.map((item) => ({
+          id: item.id,
+          url: item.url,
+          title: item.prompt ? item.prompt.slice(0, 50) : 'PAI Creation',
+          description: item.prompt,
+          timestamp: item.timestamp,
+          ownerId: auth.currentUser?.uid || 'local_device',
+          tags: ['ai', 'synthetic', 'pai', 'pai-generations'],
+          isGalleryEligible: true,
+          isPublic: false,
+          width: item.width,
+          height: item.height,
+        }));
+        const existingIds = new Set(data.map((p) => p.id));
+        const combined = [...mappedPai.filter((p) => !existingIds.has(p.id)), ...data];
+        setPhotos(combined);
       }
       setIsLoading(false);
     };

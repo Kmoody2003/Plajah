@@ -28,7 +28,7 @@ export function publishScriptureToTypo(content: { lines?: string[]; reference?: 
 }
 
 function playingLine(): { text: string; title: string } | null {
-  for (const id of ['dj', 'bus'] as const) {
+  for (const id of ['live', 'dj', 'bus'] as const) {
     const c = getLyricClock(id);
     const t = c?.track();
     if (!c || !t || !c.isPlaying()) continue;
@@ -61,18 +61,18 @@ export function startTypoTextDriver(): () => void {
   claimTypoTextOwner();
   const unFollower = installSongFollower();
 
-  // transcript channel — every session's words
+  // transcript channel — words from ANY live transcription session (mic, dj, playlist, program, system)
   let words: string[] = [];
   let lastPub = 0;
   let pending: ReturnType<typeof setTimeout> | null = null;
   const pub = () => { pending = null; lastPub = Date.now(); publishTypoChannel('transcript', { text: words.join(' ') }); };
   const unTap = subscribeTranscript(text => {
-    words = words.concat(text.split(/\s+/).filter(Boolean)).slice(-14);
-    if (Date.now() - lastPub > 300) pub();
-    else if (!pending) pending = setTimeout(pub, 300);
+    words = words.concat(text.split(/\s+/).filter(Boolean)).slice(-24);
+    if (Date.now() - lastPub > 250) pub();
+    else if (!pending) pending = setTimeout(pub, 250);
   });
 
-  // lyrics channel + playback transcription
+  // lyrics channel + playback / source transcription
   let pbHandle: TranscriberHandle | null = null;
   let pbStarting = false;
   let idleSince = 0;
@@ -81,15 +81,32 @@ export function startTypoTextDriver(): () => void {
     const line = f ?? playingLine();
     if (line) publishTypoChannel('lyrics', { text: line.text, label: line.title, adlib: (line as { adlib?: boolean }).adlib });
 
-    const want = getTypoTextState().prefs.autoTranscribePlayback && (demand || getSongFollowState().listening) && playingUnsynced();
+    const p = getTypoTextState().prefs;
+    const reqSrc = p.transcribeAudioSource || 'auto';
+    const want = (p.autoTranscribePlayback && (demand || getSongFollowState().listening) && playingUnsynced()) ||
+                 (demand && reqSrc !== 'auto');
     if (want) {
       idleSince = 0;
       if (!pbHandle && !pbStarting) {
         pbStarting = true;
         try {
           const { amboAudio } = await import('./amboAudioEngine');
-          const stream = amboAudio.programStream();
-          if (stream) pbHandle = await startLiveTranscription({ kind: 'stream', stream }, { onWords: () => { /* via the tap */ } }, 'en-US', 'Playback lyrics');
+          let src: import('./liveTranscriber').TranscribeSource | null = null;
+          if (reqSrc === 'playlist') {
+            const s = amboAudio.channelStream('playlist');
+            if (s) src = { kind: 'stream', stream: s };
+          } else if (reqSrc === 'dj') {
+            const s = amboAudio.channelStream('dj');
+            if (s) src = { kind: 'stream', stream: s };
+          } else if (reqSrc === 'mic') {
+            src = { kind: 'mic' };
+          } else {
+            const s = amboAudio.programStream();
+            if (s) src = { kind: 'stream', stream: s };
+          }
+          if (src) {
+            pbHandle = await startLiveTranscription(src, { onWords: () => { /* via the tap */ } }, 'en-US', 'Playback lyrics');
+          }
         } catch { /* the transcriber reports its own errors */ }
         pbStarting = false;
       }

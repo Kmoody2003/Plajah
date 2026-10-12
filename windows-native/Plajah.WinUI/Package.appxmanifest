@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
@@ -7,7 +7,7 @@
   xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
   IgnorableNamespaces="uap rescap desktop4 uap10">
 
-  <Identity Name="Plajah.Platform" Publisher="CN=Plajah" Version="1.0.65.0" />
+  <Identity Name="Plajah.Platform" Publisher="CN=Plajah" Version="1.0.89.0" />
 
   <Properties>
     <DisplayName>Plajah</DisplayName>
@@ -28,7 +28,7 @@
     <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true">
       <uap:VisualElements
         DisplayName="Plajah"
-        Description="Plajah — the creator platform: Fabula editor, Reello video, Chora music, live streaming and more, native on Windows."
+        Description="Plajah Ã¢â‚¬â€ the creator platform: Fabula editor, Reello video, Chora music, live streaming and more, native on Windows."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
@@ -96,7 +96,7 @@
     <Application Id="MediaPlajah" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true">
       <uap:VisualElements
         DisplayName="Media Plajah"
-        Description="Media Plajah — Standalone high-fidelity local media player with Chora bit-perfect audio, 4K video, and creative bridges."
+        Description="Media Plajah Ã¢â‚¬â€ Standalone high-fidelity local media player with Chora bit-perfect audio, 4K video, and creative bridges."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
@@ -109,7 +109,7 @@
     <Application Id="Chora" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=chora">
       <uap:VisualElements
         DisplayName="Chora"
-        Description="Chora — stream music, albums, mixes and your local library."
+        Description="Chora Ã¢â‚¬â€ stream music, albums, mixes and your local library."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Experiences\Chora.Square150x150Logo.png"
         Square44x44Logo="Assets\Experiences\Chora.Square44x44Logo.png" />
@@ -117,7 +117,7 @@
     <Application Id="Reello" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=reello">
       <uap:VisualElements
         DisplayName="Reello"
-        Description="Reello — creator video, shorts and live."
+        Description="Reello Ã¢â‚¬â€ creator video, shorts and live."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Experiences\Reello.Square150x150Logo.png"
         Square44x44Logo="Assets\Experiences\Reello.Square44x44Logo.png" />
@@ -125,7 +125,7 @@
     <Application Id="Taleo" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=taleo">
       <uap:VisualElements
         DisplayName="Taleo"
-        Description="Taleo — films, series and TV."
+        Description="Taleo Ã¢â‚¬â€ films, series and TV."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Experiences\Taleo.Square150x150Logo.png"
         Square44x44Logo="Assets\Experiences\Taleo.Square44x44Logo.png" />
@@ -133,7 +133,7 @@
     <Application Id="Fabula" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=fabula">
       <uap:VisualElements
         DisplayName="Fabula"
-        Description="Fabula — the AI film editor."
+        Description="Fabula Ã¢â‚¬â€ the AI film editor."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Experiences\Fabula.Square150x150Logo.png"
         Square44x44Logo="Assets\Experiences\Fabula.Square44x44Logo.png" />
@@ -141,7 +141,7 @@
     <Application Id="Pixels" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=pixels">
       <uap:VisualElements
         DisplayName="Plajah Pixels"
-        Description="Plajah Pixels — live visuals and VJ performance."
+        Description="Plajah Pixels Ã¢â‚¬â€ live visuals and VJ performance."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Experiences\Pixels.Square150x150Logo.png"
         Square44x44Logo="Assets\Experiences\Pixels.Square44x44Logo.png" />
@@ -149,7 +149,7 @@
     <Application Id="ChoraStudio" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=chora_studio">
       <uap:VisualElements
         DisplayName="Chora Studio"
-        Description="Chora Studio — music production, powered by Melos."
+        Description="Chora Studio Ã¢â‚¬â€ music production, powered by Melos."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Experiences\ChoraStudio.Square150x150Logo.png"
         Square44x44Logo="Assets\Experiences\ChoraStudio.Square44x44Logo.png" />
@@ -157,7 +157,7 @@
     <Application Id="Academia" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=academia">
       <uap:VisualElements
         DisplayName="Academia"
-        Description="Plajah Academia — classes, assignments and learning."
+        Description="Plajah Academia Ã¢â‚¬â€ classes, assignments and learning."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Experiences\Academia.Square150x150Logo.png"
         Square44x44Logo="Assets\Experiences\Academia.Square44x44Logo.png" />
@@ -174,3 +174,4 @@
     <DeviceCapability Name="webcam" />
   </Capabilities>
 </Package>
+

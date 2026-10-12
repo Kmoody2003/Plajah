@@ -6,7 +6,7 @@
 //
 // 100% Native Plajah Platform: zero external vendor dependencies (No ComfyUI, No Forge).
 
-import { isWindowsApp } from '../windowsBridgeService';
+import { isWindowsApp, getNativeMediaEngine } from '../windowsBridgeService';
 
 export type LocalBackendType = 'plajah_native' | 'webgpu' | 'none';
 
@@ -88,9 +88,14 @@ async function fetchWithTimeout(url: string, ms = 1200): Promise<Response> {
 /** Probe Plajah Native Sidecar (Windows / macOS native app bridge) */
 async function probePlajahSidecar(): Promise<{ endpoint: string; stats: any } | null> {
   const endpoints = ['http://127.0.0.1:51122', 'http://localhost:51122'];
+  if (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('51122')) {
+    endpoints.push(`${window.location.origin}/api/local-ai`);
+  }
+
   for (const ep of endpoints) {
     try {
-      const res = await fetchWithTimeout(`${ep}/health`, 800);
+      const healthUrl = ep.endsWith('/api/local-ai') ? `${ep}/health` : `${ep}/health`;
+      const res = await fetchWithTimeout(healthUrl, 1000);
       if (res.ok) {
         const stats = await res.json();
         return { endpoint: ep, stats };
@@ -106,15 +111,15 @@ async function probePlajahSidecar(): Promise<{ endpoint: string; stats: any } | 
 async function probeWindowsNativeApp(): Promise<LocalDeviceStats | null> {
   if (!isWindowsApp() || typeof window === 'undefined') return null;
 
-  const mediaEngine = (window as any).plajahMediaEngine;
+  const mediaEngine = getNativeMediaEngine();
   if (mediaEngine && typeof mediaEngine.invokeNative === 'function') {
     try {
       const res = await mediaEngine.invokeNative('ai_status', {});
       if (res && res.success) {
         return {
-          name: res.gpuName || 'NVIDIA GeForce RTX (DirectML / TensorRT)',
-          type: res.hasTensorRt ? 'tensorrt' : 'directml',
-          vramTotalMb: res.vramTotalMb || 8192,
+          name: res.gpuName || 'NVIDIA GeForce RTX 4070 Laptop GPU',
+          type: res.hasTensorRt ? 'tensorrt' : 'cuda',
+          vramTotalMb: res.vramTotalMb || 8188,
           vramFreeMb: res.vramFreeMb || 6144,
           engineVersion: 'Plajah Native v1.0',
         };
@@ -125,9 +130,9 @@ async function probeWindowsNativeApp(): Promise<LocalDeviceStats | null> {
         const caps = await mediaEngine.invokeNative('capabilities', {});
         if (caps && caps.webgpu) {
           return {
-            name: 'Windows DirectML Hardware Acceleration',
-            type: 'directml',
-            vramTotalMb: 8192,
+            name: 'NVIDIA GeForce RTX GPU Hardware Acceleration',
+            type: 'cuda',
+            vramTotalMb: 8188,
             vramFreeMb: 6144,
             engineVersion: 'Plajah DirectML Engine',
           };
@@ -137,9 +142,9 @@ async function probeWindowsNativeApp(): Promise<LocalDeviceStats | null> {
   }
 
   return {
-    name: 'Windows DirectML GPU Acceleration',
-    type: 'directml',
-    vramTotalMb: 8192,
+    name: 'NVIDIA GeForce RTX 4070 Laptop GPU',
+    type: 'cuda',
+    vramTotalMb: 8188,
     engineVersion: 'Plajah WinUI Engine',
   };
 }
@@ -153,7 +158,38 @@ export async function getLocalEngineStatus(forceRefresh = false): Promise<LocalE
 
   lastProbe = now;
 
-  // 1. Probe Plajah Windows Native App (DirectML / TensorRT)
+  // 1. Priority #1: Probe Plajah Native Sidecar (NVIDIA RTX Discrete GPU)
+  const sidecar = await probePlajahSidecar();
+  if (sidecar) {
+    const sModels = sidecar.stats?.models || {};
+    cachedStatus = {
+      online: true,
+      backend: 'plajah_native',
+      endpoint: sidecar.endpoint,
+      device: {
+        name: sidecar.stats?.gpuName || 'NVIDIA GeForce RTX 4070 Laptop GPU',
+        type: (sidecar.stats?.backend as any) || 'cuda',
+        vramTotalMb: sidecar.stats?.vramTotalMb || 8188,
+        vramFreeMb: sidecar.stats?.vramFreeMb || 6500,
+      },
+      models: {
+        ...DEFAULT_MODELS,
+        flux: !!sModels.flux,
+        sdxl: !!sModels.sdxl,
+        wanVideo: !!sModels.wanVideo,
+        icLight: !!sModels.icLight,
+        supirDetail: !!sModels.supirDetail,
+        ipAdapter: !!sModels.ipAdapter,
+        segmentAnything: true,
+        whisper: true,
+        kokoro: true,
+      },
+      lastChecked: now,
+    };
+    return cachedStatus;
+  }
+
+  // 2. Probe Plajah Windows Native App (DirectML / TensorRT)
   if (isWindowsApp()) {
     const dev = await probeWindowsNativeApp();
     if (dev) {
@@ -178,36 +214,6 @@ export async function getLocalEngineStatus(forceRefresh = false): Promise<LocalE
       };
       return cachedStatus;
     }
-  }
-
-  // 2. Probe Plajah Native Sidecar
-  const sidecar = await probePlajahSidecar();
-  if (sidecar) {
-    cachedStatus = {
-      online: true,
-      backend: 'plajah_native',
-      endpoint: sidecar.endpoint,
-      device: {
-        name: sidecar.stats?.gpuName || 'Plajah Native GPU Bridge',
-        type: 'cuda',
-        vramTotalMb: sidecar.stats?.vramTotalMb,
-        vramFreeMb: sidecar.stats?.vramFreeMb,
-      },
-      models: {
-        ...DEFAULT_MODELS,
-        flux: true,
-        sdxl: true,
-        icLight: true,
-        supirDetail: true,
-        wanVideo: true,
-        ipAdapter: true,
-        segmentAnything: true,
-        whisper: true,
-        kokoro: true,
-      },
-      lastChecked: now,
-    };
-    return cachedStatus;
   }
 
   // 3. In-Browser Plajah WebGPU Engine

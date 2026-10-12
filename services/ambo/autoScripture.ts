@@ -19,7 +19,7 @@
 //           own look is restored when auto mode stops)
 
 import { fetchChapter } from '../bibleService';
-import { formatRef, refId, expandRef, type ScriptureRef } from '../scriptureRef';
+import { formatRef, refId, expandRef, normalizeSpoken, type ScriptureRef } from '../scriptureRef';
 import { createScriptureListener, type ListenerHit } from './scriptureListener';
 import { createGivingListener, tagTokens, type GivingHit, type WordTag } from './speechIntents';
 import { startLiveTranscription, type TranscribeSource, type TranscriberHandle } from './liveTranscriber';
@@ -209,9 +209,22 @@ let savedLayout: string | null = null;
 let heardWords: string[] = [];
 let runId = 0;
 
+// ── nav: the reference the live input is driving (the Scripture tab follows it) ──
+export interface AutoNav { ref: ScriptureRef; seq: number; at: number; }
+let nav: AutoNav | null = null;
+let navSeq = 0;
+const navListeners = new Set<() => void>();
+export const getAutoNav = () => nav;
+export function subscribeAutoNav(fn: () => void): () => void { navListeners.add(fn); return () => { navListeners.delete(fn); }; }
+function publishNav(ref: ScriptureRef) {
+  nav = { ref, seq: ++navSeq, at: Date.now() };
+  for (const fn of navListeners) { try { fn(); } catch { /* */ } }
+}
+
 async function deliver(hit: ListenerHit, via: 'room' | 'operator' = 'room') {
   const p = prefs;
   if (!p.listenScripture) return;
+  publishNav(hit.ref);                       // the tab jumps + highlights immediately, before the text loads
   let cues: AutoCue[] = [];
   try { cues = await cuesForRef(hit.ref, p.translation, p.versesPerScreen); } catch { /* offline */ }
   const first = cues[0];
@@ -239,7 +252,7 @@ export async function startAutoScripture(): Promise<void> {
   if (state.running || state.starting) return;
   const my = ++runId;
   setState({ starting: true, error: '', status: 'Starting…', heard: '', hearing: null, hearingGiving: null, operator: OPERATOR_OFF });
-  const listener = createScriptureListener({ minConfidence: prefs.minConfidence });
+  const listener = createScriptureListener({ minConfidence: Math.min(prefs.minConfidence, 0.6), requireCue: false, settleMs: 750, cooldownMs: 20_000 });
   // One giving listener hears both channels: the operator saying "offering" counts too.
   const giving = createGivingListener();
   heardWords = [];
@@ -269,7 +282,7 @@ export async function startAutoScripture(): Promise<void> {
         giving.feed(text, now);
         pushWords(text, 'room');
         setState({
-          heard: heardWords.join(' '),
+          heard: normalizeSpoken(heardWords.join(' ')),   // book names shown correctly spelled
           hearing: prefs.listenScripture ? listener.pending() : null,
           hearingGiving: prefs.listenGiving ? giving.pending() : null,
         });
@@ -285,7 +298,7 @@ export async function startAutoScripture(): Promise<void> {
     if (my !== runId) { h.stop(); return; }
     handle = h;
     room.analyser = h.analyser;
-    setState({ running: true, starting: false, engine: h.engine, status: 'Listening' });
+    setState({ running: true, starting: false, engine: h.engine, status: /^Listening ·|Switching|Loading|Downloading/.test(state.status) ? state.status : 'Listening' });
   } catch (e) {
     if (my !== runId) return;
     const error = state.error || String((e as Error)?.message || 'Could not start listening');
@@ -304,7 +317,7 @@ async function startOperatorMic(my: number, listener: ReturnType<typeof createSc
         listener.feed(text, Date.now(), final);
         giving.feed(text, Date.now());
         pushWords(text, 'operator');
-        op({ heard: words.join(' ') });
+        op({ heard: normalizeSpoken(words.join(' ')) });
         if (!state.hearing && listener.pending() && prefs.listenScripture) setState({ hearing: listener.pending() });
         if (!state.hearingGiving && giving.pending() && prefs.listenGiving) setState({ hearingGiving: giving.pending() });
       },

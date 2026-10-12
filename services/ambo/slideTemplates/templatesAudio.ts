@@ -30,9 +30,10 @@ const progress = (b: Box, style: ProgressStyle, f: Record<string, string>, seed:
   live(b.x, b.y, b.w, b.h, 'audio.progress', { style, seed, onPanel, transcript: f.transcript || '' }, 'Progress', 'DECK');
 /** Transcript box in a theme text style. */
 function transcript(b: Box, f: Record<string, string>, o: TextOpts, mode: 'scroll' | 'single' | 'karaoke', extra: Record<string, unknown> = {}): SlideObj | null {
-  if (!(f.transcript || '').trim()) return null;
+  // Empty text = LIVE: the drawer fills itself from the track's lyrics / what is being said right now.
+  const text = f.transcript || '';
   return live(b.x, b.y, b.w, b.h, 'audio.transcript', {
-    text: f.transcript, mode, family: fontCss(String(o.font || 'inter')), weight: o.weight ?? 400, italic: !!o.italic,
+    text, live: !text.trim(), mode, family: fontCss(String(o.font || 'inter')), weight: o.weight ?? 400, italic: !!o.italic,
     size: o.size, leading: o.leading ?? 1.3, align: o.align || 'left', ...extra,
   }, 'Transcript', 'BODY');
 }
@@ -188,7 +189,7 @@ const waveformBand: SlideDesigner = d => {
   const hdr = header(d, S.x, L.vertical ? S.w : Math.min(S.w * .6, u * 90), S.h * .14, { kicker: f.kicker, title: f.title, sub: f.speaker, size: u * (L.vertical ? 5.4 : 4.8) }).place(S.y);
   const hb = bbox(hdr);
   const rdH = style === 'counter' ? u * (L.vertical ? 9 : 8) : u * (L.vertical ? 6.5 : 5.6);
-  const tH = (f.transcript || '').trim() ? u * (L.vertical ? 9 : 5.2) : 0;
+  const tH = u * (L.vertical ? 9 : 5.2);
   const bottom = S.bottom - tH - (tH ? u * 2.5 : 0);
   const rd = box(S.x, bottom - rdH, S.w, rdH);
   const wTop = hb.bottom + u * 3, wv = box(S.x, wTop, S.w, Math.max(u * 6, rd.y - u * 3 - wTop));
@@ -308,59 +309,37 @@ const countdownTrack: SlideDesigner = d => {
 };
 
 // ── catalogue ───────────────────────────────────────────────────────────────
-const SERMON_TEXT = 'Psalm twenty-three was not written for quiet afternoons. It was written by someone who knew the dark valley. ' +
-  'The promise is not that the valley disappears, but that the shepherd walks through it with us. ' +
-  'Notice the turn in verse four: the psalm stops talking about God and starts talking to Him. ' +
-  'That is what presence does. It changes our language from description to conversation. ' +
-  'So this week, when the road narrows, say it out loud: you are with me.';
-const PSALM_23 = [
-  '0:00 The LORD is my shepherd; I shall not want.',
-  '0:05 He maketh me to lie down in green pastures: he leadeth me beside the still waters.',
-  '0:12 He restoreth my soul: he leadeth me in the paths of righteousness for his name’s sake.',
-  '0:20 Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me;',
-  '0:29 thy rod and thy staff they comfort me.',
-  '0:34 Thou preparest a table before me in the presence of mine enemies: thou anointest my head with oil; my cup runneth over.',
-  '0:45 Surely goodness and mercy shall follow me all the days of my life: and I will dwell in the house of the LORD for ever.',
-].join('\n');
-const LYRICS = [
-  '0:00 Morning light on the water',
-  '0:08 every shadow giving way',
-  '0:16 You were here before I woke',
-  '0:24 and You will hold me through the day',
-  '0:32 Morning light, morning light',
-  '0:40 teach my heart to say Your name',
-].join('\n');
-const TESTIMONY = 'Three years ago I walked into this building because my daughter asked me to. I sat in the back row and planned to leave early. ' +
-  'Somebody I had never met saved me a coffee and asked my name, and the next week she remembered it. ' +
-  'That is how it started for me — not with an answer, but with a welcome. I am still here, and now I am the one saving the coffee.';
+// Transcript fields ship EMPTY on purpose: the words come live at show time (what is being said, or the lyrics
+// of the track that is playing) — a template must never carry someone else's sample text.
+const LIVE_HINT = 'Leave empty to fill live (speech / track lyrics) — or paste timed lines (\"0:12 text\"), LRC, SRT or WebVTT';
 
 export const AUDIO_TEMPLATES: SlideTemplateDef[] = [
   { id: 'audio-sermon', name: 'Sermon Audio', category: 'Audio', media: 'audio', slot: 'slide', design: sermonAudio,
-    blurb: 'Message audio with title, speaker, a progress read-out, waveform and running transcript.',
+    blurb: 'Message audio with title, speaker, a progress read-out, waveform and live transcript.',
     fields: [F('kicker', 'Kicker', 'Listen again'), F('title', 'Title', 'The Shepherd Who Stays'), F('speaker', 'Speaker', 'Pastor Daniel Reyes · Psalm 23'),
-      F('transcript', 'Transcript', SERMON_TEXT, { multiline: true, hint: TRANSCRIPT_HINT }), ...AUDIO_FIELDS()] },
+      F('transcript', 'Transcript', '', { multiline: true, hint: LIVE_HINT }), ...AUDIO_FIELDS()] },
   { id: 'audio-scripture', name: 'Scripture Reading', category: 'Audio', media: 'audio', slot: 'slide', design: scriptureAudio,
     blurb: 'A recorded reading: each phrase large and karaoke-timed, a journey line beneath.',
     fields: [F('kicker', 'Kicker', 'Scripture reading'), F('reference', 'Reference', 'Psalm 23'), F('reader', 'Reader', 'Read by Grace Choi'),
-      F('transcript', 'Transcript', PSALM_23, { multiline: true, hint: TRANSCRIPT_HINT }), ...AUDIO_FIELDS()] },
+      F('transcript', 'Transcript', '', { multiline: true, hint: LIVE_HINT }), ...AUDIO_FIELDS()] },
   { id: 'audio-now-playing', name: 'Now Playing', category: 'Audio', media: 'audio', slot: 'slide', design: nowPlaying,
-    blurb: 'Track card: artwork well, title and artist, spectral waveform, meter and lyrics.',
+    blurb: 'Track card: artwork well, title and artist, spectral waveform, meter and live lyrics.',
     fields: [F('kicker', 'Kicker', 'Now playing'), F('title', 'Track', 'Morning Light'), F('artist', 'Artist', 'Grace Worship Collective'),
       F('artUrl', 'Artwork', '', { kind: 'image', hint: 'Optional album art — empty shows the visualizer in the well' }),
-      F('transcript', 'Lyrics', LYRICS, { multiline: true, hint: TRANSCRIPT_HINT }), ...AUDIO_FIELDS('auto')] },
+      F('transcript', 'Lyrics', '', { multiline: true, hint: LIVE_HINT }), ...AUDIO_FIELDS('auto')] },
   { id: 'audio-waveform', name: 'Waveform Band', category: 'Audio', media: 'audio', slot: 'slide', design: waveformBand,
-    blurb: 'One monumental waveform across the screen, a slim read-out and a single caption line.',
+    blurb: 'One monumental waveform across the screen, a slim read-out and a single live caption line.',
     fields: [F('kicker', 'Kicker', 'Listen'), F('title', 'Title', 'Evening Prayer'), F('speaker', 'Line', 'Recorded at Grace Chapel'),
-      F('transcript', 'Transcript', 'Stay with us, Lord, for the evening draws near. Be our light in the darkness. Keep watch over those who work, or watch, or weep this night.', { multiline: true, hint: TRANSCRIPT_HINT }), ...AUDIO_FIELDS()] },
+      F('transcript', 'Transcript', '', { multiline: true, hint: LIVE_HINT }), ...AUDIO_FIELDS()] },
   { id: 'audio-viz-stage', name: 'Visualizer Stage', category: 'Audio', media: 'audio', slot: 'slide', design: vizStage,
-    blurb: 'Any platform visualizer owns the ground, dancing to the audio; a plate carries the words.',
+    blurb: 'Any platform visualizer owns the ground, dancing to the audio; a plate carries the live words.',
     fields: [F('kicker', 'Kicker', 'Prelude'), F('title', 'Title', 'Be Still'), F('speaker', 'Line', 'Grace Strings'),
-      F('transcript', 'Transcript', '0:00 Be still, and know that I am God.\n0:20 I will be exalted among the nations.\n0:40 I will be exalted in the earth.', { multiline: true, hint: TRANSCRIPT_HINT }), ...AUDIO_FIELDS('auto')] },
+      F('transcript', 'Transcript', '', { multiline: true, hint: LIVE_HINT }), ...AUDIO_FIELDS('auto')] },
   { id: 'audio-testimony', name: 'Testimony', category: 'Audio', media: 'audio', slot: 'slide', design: testimony,
     blurb: 'A voice memo: portrait, name, the story scrolling as it is told, and a candle burning down.',
     fields: [F('kicker', 'Kicker', 'Testimony'), F('name', 'Name', 'Maria Alvarez'), F('role', 'Line', 'Part of Grace since 2023'),
       F('photoUrl', 'Portrait', '', { kind: 'image', hint: 'Optional portrait' }),
-      F('transcript', 'Transcript', TESTIMONY, { multiline: true, hint: TRANSCRIPT_HINT }), ...AUDIO_FIELDS()] },
+      F('transcript', 'Transcript', '', { multiline: true, hint: LIVE_HINT }), ...AUDIO_FIELDS()] },
   { id: 'audio-countdown', name: 'Countdown Track', category: 'Audio', media: 'audio', slot: 'slide', design: countdownTrack,
     blurb: 'The walk-in song is the countdown: big numerals, ring or hourglass running out with the music.',
     fields: [F('kicker', 'Kicker', 'Our service begins in'), F('title', 'Title', 'Sunday Worship'), F('note', 'Note', 'Find a seat, grab a coffee, and say hello to someone new.', { multiline: true }),

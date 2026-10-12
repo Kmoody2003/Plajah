@@ -6,9 +6,14 @@
 // - Runs directly inside Plajah's Windows WinUI 3 shell (DirectML / TensorRT) and browser WebGPU.
 // - Zero external vendor dependencies: does NOT require ComfyUI, Forge, or external web servers.
 
+import { plajahLoraRegistry } from './plajahLoraRegistry';
+
 export interface CinemaStillIntent {
   prompt: string;
   negativePrompt?: string;
+  modelId?: string;
+  loraId?: string;
+  loraWeight?: number;
   aspect?: '16:9' | '2.39:1' | '9:16' | '1:1' | '4:3' | '3:2';
   lens?: 'anamorphic' | '35mm' | '50mm' | '85mm' | 'macro' | 'ultra_wide';
   lighting?: 'chiaroscuro' | 'golden_hour' | 'neon_noir' | 'studio_soft' | 'dramatic_rim' | 'natural_overcast';
@@ -112,6 +117,11 @@ export interface PlajahNativeTask {
     characterRef?: string;
     likenessStrength: number;
   };
+  lora?: {
+    id: string;
+    weight: number;
+    triggerWords: string[];
+  };
 }
 
 /**
@@ -159,19 +169,37 @@ export function compileCinemaStillTask(intent: CinemaStillIntent): PlajahNativeT
       lightMod = 'soft diffuse studio lighting, natural balanced shadows, beauty lighting setup';
   }
 
-  const fullPrompt = `${intent.prompt}, ${lensMod}, ${lightMod}, cinematic color grading, 8k resolution, raw photography, master film still`;
+  let fullPrompt = `${intent.prompt}, ${lensMod}, ${lightMod}, cinematic color grading, 8k resolution, raw photography, master film still`;
+  let activeLora: PlajahNativeTask['lora'];
+
+  if (intent.loraId) {
+    const enriched = plajahLoraRegistry.applyLoraToPrompt(fullPrompt, intent.loraId, intent.loraWeight);
+    fullPrompt = enriched.prompt;
+    const loraDef = plajahLoraRegistry.getLoraById(intent.loraId);
+    if (loraDef) {
+      activeLora = {
+        id: loraDef.id,
+        weight: enriched.activeWeight,
+        triggerWords: loraDef.triggerWords,
+      };
+    }
+  }
+
   const negPrompt = intent.negativePrompt || 'cgi, 3d render, blurry, distorted, plastic skin, oversaturated, amateur, watermark, bad anatomy';
+
+  const targetModel = intent.modelId || (intent.loraId?.includes('flux') ? 'flux2_klein_4b' : 'sdxl_turbo');
 
   return {
     id: `plajah_task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     taskType: 'cinema_still',
-    modelId: 'flux_schnell',
+    modelId: targetModel,
     prompt: fullPrompt,
     negativePrompt: negPrompt,
     dimensions: { width, height },
-    steps: intent.steps || 4,
-    cfgScale: 1.0,
+    steps: intent.steps || (targetModel === 'flux2_klein_4b' ? 12 : targetModel === 'sdxl_lightning' ? 4 : 1),
+    cfgScale: targetModel === 'flux2_klein_4b' ? 3.5 : 1.0,
     seed: intent.seed ?? Math.floor(Math.random() * 2147483647),
+    lora: activeLora,
   };
 }
 
@@ -285,21 +313,36 @@ export function compileComicPanelTask(intent: ComicPanelIntent): PlajahNativeTas
     default: shotComp = 'medium comic book panel framing, clear character posing';
   }
 
-  const prompt = `${intent.characterPrompt}, ${intent.sceneActionPrompt}, ${shotComp}, ${intent.moodLighting || 'bold ink lighting'}, graphic novel art style, crisp lineart, professional comic illustration, high detail`;
+  let prompt = `${intent.characterPrompt}, ${intent.sceneActionPrompt}, ${shotComp}, ${intent.moodLighting || 'bold ink lighting'}, graphic novel art style, crisp lineart, professional comic illustration, high detail`;
+  let activeLora: PlajahNativeTask['lora'];
+
+  if (intent.loraId) {
+    const enriched = plajahLoraRegistry.applyLoraToPrompt(prompt, intent.loraId, intent.loraWeight);
+    prompt = enriched.prompt;
+    const loraDef = plajahLoraRegistry.getLoraById(intent.loraId);
+    if (loraDef) {
+      activeLora = {
+        id: loraDef.id,
+        weight: enriched.activeWeight,
+        triggerWords: loraDef.triggerWords,
+      };
+    }
+  }
 
   return {
     id: `plajah_comic_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     taskType: 'comic_panel',
-    modelId: 'animagine_xl',
+    modelId: intent.modelId || (intent.loraId?.includes('flux') ? 'flux2_klein_4b' : 'animagine_xl'),
     prompt,
     negativePrompt: 'photorealistic, messy sketch, blurry lines, flat colors, bad hands, mutated fingers',
     dimensions: { width, height },
-    steps: 28,
-    cfgScale: 7.5,
+    steps: intent.loraId?.includes('flux') ? 12 : 28,
+    cfgScale: intent.loraId?.includes('flux') ? 3.5 : 7.5,
     seed: Math.floor(Math.random() * 2147483647),
     identity: {
       characterRef: intent.faceEmbeddingRef,
       likenessStrength: 0.85,
     },
+    lora: activeLora,
   };
 }

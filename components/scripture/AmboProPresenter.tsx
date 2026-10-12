@@ -75,6 +75,9 @@ import { AmboImportModal } from './AmboImportModal';
 import AmboDJTrackPlayer, { type AmboDJTrack } from './AmboDJTrackPlayer';
 import AmboAudioBus, { useAudioBus } from './AmboAudioBus';
 import AmboLyricsControl from './AmboLyricsControl';
+import { setLiveLyricsPrefs, startLiveLyrics } from '../../services/ambo/liveLyrics';
+import { setLyricsProgram } from '../../services/ambo/lyricsProgram';
+import { lyricsFor } from '../../services/ambo/lyricFeed';
 import { startTypoTextDriver, publishScriptureToTypo, setTypoTextDemand } from '../../services/ambo/typoTextDriver';
 import { getVizParams, getVizApplyTarget, lastChangedVizMode, subscribeVizParams, numericVizParams } from '../../services/ambo/visualizerParams';
 import { TYPO_PREFIX } from '../../services/ambo/layerSources';
@@ -87,13 +90,11 @@ import AmboMixer from './AmboMixer';
 import { amboAudio } from '../../services/ambo/amboAudioEngine';
 import { stampScripture } from '../../services/ambo/scriptureLook';
 
-/** Stamp the operator's scripture look onto the verse as it goes to the outputs (mesh devices have no shared storage). */
-const withScriptureLook = (stack: LiveStack): LiveStack =>
-  stack.scripture ? { ...stack, scripture: { ...stack.scripture, content: stampScripture(stack.scripture.content) } } : stack;
 import { bus as audioBus, type BusTrack } from '../../services/ambo/audioBus';
 import { setProgramVideoAudible } from '../../services/ambo/audioPriority';
 import { AmboLedWallCanvas } from './AmboLedWallCanvas';
 import { AmboVideoTransportBar } from './AmboVideoTransportBar';
+import { AmboSlideStill } from './AmboSlideStill';
 import AmboPartyEventModal from './AmboPartyEventModal';
 import {
   type PartyEventSession, type PartyEventDevice, type EventDeviceDutyType,
@@ -111,6 +112,18 @@ import { SlideTemplateMenu, ScriptureLookMenu, anchorOf, type MenuAnchor } from 
 import { SlideThumb } from './AmboTemplateThumbs';
 import { renderSlideTemplate } from '../../services/ambo/slideTemplates/canvasRender';
 import { thumbFromCanvas } from '../../services/ambo/templateLibrary';
+import { mapFieldsToTemplate, fieldsFromText, retemplate, rethemed, slideLabelFor, type TemplateContent } from '../../services/ambo/slideTemplates/convert';
+import { nextVerseCue } from '../../services/ambo/scriptureNext';
+import { getAutoCueNext } from '../../services/ambo/scriptureAutoCue';
+import { applySavedLook } from '../../services/ambo/scriptureLook';
+import { noteTemplateUse, slideFieldsFor, type SavedTemplate } from '../../services/ambo/templateLibrary';
+import { importFilesIntoTarget, filesFromDataTransfer, moveBefore, insertionIndexFor, dirOf, dropRelPath } from '../../services/ambo/mediaFolders';
+import type { ProgramTake } from '../../services/ambo/outputRouter';
+import { applyMediaToSlide, slideFromMedia, sourceToDropMedia, playlistItemFromMedia, nativeDropDir, type DropMedia } from '../../services/ambo/mediaDrop';
+
+/** Stamp the operator's scripture look onto the verse as it goes to the outputs (mesh devices have no shared storage). */
+const withScriptureLook = (stack: LiveStack): LiveStack =>
+  stack.scripture ? { ...stack, scripture: { ...stack.scripture, content: stampScripture(stack.scripture.content) } } : stack;
 
 function renderTemplateThumbSync(templateId: string, themeId: string, fields: Record<string, string>): string | undefined {
   try {
@@ -125,14 +138,6 @@ function renderTemplateThumbSync(templateId: string, themeId: string, fields: Re
   } catch { /* ignore */ }
   return undefined;
 }
-import { mapFieldsToTemplate, fieldsFromText, retemplate, rethemed, slideLabelFor, type TemplateContent } from '../../services/ambo/slideTemplates/convert';
-import { nextVerseCue } from '../../services/ambo/scriptureNext';
-import { getAutoCueNext } from '../../services/ambo/scriptureAutoCue';
-import { applySavedLook } from '../../services/ambo/scriptureLook';
-import { noteTemplateUse, slideFieldsFor, type SavedTemplate } from '../../services/ambo/templateLibrary';
-import { importFilesIntoTarget, filesFromDataTransfer, moveBefore, insertionIndexFor, dirOf, dropRelPath } from '../../services/ambo/mediaFolders';
-import type { ProgramTake } from '../../services/ambo/outputRouter';
-import { applyMediaToSlide, slideFromMedia, sourceToDropMedia, playlistItemFromMedia, nativeDropDir, type DropMedia } from '../../services/ambo/mediaDrop';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -324,6 +329,8 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [editorIdx, setEditorIdx] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(1 * 3600 + 12 * 44);
   const [cleanFeedOpen, setCleanFeedOpen] = useState(false);
+  const [deckGroupingMode, setDeckGroupingMode] = useState<'sequential' | 'grouped'>('sequential');
+  const [deckTypeFilter, setDeckTypeFilter] = useState<'all' | 'lyrics' | 'scripture' | 'media' | 'audio'>('all');
 
   // Physical Display & Resolution Auto-Detection
   const [screens, setScreens] = useState<DetectedScreenInfo[]>([]);
@@ -755,9 +762,10 @@ useEffect(() => {
       source: (track as any).source ?? (track.category === 'Audius' ? 'audius' : 'chora'),
     };
     const cur = audioBus.state.queue[audioBus.state.index];
-    if (!cur || cur.id !== bt.id) {
+    const isSame = cur && (cur.id === bt.id || (cur.url && bt.url && cur.url === bt.url) || (cur.title && cur.title === bt.title && cur.artist === bt.artist));
+    if (!isSame) {
       audioBus.playNext(bt);
-      const idx = audioBus.state.queue.findIndex(t => t.id === bt.id);
+      const idx = audioBus.state.queue.findIndex(t => t.id === bt.id || (t.url && bt.url && t.url === bt.url));
       if (idx >= 0 && idx !== audioBus.state.index) audioBus.jumpTo(idx);
     }
     setPlayerMode('expanded');
@@ -859,7 +867,8 @@ useEffect(() => {
 
   // Inject DJ Visualizer Background
   useEffect(() => {
-    if (activeDjTrack && isDjLiveOnProgram && djVisualizerEnabled) {
+    const hasAudioOnProgram = (activeDjTrack || busTrack) && isDjLiveOnProgram;
+    if (hasAudioOnProgram && djVisualizerEnabled) {
       const vizLayer: SlideLayer = { 
         id: 'viz_layer', 
         slot: 'background', 
@@ -869,7 +878,7 @@ useEffect(() => {
         } 
       };
       setLive(prev => {
-        if (!prev.background) {
+        if (!prev.background || prev.background.id === 'viz_layer') {
           return { ...prev, background: vizLayer };
         }
         return prev;
@@ -882,7 +891,7 @@ useEffect(() => {
         return prev;
       });
     }
-  }, [activeDjTrack, isDjLiveOnProgram, djVisualizerEnabled, djVisualizerMode]);
+  }, [activeDjTrack, busTrack, isDjLiveOnProgram, djVisualizerEnabled, djVisualizerMode]);
 
   // ── Unified Effective Live Stack (drives both in-app program monitor & physical outputs) ──
   const effectiveLiveStack = useMemo(() => {
@@ -1564,22 +1573,32 @@ useEffect(() => {
 
     const audioLayer = s.layers.find(l => l.content.kind === 'AUDIO');
     const audioAction = s.onEnter?.find(a => a.kind === 'AUDIO_PLAY');
-    if (audioLayer && audioLayer.content.kind === 'AUDIO') {
-      setActiveDjTrack({
-        id: `audio_${s.id}`,
-        title: s.label || 'Audio Track',
-        url: audioLayer.content.src,
-      });
+    const isSameAudio = activeDjTrack && (
+      (audioLayer && audioLayer.content.kind === 'AUDIO' && activeDjTrack.url && activeDjTrack.url === audioLayer.content.src) ||
+      (audioAction && audioAction.kind === 'AUDIO_PLAY' && activeDjTrack.url && activeDjTrack.url === audioAction.src) ||
+      activeDjTrack.id === `audio_${s.id}`
+    );
+
+    if (!isSameAudio) {
+      if (audioLayer && audioLayer.content.kind === 'AUDIO') {
+        setActiveDjTrack({
+          id: `audio_${s.id}`,
+          title: s.label || 'Audio Track',
+          url: audioLayer.content.src,
+        });
+        setIsDjCuedInPreview(true);
+        setIsDjLiveOnProgram(false);
+      } else if (audioAction && audioAction.kind === 'AUDIO_PLAY') {
+        setActiveDjTrack({
+          id: `audio_${s.id}`,
+          title: s.label || 'Audio Track',
+          url: audioAction.src,
+        });
+        setIsDjCuedInPreview(true);
+        setIsDjLiveOnProgram(false);
+      }
+    } else {
       setIsDjCuedInPreview(true);
-      setIsDjLiveOnProgram(false);
-    } else if (audioAction && audioAction.kind === 'AUDIO_PLAY') {
-      setActiveDjTrack({
-        id: `audio_${s.id}`,
-        title: s.label || 'Audio Track',
-        url: audioAction.src,
-      });
-      setIsDjCuedInPreview(true);
-      setIsDjLiveOnProgram(false);
     }
   };
 
@@ -2025,6 +2044,15 @@ useEffect(() => {
       const thumb = renderTemplateThumbSync(templateId, themeId, fields);
       return { ...sl, layers, thumb: thumb || sl.thumb };
     });
+
+    const isLyricOrAudio = templateId.startsWith('audio-') || templateId === 'song-title' || tpl.category === 'Audio' || tpl.category === 'Worship';
+    if (isLyricOrAudio) {
+      const busPlaying = Boolean(busSnap?.playing ?? (typeof audioBus !== 'undefined' ? audioBus.state.playing : false));
+      const curTrack = busSnap?.queue[busSnap.index];
+      if (busPlaying && curTrack && lyricsFor(curTrack).length > 0) {
+        setLyricsProgram({ wantLive: true, source: 'bus' });
+      }
+    }
   };
   const changeSlideTheme = (index: number, themeId: string) => {
     const target = slides[index]; if (!target) return;
@@ -2111,7 +2139,23 @@ useEffect(() => {
       setOutputs(prev => prev.map(o => o.id === programOut.id ? { ...o, enabled: true } : o));
     }
 
-    setLive(prev => applySlide(prev, s, Date.now()));
+    // When audio is already playing on DJ deck or bus, taking to Program should NEVER
+    // restart or duplicate the song. Keep the visual layers while slaving the audio.
+    const isAlreadyPlaying = Boolean(
+      (busSnap?.deck?.track?.src && (busSnap.deck.playing || isDjPlaying)) ||
+      (activeDjTrack?.src && isDjPlaying) ||
+      (typeof audioBus !== 'undefined' && audioBus?.state?.deck?.track?.src && (audioBus.state.deck.playing || isDjPlaying))
+    );
+
+    const slideToApply: Slide = isAlreadyPlaying
+      ? {
+          ...s,
+          layers: s.layers.filter(l => l.content.kind !== 'AUDIO'),
+          onEnter: s.onEnter?.filter(a => a.kind !== 'AUDIO_PLAY' && a.kind !== 'AUDIO_RESTART'),
+        }
+      : s;
+
+    setLive(prev => applySlide(prev, slideToApply, Date.now()));
     setLiveSlideId(s.id);
     setLiveSlideObj(s);
     setProgramTake(prev => ({ seq: (prev?.seq ?? 0) + 1, kind: activeTransition || 'Cross Dissolve', durationSec: transitionDurationSec }));
@@ -2124,6 +2168,29 @@ useEffect(() => {
       const following = at >= 0 ? slides[at + 1] : undefined;
       if (following && following.layers.some(l => l.content.kind === 'SCRIPTURE')) { autoCueToken.current++; cueSlideToPreview(following, at + 1); }
       else autoCueNextAfter({ reference: scr.reference ?? '', translation: scr.translation });
+    }
+
+    // Automatic lyric transcription feed when taking an audio/lyric slide
+    const isLyricOrAudio = s.layers.some(l => {
+      if (l.content.kind === 'LYRICS') return true;
+      if (l.content.kind === 'TELA_TEMPLATE') {
+        const t = (l.content as TemplateContent).templateId;
+        return t.startsWith('audio-') || t === 'song-title' || templateById(t)?.category === 'Audio' || templateById(t)?.category === 'Worship';
+      }
+      return false;
+    }) || s.group === 'Worship' || s.group === 'Audio';
+
+    if (isLyricOrAudio) {
+      setIsDjLiveOnProgram(true);
+      setIsDjCuedInPreview(false);
+      setDjVisualizerEnabled(true);
+      const isBusPlaying = Boolean(busSnap?.playing ?? (typeof audioBus !== 'undefined' ? audioBus.state.playing : false));
+      const curTrack = busSnap?.queue[busSnap.index];
+      if (isBusPlaying && curTrack && lyricsFor(curTrack).length > 0) {
+        setLyricsProgram({ wantLive: true, source: 'bus' });
+      } else if (activeDjTrack && lyricsFor(activeDjTrack).length > 0) {
+        setLyricsProgram({ wantLive: true, source: 'dj' });
+      }
     }
   };
 
@@ -3665,12 +3732,12 @@ useEffect(() => {
 
             {/* Action buttons */}
             <div className="flex items-center gap-2">
-              {/* + Add Slide button */}
+              {/* + Add Slide button — inserts in sequential order after the last slide */}
               <button
-                onClick={() => handleAddSlide(selected)}
+                onClick={() => handleAddSlide(slides.length - 1)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-bold text-[11px] transition-all hover:brightness-110 shadow-lg"
                 style={{ background: BRAND, boxShadow: '0 4px 14px rgba(212,0,85,0.3)' }}
-                title="Add a new slide to this presentation"
+                title="Add a new slide to the end of this presentation (sequential order)"
               >
                 <Plus size={13} />
                 <span>Add Slide</span>
@@ -3866,12 +3933,101 @@ useEffect(() => {
               </div>
             )}
 
+            {/* Presentation Deck Toolbar: Sequential Flow vs Group by Type, and Type Filters */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 px-2 py-1.5 rounded-lg border border-white/10 bg-white/[0.03]">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center rounded-md p-0.5 bg-black/40 border border-white/10 text-[10px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setDeckGroupingMode('sequential')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-all ${
+                      deckGroupingMode === 'sequential'
+                        ? 'bg-[#00DAF3] text-black shadow'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                    title="Sequential order is the primary presentation flow (1, 2, 3...)"
+                  >
+                    <span>1 2 3</span>
+                    <span>Sequential Flow</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeckGroupingMode('grouped')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-all ${
+                      deckGroupingMode === 'grouped'
+                        ? 'bg-[#D0BCFF] text-black shadow'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                    title="Organize deck view with grouped section headers"
+                  >
+                    <span>::</span>
+                    <span>Group by Type</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Type Filter Pills */}
+              <div className="flex items-center gap-1">
+                {(['all', 'lyrics', 'scripture', 'media', 'audio'] as const).map(tf => {
+                  const count = tf === 'all'
+                    ? slides.length
+                    : slides.filter(sl => {
+                        if (tf === 'lyrics') {
+                          return sl.layers.some(l => l.content.kind === 'LYRICS' || (l.content.kind === 'TELA_TEMPLATE' && (templateById((l.content as TemplateContent).templateId)?.category === 'Worship' || templateById((l.content as TemplateContent).templateId)?.category === 'Lyrics' || (l.content as TemplateContent).templateId.startsWith('audio-')))) || sl.group === 'Worship' || sl.group === 'Verse 1' || sl.group === 'Chorus';
+                        }
+                        if (tf === 'scripture') {
+                          return sl.layers.some(l => l.content.kind === 'SCRIPTURE') || sl.group === 'Scripture';
+                        }
+                        if (tf === 'media') {
+                          return sl.layers.some(l => l.content.kind === 'VIDEO' || l.content.kind === 'IMAGE' || l.content.kind === 'SHADER' || l.content.kind === 'LIVE_INPUT');
+                        }
+                        if (tf === 'audio') {
+                          return sl.layers.some(l => l.content.kind === 'AUDIO') || sl.group === 'Audio Assets' || sl.group === 'Audio' || sl.onEnter?.some(a => a.kind === 'AUDIO_PLAY');
+                        }
+                        return true;
+                      }).length;
+                  return (
+                    <button
+                      key={tf}
+                      type="button"
+                      onClick={() => setDeckTypeFilter(tf)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold capitalize transition-all ${
+                        deckTypeFilter === tf
+                          ? 'bg-white/20 text-white shadow-sm border border-white/30'
+                          : 'text-white/40 hover:text-white/80'
+                      }`}
+                    >
+                      {tf} <span className="opacity-60 text-[9px]">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
               {slides.map((s, i) => {
+                const matchesFilter = (() => {
+                  if (deckTypeFilter === 'all') return true;
+                  if (deckTypeFilter === 'lyrics') {
+                    return s.layers.some(l => l.content.kind === 'LYRICS' || (l.content.kind === 'TELA_TEMPLATE' && (templateById((l.content as TemplateContent).templateId)?.category === 'Worship' || templateById((l.content as TemplateContent).templateId)?.category === 'Lyrics' || (l.content as TemplateContent).templateId.startsWith('audio-')))) || s.group === 'Worship' || s.group === 'Verse 1' || s.group === 'Chorus';
+                  }
+                  if (deckTypeFilter === 'scripture') {
+                    return s.layers.some(l => l.content.kind === 'SCRIPTURE') || s.group === 'Scripture';
+                  }
+                  if (deckTypeFilter === 'media') {
+                    return s.layers.some(l => l.content.kind === 'VIDEO' || l.content.kind === 'IMAGE' || l.content.kind === 'SHADER' || l.content.kind === 'LIVE_INPUT');
+                  }
+                  if (deckTypeFilter === 'audio') {
+                    return s.layers.some(l => l.content.kind === 'AUDIO') || s.group === 'Audio Assets' || s.group === 'Audio' || s.onEnter?.some(a => a.kind === 'AUDIO_PLAY');
+                  }
+                  return true;
+                })();
+                if (!matchesFilter) return null;
+
                 const isLive = s.id === liveSlideId;
                 const isSel = i === selected;
                 const prevGroup = i > 0 ? slides[i - 1].group : undefined;
-                const showHeader = s.group && s.group !== prevGroup;
+                const showHeader = deckGroupingMode === 'grouped' && s.group && s.group !== prevGroup;
                 const isDragOver = dragOverIndex === i;
                 const hasAudio = s.layers.some(l => l.content.kind === 'AUDIO') || s.group === 'Audio Assets' || s.onEnter?.some(a => a.kind === 'AUDIO_PLAY');
 
@@ -3934,9 +4090,13 @@ useEffect(() => {
                           : 'none',
                       }}
                     >
+                      {/* Sequential Order Number Badge */}
+                      <span className="absolute top-1.5 left-1.5 z-[4] px-1.5 py-0.5 rounded text-[9px] font-mono font-black text-white/90 bg-black/70 backdrop-blur-sm border border-white/20 shadow-md">
+                        {i + 1}
+                      </span>
                       {insertAt === i && <span className="absolute top-0 bottom-0 left-0 w-[4px] z-[8] pointer-events-none" style={{ background: CYAN, boxShadow: '0 0 10px rgba(0,218,243,0.9)' }} />}
                       {insertAt === slides.length && i === slides.length - 1 && <span className="absolute top-0 bottom-0 right-0 w-[4px] z-[8] pointer-events-none" style={{ background: CYAN, boxShadow: '0 0 10px rgba(0,218,243,0.9)' }} />}
-                      {!isLive && !isSel && s.groupColor && <span className="absolute top-0 left-0 right-0 h-[3px] z-[3]" style={{ background: s.groupColor }} />}
+                      {!isLive && !isSel && s.groupColor && deckGroupingMode === 'grouped' && <span className="absolute top-0 left-0 right-0 h-[3px] z-[3]" style={{ background: s.groupColor }} />}
                       {isLive && (
                         <span className="absolute top-1 right-1.5 z-[3] text-[8px] font-extrabold px-1.5 rounded flex items-center gap-1" style={{ background: ORANGE, color: '#2a1400' }}>
                           LIVE {isLoopDeckActive && <span className="font-mono">({currentSlideLoops}/{loopDeckCount})</span>}
@@ -3949,20 +4109,8 @@ useEffect(() => {
                         </span>
                       )}
                       <div className="aspect-square grid place-items-center px-2 text-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#1a0b2e,#06121f)' }}>
-                        {/* Slide Thumbnail */}
-                        {s.thumb ? (
-                          <img src={s.thumb} alt={s.label || ''} className="absolute inset-0 w-full h-full object-cover" />
-                        ) : (() => {
-                          const tl = s.layers.find(l => l.content.kind === 'TELA_TEMPLATE');
-                          if (tl && tl.content.kind === 'TELA_TEMPLATE') {
-                            return <SlideThumb templateId={tl.content.templateId} theme={tl.content.theme} fields={tl.content.fields} square={true} className="absolute inset-0 w-full h-full object-cover" />;
-                          }
-                          const imgLayer = s.layers.find(l => l.content.kind === 'IMAGE' && l.content.src);
-                          if (imgLayer && imgLayer.content.kind === 'IMAGE') {
-                            return <img src={imgLayer.content.src} alt="" className="absolute inset-0 w-full h-full object-cover" />;
-                          }
-                          return null;
-                        })()}
+                        {/* Universal Slide Thumbnail (Precomputed, Tela, Scripture, Images, Videos, Waveforms/Audio, Shaders, Empty) */}
+                        <AmboSlideStill slide={s} className="absolute inset-0 w-full h-full object-cover" />
 
                         {/* Subtle gradient scrim */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
@@ -3975,7 +4123,7 @@ useEffect(() => {
                         <span className="text-[12px] font-semibold text-white leading-tight line-clamp-3 relative z-[2] px-1" style={{ fontFamily: 'Palatino Linotype, Palatino, Georgia, serif', textShadow: '0 1px 8px rgba(0,0,0,0.85), 0 2px 14px rgba(0,0,0,0.95)' }}>
                           {s.layers.length === 0
                             ? <span className="flex flex-col items-center gap-1 text-white/35 font-sans" data-empty-slide><span className="w-8 h-5 rounded-[3px] border border-dashed border-white/30" /><span className="text-[9.5px] font-bold uppercase tracking-wider">Empty slide</span><span className="text-[9px] font-normal normal-case tracking-normal">Double-click to design</span></span>
-                            : (!s.thumb && !s.layers.some(l => l.content.kind === 'TELA_TEMPLATE')) ? slideText(s) : null}
+                            : (!s.thumb && !s.layers.some(l => l.content.kind === 'TELA_TEMPLATE' || l.content.kind === 'SCRIPTURE' || l.content.kind === 'AUDIO' || l.content.kind === 'VIDEO' || l.content.kind === 'IMAGE')) ? slideText(s) : null}
                         </span>
                         {/* Hover Quick Action Buttons */}
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 z-[5] p-1 pointer-events-none group-hover:pointer-events-auto">
@@ -4202,9 +4350,22 @@ useEffect(() => {
             setIsDjCuedInPreview(true);
           }}
           onTakeAudioTrack={track => {
-            setActiveDjTrack(track);
+            const isSameAsDj = activeDjTrack && (
+              activeDjTrack.id === track.id ||
+              (activeDjTrack.url && track.url && activeDjTrack.url === track.url) ||
+              activeDjTrack.title === track.title
+            );
+            const cur = audioBus.state.queue[audioBus.state.index];
+            const isSameAsBus = cur && (cur.id === track.id || (cur.url && track.url && cur.url === track.url) || cur.title === track.title);
+            if (!isSameAsDj && !isSameAsBus) {
+              setActiveDjTrack(track);
+            }
             setIsDjLiveOnProgram(true);
             setIsDjCuedInPreview(false);
+            setDjVisualizerEnabled(true);
+            if (lyricsFor(track).length > 0) {
+              setLyricsProgram({ wantLive: true, source: isSameAsBus ? 'bus' : 'dj' });
+            }
           }}
           onInsertAudioSlide={handleCreateAudioSlide}
           onInsertMediaSlide={handleInsertMediaSlide}

@@ -40,17 +40,67 @@ public sealed class SpeechBridgeService : IDisposable
 
     public SpeechBridgeService(Action<string> postToWeb) { _post = postToWeb; }
 
-    private void Send(object o) => _post(JsonSerializer.Serialize(o));
-    private void State(string s) => Send(new { type = "SPEECH_STATE", state = s, mode = _mode });
-    private void Error(string code, string message) { Send(new { type = "SPEECH_ERROR", code, message }); State("error"); }
+    // Free-form listening (Ambo live captions / auto-scripture): the passage-list fallback is useless there,
+    // so failures are reported to the web layer (which then switches to on-device Whisper) instead.
+    private bool _strict;
+    private int _consecutiveFailures;
 
-    public async Task StartAsync(string? lang, IEnumerable<string>? words)
+    private static readonly object LogGate = new();
+    private static void Log(string msg)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Plajah", "logs");
+            System.IO.Directory.CreateDirectory(dir);
+            var file = System.IO.Path.Combine(dir, "speech.log");
+            lock (LogGate)
+            {
+                var fi = new System.IO.FileInfo(file);
+                if (fi.Exists && fi.Length > 500_000) System.IO.File.Move(file, file + ".old", overwrite: true);
+                System.IO.File.AppendAllText(file, $"{DateTimeOffset.Now:O} {msg}{Environment.NewLine}");
+            }
+        }
+        catch { /* logging must never throw */ }
+    }
+
+    private void Send(object o) => _post(JsonSerializer.Serialize(o));
+    private void State(string s) { Log($"state {s} ({_mode})"); Send(new { type = "SPEECH_STATE", state = s, mode = _mode }); }
+    private void Error(string code, string message) { Log($"ERROR {code}: {message}"); Send(new { type = "SPEECH_ERROR", code, message }); State("error"); }
+
+    /// <summary>Checks (and if needed prompts for) microphone access for this packaged app.</summary>
+    private async Task<bool> EnsureMicAsync()
+    {
+        try
+        {
+            var cap = Windows.Security.Authorization.AppCapabilityAccess.AppCapability.Create("microphone");
+            var status = cap.CheckAccess();
+            Log($"mic access: {status}");
+            if (status == Windows.Security.Authorization.AppCapabilityAccess.AppCapabilityAccessStatus.UserPromptRequired)
+            {
+                status = await cap.RequestAccessAsync();
+                Log($"mic access after prompt: {status}");
+            }
+            if (status == Windows.Security.Authorization.AppCapabilityAccess.AppCapabilityAccessStatus.DeniedByUser ||
+                status == Windows.Security.Authorization.AppCapabilityAccess.AppCapabilityAccessStatus.DeniedBySystem)
+            {
+                Error("not-allowed", "Microphone access is off. Allow Plajah to use the microphone in Windows Settings → Privacy & security → Microphone.");
+                return false;
+            }
+        }
+        catch (Exception ex) { Log($"mic capability check failed: {ex.Message}"); }
+        return true;
+    }
+
+    public async Task StartAsync(string? lang, IEnumerable<string>? words, bool strict = false)
     {
         _lang = string.IsNullOrWhiteSpace(lang) ? "en-US" : lang!;
         _words = (words ?? Enumerable.Empty<string>())
             .Select(w => new string(w.Where(c => char.IsLetterOrDigit(c) || c == '\'').ToArray()).ToLowerInvariant())
             .Where(w => w.Length > 0).Distinct().Take(800).ToList();
+        _strict = strict; _consecutiveFailures = 0;
         _active = true; _suspended = false; _mode = "dictation";
+        Log($"start lang={_lang} words={_words.Count} strict={strict}");
+        if (!await EnsureMicAsync()) { _active = false; return; }
         await SpawnAsync();
     }
 
@@ -75,7 +125,8 @@ public sealed class SpeechBridgeService : IDisposable
         try
         {
             var rec = new SpeechRecognizer(new Language(_lang));
-            rec.Timeouts.EndSilenceTimeout = TimeSpan.FromSeconds(1.2);
+            // Ultra-low latency timeouts: finalize phrases within 350ms of silence
+            rec.Timeouts.EndSilenceTimeout = TimeSpan.FromSeconds(0.35);
             rec.Timeouts.BabbleTimeout = TimeSpan.FromSeconds(0);
             rec.ContinuousRecognitionSession.AutoStopSilenceTimeout = TimeSpan.FromMinutes(10);
             if (_mode == "passage" && _words.Count > 0)
@@ -89,48 +140,67 @@ public sealed class SpeechBridgeService : IDisposable
                 rec.Constraints.Add(new SpeechRecognitionTopicConstraint(SpeechRecognitionScenario.Dictation, "dictation"));
             }
             var compiled = await rec.CompileConstraintsAsync();
+            Log($"compile ({_mode}): {compiled.Status}");
             if (compiled.Status != SpeechRecognitionResultStatus.Success)
             {
                 rec.Dispose();
-                if (_mode == "dictation" && _words.Count > 0) { _mode = "passage"; await SpawnAsync(); return; }
-                Error("unsupported", "Windows speech recognition is not available. Use Listener mode, or add an English speech pack in Windows Settings.");
+                if (!_strict && _mode == "dictation" && _words.Count > 0) { _mode = "passage"; await SpawnAsync(); return; }
+                _active = false;
+                Error("unsupported", $"Windows speech recognition is not available ({compiled.Status}). Add an English speech pack / turn on Online speech recognition in Windows Settings.");
                 return;
             }
             rec.HypothesisGenerated += OnHypothesis;
             rec.ContinuousRecognitionSession.ResultGenerated += OnResult;
             rec.ContinuousRecognitionSession.Completed += OnCompleted;
             _rec = rec;
+            _lastStart = DateTime.UtcNow;
             await rec.ContinuousRecognitionSession.StartAsync();
             State("listening");
         }
         catch (Exception ex) when (ex.HResult == HResultPrivacyDeclined)
         {
-            // online speech is off in Windows privacy settings: switch quietly to offline passage mode
-            if (_mode == "dictation" && _words.Count > 0) { _mode = "passage"; await SpawnAsync(); }
-            else Error("privacy", "Turn on Online speech recognition in Windows Settings → Privacy → Speech, or use Listener mode.");
+            Log($"privacy declined: {ex.Message}");
+            // online speech is off in Windows privacy settings: switch quietly to offline passage mode (read-aloud only)
+            if (!_strict && _mode == "dictation" && _words.Count > 0) { _mode = "passage"; await SpawnAsync(); }
+            else { _active = false; Error("privacy", "Turn on Online speech recognition in Windows Settings → Privacy → Speech."); }
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
+            Log($"unauthorized: {ex.Message}");
             _active = false;
             Error("not-allowed", "Microphone access is off. Allow Plajah to use the microphone in Windows Settings → Privacy → Microphone.");
         }
         catch (Exception ex)
         {
-            if (ex.HResult == unchecked((int)0x80045509) || ex.Message.Contains("privacy", StringComparison.OrdinalIgnoreCase))
+            Log($"spawn failed 0x{ex.HResult:X8}: {ex.Message}");
+            if (!_strict && (ex.HResult == HResultPrivacyDeclined || ex.Message.Contains("privacy", StringComparison.OrdinalIgnoreCase)))
             {
                 if (_mode == "dictation" && _words.Count > 0) { _mode = "passage"; await SpawnAsync(); return; }
+            }
+            if (_strict && ++_consecutiveFailures >= 3)
+            {
+                _active = false;
+                Error("failed", $"Windows speech recognition could not start (0x{ex.HResult:X8}): {ex.Message}");
+                return;
             }
             Restart();
         }
     }
 
+    private DateTime _lastStart = DateTime.UtcNow;
+
     private void OnHypothesis(SpeechRecognizer sender, SpeechRecognitionHypothesisGeneratedEventArgs args)
-        => Send(new { type = "SPEECH_PARTIAL", text = args.Hypothesis.Text });
+    {
+        _consecutiveFailures = 0;
+        Send(new { type = "SPEECH_PARTIAL", text = args.Hypothesis.Text });
+    }
 
     private void OnResult(SpeechContinuousRecognitionSession sender, SpeechContinuousRecognitionResultGeneratedEventArgs args)
     {
         var r = args.Result;
-        if (r.Status != SpeechRecognitionResultStatus.Success || r.Confidence == SpeechRecognitionConfidence.Rejected) return;
+        Log($"result status={r.Status} conf={r.Confidence} len={r.Text?.Length ?? 0}");
+        if (r.Status != SpeechRecognitionResultStatus.Success || string.IsNullOrWhiteSpace(r.Text)) return;
+        _consecutiveFailures = 0;
         var alts = new List<string>();
         try { alts = r.GetAlternates(3).Skip(1).Select(a => a.Text).ToList(); } catch { }
         Send(new { type = "SPEECH_FINAL", text = r.Text, alts });
@@ -138,7 +208,20 @@ public sealed class SpeechBridgeService : IDisposable
 
     private void OnCompleted(SpeechContinuousRecognitionSession sender, SpeechContinuousRecognitionCompletedEventArgs args)
     {
+        Log($"completed: {args.Status}");
         if (args.Status == SpeechRecognitionResultStatus.UserCanceled) return;
+        // A session that dies right after starting (mic busy, language unsupported, privacy) is a real failure.
+        var quick = (DateTime.UtcNow - _lastStart).TotalSeconds < 3;
+        var fatal = args.Status is SpeechRecognitionResultStatus.MicrophoneUnavailable
+            or SpeechRecognitionResultStatus.TopicLanguageNotSupported
+            or SpeechRecognitionResultStatus.GrammarLanguageMismatch
+            or SpeechRecognitionResultStatus.GrammarCompilationFailure;
+        if (_strict && (fatal || (quick && ++_consecutiveFailures >= 3)))
+        {
+            _active = false;
+            Error("failed", $"Windows speech recognition stopped: {args.Status}");
+            return;
+        }
         Restart();
     }
 

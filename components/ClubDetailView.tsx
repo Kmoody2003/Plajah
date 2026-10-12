@@ -949,7 +949,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                             {platformAlbums.map(album => (
                               <button key={album.id} onClick={() => addPlatformAlbum(album)}
                                 className="group rounded-xl overflow-hidden border border-white/5 hover:border-small-orange/50 transition-all">
-                                <img src={thumb(coverGridSrc(album), THUMB.card)} onError={onThumbError(album.coverImage)} decoding="async" loading="lazy" className="w-full aspect-square object-cover group-hover:scale-110 transition-transform" loading="lazy" />
+                                <img src={thumb(coverGridSrc(album), THUMB.card)} onError={onThumbError(album.coverImage)} decoding="async" loading="lazy" className="w-full aspect-square object-cover group-hover:scale-110 transition-transform" />
                                 <p className="text-[7px] font-black truncate px-1 py-1 opacity-60">{album.title}</p>
                               </button>
                             ))}

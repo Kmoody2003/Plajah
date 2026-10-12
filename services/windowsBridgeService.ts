@@ -259,6 +259,89 @@ export function invokeNativeStemSeparation(
   );
 }
 
+export interface PersonaPlexPackageStatus {
+  installed: boolean;
+  modelPath?: string;
+  downloadProgress?: number; // 0 - 100
+  downloadState?: 'idle' | 'downloading' | 'verifying' | 'installed' | 'error';
+  downloadSpeed?: string;
+  bytesDownloaded?: number;
+  totalBytes?: number;
+  serviceRunning: boolean;
+  port?: number;
+  error?: string;
+}
+
+/** Query local PersonaPlex-7B on-device model and daemon status. */
+export function queryPersonaPlexStatus(): Promise<PersonaPlexPackageStatus> {
+  if (!isWindowsApp()) {
+    return Promise.resolve({
+      installed: false,
+      downloadProgress: 0,
+      downloadState: 'idle',
+      serviceRunning: false,
+    });
+  }
+  return requestNativeResponse<PersonaPlexPackageStatus>('PERSONAPLEX_STATUS_QUERY', 'PERSONAPLEX_STATUS_RESULT');
+}
+
+/** Begin background download of PersonaPlex-7B model weights via WinUI shell. */
+export function startPersonaPlexDownload(
+  onProgress?: (status: PersonaPlexPackageStatus) => void
+): Promise<{ started: boolean }> {
+  if (!isWindowsApp()) {
+    return Promise.resolve({ started: false });
+  }
+  if (onProgress) {
+    const webview = (window as any).chrome?.webview;
+    const progressHandler = (event: MessageEvent) => {
+      try {
+        const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (msg?.type === 'PERSONAPLEX_DOWNLOAD_PROGRESS' && msg.status) {
+          onProgress(msg.status);
+        }
+      } catch {}
+    };
+    webview?.addEventListener('message', progressHandler);
+  }
+  return requestNativeResponse<{ started: boolean }>('PERSONAPLEX_DOWNLOAD_START', 'PERSONAPLEX_DOWNLOAD_RESULT');
+}
+
+/** Cancel any active download of PersonaPlex model weights. */
+export function cancelPersonaPlexDownload(): Promise<boolean> {
+  if (!isWindowsApp()) return Promise.resolve(false);
+  return requestNativeResponse<{ success: boolean }>('PERSONAPLEX_DOWNLOAD_CANCEL', 'PERSONAPLEX_DOWNLOAD_CANCEL_RESULT')
+    .then(r => !!r?.success)
+    .catch(() => false);
+}
+
+/** Launch the local PersonaPlex full-duplex speech daemon (PyTorch / CUDA / LibOpus on 127.0.0.1). */
+export function launchPersonaPlexDaemon(): Promise<{ success: boolean; port: number; error?: string }> {
+  if (!isWindowsApp()) {
+    return Promise.resolve({ success: false, port: 0, error: 'Windows app required' });
+  }
+  return requestNativeResponse<{ success: boolean; port: number; error?: string }>(
+    'PERSONAPLEX_DAEMON_LAUNCH',
+    'PERSONAPLEX_DAEMON_LAUNCH_RESULT'
+  );
+}
+
+/** Stop the local PersonaPlex full-duplex speech daemon. */
+export function stopPersonaPlexDaemon(): Promise<boolean> {
+  if (!isWindowsApp()) return Promise.resolve(false);
+  return requestNativeResponse<{ success: boolean }>('PERSONAPLEX_DAEMON_STOP', 'PERSONAPLEX_DAEMON_STOP_RESULT')
+    .then(r => !!r?.success)
+    .catch(() => false);
+}
+
+/** Delete cached PersonaPlex model weights to free up disk space. */
+export function deletePersonaPlexWeights(): Promise<boolean> {
+  if (!isWindowsApp()) return Promise.resolve(false);
+  return requestNativeResponse<{ success: boolean }>('PERSONAPLEX_DELETE_WEIGHTS', 'PERSONAPLEX_DELETE_WEIGHTS_RESULT')
+    .then(r => !!r?.success)
+    .catch(() => false);
+}
+
 /** Invoke on-device Nemotron model via WinUI shell. */
 export function invokeNativeLlm(prompt: string, systemPrompt?: string): Promise<LlmResponseResult> {
   if (!isWindowsApp()) {
@@ -868,7 +951,28 @@ export function applyWindowsBodyClass(): void {
   }
 }
 
+// ── Native Media Engine Bridge ───────────────────────────────────────────
+export interface NativeMediaEngine {
+  capabilities?: any;
+  invoke?: (cmd: string, args?: any) => Promise<any>;
+  invokeNative?: (cmd: string, args?: any) => Promise<any>;
+}
+
+export function getNativeMediaEngine(): NativeMediaEngine | null {
+  if (typeof window === 'undefined') return null;
+  const me = (window as any).plajahMediaEngine || (window as any).__plajahMediaEngine;
+  if (!me) return null;
+  if (!me.invokeNative && typeof me.invoke === 'function') {
+    me.invokeNative = me.invoke.bind(me);
+  }
+  if (!me.invoke && typeof me.invokeNative === 'function') {
+    me.invoke = me.invokeNative.bind(me);
+  }
+  return me;
+}
+
 // ── Auto-initialise on import ─────────────────────────────────────────────
 if (typeof window !== 'undefined') {
   applyWindowsBodyClass();
 }
+

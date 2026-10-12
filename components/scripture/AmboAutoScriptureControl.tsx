@@ -89,6 +89,12 @@ const AmboAutoScriptureControl: React.FC = () => {
           </div>
         )}
         {state.error && <div className="text-[10.5px] text-[#F5C542]"><AlertTriangle size={10} className="inline mr-1" />{state.error}</div>}
+        {(on || state.starting) && (
+          <div className="text-[10.5px] leading-snug text-white/55 break-words">
+            <span className="text-white/35 uppercase text-[9px] font-extrabold tracking-wider mr-1.5">{state.status || 'Listening'}</span>
+            {state.heard ? <span className="text-white/80">“{state.heard}”</span> : <span className="text-white/35">no words yet — say “John 3:16”</span>}
+          </div>
+        )}
 
         <Row label="Act on">
           <IntentToggles />
@@ -170,14 +176,24 @@ const AmboAutoScriptureControl: React.FC = () => {
     document.body,
   ) : null;
 
+  const engaged = on || state.starting;
   return (
     <>
-      <button ref={btnRef} onClick={() => setOpen(o => !o)}
-        className={`px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 ${on ? 'text-black bg-[#2BE0A8] border-[#2BE0A8]' : open ? 'text-[#E3C57E] bg-[#E3C57E]/15 border-[#E3C57E]/30' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
-        title="Listen for scripture and the offering, and bring them on screen">
-        {on ? <Radio size={11} className="animate-pulse" /> : <Layers size={11} />} Auto scripture{on ? ' · ON' : ''}
-        {on && <AmboLiveInputWaveform compact height={14} className="w-14 ml-0.5" />}
-      </button>
+      <div className="flex items-stretch">
+        <button
+          onClick={() => (engaged ? stopAutoScripture() : void startAutoScripture())}
+          className={`px-2 py-1 rounded-l text-[9.5px] font-bold border flex items-center gap-1 transition-all ${engaged ? 'text-white bg-[#8B5CF6] border-[#A78BFA] shadow-[0_0_10px_rgba(139,92,246,0.55)]' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
+          title={engaged ? 'Auto scripture is listening — click to stop' : 'Start listening: spoken book, chapter and verse go to Preview/Program'}>
+          {state.starting ? <Radio size={11} className="animate-spin" /> : on ? <Radio size={11} className="animate-pulse" /> : <Layers size={11} />}
+          Auto scripture{state.starting ? ' · …' : on ? ' · ON' : ''}
+          {on && <AmboLiveInputWaveform compact height={14} className="w-14 ml-0.5" />}
+        </button>
+        <button ref={btnRef} onClick={() => setOpen(o => !o)}
+          className={`px-1.5 rounded-r text-[9.5px] font-bold border border-l-0 flex items-center ${engaged ? 'text-white bg-[#8B5CF6]/80 border-[#A78BFA]' : open ? 'text-[#E3C57E] bg-[#E3C57E]/15 border-[#E3C57E]/30' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
+          title="Auto scripture settings" aria-label="Auto scripture settings">
+          ⚙
+        </button>
+      </div>
       {panel}
     </>
   );

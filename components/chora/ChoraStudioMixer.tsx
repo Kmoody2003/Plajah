@@ -28,6 +28,8 @@ import {
   hasNativeEngine
 } from '../../services/mediaEngine/bridge';
 import { Knob } from '../melos/beats/shared/Knob';
+import { plajahAudioCore } from '../../services/voice/plajahAudioCore';
+import { proceduralFoley, FOLEY_PRESETS } from '../../services/audio/proceduralFoleyEngine';
 import {
   SURFACE,
   SURFACE_RAISED,
@@ -80,10 +82,63 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
   const [avbState, setAvbState] = useState<AvbState>(avbService.getState());
 
   // Active drawer modals
-  const [drawerOpen, setDrawerOpen] = useState<'NONE' | 'AVB_MATRIX' | 'MACKIE_SETTINGS' | 'BROADCAST_ROUTING' | 'CHANNEL_DETAIL'>('NONE');
+  const [drawerOpen, setDrawerOpen] = useState<'NONE' | 'AVB_MATRIX' | 'MACKIE_SETTINGS' | 'BROADCAST_ROUTING' | 'CHANNEL_DETAIL' | 'VOCAL_FOLEY_RACK'>('NONE');
   const [smartMixMode, setSmartMixMode] = useState(true); // Easy vs Pro Channel
   const [omtBroadcasting, setOmtBroadcasting] = useState(false);
   const [srtStreaming, setSrtStreaming] = useState(false);
+
+  // AI Vocal Drop & Foley Generator state
+  const [vocalPrompt, setVocalPrompt] = useState('Drop into the bassline, spatial night.');
+  const [vocalBpm, setVocalBpm] = useState(124);
+  const [vocalKey, setVocalKey] = useState('D Minor');
+  const [vocalBusy, setVocalBusy] = useState(false);
+
+  const handleGenerateVocalDrop = async () => {
+    if (!vocalPrompt.trim() || vocalBusy) return;
+    setVocalBusy(true);
+    try {
+      const res = await plajahAudioCore.synthesizeChoraVocalDrop({
+        text: vocalPrompt,
+        bpm: vocalBpm,
+        key: vocalKey,
+      });
+      const newTrackId = 'trk_vocal_' + Date.now();
+      const newTrack: MixerTrackStrip = {
+        id: newTrackId,
+        name: 'AI VOCAL',
+        volumeGain: 1.0,
+        pan: 0.0,
+        mute: false,
+        solo: false,
+        armed: true,
+        selected: true,
+        color: '#FF8C00',
+        meterLevel: 0.75,
+        eqLowDb: -1.0,
+        eqMidDb: 1.5,
+        eqHighDb: 2.0,
+        send1Gain: 0.25,
+        send2Gain: 0.15,
+      };
+      setTracks(prev => [...prev, newTrack]);
+      setSelectedTrackIndex(tracks.length);
+      const audioUrl = URL.createObjectURL(res.audioBlob);
+      new Audio(audioUrl).play().catch(() => {});
+    } catch (e) {
+      console.error('Failed generating vocal drop:', e);
+    }
+    setVocalBusy(false);
+  };
+
+  const handleTriggerMixerFoley = (presetId: string) => {
+    try {
+      const res = proceduralFoley.renderFoley({ presetId, bpm: vocalBpm, beatBars: 2 });
+      const audioUrl = URL.createObjectURL(res.wavBlob);
+      new Audio(audioUrl).play().catch(() => {});
+    } catch (e) {
+      console.error('Failed triggering foley:', e);
+    }
+  };
 
   const selectedTrack = tracks[selectedTrackIndex] || tracks[0];
 
@@ -412,6 +467,19 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
           >
             <Zap size={12} style={{ color: smartMixMode ? '#FF8C00' : undefined }} />
             <span>{smartMixMode ? 'SMART MIX' : 'PRO CHANNEL'}</span>
+          </button>
+
+          {/* AI Vocal & Foley Rack */}
+          <button
+            onClick={() => setDrawerOpen(d => d === 'VOCAL_FOLEY_RACK' ? 'NONE' : 'VOCAL_FOLEY_RACK')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-[0.12em] transition-all border"
+            style={drawerOpen === 'VOCAL_FOLEY_RACK'
+              ? { background: 'rgba(255,140,0,0.22)', borderColor: BRAND_A, color: BRAND_A, boxShadow: '0 0 14px rgba(255,140,0,0.3)' }
+              : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }}
+            title="AI Vocal Drop & Procedural Foley Studio Rack"
+          >
+            <Mic size={12} style={{ color: BRAND_A }} />
+            <span>VOCAL &amp; FOLEY</span>
           </button>
 
           {/* Mackie Settings */}
@@ -832,11 +900,13 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
                   {drawerOpen === 'MACKIE_SETTINGS' && <Sliders size={16} style={{ color: PLAYHEAD }} />}
                   {drawerOpen === 'BROADCAST_ROUTING' && <Radio size={16} style={{ color: ARMED }} />}
                   {drawerOpen === 'CHANNEL_DETAIL' && <SlidersHorizontal size={16} style={{ color: SELECT }} />}
+                  {drawerOpen === 'VOCAL_FOLEY_RACK' && <Mic size={16} style={{ color: BRAND_A }} />}
                   <h3 className="text-xs font-bold uppercase tracking-widest text-white">
                     {drawerOpen === 'AVB_MATRIX' && 'AVB / Milan Network Routing'}
                     {drawerOpen === 'MACKIE_SETTINGS' && 'Mackie MCU Controller Setup'}
                     {drawerOpen === 'BROADCAST_ROUTING' && 'OMT & SRT Broadcast Engine'}
                     {drawerOpen === 'CHANNEL_DETAIL' && `Channel Strip: ${selectedTrack.name}`}
+                    {drawerOpen === 'VOCAL_FOLEY_RACK' && 'AI Vocal Drop & Foley Rack'}
                   </h3>
                 </div>
                 <button
@@ -1007,6 +1077,129 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
                           }}
                         />
                         <span className="text-[8px] font-mono text-white/50">{(selectedTrack.eqHighDb ?? 0).toFixed(1)} dB</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. AI Vocal Drop & Foley Rack (Chora Studio Expression) */}
+                {drawerOpen === 'VOCAL_FOLEY_RACK' && (
+                  <div className="flex flex-col gap-5">
+                    {/* AI Vocal Drop Section */}
+                    <div className="p-4 rounded-xl border flex flex-col gap-3" style={{ background: SURFACE_RAISED, borderColor: 'rgba(255,255,255,0.09)' }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Mic size={14} style={{ color: BRAND_A }} />
+                          <span className="font-bold text-white uppercase tracking-wider text-[11px]">AI Vocal Drop Generator</span>
+                        </div>
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded border border-amber-500/30 text-amber-400 bg-amber-500/10">
+                          Kokoro + Fish Speech
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-white/60 leading-relaxed">
+                        Generate BPM-quantized vocal drops, spoken cues, and chops synced directly into a new mixer channel strip.
+                      </p>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Vocal Cue / Phrase</label>
+                        <input
+                          type="text"
+                          value={vocalPrompt}
+                          onChange={(e) => setVocalPrompt(e.target.value)}
+                          placeholder="e.g., Drop the sub bass now..."
+                          className="w-full px-3 py-2 rounded-lg border text-white text-xs outline-none focus:border-amber-400 transition-colors"
+                          style={{ background: SURFACE_CELL, borderColor: 'rgba(255,255,255,0.1)' }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Tempo (BPM)</label>
+                          <input
+                            type="number"
+                            value={vocalBpm}
+                            min={60}
+                            max={200}
+                            onChange={(e) => setVocalBpm(Number(e.target.value))}
+                            className="px-2.5 py-1.5 rounded-lg border text-white font-mono text-xs outline-none focus:border-cyan-400"
+                            style={{ background: SURFACE_CELL, borderColor: 'rgba(255,255,255,0.1)' }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Root Key</label>
+                          <select
+                            value={vocalKey}
+                            onChange={(e) => setVocalKey(e.target.value)}
+                            className="px-2.5 py-1.5 rounded-lg border text-white font-mono text-xs outline-none focus:border-cyan-400"
+                            style={{ background: SURFACE_CELL, borderColor: 'rgba(255,255,255,0.1)' }}
+                          >
+                            {['C Major', 'A Minor', 'D Minor', 'E Minor', 'F# Minor', 'G Major', 'Bb Major'].map(k => (
+                              <option key={k} value={k} className="bg-neutral-900 text-white">{k}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleGenerateVocalDrop}
+                        disabled={vocalBusy || !vocalPrompt.trim()}
+                        className="mt-1 w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                        style={{
+                          background: 'linear-gradient(135deg, #FF8C00, #D40055)',
+                          color: '#fff',
+                          boxShadow: '0 0 16px rgba(255,140,0,0.3)'
+                        }}
+                      >
+                        {vocalBusy ? (
+                          <>
+                            <RefreshCw size={13} className="animate-spin" />
+                            <span>Synthesizing Drop...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap size={13} />
+                            <span>Generate &amp; Add Channel</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Procedural Foley & Sound FX Section */}
+                    <div className="p-4 rounded-xl border flex flex-col gap-3" style={{ background: SURFACE_RAISED, borderColor: 'rgba(255,255,255,0.09)' }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Activity size={14} style={{ color: PLAYHEAD }} />
+                          <span className="font-bold text-white uppercase tracking-wider text-[11px]">Procedural Foley &amp; FX</span>
+                        </div>
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded border border-cyan-500/30 text-cyan-400 bg-cyan-500/10">
+                          100% On-Device WebAudio
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-white/60 leading-relaxed">
+                        Procedural math synthesis without samples. Click any pad to trigger or preview in the studio monitor:
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {FOLEY_PRESETS.map((preset) => (
+                          <button
+                            key={preset.id}
+                            onClick={() => handleTriggerMixerFoley(preset.id)}
+                            className="p-2.5 rounded-xl border flex flex-col items-start gap-1 transition-all hover:border-cyan-400 active:scale-95 group text-left"
+                            style={{ background: SURFACE_CELL, borderColor: 'rgba(255,255,255,0.08)' }}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="font-bold text-white/90 group-hover:text-cyan-300 text-[11px] capitalize">
+                                {preset.name}
+                              </span>
+                              <Volume2 size={12} className="text-white/30 group-hover:text-cyan-300" />
+                            </div>
+                            <span className="text-[9px] text-white/40 line-clamp-1">
+                              {preset.description}
+                            </span>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>

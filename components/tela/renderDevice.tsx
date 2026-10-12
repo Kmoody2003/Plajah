@@ -9,6 +9,7 @@ import type { TelaDevice } from '../../types';
 import type { TelaOp } from './telaOps';
 import type { TelaBaseLite, TelaFormulaContext } from './TelaGrid';
 import TelaWriter, { type TelaWriterSelection } from './TelaWriter';
+import { writerCoalesce } from './writer/writerModel';
 import TelaGrid from './TelaGrid';
 import TelaBase from './TelaBase';
 import TelaForm from './TelaForm';
@@ -56,6 +57,7 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
         readOnly={readOnly}
         onSelectionChange={onWriterSelection}
         onTurnSelectionInto={onWriterInteraction}
+        onWriterEdit={ops => dispatchOp({ type: 'WRITER_EDIT', deviceId: device.id, ops, coalesce: writerCoalesce(ops) ?? undefined })}
         onChangeBlocks={blocks => dispatchOp({ type: 'SET_WRITER_BLOCKS', deviceId: device.id, blocks })}
       />
     );

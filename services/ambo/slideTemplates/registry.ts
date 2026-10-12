@@ -9,6 +9,7 @@ import { PHOTO_TEMPLATES } from './templatesPhoto';
 import { VIDEO_TEMPLATES } from './templatesVideo';
 import { AUDIO_TEMPLATES } from './templatesAudio';
 import { DATA_TEMPLATES } from './templatesData';
+import { LYRIC_TEMPLATES } from './templatesLyrics';
 import { FREEFORM_ID, buildFreeformObjects } from './freeform';
 
 const F = (key: string, label: string, def: string, o: Partial<FieldDef> = {}): FieldDef => ({ key, label, default: def, ...o });
@@ -48,10 +49,10 @@ export const SLIDE_TEMPLATES: SlideTemplateDef[] = [
     fields: [F('title', 'Title', 'Stay Connected'), F('handle', 'Handle', '@gracecommunity'), F('web', 'Website', 'gracecommunity.church'), F('platforms', 'Platforms (one per line)', 'Instagram\nYouTube\nFacebook\nSpotify', { multiline: true }), F('connect', 'Connect prompt', 'New here? Scan to fill out a Connect Card — we would love to meet you.', { multiline: true }), F('qrLabel', 'QR caption', 'Connect card'), F('qrUrl', 'QR image URL', '', { hint: 'Optional — paste a QR code image link' })] },
 ];
 
-// Media and data templates live in their own files (each registers its live drawers on import).
-SLIDE_TEMPLATES.push(...PHOTO_TEMPLATES, ...VIDEO_TEMPLATES, ...AUDIO_TEMPLATES, ...DATA_TEMPLATES);
+// Media, data, and lyric templates live in their own files (each registers its live drawers on import).
+SLIDE_TEMPLATES.push(...PHOTO_TEMPLATES, ...VIDEO_TEMPLATES, ...AUDIO_TEMPLATES, ...DATA_TEMPLATES, ...LYRIC_TEMPLATES);
 
-export const TEMPLATE_CATEGORIES = ['Welcome', 'Sermon', 'Worship', 'Announcements', 'Giving', 'Moments', 'Media', 'Photo', 'Video', 'Audio', 'Data'] as const;
+export const TEMPLATE_CATEGORIES = ['Welcome', 'Sermon', 'Worship', 'Lyrics', 'Announcements', 'Giving', 'Moments', 'Media', 'Photo', 'Video', 'Audio', 'Data'] as const;
 
 /** The slide editor's blank-canvas design. Resolvable by id (saved "my design" templates, thumbnails) but not listed in the gallery. */
 const FREEFORM_DEF: SlideTemplateDef = {
@@ -145,6 +146,9 @@ const ROLE_GROUP: Record<string, number> = { GROUND: 0, ORNAMENT: 1, RULE: 1, IM
 
 function hash(s: string): number { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100003; return h; }
 
+/** Sample transcripts the audio templates used to ship with (now empty = live). */
+const LEGACY_SAMPLE_TRANSCRIPT = /^\s*(Psalm twenty-three was not written|0:00 The LORD is my shepherd|0:00 Morning light on the water|Three years ago I walked into this building|Stay with us, Lord, for the evening draws near|0:00 Be still, and know that I am God)/;
+
 /**
  * Build a slide's objects at W×H. Never throws: a designer failure returns null
  * so the caller can fall back to a labelled card.
@@ -155,6 +159,10 @@ export function buildSlideObjects(templateId: string, themeId: string | undefine
   if (!t || !(W > 0) || !(H > 0)) return null;
   const f: Record<string, string> = { ...defaultFields(t) };
   for (const [k, v] of Object.entries(fields || {})) if (typeof v === 'string') f[k] = v;
+  if (templateId.startsWith('audio-') && LEGACY_SAMPLE_TRANSCRIPT.test(f.transcript || '')) f.transcript = '';
+  if (templateId.startsWith('lyrics-') && /^\s*Great is Thy faithfulness, O God my Father/i.test(f.lyrics || '')) {
+    for (const k of ['lyrics', 'title', 'artist', 'kicker', 'nextLyrics', 'info']) f[k] = '';
+  }
   const th = resolveTheme(themeId, f);
   try {
     const objs = t.design({ W, H, L: lay(W, H), th, f, seed: hash(templateId) });

@@ -2,12 +2,23 @@
 // Fonts are EMBEDDED (EB Garamond, SIL OFL, latin subset from @fontsource/eb-garamond) as printers require.
 import { PDFDocument, PDFFont, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+async function getFsAndPath() {
+  if (typeof window !== 'undefined') return null;
+  try {
+    const fs = await import(/* @vite-ignore */ 'node:fs');
+    const path = await import(/* @vite-ignore */ 'node:path');
+    return { fs, path };
+  } catch {
+    return null;
+  }
+}
 
 export interface BookFonts { regular: PDFFont; italic: PDFFont; bold: PDFFont; boldItalic: PDFFont }
 
-function fontDir(): string {
+async function fontDir(): Promise<string> {
+  const np = await getFsAndPath();
+  if (!np) throw new Error('Font embedding is only supported in a Node.js server environment.');
+  const { fs, path } = np;
   const candidates = [
     path.join(process.cwd(), 'node_modules/@fontsource/eb-garamond/files'),
     ...(typeof __dirname !== 'undefined' ? [path.join(__dirname, '../../node_modules/@fontsource/eb-garamond/files')] : []),
@@ -18,7 +29,10 @@ function fontDir(): string {
 
 export async function embedBookFonts(doc: PDFDocument): Promise<BookFonts> {
   doc.registerFontkit(fontkit);
-  const dir = fontDir();
+  const np = await getFsAndPath();
+  if (!np) throw new Error('Font embedding is only supported in a Node.js server environment.');
+  const { fs, path } = np;
+  const dir = await fontDir();
   const load = async (name: string) => doc.embedFont(fs.readFileSync(path.join(dir, `eb-garamond-latin-${name}.woff`)), { subset: true });
   return { regular: await load('400-normal'), italic: await load('400-italic'), bold: await load('700-normal'), boldItalic: await load('700-italic') };
 }

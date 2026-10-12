@@ -11,11 +11,14 @@
  * reorder layer), ids stable.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2, Wand2, Sparkles } from 'lucide-react';
+import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2, Wand2, Sparkles, Square, Circle, Lasso, FlipHorizontal } from 'lucide-react';
 import type { TelaImageDevice, TelaImageLayer, TelaImageAdjust, TelaBlendMode, TelaLayerMask } from '../../types';
 import { uploadTelaImage } from '../../services/telaAssets';
+import { executeGenerativeInpaint } from '../../services/tela/telaInpaintService';
 import { classifyTelaAsset } from '../../services/telaCreativeEngine';
 import { samSegmentationService } from '../../services/samSegmentationService';
+import TelaImageSelectionOverlay from './TelaImageSelectionOverlay';
+import type { Selection, SelectionTool } from '../../services/tela/raster/selectionWorkflow';
 
 export const NEUTRAL_ADJUST: TelaImageAdjust = { brightness: 1, contrast: 1, saturate: 1, exposure: 0, blur: 0 };
 
@@ -58,9 +61,47 @@ const BLEND_MODES: TelaBlendMode[] = [
 export const TelaImageLayerControls: React.FC<{
   layer: TelaImageLayer;
   onUpdate: (patch: Partial<TelaImageLayer>) => void;
-}> = ({ layer, onUpdate }) => {
+  onAddLayer?: (layer: TelaImageLayer) => void;
+  canvasDims?: { width: number; height: number };
+}> = ({ layer, onUpdate, onAddLayer, canvasDims }) => {
   const [isSegmenting, setIsSegmenting] = useState(false);
   const [segmentFeedback, setSegmentFeedback] = useState<string | null>(null);
+  const [inpaintPrompt, setInpaintPrompt] = useState('');
+  const [isInpainting, setIsInpainting] = useState(false);
+  const [inpaintFeedback, setInpaintFeedback] = useState<string | null>(null);
+
+  const handleGenerativeInpaint = async () => {
+    if (!layer.src) return;
+    setIsInpainting(true);
+    setInpaintFeedback('Synthesizing with discrete GPU / PatchMatch…');
+    try {
+      const W = canvasDims?.width || layer.intrinsicWidth || 1024;
+      const H = canvasDims?.height || layer.intrinsicHeight || 1024;
+      const maskDataUrl = layer.mask?.src || undefined;
+      const res = await executeGenerativeInpaint(
+        {
+          sourceImageUrl: layer.src,
+          maskDataUrl,
+          prompt: inpaintPrompt.trim(),
+        },
+        { width: W, height: H }
+      );
+      if (res?.newLayer) {
+        if (onAddLayer) {
+          onAddLayer(res.newLayer);
+        } else {
+          onUpdate({ ...res.newLayer });
+        }
+        setInpaintFeedback(`Synthesized ${res.engine || 'fill'} in ${res.ms || 0}ms`);
+        setTimeout(() => setInpaintFeedback(null), 3000);
+      }
+    } catch (err: any) {
+      setInpaintFeedback(`Inpaint error: ${err.message || 'failed'}`);
+      setTimeout(() => setInpaintFeedback(null), 3500);
+    } finally {
+      setIsInpainting(false);
+    }
+  };
 
   const handleSamCutout = async (invert = false) => {
     if (!layer.src) return;
@@ -158,6 +199,63 @@ export const TelaImageLayerControls: React.FC<{
             </div>
           )}
         </div>
+
+        {/* Generative Fill & Inpaint Section */}
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div style={lbl}>Generative Fill & Inpaint</div>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#38bdf8' }}>Non-Destructive</span>
+          </div>
+
+          <input
+            type="text"
+            value={inpaintPrompt}
+            onChange={(e) => setInpaintPrompt(e.target.value)}
+            placeholder="Prompt (or blank for Content-Aware Fill)…"
+            style={{
+              width: '100%',
+              height: 28,
+              borderRadius: 6,
+              background: '#14121a',
+              border: '1px solid rgba(255,255,255,.14)',
+              color: '#fff',
+              fontSize: 10,
+              padding: '0 8px',
+              outline: 'none',
+              marginBottom: 6,
+            }}
+          />
+
+          <button
+            type="button"
+            disabled={isInpainting}
+            onClick={handleGenerativeInpaint}
+            className="w-full h-[32px] rounded-[8px] flex items-center justify-center gap-2 text-[10px] font-bold tracking-wide uppercase transition-all"
+            style={{
+              background: 'linear-gradient(135deg, rgba(0,218,243,0.3), rgba(107,0,153,0.3))',
+              border: '1px solid rgba(0,218,243,0.4)',
+              color: '#e2f8ff',
+              cursor: isInpainting ? 'wait' : 'pointer',
+            }}
+          >
+            {isInpainting ? (
+              <>
+                <Loader2 size={12} className="animate-spin text-cyan-300" />
+                <span>{inpaintFeedback || 'Synthesizing Fill Layer…'}</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={12} className="text-cyan-300" />
+                <span>Synthesize Fill Layer</span>
+              </>
+            )}
+          </button>
+          {inpaintFeedback && !isInpainting && (
+            <div className="mt-1 text-[9px] text-cyan-200/80 text-center font-medium">
+              {inpaintFeedback}
+            </div>
+          )}
+        </div>
       </div>
       <div style={{ marginBottom: 11 }}>
         <div style={lbl}>Blend</div>
@@ -199,6 +297,10 @@ interface TelaImageProps {
   layerContextBindings?: (layer: TelaImageLayer) => { onContextMenu: (event: React.MouseEvent) => void; onPointerDown: (event: React.PointerEvent) => void; onPointerMove: (event: React.PointerEvent) => void; onPointerUp: () => void; onPointerCancel: () => void };
   interactionScale?: number;
   snap?: { enabled: boolean; x: number[]; y: number[]; threshold?: number };
+  selectionTool?: SelectionTool;
+  onSelectionToolChange?: (tool: SelectionTool) => void;
+  selection?: Selection | null;
+  onRasterSelectionChange?: (selection: Selection | null) => void;
 }
 
 export function makeImageLayer(src: string, name: string, extra?: Partial<TelaImageLayer>): TelaImageLayer {
@@ -230,6 +332,14 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
     setSelIdsI(next); setSelI(primary); props.onSelectionChange?.(next); props.onSelect?.(primary);
   };
   const select = (id: string | null) => selectMany(id ? [id] : []);
+
+  // Selection Workflow State (internal fallback if not controlled by parent Studio)
+  const [internalTool, setInternalTool] = useState<SelectionTool>('none');
+  const [internalSelection, setInternalSelection] = useState<Selection | null>(null);
+  const activeTool = props.selectionTool !== undefined ? props.selectionTool : internalTool;
+  const onToolChange = props.onSelectionToolChange || setInternalTool;
+  const activeRasterSelection = props.selection !== undefined ? props.selection : internalSelection;
+  const onRasterSelectionChange = props.onRasterSelectionChange || setInternalSelection;
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -369,6 +479,20 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
         <div style={{ position: 'absolute', top: snapLines.y, left: 0, right: 0, height: 1, borderTop: '1px dashed var(--pj-cyan,#00DAF3)', pointerEvents: 'none', zIndex: 8 }}/>
       )}
 
+      {/* Photoshop Selection Engine: Marquees, Lassos, Wand, Animated Marching Ants & Floating Contextual Taskbar */}
+      <TelaImageSelectionOverlay
+        width={device.width}
+        height={device.height}
+        activeLayer={selected}
+        activeTool={activeTool}
+        onToolChange={onToolChange}
+        selection={activeRasterSelection}
+        onSelectionChange={onRasterSelectionChange}
+        onAddLayer={onAddLayer}
+        onUpdateLayer={onUpdateLayer}
+        interactionScale={props.interactionScale || 1}
+      />
+
       {device.layers.length === 0 && chrome && (
         <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#9A8FAC', fontSize: 12.5, textAlign: 'center', padding: 24, pointerEvents: 'none' }}>
           <span>Empty canvas — add an image layer from the toolbar.</span>
@@ -377,7 +501,7 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
 
       {/* Toolbar */}
       {chrome && !readOnly && (
-        <div onPointerDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 8, left: 8, zIndex: 4, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+        <div onPointerDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 8, left: 8, zIndex: 35, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
           <div style={{ display: 'flex', gap: 2, padding: 3, background: 'rgba(18,13,28,0.92)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, backdropFilter: 'blur(6px)' }}>
             <button title="Upload image" disabled={busy} onClick={() => fileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 10px', borderRadius: 8, border: 'none', cursor: 'pointer', color: '#fff', background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', fontSize: 12, fontWeight: 700 }}>
               {busy ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />} {busy ? 'Uploading…' : 'Image'}
@@ -385,6 +509,79 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
             <button title="Add by URL" onClick={() => setUrlOpen(o => !o)} style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', background: 'transparent' }}>
               <LinkIcon size={15} />
             </button>
+
+            <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', margin: '5px 2px' }} />
+
+            {/* Selection Tools */}
+            <button
+              title="Rectangular Marquee (M)"
+              onClick={() => onToolChange(activeTool === 'marquee_rect' ? 'none' : 'marquee_rect')}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
+                color: activeTool === 'marquee_rect' ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+                background: activeTool === 'marquee_rect' ? 'rgba(0,218,243,0.18)' : 'transparent',
+              }}
+            >
+              <Square size={14} />
+            </button>
+
+            <button
+              title="Elliptical Marquee (Shift+M)"
+              onClick={() => onToolChange(activeTool === 'marquee_ellipse' ? 'none' : 'marquee_ellipse')}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
+                color: activeTool === 'marquee_ellipse' ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+                background: activeTool === 'marquee_ellipse' ? 'rgba(0,218,243,0.18)' : 'transparent',
+              }}
+            >
+              <Circle size={14} />
+            </button>
+
+            <button
+              title="Lasso Tool (L)"
+              onClick={() => onToolChange(activeTool === 'lasso_free' ? 'none' : 'lasso_free')}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
+                color: activeTool === 'lasso_free' ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+                background: activeTool === 'lasso_free' ? 'rgba(0,218,243,0.18)' : 'transparent',
+              }}
+            >
+              <Lasso size={14} />
+            </button>
+
+            <button
+              title="Magic Wand (W)"
+              onClick={() => onToolChange(activeTool === 'magic_wand' ? 'none' : 'magic_wand')}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
+                color: activeTool === 'magic_wand' ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+                background: activeTool === 'magic_wand' ? 'rgba(0,218,243,0.18)' : 'transparent',
+              }}
+            >
+              <Wand2 size={14} />
+            </button>
+
+            {activeRasterSelection?.bounds && (
+              <button
+                title="Inverse Selection (Ctrl+Shift+I)"
+                onClick={() => {
+                  const inv = invertSelection(activeRasterSelection);
+                  onRasterSelectionChange(inv);
+                }}
+                style={{
+                  width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                  display: 'grid', placeItems: 'center',
+                  color: '#8ff5ff',
+                  background: 'rgba(0,218,243,0.15)',
+                }}
+              >
+                <FlipHorizontal size={14} />
+              </button>
+            )}
           </div>
           {urlOpen && (
             <div style={{ display: 'flex', gap: 4, padding: 4, background: 'rgba(18,13,28,0.92)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10 }}>

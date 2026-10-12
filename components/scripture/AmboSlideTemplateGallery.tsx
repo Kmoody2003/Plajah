@@ -184,7 +184,7 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
     loadSlideFonts(objs).then(() => { if (alive) { invalidateSlideLayouts(); setFaceEpoch(e => e + 1); } });
     return () => { alive = false; };
   }, [open, tpl.id, themeId, overrides.display, overrides.text]);
-  const list = SLIDE_TEMPLATES.filter(t => category === 'All' || t.category === category);
+  const list = SLIDE_TEMPLATES.filter(t => category === 'All' || t.category === category || (category === 'Worship' && t.category === 'Lyrics'));
   const editingMine = isMine(editing);
 
   /** Load a saved template into the editor: base template, theme, words and style. */
@@ -335,7 +335,7 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
             ) : (<>
             <div className="flex gap-1 px-3 pt-2 pb-1 flex-wrap">
               {['All', ...TEMPLATE_CATEGORIES].map(cat => {
-                const n = cat === 'All' ? SLIDE_TEMPLATES.length : SLIDE_TEMPLATES.filter(t => t.category === cat).length;
+                const n = cat === 'All' ? SLIDE_TEMPLATES.length : cat === 'Worship' ? SLIDE_TEMPLATES.filter(t => t.category === 'Worship' || t.category === 'Lyrics').length : SLIDE_TEMPLATES.filter(t => t.category === cat).length;
                 const MIcon = CATEGORY_MEDIA[cat] ? MEDIA_ICON[CATEGORY_MEDIA[cat]] : null;
                 return (
                   <button key={cat} onClick={() => setCategory(cat)} data-category={cat} className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold inline-flex items-center gap-1"

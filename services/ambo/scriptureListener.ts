@@ -40,6 +40,8 @@ export interface ListenerHit {
   heard: string;
   confidence: number;
   at: number;
+  /** "next verse" / "verse 17" resolved against the previous reference. */
+  contextual?: boolean;
 }
 
 const CUE_BEFORE = /\b(?:turn(?:ing)?\s+(?:with\s+me\s+)?(?:in\s+(?:your\s+)?(?:bibles?\s+)?)?to|open\s+(?:up\s+)?(?:your\s+)?(?:bibles?\s+)?(?:to|at)|look\s+(?:with\s+me\s+)?(?:at|in)|read(?:ing)?\s+(?:from|in)|reading\s+today\s+(?:is|from)|scripture\s+(?:is|reading)|in\s+the\s+book\s+of|the\s+book\s+of|says?\s+in|written\s+in|found\s+in|according\s+to|let'?s\s+read|go\s+to|back\s+to|over\s+in|if\s+you\s+(?:have|turn)|our\s+text\s+(?:is|today))\s+(?:the\s+)?(?:gospel\s+of\s+|book\s+of\s+|letter\s+to\s+(?:the\s+)?)?$/i;
@@ -105,17 +107,39 @@ export function createScriptureListener(opts: ListenerOptions = {}): ScriptureLi
       // a bare chapter / wider reading of something that just fired
       (f.ref.book === ref.book && f.ref.chapter === ref.chapter && ref.verse === undefined)));
 
+  let lastRef: ScriptureRef | null = null;
+
+  /** "verse 17", "next verse", "previous verse" relative to the last reference that fired. */
+  const contextual = (text: string, afterEnd: number): { ref: ScriptureRef; heard: string } | null => {
+    if (!lastRef || lastRef.verse === undefined) return null;
+    const spoken = normalizeSpoken(text);
+    const tail = spoken.slice(Math.max(0, afterEnd));
+    const rel = [...tail.matchAll(/\b(next|previous|last)\s+verse\b/g)].pop();
+    const abs = [...tail.matchAll(/\bverses?\s+(\d{1,3})\b(?!\s*:)/g)].pop();
+    const relAt = rel ? (rel.index ?? 0) : -1, absAt = abs ? (abs.index ?? 0) : -1;
+    if (relAt < 0 && absAt < 0) return null;
+    const base = lastRef.endVerse ?? lastRef.verse;
+    const verse = relAt > absAt ? (rel![1] === 'next' ? base + 1 : Math.max(1, lastRef.verse - 1)) : parseInt(abs![1], 10);
+    if (!verse || verse > 176) return null;
+    return { ref: { ...lastRef, verse, endVerse: undefined, endChapter: undefined }, heard: relAt > absAt ? rel![0] : abs![0] };
+  };
+
   const evaluate = (now: number) => {
     const text = words.join(' ');
     const found = detectSpoken(text, minConfidence, requireCue);
-    if (!found.length) { pend = null; return; }
-    // The newest reference in the window is the one being spoken.
-    const last = found[found.length - 1];
-    const id = refId(last.ref);
-    if (recent(id, now) || covered(last.ref, now)) { pend = null; return; }
+    const lastFound = found.length ? found[found.length - 1] : null;
+    // A verse-only follow-up spoken AFTER the last full reference (or with no new reference at all).
+    const ctx = contextual(text, lastFound ? lastFound.end : 0);
+    const pick = ctx
+      ? { ref: ctx.ref, confidence: 0.85, heard: ctx.heard, ctxHit: true }
+      : lastFound ? { ref: lastFound.ref, confidence: lastFound.confidence, heard: lastFound.heard, ctxHit: false } : null;
+    if (!pick) { pend = null; return; }
+    const id = refId(pick.ref);
+    if (!pick.ctxHit && (recent(id, now) || covered(pick.ref, now))) { pend = null; return; }
+    if (pick.ctxHit && recent(id, now)) { pend = null; return; }
     if (pend && refId(pend.hit.ref) === id) return; // unchanged; settle clock keeps running
     pend = {
-      hit: { ref: last.ref, refId: id, label: formatRef(last.ref), heard: last.heard, confidence: last.confidence, at: now },
+      hit: { ref: pick.ref, refId: id, label: formatRef(pick.ref), heard: pick.heard, confidence: pick.confidence, at: now, contextual: pick.ctxHit },
       settledAt: now,
     };
   };
@@ -129,17 +153,26 @@ export function createScriptureListener(opts: ListenerOptions = {}): ScriptureLi
       lastChange = now;
       finalSeen = !!final;
       evaluate(now);
-      if (pend) pend.settledAt = now;
+      // NB: the settle clock is NOT reset by later words — a preacher keeps talking after the reference.
     },
     poll(now) {
       if (!pend) return [];
       const quiet = now - lastChange;
-      if (quiet < settleMs && !(finalSeen && quiet >= settleMs / 3)) return [];
+      const age = now - pend.settledAt;
+      const hasVerse = pend.hit.ref.verse !== undefined;
+      // chapter:verse → go once it has held briefly (a range "through 30" may still extend it, and re-fires)
+      // bare chapter → wait for a pause or a little longer, so "Romans 8 … verse 28" lands on the verse
+      const ready = hasVerse
+        ? age >= Math.min(350, settleMs) || (finalSeen && quiet >= 120)
+        : quiet >= settleMs || age >= Math.max(1400, settleMs * 2) || (finalSeen && quiet >= settleMs / 3);
+      if (!ready) return [];
       const hit = pend.hit;
       pend = null;
       fired.set(hit.refId, now);
       lastFiredRefs.push({ ref: hit.ref, at: now });
       if (lastFiredRefs.length > 24) lastFiredRefs.shift();
+      lastRef = hit.ref;
+      if (hit.contextual) words = [];            // consume "next verse" so it cannot re-fire
       return [hit];
     },
     reset() { words = []; pend = null; finalSeen = false; },

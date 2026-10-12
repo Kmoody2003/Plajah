@@ -414,6 +414,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   // never re-read) — call getPlatformInfo().isTV directly, same as every other
   // TV gate in App.tsx, so this can't drift out of sync again.
   if (shellNextGP.enabled && !isPhoneMode && !getPlatformInfo().isTV) {
+    if (!currentTrack && !currentVideo && !isPlaying) return null;
     const cp = (variant: 'full' | 'nano') => (
       <CommandPlayer
         variant={variant}
@@ -434,6 +435,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
   }
 
   if (isNanoView && isNanoDocked && !isPhoneMode) return null;
+  if (!currentTrack && !currentVideo && !isPlaying) return null;
 
   if (isNanoView && !isPhoneMode) {
     return (

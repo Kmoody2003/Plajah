@@ -111,7 +111,7 @@ export interface FieldDef {
   options?: string[];
 }
 
-export type TemplateCategory = 'Welcome' | 'Sermon' | 'Announcements' | 'Worship' | 'Giving' | 'Moments' | 'Media'
+export type TemplateCategory = 'Welcome' | 'Sermon' | 'Announcements' | 'Worship' | 'Lyrics' | 'Giving' | 'Moments' | 'Media'
   | 'Photo' | 'Video' | 'Audio' | 'Data';
 
 export interface DesignCtx {

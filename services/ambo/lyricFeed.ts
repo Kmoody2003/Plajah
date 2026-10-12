@@ -15,7 +15,10 @@
 import type { LayerContent, LyricClock } from './showModel';
 import { lyricClockPos } from './showModel';
 import type { LyricLine } from './lyricStyles';
-import { registerCatalogSongs } from './songLibrary';
+import { registerCatalogSongs, searchSongs, getSong } from './songLibrary';
+import { getLiveLyricsState } from './liveLyrics';
+import { getExtractedLyrics } from './vocalLyricExtractor';
+import { publishLyricCue } from './liveCaptionStore';
 
 /** bus = audio playlist · dj = DJ deck · live = raw transcription · follow = song follower (live audio aligned to a song's lyrics). */
 export type LyricSourceId = 'bus' | 'dj' | 'live' | 'follow';
@@ -77,10 +80,35 @@ export function rememberLyrics(tracks: Array<{ id?: string; title?: string; arti
   try { registerCatalogSongs(tracks); } catch { /* */ }
 }
 
+/** Lower-case, accent/punctuation-free title for comparing a track to a library song. */
+const normTitle = (s: string) => (s || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+
 export function lyricsFor(track: LyricTrackMeta | null | undefined): LyricLine[] {
   if (!track) return [];
   if (track.timeCodedLyrics?.length) return normalizeLyrics(track.timeCodedLyrics);
-  return (track.id && known.get(track.id)) || [];
+  const fromKnown = (track.id && known.get(track.id)) || [];
+  if (fromKnown.length) return fromKnown;
+  // Lyrics transcribed from the isolated vocals of the actual audio (background, progressive).
+  const extracted = getExtractedLyrics(track as any);
+  if (extracted.length) return normalizeLyrics(extracted);
+
+  // Match against local & catalog song library by EXACT (normalized) title — a loose first-hit match would show
+  // some other song's words and stop the real lyrics from ever being extracted.
+  if (track.title) {
+    const want = normTitle(track.title);
+    const hits = want ? searchSongs(track.title) : [];
+    const match = hits.find(s => normTitle(s.title) === want);
+    if (match && match.lines.length) {
+      if (match.timeCodedLyrics?.length) return normalizeLyrics(match.timeCodedLyrics);
+      const dur = (track as any).duration && Number((track as any).duration) > 0 ? Number((track as any).duration) : match.lines.length * 3.8;
+      const step = Math.max(2.5, dur / Math.max(1, match.lines.length));
+      return match.lines.map((t, idx) => ({
+        time: idx * step,
+        text: t,
+      }));
+    }
+  }
+  return [];
 }
 
 // ── layer building ───────────────────────────────────────────────────────────
@@ -123,19 +151,48 @@ export function nextLyricsContent(
   const rate = playing ? (c.rate() || 1) : 1;
   const grid = c.grid?.() ?? null;
   const sameSong = prev && prev.trackId === (track.id ?? track.title);
-  if (prev && sameSong && prev.styleId === styleId && prev.clock.playing === playing && Math.abs(prev.clock.rate - rate) < 1e-3) {
+  const sameLines = !!sameSong && prev!.lines.length === lines.length;
+  if (prev && sameSong && sameLines && prev.styleId === styleId && prev.clock.playing === playing && Math.abs(prev.clock.rate - rate) < 1e-3) {
     if (Math.abs(lyricClockPos(prev.clock, now) - pos) <= tolerance) return prev;
   }
   const clock: LyricClock = { anchorMs: now, anchorPos: pos, rate, playing };
+  // A title card only for real song metadata — never a file name or a placeholder like "Local Audio File".
+  const realMeta = !!track.artist && !/^(?:local audio file|unknown|various)/i.test(track.artist)
+    && !!track.title && !/\.(?:mp3|wav|m4a|aac|flac|ogg|opus|wma|aiff?)$/i.test(track.title) && src !== 'live';
   return {
     kind: 'LYRICS',
-    lines: sameSong ? prev!.lines : lines,
+    lines: sameLines ? prev!.lines : lines,
     styleId,
-    title: track.title,
-    artist: track.artist,
+    title: realMeta ? track.title : '',
+    artist: realMeta ? track.artist : undefined,
     trackId: track.id ?? track.title,
     bpm: grid?.bpm ?? track.bpm,
     firstBeat: grid?.firstBeat,
     clock,
   };
 }
+
+// ── lyric cue broadcast ──────────────────────────────────────────────────────
+// Whatever track is playing publishes its current lyric line (with neighbours) to every window, so a slide's
+// live transcript region (empty template text) shows the song's words in step with the music.
+const CUE_SOURCES: LyricSourceId[] = ['dj', 'bus', 'follow', 'live'];
+let cueTimer: ReturnType<typeof setInterval> | null = null;
+export function startLyricCueBroadcast(): void {
+  if (cueTimer || typeof window === 'undefined') return;
+  cueTimer = setInterval(() => {
+    for (const id of CUE_SOURCES) {
+      const c = clocks.get(id);
+      if (!c || !c.isPlaying()) continue;
+      const lines = lyricsFor(c.track());
+      if (!lines.length) continue;
+      const pos = c.getTime() + 0.05;
+      let idx = -1;
+      for (let i = 0; i < lines.length; i++) { if (lines[i].time <= pos) idx = i; else break; }
+      const from = Math.max(0, idx - 1), to = Math.min(lines.length, Math.max(idx, 0) + 3);
+      const win = lines.slice(from, to);
+      publishLyricCue(win.map(l => l.text), Math.max(0, idx) - from, win.map(l => l.time), c.getTime(), c.rate() || 1, true);
+      return;
+    }
+  }, 250);
+}
+startLyricCueBroadcast();

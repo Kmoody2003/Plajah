@@ -1,4 +1,4 @@
-// creativeStudioBridge.ts — Unified bridge for Plajah's Native Creative Studio.
+// creativeStudioBridge.ts Ã¢â‚¬â€ Unified bridge for Plajah's Native Creative Studio.
 // Orchestrates on-device execution for:
 //   1. Cinema Stills (FLUX.1 schnell/dev)
 //   2. Detail Enhancer & 4K Upscaler (Micro-texture hallucination)
@@ -21,6 +21,7 @@ export type ProgressCallback = (p: NativeExecutionProgress) => void;
 export interface LocalCreativeStudioOptions {
   op: 'cinema_generate' | 'detail_enhance' | 'relight_scene' | 'cinema_motion';
   prompt: string;
+  modelId?: string;
   sourceImageUrl?: string;
   aspect?: string;
   // Detail Hallucination dials:
@@ -49,6 +50,10 @@ export interface CreativeStudioExecutionResult {
   costCredits: number;
   note?: string;
   error?: string;
+  width?: number;
+  height?: number;
+  seed?: number;
+  hardwareBackend?: string;
 }
 
 /** Unified creative task execution dispatcher */
@@ -63,6 +68,7 @@ export async function executeCreativeStudioTask(
   if (options.op === 'cinema_generate') {
     task = compileCinemaStillTask({
       prompt: options.prompt,
+      modelId: options.modelId,
       aspect: options.aspect as any,
       lens: options.lens,
       lighting: options.lighting,
@@ -111,6 +117,10 @@ export async function executeCreativeStudioTask(
       durationMs: result.executionTimeMs,
       costCredits: 0,
       note: `Generated on Plajah Native Engine (${result.hardwareBackend}) - 0 credits used (100% free)`,
+      width: result.width,
+      height: result.height,
+      seed: result.seed,
+      hardwareBackend: result.hardwareBackend,
     };
   }
 

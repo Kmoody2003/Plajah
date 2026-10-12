@@ -80,13 +80,14 @@ const ACCENT = '#00DAF3', SEL = '#2E8BFF', MAG = '#D40055';
 
 export interface StudioCanvasProps {
   onObjectContextMenu?: (e: React.MouseEvent, o: TelaVectorObject) => void;
+  onCanvasContextMenu?: (e: React.MouseEvent, artboardPoint: Vec) => void;
   onResizeArtboard?: (w: number, h: number) => void;
   /** Width of the rulers (0 = hidden). */
   rulerSize?: number;
   viewportRef: React.RefObject<HTMLDivElement>;
 }
 
-export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu, onResizeArtboard, viewportRef }) => {
+export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu, onCanvasContextMenu, onResizeArtboard, viewportRef }) => {
   const api = useStudio();
   const { device, objects, zoom, tool, selection, readOnly, prefs } = api;
   const W = device.width, H = device.height;
@@ -784,10 +785,15 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
 
   // ── Context menu ───────────────────────────────────────────────────────────────────
   const onContextMenu = (e: React.MouseEvent<SVGSVGElement>) => {
-    const p = toArt(e); const hit = hitObject(e, p);
-    if (!hit) return;
-    if (!selSet.has(hit.id)) api.setSelection(unitOf(hit.id));
-    if (onObjectContextMenu) { e.preventDefault(); onObjectContextMenu(e, hit); }
+    e.preventDefault();
+    const p = toArt(e);
+    const hit = hitObject(e, p);
+    if (hit) {
+      if (!selSet.has(hit.id)) api.setSelection(unitOf(hit.id));
+      if (onObjectContextMenu) onObjectContextMenu(e, hit);
+    } else {
+      if (onCanvasContextMenu) onCanvasContextMenu(e, p);
+    }
   };
 
   // ── Wheel: Ctrl/Cmd zooms about the pointer ───────────────────────────────────────

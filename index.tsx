@@ -183,7 +183,19 @@ function showUpdateToast(onReload: () => void) {
   } catch { /* leave the default viewport */ }
 })();
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+const isNativeWindows = typeof window !== 'undefined' && (
+  !!(window as any).__PLAJAH_WINUI__ ||
+  (window as any).__PLAJAH_PLATFORM__ === 'windows'
+);
+
+if (isNativeWindows) {
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    try { navigator.serviceWorker.getRegistrations().then(regs => { for (const r of regs) r.unregister(); }); } catch {}
+  }
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    try { caches.keys().then(keys => { for (const k of keys) caches.delete(k); }); } catch {}
+  }
+} else if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // Use 'prompt' mode so we control exactly when the update is applied.
   // autoUpdate would call location.reload() the moment any new deploy lands,
   // which interrupts video, audio, and games with no warning.

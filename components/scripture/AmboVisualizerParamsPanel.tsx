@@ -11,7 +11,7 @@
 // a live readout of the words they will spell.
 
 import React, { useSyncExternalStore } from 'react';
-import { RotateCcw, SlidersHorizontal, Type, Radio, Database, AlertTriangle } from 'lucide-react';
+import { RotateCcw, SlidersHorizontal, Type, Radio, Database, AlertTriangle, Mic, Volume2, Disc, Monitor, Play, Square } from 'lucide-react';
 import {
   vizFamily, vizParamDefs, vizParam, getVizParams, setVizParams, resetVizParams, subscribeVizParams, vizParamsVersion,
   getVizApplyTarget, setVizApplyTarget, type VizParams, type VizParamDef, type VizApplyTarget,
@@ -19,6 +19,9 @@ import {
 import {
   getTypoTextState, subscribeTypoText, setTypoTextPrefs, resolveTypoText, type TypoTextSource,
 } from '../../services/ambo/typoText';
+import {
+  getLiveLyricsState, subscribeLiveLyrics, startLiveLyrics, stopLiveLyrics, getLiveLyricsPrefs, setLiveLyricsPrefs,
+} from '../../services/ambo/liveLyrics';
 
 const CYAN = '#00DAF3';
 const PINK = '#D40055';
@@ -93,10 +96,76 @@ const WordsReadout: React.FC<{ params?: VizParams }> = ({ params }) => {
 /** Shared word-source settings (custom text, data feed, playback transcription). */
 const TypoSourceSettings: React.FC<{ source: string }> = ({ source }) => {
   const st = useSyncExternalStore(subscribeTypoText, getTypoTextState);
+  const liveState = useSyncExternalStore(subscribeLiveLyrics, getLiveLyricsState);
+  const livePrefs = getLiveLyricsPrefs();
   const p = st.prefs;
   const inp = 'w-full bg-black/50 border border-white/12 rounded-md px-2 py-1 text-[10.5px] text-white outline-none focus:border-[#00DAF3]';
   return (
     <div className="flex flex-col gap-2">
+      {(source === 'auto' || source === 'transcript' || source === 'lyrics') && (
+        <div className="flex flex-col gap-1.5 rounded-md border border-white/10 bg-black/30 p-2 mt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[9.5px] font-bold text-white/70 flex items-center gap-1.5">
+              <Radio size={11} className="text-[#2BE0A8]" /> Live Audio Transcription
+            </span>
+            <span className={`text-[8.5px] font-mono px-1.5 py-0.5 rounded ${liveState.running ? 'bg-[#2BE0A8]/20 text-[#2BE0A8]' : 'bg-white/10 text-white/40'}`}>
+              {liveState.status}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <select
+              value={livePrefs.source.kind}
+              onChange={e => {
+                const k = e.target.value;
+                setLiveLyricsPrefs({ source: { kind: k as any } });
+                setTypoTextPrefs({ transcribeAudioSource: k as any });
+              }}
+              className={`${inp} text-[10px] py-0.5`}
+            >
+              <option value="auto" className="bg-[#14101e]">Auto (playing track, else mic)</option>
+              <option value="mic" className="bg-[#14101e]">Microphone (Room / Host)</option>
+              <option value="program" className="bg-[#14101e]">Ambo Program Mix (Master)</option>
+              <option value="playlist" className="bg-[#14101e]">Audio Playlist playback</option>
+              <option value="dj" className="bg-[#14101e]">DJ Deck playback</option>
+              <option value="system" className="bg-[#14101e]">System Audio (Desktop/Share)</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                if (liveState.running) stopLiveLyrics();
+                else void startLiveLyrics();
+              }}
+              className={`px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 transition-all ${
+                liveState.running
+                  ? 'bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30'
+                  : 'bg-[#2BE0A8]/20 text-[#2BE0A8] border border-[#2BE0A8]/40 hover:bg-[#2BE0A8]/30'
+              }`}
+            >
+              {liveState.running ? <Square size={10} /> : <Play size={10} />}
+              {liveState.running ? 'Stop' : 'Start'}
+            </button>
+          </div>
+
+          {liveState.running && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[8.5px] text-white/40">Level:</span>
+              <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#2BE0A8] to-[#00DAF3] transition-all duration-75"
+                  style={{ width: `${Math.round(liveState.level * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {liveState.error && (
+            <div className="text-[9.5px] text-[#F5C542] flex items-center gap-1 mt-0.5">
+              <AlertTriangle size={9} /> {liveState.error}
+            </div>
+          )}
+        </div>
+      )}
       {(source === 'auto' || source === 'scripture') && (
         <label className="flex items-center gap-2 text-[10px] text-white/70">
           <input type="checkbox" checked={p.sendScripture} onChange={e => setTypoTextPrefs({ sendScripture: e.target.checked })} className="accent-[#E3C57E]" />

@@ -15,7 +15,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  Mic, MicOff, Search, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Radio, Sparkles, Eraser, Music, X, Check, Wand2,
+  Mic, MicOff, Search, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Radio, Sparkles, Eraser, Music, X, Check, Wand2, Loader2,
 } from 'lucide-react';
 import {
   listSongs, getSong, subscribeSongs, songsVersion, searchSongs, sectionOf, parseLyricsText, songToText,
@@ -95,11 +95,18 @@ const AmboSongLyricsTab: React.FC = () => {
 
   const sourceValue = fp.source.kind === 'device' ? 'dev:' + fp.source.deviceId : fp.source.kind;
   const chooseSource = (v: string) => {
-    const next: FollowListenSource = v.startsWith('dev:') ? { kind: 'device', deviceId: v.slice(4) } : v === 'program' ? { kind: 'program' } : { kind: 'mic' };
+    const next: FollowListenSource = v.startsWith('dev:')
+      ? { kind: 'device', deviceId: v.slice(4) }
+      : (v === 'program' || v === 'playlist' || v === 'dj' || v === 'system')
+      ? { kind: v }
+      : { kind: 'mic' };
     setSongFollowSource(next);
   };
 
-  const take = () => setLyricsProgram({ source: 'follow', wantLive: true });
+  const take = () => {
+    if (!fs.songId && view) selectSong(view.id);
+    setLyricsProgram({ source: 'follow', wantLive: true });
+  };
   const clear = () => setLyricsProgram({ wantLive: false });
 
   const curSongLine = following && fs.entry >= 0 ? fs.entries[fs.entry]?.songLine : undefined;
@@ -172,12 +179,32 @@ const AmboSongLyricsTab: React.FC = () => {
         <button
           onClick={() => (fs.listening ? stopSongFollow() : void startSongFollow())}
           disabled={fs.starting}
-          className="px-2.5 h-7 rounded-md text-[10.5px] font-black flex items-center gap-1.5 disabled:opacity-40"
-          style={fs.listening ? { color: '#000', background: GREEN } : { color: '#fff', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
+          className="px-2.5 h-7 rounded-md text-[10.5px] font-black relative overflow-hidden flex items-center gap-1.5 disabled:opacity-80 transition-all select-none"
+          style={
+            fs.listening
+              ? { color: '#000', background: GREEN }
+              : fs.starting
+              ? { color: GREEN, background: 'rgba(43,224,168,0.1)', border: '1px solid rgba(43,224,168,0.4)', boxShadow: '0 0 10px rgba(43,224,168,0.2)' }
+              : { color: '#fff', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }
+          }
           title="Listen to the service: detect the song, follow the singing, catch adlibs"
         >
-          {fs.listening ? <Mic size={12} /> : <MicOff size={12} />}
-          {fs.starting ? 'Starting…' : fs.listening ? 'Listening' : 'Listen'}
+          {fs.starting && (
+            <>
+              <div className="absolute inset-y-0 left-0 bg-[#2BE0A8]/20 w-3/4 animate-pulse pointer-events-none" />
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-black/40 pointer-events-none">
+                <div className="h-full bg-[#2BE0A8] w-3/4 animate-pulse shadow-[0_0_6px_#2BE0A8]" />
+              </div>
+            </>
+          )}
+          {fs.starting ? (
+            <Loader2 size={12} className="animate-spin text-[#2BE0A8] relative z-10" />
+          ) : fs.listening ? (
+            <Mic size={12} className="relative z-10" />
+          ) : (
+            <MicOff size={12} className="relative z-10" />
+          )}
+          <span className="relative z-10">{fs.starting ? 'Readying…' : fs.listening ? 'Listening' : 'Listen'}</span>
         </button>
         <select
           value={sourceValue}
@@ -187,7 +214,10 @@ const AmboSongLyricsTab: React.FC = () => {
         >
           <option value="mic" className="bg-[#14101e]">Default microphone</option>
           {inputs.map(d => <option key={d.deviceId} value={'dev:' + d.deviceId} className="bg-[#14101e]">Input · {d.label}</option>)}
+          <option value="playlist" className="bg-[#14101e]">Audio Playlist / Bus</option>
+          <option value="dj" className="bg-[#14101e]">DJ Deck Player</option>
           <option value="program" className="bg-[#14101e]">Program mix (playback)</option>
+          <option value="system" className="bg-[#14101e]">System audio (Windows)</option>
         </select>
         <div className="w-px h-5 bg-white/10" />
         <div className="flex items-center rounded-md border border-white/10 overflow-hidden">
@@ -232,7 +262,7 @@ const AmboSongLyricsTab: React.FC = () => {
         {onProgram ? (
           <button onClick={clear} className="px-3 h-7 rounded-md text-[10.5px] font-bold text-white bg-white/10 hover:bg-white/20 border border-white/15">Clear lyrics</button>
         ) : (
-          <button onClick={take} disabled={!fs.songId && !fs.playback?.synced}
+          <button onClick={take} disabled={!view && !fs.songId && !fs.playback}
             className="px-3 h-7 rounded-md text-[10.5px] font-black text-black hover:brightness-110 disabled:opacity-30" style={{ background: ORANGE }}
             title="Put the followed lyrics on Program">
             Take to Program
@@ -286,7 +316,7 @@ const AmboSongLyricsTab: React.FC = () => {
               const isFollow = s.id === fs.songId;
               return (
                 <div key={s.id}
-                  onClick={() => setViewId(s.id)}
+                  onClick={() => { setViewId(s.id); selectSong(s.id); }}
                   onDoubleClick={() => selectSong(s.id)}
                   title="Click to view · double-click to follow"
                   className={`group px-2 py-1.5 rounded-lg cursor-pointer flex items-center gap-2 ${viewId === s.id ? 'bg-white/12' : 'hover:bg-white/5'}`}

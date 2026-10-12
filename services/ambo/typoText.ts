@@ -40,6 +40,8 @@ export interface TypoTextPrefs {
   dataIntervalSec: number;
   /** When a song with no lyric file plays, transcribe the program mix for the words. */
   autoTranscribePlayback: boolean;
+  /** Audio source for live transcription feeding typographic visualizers. */
+  transcribeAudioSource?: 'auto' | 'program' | 'playlist' | 'dj' | 'mic' | 'system';
 }
 
 export interface TypoTextState {
@@ -53,7 +55,8 @@ export interface TypoTextState {
 const KEY = 'ambo_typo_text_v1';
 const CH = 'ambo-typo-text-v1';
 const DEFAULT_PREFS: TypoTextPrefs = {
-  sendScripture: false, sendLyrics: true, customText: '', dataUrl: '', dataPath: '', dataIntervalSec: 30, autoTranscribePlayback: true,
+  sendScripture: false, sendLyrics: true, customText: '', dataUrl: '', dataPath: '', dataIntervalSec: 30, autoTranscribePlayback: false,
+  transcribeAudioSource: 'auto',
 };
 const empty = (): TypoChannel => ({ text: '', at: 0 });
 

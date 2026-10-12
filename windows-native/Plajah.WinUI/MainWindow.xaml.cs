@@ -52,7 +52,6 @@ public sealed partial class MainWindow : Window
 
         // Win11-native chrome: Mica backdrop + content extended into the title bar.
         SystemBackdrop = new MicaBackdrop();
-        ExtendsContentIntoTitleBar = true;
         _appWindow = AppWindow;
         if (_appWindow?.TitleBar != null)
         {
@@ -105,7 +104,18 @@ public sealed partial class MainWindow : Window
         {
             _appWindow.Changed += (_, e) =>
             {
-                if (e.DidPresenterChange || e.DidVisibilityChange || e.DidSizeChange) UpdatePowerMode();
+                if (e.DidPresenterChange || e.DidVisibilityChange || e.DidSizeChange)
+                {
+                    UpdatePowerMode();
+                    try
+                    {
+                        var hwnd = WindowNative.GetWindowHandle(this);
+                        bool isMax = (_appWindow?.Presenter is OverlappedPresenter op && op.State == OverlappedPresenterState.Maximized) || IsZoomed(hwnd);
+                        bool isMin = (_appWindow?.Presenter is OverlappedPresenter op2 && op2.State == OverlappedPresenterState.Minimized);
+                        PostNativeMessage("WINDOW_STATE_CHANGED", new { isMaximized = isMax, isMinimized = isMin });
+                    }
+                    catch { }
+                }
             };
         }
 
@@ -174,9 +184,15 @@ public sealed partial class MainWindow : Window
         var browserArgs =
             "--force_high_performance_gpu --use-angle=d3d11 --enable-gpu-rasterization --enable-zero-copy " +
             "--enable-accelerated-video-decode --enable-accelerated-video-encode --enable-accelerated-2d-canvas " +
-            "--gpu-rasterization-msaa-sample-count=0 --enable-features=WebCodecs,WebGPU,CanvasOopRasterization,UseDirectCompositionVideoOverlays,D3D11VideoDecoder,VaapiVideoDecoder,PlatformHEVCDecoderSupport,AudioWorkletRealtimeThread " +
+            "--gpu-rasterization-msaa-sample-count=0 --enable-features=WebCodecs,WebGPU,CanvasOopRasterization,UseDirectCompositionVideoOverlays,D3D11VideoDecoder,VaapiVideoDecoder,PlatformHEVCDecoderSupport,AudioWorkletRealtimeThread,WebMachineLearningNeuralNetwork,WebNNOnnxRuntime,WebNNDirectML " +
             "--disable-features=CalculateNativeWinOcclusion --autoplay-policy=no-user-gesture-required " +
             "--ignore-gpu-blocklist --enable-native-gpu-memory-buffers";
+        try
+        {
+            var flag = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Plajah", "devtools.flag");
+            if (System.IO.File.Exists(flag)) browserArgs += " --remote-debugging-port=9333 --remote-allow-origins=http://127.0.0.1:9333";
+        }
+        catch { }
 
         try
         {
@@ -216,8 +232,8 @@ public sealed partial class MainWindow : Window
         core.Settings.AreDefaultContextMenusEnabled = true;
         core.Settings.IsGeneralAutofillEnabled = true;
 
-        // Preserve WebView2 disk cache and compiled code cache across sessions for near-instant boot
-        // (Do not call ClearBrowsingDataAsync on every launch)
+        // Purge stale service worker, cache storage, and disk cache on boot so packaged assets always load directly
+        try { await core.Profile.ClearBrowsingDataAsync(Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.ServiceWorkers | Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.CacheStorage | Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.DiskCache); } catch { }
 
         // High-performance local media streaming handler with Range seeking and CORS support
         try
@@ -425,7 +441,7 @@ public sealed partial class MainWindow : Window
 
         await core.AddScriptToExecuteOnDocumentCreatedAsync(
             "window.__PLAJAH_WINUI__ = true; window.__PLAJAH_PLATFORM__ = 'windows';" +
-            "if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(rs) { for (var r of rs) { r.unregister(); } }); }" +
+            "if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(rs) { for (var r of rs) { r.unregister(); } }); }if ('caches' in window) { caches.keys().then(function(ks) { for (var k of ks) { caches.delete(k); } }); }" +
             "(function() {" +
             "  const _origFetch = window.fetch;" +
             "  window.fetch = function(input, init) {" +
@@ -438,7 +454,7 @@ public sealed partial class MainWindow : Window
             "    } catch (e) {}" +
             "    return _origFetch.call(this, input, init);" +
             "  };" +
-            "  window.__plajahMediaEngine = {" +
+            "  var _pme = {" +
             "    capabilities: {" +
             "      host: 'winui', platform: 'windows', hardwareGenlock: true, ndi: true, brawDecode: true, webgpu: true," +
             "      sources: { decklink: true, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: true, ambo: true, switcher: true }," +
@@ -459,8 +475,11 @@ public sealed partial class MainWindow : Window
             "        window.chrome.webview.addEventListener('message', handler);" +
             "        window.chrome.webview.postMessage(JSON.stringify({ type: 'MEDIA_ENGINE_INVOKE', requestId: id, cmd: cmd, args: args || {} }));" +
             "      });" +
-            "    }" +
+            "    }," +
+            "    invokeNative: function(cmd, args) { return this.invoke(cmd, args); }" +
             "  };" +
+            "  window.__plajahMediaEngine = _pme;" +
+            "  window.plajahMediaEngine = _pme;" +
             "})();");
 
         // Camera + microphone: Live, VTuber tracking and Perform capture need them without nagging.
@@ -591,6 +610,25 @@ public sealed partial class MainWindow : Window
             }
             catch { }
         }
+
+        // New package version → drop the previous build's service worker and caches. The web layer is a
+        // PWA; its Workbox precache otherwise keeps serving the OLD bundle after an MSIX upgrade.
+        try
+        {
+            var v = Windows.ApplicationModel.Package.Current.Id.Version;
+            var ver = $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+            Title = $"Plajah {ver}";
+            var settings = Windows.Storage.ApplicationData.Current.LocalSettings.Values;
+            if (!(settings["webCacheVersion"] is string last) || last != ver)
+            {
+                await core.Profile.ClearBrowsingDataAsync(
+                    CoreWebView2BrowsingDataKinds.ServiceWorkers |
+                    CoreWebView2BrowsingDataKinds.CacheStorage |
+                    CoreWebView2BrowsingDataKinds.DiskCache);
+                settings["webCacheVersion"] = ver;
+            }
+        }
+        catch { /* unpackaged / older runtime: nothing to clear */ }
 
         // Launch hint for the web layer, readable synchronously before React mounts
         // (see src/lib/launchTarget.ts): ?open=media boots the light local-media viewer shell
@@ -773,7 +811,8 @@ public sealed partial class MainWindow : Window
                     var words = new List<string>();
                     if (root.TryGetProperty("words", out var wv) && wv.ValueKind == JsonValueKind.Array)
                         foreach (var w in wv.EnumerateArray()) { var sw = w.GetString(); if (!string.IsNullOrEmpty(sw)) words.Add(sw); }
-                    await _speech.StartAsync(lang, words); break;
+                    var strict = root.TryGetProperty("strict", out var sv) && sv.ValueKind == JsonValueKind.True;
+                    await _speech.StartAsync(lang, words, strict); break;
                 case "SPEECH_STOP": await _speech.StopAsync(); break;
                 case "SPEECH_SUSPEND": await _speech.SuspendAsync(); break;
                 case "SPEECH_RESUME": await _speech.ResumeAsync(); break;
@@ -815,24 +854,56 @@ public sealed partial class MainWindow : Window
             }
             else if (type == "WINDOW_MINIMIZE")
             {
+                var hwnd = WindowNative.GetWindowHandle(this);
                 if (_appWindow?.Presenter is OverlappedPresenter presenter)
                 {
                     presenter.Minimize();
                 }
+                ShowWindow(hwnd, SW_MINIMIZE);
             }
             else if (type == "WINDOW_MAXIMIZE")
             {
+                var hwnd = WindowNative.GetWindowHandle(this);
                 if (_appWindow?.Presenter is OverlappedPresenter presenter)
                 {
                     if (presenter.State == OverlappedPresenterState.Maximized)
+                    {
                         presenter.Restore();
+                        ShowWindow(hwnd, SW_RESTORE);
+                    }
                     else
+                    {
                         presenter.Maximize();
+                        ShowWindow(hwnd, SW_MAXIMIZE);
+                    }
                 }
+                else
+                {
+                    if (IsZoomed(hwnd))
+                        ShowWindow(hwnd, SW_RESTORE);
+                    else
+                        ShowWindow(hwnd, SW_MAXIMIZE);
+                }
+            }
+            else if (type == "WINDOW_RESTORE")
+            {
+                var hwnd = WindowNative.GetWindowHandle(this);
+                if (_appWindow?.Presenter is OverlappedPresenter presenter)
+                {
+                    presenter.Restore();
+                }
+                ShowWindow(hwnd, SW_RESTORE);
             }
             else if (type == "WINDOW_CLOSE")
             {
                 this.Close();
+            }
+            else if (type == "GET_WINDOW_STATE")
+            {
+                var hwnd = WindowNative.GetWindowHandle(this);
+                bool isMax = (_appWindow?.Presenter is OverlappedPresenter op && op.State == OverlappedPresenterState.Maximized) || IsZoomed(hwnd);
+                bool isMin = (_appWindow?.Presenter is OverlappedPresenter op2 && op2.State == OverlappedPresenterState.Minimized);
+                PostNativeMessage("WINDOW_STATE", new { isMaximized = isMax, isMinimized = isMin });
             }
             else if (type == "HELLO_CHECK")
             {
@@ -1640,31 +1711,99 @@ public sealed partial class MainWindow : Window
                 else if (cmd == "ai_audit_models")
                 {
                     string modelsRoot = GetPlajahModelStorageRoot();
-                    bool HasFile(string subfolder, string fileName) => File.Exists(Path.Combine(modelsRoot, subfolder, fileName));
+                    var searchRoots = new List<string> { modelsRoot };
+                    if (!searchRoots.Contains(@"D:\Plajah Models", StringComparer.OrdinalIgnoreCase) && Directory.Exists(@"D:\Plajah Models"))
+                        searchRoots.Add(@"D:\Plajah Models");
+                    if (!searchRoots.Contains(@"D:\Plajah AI Models", StringComparer.OrdinalIgnoreCase) && Directory.Exists(@"D:\Plajah AI Models"))
+                        searchRoots.Add(@"D:\Plajah AI Models");
+
+                    string comfyModels = @"D:\ComfyUI_windows_portable\ComfyUI_windows_portable\ComfyUI\models";
+                    if (Directory.Exists(comfyModels)) searchRoots.Add(comfyModels);
+
+                    bool HasFile(string subfolder, params string[] fileNames)
+                    {
+                        foreach (var rootDir in searchRoots)
+                        {
+                            var targetDir = Path.Combine(rootDir, subfolder);
+                            if (!Directory.Exists(targetDir)) continue;
+                            foreach (var fn in fileNames)
+                            {
+                                if (File.Exists(Path.Combine(targetDir, fn))) return true;
+                                var baseName = Path.GetFileNameWithoutExtension(fn);
+                                if (Directory.GetFiles(targetDir, baseName + ".*").Length > 0) return true;
+                            }
+                        }
+                        return false;
+                    }
 
                     result = new
                     {
                         modelsPath = modelsRoot,
                         installed = new Dictionary<string, bool>
                         {
-                            ["flux_schnell"] = HasFile("unet", "flux1-schnell.sft"),
-                            ["supir_detail"] = HasFile("checkpoints", "SUPIR_v0Q.ckpt"),
-                            ["ic_light_fc"] = HasFile("unet", "iclight_sd15_fc.safetensors"),
-                            ["wan_video_14b"] = HasFile("diffusion_models", "Wan2.1-I2V-14B-480P.safetensors"),
+                            // Group A: NVIDIA-Specific
+                            ["nvidia_nemotron"] = HasFile("llm", "Nemotron-Mini-4B-Instruct-Q4_K_M.gguf", "nemotron-mini-4b-instruct.gguf")
+                                               || HasFile("checkpoints", "Nemotron-Mini-4B-Instruct-Q4_K_M.gguf", "nemotron-mini-4b-instruct.gguf"),
+                            ["nvidia_mistral_nemo"] = HasFile("llm", "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf")
+                                                   || HasFile("checkpoints", "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"),
+                            ["nvidia_cosmos"] = HasFile("llm", "cosmos-prompt-upscaler.gguf")
+                                             || HasFile("checkpoints", "cosmos-prompt-upscaler.gguf"),
+
+                            // Group B: Free Diffusion, Creative & Video
+                            ["flux_schnell"] = HasFile("unet", "flux1-schnell.safetensors", "flux1-schnell.sft", "flux1-schnell-fp8.safetensors", "flux1-schnell-Q4_0.gguf"),
+                            ["sdxl_turbo"] = HasFile("checkpoints", "sd_xl_turbo_1.0_fp16.safetensors", "sd_xl_turbo_1.0.safetensors"),
+                            ["sdxl_lightning"] = HasFile("checkpoints", "sdxl_lightning_4step.safetensors", "sdxl_lightning_8step.safetensors"),
                             ["animagine_xl"] = HasFile("checkpoints", "animagine-xl-3.1.safetensors"),
-                            ["ipadapter_faceid"] = HasFile("ipadapter", "ip-adapter-faceid-plusv2_sdxl.bin")
+                            ["ic_light_fc"] = HasFile("unet", "iclight_sd15_fc.safetensors"),
+                            ["ipadapter_faceid"] = HasFile("ipadapter", "ip-adapter-faceid-plusv2_sdxl.bin"),
+                            ["svd_video"] = HasFile("checkpoints", "svd.safetensors", "svd_xt.safetensors"),
+                            ["sd15_base"] = HasFile("checkpoints", "v1-5-pruned-emaonly-fp16.safetensors", "v1-5-pruned-emaonly.safetensors"),
+                            ["qwen25_7b"] = HasFile("llm", "qwen2.5-7b-instruct-q4_k_m.gguf")
+                                         || HasFile("checkpoints", "qwen2.5-7b-instruct-q4_k_m.gguf"),
+                            ["wan_video_14b"] = HasFile("diffusion_models", "Wan2.1-I2V-14B-480P.safetensors", "Wan2.1_I2V_14B_480P_fp8.safetensors"),
+                            ["supir_detail"] = HasFile("checkpoints", "SUPIR_v0Q.ckpt")
                         }
                     };
                 }
                 else if (cmd == "ai_diffuse")
                 {
                     var profile = PlajahAiNativeService.GetHardwareProfile();
+                    string modelsRoot = GetPlajahModelStorageRoot();
+                    string generatedMediaUrl = null;
+                    string errorMsg = null;
+
+                    // Forward task to Plajah Native GPU Sidecar on http://127.0.0.1:51122/generate
+                    try
+                    {
+                        using var sidecarClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(90) };
+                        var content = new System.Net.Http.StringContent(argsObj.GetRawText(), System.Text.Encoding.UTF8, "application/json");
+                        var resp = sidecarClient.PostAsync("http://127.0.0.1:51122/generate", content).GetAwaiter().GetResult();
+                        if (resp.IsSuccessStatusCode)
+                        {
+                            var respJson = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                            using var doc = JsonDocument.Parse(respJson);
+                            if (doc.RootElement.TryGetProperty("mediaUrl", out var mu))
+                            {
+                                generatedMediaUrl = mu.GetString();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errorMsg = ex.Message;
+                    }
+
                     result = new
                     {
-                        success = true,
+                        success = !string.IsNullOrEmpty(generatedMediaUrl),
+                        mediaUrl = generatedMediaUrl,
                         backend = profile.HasTensorRt ? "tensorrt" : "directml",
                         gpuName = profile.GpuName,
-                        message = "Rendered natively on-device via Plajah DirectML/TensorRT engine."
+                        modelsPath = modelsRoot,
+                        error = errorMsg,
+                        message = !string.IsNullOrEmpty(generatedMediaUrl)
+                            ? "Generated on NVIDIA GPU via Plajah Native Sidecar"
+                            : (errorMsg ?? "Diffusion execution failed")
                     };
                 }
 
@@ -2307,6 +2446,24 @@ public sealed partial class MainWindow : Window
         }
         catch { }
 
+        // Prioritize dedicated storage on Drive D to preserve system drive space
+        string dPlajahModels = @"D:\Plajah Models";
+        if (Directory.Exists(dPlajahModels)) return dPlajahModels;
+
+        string dPlajahAiModels = @"D:\Plajah AI Models";
+        if (Directory.Exists(dPlajahAiModels)) return dPlajahAiModels;
+
+        // If Drive D exists, automatically initialize D:\Plajah Models
+        if (Directory.Exists(@"D:\"))
+        {
+            try
+            {
+                Directory.CreateDirectory(dPlajahModels);
+                return dPlajahModels;
+            }
+            catch { }
+        }
+
         string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string defaultRoot = Path.Combine(appData, "Plajah", "Models");
         if (!Directory.Exists(defaultRoot)) Directory.CreateDirectory(defaultRoot);
@@ -2553,6 +2710,16 @@ public sealed partial class MainWindow : Window
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool IsZoomed(IntPtr hWnd);
+
+    private const int SW_MINIMIZE = 6;
+    private const int SW_MAXIMIZE = 3;
+    private const int SW_RESTORE = 9;
 
     private const int WM_NCLBUTTONDOWN = 0xA1;
     private const int HTCAPTION = 0x2;

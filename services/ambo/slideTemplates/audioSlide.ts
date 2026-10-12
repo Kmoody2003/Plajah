@@ -33,6 +33,8 @@ import {
   drawProgress, isProgressStyle, chapterMarks, progressAt, rgba,
   type ProgressPaint, type ProgressState, type ProgressStyle,
 } from './audioProgressStyles';
+import { audioBus } from '../audioBus';
+import { getCaption, getLyricCue } from '../liveCaptionStore';
 
 type Ctx = CanvasRenderingContext2D;
 const nowSec = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
@@ -236,6 +238,7 @@ class AudioController {
   private lastPost = 0;
   private metaDur = 0;
   private liveOn = false;
+  private slavedToBus = false;
   private memo: { at: number; s: PlayState } | null = null;
   readonly startSec: number; readonly loop: boolean; readonly volume: number;
   readonly key: string;
@@ -263,6 +266,20 @@ class AudioController {
   }
 
   private async startAudible() {
+    // If this song is already actively playing in the Ambo audio bus, slave this visual
+    // controller directly to the audio bus track. DO NOT start a second audio instance!
+    const cur = audioBus.state.queue[audioBus.state.index];
+    const matchBus = cur && (
+      (cur.url && this.url && cur.url === this.url) ||
+      (this.host.fields?.audioId && cur.id === this.host.fields.audioId) ||
+      (this.host.fields?.title && cur.title && cur.title.toLowerCase() === this.host.fields.title.toLowerCase())
+    );
+    if (matchBus && (audioBus.isAudiblyPlaying() || audioBus.state.playing || audioBus.state.deck)) {
+      this.slavedToBus = true;
+      this.status = 'playing';
+      return;
+    }
+
     try {
       const m = await import('../amboAudioEngine');
       const eng = m.amboAudio;
@@ -331,7 +348,13 @@ class AudioController {
     const wave = waves.get(this.url);
     const waveDur = wave && typeof wave === 'object' ? wave.dur : 0;
     let pos = this.startSec, dur = 0, playing = false, ended = false;
-    if (this.host.audible) {
+    if (this.slavedToBus) {
+      dur = audioBus.state.duration || waveDur;
+      pos = audioBus.exactTime();
+      playing = audioBus.isAudiblyPlaying();
+      ended = dur > 0 && pos >= dur;
+      this.status = playing ? 'playing' : (ended ? 'ended' : 'still');
+    } else if (this.host.audible) {
       const a = this.el;
       if (a) {
         this.applyVolume();
@@ -638,10 +661,56 @@ function drawLines(ctx: Ctx, lines: string[], x: number, y: number, w: number, l
   });
 }
 
+/** Empty-transcript (live) mode: current lyric line of the playing track, else what is being said right now. */
+function drawLiveTranscript(ctx: Ctx, o: SlideObj, env: LiveEnv, props: Record<string, unknown>) {
+  const th = env.th, c = th.c, onPanel = !!props.onPanel;
+  const now = Date.now();
+  const cue = getLyricCue(), cap = getCaption();
+  let lines: string[] = [], cur = -1;
+  if (cue.lines.length && now - cue.at < 1500) { lines = cue.lines; cur = cue.cur; }
+  else if (cap.lines.length && now - cap.at < 9000) { lines = cap.lines; cur = lines.length - 1; }
+  if (!lines.length) {
+    if (env.host) return;                                  // on air: nothing to say yet → nothing shown
+    lines = ['Live words appear here']; cur = 0;           // editor / gallery only
+  }
+  ensureThemeFonts(th);
+  const ink = onPanel ? c.panelInk : c.ink, muted = onPanel ? c.panelMuted : c.muted;
+  const hot = str(props.hot) === 'accent' ? c.accent : ink;
+  const fam = str(props.family, fontCss(th.t.text)), weight = num(props.weight, th.t.textWeight), italic = props.italic ? 'italic ' : '';
+  let size = num(props.size, 32);
+  const leading = num(props.leading, 1.3), align = (str(props.align, 'left') as CanvasTextAlign), mode = str(props.mode, 'scroll');
+  const maxLines = Math.max(1, num(props.maxLines, 3));
+  ctx.save();
+  ctx.beginPath(); ctx.rect(o.x - size * .2, o.y - size * .1, o.w + size * .4, o.h + size * .3); ctx.clip();
+  const i = Math.max(0, Math.min(lines.length - 1, cur));
+  if (mode === 'single' || mode === 'karaoke') {
+    let font = `${italic}${weight} ${size}px ${fam}`, wr = wrap(ctx, font, lines[i], o.w);
+    for (let k = 0; k < 10 && (wr.lines.length > maxLines || wr.lines.length * size * leading > o.h); k++) { size *= .9; font = `${italic}${weight} ${size}px ${fam}`; wr = wrap(ctx, font, lines[i], o.w); }
+    const lh = size * leading, y = o.y + (o.h - wr.lines.length * lh) / 2;
+    ctx.font = font;
+    drawLines(ctx, wr.lines, o.x, y, o.w, lh, align, mode === 'karaoke' ? hot : ink, null, 0);
+    ctx.restore();
+    return;
+  }
+  const font = `${italic}${weight} ${size}px ${fam}`, lh = size * leading, gapH = lh * .4;
+  ctx.font = font;
+  const blocks = lines.map(t => wrap(ctx, font, t, o.w));
+  const tops: number[] = []; let acc = 0;
+  for (const b of blocks) { tops.push(acc); acc += b.lines.length * lh + gapH; }
+  const anchor = o.y + Math.min(o.h * .34, lh * 1.2);
+  for (let j = Math.max(0, i - 1); j < blocks.length; j++) {
+    const y = anchor + tops[j] - tops[i];
+    if (y > o.y + o.h + lh) break;
+    ctx.globalAlpha = j === i ? 1 : j < i ? .45 : .7;
+    drawLines(ctx, blocks[j].lines, o.x, y, o.w, lh, align, j === i ? hot : muted, null, 0);
+  }
+  ctx.restore();
+}
+
 registerLiveDrawer('audio.transcript', (ctx, o, env) => {
   const props = o.live?.props || {};
   const text = str(props.text);
-  if (!text.trim()) return;
+  if (!text.trim()) { drawLiveTranscript(ctx, o, env, props); return; }
   const st = playStateFor(env);
   const th = env.th, c = th.c, onPanel = !!props.onPanel;
   ensureThemeFonts(th);

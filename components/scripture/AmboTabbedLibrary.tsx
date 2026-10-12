@@ -25,6 +25,7 @@ import {
 import { listSongs, subscribeSongs, songsVersion } from '../../services/ambo/songLibrary';
 import { BOOKS, TRANSLATIONS, type BibleBook, type BibleVerse } from '../../services/bibleService';
 import { parseRef, formatRef, type ScriptureRef } from '../../services/scriptureRef';
+import { getAutoNav, subscribeAutoNav, getAutoScriptureState, subscribeAutoScripture } from '../../services/ambo/autoScripture';
 import { resolveScriptureQuery, queryLabel, type ScriptureQuery } from '../../services/scriptureSearch';
 import { getChapter, DEFAULT_TRANSLATION } from '../../services/scriptureText';
 import { newId, type Slide, type Show } from '../../services/ambo/showModel';
@@ -79,6 +80,8 @@ import { ScriptureQuickBar } from './AmboTemplateMenus';
 import { getAutoCueNext, subscribeAutoCueNext } from '../../services/ambo/scriptureAutoCue';
 import { rememberLyrics } from '../../services/ambo/lyricFeed';
 import { AmboSlideTemplateEntry } from './AmboSlideTemplateGallery';
+import { templateById, defaultFields, SLIDE_TEMPLATES } from '../../services/ambo/slideTemplates/registry';
+import { DEFAULT_THEME_ID } from '../../services/ambo/slideTemplates/themes';
 import AmboRoutinesPanel from './AmboRoutinesPanel';
 import AmboVisualizerParamsPanel from './AmboVisualizerParamsPanel';
 import AmboSongLyricsTab from './AmboSongLyricsTab';
@@ -1124,6 +1127,27 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const [selectedChapter, setSelectedChapter] = useState<number>(3);  // Default: John 3
   const [highlightVerseNum, setHighlightVerseNum] = useState<number | null>(16); // Default: John 3:16
   const autoCueOn = useSyncExternalStore(subscribeAutoCueNext, getAutoCueNext);
+
+  // ── Auto scripture: the live input drives book → chapter → verse, shown in purple ──
+  const autoNav = useSyncExternalStore(subscribeAutoNav, getAutoNav);
+  const autoState = useSyncExternalStore(subscribeAutoScripture, getAutoScriptureState);
+  const autoOn = autoState.running || autoState.starting;
+  const autoBook = !!(autoOn && autoNav && autoNav.ref.book === selectedBookNum && autoNav.ref.chapter === selectedChapter);
+  const autoCovers = (book: number, chapter: number, verse: number): boolean => {
+    if (!autoOn || !autoNav || autoNav.ref.verse === undefined) return false;
+    const r = autoNav.ref;
+    if (r.book !== book || r.chapter !== chapter) return false;
+    return verse >= r.verse && verse <= (r.endVerse ?? r.verse);
+  };
+  useEffect(() => {
+    if (!autoNav || !autoOn) return;
+    setScriptureTestament('ALL');
+    setSelectedBookNum(autoNav.ref.book);
+    setSelectedChapter(autoNav.ref.chapter);
+    setHighlightVerseNum(autoNav.ref.verse ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoNav?.seq]);
+
   const chapterGridRef = useRef<HTMLDivElement>(null);
   /** "All chapters" popup — every chapter of the open book at once (the inline box scrolls for long books). */
   const chapterColRef = useRef<HTMLDivElement>(null);
@@ -1967,7 +1991,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                         setHighlightVerseNum(null);
                       }}
                       className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-[11px] font-medium transition-all ${
-                        isSel
+                        isSel && autoBook
+                          ? 'bg-[#8B5CF6]/30 text-[#DDD1FF] font-bold border border-[#A78BFA] shadow-[0_0_10px_rgba(139,92,246,0.4)]'
+                          : isSel
                           ? 'bg-[#E3C57E]/20 text-[#E3C57E] font-bold border border-[#E3C57E]/30'
                           : 'text-white/70 hover:text-white hover:bg-white/5'
                       }`}
@@ -2023,7 +2049,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       setHighlightVerseNum(null);
                     }}
                     className={`h-8 rounded-md flex items-center justify-center font-mono text-[12px] font-bold transition-all ${
-                      selectedChapter === ch
+                      selectedChapter === ch && autoBook
+                        ? 'bg-[#8B5CF6] text-white shadow-[0_0_12px_rgba(139,92,246,0.6)]'
+                        : selectedChapter === ch
                         ? 'bg-[#E3C57E] text-[#1a1405] shadow-[0_0_10px_rgba(227,197,126,0.35)]'
                         : 'bg-white/5 text-white/75 hover:bg-white/15 hover:text-white'
                     }`}
@@ -2213,6 +2241,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 ) : (
                   chapterVerses.map(v => {
                     const isHighlighted = v.verse === highlightVerseNum;
+                    const isAuto = autoCovers(selectedBookNum, selectedChapter, v.verse);
                     return (
                       <div
                         key={v.verse}
@@ -2224,7 +2253,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                         onClick={() => handleVerseClick(v)}
                         onDoubleClick={() => handleVerseDoubleClick(v)}
                         className={`group relative rounded-xl p-3 border transition-all cursor-pointer ${
-                          isHighlighted
+                          isAuto
+                            ? 'border-[#A78BFA] bg-[#8B5CF6]/20 shadow-[0_0_22px_rgba(139,92,246,0.45)] ring-1 ring-[#A78BFA]/70'
+                            : isHighlighted
                             ? 'border-[#E3C57E] bg-[#E3C57E]/10 shadow-[0_0_20px_rgba(227,197,126,0.18)] ring-1 ring-[#E3C57E]/50'
                             : 'border-white/5 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.04]'
                         }`}
@@ -2239,7 +2270,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                             <div className="flex items-center gap-2 mb-1">
                               <span
                                 className={`font-mono text-[11px] font-extrabold px-1.5 py-0.5 rounded ${
-                                  isHighlighted ? 'bg-[#E3C57E] text-[#1a1405]' : 'bg-white/10 text-white/70'
+                                  isAuto ? 'bg-[#8B5CF6] text-white' : isHighlighted ? 'bg-[#E3C57E] text-[#1a1405]' : 'bg-white/10 text-white/70'
                                 }`}
                               >
                                 {v.verse}
@@ -3151,15 +3182,39 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               {/* TELA LOWER THIRDS & TEMPLATES SECTION */}
               {(selectedSubcat === 'all' || selectedSubcat === 'Tela Lower Thirds' || selectedSubcat === 'Tela Documents' || selectedSubcat === 'Data Visualizers') && (
                 <div>
-                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#D0BCFF] mb-2 flex items-center gap-1.5">
-                    <FileText size={13} />
-                    Tela Design Templates & Lower Thirds
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#D0BCFF] flex items-center gap-1.5">
+                      <FileText size={13} />
+                      Tela Design Templates & Lower Thirds
+                    </div>
+                    <AmboSlideTemplateEntry onInsert={onInsertTemplateSlide} activeShowTitle={shows.find(sh => sh.id === activeShowId)?.title} />
                   </div>
                   <div style={squareGridStyle(130, 10)}>
                     {TELA_DESIGN_TEMPLATES.map(t => (
                       <div
                         key={t.id}
-                        className="rounded-xl overflow-hidden border border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all"
+                        onClick={() => {
+                          const base = templateById(t.id) || templateById('song-title') || SLIDE_TEMPLATES[0];
+                          const slide: Slide = {
+                            id: newId('sl_tela'),
+                            label: t.title,
+                            group: 'Templates',
+                            groupColor: '#D0BCFF',
+                            layers: [{
+                              id: newId('ly_tela'),
+                              slot: 'slide',
+                              content: {
+                                kind: 'TELA_TEMPLATE',
+                                templateId: base.id,
+                                fields: defaultFields(base),
+                                theme: DEFAULT_THEME_ID,
+                              }
+                            }]
+                          };
+                          if (onInsertTemplateSlide) onInsertTemplateSlide(slide);
+                        }}
+                        className="rounded-xl overflow-hidden border border-white/10 hover:border-[#D0BCFF]/50 bg-white/[0.02] hover:bg-white/[0.06] cursor-pointer transition-all active:scale-95"
+                        title={`Click to insert “${t.title}” into the active show`}
                       >
                         <SquareFrame>
                           <AmboPoster label={t.title} gradient="linear-gradient(135deg,#1d2b4a,#0b0f1c)" />
