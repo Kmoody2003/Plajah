@@ -36,9 +36,9 @@ export interface LocalCreativeStudioOptions {
   lightElevation?: number;     // -90..90
   lightColorHex?: string;
   lightIntensity?: number;
-  // Directorial lens & lighting:
-  lens?: 'anamorphic' | '35mm' | '50mm' | '85mm' | 'macro' | 'ultra_wide';
-  lighting?: 'chiaroscuro' | 'golden_hour' | 'neon_noir' | 'studio_soft' | 'dramatic_rim' | 'natural_overcast';
+  lens?: any;
+  lighting?: any;
+  cameraAngle?: string;
   // Motion dials:
   cameraMovement?: 'push_in' | 'pull_out' | 'pan_left' | 'pan_right' | 'tilt_up' | 'orbit' | 'static';
   motionStrength?: number;
@@ -76,6 +76,7 @@ export async function executeCreativeStudioTask(
       aspect: options.aspect as any,
       lens: options.lens,
       lighting: options.lighting,
+      cameraAngle: options.cameraAngle,
     });
   } else if (options.op === 'detail_enhance' && options.sourceImageUrl) {
     task = compileDetailEnhanceTask({
