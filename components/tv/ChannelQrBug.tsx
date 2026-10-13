@@ -149,20 +149,21 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
       <div
         onClick={handleCopy}
         title="Scan with phone camera or click to copy direct link"
-        className="group relative flex items-center gap-3 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl bg-black/80 hover:bg-black/90 backdrop-blur-md border border-white/15 hover:border-white/30 shadow-[0_10px_35px_rgba(0,0,0,0.7)] cursor-pointer transition-colors max-w-[340px]"
+        className="group relative flex items-center gap-3.5 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-black/85 hover:bg-black/95 backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[0_12px_40px_rgba(0,0,0,0.8)] cursor-pointer transition-colors max-w-[380px]"
       >
         {/* Crisp QR Code Tile */}
-        <div className="relative w-[62px] h-[62px] sm:w-[72px] sm:h-[72px] rounded-xl bg-white p-1 shrink-0 flex items-center justify-center shadow-md border border-white/20 overflow-hidden">
+        <div className="relative w-[84px] h-[84px] sm:w-[94px] sm:h-[94px] rounded-xl bg-white p-1.5 shrink-0 flex items-center justify-center shadow-lg border border-white/40">
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
               alt="Channel QR code"
-              className="w-full h-full object-contain block rounded-lg"
+              className="w-full h-full object-contain block"
+              style={{ imageRendering: 'pixelated' }}
               draggable={false}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-              <QrCode size={26} className="text-gray-400 animate-pulse" />
+              <QrCode size={30} className="text-gray-400 animate-pulse" />
             </div>
           )}
         </div>
@@ -170,7 +171,7 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
         {/* Text & Branding */}
         <div className="flex flex-col justify-center min-w-0 pr-1">
           {/* Main callout with Plajah color branding in the text */}
-          <p className="font-black text-[10.5px] sm:text-[11.5px] uppercase tracking-wide leading-[1.22] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+          <p className="font-black text-[11px] sm:text-[12px] uppercase tracking-wide leading-[1.25] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             <span className="bg-gradient-to-r from-[#FF8C00] via-[#FF3366] to-[#C77DFF] bg-clip-text text-transparent">
               Scan to watch this channel
             </span>
@@ -181,13 +182,13 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
           </p>
 
           {/* Underneath: plajah.com written small with the chevron logo */}
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <Logo size={13} className="shrink-0" />
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider text-white/80 lowercase">
+          <div className="flex items-center gap-1.5 mt-2">
+            <Logo size={14} className="shrink-0" />
+            <span className="text-[10.5px] sm:text-[11.5px] font-bold tracking-wider text-white/85 lowercase">
               plajah.com
             </span>
             {channelNumber && (
-              <span className="text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-white/10 text-white/65 border border-white/10 ml-0.5">
+              <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/15 text-white/90 border border-white/15 ml-0.5">
                 CH {channelNumber}
               </span>
             )}

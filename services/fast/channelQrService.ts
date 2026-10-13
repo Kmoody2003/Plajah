@@ -1,5 +1,4 @@
 import QRCode from 'qrcode';
-import { shareOrigin } from '../deepLinkService';
 
 export interface ChannelQrTarget {
   number?: string | number;
@@ -14,31 +13,37 @@ export interface ChannelQrTarget {
 const QR_DATA_URL_CACHE = new Map<string, string>();
 
 /**
- * Builds the canonical, persistent share URL for a channel.
- * Carries the direct channel number ('channel' and 'n') so any scanning device
- * immediately tunes to that exact station, along with stable source and owner IDs.
+ * Canonical public base origin for external devices scanning QR codes.
+ * Mobile phones scanning screen QR codes must always hit the public host.
+ */
+export function getChannelQrBase(): string {
+  const configured = (import.meta as any).env?.VITE_APP_URL as string | undefined;
+  if (configured && /^https?:\/\//.test(configured)) {
+    return configured.replace(/\/$/, '');
+  }
+  return 'https://plajah.com';
+}
+
+/**
+ * Builds a compact, ultra-scannable QR URL for a channel.
+ * Uses a minimal query string (?channel=X&source=Y) to keep the QR code at
+ * Version 1/2 density (huge, chunky blocks) so smartphone cameras can scan
+ * it in milliseconds from several feet away.
  */
 export function buildChannelQrUrl(target: ChannelQrTarget): string {
-  const base = shareOrigin();
+  const base = getChannelQrBase();
   const num = target.number != null ? String(target.number).trim() : '';
-  const owner = target.scheduleOwner || target.ownerId;
-  const plajahId = target.plajahId;
   const source = target.id || '';
 
-  const id = plajahId ? `plajah:${plajahId}` : owner ? `owner:${owner}` : source ? `source:${source}` : (num ? `channel:${num}` : 'live');
-
   const u = new URLSearchParams();
-  u.set('type', 'channel');
   if (num) {
     u.set('channel', num);
-    u.set('n', num);
   }
-  if (id) u.set('id', id);
-  if (source) u.set('source', source);
-  if (owner) u.set('owner', owner);
-  if (target.name) u.set('name', target.name);
+  if (source && !source.startsWith('plajah_')) {
+    u.set('source', source);
+  }
 
-  return `${base}/share?${u.toString()}`;
+  return `${base}/?${u.toString()}`;
 }
 
 /**
@@ -50,7 +55,8 @@ export function getChannelQrDataUrlSync(shareUrl: string): string | null {
 }
 
 /**
- * Generates a high-contrast QR code data URL for a channel URL and caches it persistently.
+ * Generates a high-contrast QR code data URL with an intact quiet zone
+ * and high resolution for reliable camera scanning.
  */
 export async function generateChannelQrDataUrl(shareUrl: string): Promise<string> {
   if (!shareUrl) return '';
@@ -59,8 +65,8 @@ export async function generateChannelQrDataUrl(shareUrl: string): Promise<string
 
   try {
     const dataUrl = await QRCode.toDataURL(shareUrl, {
-      margin: 1,
-      width: 200,
+      margin: 2, // Standard quiet zone so finder patterns are never crowded
+      width: 280, // High resolution canvas output
       color: {
         dark: '#000000',
         light: '#ffffff',

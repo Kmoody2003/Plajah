@@ -1334,7 +1334,7 @@ const LiveTvPlus: React.FC<{
             shareUrl={shareMeta.url}
             channelNumber={selected?.number}
             channelName={selected?.name}
-            className={compact && !immersive ? 'bottom-2 left-2 scale-[0.72] origin-bottom-left' : 'bottom-6 left-6'}
+            className={compact && !immersive ? 'bottom-3 left-3' : 'bottom-6 left-6'}
           />
         )}
       </div>

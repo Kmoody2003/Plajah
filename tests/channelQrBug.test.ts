@@ -86,9 +86,8 @@ test('channelQrService: buildChannelQrUrl produces consistent URL and caches QR 
 
   const url = buildChannelQrUrl(target);
   assert.ok(url.includes('channel=42.1'));
-  assert.ok(url.includes('n=42.1'));
   assert.ok(url.includes('source=fast_great_faith'));
-  assert.ok(url.includes('owner=user_great_faith'));
+  assert.ok(url.startsWith('https://plajah.com/?'));
 
   // Test caching
   const dataUrl = await generateChannelQrDataUrl(url);
