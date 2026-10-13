@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Brush, Check, Crop, Download, Eraser, Eye, Layers3, Library, Maximize2, Minimize2, Palette, RotateCw, SlidersHorizontal, Sparkles, Wand2, X } from 'lucide-react';
+import { ArrowLeft, Brush, Check, Crop, Download, Eraser, Eye, Layers3, Library, Maximize2, Minimize2, Palette, RotateCw, SlidersHorizontal, Sparkles, Wand2, X, Film } from 'lucide-react';
 import { Photo } from '../types';
 import PhotoDevelopPreview from './PhotoDevelopPreview';
 import {
@@ -13,6 +13,8 @@ import {
   type PhotoEditAdjustments,
   type PhotoEditMode,
 } from '../services/photoEditingService';
+import { TelaLookGallery } from './tela/color/TelaLookGallery';
+import { getLutById } from '../services/color/cinematicLutLibrary';
 
 interface PhotoEditPanelProps {
   photo: Photo;
@@ -65,6 +67,7 @@ const PhotoEditPanel: React.FC<PhotoEditPanelProps> = ({ photo, variant = 'drawe
   const [fullscreen, setFullscreen] = useState(false);
   const [lookCategory, setLookCategory] = useState<'All' | CreativeLookCategory>('All');
   const [selectedLook, setSelectedLook] = useState<string | null>(null);
+  const [lookGalleryOpen, setLookGalleryOpen] = useState(false);
   const [adjustments, setAdjustments] = useState<PhotoEditAdjustments>({ ...DEFAULT_PHOTO_ADJUSTMENTS });
   const controls = mode === 'basic' ? basicControls : mode === 'creative' ? creativeControls : [...basicControls, ...advancedControls];
 
@@ -139,6 +142,29 @@ const PhotoEditPanel: React.FC<PhotoEditPanelProps> = ({ photo, variant = 'drawe
 
           {mode === 'creative' && (
             <div className="space-y-3">
+              {/* Master 3D Cinema & Camera LUTs Entry */}
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-cyan-500/10 border border-white/15 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Film size={14} className="text-pink-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white">3D Cinema & Camera LUTs</span>
+                  </div>
+                  {selectedLook && getLutById(selectedLook) && (
+                    <span className="text-[9px] font-bold text-pink-300 bg-pink-500/20 px-2 py-0.5 rounded-full border border-pink-500/30">
+                      {getLutById(selectedLook)?.name}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLookGalleryOpen(true)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+                >
+                  <Sparkles size={13} className="text-cyan-300" />
+                  <span>Browse Master Look Gallery (24+ LUTs)</span>
+                </button>
+              </div>
+
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
                 {(['All','Essential','Portrait','Cinema','Analog','Landscape'] as const).map(category => <button key={category} onClick={() => setLookCategory(category)} className={`shrink-0 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${lookCategory === category ? 'bg-white text-black' : 'bg-white/5 text-white/45 hover:text-white'}`}>{category}</button>)}
               </div>
@@ -190,6 +216,45 @@ const PhotoEditPanel: React.FC<PhotoEditPanelProps> = ({ photo, variant = 'drawe
           Save Recipe
         </button>
       </footer>
+
+      {/* 3D LUT Master Gallery Modal */}
+      {lookGalleryOpen && (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+          onClick={() => setLookGalleryOpen(false)}
+        >
+          <div
+            className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl border border-white/15 bg-[#0d0b14]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <TelaLookGallery
+              sampleImageUrl={photo.url || ''}
+              onApplyLut={(lut, strength) => {
+                setSelectedLook(lut.id);
+                setAdjustments(prev => ({
+                  ...prev,
+                  contrast: Math.round(lut.toneCurve.contrast * strength),
+                  saturation: Math.round(lut.toneCurve.saturation * strength),
+                  warmth: Math.round(lut.toneCurve.warmth * strength),
+                  tint: Math.round(lut.toneCurve.tint * strength),
+                  highlights: Math.round(lut.toneCurve.highlights * strength),
+                  shadows: Math.round(lut.toneCurve.shadows * strength),
+                  whites: Math.round(lut.toneCurve.whites * strength),
+                  blacks: Math.round(lut.toneCurve.blacks * strength),
+                  fade: Math.round((lut.toneCurve.fade || 0) * strength),
+                  grain: Math.round((lut.toneCurve.grain || 0) * strength),
+                  vignette: Math.round((lut.toneCurve.vignette || 0) * strength),
+                }));
+              }}
+              onClearLut={() => {
+                setSelectedLook(null);
+                setAdjustments({ ...DEFAULT_PHOTO_ADJUSTMENTS });
+              }}
+              onClose={() => setLookGalleryOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 

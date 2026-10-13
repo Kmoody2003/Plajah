@@ -56,6 +56,9 @@ import { wanVideoEngine } from '../../services/video/wanVideoEngine';
 import { plajahLoraRegistry, type PlajahLora, CURATED_FLUX_LORAS } from '../../services/localAi/plajahLoraRegistry';
 import { listSavedCharacters, type CharacterSheet } from '../../services/story/characterBible';
 import { TelaComicStudio } from '../tela/TelaComicStudio';
+import type { DirectorialLens, DirectorialLighting, DirectorialCameraAngle } from '../../services/localAi/plajahPipelineEngine';
+import { TelaLookGallery } from '../tela/color/TelaLookGallery';
+import { getLutById } from '../../services/color/cinematicLutLibrary';
 
 interface LocalCreativeStudioProps {
   initialImage?: string;
@@ -92,8 +95,11 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   const [motionResolution, setMotionResolution] = useState<'480p' | '720p'>('480p');
   const [sourceImage, setSourceImage] = useState<string | null>(initialImage || null);
   const [aspect, setAspect] = useState<'16:9' | '2.39:1' | '1:1' | '9:16'>('16:9');
-  const [lens, setLens] = useState<'anamorphic' | '35mm' | '50mm' | '85mm'>('anamorphic');
-  const [lighting, setLighting] = useState<'chiaroscuro' | 'golden_hour' | 'neon_noir' | 'dramatic_rim'>('chiaroscuro');
+  const [lens, setLens] = useState<DirectorialLens>('anamorphic');
+  const [lighting, setLighting] = useState<DirectorialLighting>('chiaroscuro');
+  const [cameraAngle, setCameraAngle] = useState<DirectorialCameraAngle>('eye_level');
+  const [showLookGallery, setShowLookGallery] = useState(false);
+  const [activeLookId, setActiveLookId] = useState<string | null>(null);
 
   // Detail Enhancer Dials
   const [hallucination, setHallucination] = useState(45);
@@ -198,6 +204,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
       const enhanced = await enhancePromptWithAi(prompt, {
         lens,
         lighting,
+        cameraAngle,
         aspect,
         style: activeTab === 'enhance' ? 'photoreal' : 'cinematic',
       });
@@ -267,6 +274,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
         effectivePrompt = await enhancePromptWithAi(prompt, {
           lens,
           lighting,
+          cameraAngle,
           aspect,
           style: activeTab === 'enhance' ? 'photoreal' : 'cinematic',
         });
@@ -281,6 +289,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           aspect,
           lens,
           lighting,
+          cameraAngle,
           loraId: selectedLoraId !== 'none' ? selectedLoraId : undefined,
           loraWeight: selectedLoraId !== 'none' ? selectedLoraWeight : undefined,
           hallucinationLevel: hallucination,
@@ -308,6 +317,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           aspect,
           lens,
           lighting,
+          cameraAngle,
           hallucinationLevel: hallucination,
           resemblance,
           width: res.width || 1024,
@@ -685,7 +695,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Cinematic Lens</label>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                    Optical Cinema Lens (16 Presets)
+                  </label>
                   <select
                     value={lens}
                     onChange={(e) => setLens(e.target.value as any)}
@@ -700,14 +712,28 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     }}
                   >
                     <option value="anamorphic">Panavision Anamorphic (Cinematic Flares & Oval Bokeh)</option>
-                    <option value="35mm">35mm Classic Prime (Organic Grain & Depth)</option>
-                    <option value="50mm">50mm Standard Human Eye</option>
-                    <option value="85mm">85mm Portrait (Creamy Shallow Depth)</option>
+                    <option value="35mm">Arri Master Prime 35mm (Organic Grain & Depth)</option>
+                    <option value="50mm">Cooke S4/i 50mm Standard (Warm Cooke Look)</option>
+                    <option value="85mm">Zeiss Supreme Prime 85mm (Creamy Portrait Isolation)</option>
+                    <option value="135mm_telephoto">Leica Summilux 135mm (Telephoto Compression)</option>
+                    <option value="macro_probe">Laowa 24mm 2x Macro Probe (Microscopic Tactile Detail)</option>
+                    <option value="ultra_wide_18mm">Zeiss Ultra Prime 18mm (Architectural Immersion)</option>
+                    <option value="super_wide_12mm">Voigtländer 12mm Ultra-Wide (Sweeping Vista Immersion)</option>
+                    <option value="fisheye_8mm">8mm Circular Fisheye (180° Curved Horizon)</option>
+                    <option value="tilt_shift_45mm">Canon TS-E 45mm Tilt-Shift (Miniature Diorama Plane)</option>
+                    <option value="vintage_16mm_bolex">16mm Switar Vintage Bolex (Nostalgic Analog Halation)</option>
+                    <option value="70mm_imax">IMAX 15-perf 70mm (Infinite Textural Resolution)</option>
+                    <option value="noctilux_f095">Leica Noctilux 50mm f/0.95 (Hyper-Shallow Liquid Bokeh)</option>
+                    <option value="petzval_swirl">19th-Century Petzval Swirl (Radial Swirling Vortex)</option>
+                    <option value="cine_zoom_24_290">Angénieux Optimo 24-290mm (Hollywood Optical Vertigo)</option>
+                    <option value="vintage_anamorphic_flare">Lomo Soviet Roundfront (Warm Amber Streaks)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Lighting Style</label>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                    Directorial Lighting Setup (16 Presets)
+                  </label>
                   <select
                     value={lighting}
                     onChange={(e) => setLighting(e.target.value as any)}
@@ -721,11 +747,117 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       fontSize: '12px',
                     }}
                   >
-                    <option value="chiaroscuro">Chiaroscuro (Rich Contrast, High Drama)</option>
-                    <option value="golden_hour">Golden Hour (Warm Soft Backlight)</option>
-                    <option value="neon_noir">Neon Noir (Cyan/Magenta Cyberpunk)</option>
-                    <option value="dramatic_rim">Dramatic Rim Light (Edge Separation)</option>
+                    <option value="chiaroscuro">Rembrandt Chiaroscuro (Rich Contrast, High Drama)</option>
+                    <option value="golden_hour">Magic Golden Hour (Warm Low Backlight & Haze)</option>
+                    <option value="neon_noir">Cyberpunk Neon Noir (Cyan & Magenta Specular Wet Street)</option>
+                    <option value="dramatic_rim">Dramatic Rim & Kicker Light (Edge Separation)</option>
+                    <option value="high_key_commercial">High-Key Commercial Studio (Pure Daylight, Zero Shadows)</option>
+                    <option value="low_key_film_noir">1940s Classic Film Noir (Venetian Blinds & Smoke Haze)</option>
+                    <option value="moonlight_cyan">Cinematic Cool Moonlight (Midnight Blue & Silver Edges)</option>
+                    <option value="volumetric_godrays">Cathedral Volumetric God Rays (Directional Sun Shafts)</option>
+                    <option value="warm_candlelight">Intimate 1800K Candlelight (Warm Amber Falloff)</option>
+                    <option value="bifrost_neon_synth">Synthwave Bifrost (Electric Violet & Crimson Rim)</option>
+                    <option value="overcast_softbox">Northern Sky Softbox (Diffuse Daylight, Soft Skin Tones)</option>
+                    <option value="ringlight_beauty">Editorial Beauty Ring Light (Ocular Catchlights, Flawless Fill)</option>
+                    <option value="stage_spotlight">Theatrical Follow-Spotlight (Focused Beam, Pitch Black)</option>
+                    <option value="underwater_caustics">Underwater Caustics (Rippling Turquoise Ocean Refraction)</option>
+                    <option value="fluorescent_grit">Industrial Fluorescent Grit (Cold Green Institutional Realism)</option>
+                    <option value="sunset_silhouette">Sunset Horizon Silhouette (Graphic Black Contour against Fire)</option>
                   </select>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      Camera Angle & Consistency (12 Angles)
+                    </label>
+                    {cameraAngle === 'full_body_turnaround' && (
+                      <span style={{ fontSize: '9px', color: '#38bdf8', fontWeight: 700 }}>
+                        Turnaround Active
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    value={cameraAngle}
+                    onChange={(e) => setCameraAngle(e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      backgroundColor: '#1a1c22',
+                      border: '1px solid #282b33',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <option value="eye_level">Frontal Eye-Level (0° Direct Natural Gaze)</option>
+                    <option value="three_quarter_left">Three-Quarter Left (45° Dynamic Facial Depth)</option>
+                    <option value="three_quarter_right">Three-Quarter Right (45° Dynamic Facial Depth)</option>
+                    <option value="profile_left">Side Profile Left (90° Sharp Silhouette Jawline)</option>
+                    <option value="profile_right">Side Profile Right (90° Sharp Silhouette Jawline)</option>
+                    <option value="low_angle_hero">Heroic Low Angle (Looking Up, Commanding Stature)</option>
+                    <option value="high_angle_bird">High Angle Bird's Eye (Looking Down 45°, Vulnerable)</option>
+                    <option value="overhead_god_view">Top-Down God View (90° Nadir Geometric Layout)</option>
+                    <option value="over_the_shoulder">Over-the-Shoulder (OTS Dialogue Depth)</option>
+                    <option value="dutch_angle">Dutch Angle Tilt (15° Canted Psychological Tension)</option>
+                    <option value="extreme_close_up">Extreme Close-Up Macro (Intimate Eyes & Emotion)</option>
+                    <option value="full_body_turnaround">Full 4-Angle Turnaround Sheet (Model Sheet Consistency)</option>
+                  </select>
+
+                  {cameraAngle === 'full_body_turnaround' && (
+                    <div style={{ marginTop: '6px', padding: '6px 8px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '10px', color: '#38bdf8' }}>
+                        Turnaround Sheet: locks front, 3/4, profile & rear views
+                      </span>
+                      {selectedLoraId !== 'flux_lora_multiview_consistency' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLoraId('flux_lora_multiview_consistency');
+                            setSelectedLoraWeight(0.9);
+                          }}
+                          style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#0284c7', color: '#fff', border: 'none', cursor: 'pointer' }}
+                        >
+                          Lock with LoRA
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Master 3D LUT & Film Look Gallery Trigger */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      Cinematic 3D LUT & Film Stock
+                    </label>
+                    {activeLookId && (
+                      <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 700 }}>
+                        {getLutById(activeLookId)?.name || activeLookId}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLookGallery(true)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      backgroundColor: activeLookId ? 'rgba(212,0,85,0.2)' : '#1a1c22',
+                      border: activeLookId ? '1px solid rgba(212,0,85,0.45)' : '1px solid #282b33',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Film size={13} style={{ color: activeLookId ? '#D40055' : '#94a3b8' }} />
+                    <span>{activeLookId ? `Look: ${getLutById(activeLookId)?.name}` : 'Browse 3D Camera & Film LUTs (24+ Looks)'}</span>
+                  </button>
                 </div>
               </>
             )}
@@ -1967,6 +2099,54 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           )}
         </div>
       </div>
+
+      {/* Master 3D LUT & Film Look Gallery Modal */}
+      {showLookGallery && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+            padding: 16,
+          }}
+          onClick={() => setShowLookGallery(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 820,
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              borderRadius: 16,
+              boxShadow: '0 25px 60px rgba(0,0,0,0.9)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: '#0d0b14',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <TelaLookGallery
+              sampleImageUrl={outputUrl || sourceImage || undefined}
+              onApplyLut={(lut) => {
+                setActiveLookId(lut.id);
+                if (!prompt.toLowerCase().includes(lut.name.toLowerCase())) {
+                  setPrompt((prev) => {
+                    const cleanPrev = prev.trim();
+                    if (!cleanPrev) return `Cinematic still, color graded with ${lut.name}`;
+                    return `${cleanPrev}, ${lut.description}`;
+                  });
+                }
+              }}
+              onClearLut={() => setActiveLookId(null)}
+              onClose={() => setShowLookGallery(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

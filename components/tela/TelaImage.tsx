@@ -11,7 +11,7 @@
  * reorder layer), ids stable.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2, Wand2, Sparkles, Square, Circle, Lasso, FlipHorizontal, Paintbrush, Eraser, Palette, Pipette, SlidersHorizontal, Printer, X } from 'lucide-react';
+import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2, Wand2, Sparkles, Square, Circle, Lasso, FlipHorizontal, Paintbrush, Eraser, Palette, Pipette, SlidersHorizontal, Printer, X, Film } from 'lucide-react';
 import type { TelaImageDevice, TelaImageLayer, TelaImageAdjust, TelaBlendMode, TelaLayerMask } from '../../types';
 import { uploadTelaImage } from '../../services/telaAssets';
 import { executeGenerativeInpaint } from '../../services/tela/telaInpaintService';
@@ -30,8 +30,24 @@ import TelaColoristSuite, {
   DEFAULT_CURVES,
 } from './color/TelaColoristSuite';
 import { CREATIVE_LOOKS } from '../../services/photoEditingService';
+import { getLutById, lutToCssFilter } from '../../services/color/cinematicLutLibrary';
+import { TelaLookGallery } from './color/TelaLookGallery';
 
-export const NEUTRAL_ADJUST: TelaImageAdjust = { brightness: 1, contrast: 1, saturate: 1, exposure: 0, blur: 0 };
+export const NEUTRAL_ADJUST: TelaImageAdjust = {
+  brightness: 1,
+  contrast: 1,
+  saturate: 1,
+  exposure: 0,
+  blur: 0,
+  warmth: 0,
+  tint: 0,
+  highlights: 0,
+  shadows: 0,
+  vignette: 0,
+  grain: 0,
+  activeLutId: undefined,
+  lutStrength: 1.0,
+};
 
 const newLayerId = () => `lyr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -44,6 +60,28 @@ export function imageFilter(a: TelaImageAdjust): string {
     `saturate(${a.saturate ?? 1})`,
   ];
   if (a.blur && a.blur > 0) parts.push(`blur(${a.blur}px)`);
+
+  // Warmth & Tint color temperature shift
+  if (a.warmth && Math.abs(a.warmth) > 0.5) {
+    if (a.warmth > 0) {
+      parts.push(`sepia(${(a.warmth * 0.35 / 100).toFixed(3)})`);
+    } else {
+      parts.push(`hue-rotate(${(a.warmth * 0.25).toFixed(1)}deg)`);
+    }
+  }
+  if (a.tint && Math.abs(a.tint) > 0.5) {
+    parts.push(`hue-rotate(${(a.tint * 0.25).toFixed(1)}deg)`);
+  }
+
+  // Active Master Cinematic / Camera 3D LUT
+  if (a.activeLutId) {
+    const lut = getLutById(a.activeLutId);
+    if (lut) {
+      const lutFilter = lutToCssFilter(lut, a.lutStrength ?? 1.0);
+      if (lutFilter) parts.push(lutFilter);
+    }
+  }
+
   return parts.join(' ');
 }
 
@@ -80,6 +118,7 @@ export const TelaImageLayerControls: React.FC<{
   const [inpaintPrompt, setInpaintPrompt] = useState('');
   const [isInpainting, setIsInpainting] = useState(false);
   const [inpaintFeedback, setInpaintFeedback] = useState<string | null>(null);
+  const [lookGalleryOpen, setLookGalleryOpen] = useState(false);
 
   const handleGenerativeInpaint = async () => {
     if (!layer.src) return;
@@ -274,11 +313,83 @@ export const TelaImageLayerControls: React.FC<{
           {BLEND_MODES.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
       </div>
+
+      {/* Master Cinematic Looks & 3D LUT Section */}
+      {(() => {
+        const currentLut = layer.adjust?.activeLutId ? getLutById(layer.adjust.activeLutId) : undefined;
+        return (
+          <div style={{ marginBottom: 12, padding: 8, borderRadius: 9, background: 'rgba(212,0,85,0.06)', border: '1px solid rgba(212,0,85,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ ...lbl, color: 'var(--pj-magenta,#D40055)', marginBottom: 0 }}>Cinematic Look & 3D LUT</div>
+              {currentLut && (
+                <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
+                  {Math.round((layer.adjust?.lutStrength ?? 1) * 100)}%
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setLookGalleryOpen(true)}
+              style={{
+                width: '100%',
+                height: 32,
+                borderRadius: 8,
+                background: currentLut
+                  ? 'linear-gradient(135deg, rgba(212,0,85,0.3), rgba(181,108,255,0.3))'
+                  : 'rgba(255,255,255,0.08)',
+                border: currentLut ? '1px solid rgba(212,0,85,0.45)' : '1px solid rgba(255,255,255,0.15)',
+                color: '#fff',
+                fontSize: 11,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Film size={13} style={{ color: currentLut?.accentColor || 'var(--pj-magenta,#D40055)' }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 170 }}>
+                {currentLut ? currentLut.name : 'Choose Cinematic LUT…'}
+              </span>
+            </button>
+
+            {currentLut && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', fontWeight: 700 }}>LUT Intensity</span>
+                  <button
+                    type="button"
+                    onClick={() => onUpdate({ adjust: { ...layer.adjust, activeLutId: undefined, lutStrength: 1.0 } })}
+                    style={{ fontSize: 9, color: '#f87171', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    Remove
+                  </button>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={layer.adjust?.lutStrength ?? 1}
+                  onChange={e => onUpdate({ adjust: { ...layer.adjust, lutStrength: +e.target.value } })}
+                  style={{ width: '100%', accentColor: 'var(--pj-magenta,#D40055)' }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <div style={{ ...lbl, marginBottom: 6, color: 'rgba(255,255,255,0.55)' }}>Adjustments · non-destructive</div>
       {slider('exposure', 'Exposure', -2, 2, 0.01, v => (v > 0 ? '+' : '') + v.toFixed(2))}
       {slider('brightness', 'Brightness', 0, 2, 0.01, v => v.toFixed(2))}
       {slider('contrast', 'Contrast', 0, 2, 0.01, v => v.toFixed(2))}
       {slider('saturate', 'Saturation', 0, 2, 0.01, v => v.toFixed(2))}
+      {slider('warmth', 'Warmth (Kelvin)', -100, 100, 1, v => (v > 0 ? '+' : '') + Math.round(v))}
+      {slider('tint', 'Tint (Magenta/Green)', -100, 100, 1, v => (v > 0 ? '+' : '') + Math.round(v))}
       {slider('blur', 'Blur', 0, 20, 0.1, v => v.toFixed(1) + 'px')}
       <button
         onClick={() => onUpdate({ adjust: { ...NEUTRAL_ADJUST } })}
@@ -286,6 +397,64 @@ export const TelaImageLayerControls: React.FC<{
       >
         Reset adjustments
       </button>
+
+      {/* Look Gallery Modal */}
+      {lookGalleryOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(10px)',
+            padding: 16,
+          }}
+          onClick={() => setLookGalleryOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 780,
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              borderRadius: 16,
+              boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: '#0d0b14',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <TelaLookGallery
+              currentLayer={layer}
+              sampleImageUrl={layer.src}
+              onApplyLut={(lut, strength) => {
+                onUpdate({
+                  adjust: {
+                    ...layer.adjust,
+                    activeLutId: lut.id,
+                    lutStrength: strength,
+                    warmth: Math.round((lut.toneCurve.warmth || 0) * strength),
+                    tint: Math.round((lut.toneCurve.tint || 0) * strength),
+                  }
+                });
+              }}
+              onClearLut={() => {
+                onUpdate({
+                  adjust: {
+                    ...layer.adjust,
+                    activeLutId: undefined,
+                    lutStrength: 1.0,
+                  }
+                });
+              }}
+              onClose={() => setLookGalleryOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

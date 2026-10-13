@@ -18,6 +18,7 @@ export interface PaiGenerationItem {
   aspect?: string;
   lens?: string;
   lighting?: string;
+  cameraAngle?: string;
   hallucinationLevel?: number;
   resemblance?: number;
   timestamp: number;

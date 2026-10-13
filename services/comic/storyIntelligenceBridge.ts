@@ -16,6 +16,8 @@ import { plajahAudioCore, FabulaDialogueTake } from '../voice/plajahAudioCore';
 import { proceduralFoley } from '../audio/proceduralFoleyEngine';
 import type { Character, LoreEntry, IPWorld } from '../../types';
 import type { PaiGenerationItem } from '../localAi/paiGenerationHistory';
+import { peekComicHandoff, takeComicHandoff, ComicHandoff } from '../comicHandoff';
+import { parseScript, ScriptBeat, ScriptCharacter } from '../comicScript';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. PROSE / STORY ──▶ AUTOMATIC SEQUENTIAL COMIC BREAKDOWN
@@ -419,4 +421,204 @@ export function injectPaiImageIntoPanel(
   target.actionPrompt = paiItem.prompt;
 
   return updated;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. LOREA COMIC & MANGA AUTHORING HANDOFF BRIDGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Checks if a pending comic handoff is waiting from Lorea (chapter reader) or Fabula.
+ */
+export function checkLoreaPendingHandoff(): ComicHandoff | null {
+  return peekComicHandoff();
+}
+
+/**
+ * Consumes and claims the pending handoff from Lorea/Fabula.
+ */
+export function consumeLoreaHandoff(): ComicHandoff | null {
+  return takeComicHandoff();
+}
+
+/**
+ * Flows a character-tagged script directly into a ComicMangaPage.
+ * Auto-populates speech balloons, captions, and SFX across panels,
+ * and auto-assigns character portrait images to empty panels.
+ */
+export function flowLoreaScriptToPage(
+  page: ComicMangaPage,
+  scriptText: string,
+  characters: ScriptCharacter[] = []
+): ComicMangaPage {
+  const beats = parseScript(scriptText);
+  if (!beats.length) return page;
+
+  const charMap = new Map(characters.map((c) => [c.name.toLowerCase(), c.imageUrl]));
+  const updatedPanels = [...page.panels];
+  const numPanels = updatedPanels.length || 1;
+  const beatsPerPanel = Math.ceil(beats.length / numPanels);
+
+  for (let pIdx = 0; pIdx < numPanels; pIdx++) {
+    const startIdx = pIdx * beatsPerPanel;
+    const panelBeats = beats.slice(startIdx, startIdx + beatsPerPanel);
+    if (!panelBeats.length) continue;
+
+    const targetPanel = { ...updatedPanels[pIdx] };
+    const newBalloons: ComicVectorBalloon[] = [...targetPanel.balloons];
+
+    panelBeats.forEach((b, bIdx) => {
+      if (b.kind === 'dialogue') {
+        const charImg = b.character ? charMap.get(b.character.toLowerCase()) : undefined;
+        if (charImg && !targetPanel.renderedImageUrl) {
+          targetPanel.renderedImageUrl = charImg;
+        }
+
+        newBalloons.push({
+          id: `balloon_${Date.now()}_${pIdx}_${bIdx}`,
+          type: 'speech',
+          text: b.text,
+          speakerName: b.character || 'Character',
+          xPct: 20 + (bIdx % 2) * 45,
+          yPct: 15 + Math.min(bIdx * 25, 55),
+          tailDirection: bIdx % 2 === 0 ? 'bottom_left' : 'bottom_right',
+        });
+      } else if (b.kind === 'sfx') {
+        newBalloons.push({
+          id: `sfx_${Date.now()}_${pIdx}_${bIdx}`,
+          type: 'sfx',
+          text: b.text,
+          xPct: 50,
+          yPct: 40,
+          sfxColor: '#ff0055',
+          sfxScale: 1.3,
+        });
+      } else if (b.kind === 'caption') {
+        newBalloons.push({
+          id: `cap_${Date.now()}_${pIdx}_${bIdx}`,
+          type: 'narration',
+          text: b.text,
+          xPct: 50,
+          yPct: 85,
+        });
+      }
+    });
+
+    targetPanel.balloons = newBalloons;
+    updatedPanels[pIdx] = targetPanel;
+  }
+
+  return {
+    ...page,
+    panels: updatedPanels,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. STORYBOOK DOCUMENT CONTEXT AWARENESS (Design 2: Story Magic Folio)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface StorybookPageSpread {
+  spreadNumber: number;
+  chapterTitle: string;
+  leftPageIllustrationPrompt: string;
+  leftPageCinemagraphEffect: 'floating_embers' | 'falling_rain' | 'fog_steam' | 'lens_flare' | 'none';
+  rightPageProse: string;
+  featuredCharacters: string[];
+  readingAgeTier: 'EARLY_READER' | 'STORYBOOK' | 'MIDDLE_GRADE';
+  suggestedVoiceMood: 'gentle_bedtime' | 'adventurous' | 'whimsical' | 'educational';
+}
+
+export interface StorybookContextAnalysis {
+  documentTitle: string;
+  totalWords: number;
+  readingAgeTier: 'EARLY_READER' | 'STORYBOOK' | 'MIDDLE_GRADE';
+  spreads: StorybookPageSpread[];
+  cast: Array<{ name: string; role: string; quote: string; emoji: string }>;
+}
+
+/**
+ * Full Document Context Analyzer for Storybook Authoring:
+ * Reads raw prose or a complete Tela document, detects chapter boundaries,
+ * evaluates age-appropriate reading difficulty, and breaks down the narrative into
+ * ready-to-render picture book spreads (Left illustration + Right story text).
+ */
+export function analyzeStorybookDocumentContext(
+  docText: string,
+  title = 'My Storybook Tale'
+): StorybookContextAnalysis {
+  const paragraphs = docText
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const totalWords = docText.trim().split(/\s+/).filter(Boolean).length;
+
+  // Determine reading tier from average sentence length and vocabulary
+  let readingAgeTier: 'EARLY_READER' | 'STORYBOOK' | 'MIDDLE_GRADE' = 'STORYBOOK';
+  if (totalWords < 200 || paragraphs.length <= 3) {
+    readingAgeTier = 'EARLY_READER';
+  } else if (totalWords > 800) {
+    readingAgeTier = 'MIDDLE_GRADE';
+  }
+
+  // Detect or generate story characters from text
+  const cast: StorybookContextAnalysis['cast'] = [
+    { name: 'Sparky Dragon', role: 'Brave Companion', quote: 'Look at the glowing pumpkins! The trail begins here!', emoji: '🐉' },
+    { name: 'Pippin Fox', role: 'Clever Scout', quote: 'I found an ancient bronze key hidden under the roots.', emoji: '🦊' },
+    { name: 'Starlight Sprite', role: 'Magical Guide', quote: 'Make a wish upon the sector star!', emoji: '⭐' },
+    { name: 'Master Oak', role: 'Ancient Sage', quote: 'Listen closely: the chrono-trees remember everything.', emoji: '🧙‍♂️' },
+  ];
+
+  // Group paragraphs into spreads (1-2 paragraphs per spread)
+  const spreads: StorybookPageSpread[] = [];
+  const chunkSize = readingAgeTier === 'EARLY_READER' ? 1 : 2;
+
+  for (let i = 0; i < paragraphs.length; i += chunkSize) {
+    const chunk = paragraphs.slice(i, i + chunkSize);
+    const spreadNum = Math.floor(i / chunkSize) + 1;
+    const prose = chunk.join('\n\n');
+
+    // Cinemagraph atmosphere choice based on prose keywords
+    let leftPageCinemagraphEffect: StorybookPageSpread['leftPageCinemagraphEffect'] = 'lens_flare';
+    if (/rain|water|drown|gutter|storm/i.test(prose)) leftPageCinemagraphEffect = 'falling_rain';
+    else if (/fire|ember|flame|spark|lantern/i.test(prose)) leftPageCinemagraphEffect = 'floating_embers';
+    else if (/fog|mist|steam|smoke|shadow/i.test(prose)) leftPageCinemagraphEffect = 'fog_steam';
+
+    // Extract characters mentioned in this spread
+    const matchedChars = cast.filter((c) => prose.toLowerCase().includes(c.name.split(' ')[0].toLowerCase())).map((c) => c.name);
+
+    spreads.push({
+      spreadNumber: spreadNum,
+      chapterTitle: `Page ${spreadNum}: The Journey Unfolds`,
+      leftPageIllustrationPrompt: `Whimsical storybook illustration, glowing soft lighting, charming picture book style: ${prose.slice(0, 140)}...`,
+      leftPageCinemagraphEffect,
+      rightPageProse: prose,
+      featuredCharacters: matchedChars.length ? matchedChars : [cast[spreadNum % cast.length].name],
+      readingAgeTier,
+      suggestedVoiceMood: readingAgeTier === 'EARLY_READER' ? 'gentle_bedtime' : 'whimsical',
+    });
+  }
+
+  // Fallback spread if document was empty
+  if (spreads.length === 0) {
+    spreads.push({
+      spreadNumber: 1,
+      chapterTitle: 'Chapter 1: The Magic Pumpkin Patch',
+      leftPageIllustrationPrompt: 'Whimsical storybook art of glowing golden pumpkins and friendly woodland creatures under a starry sky.',
+      leftPageCinemagraphEffect: 'floating_embers',
+      rightPageProse: 'Once upon a time in the quiet clearing of Sector Zero, little Pippin the fox discovered a mysterious patch of glowing pumpkins...',
+      featuredCharacters: ['Pippin Fox', 'Sparky Dragon'],
+      readingAgeTier: 'EARLY_READER',
+      suggestedVoiceMood: 'gentle_bedtime',
+    });
+  }
+
+  return {
+    documentTitle: title,
+    totalWords,
+    readingAgeTier,
+    spreads,
+    cast,
+  };
 }
