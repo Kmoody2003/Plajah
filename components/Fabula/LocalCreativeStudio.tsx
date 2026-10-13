@@ -117,6 +117,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   const [selectedModelId, setSelectedModelId] = useState<string>('sdxl_turbo');
   const [loras, setLoras] = useState<PlajahLora[]>(() => plajahLoraRegistry.getAllLoras());
   const [selectedLoraId, setSelectedLoraId] = useState<string>('none');
+  const [selectedLoraWeight, setSelectedLoraWeight] = useState<number>(0.85);
   const [loraInstallState, setLoraInstallState] = useState<Record<string, 'idle' | 'downloading' | 'installed'>>({});
   const [trainingCharId, setTrainingCharId] = useState<string>('');
   const [trainingProgress, setTrainingProgress] = useState<number>(0);
@@ -280,6 +281,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           aspect,
           lens,
           lighting,
+          loraId: selectedLoraId !== 'none' ? selectedLoraId : undefined,
+          loraWeight: selectedLoraId !== 'none' ? selectedLoraWeight : undefined,
           hallucinationLevel: hallucination,
           resemblance,
           engine: enginePreset,
@@ -577,6 +580,85 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     <option value="sd15_base">Stable Diffusion 1.5 (Pruned FP16 {installedMap['sd15_base'] ? '· Ready' : ''})</option>
                     <option value="flux_schnell">FLUX.1 Schnell (4-Step Cinema Stills {installedMap['flux_schnell'] ? '· Installed' : ''})</option>
                   </select>
+                </div>
+
+                {/* LoRA Style & Speed Distillation Adapter */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '11px', color: '#94a3b8' }}>Production LoRA Adapter</label>
+                    {selectedLoraId !== 'none' && (
+                      <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 600 }}>
+                        Strength: {Math.round(selectedLoraWeight * 100)}%
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    value={selectedLoraId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedLoraId(id);
+                      const matched = loras.find(l => l.id === id);
+                      if (matched) {
+                        setSelectedLoraWeight(matched.defaultWeight);
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      backgroundColor: '#1a1c22',
+                      border: '1px solid #282b33',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <option value="none">None (Standard Base Checkpoint)</option>
+                    {loras.map(l => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} {loraInstallState[l.id] === 'installed' ? '· Ready' : ''}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedLoraId !== 'none' && (() => {
+                    const activeL = loras.find(l => l.id === selectedLoraId);
+                    if (!activeL) return null;
+                    const isInst = loraInstallState[activeL.id] === 'installed';
+                    return (
+                      <div style={{ marginTop: '6px', padding: '8px', backgroundColor: '#181b22', borderRadius: '4px', border: '1px solid #282d38' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                            Triggers: <span style={{ color: '#38bdf8' }}>{activeL.triggerWords.slice(0, 3).join(', ')}</span>
+                          </span>
+                          {!isInst && (
+                            <button
+                              type="button"
+                              onClick={() => handleInstallLora(activeL.id)}
+                              style={{
+                                fontSize: '10px',
+                                padding: '2px 8px',
+                                backgroundColor: '#2563eb',
+                                color: '#fff',
+                                borderRadius: '4px',
+                                border: 'none',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Install ({activeL.vramOverheadMb}MB)
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="150"
+                          value={Math.round(selectedLoraWeight * 100)}
+                          onChange={(e) => setSelectedLoraWeight(Number(e.target.value) / 100)}
+                          style={{ width: '100%', accentColor: '#f59e0b' }}
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div>
@@ -1415,7 +1497,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               </div>
 
               {/* Models List */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '28px' }}>
                 {RECOMMENDED_MODELS.map((pkg) => {
                   const isInstalled = !!installedMap[pkg.id];
                   const isInstalling = installingId === pkg.id;
@@ -1491,6 +1573,156 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                               <span>Ready</span>
                             </>
                           ) : isInstalling ? (
+                            <>
+                              <RotateCw size={12} className="animate-spin" />
+                              <span>Downloading…</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download size={12} />
+                              <span>Install Weights</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* CURATED PRODUCTION LORA LIBRARY SECTION */}
+              <div style={{ marginTop: '24px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} color="#f59e0b" />
+                  <span style={{ fontWeight: 600, fontSize: '14px', color: '#f1f5f9' }}>
+                    Curated Production LoRA Adapters (100% Free / On-Device)
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    Speed, Skin Texture, Hands, Lighting & Styles
+                  </span>
+                </div>
+                <span style={{
+                  fontSize: '11px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  color: '#f59e0b',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  fontWeight: 600,
+                }}>
+                  {loras.length} LoRAs Available
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                {loras.map((loraItem) => {
+                  const isInstalled = loraInstallState[loraItem.id] === 'installed';
+                  const isDownloading = loraInstallState[loraItem.id] === 'downloading';
+                  return (
+                    <div
+                      key={loraItem.id}
+                      style={{
+                        padding: '14px',
+                        backgroundColor: '#14161a',
+                        borderRadius: '8px',
+                        border: isInstalled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #282b33',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9' }}>
+                            {loraItem.name}
+                          </span>
+                          <span style={{
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: isInstalled ? '#064e3b' : '#262930',
+                            color: isInstalled ? '#6ee7b7' : '#94a3b8',
+                          }}>
+                            {isInstalled ? 'Installed' : '~' + loraItem.vramOverheadMb + ' MB'}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '10px', color: '#38bdf8', fontWeight: 500, marginBottom: '6px' }}>
+                          Category: {loraItem.category.replace('_', ' ').toUpperCase()} · License: {loraItem.license}
+                        </div>
+
+                        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px 0', lineHeight: 1.4 }}>
+                          {loraItem.description}
+                        </p>
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
+                          {loraItem.triggerWords.slice(0, 3).map((tw, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                fontSize: '10px',
+                                backgroundColor: '#1c1f26',
+                                color: '#cbd5e1',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid #2a2f3a',
+                              }}
+                            >
+                              {tw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #22262e' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLoraId(loraItem.id);
+                            setSelectedLoraWeight(loraItem.defaultWeight);
+                            setActiveTab('cinema');
+                            if (!prompt.includes(loraItem.triggerWords[0])) {
+                              setPrompt(prev => prev ? prev + ', ' + loraItem.triggerWords[0] : loraItem.triggerWords[0]);
+                            }
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            borderRadius: '4px',
+                            border: '1px solid #334155',
+                            backgroundColor: '#1e293b',
+                            color: '#94a3b8',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Use in Cinema Stills
+                        </button>
+
+                        <button
+                          onClick={() => handleInstallLora(loraItem.id)}
+                          disabled={isInstalled || isDownloading}
+                          style={{
+                            padding: '5px 10px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            borderRadius: '4px',
+                            border: 'none',
+                            backgroundColor: isInstalled ? '#1e293b' : isDownloading ? '#475569' : '#2563eb',
+                            color: isInstalled ? '#64748b' : '#fff',
+                            cursor: isInstalled || isDownloading ? 'default' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          {isInstalled ? (
+                            <>
+                              <CheckCircle2 size={12} color="#10b981" />
+                              <span>Ready</span>
+                            </>
+                          ) : isDownloading ? (
                             <>
                               <RotateCw size={12} className="animate-spin" />
                               <span>Downloading…</span>

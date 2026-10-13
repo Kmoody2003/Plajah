@@ -1765,6 +1765,52 @@ public sealed partial class MainWindow : Window
                         }
                     };
                 }
+                else if (cmd == "ai_audit_loras")
+                {
+                    string modelsRoot = GetPlajahModelStorageRoot();
+                    var searchRoots = new List<string> { modelsRoot };
+                    if (!searchRoots.Contains(@"D:\Plajah Models", StringComparer.OrdinalIgnoreCase) && Directory.Exists(@"D:\Plajah Models"))
+                        searchRoots.Add(@"D:\Plajah Models");
+                    if (!searchRoots.Contains(@"D:\Plajah AI Models", StringComparer.OrdinalIgnoreCase) && Directory.Exists(@"D:\Plajah AI Models"))
+                        searchRoots.Add(@"D:\Plajah AI Models");
+
+                    string comfyModels = @"D:\ComfyUI_windows_portable\ComfyUI_windows_portable\ComfyUI\models";
+                    if (Directory.Exists(comfyModels)) searchRoots.Add(comfyModels);
+
+                    bool HasLora(params string[] fileNames)
+                    {
+                        foreach (var rootDir in searchRoots)
+                        {
+                            var targetDir = Path.Combine(rootDir, "loras");
+                            if (!Directory.Exists(targetDir)) continue;
+                            foreach (var fn in fileNames)
+                            {
+                                if (File.Exists(Path.Combine(targetDir, fn))) return true;
+                                var baseName = Path.GetFileNameWithoutExtension(fn);
+                                if (Directory.GetFiles(targetDir, baseName + ".*").Length > 0) return true;
+                            }
+                        }
+                        return false;
+                    }
+
+                    result = new
+                    {
+                        lorasPath = Path.Combine(modelsRoot, "loras"),
+                        installed = new Dictionary<string, bool>
+                        {
+                            ["flux_lora_hyper_8step"] = HasLora("hyper_flux_8step_lora.safetensors", "Hyper-FLUX.1-dev-8steps-lora.safetensors"),
+                            ["flux_lora_cinematic_35mm"] = HasLora("flux_cinematic_35mm_v1.safetensors", "flux_cinematic_35mm.safetensors"),
+                            ["flux_lora_storybook_cartoon"] = HasLora("flux_storybook_watercolor_v1.safetensors", "flux_storybook_watercolor.safetensors"),
+                            ["flux_lora_manga_screentone"] = HasLora("flux_manga_screentone_v1.safetensors", "flux_manga_screentone.safetensors"),
+                            ["flux_lora_realism_skin"] = HasLora("flux_realism_skin_v1.safetensors", "lora.safetensors"),
+                            ["flux_lora_hand_anatomy"] = HasLora("flux_hand_anatomy_stabilizer.safetensors", "FLUX-dev-lora-anti-blur.safetensors"),
+                            ["flux_lora_volumetric_chiaroscuro"] = HasLora("flux_volumetric_chiaroscuro.safetensors", "flux_lighting.safetensors"),
+                            ["flux_lora_neon_cyberpunk"] = HasLora("flux_neon_cyberpunk_rain.safetensors", "flux_cyberpunk.safetensors"),
+                            ["flux_lora_ghibli_nostalgia"] = HasLora("flux_ghibli_nostalgia_v1.safetensors", "flux_ghibli.safetensors"),
+                            ["flux_lora_wan_kinematics"] = HasLora("wan21_camera_motion_lora.safetensors", "Wan2.1_camera_motion.safetensors")
+                        }
+                    };
+                }
                 else if (cmd == "ai_diffuse")
                 {
                     var profile = PlajahAiNativeService.GetHardwareProfile();

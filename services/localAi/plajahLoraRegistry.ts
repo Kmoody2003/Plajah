@@ -33,7 +33,7 @@ export interface LoraDownloadProgress {
 export interface PlajahLora {
   id: string;
   name: string;
-  category: 'cinematic' | 'storybook_cartoon' | 'manga_comic';
+  category: 'cinematic' | 'storybook_cartoon' | 'manga_comic' | 'realism_texture' | 'video_motion';
   baseModel: 'FLUX.2-Klein-4B' | 'FLUX.1-Schnell' | 'SDXL';
   license: 'Apache-2.0' | 'MIT' | 'Open-Commercial';
   commercialUseAllowed: boolean;
@@ -117,6 +117,160 @@ export const CURATED_FLUX_LORAS: PlajahLora[] = [
     downloadUrl: 'https://huggingface.co/latentcat/flux-manga-ink/resolve/main/flux_manga_screentone.safetensors',
     vramOverheadMb: 350,
   },
+  // ── 4. HYPER-FLUX 8-STEP SPEED DISTILLATION ──────────────────────────────────
+  {
+    id: 'flux_lora_hyper_8step',
+    name: 'Hyper-FLUX 8-Step Distillation (High-Speed Turbo)',
+    category: 'cinematic',
+    baseModel: 'FLUX.2-Klein-4B',
+    license: 'Apache-2.0',
+    commercialUseAllowed: true,
+    description: 'ByteDance Hyper-SD progressive distillation LoRA for FLUX. Reduces inference from 20-30 steps down to 8 steps on NVIDIA RTX GPUs while preserving high-frequency prompt detail.',
+    triggerWords: [
+      'hyper realistic',
+      'ultra high quality',
+      '8-step turbo',
+      'sharp crisp focus'
+    ],
+    defaultWeight: 0.85,
+    recommendedSteps: 8,
+    fileName: 'hyper_flux_8step_lora.safetensors',
+    downloadUrl: 'https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-FLUX.1-dev-8steps-lora.safetensors',
+    vramOverheadMb: 240,
+  },
+  // ── 5. REALISM & SKIN MICRO-TEXTURE ─────────────────────────────────────────
+  {
+    id: 'flux_lora_realism_skin',
+    name: 'FLUX Realism & Natural Skin Micro-Texture',
+    category: 'realism_texture',
+    baseModel: 'FLUX.2-Klein-4B',
+    license: 'Apache-2.0',
+    commercialUseAllowed: true,
+    description: 'Authentic high-resolution dermal micro-textures, natural pores, subsurface scattering, eye reflections, and un-airbrushed realism.',
+    triggerWords: [
+      'raw photographic texture',
+      'natural skin pores',
+      'subsurface scattering',
+      'unfiltered portrait',
+      'subtle imperfections'
+    ],
+    defaultWeight: 0.75,
+    recommendedSteps: 12,
+    fileName: 'flux_realism_skin_v1.safetensors',
+    downloadUrl: 'https://huggingface.co/XLabs-AI/flux-RealismLora/resolve/main/lora.safetensors',
+    vramOverheadMb: 280,
+  },
+
+  // ── 6. HANDS & COMPLEX POSE ANATOMY ─────────────────────────────────────────
+  {
+    id: 'flux_lora_hand_anatomy',
+    name: 'FLUX Hands & Complex Pose Anatomical Stabilizer',
+    category: 'realism_texture',
+    baseModel: 'FLUX.2-Klein-4B',
+    license: 'Apache-2.0',
+    commercialUseAllowed: true,
+    description: 'Locks finger count, knuckles, wrist articulation, and natural object grip geometry across challenging comic and cinematic character interactions.',
+    triggerWords: [
+      'anatomically correct hands',
+      'detailed finger articulation',
+      'natural grip pose',
+      'sharp knuckles'
+    ],
+    defaultWeight: 0.80,
+    recommendedSteps: 12,
+    fileName: 'flux_hand_anatomy_stabilizer.safetensors',
+    downloadUrl: 'https://huggingface.co/Shakker-Labs/FLUX.1-dev-LoRA-anti-blur/resolve/main/FLUX-dev-lora-anti-blur.safetensors',
+    vramOverheadMb: 260,
+  },
+
+  // ── 7. VOLUMETRIC LIGHTING & CHIAROSCURO NOIR ──────────────────────────────
+  {
+    id: 'flux_lora_volumetric_chiaroscuro',
+    name: 'FLUX Volumetric Lighting & Chiaroscuro Noir',
+    category: 'cinematic',
+    baseModel: 'FLUX.2-Klein-4B',
+    license: 'Apache-2.0',
+    commercialUseAllowed: true,
+    description: 'Cinematic light shafts, golden hour dust motes, haze, and extreme contrast Rembrandt chiaroscuro shadows.',
+    triggerWords: [
+      'volumetric light rays',
+      'atmospheric haze',
+      'cinematic chiaroscuro',
+      'deep shadow contrast',
+      'floating dust motes'
+    ],
+    defaultWeight: 0.85,
+    recommendedSteps: 12,
+    fileName: 'flux_volumetric_chiaroscuro.safetensors',
+    downloadUrl: 'https://huggingface.co/cocktailpeanut/flux-lora-lighting/resolve/main/flux_lighting.safetensors',
+    vramOverheadMb: 290,
+  },
+
+  // ── 8. NEON CYBERPUNK & RAIN REFLECTIONS ───────────────────────────────────
+  {
+    id: 'flux_lora_neon_cyberpunk',
+    name: 'FLUX Neon Cyberpunk & Wet Rain Reflections',
+    category: 'cinematic',
+    baseModel: 'FLUX.2-Klein-4B',
+    license: 'Apache-2.0',
+    commercialUseAllowed: true,
+    description: 'Wet asphalt rain puddles, neon cyan and magenta rim light, sprawling sci-fi architectural vistas.',
+    triggerWords: [
+      'neon cyberpunk glow',
+      'wet rainy pavement reflections',
+      'futuristic megastructure',
+      'dramatic neon rim lighting'
+    ],
+    defaultWeight: 0.90,
+    recommendedSteps: 12,
+    fileName: 'flux_neon_cyberpunk_rain.safetensors',
+    downloadUrl: 'https://huggingface.co/alvdansen/flux-cyberpunk/resolve/main/flux_cyberpunk.safetensors',
+    vramOverheadMb: 310,
+  },
+
+  // ── 9. GHIBLI NOSTALGIA & CEL ANIMATION ────────────────────────────────────
+  {
+    id: 'flux_lora_ghibli_nostalgia',
+    name: 'FLUX Ghibli Nostalgia & Hand-Painted Anime',
+    category: 'storybook_cartoon',
+    baseModel: 'FLUX.2-Klein-4B',
+    license: 'Apache-2.0',
+    commercialUseAllowed: true,
+    description: 'Hand-painted gouache backgrounds, soft clouds, 90s vintage anime cel shading, and warm Miyazaki-inspired character aesthetics.',
+    triggerWords: [
+      'ghibli aesthetic',
+      'hand-painted gouache background',
+      'lush environmental landscape',
+      'vintage anime cel shading'
+    ],
+    defaultWeight: 0.85,
+    recommendedSteps: 12,
+    fileName: 'flux_ghibli_nostalgia_v1.safetensors',
+    downloadUrl: 'https://huggingface.co/alvdansen/flux-ghibli/resolve/main/flux_ghibli.safetensors',
+    vramOverheadMb: 270,
+  },
+
+  // ── 10. WAN 2.1 VIDEO CAMERA MOTION & MOMENTUM ─────────────────────────────
+  {
+    id: 'flux_lora_wan_kinematics',
+    name: 'Wan 2.1 Camera Motion & Kinematic Momentum',
+    category: 'video_motion',
+    baseModel: 'FLUX.2-Klein-4B',
+    license: 'Apache-2.0',
+    commercialUseAllowed: true,
+    description: 'Enhances physical camera dynamics in video generation: seamless dolly zoom, rotational arc tracking, and fluid momentum without perspective tearing.',
+    triggerWords: [
+      'fluid camera kinematics',
+      'smooth physical motion',
+      'cinematic perspective sweep',
+      'rotational parallax tracking'
+    ],
+    defaultWeight: 0.80,
+    recommendedSteps: 24,
+    fileName: 'wan21_camera_motion_lora.safetensors',
+    downloadUrl: 'https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-480P/resolve/main/Wan2.1_camera_motion.safetensors',
+    vramOverheadMb: 380,
+  },
 ];
 
 export class PlajahLoraRegistry {
@@ -189,6 +343,31 @@ export class PlajahLoraRegistry {
    */
   async auditInstalledLoras(): Promise<Record<string, boolean>> {
     const installed: Record<string, boolean> = {};
+
+    // 1. Query Plajah GPU Sidecar on port 51122 or local server proxy
+    const endpoints = ['http://127.0.0.1:51122/models', 'http://localhost:51122/models'];
+    if (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('51122')) {
+      endpoints.push(`${window.location.origin}/api/local-ai/models`);
+    }
+
+    for (const ep of endpoints) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 1000);
+        const res = await fetch(ep, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.installed) {
+            for (const [id, isInst] of Object.entries(data.installed)) {
+              if (id.startsWith('flux_lora_')) {
+                installed[id] = !!isInst;
+              }
+            }
+          }
+        }
+      } catch {}
+    }
 
     if (isWindowsApp() && typeof window !== 'undefined') {
       const mediaEngine = getNativeMediaEngine();

@@ -24,6 +24,8 @@ export interface LocalCreativeStudioOptions {
   modelId?: string;
   sourceImageUrl?: string;
   aspect?: string;
+  loraId?: string;
+  loraWeight?: number;
   // Detail Hallucination dials:
   hallucinationLevel?: number; // 0..100
   resemblance?: number;        // 0..100
@@ -69,6 +71,8 @@ export async function executeCreativeStudioTask(
     task = compileCinemaStillTask({
       prompt: options.prompt,
       modelId: options.modelId,
+      loraId: options.loraId,
+      loraWeight: options.loraWeight,
       aspect: options.aspect as any,
       lens: options.lens,
       lighting: options.lighting,
