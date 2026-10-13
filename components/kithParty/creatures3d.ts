@@ -8,7 +8,7 @@ export function makeCreature(c:Character):T.Group {
  const accent=new T.MeshStandardMaterial({color:c.accent,roughness:.58});
  const fin=new T.MeshStandardMaterial({color:c.fin,roughness:.6});
  const pale=new T.MeshStandardMaterial({color:'#f3ece6',roughness:.7});
- const ink=new T.MeshStandardMaterial({color:'#191326',roughness:.3});
+ const ink=new T.MeshStandardMaterial({color:'#191326',roughness:.12});
  const sphere=new T.SphereGeometry(1,16,12);
  const ell=(x:number,y:number,z:number,sx:number,sy:number,sz:number,mat:T.Material=skin)=>{const m=new T.Mesh(sphere,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;root.add(m);return m;};
  const spike=(x:number,y:number,z:number,r:number,h:number,mat:T.Material=fin,angle=0)=>{const m=new T.Mesh(new T.ConeGeometry(r,h,5),mat);m.position.set(x,y,z);m.rotation.z=angle;m.castShadow=true;root.add(m);return m;};

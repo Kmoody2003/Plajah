@@ -10,6 +10,12 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
  const grain=new T.CanvasTexture(surface);grain.wrapS=grain.wrapT=T.RepeatWrapping;grain.repeat.set(4,4);
  const batches=new Map<T.Material,T.BufferGeometry[]>(),palette=new Map<string,T.MeshStandardMaterial>();
  const material=(color:string,glow=0)=>{const key=color+glow;if(!palette.has(key))palette.set(key,new T.MeshStandardMaterial({color,roughness:.72,metalness:.08,emissive:color,emissiveIntensity:glow,bumpMap:grain,bumpScale:.07}));return palette.get(key)!;};
+ /** Faceted gem material for crystals & monuments: mirror-smooth, glowing, catches the sky env. */
+ const crystal=(color:string)=>{
+  const key='crystal'+color;
+  if(!palette.has(key))palette.set(key,new T.MeshPhysicalMaterial({color,roughness:.06,metalness:.15,clearcoat:1,clearcoatRoughness:.05,emissive:color,emissiveIntensity:1,envMapIntensity:1.6,flatShading:true}));
+  return palette.get(key)!;
+ };
  const matrix=new T.Matrix4(),quat=new T.Quaternion();
  function shape(g:T.BufferGeometry,m:T.Material,p:T.Vector3,s:T.Vector3=new T.Vector3(1,1,1),r=new T.Euler()){
   g.applyMatrix4(matrix.compose(p,quat.setFromEuler(r),s));
@@ -18,7 +24,7 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
   const list=batches.get(m)||[];list.push(g);batches.set(m,list);
  }
  const vec=(x:number,y:number,z:number)=>new T.Vector3(x,y,z);
- const ell=(x:number,y:number,z:number,sx:number,sy:number,sz:number,color:string)=>shape(new T.SphereGeometry(1,10,7),material(color),vec(x,y,z),vec(sx,sy,sz));
+ const ell=(x:number,y:number,z:number,sx:number,sy:number,sz:number,color:string,glow=0)=>shape(new T.SphereGeometry(1,10,7),material(color,glow),vec(x,y,z),vec(sx,sy,sz));
  const stem=(a:T.Vector3,b:T.Vector3,r:number,color:string)=>{
   const d=b.clone().sub(a);shape(new T.CylinderGeometry(r*.7,r,d.length(),7),material(color),a.clone().add(b).multiplyScalar(.5),vec(1,1,1),new T.Euler().setFromQuaternion(new T.Quaternion().setFromUnitVectors(vec(0,1,0),d.normalize())));
  };
@@ -27,17 +33,18 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
   for(let j=0;j<5;j++){
    const a=j*2.4+seed,cx=x+Math.cos(a)*size,cz=z+Math.sin(a)*size,cy=y+(2.5+(j%2)*.45)*size;
    stem(vec(x,y+1.2*size,z),vec(cx,cy,cz),.095*size,'#776382');
-   ell(cx,cy,cz,1.05*size,.61*size,.93*size,j%2?'#d86faa':'#f19acb');
-   ell(cx-.22*size,cy+.25*size,cz,.65*size,.32*size,.68*size,'#ffb8dc');
-   for(let k=0;k<6;k++){const a2=k*2.4+j;ell(cx+Math.cos(a2)*size*.72,cy+.22*size+(k%2)*.25*size,cz+Math.sin(a2)*size*.64,.33*size,.25*size,.34*size,k%2?'#f48fbd':'#ffc8dd');}
+   ell(cx,cy,cz,1.05*size,.61*size,.93*size,j%2?'#d86faa':'#f19acb',.3);
+   ell(cx-.22*size,cy+.25*size,cz,.65*size,.32*size,.68*size,'#ffb8dc',.35);
+   for(let k=0;k<6;k++){const a2=k*2.4+j;ell(cx+Math.cos(a2)*size*.72,cy+.22*size+(k%2)*.25*size,cz+Math.sin(a2)*size*.64,.33*size,.25*size,.34*size,k%2?'#f48fbd':'#ffc8dd',.3);}
   }
  }
  const falls:T.Mesh[]=[];
  const waterCanvas=document.createElement('canvas');waterCanvas.width=64;waterCanvas.height=128;
  const ctx=waterCanvas.getContext('2d')!;ctx.fillStyle='#24bbdd';ctx.fillRect(0,0,64,128);
- for(let i=0;i<40;i++){ctx.fillStyle=i%3?'rgba(226,255,255,.45)':'rgba(72,210,255,.7)';ctx.fillRect((i*17)%64,(i*37)%128,1+i%3,10+i%21);}
+ for(let i=0;i<40;i++){ctx.fillStyle=i%3?'rgba(235,255,255,.68)':'rgba(120,225,255,.92)';ctx.fillRect((i*17)%64,(i*37)%128,1+i%3,10+i%21);}
+ for(let i=0;i<26;i++){ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillRect((i*29)%64,(i*53)%128,2,2);}
  const waterMap=new T.CanvasTexture(waterCanvas);waterMap.wrapS=waterMap.wrapT=T.RepeatWrapping;waterMap.repeat.set(2,3);waterMap.colorSpace=T.SRGBColorSpace;
- const water=new T.MeshStandardMaterial({map:waterMap,color:'#a5f6ff',emissive:'#18aacd',emissiveIntensity:.35,roughness:.28,metalness:.15,side:T.DoubleSide});
+ const water=new T.MeshStandardMaterial({map:waterMap,color:'#bdfaff',emissive:'#2fc4e8',emissiveIntensity:.9,roughness:.15,metalness:.15,envMapIntensity:1.2,side:T.DoubleSide,transparent:true,opacity:.96});
  function island(x:number,z:number,r:number,y:number,seed:number,waterfall=false){
   const rock=new T.CylinderGeometry(r,r*.32,r*1.7,28,8),vertices=rock.getAttribute('position');
   for(let i=0;i<vertices.count;i++){
@@ -86,7 +93,7 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
   const skyFall=new T.Mesh(new T.PlaneGeometry(isl.r*.32,fallH,1,1),water);
   skyFall.position.set(isl.x,isl.y-fallH/2,isl.z+isl.r*.8);
   scene.add(skyFall);falls.push(skyFall);
-  shape(crestGeometry(),material(i%2?'#ff8c00':'#00daf3',.8),vec(isl.x+isl.r*.4,isl.y+1.2,isl.z),vec(1.8,2.4,1.8),new T.Euler(0,i*.9,.15));
+  shape(crestGeometry(),crystal(i%2?'#ff8c00':'#00daf3'),vec(isl.x+isl.r*.4,isl.y+1.2,isl.z),vec(1.8,2.4,1.8),new T.Euler(0,i*.9,.15));
  }
 
  // Purple mountains framing the horizon
@@ -113,9 +120,9 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
   const t=i/48,side=i%2?1:-1,p=point(t,side*88),q=point(t+.001),yaw=Math.atan2(q.x-point(t).x,q.z-point(t).z);
   ell(p.x,p.y-1,p.z,3.2,1.3,2.6,'#799863');
   if(i%2===0)tree(p.x,p.y-.2,p.z,1.15,i);
-  else for(let j=0;j<5;j++){const a=j*2.4;ell(p.x+Math.cos(a)*1.4,p.y+.1,p.z+Math.sin(a)*1.4,.55,.48,.53,j%2?'#d868a8':'#f6b3d8');}
+  else for(let j=0;j<5;j++){const a=j*2.4;ell(p.x+Math.cos(a)*1.4,p.y+.1,p.z+Math.sin(a)*1.4,.55,.48,.53,j%2?'#d868a8':'#f6b3d8',.28);}
   const lamp=point(t,side*68);stem(lamp,lamp.clone().add(vec(0,2.3,0)),.075,'#766580');
-  shape(crestGeometry(),material('#ffd77e',.8),lamp.clone().add(vec(0,2.1,0)),vec(.45,.5,.85),new T.Euler(0,yaw,0));
+  shape(crestGeometry(),crystal('#ffd77e'),lamp.clone().add(vec(0,2.1,0)),vec(.45,.5,.85),new T.Euler(0,yaw,0));
   if(i%4===0){
    stem(p,p.clone().add(vec(0,5.5,0)),.09,'#e5d9c5');
    shape(new T.BoxGeometry(1.4,2.2,.07),material('#58117a'),p.clone().add(vec(0,4,0)),vec(1,1,1),new T.Euler(0,yaw,0));
@@ -125,9 +132,9 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
 
  for(const t of [.105,.35,.59,.83])for(const side of [-1,1]){
   const p=point(t,side*80),q=point(t+.001),yaw=Math.atan2(q.x-point(t).x,q.z-point(t).z);
-  shape(crestGeometry(),material(side>0?'#ff8c00':'#dc388f',.6),p,vec(5.2,side>0?7.5:5.5,4.2),new T.Euler(0,yaw,-side*.2));
+  shape(crestGeometry(),crystal(side>0?'#ff8c00':'#dc388f'),p,vec(5.2,side>0?7.5:5.5,4.2),new T.Euler(0,yaw,-side*.2));
   shape(crestGeometry(),material('#fff0d8'),p.clone().add(vec(0,-.3,0)),vec(5.8,2.2,5.2),new T.Euler(0,yaw,-side*.2));
-  shape(crestGeometry(),material('#ffd24d',.5),p.clone().add(vec(side*3,1,1)),vec(3.2,4.5,2.8),new T.Euler(0,yaw+side*.4,-side*.15));
+  shape(crestGeometry(),crystal('#ffd24d'),p.clone().add(vec(side*3,1,1)),vec(3.2,4.5,2.8),new T.Euler(0,yaw+side*.4,-side*.15));
  }
 
  // COLOSSAL MOUNTAIN GUARDIAN FACE (Concept Art Centerpiece)
@@ -142,10 +149,10 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
   ell(guardian.x+side*3.6,guardian.y+11,guardian.z+6.1,.6,.8,.3,'#ff9d00');
   for(let j=0;j<4;j++){
    const crestColor=j%2?'#e6288b':'#ff7700';
-   shape(crestGeometry(),material(crestColor,.75),guardian.clone().add(vec(side*(6.5+j*2),16.5-j*2.2,.5)),vec(5,5.5,4),new T.Euler(0,0,-side*(.25+j*.32)));
+   shape(crestGeometry(),crystal(crestColor),guardian.clone().add(vec(side*(6.5+j*2),16.5-j*2.2,.5)),vec(5,5.5,4),new T.Euler(0,0,-side*(.25+j*.32)));
   }
  }
- shape(crestGeometry(),material('#ffab2e',.8),guardian.clone().add(vec(0,21.5,1.5)),vec(4,4.2,5));
+ shape(crestGeometry(),crystal('#ffab2e'),guardian.clone().add(vec(0,21.5,1.5)),vec(4,4.2,5));
 
  // Monumental Double-Deck Stone Viaduct Arches underneath the road
  for(let i=0;i<22;i++){
@@ -163,6 +170,21 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
   const mesh=new T.Mesh(combined,m);
   mesh.receiveShadow=true;mesh.castShadow=true;scene.add(mesh);
  }
+
+ // Cool mist breathing at every waterfall base
+ const mistTex=(()=>{const c=document.createElement('canvas');c.width=64;c.height=64;const x=c.getContext('2d')!;const g=x.createRadialGradient(32,32,2,32,32,32);g.addColorStop(0,'rgba(255,255,255,0.75)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;})();
+ const mistCount=falls.length*4;
+ const mistPos=new Float32Array(mistCount*3),mistBase=new Float32Array(mistCount),mistSeed=new Float32Array(mistCount);
+ for(let i=0;i<mistCount;i++){
+  const f=falls[(i/4)|0],gp=(f.geometry as T.PlaneGeometry).parameters;
+  const bx=f.position.x+(Math.random()-.5)*gp.width,by=f.position.y-gp.height/2+Math.random()*2;
+  mistPos[i*3]=bx;mistPos[i*3+1]=by;mistPos[i*3+2]=f.position.z+(Math.random()-.5)*2;
+  mistBase[i]=by;mistSeed[i]=Math.random()*10;
+ }
+ const mistGeo=new T.BufferGeometry();
+ mistGeo.setAttribute('position',new T.BufferAttribute(mistPos,3));
+ const mistMat=new T.PointsMaterial({map:mistTex,color:'#eafcff',size:4.5,transparent:true,opacity:.5,depthWrite:false});
+ const mist=new T.Points(mistGeo,mistMat);scene.add(mist);
 
  // Active atmospheric cherry blossom blizzard: 450 dynamic 3D petals swirling in the air
  const petalCount=450;
@@ -191,6 +213,15 @@ export function makeGardenWorld(scene:T.Scene,point:(t:number,lane?:number)=>T.V
     if(arr[i*3+1]<1){arr[i*3+1]=32;arr[i*3]=Math.sin(i*19+time)*100;arr[i*3+2]=Math.cos(i*13+time)*90;}
    }
    attr.needsUpdate=true;
+   const mstAttr=mistGeo.getAttribute('position') as T.BufferAttribute;
+   const mstArr=mstAttr.array as Float32Array;
+   for(let i=0;i<mistCount;i++){
+    mstArr[i*3+1]+=dt*1.1;
+    mstArr[i*3]+=Math.sin(time*1.8+mistSeed[i])*dt*.8;
+    if(mstArr[i*3+1]>mistBase[i]+5){mstArr[i*3+1]=mistBase[i];}
+   }
+   mstAttr.needsUpdate=true;
+   mistMat.opacity=.42+Math.sin(time*1.3)*.1;
   },
   stats:{islands:31,kartDesigns:10,waterfalls:falls.length,skyIslands:skyIslands.length}
  };
