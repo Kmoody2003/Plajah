@@ -22,6 +22,8 @@ const MobileGoLiveButton = lazy(() => import('./MobileLiveStreamer').then(m => (
 const PlajahEpgGuide = lazy(() => import('./tv/PlajahEpgGuide'));
 import ChipRail from './ui/ChipRail';
 import PublicPartiesRow from './party/PublicPartiesRow';
+import ChannelQrBug from './tv/ChannelQrBug';
+import { buildShareUrl } from '../services/deepLinkService';
 
 interface LiveHubViewProps {
   onBack: () => void;
@@ -820,6 +822,11 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
              <h3 className="font-bold uppercase tracking-widest text-sm">{fullScreenFeed.title}</h3>
              <p className="text-[#ff8c00] text-[10px] uppercase font-black">{fullScreenFeed.ownerName}</p>
           </div>
+          <ChannelQrBug
+            shareUrl={buildShareUrl('livestream', fullScreenFeed.id)}
+            channelName={fullScreenFeed.title}
+            className="bottom-8 left-8 z-[1010]"
+          />
         </div>
       )}
     </div>

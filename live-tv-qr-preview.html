@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plajah Live TV+ Channel QR Bug Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    * { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+    
+    .tv-noise {
+      background: radial-gradient(circle at 30% 20%, rgba(107, 0, 153, 0.4) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(212, 0, 85, 0.3) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, rgba(255, 140, 0, 0.2) 0%, transparent 60%),
+                  linear-gradient(180deg, #090a14 0%, #030408 100%);
+    }
+
+    .brand-gradient-text {
+      background: linear-gradient(135deg, #FF8C00 0%, #FF3366 50%, #C77DFF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  </style>
+</head>
+<body class="bg-[#020307] text-white m-0 p-0 overflow-hidden select-none h-screen flex flex-col">
+
+  <!-- Interactive Demo Controls Header -->
+  <header class="h-14 bg-[#080914] border-b border-white/10 px-6 flex items-center justify-between z-50 shrink-0">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 100 100" fill="none">
+          <defs>
+            <linearGradient id="header-logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6B0099" />
+              <stop offset="50%" stop-color="#D40055" />
+              <stop offset="100%" stop-color="#FF8C00" />
+            </linearGradient>
+          </defs>
+          <path d="M30 20 L70 50 L30 80" stroke="url(#header-logo-grad)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="text-xs font-black uppercase tracking-[0.3em] text-white">Live TV+ Bug Simulator</span>
+      </div>
+      <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+        <span id="cycle-state-badge">BUG ON (2m remaining)</span>
+      </span>
+    </div>
+
+    <!-- Simulator Controls -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+        <button id="btn-speed-realtime" onclick="setSpeedMode('realtime')" class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-[#FF8C00] text-black">Realtime (2m / 1m)</button>
+        <button id="btn-speed-fast" onclick="setSpeedMode('fast')" class="px-2.5 py-1 text-[10px] font-bold rounded-lg text-white/70 hover:text-white">Fast Demo (8s / 4s)</button>
+      </div>
+      
+      <button onclick="toggleDissolveManual()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-[#FF8C00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        Toggle Dissolve
+      </button>
+
+      <div class="flex items-center gap-1.5">
+        <span class="text-[10px] uppercase font-bold text-white/40">Channel:</span>
+        <select id="channel-picker" onchange="changeChannel(this.value)" class="bg-[#121424] border border-white/20 rounded-xl px-3 py-1 text-xs font-bold text-white outline-none cursor-pointer">
+          <option value="42.1">CH 42.1 - The Culture Archive</option>
+          <option value="8.1">CH 8.1 - Endless Hour Live</option>
+          <option value="12.4">CH 12.4 - Neon Soundstage</option>
+          <option value="1.1">CH 1.1 - Plajah News Network</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live TV+ Player Frame -->
+  <main class="relative flex-1 bg-black overflow-hidden flex flex-col">
+
+    <!-- Top Bar over Video -->
+    <div class="absolute top-0 inset-x-0 h-16 px-8 flex items-center justify-between z-30 pointer-events-none">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md grid place-items-center border border-white/10">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-black uppercase tracking-[0.35em] text-white">Plajah Live</span>
+          <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#FF8C00] text-black">TV+</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md grid place-items-center border border-white/10">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+        </div>
+        <div class="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md grid place-items-center border border-white/10">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Video Canvas / Ambient Broadcast Visualizer -->
+    <div class="absolute inset-0 tv-noise flex items-center justify-center">
+      <canvas id="broadcast-canvas" class="w-full h-full object-cover opacity-85"></canvas>
+      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none"></div>
+    </div>
+
+    <!-- Now Playing Overlay (Top-Left) -->
+    <div class="absolute top-20 left-8 z-20 max-w-lg pointer-events-none">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-11 h-11 rounded-xl bg-black/60 border border-white/20 backdrop-blur-md grid place-items-center shadow-lg">
+          <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
+            <defs>
+              <linearGradient id="logo-icon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#6B0099" />
+                <stop offset="50%" stopColor="#D40055" />
+                <stop offset="100%" stopColor="#FF8C00" />
+              </linearGradient>
+            </defs>
+            <path d="M30 20 L70 50 L30 80" stroke="url(#logo-icon-grad)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-[#36c5f0] text-black">FAST</span>
+            <span class="text-[11px] font-black text-white/70" id="top-ch-number">CH 42.1</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span class="text-[10px] font-bold text-red-400 uppercase tracking-widest">LIVE BROADCAST</span>
+          </div>
+          <h1 class="text-3xl font-black uppercase tracking-tight text-white leading-none mt-1 drop-shadow-md" id="top-ch-name">The Culture Archive</h1>
+        </div>
+      </div>
+      <p class="text-xs text-white/60 font-semibold pl-1" id="top-ch-sub">24/7 Documentaries, Rare Audio, Architecture &amp; Sound · Playout synchronized with clock</p>
+    </div>
+
+    <!-- Channel Dial on Right Side -->
+    <div class="absolute right-4 top-0 bottom-32 z-40 flex items-center pointer-events-auto">
+      <div class="flex flex-col items-center gap-2 bg-black/40 backdrop-blur-md p-2 rounded-2xl border border-white/10">
+        <button class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 grid place-items-center transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
+        </button>
+        <div class="flex flex-col gap-1.5 py-1">
+          <div class="px-3 py-1.5 rounded-xl bg-white/5 text-[10px] font-black text-white/40 text-center">40.1</div>
+          <div class="px-3 py-1.5 rounded-xl bg-white/5 text-[10px] font-black text-white/40 text-center">41.2</div>
+          <div class="px-3 py-2 rounded-xl bg-[#FF8C00] text-xs font-black text-black text-center shadow-lg shadow-orange-500/30 scale-105" id="dial-current">42.1</div>
+          <div class="px-3 py-1.5 rounded-xl bg-white/5 text-[10px] font-black text-white/40 text-center">43.1</div>
+          <div class="px-3 py-1.5 rounded-xl bg-white/5 text-[10px] font-black text-white/40 text-center">44.0</div>
+        </div>
+        <button class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 grid place-items-center transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- THE CHANNEL QR CODE LINK BUG (LOWER LEFT CORNER OF VIDEO FRAME) -->
+    <!-- ========================================================================= -->
+    <aside
+      id="channel-qr-bug"
+      aria-label="Scan to watch this channel on your device"
+      class="absolute bottom-6 left-6 z-30 transition-all duration-1000 ease-in-out select-none opacity-100 translate-y-0 scale-100"
+    >
+      <div
+        id="qr-bug-card"
+        onclick="copyChannelLink()"
+        title="Scan with phone camera or click to copy direct link"
+        class="group relative flex items-center gap-3 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-black/80 hover:bg-black/90 backdrop-blur-md border border-white/15 hover:border-white/30 shadow-[0_10px_35px_rgba(0,0,0,0.7)] cursor-pointer transition-colors max-w-[340px]"
+      >
+        <!-- High Contrast QR Code Tile -->
+        <div class="relative w-[68px] h-[68px] sm:w-[74px] sm:h-[74px] rounded-xl bg-white p-1 shrink-0 flex items-center justify-center shadow-md border border-white/20 overflow-hidden">
+          <img id="qr-image" src="data:image/png;base64,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" class="w-full h-full object-contain block rounded-lg" alt="Channel QR code" />
+        </div>
+
+        <!-- Text & Branding -->
+        <div class="flex flex-col justify-center min-w-0 pr-1">
+          <!-- Text: Scan to watch this channel on your device (with Plajah color branding in text) -->
+          <p class="font-black text-[10.5px] sm:text-[11.5px] uppercase tracking-wide leading-[1.22] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            <span class="brand-gradient-text">
+              Scan to watch this channel
+            </span>
+            <br />
+            <span class="brand-gradient-text">
+              on your device
+            </span>
+          </p>
+
+          <!-- Underneath: plajah.com written small with the chevron logo -->
+          <div class="flex items-center gap-1.5 mt-1.5">
+            <!-- Plajah Chevron Logo -->
+            <div class="shrink-0 flex items-center justify-center">
+              <svg width="15" height="15" viewBox="0 0 100 100" fill="none" class="shrink-0">
+                <defs>
+                  <linearGradient id="bug-chevron-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#6B0099" />
+                    <stop offset="50%" stop-color="#D40055" />
+                    <stop offset="100%" stop-color="#FF8C00" />
+                  </linearGradient>
+                </defs>
+                <path d="M30 20 L70 50 L30 80" stroke="url(#bug-chevron-grad)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+            <span class="text-[10px] sm:text-[11px] font-bold tracking-wider text-white/80 lowercase">
+              plajah.com
+            </span>
+            <span id="bug-ch-badge" class="text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-white/10 text-white/70 border border-white/10 ml-0.5">
+              CH 42.1
+            </span>
+          </div>
+        </div>
+
+        <!-- Link Copied Toast Banner -->
+        <div id="copy-toast" class="absolute inset-0 rounded-2xl bg-black/95 backdrop-blur-sm border border-emerald-500/50 flex items-center justify-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider opacity-0 pointer-events-none transition-opacity duration-300">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+          Link Copied
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Bottom EPG Mini Guide Bar (Mirroring LiveTvPlus layout) -->
+  <footer class="h-28 bg-[#04050a]/90 backdrop-blur-lg border-t border-white/10 px-8 py-3 shrink-0 flex items-center gap-4 z-40">
+    <div class="flex items-center gap-3 shrink-0 pr-4 border-r border-white/10">
+      <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 grid place-items-center">
+        <svg class="w-5 h-5 text-[#FF8C00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+      </div>
+      <div>
+        <p class="text-[9px] font-black uppercase tracking-widest text-white/40">Program Guide</p>
+        <p class="text-xs font-black text-white" id="footer-now-title">Architecture of Sound (Episode 4)</p>
+      </div>
+    </div>
+
+    <!-- Timeline Schedule Cards -->
+    <div class="flex items-center gap-3 flex-1 overflow-hidden">
+      <div class="px-4 py-2.5 rounded-xl bg-white/10 border border-[#FF8C00]/40 flex-1 min-w-[200px]">
+        <div class="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-[#FF8C00] mb-0.5">
+          <span>● On Now</span>
+          <span>4:00 PM - 5:00 PM</span>
+        </div>
+        <p class="text-xs font-bold text-white truncate" id="card-now-title">Architecture of Sound (Episode 4)</p>
+      </div>
+      <div class="px-4 py-2.5 rounded-xl bg-white/5 border border-white/5 flex-1 min-w-[200px]">
+        <div class="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-white/40 mb-0.5">
+          <span>Up Next</span>
+          <span>5:00 PM - 6:00 PM</span>
+        </div>
+        <p class="text-xs font-bold text-white/70 truncate">Sonic Geometry: The Frequencies of Light</p>
+      </div>
+      <div class="px-4 py-2.5 rounded-xl bg-white/5 border border-white/5 flex-1 min-w-[200px]">
+        <div class="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-white/40 mb-0.5">
+          <span>Later</span>
+          <span>6:00 PM - 7:30 PM</span>
+        </div>
+        <p class="text-xs font-bold text-white/70 truncate">Midnight In Tokyo: Electronic Underground</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Channel Data configurations
+    const CHANNELS = {
+      '42.1': {
+        number: '42.1',
+        name: 'The Culture Archive',
+        sub: '24/7 Documentaries, Rare Audio, Architecture & Sound · Playout synchronized with clock',
+        shareUrl: 'https://plajah.com/share?type=channel&id=owner:plajah_culture&n=42.1&source=fast_42',
+        nowTitle: 'Architecture of Sound (Episode 4)'
+      },
+      '8.1': {
+        number: '8.1',
+        name: 'Endless Hour Live',
+        sub: 'Continuous algorithmic generative music, ambient audio & realtime visuals',
+        shareUrl: 'https://plajah.com/share?type=channel&id=plajah:endless-hour&n=8.1&source=plajah_8',
+        nowTitle: 'The Infinite Ambient Cycle (Hour 492)'
+      },
+      '12.4': {
+        number: '12.4',
+        name: 'Neon Soundstage',
+        sub: 'Live performances, concert recordings and studio rehearsals',
+        shareUrl: 'https://plajah.com/share?type=channel&id=owner:artist_neon&n=12.4&source=fast_neon',
+        nowTitle: 'Vanguard Sessions Live: Electric Strings'
+      },
+      '1.1': {
+        number: '1.1',
+        name: 'Plajah News Network',
+        sub: 'Independent journalism, culture dispatch & weekly roundups',
+        shareUrl: 'https://plajah.com/share?type=channel&id=plajah:news&n=1.1&source=plajah_news',
+        nowTitle: 'Daily Global Culture & Technology Dispatch'
+      }
+    };
+
+    let currentChannel = CHANNELS['42.1'];
+    let isVisible = true;
+    let speedMode = 'realtime'; // 'realtime' (2m on / 1m off) or 'fast' (8s on / 4s off)
+    let cycleTimer = null;
+    let countdownTimer = null;
+    let secondsLeft = 120;
+
+    const bugElement = document.getElementById('channel-qr-bug');
+    const badgeElement = document.getElementById('cycle-state-badge');
+
+    const QR_MAP = {
+  "42.1": "data:image/png;base64,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",
+  "8.1": "data:image/png;base64,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",
+  "12.4": "data:image/png;base64,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",
+  "1.1": "data:image/png;base64,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"
+};
+
+    function renderQr(chNum) {
+      const img = document.getElementById('qr-image');
+      if (img && QR_MAP[chNum]) {
+        img.src = QR_MAP[chNum];
+      }
+    }
+
+    // Schedule Next Dissolve Cycle
+    function scheduleCycle(isOn) {
+      if (cycleTimer) clearTimeout(cycleTimer);
+      if (countdownTimer) clearInterval(countdownTimer);
+
+      const activeMs = speedMode === 'realtime' ? 120000 : 8000;
+      const inactiveMs = speedMode === 'realtime' ? 60000 : 4000;
+      const duration = isOn ? activeMs : inactiveMs;
+      
+      secondsLeft = Math.round(duration / 1000);
+      updateBadge(isOn, secondsLeft);
+
+      countdownTimer = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft >= 0) {
+          updateBadge(isOn, secondsLeft);
+        }
+      }, 1000);
+
+      cycleTimer = setTimeout(() => {
+        const nextState = !isOn;
+        setBugVisibility(nextState);
+        scheduleCycle(nextState);
+      }, duration);
+    }
+
+    function updateBadge(isOn, secs) {
+      const mins = Math.floor(secs / 60);
+      const remSecs = secs % 60;
+      const timeStr = mins > 0 ? `${mins}m ${remSecs}s` : `${remSecs}s`;
+
+      if (isOn) {
+        badgeElement.textContent = `BUG VISIBLE (${timeStr} left)`;
+        badgeElement.className = 'text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1.5';
+      } else {
+        badgeElement.textContent = `BUG DISSOLVED OFF (${timeStr} until return)`;
+        badgeElement.className = 'text-[10px] font-mono text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1.5';
+      }
+    }
+
+    function setBugVisibility(show) {
+      isVisible = show;
+      if (show) {
+        bugElement.classList.remove('opacity-0', 'translate-y-2', 'scale-95', 'pointer-events-none');
+        bugElement.classList.add('opacity-100', 'translate-y-0', 'scale-100');
+      } else {
+        bugElement.classList.remove('opacity-100', 'translate-y-0', 'scale-100');
+        bugElement.classList.add('opacity-0', 'translate-y-2', 'scale-95', 'pointer-events-none');
+      }
+    }
+
+    function toggleDissolveManual() {
+      setBugVisibility(!isVisible);
+      scheduleCycle(isVisible);
+    }
+
+    function setSpeedMode(mode) {
+      speedMode = mode;
+      document.getElementById('btn-speed-realtime').className = mode === 'realtime'
+        ? 'px-2.5 py-1 text-[10px] font-bold rounded-lg bg-[#FF8C00] text-black'
+        : 'px-2.5 py-1 text-[10px] font-bold rounded-lg text-white/70 hover:text-white';
+      document.getElementById('btn-speed-fast').className = mode === 'fast'
+        ? 'px-2.5 py-1 text-[10px] font-bold rounded-lg bg-[#FF8C00] text-black'
+        : 'px-2.5 py-1 text-[10px] font-bold rounded-lg text-white/70 hover:text-white';
+      
+      setBugVisibility(true);
+      scheduleCycle(true);
+    }
+
+    function changeChannel(chNum) {
+      currentChannel = CHANNELS[chNum] || CHANNELS['42.1'];
+      document.getElementById('top-ch-number').textContent = `CH ${currentChannel.number}`;
+      document.getElementById('top-ch-name').textContent = currentChannel.name;
+      document.getElementById('top-ch-sub').textContent = currentChannel.sub;
+      document.getElementById('bug-ch-badge').textContent = `CH ${currentChannel.number}`;
+      document.getElementById('dial-current').textContent = currentChannel.number;
+      document.getElementById('footer-now-title').textContent = currentChannel.nowTitle;
+      document.getElementById('card-now-title').textContent = currentChannel.nowTitle;
+
+      renderQr(currentChannel.number);
+      setBugVisibility(true);
+      scheduleCycle(true);
+    }
+
+    function copyChannelLink() {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(currentChannel.shareUrl);
+      }
+      const toast = document.getElementById('copy-toast');
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2000);
+    }
+
+    // Dynamic TV Background Visualizer Canvas
+    const canvas = document.getElementById('broadcast-canvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let frame = 0;
+    function draw() {
+      frame++;
+      ctx.fillStyle = '#060710';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw flowing abstract generative soundwaves
+      const colors = ['#6B0099', '#D40055', '#FF8C00', '#3b82f6'];
+      for (let c = 0; c < 4; c++) {
+        ctx.beginPath();
+        ctx.strokeStyle = colors[c];
+        ctx.lineWidth = 3 + c;
+        ctx.globalAlpha = 0.35;
+        const waveOffset = frame * 0.015 + c * 1.5;
+        for (let x = 0; x < width; x += 15) {
+          const y = height * 0.5 + Math.sin(x * 0.004 + waveOffset) * 120 * Math.cos(waveOffset * 0.5) + Math.cos(x * 0.002 + c) * 60;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    // Initial setup
+    renderQr(currentChannel.number);
+    scheduleCycle(true);
+  </script>
+</body>
+</html>
