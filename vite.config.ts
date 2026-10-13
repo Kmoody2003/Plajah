@@ -88,7 +88,7 @@ export default defineConfig(({ mode }) => {
             // Raising it preserves the original intent (precache the app shell). It does not
             // remove the underlying issue: the main chunk is large and growing, and wants
             // real code-splitting rather than a higher ceiling each time it grows.
-            maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+            maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
             cleanupOutdatedCaches: true,
             navigateFallback: null,
             // Keep the optional Basic Pitch model + TensorFlow.js OUT of the install
@@ -106,6 +106,7 @@ export default defineConfig(({ mode }) => {
               '**/ort-*.wasm',
               '**/ort-*.mjs',
               '**/ort.bundle*.js',
+              '**/on_device_generation_showcase.html',
             ],
             runtimeCaching: [
               {

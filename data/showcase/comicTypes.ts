@@ -54,6 +54,7 @@ export interface PositionSpec {
   left?: string;
   right?: string;
   maxWidth?: string;
+  fontSize?: string;
 }
 
 export interface SpeechBalloon {

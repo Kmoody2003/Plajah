@@ -271,6 +271,30 @@ export const CURATED_FLUX_LORAS: PlajahLora[] = [
     downloadUrl: 'https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-480P/resolve/main/Wan2.1_camera_motion.safetensors',
     vramOverheadMb: 380,
   },
+
+  // ── 11. MULTI-VIEW CAMERA ANGLE & CONSISTENCY LORA ──────────────────────────
+  {
+    id: 'flux_lora_multiview_consistency',
+    name: 'FLUX Multi-Angle Turnaround & Subject Consistency',
+    category: 'cinematic',
+    baseModel: 'FLUX.2-Klein-4B',
+    license: 'Apache-2.0',
+    commercialUseAllowed: true,
+    description: 'Locks character facial landmarks, wardrobe, and geometry across 360-degree camera rotations, high/low angles, and turnaround model sheets with zero facial distortion.',
+    triggerWords: [
+      'multi-angle turnaround',
+      'consistent character facial features',
+      'locked subject identity across rotation',
+      'studio neutral perspective',
+      'precise camera angle alignment'
+    ],
+    defaultWeight: 0.90,
+    recommendedSteps: 12,
+    fileName: 'flux_lora_multiview_consistency.safetensors',
+    downloadUrl: 'https://huggingface.co/XLabs-AI/flux-controlnet-collections/resolve/main/flux_lora_multiview.safetensors',
+    vramOverheadMb: 320,
+    isInstalled: true,
+  },
 ];
 
 export class PlajahLoraRegistry {

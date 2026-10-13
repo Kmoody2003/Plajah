@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn,
+  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn,
 } from 'lucide-react';
 import type {
   TelaAssignmentAudienceRole, TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
@@ -73,6 +73,7 @@ import TelaPublicationLibrary from './TelaPublicationLibrary';
 import { instantiatePublicationPage, type TelaPublicationTemplate } from '../../services/telaPublicationTemplates';
 import TelaTemplateGallery from './TelaTemplateGallery';
 import TelaPaiGalleryModal from './TelaPaiGalleryModal';
+import { TelaTypographyStudio } from './TelaTypographyStudio';
 import type { Selection, SelectionTool } from '../../services/tela/raster/selectionWorkflow';
 import {
   invertSelection,
@@ -85,6 +86,14 @@ import {
   selectionToDataUrl,
   layerViaCopy,
 } from '../../services/tela/raster/selectionWorkflow';
+import { isCameraRawFile, decodeCameraRawFile } from '../../services/tela/rawImageService';
+import type { ColorSpaceId } from '../../services/tela/raster/colorWorkspace';
+import {
+  DEFAULT_WHEELS,
+  DEFAULT_CURVES,
+  type ColorWheelState,
+  type ColorCurvesState,
+} from './color/TelaColoristSuite';
 import type { TelaDesignTemplate } from '../../services/tela/telaTemplateRegistry';
 import { TELA_TEMPLATE_GALLERY } from '../../services/tela/telaTemplateRegistry';
 import { UniversalLibraryPanel } from '../shared/UniversalLibrary/UniversalLibraryPanel';
@@ -403,8 +412,16 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [paiGalleryOpen, setPaiGalleryOpen] = useState(false);
   const [imageSelectionTool, setImageSelectionTool] = useState<SelectionTool>('none');
   const [rasterSelection, setRasterSelection] = useState<Selection | null>(null);
+  const [coloristSuiteOpen, setColoristSuiteOpen] = useState(false);
+  const [colorEyedropperActive, setColorEyedropperActive] = useState(false);
+  const [colorSpace, setColorSpace] = useState<ColorSpaceId>('srgb');
+  const [softProofing, setSoftProofing] = useState(false);
+  const [cmykPlate, setCmykPlate] = useState<'composite' | 'cyan' | 'magenta' | 'yellow' | 'black'>('composite');
+  const [colorWheels, setColorWheels] = useState<ColorWheelState>(DEFAULT_WHEELS);
+  const [colorCurves, setColorCurves] = useState<ColorCurvesState>(DEFAULT_CURVES);
   const [writingStudioOpen, setWritingStudioOpen] = useState(false);
   const [writingStudioTab, setWritingStudioTab] = useState<'SCRIPT' | 'DESK'>('SCRIPT');
+  const [typographyStudioOpen, setTypographyStudioOpen] = useState(false);
   // Author-in-place flying menu (raised from a ✎ badge — the same menu the
   // reference-embed uses). Ref-based so edits resolve live against the doc.
   const [flying, setFlying] = useState<{ ref: FlyingRef; anchor: { x: number; y: number } } | null>(null);
@@ -1341,11 +1358,119 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     setActiveFrameId(targetFrame.id);
   };
 
+  const createTypographyObjectOnActiveFrame = (kind: 'TEXT' | '3D' | 'SHAPE_ARRAY' | 'GENERATIVE', patch?: Partial<TelaVectorObject>) => {
+    const cur = docRef.current;
+    if (!cur) return;
+    const targetFrame = (activeFrameId ? cur.frames.find(f => f.id === activeFrameId) : null) || cur.frames[0];
+    if (!targetFrame) return;
+
+    const vecDeviceId = ensureVectorOverlayForFrame(targetFrame);
+    const boxId = uid('obj');
+    const baseBox: TelaVectorObject = {
+      id: boxId,
+      kind: 'TEXT',
+      x: Math.round(targetFrame.w * 0.1),
+      y: 140,
+      w: Math.min(420, Math.round(targetFrame.w * 0.8)),
+      h: 180,
+      fill: patch?.fill || '#1B1523',
+      fontSize: patch?.fontSize || 24,
+      fontFamily: patch?.fontFamily || 'Inter, system-ui, sans-serif',
+      fontWeight: patch?.fontWeight || 700,
+      wrap: true,
+      padding: 16,
+      rx: 8,
+      text: patch?.text || 'CREATIVE TYPOGRAPHY',
+      blocks: [
+        { id: uid('blk'), kind: 'h2', text: patch?.text || 'Creative Typography' },
+        { id: uid('blk'), kind: 'p', text: 'Sculpt 3D text, kinetic sacred arrays, Firefly generative textures, or explode into individual letters.' },
+      ],
+      ...patch,
+    };
+
+    dispatchOp({
+      type: 'ADD_VECTOR_OBJECT',
+      deviceId: vecDeviceId,
+      object: baseBox,
+    });
+    setStudioSel(boxId);
+    setActiveFrameId(targetFrame.id);
+  };
+
+  const explodeTextIntoLetters = (obj: TelaVectorObject) => {
+    const cur = docRef.current;
+    if (!cur) return;
+    const targetFrame = cur.frames.find(f => f.deviceIds.includes(obj.id)) || (activeFrameId ? cur.frames.find(f => f.id === activeFrameId) : null) || cur.frames[0];
+    const vecDev = targetFrame ? targetFrame.deviceIds.map(id => cur.devices[id]).find((d): d is TelaVectorDevice => d?.type === 'VECTOR') : null;
+    if (!vecDev) return;
+
+    const text = obj.text || 'TEXT';
+    const letters = Array.from(text);
+    if (!letters.length) return;
+
+    const charWidth = Math.max(16, (obj.fontSize || 24) * 0.68);
+    const startX = obj.x;
+    const startY = obj.y;
+
+    dispatchOp({
+      type: 'DELETE_VECTOR_OBJECT',
+      deviceId: vecDev.id,
+      objectId: obj.id,
+    });
+
+    const newIds: string[] = [];
+    letters.forEach((char, idx) => {
+      const charId = uid('glyph');
+      newIds.push(charId);
+      const letterObj: TelaVectorObject = {
+        id: charId,
+        kind: 'TEXT',
+        x: Math.round(startX + idx * charWidth),
+        y: startY,
+        w: Math.round(charWidth),
+        h: Math.round((obj.fontSize || 24) * 1.3),
+        text: char,
+        fontSize: obj.fontSize || 24,
+        fontFamily: obj.fontFamily || 'Inter, sans-serif',
+        fontWeight: obj.fontWeight || 700,
+        fill: obj.fill || '#1B1523',
+        rotation: 0,
+        opacity: 1,
+        wrap: false,
+        extrusion3D: obj.extrusion3D,
+        material3D: obj.material3D,
+        tiltX: obj.tiltX,
+        tiltY: obj.tiltY,
+        generativeEffect: obj.generativeEffect,
+      };
+      dispatchOp({
+        type: 'ADD_VECTOR_OBJECT',
+        deviceId: vecDev.id,
+        object: letterObj,
+      });
+    });
+
+    setStudioSelection(newIds);
+  };
+
   // Studio image adds — dispatched here so the Studio's own rail/panel can add
   // layers while the device renders chrome-less (Studio hosts the controls).
   const studioAddImageFile = async (deviceId: string, file: File) => {
     setStudioImgBusy(true);
     try {
+      if (isCameraRawFile(file)) {
+        const decoded = await decodeCameraRawFile(file);
+        dispatchOp({
+          type: 'ADD_IMAGE_LAYER',
+          deviceId,
+          layer: makeImageLayer(decoded.dataUrl, file.name.replace(/\.[^.]+$/, ''), {
+            mediaKind: 'IMAGE',
+            intrinsicWidth: decoded.width,
+            intrinsicHeight: decoded.height,
+          }),
+        });
+        return;
+      }
       const assetKind = classifyTelaAsset(file);
       if (assetKind === 'LOTTIE' || assetKind === 'VIDEO') {
         const r = await uploadTelaImage(file);
@@ -1699,6 +1824,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           v: 'select', a: 'direct', m: 'marquee', r: 'rect', e: 'ellipse', l: 'line', p: 'pen', t: 'text', b: 'ink',
         };
         if (tools[key]) { event.preventDefault(); setStudioTool(tools[key]!); return; }
+      }
+      if (!mod && !event.altKey && focus.type === 'IMAGE') {
+        if (key === 'i') { event.preventDefault(); setColorEyedropperActive(a => !a); return; }
+        if (key === 'c') { event.preventDefault(); setColoristSuiteOpen(o => !o); return; }
       }
       if (event.key === 'Escape') { setStudioSel(null); setStudioTool('select'); setFlying(null); return; }
 
@@ -2636,6 +2765,14 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <div className="h-px my-1 bg-white/[.07]"/>
               <div className="px-3 py-1 text-[9px] font-extrabold uppercase tracking-[.12em] text-[#a78bfa]">AI & Layer Actions</div>
               <button className={menuBarItem} onClick={() => {
+                setImageSelectionTool('brush_inpaint');
+                setAppMenuOpen(null);
+              }}><Paintbrush size={14} className="text-[#ef4444]"/>Generative Fill Inpaint Brush<span className="ml-auto text-[9px] text-[#ef4444]">B</span></button>
+              <button className={menuBarItem} onClick={() => {
+                setImageSelectionTool('brush_erase');
+                setAppMenuOpen(null);
+              }}><Eraser size={14} className="text-white"/>Mask Eraser<span className="ml-auto text-[9px] text-white/40">E</span></button>
+              <button className={menuBarItem} onClick={() => {
                 setImageSelectionTool('select_subject');
                 setAppMenuOpen(null);
               }}><Wand2 size={14} className="text-purple-300"/>Select Subject (Meta SAM AI)<span className="ml-auto text-[9px] text-[#34d399]">AI</span></button>
@@ -2828,6 +2965,11 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           status: () => {},
         };
 
+        const currentVecDev = activeVectorDevice();
+        const activeSelectedTextObject = (currentVecDev && studioSel)
+          ? (currentVecDev.objects.find(o => o.id === studioSel && o.kind === 'TEXT') || null)
+          : null;
+
         return (
           <div className="flex-1 flex flex-row min-h-0 h-full overflow-hidden relative">
             {/* Left tool rail: Creative & Productivity merged in one UI (Persistent) */}
@@ -2850,6 +2992,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                   <button title="Elliptical Marquee (Shift+M)" style={railBtn(imageSelectionTool === 'marquee_ellipse')} onClick={() => setImageSelectionTool(imageSelectionTool === 'marquee_ellipse' ? 'none' : 'marquee_ellipse')}><Circle size={17} color="#00DAF3" /></button>
                   <button title="Lasso Tool (L)" style={railBtn(imageSelectionTool === 'lasso_free')} onClick={() => setImageSelectionTool(imageSelectionTool === 'lasso_free' ? 'none' : 'lasso_free')}><Lasso size={17} color="#00DAF3" /></button>
                   <button title="Magic Wand (W)" style={railBtn(imageSelectionTool === 'magic_wand')} onClick={() => setImageSelectionTool(imageSelectionTool === 'magic_wand' ? 'none' : 'magic_wand')}><Wand2 size={17} color="#a78bfa" /></button>
+                  <button title="Generative Fill Brush (B)" style={railBtn(imageSelectionTool === 'brush_inpaint')} onClick={() => setImageSelectionTool(imageSelectionTool === 'brush_inpaint' ? 'none' : 'brush_inpaint')}><Paintbrush size={17} color="#ef4444" /></button>
+                  <button title="Mask Eraser (E)" style={railBtn(imageSelectionTool === 'brush_erase')} onClick={() => setImageSelectionTool(imageSelectionTool === 'brush_erase' ? 'none' : 'brush_erase')}><Eraser size={17} color="#ffffff" /></button>
                   <button title="Inverse Selection (Ctrl+Shift+I)" style={railBtn(false)} onClick={() => {
                     if (rasterSelection?.bounds) {
                       setRasterSelection(invertSelection(rasterSelection));
@@ -2858,12 +3002,14 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                     }
                   }}><FlipHorizontal size={17} color="#f59e0b" /></button>
                   <button title="Lorea pressure paint engine (B)" style={railBtn(studioPaintOpen)} onClick={() => setStudioPaintOpen(true)}><Brush size={17} color="#f472b6" /></button>
+                  <button title="Colorist Eyedropper & Loupe (I)" style={railBtn(colorEyedropperActive)} onClick={() => setColorEyedropperActive(!colorEyedropperActive)}><Pipette size={17} color="#00DAF3" /></button>
+                  <button title="Tela Colorist Suite & Scopes (C)" style={railBtn(coloristSuiteOpen)} onClick={() => setColoristSuiteOpen(!coloristSuiteOpen)}><Palette size={17} color="#00DAF3" /></button>
                   <button title="Upload image layer" style={railBtn(false)} disabled={studioImgBusy} onClick={() => { if (img) studioFileRef.current?.click(); else addImageCanvas(); }}>{studioImgBusy ? <Loader2 size={17} className="animate-spin" /> : <ImagePlus size={17} color="#38bdf8" />}</button>
                 </>
               ) : (
                 <>
                   <button title="Select / move (V)" style={railBtn(studioTool === 'select')} onClick={() => setStudioTool('select')}><MousePointer2 size={17} /></button>
-                  <button title="Typography / Free Text Box (T) — Add rich paragraph text box to this page" style={railBtn(false)} onClick={() => addTextBoxToActiveFrame()}><Type size={17} color="#D0BCFF" /></button>
+                  <button title="Typography & Text Art Studio (T) — 3D text, materials, Firefly effects, shape arrays" style={railBtn(typographyStudioOpen)} onClick={() => setTypographyStudioOpen(open => !open)}><Type size={17} color="#D0BCFF" /></button>
                   <button title="Shapes and callouts (R) — Add shape layer to this page" style={railBtn(false)} onClick={() => addShapeToActiveFrame('RECT')}><Shapes size={17} color="#00DAF3" /></button>
                   <button title="Direct select / anchors (A)" style={railBtn(studioTool === 'direct')} onClick={() => setStudioTool('direct')}><MousePointerClick size={17} /></button>
                   <button title="Pen / vector spline (P)" style={railBtn(studioTool === 'pen')} onClick={() => { if (!isVec) addVectorArtboard(); setStudioTool('pen'); }}><PenLine size={17} color="#a78bfa" /></button>
@@ -2899,7 +3045,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden relative" 
               style={{ background: '#141318', height: '100%', maxHeight: '100%' }} 
               onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} 
-              onDrop={event => { const files = [...event.dataTransfer.files]; if (!files.length) return; event.preventDefault(); const lotties = isVec ? files.filter(file => isLottieFileName(file.name)) : []; if (lotties.length) { const box = event.currentTarget.querySelector('.tela-vector > svg') as SVGSVGElement | null; const ctm = box?.getScreenCTM(); const at = box && ctm ? (() => { const pt = box.createSVGPoint(); pt.x = event.clientX; pt.y = event.clientY; const q = pt.matrixTransform(ctm.inverse()); return { x: q.x, y: q.y }; })() : undefined; lotties.forEach((file, index) => void studioAddLottieFile(vec!, file, at ? { x: at.x + index * 24, y: at.y + index * 24 } : undefined)); } const visual = files.filter(file => !lotties.includes(file) && (file.type.startsWith('image/') || isVectorFile(file))); const other = files.filter(file => !lotties.includes(file) && !visual.includes(file)); visual.forEach(file => { if (isVec) void studioAddVectorFile(vec!, file); else if (img) void studioAddImageFile(img.id, file); }); if (other.length) void insertAssetFiles(other); }} 
+              onDrop={event => { const files = [...event.dataTransfer.files]; if (!files.length) return; event.preventDefault(); const lotties = isVec ? files.filter(file => isLottieFileName(file.name)) : []; if (lotties.length) { const box = event.currentTarget.querySelector('.tela-vector > svg') as SVGSVGElement | null; const ctm = box?.getScreenCTM(); const at = box && ctm ? (() => { const pt = box.createSVGPoint(); pt.x = event.clientX; pt.y = event.clientY; const q = pt.matrixTransform(ctm.inverse()); return { x: q.x, y: q.y }; })() : undefined; lotties.forEach((file, index) => void studioAddLottieFile(vec!, file, at ? { x: at.x + index * 24, y: at.y + index * 24 } : undefined)); } const visual = files.filter(file => !lotties.includes(file) && (file.type.startsWith('image/') || isVectorFile(file) || isCameraRawFile(file))); const other = files.filter(file => !lotties.includes(file) && !visual.includes(file)); visual.forEach(file => { if (isVec) void studioAddVectorFile(vec!, file); else if (img) void studioAddImageFile(img.id, file); }); if (other.length) void insertAssetFiles(other); }} 
               onWheel={event => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setStudioZoom(value => Math.max(.1, Math.min(4, value * (event.deltaY > 0 ? .9 : 1.1)))); }}
             >
               {/* Studio top-strip (Persistent across scroll) */}
@@ -2950,13 +3096,43 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
                 <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
 
-                <button
-                  onClick={() => addTextBoxToActiveFrame()}
-                  className="h-7 px-2.5 rounded-[8px] text-[.64rem] font-bold text-white bg-[var(--pj-magenta,#D40055)]/25 hover:bg-[var(--pj-magenta,#D40055)]/40 border border-[var(--pj-magenta,#D40055)]/40 flex items-center gap-1.5 transition-colors shrink-0 shadow-sm"
-                  title="Add Free-moving Typography / Text Box to the active document page"
-                >
-                  <Type size={12} className="text-[#D0BCFF]" /> Typography
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setTypographyStudioOpen(open => !open)}
+                    className={`h-7 px-2.5 rounded-[8px] text-[.64rem] font-bold text-white flex items-center gap-1.5 transition-colors shrink-0 shadow-sm ${
+                      typographyStudioOpen
+                        ? 'bg-[var(--pj-magenta,#D40055)] text-white shadow-[0_0_14px_rgba(212,0,85,0.45)]'
+                        : 'bg-[var(--pj-magenta,#D40055)]/25 hover:bg-[var(--pj-magenta,#D40055)]/40 border border-[var(--pj-magenta,#D40055)]/40'
+                    }`}
+                    title="Open Typography & Text Art Studio (3D, Materials, Firefly Effects, Shape Arrays, Letter Tools)"
+                  >
+                    <Type size={12} className="text-[#D0BCFF]" /> Typography <ChevronDown size={11} className={`opacity-70 transition-transform ${typographyStudioOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {typographyStudioOpen && (
+                    <div
+                      className="absolute top-full left-0 mt-2 z-50 animate-in fade-in zoom-in-95 duration-100"
+                    >
+                      <TelaTypographyStudio
+                        selectedObject={activeSelectedTextObject}
+                        onUpdateObject={patch => {
+                          const vDev = activeVectorDevice();
+                          if (activeSelectedTextObject && vDev) {
+                            dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: vDev.id, objectId: activeSelectedTextObject.id, patch });
+                          }
+                        }}
+                        onCreateTypographyObject={(kind, patch) => {
+                          createTypographyObjectOnActiveFrame(kind, patch);
+                        }}
+                        onExplodeLetters={obj => {
+                          explodeTextIntoLetters(obj);
+                        }}
+                        onClose={() => setTypographyStudioOpen(false)}
+                        activeFrameLabel={activeFrame?.label}
+                      />
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => addShapeToActiveFrame('RECT')}
                   className="h-7 px-2.5 rounded-[8px] text-[.64rem] font-bold text-white/80 hover:text-white bg-white/[0.06] hover:bg-white/15 border border-white/10 flex items-center gap-1.5 transition-colors shrink-0"
@@ -3156,6 +3332,20 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                             onSelectionToolChange={setImageSelectionTool}
                             selection={rasterSelection}
                             onRasterSelectionChange={setRasterSelection}
+                            coloristOpen={coloristSuiteOpen}
+                            onColoristOpenChange={setColoristSuiteOpen}
+                            eyedropperActive={colorEyedropperActive}
+                            onEyedropperActiveChange={setColorEyedropperActive}
+                            colorSpace={colorSpace}
+                            onColorSpaceChange={setColorSpace}
+                            softProofing={softProofing}
+                            onSoftProofingChange={setSoftProofing}
+                            cmykPlate={cmykPlate}
+                            onCmykPlateChange={setCmykPlate}
+                            wheels={colorWheels}
+                            onWheelsChange={setColorWheels}
+                            curves={colorCurves}
+                            onCurvesChange={setColorCurves}
                           />
                         ) : (
                           /* Productivity devices: Writer, Grid, Base, Form, Notes, Media */
@@ -3206,7 +3396,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                 </div>
               )}
               </div>
-              <input ref={studioFileRef} type="file" accept="image/*,video/*,.svg,.ai,.pdf,.webp,.avif,.gif,.bmp,.tif,.tiff,.lottie,.json,.abr,.csh,.ase" multiple className="hidden" onChange={e => { const files = [...(e.target.files || [])]; if (img) files.forEach(file => void studioAddImageFile(img.id, file)); e.target.value = ''; }} />
+              <input ref={studioFileRef} type="file" accept="image/*,video/*,.svg,.ai,.pdf,.webp,.avif,.gif,.bmp,.tif,.tiff,.lottie,.json,.abr,.csh,.ase,.arw,.cr2,.cr3,.nef,.dng,.raf,.orf,.rw2,.pef" multiple className="hidden" onChange={e => { const files = [...(e.target.files || [])]; if (img) files.forEach(file => void studioAddImageFile(img.id, file)); e.target.value = ''; }} />
             </div>
 
             {/* Right Inspector — Adaptive Studio Panel (Persistent) */}

@@ -36,7 +36,9 @@ export type SelectionTool =
   | 'lasso_poly'
   | 'magic_wand'
   | 'quick_select'
-  | 'select_subject';
+  | 'select_subject'
+  | 'brush_inpaint'
+  | 'brush_erase';
 
 export {
   emptySelection,
@@ -55,6 +57,83 @@ export {
   quickSelect,
 };
 export type { Selection, SelectionOp, WandOptions, QuickSelectOptions };
+
+/**
+ * Stamps a circular brush shape onto an existing selection mask.
+ */
+export function stampBrushCircle(
+  sel: Selection,
+  cx: number,
+  cy: number,
+  radius: number,
+  value: number = 255
+): void {
+  const r = Math.max(1, Math.round(radius));
+  const r2 = r * r;
+  const x0 = Math.max(0, Math.floor(cx - r));
+  const x1 = Math.min(sel.width - 1, Math.ceil(cx + r));
+  const y0 = Math.max(0, Math.floor(cy - r));
+  const y1 = Math.min(sel.height - 1, Math.ceil(cy + r));
+  for (let y = y0; y <= y1; y++) {
+    const dy = y - cy;
+    const dy2 = dy * dy;
+    const row = y * sel.width;
+    for (let x = x0; x <= x1; x++) {
+      const dx = x - cx;
+      if (dx * dx + dy2 <= r2) {
+        sel.data[row + x] = value;
+      }
+    }
+  }
+}
+
+/**
+ * Stamps an interpolated brush ribbon between two points for continuous paint strokes.
+ */
+export function stampBrushLine(
+  sel: Selection,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  radius: number,
+  value: number = 255
+): void {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const dist = Math.hypot(dx, dy);
+  const step = Math.max(1, radius * 0.35);
+  const count = Math.ceil(dist / step);
+  for (let i = 0; i <= count; i++) {
+    const t = count === 0 ? 0 : i / count;
+    const x = x0 + dx * t;
+    const y = y0 + dy * t;
+    stampBrushCircle(sel, x, y, radius, value);
+  }
+}
+
+/**
+ * Recomputes bounding box for an active selection.
+ */
+export function recalculateSelectionBounds(sel: Selection): void {
+  let x0 = sel.width;
+  let y0 = sel.height;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < sel.height; y++) {
+    const row = y * sel.width;
+    for (let x = 0; x < sel.width; x++) {
+      if (sel.data[row + x] > 10) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  sel.bounds = x1 >= 0 ? { x: x0, y: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 } : null;
+}
+
 
 /**
  * Converts an 8-bit selection mask to a PNG Data URL.

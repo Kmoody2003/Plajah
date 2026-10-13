@@ -1807,7 +1807,8 @@ public sealed partial class MainWindow : Window
                             ["flux_lora_volumetric_chiaroscuro"] = HasLora("flux_volumetric_chiaroscuro.safetensors", "flux_lighting.safetensors"),
                             ["flux_lora_neon_cyberpunk"] = HasLora("flux_neon_cyberpunk_rain.safetensors", "flux_cyberpunk.safetensors"),
                             ["flux_lora_ghibli_nostalgia"] = HasLora("flux_ghibli_nostalgia_v1.safetensors", "flux_ghibli.safetensors"),
-                            ["flux_lora_wan_kinematics"] = HasLora("wan21_camera_motion_lora.safetensors", "Wan2.1_camera_motion.safetensors")
+                            ["flux_lora_wan_kinematics"] = HasLora("wan21_camera_motion_lora.safetensors", "Wan2.1_camera_motion.safetensors"),
+                            ["flux_lora_multiview_consistency"] = HasLora("flux_lora_multiview_consistency.safetensors", "flux_lora_multiview.safetensors")
                         }
                     };
                 }

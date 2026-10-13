@@ -79,6 +79,41 @@ function makeObject(kind: TelaVectorObjectKind, x: number, y: number): TelaVecto
   return base;
 }
 
+// ── 3D & Advanced Typography Helpers ──────────────────────────────────────────
+
+function compute3DTextShadow(depth?: number, mat?: string): string | undefined {
+  if (!depth || depth <= 0) {
+    if (mat === 'NEON_CYAN') return '0 0 8px #00DAF3, 0 0 20px #00DAF3, 0 0 40px #007088';
+    if (mat === 'NEON_MAGENTA') return '0 0 8px #FF1493, 0 0 20px #D40055, 0 0 40px #8B0040';
+    return undefined;
+  }
+  const color = mat === 'GOLD_BRASS' ? '#B8860B'
+    : mat === 'CHROME_LIQUID' ? '#46556B'
+    : mat === 'OBSIDIAN' ? '#050408'
+    : mat === 'NEON_CYAN' ? '#007088'
+    : mat === 'NEON_MAGENTA' ? '#8B0040'
+    : mat === 'BAUHAUS_CLAY' ? '#5C0806'
+    : 'rgba(0,0,0,0.5)';
+  const layers: string[] = [];
+  for (let i = 1; i <= depth; i++) {
+    layers.push(`0 ${i}px 0 ${color}`);
+  }
+  layers.push(`0 ${depth + 4}px ${Math.round(depth * 1.4)}px rgba(0,0,0,0.65)`);
+  if (mat === 'NEON_CYAN') layers.push('0 0 12px #00DAF3, 0 0 26px #00DAF3');
+  if (mat === 'NEON_MAGENTA') layers.push('0 0 12px #FF1493, 0 0 26px #D40055');
+  return layers.join(', ');
+}
+
+function computeShapeClipPath(shape?: string): string | undefined {
+  if (!shape || shape === 'NONE') return undefined;
+  if (shape === 'CIRCLE') return 'circle(48% at 50% 50%)';
+  if (shape === 'HEART') return 'polygon(50% 15%, 62% 0%, 82% 0%, 98% 18%, 98% 42%, 78% 68%, 50% 98%, 22% 68%, 2% 42%, 2% 18%, 18% 0%, 38% 0%)';
+  if (shape === 'STAR') return 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
+  if (shape === 'DIAMOND') return 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
+  if (shape === 'CLOUD') return 'polygon(20% 80%, 5% 70%, 2% 50%, 15% 35%, 35% 25%, 55% 15%, 75% 22%, 92% 35%, 98% 55%, 90% 75%, 75% 82%)';
+  return undefined;
+}
+
 // ── One rendered object ───────────────────────────────────────────────────────
 
 function textLines(o: TelaVectorObject, writerTexts?: Record<string, string>): string[] {
@@ -213,6 +248,47 @@ export const ObjectEl: React.FC<{
           : [{ id: 'p0', kind: 'p' as const, text: o.text || 'Type rich text here...' }]
       );
 
+      const text3DShadow = compute3DTextShadow(o.extrusion3D, o.material3D);
+      const perspectiveTransform = (o.tiltX || o.tiltY)
+        ? `perspective(800px) rotateX(${o.tiltX || 0}deg) rotateY(${o.tiltY || 0}deg)`
+        : undefined;
+      const shapeClip = computeShapeClipPath(o.textArrayShape);
+
+      let textBg: string | undefined;
+      let textFillColor: string | undefined = textColor;
+      let bgClip: string | undefined;
+
+      if (o.textMask === 'IMAGE' && o.textMaskUrl) {
+        textBg = `url(${o.textMaskUrl}) center / cover`;
+        textFillColor = 'transparent';
+        bgClip = 'text';
+      } else if (o.generativeEffect) {
+        const st = o.generativeEffect.style;
+        const grad = st === 'JUNGLE_FLORAL' ? 'linear-gradient(135deg, #10b981 0%, #047857 50%, #f472b6 100%)'
+          : st === 'CYBER_CIRCUIT' ? 'linear-gradient(135deg, #0284c7 0%, #00f2fe 50%, #a855f7 100%)'
+          : st === 'MOLTEN_MAGMA' ? 'linear-gradient(135deg, #fbbf24 0%, #ef4444 50%, #7f1d1d 100%)'
+          : st === 'GLACIAL_ICE' ? 'linear-gradient(135deg, #e0f2fe 0%, #38bdf8 50%, #1e40af 100%)'
+          : st === 'GOLDEN_FILIGREE' ? 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #713f12 100%)'
+          : st === 'COSMIC_NEBULA' ? 'linear-gradient(135deg, #d946ef 0%, #6366f1 50%, #09090b 100%)'
+          : st === 'SWEET_CANDY' ? 'linear-gradient(135deg, #f472b6 0%, #fb7185 50%, #fbcfe8 100%)'
+          : 'linear-gradient(135deg, #d97706 0%, #b45309 50%, #451a03 100%)';
+        textBg = o.generativeEffect.textureUrl ? `url(${o.generativeEffect.textureUrl}) center / cover` : grad;
+        textFillColor = 'transparent';
+        bgClip = 'text';
+      } else if (o.material3D === 'HOLOGRAPHIC') {
+        textBg = 'linear-gradient(135deg, #00DAF3 0%, #D40055 35%, #FFC107 70%, #06D6A0 100%)';
+        textFillColor = 'transparent';
+        bgClip = 'text';
+      } else if (o.material3D === 'CHROME_LIQUID') {
+        textBg = 'linear-gradient(135deg, #FFFFFF 0%, #B0C4DE 50%, #46556B 100%)';
+        textFillColor = 'transparent';
+        bgClip = 'text';
+      } else if (o.material3D === 'GOLD_BRASS') {
+        textBg = 'linear-gradient(135deg, #FFE57F 0%, #FFC107 50%, #B8860B 100%)';
+        textFillColor = 'transparent';
+        bgClip = 'text';
+      }
+
       return decorate(
         <g
           transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}
@@ -231,18 +307,25 @@ export const ObjectEl: React.FC<{
             y={o.y}
             width={boxW}
             height={boxH}
-            style={{ overflow: 'hidden' }}
+            style={{ overflow: 'visible' }}
           >
             <div
               style={{
                 width: '100%',
                 height: '100%',
                 boxSizing: 'border-box',
-                background: bg,
+                background: textBg ? undefined : bg,
+                backgroundImage: textBg,
+                WebkitBackgroundClip: bgClip as any,
+                WebkitTextFillColor: textFillColor,
+                clipPath: shapeClip,
+                transform: perspectiveTransform,
+                transformStyle: perspectiveTransform ? 'preserve-3d' : undefined,
+                textShadow: text3DShadow,
                 borderRadius: o.rx ? `${o.rx}px` : undefined,
                 border,
                 padding: `${pad}px`,
-                color: textColor,
+                color: textFillColor === 'transparent' ? undefined : textColor,
                 fontFamily,
                 fontSize: `${size}px`,
                 lineHeight: leading,
@@ -257,6 +340,7 @@ export const ObjectEl: React.FC<{
                 wordBreak: 'break-word',
                 userSelect: isSelected ? 'text' : 'none',
                 cursor: interactive ? 'move' : 'default',
+                mixBlendMode: o.textMask === 'KNOCKOUT' ? 'difference' : (o.blendMode || undefined) as any,
               }}
             >
               {renderedBlocks.map((blk, idx) => {

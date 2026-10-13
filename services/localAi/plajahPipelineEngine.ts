@@ -8,6 +8,64 @@
 
 import { plajahLoraRegistry } from './plajahLoraRegistry';
 
+export type DirectorialLens =
+  | 'anamorphic'
+  | '35mm'
+  | '50mm'
+  | '85mm'
+  | '135mm_telephoto'
+  | 'macro_probe'
+  | 'macro'
+  | 'ultra_wide_18mm'
+  | 'ultra_wide'
+  | 'super_wide_12mm'
+  | 'fisheye_8mm'
+  | 'tilt_shift_45mm'
+  | 'vintage_16mm_bolex'
+  | '70mm_imax'
+  | 'noctilux_f095'
+  | 'petzval_swirl'
+  | 'cine_zoom_24_290'
+  | 'vintage_anamorphic_flare'
+  | string;
+
+export type DirectorialLighting =
+  | 'chiaroscuro'
+  | 'golden_hour'
+  | 'neon_noir'
+  | 'dramatic_rim'
+  | 'high_key_commercial'
+  | 'low_key_film_noir'
+  | 'moonlight_cyan'
+  | 'volumetric_godrays'
+  | 'warm_candlelight'
+  | 'bifrost_neon_synth'
+  | 'overcast_softbox'
+  | 'ringlight_beauty'
+  | 'stage_spotlight'
+  | 'underwater_caustics'
+  | 'fluorescent_grit'
+  | 'sunset_silhouette'
+  | 'studio_soft'
+  | 'natural_overcast'
+  | string;
+
+export type DirectorialCameraAngle =
+  | 'eye_level'
+  | 'front_portrait'
+  | 'three_quarter_left'
+  | 'three_quarter_right'
+  | 'profile_left'
+  | 'profile_right'
+  | 'low_angle_hero'
+  | 'high_angle_bird'
+  | 'overhead_god_view'
+  | 'over_the_shoulder'
+  | 'dutch_angle'
+  | 'extreme_close_up'
+  | 'full_body_turnaround'
+  | string;
+
 export interface CinemaStillIntent {
   prompt: string;
   negativePrompt?: string;
@@ -15,8 +73,9 @@ export interface CinemaStillIntent {
   loraId?: string;
   loraWeight?: number;
   aspect?: '16:9' | '2.39:1' | '9:16' | '1:1' | '4:3' | '3:2';
-  lens?: 'anamorphic' | '35mm' | '50mm' | '85mm' | 'macro' | 'ultra_wide';
-  lighting?: 'chiaroscuro' | 'golden_hour' | 'neon_noir' | 'studio_soft' | 'dramatic_rim' | 'natural_overcast';
+  lens?: DirectorialLens;
+  lighting?: DirectorialLighting;
+  cameraAngle?: DirectorialCameraAngle;
   steps?: number;
   seed?: number;
 }
@@ -149,19 +208,54 @@ export function compileCinemaStillTask(intent: CinemaStillIntent): PlajahNativeT
   let lensMod = '';
   switch (intent.lens) {
     case 'anamorphic':
-      lensMod = 'shot on 35mm Panavision anamorphic lens, subtle horizontal anamorphic lens flare, cinematic shallow depth of field, natural bokeh';
+      lensMod = 'shot on 35mm Panavision anamorphic lens, subtle horizontal anamorphic lens flare, oval cinematic bokeh, widescreen 2.39:1 depth';
       break;
     case '35mm':
-      lensMod = 'shot on Arri Alexa 35mm cinema camera, master prime lens, natural film grain, sharp focus';
+      lensMod = 'shot on Arri Alexa 35mm cinema camera, Arri Master Prime 35mm optics, natural film grain, razor sharp optical focus';
+      break;
+    case '50mm':
+      lensMod = 'Cooke S4/i 50mm cinema prime, authentic Cooke Look, gentle organic sharpness, creamy dimensional falloff';
       break;
     case '85mm':
-      lensMod = '85mm f/1.4 portrait cinema prime, creamy background compression, razor sharp subject separation';
+      lensMod = 'Zeiss Supreme Prime 85mm f/1.4 portrait cinema prime, creamy background compression, razor sharp subject isolation';
       break;
-    case 'ultra_wide':
-      lensMod = '18mm ultra wide angle cinematography, grand perspective, deep focus, architectural scale';
+    case '135mm_telephoto':
+      lensMod = 'Leica Summilux-C 135mm telephoto prime, dramatic focal plane compression, distant background intimacy, razor thin depth slice';
       break;
+    case 'macro_probe':
     case 'macro':
-      lensMod = 'macro cinema lens, extreme textural detail, tactile surface focus, 100mm macro optics';
+      lensMod = 'Laowa 24mm f/14 2x Macro Probe lens, microscopic tactile surface detail, ultra-close perspective with deep ambient background';
+      break;
+    case 'ultra_wide_18mm':
+    case 'ultra_wide':
+      lensMod = 'Zeiss Ultra Prime 18mm wide angle cinematography, grand perspective scale, deep sharp architectural focus';
+      break;
+    case 'super_wide_12mm':
+      lensMod = 'Voigtlander 12mm ultra-wide rectilinear optics, sweeping panoramic immersion, dramatic vertical perspective';
+      break;
+    case 'fisheye_8mm':
+      lensMod = '8mm circular fisheye lens, 180-degree hemispherical barrel distortion, dramatic curved horizon perspective';
+      break;
+    case 'tilt_shift_45mm':
+      lensMod = 'Canon TS-E 45mm tilt-shift lens, selective miniature diorama focal plane, architectural perspective control';
+      break;
+    case 'vintage_16mm_bolex':
+      lensMod = '16mm Switar vintage cinema prime, nostalgic 16mm optical halation, soft chromatic aberration, authentic analog film grain';
+      break;
+    case '70mm_imax':
+      lensMod = 'IMAX 15-perf 70mm large format camera, Hasselblad optics, breathtaking spatial clarity, infinite textural resolution';
+      break;
+    case 'noctilux_f095':
+      lensMod = 'Leica Noctilux-M 50mm f/0.95 lens, hyper-shallow ethereal depth of field, dreamlike liquid bokeh background';
+      break;
+    case 'petzval_swirl':
+      lensMod = '19th-century Petzval 85mm brass lens, swirling vortex radial bokeh, razor sharp center sweet spot, vintage optical character';
+      break;
+    case 'cine_zoom_24_290':
+      lensMod = 'Angenieux Optimo 24-290mm cine zoom lens, smooth optical vertigo compression, classic Hollywood cinema optics';
+      break;
+    case 'vintage_anamorphic_flare':
+      lensMod = 'Lomo Roundfront Soviet anamorphic lens, warm golden organic streaks, expressive flare dynamics, vintage cinema patina';
       break;
     default:
       lensMod = '50mm standard cinema prime, natural human perspective, authentic color grading';
@@ -170,22 +264,106 @@ export function compileCinemaStillTask(intent: CinemaStillIntent): PlajahNativeT
   let lightMod = '';
   switch (intent.lighting) {
     case 'chiaroscuro':
-      lightMod = 'dramatic chiaroscuro lighting, deep rich shadow falloff, high contrast rim light, Rembrandt lighting';
+      lightMod = 'dramatic chiaroscuro lighting, deep rich shadow falloff, triangular Rembrandt cheek highlight, moody key light';
       break;
     case 'golden_hour':
-      lightMod = 'warm golden hour sun, low angle warm backlight, cinematic volumetric haze, soft atmospheric glow';
+      lightMod = 'warm magic golden hour sun, low angle warm backlight, cinematic volumetric haze, soft amber atmospheric glow';
       break;
     case 'neon_noir':
-      lightMod = 'cyberpunk neon noir lighting, cyan and magenta ambient reflections, wet ground specular highlights';
+      lightMod = 'cyberpunk neon noir lighting, cyan and magenta ambient reflections, wet asphalt specular rim highlights';
       break;
     case 'dramatic_rim':
-      lightMod = 'strong theatrical edge lighting, sharp silhouette outline, atmospheric kicker light, moody backdrop';
+      lightMod = 'strong theatrical edge lighting, sharp silhouette outline, atmospheric kicker light, moody backdrop separation';
+      break;
+    case 'high_key_commercial':
+      lightMod = 'high-key commercial studio lighting, pure radiant clean daylight, soft wrap-around bounce, zero harsh shadows';
+      break;
+    case 'low_key_film_noir':
+      lightMod = 'classic 1940s film noir lighting, Venetian blind shadow slits, harsh tungsten key light, smoke and cigarette haze';
+      break;
+    case 'moonlight_cyan':
+      lightMod = 'cinematic cool moonlight, desaturated cyan ambient fill, midnight deep blue shadows, crisp silver edge highlights';
+      break;
+    case 'volumetric_godrays':
+      lightMod = 'cathedral volumetric god rays, intense directional shafts of sunlight piercing misty dust motes, divine atmosphere';
+      break;
+    case 'warm_candlelight':
+      lightMod = 'intimate 1800K flickering candlelight, soft amber inverse-square falloff, warm shadows, cozy fireplace glow';
+      break;
+    case 'bifrost_neon_synth':
+      lightMod = 'synthwave bifrost dual-tone lighting, saturated electric violet key paired with burning neon crimson rim light';
+      break;
+    case 'overcast_softbox':
+      lightMod = 'northern sky softbox lighting, overcast diffuse cloud illumination, natural skin tones, smooth micro-contrast';
+      break;
+    case 'ringlight_beauty':
+      lightMod = 'editorial beauty ring light, circular ocular catchlights in eyes, flawless even facial illumination, beauty dish fill';
+      break;
+    case 'stage_spotlight':
+      lightMod = 'theatrical overhead follow-spotlight, intense focused beam cutting through pure pitch black darkness, stark isolation';
+      break;
+    case 'underwater_caustics':
+      lightMod = 'underwater caustic light refractions, undulating turquoise ripples dancing across subject, deep ocean light scattering';
+      break;
+    case 'fluorescent_grit':
+      lightMod = 'industrial fluorescent tube lighting, cold green-tinted institutional glare, gritty urban realism, flickering tungsten';
+      break;
+    case 'sunset_silhouette':
+      lightMod = 'blazing crimson-orange sunset horizon, total subject silhouette, stark black graphic profile against vibrant sky';
       break;
     default:
       lightMod = 'soft diffuse studio lighting, natural balanced shadows, beauty lighting setup';
   }
 
-  let fullPrompt = `${intent.prompt}, ${lensMod}, ${lightMod}, cinematic color grading, 8k resolution, raw photography, master film still`;
+  let angleMod = '';
+  switch (intent.cameraAngle) {
+    case 'front_portrait':
+      angleMod = 'frontal direct camera angle, 0-degree eye-level gaze, centered symmetrical framing';
+      break;
+    case 'three_quarter_left':
+      angleMod = 'three-quarter view turned 45 degrees to the left, dynamic facial depth, locked character likeness';
+      break;
+    case 'three_quarter_right':
+      angleMod = 'three-quarter view turned 45 degrees to the right, dynamic facial depth, locked character likeness';
+      break;
+    case 'profile_left':
+      angleMod = 'sharp 90-degree side profile view looking left, crisp silhouette jawline, clean lateral perspective';
+      break;
+    case 'profile_right':
+      angleMod = 'sharp 90-degree side profile view looking right, crisp silhouette jawline, clean lateral perspective';
+      break;
+    case 'low_angle_hero':
+      angleMod = 'heroic low camera angle looking upward, powerful commanding stature, ground-level lens perspective';
+      break;
+    case 'high_angle_bird':
+      angleMod = 'high camera angle looking downward at 45 degrees, vulnerable perspective, expansive floor plane';
+      break;
+    case 'overhead_god_view':
+      angleMod = '90-degree top-down nadir overhead god view, flat perpendicular perspective, architectural geometric layout';
+      break;
+    case 'over_the_shoulder':
+      angleMod = 'over-the-shoulder conversation shot, foreground shoulder framing, narrative depth of field';
+      break;
+    case 'dutch_angle':
+      angleMod = 'dramatic 15-degree Dutch angle camera tilt, canted horizon line, psychological tension';
+      break;
+    case 'extreme_close_up':
+      angleMod = 'extreme close-up macro framing, intimate focus on eyes and facial expression, razor thin depth';
+      break;
+    case 'full_body_turnaround':
+      angleMod = 'multi-angle character model sheet turnaround, simultaneous front view, three-quarter view, profile view and rear view, consistent character design, neutral background';
+      break;
+    default:
+      angleMod = '';
+  }
+
+  const promptElements = [intent.prompt];
+  if (angleMod) promptElements.push(angleMod);
+  if (lensMod) promptElements.push(lensMod);
+  if (lightMod) promptElements.push(lightMod);
+  promptElements.push('cinematic color grading, 8k resolution, raw photography, master film still');
+
+  let fullPrompt = promptElements.join(', ');
   let activeLora: PlajahNativeTask['lora'];
 
   if (intent.loraId) {

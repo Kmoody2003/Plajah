@@ -1,7 +1,8 @@
 // components/tela/TelaImageSelectionOverlay.tsx
 // Photoshop-grade interactive selection canvas overlay for Tela Image devices.
 // Provides Rectangular/Elliptical Marquees, Freehand & Polygonal Lassos, Magic Wand,
-// Meta SAM Select Subject, animated marching ants, Inverse Selection, Feather/Expand/Contract,
+// Meta SAM Select Subject, Generative Fill Inpaint Brush (B), Mask Eraser (E),
+// Canvas Outpainting, animated marching ants, Inverse Selection, Feather/Expand/Contract,
 // Generative Fill bridge, and Layer via Copy (Ctrl+J).
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -9,7 +10,6 @@ import {
   Sparkles,
   FlipHorizontal,
   Maximize2,
-  Minimize2,
   Sliders,
   Copy,
   Trash2,
@@ -18,7 +18,11 @@ import {
   Wand2,
   Loader2,
   Check,
-  ChevronDown
+  ChevronDown,
+  Paintbrush,
+  Eraser,
+  Plus,
+  Minus
 } from 'lucide-react';
 import {
   Selection,
@@ -42,6 +46,9 @@ import {
   loadLayerAsBitmap8,
   layerViaCopy,
   deleteSelectedPixels,
+  stampBrushCircle,
+  stampBrushLine,
+  recalculateSelectionBounds,
 } from '../../services/tela/raster/selectionWorkflow';
 import { executeGenerativeInpaint } from '../../services/tela/telaInpaintService';
 import { samSegmentationService } from '../../services/samSegmentationService';
@@ -74,6 +81,9 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
 }) => {
   const [opMode, setOpMode] = useState<SelectionOp>('replace');
   const [antOffset, setAntOffset] = useState(0);
+  const [brushSize, setBrushSize] = useState<number>(36);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+
   const [dragState, setDragState] = useState<{
     active: boolean;
     startX: number;
@@ -81,10 +91,13 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     currentX: number;
     currentY: number;
     polyPoints?: { x: number; y: number }[];
+    isBrush?: boolean;
+    brushSelection?: Selection;
   } | null>(null);
 
   // Floating Contextual Bar state
   const [modifyMenuOpen, setModifyMenuOpen] = useState(false);
+  const [outpaintMenuOpen, setOutpaintMenuOpen] = useState(false);
   const [modifyType, setModifyType] = useState<'feather' | 'expand' | 'contract' | 'smooth' | 'border' | null>(null);
   const [modifyValue, setModifyValue] = useState(10);
   const [inpaintPrompt, setInpaintPrompt] = useState('');
@@ -118,6 +131,32 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
       if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.getAttribute('contenteditable') === 'true')) {
+        return;
+      }
+
+      // [ / ] -> Brush Size adjustments
+      if (e.key === '[') {
+        e.preventDefault();
+        setBrushSize((s) => Math.max(4, s - 4));
+        return;
+      }
+      if (e.key === ']') {
+        e.preventDefault();
+        setBrushSize((s) => Math.min(200, s + 4));
+        return;
+      }
+
+      // B -> Inpaint Brush
+      if (e.key.toLowerCase() === 'b' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        e.preventDefault();
+        onToolChange?.(activeTool === 'brush_inpaint' ? 'none' : 'brush_inpaint');
+        return;
+      }
+
+      // E -> Mask Eraser
+      if (e.key.toLowerCase() === 'e' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        onToolChange?.(activeTool === 'brush_erase' ? 'none' : 'brush_erase');
         return;
       }
 
@@ -164,12 +203,11 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selection, activeLayer, width, height, activeTool]);
+  }, [selection, activeLayer, width, height, activeTool, onToolChange]);
 
   // Operations
   const handleInverse = useCallback(() => {
     if (!selection || !selection.bounds) {
-      // If nothing selected, inverting selects all
       onSelectionChange(selectAll(width, height));
       return;
     }
@@ -231,28 +269,30 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
 
   const handleMaskFromSelection = useCallback(() => {
     if (!selection || !activeLayer || !onUpdateLayer) return;
-    const maskDataUrl = selectionToDataUrl(selection, 'alpha');
+    const maskUrl = selectionToDataUrl(selection, 'alpha');
     onUpdateLayer(activeLayer.id, {
       mask: {
         kind: 'ALPHA_IMAGE',
         enabled: true,
-        src: maskDataUrl,
+        src: maskUrl,
         invert: false,
       },
     });
   }, [selection, activeLayer, onUpdateLayer]);
 
-  const handleGenerativeFill = useCallback(async () => {
+  const handleGenerativeFill = useCallback(async (customPrompt?: string) => {
     if (!selection || !activeLayer?.src) return;
     setInpaintBusy(true);
-    setInpaintMsg('Synthesizing with RTX GPU Sidecar…');
+    setInpaintMsg('Synthesizing with NVIDIA RTX GPU Sidecar…');
     try {
+      const promptToUse = (typeof customPrompt === 'string' ? customPrompt : inpaintPrompt).trim();
       const maskDataUrl = selectionToDataUrl(selection, 'black-white');
       const res = await executeGenerativeInpaint(
         {
           sourceImageUrl: activeLayer.src,
           maskDataUrl,
-          prompt: inpaintPrompt.trim(),
+          prompt: promptToUse || 'Seamless natural texture and environment, harmonious lighting',
+          featherRadius: 8,
         },
         { width, height }
       );
@@ -262,7 +302,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
         } else if (onUpdateLayer) {
           onUpdateLayer(activeLayer.id, { ...res.newLayer });
         }
-        setInpaintMsg(`Fill complete (${res.engine || 'local'}) in ${res.ms || 0}ms`);
+        setInpaintMsg(`Fill complete (${res.engine || 'local GPU'}) in ${res.ms || 0}ms`);
         setTimeout(() => setInpaintMsg(null), 3000);
       }
     } catch (err: any) {
@@ -272,6 +312,79 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
       setInpaintBusy(false);
     }
   }, [selection, activeLayer, inpaintPrompt, width, height, onAddLayer, onUpdateLayer]);
+
+  const handleGenerativeOutpaint = useCallback(async (outpaint: { left: number; top: number; right: number; bottom: number }) => {
+    if (!activeLayer?.src) return;
+    setInpaintBusy(true);
+    setOutpaintMenuOpen(false);
+    setInpaintMsg('Outpainting canvas with NVIDIA RTX GPU Sidecar…');
+    try {
+      const prompt = inpaintPrompt.trim() || 'Extended panoramic scenery, continuous environment, seamless background, highly detailed';
+      const eps = ['http://127.0.0.1:51122/generate', 'http://localhost:51122/generate'];
+      let resultDataUrl: string | null = null;
+      let newW = width;
+      let newH = height;
+
+      for (const ep of eps) {
+        try {
+          const resp = await fetch(ep, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              task: {
+                taskType: 'cinema_generate',
+                prompt,
+                sourceImage: activeLayer.src,
+                outpaint,
+                seed: Math.floor(Math.random() * 1000000),
+              },
+            }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data?.mediaUrl) {
+              resultDataUrl = data.mediaUrl;
+              newW = data.width || width;
+              newH = data.height || height;
+              break;
+            }
+          }
+        } catch {}
+      }
+
+      if (resultDataUrl) {
+        const newLayer: TelaImageLayer = {
+          id: `lyr_outpaint_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          name: `Outpaint: ${prompt.slice(0, 24)}…`,
+          src: resultDataUrl,
+          visible: true,
+          opacity: 1,
+          blend: 'normal',
+          x: 0,
+          y: 0,
+          scale: 1,
+          rotation: 0,
+          intrinsicWidth: newW,
+          intrinsicHeight: newH,
+          adjust: { brightness: 1, contrast: 1, saturate: 1, exposure: 0, blur: 0 },
+        };
+        if (onAddLayer) {
+          onAddLayer(newLayer);
+        } else if (onUpdateLayer) {
+          onUpdateLayer(activeLayer.id, { ...newLayer });
+        }
+        setInpaintMsg('Outpaint complete!');
+        setTimeout(() => setInpaintMsg(null), 3000);
+      } else {
+        throw new Error('GPU outpaint failed or unavailable');
+      }
+    } catch (err: any) {
+      setInpaintMsg(`Outpaint failed: ${err.message || 'error'}`);
+      setTimeout(() => setInpaintMsg(null), 3500);
+    } finally {
+      setInpaintBusy(false);
+    }
+  }, [activeLayer, inpaintPrompt, width, height, onAddLayer, onUpdateLayer]);
 
   const handleSelectSubject = useCallback(async () => {
     if (!activeLayer?.src) return;
@@ -293,19 +406,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
         for (let i = 0; i < width * height; i++) {
           sel.data[i] = bm.data[i * 4 + 3];
         }
-        // compute bounds
-        let x0 = width, y0 = height, x1 = -1, y1 = -1;
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            if (sel.data[y * width + x] > 20) {
-              if (x < x0) x0 = x;
-              if (x > x1) x1 = x;
-              if (y < y0) y0 = y;
-              if (y > y1) y1 = y;
-            }
-          }
-        }
-        sel.bounds = x1 >= 0 ? { x: x0, y: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 } : null;
+        recalculateSelectionBounds(sel);
         onSelectionChange(sel);
         setInpaintMsg('Subject selected');
         setTimeout(() => setInpaintMsg(null), 2000);
@@ -332,12 +433,28 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
 
     const { x, y } = getCanvasCoords(e);
+    setCursorPos({ x, y });
 
-    // Modifier keys toggle mode
-    let effectiveOp = opMode;
-    if (e.shiftKey && !e.altKey) effectiveOp = 'add';
-    else if (e.altKey && !e.shiftKey) effectiveOp = 'subtract';
-    else if (e.shiftKey && e.altKey) effectiveOp = 'intersect';
+    // Inpaint Brush or Mask Eraser
+    if (activeTool === 'brush_inpaint' || activeTool === 'brush_erase') {
+      const isErase = activeTool === 'brush_erase';
+      const baseSel: Selection = selection
+        ? { width, height, data: new Uint8Array(selection.data), bounds: selection.bounds }
+        : emptySelection(width, height);
+      stampBrushCircle(baseSel, x, y, brushSize, isErase ? 0 : 255);
+      recalculateSelectionBounds(baseSel);
+      onSelectionChange(baseSel);
+      setDragState({
+        active: true,
+        startX: x,
+        startY: y,
+        currentX: x,
+        currentY: y,
+        isBrush: true,
+        brushSelection: baseSel,
+      });
+      return;
+    }
 
     if (activeTool === 'magic_wand') {
       if (!activeLayer?.src) return;
@@ -349,8 +466,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
             contiguous: true,
             antiAlias: true,
           });
-          const merged = selection ? { ...wandSel } : wandSel;
-          onSelectionChange(merged);
+          onSelectionChange(wandSel);
         } catch (err) {
           console.error('[Magic Wand] Error executing wand:', err);
         }
@@ -383,8 +499,23 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState || !dragState.active) return;
     const { x, y } = getCanvasCoords(e);
+    setCursorPos({ x, y });
+
+    if (!dragState || !dragState.active) return;
+
+    if (dragState.isBrush && dragState.brushSelection) {
+      const isErase = activeTool === 'brush_erase';
+      stampBrushLine(dragState.brushSelection, dragState.currentX, dragState.currentY, x, y, brushSize, isErase ? 0 : 255);
+      recalculateSelectionBounds(dragState.brushSelection);
+      onSelectionChange({ ...dragState.brushSelection });
+      setDragState({
+        ...dragState,
+        currentX: x,
+        currentY: y,
+      });
+      return;
+    }
 
     if (activeTool === 'lasso_free') {
       const pts = dragState.polyPoints ? [...dragState.polyPoints, { x, y }] : [{ x, y }];
@@ -406,6 +537,16 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragState || !dragState.active) return;
+
+    if (dragState.isBrush) {
+      if (dragState.brushSelection) {
+        recalculateSelectionBounds(dragState.brushSelection);
+        onSelectionChange({ ...dragState.brushSelection });
+      }
+      setDragState(null);
+      return;
+    }
+
     if (activeTool === 'lasso_poly') return; // polygon lasso completes on double click or manual close
 
     const { startX, startY, currentX, currentY } = dragState;
@@ -510,6 +651,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
   })();
 
   const isSelectionActive = Boolean(selection?.bounds);
+  const isBrushTool = activeTool === 'brush_inpaint' || activeTool === 'brush_erase';
 
   return (
     <div
@@ -518,15 +660,17 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
         inset: 0,
         width,
         height,
-        pointerEvents: activeTool !== 'none' ? 'auto' : 'none',
+        pointerEvents: activeTool !== 'none' || isSelectionActive ? 'auto' : 'none',
         zIndex: 25,
       }}
+      onPointerEnter={(e) => setCursorPos(getCanvasCoords(e))}
+      onPointerLeave={() => setCursorPos(null)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onDoubleClick={handleDoubleClick as any}
     >
-      {/* SVG Canvas for Marching Ants & In-Progress Drag Marquee */}
+      {/* SVG Canvas for Marching Ants, Brush Cursor & Drag Marquee */}
       <svg
         style={{
           position: 'absolute',
@@ -537,6 +681,15 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
           pointerEvents: 'none',
         }}
       >
+        {/* Live Ruby Mask Overlay for Active Brush Painting (Photoshop Quick Mask / Firefly style) */}
+        {svgAntPath && isBrushTool && (
+          <path
+            d={svgAntPath}
+            fill="rgba(239, 68, 68, 0.28)"
+            pointerEvents="none"
+          />
+        )}
+
         {/* Animated Marching Ants for Active Selection */}
         {svgAntPath && (
           <g>
@@ -561,6 +714,20 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
           </g>
         )}
 
+        {/* Real-time brush circumference cursor preview */}
+        {isBrushTool && cursorPos && (
+          <circle
+            cx={cursorPos.x}
+            cy={cursorPos.y}
+            r={brushSize}
+            fill={activeTool === 'brush_inpaint' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.15)'}
+            stroke={activeTool === 'brush_inpaint' ? '#ef4444' : '#ffffff'}
+            strokeWidth={1.5}
+            strokeDasharray="3 3"
+            pointerEvents="none"
+          />
+        )}
+
         {/* Real-time drag marquee preview */}
         {dragPreview}
       </svg>
@@ -575,22 +742,22 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
             left: '50%',
             transform: 'translateX(-50%)',
             pointerEvents: 'auto',
-            background: 'rgba(18, 14, 28, 0.95)',
-            border: '1px solid rgba(255, 255, 255, 0.16)',
+            background: 'rgba(18, 14, 28, 0.96)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
             borderRadius: 14,
-            boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(212,0,85,0.3)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,218,243,0.3)',
             padding: '6px 10px',
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            backdropFilter: 'blur(10px)',
+            backdropFilter: 'blur(12px)',
             color: '#fff',
             fontSize: 11,
             zIndex: 40,
             whiteSpace: 'nowrap',
           }}
         >
-          {/* Inverse Selection Button (The exact feature user requested!) */}
+          {/* Inverse Selection Button (Ctrl+Shift+I) */}
           <button
             onClick={handleInverse}
             title="Inverse Selection (Ctrl+Shift+I) — Invert selected area"
@@ -612,6 +779,31 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
           </button>
 
           <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', margin: '0 2px' }} />
+
+          {/* Brush Controls if brush active */}
+          {isBrushTool && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '0 4px' }}>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>Size:</span>
+              <button
+                onClick={() => setBrushSize((s) => Math.max(4, s - 4))}
+                title="Decrease Brush Size ([)"
+                style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+              >
+                <Minus size={11} />
+              </button>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#00DAF3', minWidth: 26, textAlign: 'center' }}>
+                {brushSize}px
+              </span>
+              <button
+                onClick={() => setBrushSize((s) => Math.min(200, s + 4))}
+                title="Increase Brush Size (])"
+                style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+              >
+                <Plus size={11} />
+              </button>
+              <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', margin: '0 2px' }} />
+            </div>
+          )}
 
           {/* Modify Dropdown (Feather / Expand / Contract / Smooth / Border) */}
           <div style={{ position: 'relative' }}>
@@ -734,15 +926,18 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
             </div>
           )}
 
-          {/* Generative Fill Input & Trigger */}
+          {/* Generative Fill Prompt & Action */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <input
               type="text"
               value={inpaintPrompt}
               onChange={(e) => setInpaintPrompt(e.target.value)}
               placeholder="Generative Fill prompt…"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleGenerativeFill();
+              }}
               style={{
-                width: 140,
+                width: 150,
                 height: 26,
                 padding: '0 8px',
                 borderRadius: 6,
@@ -753,15 +948,40 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
                 outline: 'none',
               }}
             />
+
+            {/* Quick 1-Click Remove Object */}
             <button
-              onClick={handleGenerativeFill}
+              onClick={() => void handleGenerativeFill('Clean empty background texture, remove object, seamless natural continuity')}
+              disabled={inpaintBusy}
+              title="1-Click Remove / Erase Object"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '5px 8px',
+                borderRadius: 7,
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#fca5a5',
+                fontWeight: 700,
+                fontSize: 10,
+                cursor: inpaintBusy ? 'wait' : 'pointer',
+              }}
+            >
+              <Trash2 size={11} />
+              <span>Remove</span>
+            </button>
+
+            {/* Generative Fill Button */}
+            <button
+              onClick={() => void handleGenerativeFill()}
               disabled={inpaintBusy}
               title="Generative Fill selection using NVIDIA RTX GPU"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
-                padding: '5px 9px',
+                padding: '5px 10px',
                 borderRadius: 7,
                 border: 'none',
                 background: 'linear-gradient(135deg, #00DAF3, #6B0099)',
@@ -772,8 +992,77 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
               }}
             >
               {inpaintBusy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-              <span>{inpaintBusy ? 'Filling…' : 'Fill'}</span>
+              <span>{inpaintBusy ? 'Filling…' : 'Generate'}</span>
             </button>
+          </div>
+
+          {/* Outpaint Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setOutpaintMenuOpen((v) => !v)}
+              disabled={inpaintBusy}
+              title="Generative Outpaint & Canvas Expand"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '5px 8px',
+                borderRadius: 7,
+                border: '1px solid rgba(0, 218, 243, 0.3)',
+                background: 'rgba(0, 218, 243, 0.08)',
+                color: '#8ff5ff',
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <Maximize2 size={12} />
+              <span>Outpaint</span>
+              <ChevronDown size={10} className="opacity-60" />
+            </button>
+
+            {outpaintMenuOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '120%',
+                  right: 0,
+                  minWidth: 170,
+                  background: '#1a1426',
+                  border: '1px solid rgba(0, 218, 243, 0.35)',
+                  borderRadius: 10,
+                  padding: 4,
+                  boxShadow: '0 12px 35px rgba(0,0,0,0.75)',
+                  zIndex: 50,
+                }}
+                onMouseLeave={() => setOutpaintMenuOpen(false)}
+              >
+                <button
+                  onClick={() => handleGenerativeOutpaint({ left: Math.round(width * 0.15), top: Math.round(height * 0.15), right: Math.round(width * 0.15), bottom: Math.round(height * 0.15) })}
+                  style={{ width: '100%', textAlign: 'left', padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: '#fff', fontSize: 10.5, fontWeight: 600, cursor: 'pointer' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,218,243,0.15)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  Expand Canvas +25% (All Sides)
+                </button>
+                <button
+                  onClick={() => handleGenerativeOutpaint({ left: Math.round(width * 0.25), top: 0, right: Math.round(width * 0.25), bottom: 0 })}
+                  style={{ width: '100%', textAlign: 'left', padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: '#fff', fontSize: 10.5, fontWeight: 600, cursor: 'pointer' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,218,243,0.15)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  Panorama +50% (Left & Right)
+                </button>
+                <button
+                  onClick={() => handleGenerativeOutpaint({ left: 0, top: Math.round(height * 0.25), right: 0, bottom: Math.round(height * 0.25) })}
+                  style={{ width: '100%', textAlign: 'left', padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: '#fff', fontSize: 10.5, fontWeight: 600, cursor: 'pointer' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,218,243,0.15)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  Portrait +50% (Top & Bottom)
+                </button>
+              </div>
+            )}
           </div>
 
           <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', margin: '0 2px' }} />

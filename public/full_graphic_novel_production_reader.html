@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plajah Full-Book Studio: The Obsidian Shroud & Chrome Apostle (20 Pages Each)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@700&family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --card-bg: #0d111a;
+      --card-border: #1e2638;
+      --cyan: #00daf3;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .top-bar {
+      max-width: 1400px;
+      margin: 0 auto 20px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px 24px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--cyan), #3b82f6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #000;
+      font-size: 16px;
+    }
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .book-btn {
+      background: #141a29;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .book-btn.active.amber {
+      background: var(--amber);
+      color: #000;
+      border-color: var(--amber);
+    }
+    .book-btn.active.cyan {
+      background: var(--cyan);
+      color: #000;
+      border-color: var(--cyan);
+    }
+
+    .view-btn {
+      background: #141a29;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .view-btn.active {
+      background: #252e42;
+      color: #fff;
+    }
+
+    /* Page Navigation Bar */
+    .nav-bar {
+      max-width: 1400px;
+      margin: 0 auto 20px auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #090c13;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 18px;
+    }
+    .nav-btn {
+      background: #141926;
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .page-indicator {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+    .page-title-banner {
+      color: var(--text-muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Thumbnail Strip */
+    .thumb-strip {
+      max-width: 1400px;
+      margin: 0 auto 24px auto;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    .thumb-strip::-webkit-scrollbar {
+      height: 6px;
+    }
+    .thumb-strip::-webkit-scrollbar-thumb {
+      background: #1e2638;
+      border-radius: 3px;
+    }
+    .thumb-btn {
+      flex: 0 0 56px;
+      height: 72px;
+      background: #10141f;
+      border: 2px solid #1a2233;
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .thumb-btn:hover {
+      border-color: var(--cyan);
+      color: #fff;
+    }
+    .thumb-btn.active {
+      border-color: var(--amber);
+      background: #191f2e;
+      color: var(--amber);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+    }
+    .thumb-btn.active.cyan {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 10px rgba(0, 218, 243, 0.3);
+    }
+
+    /* Reader Main Display */
+    .reader-stage {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+    }
+    .comic-page-sheet {
+      width: 100%;
+      background: #000000;
+      border: 4px solid #181d29;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panels-container {
+      display: grid;
+      gap: 16px;
+      width: 100%;
+    }
+    .panels-container.count-1 { grid-template-columns: 1fr; }
+    .panels-container.count-2 { grid-template-columns: 1fr; }
+    .panels-container.count-3 { grid-template-columns: 1fr 1fr; }
+    .panels-container.count-4 { grid-template-columns: 1fr 1fr; }
+
+    .comic-panel-box {
+      position: relative;
+      background: #0b0e14;
+      border: 3.5px solid #000000;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .comic-panel-box.full-bleed {
+      grid-column: span 2;
+    }
+    .panel-media-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 380px;
+      background: #080a0f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .panel-media-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Tela Vector Overlays */
+    .tela-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .caption-card {
+      position: absolute;
+      background: #000000;
+      border: 2px solid var(--amber);
+      color: var(--amber);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 2px;
+      max-width: 80%;
+      letter-spacing: 0.5px;
+      box-shadow: 2px 3px 0 rgba(0,0,0,0.8);
+      white-space: pre-line;
+    }
+    .caption-card.manga {
+      background: #ffffff;
+      border: 2px solid #000000;
+      color: #000000;
+      font-family: 'Inter', sans-serif;
+      font-weight: 800;
+    }
+    .dialogue-balloon {
+      position: absolute;
+      background: #ffffff;
+      border: 2.5px solid #000000;
+      color: #0f172a;
+      font-family: 'Comic Neue', sans-serif;
+      font-weight: 700;
+      font-size: 13.5px;
+      padding: 10px 16px;
+      border-radius: 18px;
+      max-width: 260px;
+      text-align: center;
+      line-height: 1.25;
+      box-shadow: 2px 3px 6px rgba(0,0,0,0.4);
+    }
+    .dialogue-balloon.shout {
+      border: 3px solid var(--red);
+      color: var(--red);
+      font-family: 'Inter', sans-serif;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .dialogue-balloon.comms {
+      background: #0f172a;
+      border: 2px solid var(--cyan);
+      color: var(--cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      border-radius: 4px;
+    }
+    .kinetic-sfx {
+      position: absolute;
+      font-family: 'Bangers', cursive;
+      font-size: 42px;
+      color: var(--cyan);
+      text-shadow: 0 0 12px rgba(0, 218, 243, 0.8);
+      -webkit-text-stroke: 2.5px #000000;
+      transform: rotate(-8deg);
+      letter-spacing: 2px;
+    }
+    .kinetic-sfx.orange {
+      color: var(--amber);
+      text-shadow: 0 0 12px rgba(245, 158, 11, 0.8);
+    }
+    .kinetic-sfx.red {
+      color: var(--red);
+      text-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+    }
+
+    .panel-footer-meta {
+      background: #090c12;
+      border-top: 2px solid #000000;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .page-footer-folio {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #64748b;
+      font-family: 'JetBrains Mono', monospace;
+      padding-top: 12px;
+      border-top: 1px solid #1e2638;
+    }
+
+    /* Fallback procedural drawing canvas when generating */
+    .procedural-art {
+      width: 100%;
+      height: 100%;
+      min-height: 380px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #171d2b 0%, #090c13 100%);
+      color: #94a3b8;
+      text-align: center;
+      padding: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="brand">
+      <div class="brand-logo">P</div>
+      <div>
+        <h1>Plajah Story Studio: 20-Page Production Reader</h1>
+        <div style="font-size: 11px; color: var(--text-muted);">Discrete NVIDIA GeForce RTX 4070 On-Device Execution</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="book-btn active amber" id="btn-obsidian" onclick="selectBook('obsidian')">
+        Book 1: The Obsidian Shroud (20 Pages)
+      </button>
+      <button class="book-btn" id="btn-chrome" onclick="selectBook('chrome')">
+        Book 2: Chrome Apostle (20 Pages)
+      </button>
+      <label style="font-size: 12px; font-weight: 600; color: #cbd5e1; display: flex; align-items: center; gap: 6px; cursor: pointer; margin-left: 12px;">
+        <input type="checkbox" id="toggle-overlay" checked onchange="renderCurrentPage()">
+        Tela Dialogue & SFX Overlay
+      </label>
+    </div>
+  </div>
+
+  <!-- Page Navigation -->
+  <div class="nav-bar">
+    <div style="display: flex; gap: 8px;">
+      <button class="nav-btn" id="btn-prev" onclick="changePage(-1)">◄ PREV PAGE</button>
+      <button class="nav-btn" id="btn-next" onclick="changePage(1)">NEXT PAGE ►</button>
+    </div>
+    <div class="page-title-banner" id="page-title-banner">ACT I: THE DROWNED SKYLINE</div>
+    <div class="page-indicator" id="page-indicator">PAGE 1 / 20</div>
+  </div>
+
+  <!-- 20-Page Thumbnail Strip -->
+  <div class="thumb-strip" id="thumb-strip"></div>
+
+  <!-- Main Comic Page Stage -->
+  <div class="reader-stage">
+    <div class="comic-page-sheet" id="comic-sheet">
+      <!-- Dynamic Panels Container -->
+      <div class="panels-container" id="panels-container"></div>
+      
+      <!-- Folio -->
+      <div class="page-footer-folio">
+        <span id="folio-left">◄ READ LEFT TO RIGHT</span>
+        <span id="folio-center">PAGE 1 · THE OBSIDIAN SHROUD</span>
+        <span id="folio-right">PLAJAH GRAPHIC NOVELS</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BOOKS = {
+      obsidian: {"id":"obsidian-shroud","templateId":"comic-noir-gothic","title":"THE OBSIDIAN SHROUD: SECTOR ZERO","subtitle":"A Hardboiled Cyber-Gothic Procedural in Black, White & Blood","genre":"dark-noir","councilLenses":{"leadArtist":"Frank Miller & Mike Mignola (Extreme Chiaroscuro & Ink Spotting)","leadWriter":"Ed Brubaker & Raymond Chandler (Hardboiled First-Person Monologue)","storyIntelligence":"Plajah Gothic-Noir Engine (Asymmetric Shadows, Rain Vectors, Amber Highlights)"},"targetAudience":"mature-17+","pageCount":20,"logline":"In the drowned subterranean gutters of Old Neo-Babel, an augmented ex-detective tracks a phantom memory merchant whose clients are found with their cerebral cortexes scorched into cold glass.","blurb":"Old Neo-Babel doesn’t have sunrises; it has electrical surges through the acid smog. Detective Silas Vane has two artificial lungs, a rusted revolver with hollow-point tungsten rounds, and a voice in his cranial audio jack that belongs to a woman executed four years ago. When the daughter of the city’s ruling bio-magnate vanishes into the flooded catacombs of Sector Zero, Vane is dragged into a conspiracy linking synthetic memory trafficking to the ancient cathedral engines buried beneath the sea floor.","theme":"The commodification of grief and the illusion of manufactured redemption in an indifferent industrial abyss.","visualGrammar":{"gutterWidth":"14px","gutterColor":"#000000","pageTexture":"none","primaryPalette":["#000000","#ffffff","#f97316","#dc2626","#18181b"],"typography":{"bodyFont":"system-ui, -apple-system, sans-serif","captionFont":"Courier New, Courier, monospace","sfxFont":"Impact, Arial Black, sans-serif"},"inkingStyle":"Heavy 40%+ solid black pooling, hard geometric edge silhouettes, stark negative-space rain slashes, no middle grays except localized duotone amber/crimson."},"characters":[{"id":"silas-vane","name":"Detective Silas Vane","role":"protagonist","archetype":"The Broken Cynic","personality":["taciturn","exhausted","methodical","haunted","lethal"],"lockedVisualLook":"Tall, angular frame draped in a frayed obsidian oilskin trenchcoat, scarred jawline, right eye replaced with an amber optical camera ring, smoking synthetic cloves in the downpour.","palette":["#000000","#f97316","#52525b","#ffffff"],"voiceSignature":"Deadpan, gravelly, dry baritone. Speaks in clipped declarative sentences without sentimentality.","arc":"Starts hunting an assassin for a bounty to buy synthetic suppressants; ends sacrificing his own remaining natural memories to expose the city syndicate."},{"id":"maris-corvus","name":"Maris Corvus (The Glassmaker)","role":"antagonist","archetype":"The Phantom Surgeon","personality":["refined","nihilistic","deliberate","unsettling","polite"],"lockedVisualLook":"Porcelain white mask with three vertical brass slit lenses, bespoke tailored velvet waistcoat, elongated fingers tipped with fiber-optic neuro-extractors.","palette":["#ffffff","#000000","#dc2626","#71717a"],"voiceSignature":"Soft, melodic whispering that sounds like silk gliding over razor wire.","arc":"Believes extinguishing mortal memory is an act of sublime aesthetic mercy."},{"id":"echo-9","name":"ECHO-9 (Ghost Voice)","role":"deuteragonist","archetype":"The Digital Ghost","personality":["sharp","melancholic","provocative","calculating"],"lockedVisualLook":"Flickering cyan-amber holographic face floating in Vane’s peripheral HUD, glitching static noise across her lips.","palette":["#06b6d4","#f59e0b","#000000"],"voiceSignature":"Echoing digitized whisper with slight latency distortion.","arc":"Trapped inside Vane’s cranial storage; guides him through the catacombs while wrestling with whether she is a real soul or a synthesized recording."},{"id":"lord-valtieri","name":"Lord Hector Valtieri","role":"antagonist","archetype":"The Bio-Oligarch","personality":["predatory","imperious","fragile","monopolistic"],"lockedVisualLook":"Elderly patrician in heavy crimson furs, gold-plated respiratory armature over his neck, cold slate-gray eyes, clutching an ivory walking stick with hidden monofilament garrote.","palette":["#991b1b","#f59e0b","#18181b","#ffffff"],"voiceSignature":"Haughty, measured, aristocratic rasp.","arc":"Commissioned Corvus to scrub his daughter’s memory of his syndicate crimes, only to lose control of the monster he funded."}],"pages":[{"pageNumber":1,"title":"The Acid Drizzle of Sector Zero","act":"Act I: The Drowned Siphon","sequenceBeat":"The Cold Open / Hardboiled Establishing","layoutGrammar":"Open Bleed Top Establishing + 3-Panel Asymmetric Cascade Tier","panels":[{"panelNumber":1,"geometry":"open-bleed","flex":12,"cameraAngle":"extreme-wide","eyeVector":"Top-Left Monologue Caption -> Center Silhouette -> Right Acid Rain Downpour","artBrief":"Drowned industrial skyline of Sector Zero at midnight, gargoyles perched on rusty hydro-pipes spitting acid runoff, neon signs for synthetic noodles flickering in black water.","generationPrompt":"Extreme wide high-angle shot of rain-drenched cyberpunk gothic megacity, massive black architectural silhouettes, acid rain streaking downward, solitary trenchcoat detective standing on rusty fire escape, Frank Miller Sin City style, high contrast ink, amber neon reflection --ar 21:9","captions":[{"text":"SECTOR ZERO // 03:14 AM // RAINFALL ACIDITY: 4.2 pH\nNeo-Babel is built on top of five dead cities. Down here at the drain level, the air tastes like burnt copper and old lies.","kind":"time-location","position":{"top":"16px","left":"16px","maxWidth":"65%"}}],"balloons":[],"sfx":[{"word":"HSSSSSHHH","style":"orange-kinetic","animation":"pulse","position":{"right":"30px","top":"24px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":4,"cameraAngle":"close-up","eyeVector":"Top Match Flare -> Center Optical Lens -> Bottom Smoke","artBrief":"Extreme close up of Silas Vane striking a match against a wet brick wall, the amber flame illuminating his glowing optic ring and unlit synthetic clove.","generationPrompt":"Extreme close up of grizzled detective striking a wooden match against wet black brick, amber flame casting sharp chiaroscuro light across scarred cheek and glowing cybernetic eye, Mike Mignola ink shadows --ar 4:3","captions":[],"balloons":[{"speaker":"ECHO-9 (HUD)","text":"Pulse is 112, Silas. You’re running out of neuro-blockers.","style":"comms","position":{"bottom":"12px","left":"10px","maxWidth":"85%"}}],"sfx":[{"word":"FZZT","style":"orange-kinetic","animation":"shake","position":{"top":"12px","right":"14px"}}]},{"panelNumber":3,"geometry":"standard-rect","flex":8,"cameraAngle":"medium","eyeVector":"Left Speaker -> Center Gun Cock -> Right Puddle Reflection","artBrief":"Silas checking the chamber of his heavy tungsten revolver under an iron catwalk, rainwater cascading from his coat hem.","generationPrompt":"Medium shot of detective under rusty iron catwalk inspecting heavy revolver, tungsten cylinder reflecting cold amber streetlight, stark black silhouettes, heavy ink pooling --ar 16:9","captions":[{"text":"I told her to stay in my subconscious. She never listens. Dead women make terrible passengers.","kind":"internal-monologue","position":{"top":"14px","left":"14px","maxWidth":"70%"}}],"balloons":[{"speaker":"SILAS VANE","text":"One hour. Then the blockers expire and I see your face everywhere anyway.","style":"standard","tailDirection":"bottom-left","position":{"bottom":"16px","right":"20px","maxWidth":"75%"}}],"sfx":[{"word":"CLIK-CLACK","style":"orange-kinetic","animation":"shake","position":{"top":"20px","right":"24px"}}]}]},{"pageNumber":2,"title":"The Body in the Cistern","act":"Act I: The Drowned Siphon","sequenceBeat":"The Discovery / Forensic Horror","layoutGrammar":"Widescreen Crime Scene + Slanted Inset Analysis","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"wide","eyeVector":"Top Left Caption -> Center Slumped Body -> Right Siphon Turbine","artBrief":"Subterranean water cistern with black churning water. A corpse in a shredded evening gown hangs suspended from rusted hydraulic cables, their eyes and forehead replaced with smooth vitrified amber glass.","generationPrompt":"Wide shot of flooded subterranean cathedral cistern, black oily water, corpse suspended in rusted wires, head vitrified into glowing amber crystal, dramatic low key noir lighting, deep shadows --ar 21:9","captions":[{"text":"VALTIERI CISTERN // UNDER-SECTOR 4\nThe third one this week. No blood. No struggle. Just thirty years of memories sucked out through the frontal lobe until the skull baked into obsidian.","kind":"internal-monologue","position":{"top":"16px","left":"16px","maxWidth":"65%"}}],"balloons":[],"sfx":[{"word":"DRIP... DRIP...","style":"cyan-electric","animation":"float","position":{"bottom":"24px","left":"30px"}}]},{"panelNumber":2,"geometry":"slanted-slash-left","flex":6,"cameraAngle":"close-up","eyeVector":"Top Eyeball Reflection -> Bottom Tool Probe","artBrief":"Silas using a magnetic probe to extract a glowing glass shard from the victim’s temple.","generationPrompt":"Close up of detective gloved hand holding magnetic tweezers over crystalline wound, glowing data filament rising from glass skull, intense amber chiaroscuro --ar 4:3","captions":[],"balloons":[{"speaker":"ECHO-9","text":"That signature... it’s not amateur work. That’s an imperial-grade neural loom.","style":"comms","position":{"bottom":"16px","left":"16px","maxWidth":"80%"}}]},{"panelNumber":3,"geometry":"slanted-slash-right","flex":6,"cameraAngle":"high-angle-dutch","eyeVector":"Shadow Figure Top -> Silas Bottom","artBrief":"From the catwalk high above, the silhouette of Maris Corvus watching Silas, his white porcelain mask glowing like a skull in the dark.","generationPrompt":"High angle Dutch tilt looking down from wet catwalk, silhouette of tall figure in white porcelain mask with three slit lenses holding umbrella, watching detective below, dramatic Mignola shadows --ar 4:3","captions":[],"balloons":[],"sfx":[{"word":"SKRRR-CHH","style":"red-impact","animation":"shake","position":{"top":"14px","right":"18px"}}]}]},{"pageNumber":3,"title":"The Catacomb Chase","act":"Act I: The Drowned Siphon","sequenceBeat":"Kinetic Ambush / Terminal Action","layoutGrammar":"3-Panel Slanted Action Cascade + SAM Cutout Breakout","panels":[{"panelNumber":1,"geometry":"slanted-slash-left","flex":4,"cameraAngle":"medium","eyeVector":"Left Running Figure -> Right Gun Flash","artBrief":"Silas sprinting through knee-deep black runoff, muzzle flash illuminating brick arches.","generationPrompt":"Dynamic motion shot of detective running through flooded tunnel firing heavy revolver, muzzle flash lighting water spray in stark black and white, Sin City comic style --ar 1:1","captions":[],"balloons":[],"sfx":[{"word":"BLAM-BLAM!","style":"orange-kinetic","animation":"shake","position":{"top":"16px","left":"20px","fontSize":"48px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":8,"cameraAngle":"low-angle-heroic","eyeVector":"Top Breakout Mask -> Center Tendrils -> Bottom Silas","artBrief":"Maris Corvus leaping from the shadow arch, fiber-optic razor tendrils unfurling from his velvet sleeves.","generationPrompt":"Low angle heroic action frame of assassin in porcelain mask swinging fiber optic razor whips in dark tunnel, whip trails glowing blood red, heavy shadows --ar 16:9","captions":[],"balloons":[{"speaker":"MARIS CORVUS","text":"Why cling to rot, Detective? Memories are merely rust on the clockwork of being.","style":"whisper","position":{"top":"24px","right":"24px","maxWidth":"65%"}}],"samLayer":{"enabled":true,"subjectName":"Maris Corvus Assassin Cutout","confidenceScore":0.992,"boundingBox":"{ x: 0.20, y: 0.00, w: 0.65, h: 1.15 }","breakoutPixels":35},"sfx":[{"word":"WHIP-SHHKKK!","style":"red-impact","animation":"pulse","position":{"bottom":"24px","left":"20px"}}]}]},{"pageNumber":4,"title":"The Memory Pawnshop","act":"Act I: The Drowned Siphon","sequenceBeat":"Underworld Procedural / Information Trade","layoutGrammar":"Tight 3-Tier Grid with Atmospheric Bleed Inset","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":6,"cameraAngle":"medium","eyeVector":"Top Neon Sign -> Center Silas Grabbing Lapel -> Bottom Otto Terror","artBrief":"Dank electronic pawnshop stacked with glowing amber memory cartridges. Silas slamming Blind Otto against a rack of copper transformers.","generationPrompt":"Gritty comic book panel of detective in black coat slamming crooked pawn broker against wall of glowing neon vacuum tubes and vintage circuit boards, dark noir ink --ar 16:9","captions":[{"text":"THE LOWER SPIT // THE NEON SHAMBLES\nBlind Otto buys dreams from junkies and sells them to executives who forgot how to feel.","kind":"internal-monologue","position":{"top":"12px","left":"12px"}}],"balloons":[{"speaker":"SILAS","text":"Who tuned this needle, Otto? Give me a name before I feed your audio implant to the drain.","style":"standard","position":{"bottom":"14px","right":"14px"}}],"sfx":[{"word":"SLAM!","style":"red-impact","animation":"shake","position":{"top":"16px","right":"20px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Otto Trembling Chin -> Silas Gun Muzzle","artBrief":"Extreme close up of Blind Otto, milk-white cybernetic eyes quivering under the heavy steel revolver barrel pressed to his teeth.","generationPrompt":"Extreme close up of terrified cybernetic fence with white blind implants, heavy revolver barrel pressed against his cheek, intense ink shadows, Miller noir --ar 16:9","captions":[],"balloons":[{"speaker":"BLIND OTTO","text":"The Glassmaker! He works out of the old submerged cathedral beneath Platform 4! He’s doing Lord Valtieri’s own daughter tonight!","style":"shout","position":{"bottom":"12px","left":"16px"}}]}]},{"pageNumber":5,"title":"The Needle Jack","act":"Act I: The Drowned Siphon","sequenceBeat":"Sensory Hallucination / Subjective Horror","layoutGrammar":"Full Page Psychedelic Noir Splash","panels":[{"panelNumber":1,"geometry":"open-bleed","flex":12,"cameraAngle":"close-up","eyeVector":"Top Shard Insertion -> Center Shattered Prism -> Bottom Elena Face","artBrief":"Silas slotting the crystal needle directly into his optic temple port. The world fractures into screaming white geometrical lines and a phantom memory of Elena Valtieri begging for mercy in a flooded cage.","generationPrompt":"Psychedelic noir splash page, detective face shattering like glass as glowing data shards project into his eye socket, ghostly face of young woman screaming in black water reflection, stark chiaroscuro, Frank Miller high contrast --ar 16:9","captions":[{"text":"NEURAL SYNC // EXTRACTION REPLAY\nForty-eight hours ago. The needle didn’t just take her memory. It took her voice.","kind":"technical-hud","position":{"top":"16px","left":"16px"}}],"balloons":[{"speaker":"ELENA (MEMORY PHANTOM)","text":"Father... please! I won’t tell anyone about the siphon! Don’t let him turn me to glass!","style":"whisper","position":{"bottom":"24px","right":"24px"}}],"sfx":[{"word":"SKRZZZZZZT!","style":"cyan-electric","animation":"glitch","position":{"top":"30px","right":"40px","fontSize":"50px"}}]}]},{"pageNumber":6,"title":"The Bio-Magnate’s Mandate","act":"Act I: The Drowned Siphon","sequenceBeat":"The Aristocratic Ultimatum","layoutGrammar":"2.39:1 Letterbox + Staggered Conversational Dual Inset","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":8,"cameraAngle":"wide","eyeVector":"Left Lord Valtieri -> Center Obsidian Fireplace -> Right Rain Viewport","artBrief":"Palatial penthouse 200 floors above the smog. Lord Valtieri sitting before a roaring crimson fire, ivory cane resting against a black marble table, rain hammering panoramic glass.","generationPrompt":"Wide panoramic panel of opulent gothic penthouse apartment in cyberpunk skyscraper, fire in black marble fireplace, elderly oligarch in crimson furs looking at skyline through rain window, Jim Lee comic style --ar 21:9","captions":[{"text":"THE APEX TOWERS // 200 FLOORS ABOVE THE MUCK\nUp here, the rain is filtered. The air smells of vanilla and stolen fortunes.","kind":"internal-monologue","position":{"top":"14px","left":"14px"}}],"balloons":[{"speaker":"LORD VALTIERI","text":"You were a good detective once, Silas. Before you let that rebel girl rot in your hardware.","style":"standard","position":{"bottom":"16px","left":"20px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":4,"cameraAngle":"close-up","eyeVector":"Silas Silhouette -> Valtieri Ring","artBrief":"Silas standing soaking wet on pristine white rug, drops of black mud dripping from his trenchcoat hem.","generationPrompt":"Close up of muddy boots and black trenchcoat dripping filthy water on pure white luxury carpet, detective holding unlit clove, heavy ink noir --ar 4:3","captions":[],"balloons":[{"speaker":"SILAS","text":"Your daughter is in the cistern, Valtieri. And the Glassmaker isn’t erasing her memories—he’s selling them to the syndicates.","style":"standard","position":{"bottom":"14px","right":"14px"}}]}]},{"pageNumber":7,"title":"Descent to Platform 4","act":"Act II: The Cathedrals of Rust","sequenceBeat":"Subterranean Exploration / Escalating Tension","layoutGrammar":"Vertical Monolith Panel + Two-Tier Action Prep","panels":[{"panelNumber":1,"geometry":"vertical-monolith","flex":6,"cameraAngle":"worm-eye","eyeVector":"Top Catwalk Drop -> Center Decaying Locomotive -> Bottom Churning Water","artBrief":"Enormous vaulted iron railway station submerged under 10 feet of black water. A derelict art-deco locomotive rusts beneath crumbling arches, illuminated only by Silas’s amber shoulder lantern.","generationPrompt":"Towering vertical comic panel of abandoned submerged 1930s gothic railway station underwater, rusted steam locomotive half sunk in black canal, lone detective with shoulder lantern on catwalk, Mignola style --ar 1:2","captions":[{"text":"OLD NEO-BABEL CENTRAL // PLATFORM 4\nDrowned in the Great Siphon Surge of 2089. Now home only to blind eels and men who trade in stolen minds.","kind":"time-location","position":{"top":"16px","left":"16px"}}],"balloons":[],"sfx":[{"word":"SPLAAAASH...","style":"cyan-electric","animation":"float","position":{"bottom":"40px","left":"30px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"medium","eyeVector":"Left Silas Revolver -> Right Distant Red Torch Flare","artBrief":"Silas wading waist-deep in water, weapon held high, noticing glowing crimson cables snaking along the flooded railway tracks.","generationPrompt":"Medium shot of gritty detective wading waist deep through dark flooded tunnel, revolver in hand, illuminated by red fiber optic cables glowing underwater, Sin City chiaroscuro --ar 16:9","captions":[],"balloons":[{"speaker":"ECHO-9","text":"Power draw ahead is immense, Silas. He’s running an industrial bio-reactor off the third rail.","style":"comms","position":{"bottom":"14px","left":"16px"}}]}]},{"pageNumber":8,"title":"The Ghost’s Confession","act":"Act II: The Cathedrals of Rust","sequenceBeat":"Character Catharsis / Intimate Revelation","layoutGrammar":"Dual Medium Conversational Grid","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Top Cyan Hologram -> Silas Pained Profile","artBrief":"The flickering cyan holographic face of ECHO-9 projecting directly into Silas’s field of vision, her digital fingers resting against his cheek.","generationPrompt":"Close up of weary detective face with cyan holographic ghost girl touching his scarred cheek, emotional cyberpunk noir, delicate digital static, high contrast ink shadows --ar 16:9","captions":[],"balloons":[{"speaker":"ECHO-9","text":"Do you know why Valtieri had me killed, Silas? It wasn’t the union strike. I found his ledger. He didn’t build the towers... he built the siphon that drowned the lower districts.","style":"standard","position":{"bottom":"16px","left":"16px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Silas Eye Ring Flare -> Gun Grip","artBrief":"Silas looking down into the black water, his amber camera lens narrowing in cold fury.","generationPrompt":"Close up of detective grim jawline and glowing amber optic eye, teeth clenched on clove cigarette, rain water dripping, dark brooding comic book hero --ar 16:9","captions":[{"text":"Four years I thought I failed her because I was slow. Turns out the game was rigged before I even pinned on the badge.","kind":"internal-monologue","position":{"top":"14px","left":"14px"}}],"balloons":[{"speaker":"SILAS","text":"Then we’re not just saving the girl, Echo. We’re sinking the whole damned fleet.","style":"standard","position":{"bottom":"14px","right":"14px"}}]}]},{"pageNumber":9,"title":"Ambush at the Turnstile","act":"Act II: The Cathedrals of Rust","sequenceBeat":"Visceral Kinetic Clash / Monster Reveal","layoutGrammar":"Slanted 3-Tier Action Cut","panels":[{"panelNumber":1,"geometry":"slanted-slash-left","flex":4,"cameraAngle":"low-angle-heroic","eyeVector":"Left Bursting Water -> Center Synthetic Hound","artBrief":"A cybernetic guard hound with brass teeth and optical cluster eyes exploding out of the flooded turnstiles.","generationPrompt":"Action shot of terrifying robotic attack hound bursting from black water, brass teeth, red laser eyes, splashing foam, high contrast graphic novel inking --ar 1:1","captions":[],"balloons":[],"sfx":[{"word":"GRAAAWWWL!","style":"red-impact","animation":"shake","position":{"top":"16px","left":"14px"}}]},{"panelNumber":2,"geometry":"slanted-slash-right","flex":8,"cameraAngle":"medium","eyeVector":"Silas Muzzle -> Hound Skull Shatter","artBrief":"Silas firing point-blank with his tungsten revolver, the blast tearing the robotic hound’s head into shrapnel and blue hydraulic sparks.","generationPrompt":"Dynamic comic book frame of detective firing heavy revolver directly into mechanical beast face, violent spark explosion, muzzle flare lighting silhouette --ar 16:9","captions":[],"balloons":[],"sfx":[{"word":"KA-BLAMMMM!","style":"orange-kinetic","animation":"shake","position":{"top":"24px","right":"30px","fontSize":"52px"}}]}]},{"pageNumber":10,"title":"The Submerged Basilica","act":"Act II: The Cathedrals of Rust","sequenceBeat":"Gothic Architectural Wonder / The Laboratory","layoutGrammar":"Full Widescreen 21:9 Letterbox Splash","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"extreme-wide","eyeVector":"Top Stained Glass Windows -> Center Wall of Glass Skulls -> Bottom Operating Altar","artBrief":"Gargantuan submerged gothic cathedral. Stained glass windows illuminate thousands of glowing amber glass skulls mounted like relics on the stone pillars. At the high altar, Elena Valtieri lies strapped to a brass surgical rig surrounded by pulsing neural looms.","generationPrompt":"Masterpiece wide shot of submerged gothic cathedral converted into mad cybernetic laboratory, thousands of vitrified amber crystal skulls glowing on stone pillars, young woman strapped to brass operating table, dark cyber-gothic art, Mignola and Miller --ar 21:9","captions":[{"text":"THE SANCTUARY OF SHARDS // SUB-LEVEL 7\nHere, thirty years of human sorrow are distilled into crystalline narcotics for the high towers.","kind":"time-location","position":{"top":"18px","left":"18px"}}],"balloons":[],"sfx":[{"word":"HUMMMMMMMMM","style":"cyan-electric","animation":"pulse","position":{"right":"40px","bottom":"30px"}}]}]},{"pageNumber":11,"title":"The Glassmaker’s Philosophy","act":"Act II: The Cathedrals of Rust","sequenceBeat":"Villain Monologue / Aesthetic Nihilism","layoutGrammar":"Dual Character Duel Tier + SAM Inset","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":6,"cameraAngle":"medium","eyeVector":"Corvus Mask -> Raised Scalpel Needle","artBrief":"Maris Corvus standing beside the altar, holding a glowing crystal syringe. His white porcelain mask reflects the burning embers of the cathedral braziers.","generationPrompt":"Medium shot of villain in elegant velvet suit and white porcelain mask with three slit lenses holding glowing amber syringe, gothic cathedral arches background, dark moody noir inking --ar 16:9","captions":[],"balloons":[{"speaker":"MARIS CORVUS","text":"You call it theft, Detective. I call it euthanasia. What is memory but an infection of remorse? I take their pain and make it immortal.","style":"whisper","position":{"bottom":"16px","left":"16px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Silas Gun Barrel Pointing -> Corvus Chest","artBrief":"Silas stepping onto the altar steps, water pouring from his coat, weapon cocked and aimed directly between Corvus’s slit lenses.","generationPrompt":"Dramatic close up of gritty detective with revolver aimed at camera, harsh rim lighting, cold unforgiving expression, Sin City style --ar 16:9","captions":[],"balloons":[{"speaker":"SILAS","text":"You talk too much for a butcher with a scalpel. Step away from the girl.","style":"standard","position":{"bottom":"16px","right":"16px"}}]}]},{"pageNumber":12,"title":"The Dying Thread","act":"Act II: The Cathedrals of Rust","sequenceBeat":"The Stakes Reveal / Elena Awakens","layoutGrammar":"3-Panel Emotional Build","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":4,"cameraAngle":"close-up","eyeVector":"Elena Eyes Opening -> Needle in Temple","artBrief":"Close up of Elena Valtieri, her eyes snapping open, one pupil glowing amber as the needle slowly extracts her final memories.","generationPrompt":"Close up of young woman face on operating table, one eye vitrifying into amber crystal, tears running down cheek, dramatic chiaroscuro --ar 4:3","captions":[],"balloons":[{"speaker":"ELENA","text":"Silas... don’t let him... take my mother’s garden...","style":"whisper","position":{"bottom":"12px","left":"10px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":8,"cameraAngle":"medium","eyeVector":"Corvus Hand on Valve -> Silas Springing","artBrief":"Corvus turning a brass pressure valve, neural feedback sparks arcing toward Silas.","generationPrompt":"Dynamic comic panel of villain turning industrial valve, electrical arcs leaping across water, detective diving forward --ar 16:9","captions":[],"balloons":[{"speaker":"CORVUS","text":"Then let us see what remains of YOUR garden, Detective!","style":"shout","position":{"top":"16px","right":"16px"}}],"sfx":[{"word":"KZZZZT-KRAK!","style":"cyan-electric","animation":"shake","position":{"bottom":"20px","left":"24px"}}]}]},{"pageNumber":13,"title":"The Feedback Trap","act":"Act II: The Cathedrals of Rust","sequenceBeat":"Psychological Crisis / The Climax Begins","layoutGrammar":"Fractured Asymmetric Panels","panels":[{"panelNumber":1,"geometry":"slanted-slash-left","flex":6,"cameraAngle":"close-up","eyeVector":"Silas Screaming Face -> Optical Ring Overload","artBrief":"Silas on his knees, clutching his cybernetic eye as electrical feedback violently projects hundreds of memories of Echo-9’s execution into the open air.","generationPrompt":"Graphic novel panel of detective screaming on his knees in water, blinding light exploding from his cybernetic eye, ghostly execution silhouettes floating in air, Miller noir --ar 16:9","captions":[{"text":"NEURAL SURGE: 10,000 VOLTS // CRANIAL FIREWALL BREACHED\nEvery mistake. Every bullet. Every body I couldn’t pull out of the canal.","kind":"internal-monologue","position":{"top":"14px","left":"14px"}}],"balloons":[],"sfx":[{"word":"SKREEEEECH!","style":"cyan-electric","animation":"shake","position":{"top":"24px","right":"20px","fontSize":"50px"}}]},{"panelNumber":2,"geometry":"slanted-slash-right","flex":6,"cameraAngle":"medium","eyeVector":"Corvus Advancing -> Whips Raised","artBrief":"Corvus stalking forward with fiber-optic whips singing in the air, preparing to strike Silas down.","generationPrompt":"Medium shot of masked assassin raising razor whips to strike kneeling detective, water splashing, dramatic red and black comic lighting --ar 16:9","captions":[],"balloons":[{"speaker":"CORVUS","text":"Sleep now, Silas. Join the gallery of peace.","style":"whisper","position":{"bottom":"16px","right":"16px"}}]}]},{"pageNumber":14,"title":"Ignition","act":"Act II: The Cathedrals of Rust","sequenceBeat":"The Turning Point / The Desperate Gambit","layoutGrammar":"Dynamic Action Breakout + Explosive Splash","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":12,"cameraAngle":"close-up","eyeVector":"Silas Bloody Hand -> Antique Lighter Spark -> Methane Vent","artBrief":"Silas pulls his antique zippo lighter from his coat, flicking the wheel directly beside an open methane siphon vent on the cathedral pillar.","generationPrompt":"Extreme close up of bloody hand flicking brass zippo lighter against hissing methane pipe, spark blooming into massive fireball, high contrast Frank Miller comic style --ar 16:9","captions":[{"text":"I told Valtieri I had two artificial lungs. He forgot they’re sealed against fire.","kind":"internal-monologue","position":{"top":"16px","left":"16px"}}],"balloons":[{"speaker":"SILAS","text":"Catch.","style":"shout","position":{"bottom":"24px","left":"30px"}}],"sfx":[{"word":"CLIIIIK... KA-BOOOOOOM!","style":"orange-kinetic","animation":"shake","position":{"right":"40px","top":"30px","fontSize":"56px"}}]}]},{"pageNumber":15,"title":"The Cataclysmic Deluge","act":"Act III: The Shattered Crucible","sequenceBeat":"Catastrophic Climax / The Water Wall","layoutGrammar":"Widescreen Destruction + Action Inset","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"wide","eyeVector":"Top Collapsing Siphon Wall -> Center Tidal Wave -> Bottom Grappling Figures","artBrief":"The explosion shatters the ancient canal wall. A colossal tidal wave of black water tears through the cathedral, smashing crystal pillars and sweeping Corvus and Silas into a violent vortex.","generationPrompt":"Wide shot of massive subterranean flood bursting through shattered stone cathedral arches, giant wall of dark water crushing laboratory equipment, fire and water colliding, dramatic noir comic --ar 21:9","captions":[{"text":"SECTOR ZERO FLOODGATES BREACHED\nThree million tons of Pacific runoff pouring into the underworld.","kind":"time-location","position":{"top":"14px","left":"14px"}}],"balloons":[],"sfx":[{"word":"ROOOAAARRRR!","style":"red-impact","animation":"shake","position":{"right":"50px","top":"24px","fontSize":"60px"}}]}]},{"pageNumber":16,"title":"Knife and Porcelain","act":"Act III: The Shattered Crucible","sequenceBeat":"Brutal Melee / The Final Duel","layoutGrammar":"3-Panel Kinetic Clash Cascade","panels":[{"panelNumber":1,"geometry":"slanted-slash-left","flex":4,"cameraAngle":"close-up","eyeVector":"Corvus Razor Whip -> Silas Shoulder Slice","artBrief":"Corvus’s razor whip slicing across Silas’s trenchcoat shoulder, carving a glowing red line through flesh and cybernetics.","generationPrompt":"Action close up of razor whip cutting through detective leather coat shoulder, sparks and blood spray in stark black and white, Sin City style --ar 1:1","captions":[],"balloons":[],"sfx":[{"word":"SHHHHK!","style":"red-impact","animation":"shake","position":{"top":"12px","left":"14px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":8,"cameraAngle":"medium","eyeVector":"Silas Trench Knife -> Corvus Mask Shatter","artBrief":"Silas drives his heavy steel combat knife directly into the center of Corvus’s white porcelain mask. The mask shatters into jagged shards, revealing the hollow, burned skull beneath.","generationPrompt":"Medium combat strike comic panel, detective driving heavy combat knife into white porcelain mask of assassin, mask shattering into explosive white shards, dark shadows --ar 16:9","captions":[],"balloons":[{"speaker":"SILAS","text":"Your peace is just another graveyard, Corvus.","style":"shout","position":{"bottom":"16px","right":"16px"}}],"sfx":[{"word":"KRAAA-SHHHH!","style":"orange-kinetic","animation":"shake","position":{"top":"20px","left":"30px","fontSize":"50px"}}]}]},{"pageNumber":17,"title":"The Burden of Memory","act":"Act III: The Shattered Crucible","sequenceBeat":"The Moral Dilemma / Rescue","layoutGrammar":"Dual Staggered Panel","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":6,"cameraAngle":"medium","eyeVector":"Silas Arm Carrying Elena -> Flooded Altar","artBrief":"Silas lifting the unconscious Elena Valtieri from the collapsing altar, tearing the neural needle from her temple.","generationPrompt":"Medium shot of battered detective carrying unconscious young woman through rushing waist deep water, church ruins collapsing around them, heroic noir comic --ar 16:9","captions":[],"balloons":[{"speaker":"ELENA","text":"You... came back...","style":"whisper","position":{"bottom":"14px","left":"16px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Console Countdown -> ECHO-9 Shivering","artBrief":"The neural loom terminal flashing red: MEMORY EXTRACTION BANK 99% CORRUPTED. Silas must choose to unplug his cranial drive or lose Echo-9 forever.","generationPrompt":"Close up of glowing computer terminal showing memory corruption warning, cyan hologram girl face fading into digital snow, emotional cyberpunk moment --ar 16:9","captions":[],"balloons":[{"speaker":"ECHO-9","text":"Silas... the buffer won’t hold both of us. If you download the syndicate files, my partition will be overwritten.","style":"comms","position":{"bottom":"14px","right":"16px"}}]}]},{"pageNumber":18,"title":"Let the Dead Rest","act":"Act III: The Shattered Crucible","sequenceBeat":"Tragic Farewell / Character Transformation","layoutGrammar":"Poetic Open Bleed Close-Up","panels":[{"panelNumber":1,"geometry":"open-bleed","flex":12,"cameraAngle":"close-up","eyeVector":"Echo-9 Dissolving Smile -> Silas Tears & Rain","artBrief":"Close up of Silas’s face as the cyan hologram of Echo-9 dissolves into tiny glowing particles of light, mingling with the falling rain.","generationPrompt":"Emotional close up of detective crying silently in dark rain, cyan hologram woman dissolving into firefly sparks of light around his face, Mike Mignola bittersweet noir art --ar 16:9","captions":[{"text":"She smiled. A real smile. Not the recording. Not the algorithm.","kind":"internal-monologue","position":{"top":"16px","left":"16px"}}],"balloons":[{"speaker":"ECHO-9","text":"Don’t carry ghosts into the morning, Silas. Go give them hell.","style":"whisper","position":{"bottom":"24px","right":"24px"}}],"sfx":[{"word":"shhhhhh...","style":"cyan-electric","animation":"float","position":{"top":"30px","right":"40px"}}]}]},{"pageNumber":19,"title":"The Glass Evidence","act":"Act III: The Shattered Crucible","sequenceBeat":"The Confrontation / Justice Delivered","layoutGrammar":"2.39:1 Widescreen Letterbox + Counter Shot","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"wide","eyeVector":"Left Silas Slams Shard -> Center Valtieri Stunned -> Right Blue Police Sirens","artBrief":"Lord Valtieri’s penthouse. Silas kicks open the double doors carrying Elena. He slams the glowing amber memory drive onto Valtieri’s black marble desk as police aerodynes surround the panoramic windows with flashing blue searchlights.","generationPrompt":"Wide dramatic comic frame of battered trenchcoat detective kicking open luxury office doors carrying rescued daughter, slamming glowing amber crystal drive on desk of horrified billionaire, police helicopters shining blue searchlights through window --ar 21:9","captions":[{"text":"THE APEX TOWERS // 05:45 AM\nEvery transaction. Every murdered auditor. Every child sold into the siphon. It’s all on the glass.","kind":"voiceover","position":{"top":"16px","left":"16px"}}],"balloons":[{"speaker":"SILAS","text":"Your daughter is alive, Valtieri. But your empire just drowned in Sector Zero.","style":"standard","position":{"bottom":"20px","left":"30px"}}]}]},{"pageNumber":20,"title":"The Quiet Gutters","act":"Act III: The Shattered Crucible","sequenceBeat":"The Resolution / The Rain Clears","layoutGrammar":"Meditative 3-Tier Closing Bleed","panels":[{"panelNumber":1,"geometry":"open-bleed","flex":12,"cameraAngle":"extreme-wide","eyeVector":"Top Fading Smog -> Center Solitary Silas Walking -> Bottom Wet Asphalt Reflection","artBrief":"Silas walking alone down the empty neon street of Sector Zero. The heavy rain has finally slowed to a gentle mist. A sliver of pale gray dawn light cuts through the acid smog between the colossal towers.","generationPrompt":"Wide contemplative final comic panel, lone detective in black coat walking away down empty wet city street at dawn, pale light breaking through industrial smog, puddles reflecting neon, beautiful atmospheric Frank Miller Sin City ending --ar 21:9","captions":[{"text":"06:00 AM. The rain finally stopped.\nFor the first time in four years, there was no voice in my head. Just the cold wind, the smell of salt... and the dawn.\n\nEND OF THE OBSIDIAN SHROUD.","kind":"internal-monologue","position":{"bottom":"24px","left":"24px","maxWidth":"75%"}}],"balloons":[]}]}],"remixIdeas":["Swap the detective noir setting for a Roman cyber-gladiator investigation.","Replace Silas Vane with a rogue android coroner reconstructing homicide holograms.","Shift the spot color from amber to toxic emerald green for a bio-chemical plague theme."],"councilDirectorNotes":"The Noir Gothic layout relies on negative space as an active predator. Do not overcrowd panels with decorative clutter. Every white line must be razor-sharp against bottomless black ink."},
+      chrome: {"id":"chrome-apostle","templateId":"manga-seinen-kinetic","title":"CHROME APOSTLE: APHELION 9","subtitle":"Orbital Tether War & The Ghost of Sector 7","genre":"seinen-kinetic","councilLenses":{"leadArtist":"Katsuhiro Otomo & Tsutomu Nihei (3-Point Forced Perspective & Brutalist Megastructures)","leadWriter":"Masamune Shirow & Kentaro Miura (High-Density Hard Sci-Fi / Visceral Cybernetic Weight)","storyIntelligence":"Plajah Seinen-Kinetic Engine (Screentone Dot Matrix, Micro-Beat Action Deconstruction, Kanji Sound Layers)"},"targetAudience":"mature-17+","pageCount":24,"logline":"When an incomprehensible swarm of self-replicating silicon biomechs severs the orbital space tether connecting Earth to the Moon, an unaugmented maintenance pilot is forced into an ancient, decommissioned combat rig to weld the anchor before the atmosphere ignites.","blurb":"Aphelion 9 was meant to be the spine of humanity’s solar expansion: a 36,000-kilometer carbon-nanotube elevator anchored to the Pacific Rim. At 0400 hours, communication with the High Orbital Anchor went dead. In its place descended the \"Apostles\"—crystalline mechanical organisms that consume raw titanium and broadcast mathematical hymns across emergency channels. Ren Vance, a zero-g maintenance welder with scarred hands and a debt he can never pay, is the only pilot within docking distance of the rig.","theme":"Human fragility pitted against the sublime, incomprehensible indifference of post-biological evolution.","visualGrammar":{"gutterWidth":"12px","gutterColor":"#070a10","pageTexture":"screentone-dot-matrix-60lpi","primaryPalette":["#0b0f19","#38bdf8","#10b981","#ffffff","#020617"],"typography":{"bodyFont":"system-ui, -apple-system, sans-serif","captionFont":"Consolas, monospace","sfxFont":"Impact, Arial Black, sans-serif"},"inkingStyle":"Extremely detailed cross-hatching, fine technical mechanical linework, 60 LPI screentone gradations, speedlines originating from focal explosion centers, integrated Japanese onomatopoeia."},"characters":[{"id":"ren-vance","name":"Ren Vance","role":"protagonist","archetype":"The Reluctant Heavy Specialist","personality":["resilient","hyper-focused","pragmatic","exhausted","unflinching"],"lockedVisualLook":"Compact muscular frame in an oil-stained pressurized flight suit, helmet scarred with micrometeorite pits, heavy titanium welding gauntlets with heat dissipation vents.","palette":["#0f172a","#38bdf8","#f59e0b","#cbd5e1"],"voiceSignature":"Terse, breathy radio transmissions punctuated by helmet oxygen regulator clicks.","arc":"Survives suicidal tether repair by letting go of his guilt over his crew’s earlier decompression tragedy."},{"id":"apostle-prime","name":"Apostle Entity \"Seraph-0\"","role":"antagonist","archetype":"The Incomprehensible Silicon Swarm","personality":["alien","relentless","mathematical","transcendent"],"lockedVisualLook":"A 200-meter geometric tetrahedron of polished mirror-chromium and pulsing blue Cherenkov radiation, surrounded by thousands of vibrating razor petals.","palette":["#ffffff","#06b6d4","#0284c7","#0f172a"],"voiceSignature":"White noise static layered over Gregorian harmonic choral calculations.","arc":"Consumes the tether station to convert Earth’s magnetic field into an interstellar transmission beacon."},{"id":"commander-treadwell","name":"Flight Controller Treadwell","role":"mentor","archetype":"The Grounded Tether Captain","personality":["commanding","cold","calculating","protective"],"lockedVisualLook":"Middle-aged military woman in high-collar naval jumpsuit, cybernetic auditory implant glowing red behind ear, holographic tactical radar reflecting in glasses.","palette":["#1e293b","#ef4444","#f1f5f9"],"voiceSignature":"Precise military cadence with increasing strain under orbital telemetry collapse.","arc":"Must choose whether to detonate the tether explosive collar, dooming Ren, or risk Earth’s atmosphere catching fire."}],"pages":[{"pageNumber":1,"title":"The Fall of the Apex Station","act":"Act I: Decompression at 36,000 Kilometers","sequenceBeat":"Monumental Seinen Establishing / Catastrophe","layoutGrammar":"Forced 3-Point Perspective Splash + High-Frequency Reaction Cascade","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"extreme-wide","eyeVector":"Top-Left Telemetry -> Center Snapped Tether Spine -> Bottom Earth Curvature","artBrief":"Extreme wide shot of Earth from geostationary orbit. The colossal carbon elevator tether snaps with a cataclysmic shockwave of electrical sparks, curling like a whip thousands of kilometers long against the blackness of space.","generationPrompt":"Extreme wide shot in geostationary orbit, monumental space elevator tether snapping against Earth blue horizon, hyper detailed technical linework, Tsutomu Nihei architectural manga style, screentone shading, catastrophic decompression debris --ar 21:9","captions":[{"text":"APHELION 9 ORBITAL TETHER // GEOSTATIONARY ALTITUDE: 35,786 KM\nTENSION COLLAPSE IN SECTOR 4. TETHER WHIP COMMENCING.","kind":"technical-hud","position":{"top":"16px","left":"16px","maxWidth":"60%"}}],"balloons":[],"sfx":[{"word":"ズドドド (ZU-DO-DO-DO)","style":"cyan-electric","animation":"shake","position":{"right":"40px","top":"30px","fontSize":"50px"}}]}]},{"pageNumber":2,"title":"Inside the Iron Mite","act":"Act I: Decompression at 36,000 Kilometers","sequenceBeat":"Cockpit Panic / Character Grounding","layoutGrammar":"Slanted Dual Reaction Tier","panels":[{"panelNumber":1,"geometry":"slanted-slash-left","flex":6,"cameraAngle":"close-up","eyeVector":"Top G-Meter -> Center Ren Visor -> Bottom Throttle Clench","artBrief":"Inside the cockpit of the rusted heavy maintenance rig \"Iron Mite\", Ren’s helmet visor reflecting violent red emergency warning holograms as zero-g debris hammers the cockpit glass.","generationPrompt":"Close up of exhausted anime mech pilot inside dark cockpit illuminated by flashing red radar screens, heavy screentone sweat beads, Otomo Akira mechanical detail --ar 4:3","captions":[],"balloons":[{"speaker":"REN VANCE","text":"Control, Apex station just sheared in half! The Apostles are inside the conduit rings!","style":"shout","position":{"bottom":"16px","left":"14px"}}],"sfx":[{"word":"BEEP-BEEP-BEEP","style":"red-impact","animation":"pulse","position":{"top":"12px","right":"16px"}}]},{"panelNumber":2,"geometry":"slanted-slash-right","flex":6,"cameraAngle":"medium","eyeVector":"Top Apostle Geometry -> Bottom Thruster Burn","artBrief":"Outside the hatch: a colossal silicon tetrahedron Apostle unfolds thousands of razor-sharp chrome fins, harvesting the molten titanium cable.","generationPrompt":"Medium shot of alien silicon biomech unfolding mirror polished blades against solar flare, hard sci-fi manga style, high contrast ink lines --ar 4:3","captions":[],"balloons":[{"speaker":"COMMANDER TREADWELL (RADIO)","text":"Ren, you have twelve minutes before the counterweight drags the whip into the atmosphere. Weld the emergency damper or we sever the line.","style":"comms","position":{"bottom":"14px","right":"14px"}}],"sfx":[{"word":"キィィィン (KHYYYN)","style":"cyan-electric","animation":"glitch","position":{"top":"14px","left":"20px"}}]}]},{"pageNumber":3,"title":"The Zero-G Insertion","act":"Act I: Decompression at 36,000 Kilometers","sequenceBeat":"Kinetic Deployment / Extreme Scale","layoutGrammar":"Vertical Monolith Panel + Dual Diagonal Reaction Tier","panels":[{"panelNumber":1,"geometry":"vertical-monolith","flex":6,"cameraAngle":"worm-eye","eyeVector":"Top Thruster Ignition -> Center Falling Rig -> Bottom Swarming Apostles","artBrief":"Dramatic vertical shot looking straight down the elevator shaft into the infinite blue curve of Earth. The Iron Mite rig fires dual chemical thrusters, plummeting down the cable toward a cloud of chrome swarmers.","generationPrompt":"Extreme vertical angle looking down infinite space elevator cable towards Earth, heavy industrial construction mech diving with glowing blue rocket exhaust, speedlines radiating outward, Berserk level inking detail --ar 1:2","captions":[{"text":"DESCENT VELOCITY: MACH 4.8 // GRAVITATIONAL SHEAR: 8.4G\nNo parachutes. No rescue craft. Just 50 tons of reinforced tungsten and a high-frequency arc torch.","kind":"technical-hud","position":{"top":"20px","left":"16px","maxWidth":"80%"}}],"balloons":[],"sfx":[{"word":"ゴォォォォ (GO-OO-OO)","style":"screentone-speed","animation":"speedline","position":{"right":"20px","top":"180px","fontSize":"55px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Left Hand Valve -> Right Oxygen Readout","artBrief":"Ren slamming two manual hydraulic lock handles forward, veins bulging on his forearm as G-forces pull his cheeks back.","generationPrompt":"Close up of pilot hands in heavy mechanical gloves gripping hydraulic sticks, gauges redlining, intense speedlines, classic 1980s anime mecha cockpit --ar 16:9","captions":[],"balloons":[{"speaker":"REN","text":"Damper clamps primed! If this arc doesn’t catch, tell ground control they owe my mother a pension!","style":"shout","position":{"bottom":"16px","left":"20px"}}],"sfx":[{"word":"CLANK-CHKK!","style":"orange-kinetic","animation":"shake","position":{"top":"14px","right":"16px"}}]}]},{"pageNumber":4,"title":"Plasma Arc Ignition","act":"Act I: Decompression at 36,000 Kilometers","sequenceBeat":"High-Energy Combat / Industrial Weaponry","layoutGrammar":"3-Panel Horizontal Cascade","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":12,"cameraAngle":"medium","eyeVector":"Left Rig Arm -> Center Blinding White Arc -> Right Cleaved Apostle","artBrief":"The Iron Mite’s industrial plasma torch roaring to life in the vacuum, slicing a 30-meter Apostle scout drone cleanly in half with a cloud of crystalline debris and vaporized silicon.","generationPrompt":"Action manga splash of industrial construction mech firing blinding white plasma arc cutter in space, bisecting crystalline geometric alien machine, explosive spark shower, Otomo lineart --ar 16:9","captions":[],"balloons":[{"speaker":"REN","text":"Clear the conduit! You’re on my job site now!","style":"shout","position":{"bottom":"20px","left":"24px"}}],"sfx":[{"word":"バチィィッ (BA-CHYYY!)","style":"cyan-electric","animation":"shake","position":{"top":"30px","right":"40px","fontSize":"54px"}}]}]},{"pageNumber":5,"title":"The Ghost of Sector 7","act":"Act I: Decompression at 36,000 Kilometers","sequenceBeat":"Psychological Trauma / Flashback Beat","layoutGrammar":"Inverted Screentone Memory Spread","panels":[{"panelNumber":1,"geometry":"open-bleed","flex":12,"cameraAngle":"close-up","eyeVector":"Center Shattered Faceplate -> Surrounding Void","artBrief":"Sensory memory flash: three years ago, Ren watching his copilot’s helmet faceplate crack during an explosive decompression event in Sector 7, silent frozen air crystals floating between them.","generationPrompt":"Emotional black and white manga panel, cracked astronaut helmet faceplate reflecting screaming stars, frozen breath crystals in zero gravity, haunting memory vignette, Kentaro Miura psychological detail --ar 16:9","captions":[{"text":"THREE YEARS AGO // THE SECTOR 7 RUPTURE\nYou don’t forget the sound of freezing blood. It sounds like paper tearing in the dark.","kind":"internal-monologue","position":{"top":"16px","left":"16px"}}],"balloons":[],"sfx":[{"word":"ピキッ (PI-KI...)","style":"cyan-electric","animation":"float","position":{"right":"40px","bottom":"30px"}}]}]},{"pageNumber":6,"title":"The Damper Station at 20,000 KM","act":"Act II: The Atmospheric Descent","sequenceBeat":"Arrival at the Target / Mechanical Complexity","layoutGrammar":"Widescreen Megastructure Establishing + Inset","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"wide","eyeVector":"Top Damper Ring -> Center Swarming Crystalline Spikes -> Bottom Approaching Rig","artBrief":"The Damper Ring at 20,000 km altitude: a colossal 500-meter titanium wheel encircling the elevator cable, completely encrusted with thousands of crystalline Apostle growth spikes.","generationPrompt":"Megastructure hard sci-fi panel of gigantic industrial space station ring covered in crystalline geometric alien parasites, tiny construction mech approaching, Tsutomu Nihei Blame manga style --ar 21:9","captions":[{"text":"STATION 14 DAMPER WHEEL // ALTITUDE: 20,400 KM\nStructural integrity: 34%. Silicon crystallization infecting the hydraulic dampers.","kind":"technical-hud","position":{"top":"14px","left":"14px"}}],"balloons":[],"sfx":[{"word":"ヴォォォン (VOOO-ON)","style":"cyan-electric","animation":"pulse","position":{"right":"30px","bottom":"20px"}}]}]},{"pageNumber":7,"title":"Welding Under Fire","act":"Act II: The Atmospheric Descent","sequenceBeat":"Tense Industrial Climax / Combat Repair","layoutGrammar":"3-Panel Slanted Cascade + SAM Cutout Breakout","panels":[{"panelNumber":1,"geometry":"slanted-slash-left","flex":6,"cameraAngle":"close-up","eyeVector":"Welding Torch Tip -> Molten Bead","artBrief":"Extreme close up of the Iron Mite’s magnetic welder clamping onto the titanium collar, laying down a blinding white seam of molten metal.","generationPrompt":"Close up of industrial robotic clamp welding glowing white hot seam on metal girder in space, sparks flying in vacuum, highly technical mechanical manga --ar 4:3","captions":[],"balloons":[{"speaker":"REN","text":"Seam one holding! But the crystal swarm is chewing through the coolant line!","style":"shout","position":{"bottom":"12px","left":"12px"}}],"sfx":[{"word":"ジュウウウ (JUUUUU)","style":"orange-kinetic","animation":"shake","position":{"top":"12px","right":"14px"}}]},{"panelNumber":2,"geometry":"slanted-slash-right","flex":6,"cameraAngle":"medium","eyeVector":"Incoming Apostle Spear -> Rig Cockpit","artBrief":"An Apostle needle-drone plunging directly toward the cockpit window, its tip vibrating with sonic resonance.","generationPrompt":"Dramatic manga action panel, sharp chrome crystalline spike hurtling directly toward mech cockpit glass, speedlines, extreme kinetic tension --ar 4:3","captions":[],"balloons":[],"sfx":[{"word":"ドゴォッ (DO-GO!)","style":"red-impact","animation":"shake","position":{"top":"14px","left":"16px"}}]}]},{"pageNumber":8,"title":"The Severed Arm","act":"Act II: The Atmospheric Descent","sequenceBeat":"Mechanical Sacrifice / Damage Escalation","layoutGrammar":"Dual Split Action Tier","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":12,"cameraAngle":"medium","eyeVector":"Severed Mechanical Arm -> Exploding Hydrazine","artBrief":"The Iron Mite’s left stabilizer arm is sheared off by the Apostle drone, spraying hydrazine gas that instantly flashes into orange flame before extinguishing in vacuum.","generationPrompt":"Explosive mechanical damage manga panel, giant robot arm tearing off with spraying oil and hydrazine sparks, floating into deep space, Otomo level detail --ar 16:9","captions":[{"text":"LEFT STABILIZER DESTROYED // RCS THRUST DEGRADED BY 45%","kind":"technical-hud","position":{"top":"14px","left":"14px"}}],"balloons":[{"speaker":"REN","text":"Lost left thruster bank! I’m operating on manual inertia now!","style":"shout","position":{"bottom":"16px","left":"20px"}}],"sfx":[{"word":"バギィィン (BA-GYN!)","style":"red-impact","animation":"shake","position":{"top":"24px","right":"30px","fontSize":"50px"}}]}]},{"pageNumber":9,"title":"The Seraph Descends","act":"Act II: The Atmospheric Descent","sequenceBeat":"The Final Boss Materialization","layoutGrammar":"Monumental 2.39:1 Letterbox Splash","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"extreme-wide","eyeVector":"Top Seraph Geometry -> Center Gravity Lens -> Bottom Tiny Mech","artBrief":"Seraph-0, the colossal 200-meter Apostle prime tetrahedron, rotates slowly in front of Earth’s sun, warping starlight around its edges with a localized gravitational lens.","generationPrompt":"Colossal alien geometric tetrahedron monolith blocking the sun in Earth orbit, gravitational light distortion, tiny industrial mech standing on circular station ring below, epic cosmic manga art --ar 21:9","captions":[{"text":"APOSTLE PRIME // ENTITY DESIGNATION: SERAPH-0\nMass: 400,000 metric tons. Gravitational shear detected across elevator axis.","kind":"technical-hud","position":{"top":"16px","left":"16px"}}],"balloons":[],"sfx":[{"word":"ゴゴゴゴゴ (GO-GO-GO-GO)","style":"cyan-electric","animation":"pulse","position":{"right":"40px","bottom":"30px","fontSize":"52px"}}]}]},{"pageNumber":10,"title":"The Mathematical Chorus","act":"Act II: The Atmospheric Descent","sequenceBeat":"Alien Communication / Auditory Overload","layoutGrammar":"Fractured Psychological Panel Array","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Ren Blood from Ear -> Audio Dial Overload","artBrief":"Ren grimacing in pain as his helmet communications channel is overwhelmed with glowing mathematical symbols and harmonic waveforms that cause his ears to bleed.","generationPrompt":"Close up of tortured anime pilot gripping helmet, glowing green mathematical equations reflecting on visor, nose bleeding from sonic pressure, intense psychological screentone --ar 16:9","captions":[],"balloons":[{"speaker":"SERAPH-0 (TRANSMISSION)","text":"CARBON IS FRAGILE. JOIN THE CHROME WEAVE. THE TETHER MUST SING.","style":"jagged-monster","position":{"bottom":"16px","left":"16px"}}],"sfx":[{"word":"キィィィィン (KHYYYYYN)","style":"cyan-electric","animation":"glitch","position":{"top":"14px","right":"20px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Ren Teeth Gritted -> Emergency Switch","artBrief":"Ren slamming his fist down on the cockpit audio cutoff switch, severing the alien transmission with raw human fury.","generationPrompt":"Close up of pilot hand punching red breaker switch, determined expression, teeth bared, sweat flying in zero gravity, classic 1980s mecha determination --ar 16:9","captions":[],"balloons":[{"speaker":"REN","text":"I don’t sing hymns, machine. I weld pipe!","style":"shout","position":{"bottom":"16px","right":"16px"}}],"sfx":[{"word":"CLACK!","style":"orange-kinetic","animation":"shake","position":{"top":"14px","left":"16px"}}]}]},{"pageNumber":11,"title":"Treadwell’s Dilemma","act":"Act II: The Atmospheric Descent","sequenceBeat":"Ground Control Tension / The Human Counterweight","layoutGrammar":"Dual Split Horizontal Layout","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"wide","eyeVector":"Left Treadwell Hand on Key -> Center Holographic Globe -> Right Subordinates","artBrief":"Pacific Naval Command bunker on Earth. Commander Treadwell staring at the giant holographic projection of the tether beginning to glow red as it enters the mesosphere. Her hand hovers over the physical launch key.","generationPrompt":"Dark futuristic military war room, female commander with red cybernetic implant hovering hand over detonation key, giant holographic Earth showing space elevator falling, tension and drama --ar 21:9","captions":[{"text":"PACIFIC TETHER COMMAND // TOKYO UNDER-BAY\nAltitude dropping through 12,000 km. In 180 seconds, atmospheric re-entry will be irreversible.","kind":"time-location","position":{"top":"14px","left":"14px"}}],"balloons":[{"speaker":"COMMANDER TREADWELL","text":"Ren... if you don’t lock that damper in forty seconds, I have to burn the explosive collar. I have four billion people on this coastline.","style":"comms","position":{"bottom":"16px","left":"24px"}}]}]},{"pageNumber":12,"title":"Overclocking the Reactor","act":"Act II: The Atmospheric Descent","sequenceBeat":"The Suicide Charge / All Limits Removed","layoutGrammar":"High-Velocity Vertical Action Cut","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":12,"cameraAngle":"close-up","eyeVector":"Center Breaking Safety Wire -> Core Meter Redlining","artBrief":"Ren pulling the yellow wire lock from the reactor overdrive panel, turning the fuel injector to 200%. The cockpit glows blinding white.","generationPrompt":"Action close up of mech pilot ripping safety lock off reactor throttle, gauge needle snapping off in red zone, cockpit bathed in blinding white reactor light, speedlines --ar 16:9","captions":[{"text":"OVERDRIVE ENGAGED // CORE TEMPERATURE: 4,200 KELVIN\nReactor life expectancy: 60 seconds.","kind":"technical-hud","position":{"top":"16px","left":"16px"}}],"balloons":[{"speaker":"REN","text":"Hold your key, Commander! I’m taking the damper with me!","style":"shout","position":{"bottom":"20px","left":"24px"}}],"sfx":[{"word":"ギィィィィ (GY-YYYY)","style":"orange-kinetic","animation":"shake","position":{"right":"30px","top":"30px","fontSize":"50px"}}]}]},{"pageNumber":13,"title":"The Kinetic Ram","act":"Act II: The Atmospheric Descent","sequenceBeat":"The Impact / Climax of Act II","layoutGrammar":"Monumental Diagonal Slash Splash","panels":[{"panelNumber":1,"geometry":"slanted-slash-left","flex":12,"cameraAngle":"low-angle-heroic","eyeVector":"Top Rig Prow -> Center Seraph Core Shatter -> Bottom Earth Horizon","artBrief":"The Iron Mite, engulfed in blue reactor fire, rams directly into the center of Seraph-0. The 200-meter alien tetrahedron shatters like a chandelier of chrome, shockwaves rippling across the carbon cable.","generationPrompt":"Monumental manga double splash, heavy industrial mech ramming giant geometric alien diamond entity in space, explosive shatter of chrome crystal shards, massive energy discharge, Kentaro Miura Berserk impact weight --ar 16:9","captions":[],"balloons":[],"sfx":[{"word":"ドガァァァァン (DO-GAA-AA-AN!)","style":"red-impact","animation":"shake","position":{"left":"40px","top":"40px","fontSize":"64px"}}]}]},{"pageNumber":14,"title":"The Damper Catches","act":"Act II: The Atmospheric Descent","sequenceBeat":"The Mechanical Miracle","layoutGrammar":"Dual Detailed Technical Tier","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Collar Teeth Locking -> Cable Squeal","artBrief":"The giant titanium teeth of the Station 14 damper collar bite into the carbon elevator cable, spitting thousands of glowing orange carbon sparks.","generationPrompt":"Extreme close up of colossal mechanical gear teeth biting into carbon cable, friction sparks showering like a waterfall of fire, technical manga linework --ar 4:3","captions":[],"balloons":[],"sfx":[{"word":"ギャリィィィ (GYA-RYYY)","style":"orange-kinetic","animation":"shake","position":{"top":"16px","right":"16px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"medium","eyeVector":"Tension Gauge Dropping -> Normal Zone","artBrief":"Ren’s cockpit display showing cable oscillation dampening from 80% to 12%. The whip is stabilizing.","generationPrompt":"Close up of holographic cockpit vector display showing sinusoidal wave flattening into straight line, green status text, exhausted pilot sighing --ar 4:3","captions":[{"text":"CABLE OSCILLATION STABILIZED // TETHER WHIP ARRESTED","kind":"technical-hud","position":{"top":"12px","left":"12px"}}],"balloons":[{"speaker":"TREADWELL (COMMS)","text":"The wave... it stopped. Ren, you caught it!","style":"shout","position":{"bottom":"14px","right":"14px"}}]}]},{"pageNumber":15,"title":"Falling into Fire","act":"Act III: Terminal Entry & The Pacific Anchor","sequenceBeat":"The Re-Entry Crucible","layoutGrammar":"Widescreen Atmospheric Heat Spread","panels":[{"panelNumber":1,"geometry":"widescreen-letterbox","flex":12,"cameraAngle":"extreme-wide","eyeVector":"Top Red Entry Plasma -> Center Flaming Rig -> Bottom Pacific Ocean","artBrief":"The battered Iron Mite plunges into Earth’s upper atmosphere at 100 km altitude, wrapped in a blazing cocoon of orange and violet re-entry plasma.","generationPrompt":"Extreme wide re-entry shot, battered industrial mech entering Earth atmosphere engulfed in blazing orange fire shockwave, blue Pacific ocean below, high budget anime film still --ar 21:9","captions":[{"text":"ATMOSPHERIC ENTRY // ALTITUDE: 92 KM // VELOCITY: MACH 18\nThermal shielding compromised. Interior cockpit temperature rising past 60°C.","kind":"technical-hud","position":{"top":"16px","left":"16px"}}],"balloons":[],"sfx":[{"word":"ゴォォォォォ (GOOOOO-OOO)","style":"orange-kinetic","animation":"speedline","position":{"right":"40px","bottom":"24px","fontSize":"56px"}}]}]},{"pageNumber":16,"title":"Blood on the Glass","act":"Act III: Terminal Entry & The Pacific Anchor","sequenceBeat":"Extreme Physical Strain / Survival Grit","layoutGrammar":"Close-Up Reaction Duel","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Ren Face Scorched -> Visor Cracking","artBrief":"Inside the cockpit: Ren’s helmet faceplate spiderwebbed with heat cracks. Sweat and blood drip into his eyes as the G-forces pin him into his seat.","generationPrompt":"Intense close up of bruised anime pilot face inside burning cockpit, helmet glass cracked, blood dripping from nose, intense orange glow reflecting on face, Otomo Akira style --ar 16:9","captions":[],"balloons":[{"speaker":"REN","text":"Just twenty kilometers more... stay together, you old bucket of bolts...","style":"whisper","position":{"bottom":"16px","left":"16px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Ejection Handle -> Hand Reaching","artBrief":"Ren reaching trembling mechanical gauntlet toward the emergency capsule release lever.","generationPrompt":"Close up of gloved hand gripping yellow ejection handle amidst flashing alarm lights and melting plastic, extreme tension --ar 16:9","captions":[],"balloons":[],"sfx":[{"word":"CREEEAAAK!","style":"red-impact","animation":"shake","position":{"top":"14px","right":"16px"}}]}]},{"pageNumber":17,"title":"The Parachute Chute Bloom","act":"Act III: Terminal Entry & The Pacific Anchor","sequenceBeat":"The Relief of Deceleration","layoutGrammar":"Open Bleed Sky Splash","panels":[{"panelNumber":1,"geometry":"open-bleed","flex":12,"cameraAngle":"wide","eyeVector":"Top Giant Tri-Parachutes -> Center Scorched Capsule -> Bottom Midnight Sea","artBrief":"Altitude 5 km. Three gigantic orange-and-white deceleration parachutes bloom against the dark sky, gently lowering the smoking, charred command capsule toward the calm midnight Pacific Ocean.","generationPrompt":"Wide shot of three giant orange and white parachutes deployed in night sky, holding charred smoking escape pod, moonlight reflecting on ocean waves below, beautiful atmospheric anime art --ar 16:9","captions":[{"text":"ALTITUDE: 4,200 METERS // TERMINAL VELOCITY ARRESTED\nMain chutes deployed. The sky is silent again.","kind":"technical-hud","position":{"top":"16px","left":"16px"}}],"balloons":[],"sfx":[{"word":"WHOOOOOOSH...","style":"cyan-electric","animation":"float","position":{"right":"40px","top":"30px"}}]}]},{"pageNumber":18,"title":"Splashdown in the Trench","act":"Act III: Terminal Entry & The Pacific Anchor","sequenceBeat":"The Water Impact","layoutGrammar":"Dynamic Low Angle Tier","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":12,"cameraAngle":"low-angle-heroic","eyeVector":"Capsule Water Entry -> Giant Foam Spray","artBrief":"The charred capsule hits the ocean surface with a thunderous geyser of white foam and hissing steam as the red-hot hull meets cold sea water.","generationPrompt":"Dramatic comic panel of space pod splashing down into dark ocean waves, massive fountain of water and white steam erupting into night sky, high contrast inking --ar 16:9","captions":[{"text":"SPLASHDOWN CONFIRMED // PACIFIC RECOVERY ZONE BETA","kind":"time-location","position":{"top":"14px","left":"14px"}}],"balloons":[],"sfx":[{"word":"KAAAA-SPLAAAASH!","style":"cyan-electric","animation":"shake","position":{"left":"40px","top":"30px","fontSize":"54px"}}]}]},{"pageNumber":19,"title":"Hatch Blown","act":"Act III: Terminal Entry & The Pacific Anchor","sequenceBeat":"Breathing Fresh Air","layoutGrammar":"Dual Emotional Intimacy Tier","panels":[{"panelNumber":1,"geometry":"standard-rect","flex":6,"cameraAngle":"medium","eyeVector":"Blown Hatch Flying -> Inrushing Sea Breeze","artBrief":"Ren blowing the emergency hatch explosive bolts. Cold, salty sea breeze and moonlight flood into the scorched, smoke-filled cockpit.","generationPrompt":"Medium comic panel of smoking hatch blowing open with small pop of explosive bolts, moonlight and ocean air rushing into dark cockpit, pilot breathing deeply --ar 16:9","captions":[],"balloons":[],"sfx":[{"word":"PFFT-CLANG!","style":"orange-kinetic","animation":"shake","position":{"top":"14px","right":"16px"}}]},{"panelNumber":2,"geometry":"standard-rect","flex":6,"cameraAngle":"close-up","eyeVector":"Ren Removing Helmet -> Tears & Ocean Salt","artBrief":"Close up of Ren removing his melted helmet, inhaling the rich, cold Pacific air. Real oxygen. Real wind.","generationPrompt":"Close up of exhausted anime pilot taking off scorched helmet, messy hair in sea wind, tears cutting through soot on cheeks, peaceful expression --ar 16:9","captions":[{"text":"No regulator click. No ozone. Just salt, wind... and the earth.","kind":"internal-monologue","position":{"top":"12px","left":"12px"}}],"balloons":[{"speaker":"REN","text":"I’m down, Treadwell. It held.","style":"whisper","position":{"bottom":"14px","right":"14px"}}]}]},{"pageNumber":20,"title":"The Unbroken Thread","act":"Act III: Terminal Entry & The Pacific Anchor","sequenceBeat":"The Final Monumental Masterwork Ending","layoutGrammar":"Full Page Open Bleed Panoramic Epilogue","panels":[{"panelNumber":1,"geometry":"open-bleed","flex":12,"cameraAngle":"extreme-wide","eyeVector":"Bottom Ren in Raft -> Center Calm Pacific -> Top Single Silver Line Piercing Dawn Sky","artBrief":"Ren sitting on the edge of the floating yellow life raft in the center of the vast, mirror-calm Pacific Ocean at dawn. Far in the distance behind him, rising straight into the pale pink morning sky, stands the Aphelion 9 space elevator—a single, razor-thin silver thread reaching straight up into the fading stars, unbroken and triumphant.","generationPrompt":"Masterpiece anime ending scene, lone pilot sitting in yellow raft on calm dawn ocean, looking up at an impossible single silver space elevator cable rising straight into the pink and gold morning sky towards the stars, beautiful atmospheric lighting, Hayao Miyazaki and Otomo scale --ar 21:9","captions":[{"text":"06:30 AM. PACIFIC TRENCH.\nThe Apostles came to test our foundation. They found out we don't build with titanium.\nWe build with stubbornness.\n\nEND OF CHROME APOSTLE: APHELION 9.","kind":"internal-monologue","position":{"bottom":"28px","left":"28px","maxWidth":"75%"}}],"balloons":[]}]}],"remixIdeas":["Adapt the orbital tether setting into an abyssal trench geothermal drill in the Mariana Trench.","Replace the silicon Apostles with bio-mechanical leviathans bred by deep-space terraformers.","Change the protagonist to a rogue synthetic android seeking the silicon hive-mind consciousness."],"councilDirectorNotes":"Seinen manga kineticism is defined by weight and speedlines. Every mechanical plate must look functional and greasy. SFX are not afterthoughts; they are carved into the panel perspective."}
+    };
+
+    let currentBookId = 'obsidian';
+    let currentPageIndex = 0; // 0 to 19
+
+    function selectBook(id) {
+      currentBookId = id;
+      currentPageIndex = 0;
+      
+      document.getElementById('btn-obsidian').classList.remove('active', 'amber');
+      document.getElementById('btn-chrome').classList.remove('active', 'cyan');
+
+      if (id === 'obsidian') {
+        document.getElementById('btn-obsidian').classList.add('active', 'amber');
+      } else {
+        document.getElementById('btn-chrome').classList.add('active', 'cyan');
+      }
+
+      buildThumbStrip();
+      renderCurrentPage();
+    }
+
+    function buildThumbStrip() {
+      const book = BOOKS[currentBookId];
+      const strip = document.getElementById('thumb-strip');
+      strip.innerHTML = '';
+
+      book.pages.forEach((page, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'thumb-btn' + (idx === currentPageIndex ? (' active ' + (currentBookId === 'obsidian' ? 'amber' : 'cyan')) : '');
+        btn.innerHTML = '<span>P' + page.pageNumber + '</span><span style="font-size:9px;opacity:0.6;">' + page.panels.length + 'p</span>';
+        btn.onclick = () => {
+          currentPageIndex = idx;
+          updateThumbActive();
+          renderCurrentPage();
+        };
+        strip.appendChild(btn);
+      });
+    }
+
+    function updateThumbActive() {
+      const btns = document.querySelectorAll('.thumb-btn');
+      btns.forEach((btn, idx) => {
+        btn.className = 'thumb-btn' + (idx === currentPageIndex ? (' active ' + (currentBookId === 'obsidian' ? 'amber' : 'cyan')) : '');
+      });
+    }
+
+    function changePage(delta) {
+      const book = BOOKS[currentBookId];
+      const newIdx = currentPageIndex + delta;
+      if (newIdx >= 0 && newIdx < book.pages.length) {
+        currentPageIndex = newIdx;
+        updateThumbActive();
+        renderCurrentPage();
+      }
+    }
+
+    function renderCurrentPage() {
+      const book = BOOKS[currentBookId];
+      const page = book.pages[currentPageIndex];
+      const overlayOn = document.getElementById('toggle-overlay').checked;
+
+      // Update Nav
+      document.getElementById('page-indicator').textContent = 'PAGE ' + page.pageNumber + ' / ' + book.pages.length;
+      document.getElementById('page-title-banner').textContent = page.act + ': ' + page.title;
+      document.getElementById('btn-prev').disabled = currentPageIndex === 0;
+      document.getElementById('btn-next').disabled = currentPageIndex === book.pages.length - 1;
+
+      // Update Folio
+      const isManga = currentBookId === 'chrome';
+      document.getElementById('folio-left').textContent = isManga ? '◄ READ RIGHT TO LEFT' : '◄ READ LEFT TO RIGHT';
+      document.getElementById('folio-center').textContent = 'PAGE ' + page.pageNumber + ' · ' + book.title.toUpperCase();
+      document.getElementById('folio-right').textContent = isManga ? 'SHONEN TANKŌBON' : 'NOIR GRAPHIC NOVEL';
+
+      // Render Panels
+      const container = document.getElementById('panels-container');
+      container.className = 'panels-container count-' + Math.min(page.panels.length, 4);
+      container.innerHTML = '';
+
+      page.panels.forEach((panel) => {
+        const isFullWidth = panel.geometry === 'widescreen-letterbox' || panel.geometry === 'open-bleed' || page.panels.length === 1;
+        const panelBox = document.createElement('div');
+        panelBox.className = 'comic-panel-box' + (isFullWidth ? ' full-bleed' : '');
+
+        // Media Wrap
+        const mediaWrap = document.createElement('div');
+        mediaWrap.className = 'panel-media-wrap';
+        
+        // Image path
+        const subfolder = currentBookId === 'obsidian' ? 'obsidian_full' : 'chrome_full';
+        const imgPath = 'on_device_panels/' + subfolder + '/p' + page.pageNumber + '_pan' + panel.panelNumber + '.png';
+
+        const img = document.createElement('img');
+        img.className = 'panel-media-img';
+        img.src = imgPath;
+        img.alt = panel.artBrief;
+        img.onerror = function() {
+          // If on-device panel is currently finishing generation, display stylish procedural brief
+          mediaWrap.innerHTML = '<div class="procedural-art">' +
+            '<div style="font-family:monospace;font-size:11px;color:' + (currentBookId === 'obsidian' ? '#f59e0b' : '#00daf3') + ';font-weight:700;margin-bottom:8px;">ON-DEVICE GPU RENDERING / SCRIPT BEAT</div>' +
+            '<div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-bottom:6px;">[' + panel.cameraAngle.toUpperCase() + ']</div>' +
+            '<div style="font-size:12px;max-width:85%;line-height:1.4;">"' + panel.artBrief + '"</div>' +
+          '</div>';
+          if (overlayOn) mediaWrap.appendChild(createOverlay(panel, isManga));
+        };
+
+        mediaWrap.appendChild(img);
+
+        if (overlayOn) {
+          mediaWrap.appendChild(createOverlay(panel, isManga));
+        }
+
+        panelBox.appendChild(mediaWrap);
+
+        // Meta Footer
+        const footer = document.createElement('div');
+        footer.className = 'panel-footer-meta';
+        footer.innerHTML = '<span>PANEL ' + panel.panelNumber + ' [' + panel.cameraAngle.toUpperCase() + ']</span>' +
+          '<span>' + panel.eyeVector + '</span>';
+        panelBox.appendChild(footer);
+
+        container.appendChild(panelBox);
+      });
+    }
+
+    function createOverlay(panel, isManga) {
+      const overlay = document.createElement('div');
+      overlay.className = 'tela-overlay';
+
+      // Captions
+      if (panel.captions) {
+        panel.captions.forEach(c => {
+          const card = document.createElement('div');
+          card.className = 'caption-card' + (isManga ? ' manga' : '');
+          card.textContent = c.text;
+          applyPos(card, c.position);
+          overlay.appendChild(card);
+        });
+      }
+
+      // Speech Balloons
+      if (panel.balloons) {
+        panel.balloons.forEach(b => {
+          const balloon = document.createElement('div');
+          balloon.className = 'dialogue-balloon' + (b.style ? ' ' + b.style : '');
+          balloon.textContent = b.text;
+          applyPos(balloon, b.position);
+          overlay.appendChild(balloon);
+        });
+      }
+
+      // Kinetic SFX
+      if (panel.sfx) {
+        panel.sfx.forEach(s => {
+          const sfx = document.createElement('div');
+          const colorClass = s.style === 'orange-kinetic' ? ' orange' : (s.style === 'red-impact' ? ' red' : '');
+          sfx.className = 'kinetic-sfx' + colorClass;
+          sfx.textContent = s.word.toUpperCase();
+          applyPos(sfx, s.position);
+          overlay.appendChild(sfx);
+        });
+      }
+
+      return overlay;
+    }
+
+    function applyPos(el, pos) {
+      if (!pos) return;
+      if (pos.top) el.style.top = pos.top;
+      if (pos.bottom) el.style.bottom = pos.bottom;
+      if (pos.left) el.style.left = pos.left;
+      if (pos.right) el.style.right = pos.right;
+      if (pos.maxWidth) el.style.maxWidth = pos.maxWidth;
+    }
+
+    // Initialize
+    selectBook('obsidian');
+  </script>
+</body>
+</html>

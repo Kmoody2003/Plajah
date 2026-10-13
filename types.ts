@@ -7389,6 +7389,35 @@ export interface TelaVectorObject {
   padding?: number;
   /** Multi-column typography layout inside the box (1, 2, or 3). */
   columns?: number;
+  // ── Advanced Typography & Text Art Engine ──
+  /** 3D Extrusion depth in px (0 = 2D, e.g. 8-40px). */
+  extrusion3D?: number;
+  /** 3D perspective pitch tilt (-45 to 45 deg). */
+  tiltX?: number;
+  /** 3D perspective yaw tilt (-45 to 45 deg). */
+  tiltY?: number;
+  /** 3D PBR Material preset. */
+  material3D?: 'OBSIDIAN' | 'CHROME_LIQUID' | 'GOLD_BRASS' | 'CRYSTAL_GLASS' | 'NEON_CYAN' | 'NEON_MAGENTA' | 'HOLOGRAPHIC' | 'BAUHAUS_CLAY';
+  /** Text mask clipping mode. */
+  textMask?: 'NONE' | 'IMAGE' | 'GRADIENT' | 'KNOCKOUT';
+  /** Image URL or asset path used for text clipping mask. */
+  textMaskUrl?: string;
+  /** Kinetic & Sacred Geometry shape confinement (Calligram / Wave / Spiral / Helix). */
+  textArrayShape?: 'NONE' | 'CIRCLE' | 'HEART' | 'STAR' | 'DIAMOND' | 'CLOUD' | 'WAVE' | 'SPIRAL' | 'DNA_HELIX';
+  /** Firefly-style Generative Text prompt effect. */
+  generativeEffect?: {
+    prompt: string;
+    style: 'JUNGLE_FLORAL' | 'CYBER_CIRCUIT' | 'MOLTEN_MAGMA' | 'GLACIAL_ICE' | 'GOLDEN_FILIGREE' | 'COSMIC_NEBULA' | 'SWEET_CANDY' | 'STEAMPUNK';
+    textureUrl?: string;
+    intensity?: number;
+  };
+  /** Letter-level transformer adjustments: scatter, baseline wobble, or custom spacing. */
+  letterTransform?: {
+    wobble?: number;
+    scatter?: number;
+    dropCap?: boolean;
+    curve?: number;
+  };
   // ── Shape finish ──
   /** Corner radius for RECT (px). */
   rx?: number;
@@ -7509,6 +7538,15 @@ export interface TelaImageAdjust {
   saturate: number;   // 1 = neutral
   exposure: number;   // 0 = neutral (stops-ish, folded into brightness)
   blur: number;       // px, 0 = none
+  warmth?: number;    // -100..100
+  tint?: number;      // -100..100
+  highlights?: number;// -100..100
+  shadows?: number;   // -100..100
+  vignette?: number;  // 0..100
+  grain?: number;     // 0..100
+  activeLutId?: string; // id of active cinematic or camera LUT
+  lutStrength?: number; // 0..1 (default 1)
+  lutCube?: string;    // inline .cube data or cached 3D LUT
 }
 
 export interface TelaLayerMask {

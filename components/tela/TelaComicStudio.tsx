@@ -35,6 +35,7 @@ import { compileComicPanelTask } from '../../services/localAi/plajahPipelineEngi
 import { executePlajahNativeTask } from '../../services/localAi/plajahNativeRunner';
 import { getLocalEngineStatus } from '../../services/localAi/localEngineDiscovery';
 import { comicMangaPageEngine, ComicMangaPage, PageLayoutId } from '../../services/comic/comicMangaPageEngine';
+import { ComicMangaCreatorStudio } from './studio/ComicMangaCreatorStudio';
 
 interface TelaComicStudioProps {
   onInsertPageIntoTela?: (pageSpec: ComicPageSpec) => void;
@@ -45,11 +46,48 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
   onInsertPageIntoTela,
   onClose,
 }) => {
+  const [useFullCreatorStudio, setUseFullCreatorStudio] = useState(true);
   const [characters, setCharacters] = useState<CharacterSheet[]>([]);
   const [selectedCharId, setSelectedCharId] = useState<string>('');
   const [layout, setLayout] = useState<ComicPageSpec['layoutPreset']>('grid_6');
   const [pageTitle, setPageTitle] = useState('Episode 1: The Encounter');
   const [stylePreset, setStylePreset] = useState<'graphic_novel_noir' | 'manga' | 'storybook_watercolor' | 'american_superhero'>('graphic_novel_noir');
+
+  if (useFullCreatorStudio) {
+    return (
+      <ComicMangaCreatorStudio
+        initialTitle={pageTitle}
+        onClose={onClose}
+        onInsertIntoTelaDoc={(mangaPage) => {
+          const pageSpec: ComicPageSpec = {
+            id: mangaPage.id,
+            title: mangaPage.title,
+            pageNumber: mangaPage.pageNumber,
+            layoutPreset: 'grid_6',
+            panels: mangaPage.panels.map((p, idx) => ({
+              id: p.id,
+              panelIndex: idx,
+              cameraShot: (p.cameraShot === 'low_angle_hero' ? 'full_shot' : p.cameraShot) as any,
+              characterIds: p.characterId ? [p.characterId] : [],
+              actionPrompt: p.actionPrompt,
+              environmentPrompt: p.environmentPrompt,
+              renderedImageUrl: p.renderedImageUrl,
+              speechBubbles: p.balloons.map((b) => ({
+                id: b.id,
+                text: b.text,
+                xPct: b.xPct,
+                yPct: b.yPct,
+                type: b.type === 'thought' ? 'thought' : 'speech',
+                tailDirection: (b.tailDirection || 'bottom_left') as any,
+              })),
+            })),
+          };
+          onInsertPageIntoTela?.(pageSpec);
+        }}
+      />
+    );
+  }
+
 
   // Panels state (default 4-6 panels)
   const [panels, setPanels] = useState<ComicPanel[]>([

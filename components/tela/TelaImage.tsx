@@ -11,14 +11,25 @@
  * reorder layer), ids stable.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2, Wand2, Sparkles, Square, Circle, Lasso, FlipHorizontal } from 'lucide-react';
+import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2, Wand2, Sparkles, Square, Circle, Lasso, FlipHorizontal, Paintbrush, Eraser, Palette, Pipette, SlidersHorizontal, Printer, X } from 'lucide-react';
 import type { TelaImageDevice, TelaImageLayer, TelaImageAdjust, TelaBlendMode, TelaLayerMask } from '../../types';
 import { uploadTelaImage } from '../../services/telaAssets';
 import { executeGenerativeInpaint } from '../../services/tela/telaInpaintService';
 import { classifyTelaAsset } from '../../services/telaCreativeEngine';
 import { samSegmentationService } from '../../services/samSegmentationService';
 import TelaImageSelectionOverlay from './TelaImageSelectionOverlay';
-import type { Selection, SelectionTool } from '../../services/tela/raster/selectionWorkflow';
+import { invertSelection, type Selection, type SelectionTool } from '../../services/tela/raster/selectionWorkflow';
+import { isCameraRawFile, decodeCameraRawFile } from '../../services/tela/rawImageService';
+import { sampleCanvasPixel, type SamplerResult, type SampleAperture } from '../../services/tela/raster/colorSampler';
+import type { ColorSpaceId } from '../../services/tela/raster/colorWorkspace';
+import TelaColorLoupe from './color/TelaColorLoupe';
+import TelaColoristSuite, {
+  type ColorWheelState,
+  DEFAULT_WHEELS,
+  type ColorCurvesState,
+  DEFAULT_CURVES,
+} from './color/TelaColoristSuite';
+import { CREATIVE_LOOKS } from '../../services/photoEditingService';
 
 export const NEUTRAL_ADJUST: TelaImageAdjust = { brightness: 1, contrast: 1, saturate: 1, exposure: 0, blur: 0 };
 
@@ -301,6 +312,20 @@ interface TelaImageProps {
   onSelectionToolChange?: (tool: SelectionTool) => void;
   selection?: Selection | null;
   onRasterSelectionChange?: (selection: Selection | null) => void;
+  coloristOpen?: boolean;
+  onColoristOpenChange?: (open: boolean) => void;
+  eyedropperActive?: boolean;
+  onEyedropperActiveChange?: (active: boolean) => void;
+  colorSpace?: ColorSpaceId;
+  onColorSpaceChange?: (cs: ColorSpaceId) => void;
+  softProofing?: boolean;
+  onSoftProofingChange?: (sp: boolean) => void;
+  cmykPlate?: 'composite' | 'cyan' | 'magenta' | 'yellow' | 'black';
+  onCmykPlateChange?: (plate: 'composite' | 'cyan' | 'magenta' | 'yellow' | 'black') => void;
+  wheels?: ColorWheelState;
+  onWheelsChange?: (wheels: ColorWheelState) => void;
+  curves?: ColorCurvesState;
+  onCurvesChange?: (curves: ColorCurvesState) => void;
 }
 
 export function makeImageLayer(src: string, name: string, extra?: Partial<TelaImageLayer>): TelaImageLayer {
@@ -341,6 +366,41 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
   const activeRasterSelection = props.selection !== undefined ? props.selection : internalSelection;
   const onRasterSelectionChange = props.onRasterSelectionChange || setInternalSelection;
 
+  // Colorist Suite & Eyedropper State
+  const [coloristOpenInternal, setColoristOpenInternal] = useState(false);
+  const coloristOpen = props.coloristOpen !== undefined ? props.coloristOpen : coloristOpenInternal;
+  const setColoristOpen = props.onColoristOpenChange || setColoristOpenInternal;
+
+  const [eyedropperActiveInternal, setEyedropperActiveInternal] = useState(false);
+  const eyedropperActive = props.eyedropperActive !== undefined ? props.eyedropperActive : eyedropperActiveInternal;
+  const setEyedropperActive = props.onEyedropperActiveChange || setEyedropperActiveInternal;
+
+  const [colorSpaceInternal, setColorSpaceInternal] = useState<ColorSpaceId>('srgb');
+  const colorSpace = props.colorSpace !== undefined ? props.colorSpace : colorSpaceInternal;
+  const setColorSpace = props.onColorSpaceChange || setColorSpaceInternal;
+
+  const [softProofingInternal, setSoftProofingInternal] = useState(false);
+  const softProofing = props.softProofing !== undefined ? props.softProofing : softProofingInternal;
+  const setSoftProofing = props.onSoftProofingChange || setSoftProofingInternal;
+
+  const [cmykPlateInternal, setCmykPlateInternal] = useState<'composite' | 'cyan' | 'magenta' | 'yellow' | 'black'>('composite');
+  const cmykPlate = props.cmykPlate !== undefined ? props.cmykPlate : cmykPlateInternal;
+  const setCmykPlate = props.onCmykPlateChange || setCmykPlateInternal;
+
+  const [wheelsInternal, setWheelsInternal] = useState<ColorWheelState>(DEFAULT_WHEELS);
+  const wheels = props.wheels !== undefined ? props.wheels : wheelsInternal;
+  const setWheels = props.onWheelsChange || setWheelsInternal;
+
+  const [curvesInternal, setCurvesInternal] = useState<ColorCurvesState>(DEFAULT_CURVES);
+  const curves = props.curves !== undefined ? props.curves : curvesInternal;
+  const setCurves = props.onCurvesChange || setCurvesInternal;
+
+  const [currentSample, setCurrentSample] = useState<SamplerResult | null>(null);
+  const [sampleAperture, setSampleAperture] = useState<SampleAperture>(1);
+  const [loupeCoords, setLoupeCoords] = useState<{ x: number; y: number } | null>(null);
+  const [sampleToast, setSampleToast] = useState<string | null>(null);
+  const samplerCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [urlOpen, setUrlOpen] = useState(false);
@@ -359,6 +419,15 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
   const addFromFile = async (file: File) => {
     setBusy(true);
     try {
+      if (isCameraRawFile(file)) {
+        const decoded = await decodeCameraRawFile(file);
+        onAddLayer(makeImageLayer(decoded.dataUrl, file.name.replace(/\.[^.]+$/, ''), {
+          mediaKind: 'IMAGE',
+          intrinsicWidth: decoded.width,
+          intrinsicHeight: decoded.height,
+        }));
+        return;
+      }
       const assetKind = classifyTelaAsset(file);
       if (assetKind !== 'RASTER' && assetKind !== 'VIDEO' && assetKind !== 'LOTTIE') throw new Error(`${file.name} is not a supported image, video, or .lottie layer.`);
       const r = await uploadTelaImage(file);
@@ -413,6 +482,49 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
     drag.current = { mode: 'rotate', id: layer.id, cx: (root?.left || 0) + (layer.x + size.w * layer.scale / 2) * z, cy: (root?.top || 0) + (layer.y + size.h * layer.scale / 2) * z };
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (eyedropperActive) {
+      const root = (e.currentTarget as HTMLElement).closest('.tela-image')?.getBoundingClientRect();
+      if (root) {
+        const z = props.interactionScale || 1;
+        const cx = Math.max(0, Math.min(device.width - 1, (e.clientX - root.left) / z));
+        const cy = Math.max(0, Math.min(device.height - 1, (e.clientY - root.top) / z));
+        setLoupeCoords({ x: cx, y: cy });
+
+        if (!samplerCanvasRef.current) {
+          samplerCanvasRef.current = document.createElement('canvas');
+        }
+        const sc = samplerCanvasRef.current;
+        if (sc.width !== device.width || sc.height !== device.height) {
+          sc.width = Math.max(1, device.width);
+          sc.height = Math.max(1, device.height);
+        }
+        const sctx = sc.getContext('2d', { willReadFrequently: true });
+        if (sctx) {
+          sctx.clearRect(0, 0, sc.width, sc.height);
+          const container = (e.currentTarget as HTMLElement).closest('.tela-image');
+          if (container) {
+            const imgEls = container.querySelectorAll<HTMLImageElement | HTMLVideoElement>('[data-layer-id]');
+            imgEls.forEach((el) => {
+              try {
+                const layerId = el.getAttribute('data-layer-id');
+                const lyr = device.layers.find(l => l.id === layerId);
+                if (lyr && lyr.visible) {
+                  sctx.save();
+                  sctx.translate(lyr.x, lyr.y);
+                  sctx.rotate(((lyr.rotation || 0) * Math.PI) / 180);
+                  sctx.scale(lyr.scale, lyr.scale);
+                  sctx.drawImage(el as any, 0, 0);
+                  sctx.restore();
+                }
+              } catch { /* cross-origin fallback */ }
+            });
+          }
+          const res = sampleCanvasPixel(sctx, cx, cy, sampleAperture, device.width, device.height);
+          setCurrentSample(res);
+        }
+      }
+    }
+
     const d = drag.current; if (!d) return;
     const z = props.interactionScale || 1;
     if (d.mode === 'move') {
@@ -437,12 +549,24 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
   };
   const onPointerUp = () => { drag.current = null; setSnapLines({}); };
 
+  const onCanvasPointerDown = (e: React.PointerEvent) => {
+    if (eyedropperActive && currentSample) {
+      e.stopPropagation();
+      try {
+        navigator.clipboard?.writeText(currentSample.measurement.hex);
+        setSampleToast(`Copied ${currentSample.measurement.hex} (${currentSample.measurement.oklch}) to clipboard`);
+        setTimeout(() => setSampleToast(null), 2500);
+      } catch { /* clipboard permission */ }
+    }
+  };
+
   return (
     <div
       className="tela-image"
-      style={{ position: 'relative', width: device.width, height: device.height, background: '#fff', overflow: 'hidden' }}
+      style={{ position: 'relative', width: device.width, height: device.height, background: '#fff', overflow: 'hidden', cursor: eyedropperActive ? 'crosshair' : 'default' }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerDown={onCanvasPointerDown}
     >
       {/* Checker ground so transparency reads clearly (editing only — print stays white). */}
       {!readOnly && (
@@ -450,22 +574,36 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
       )}
 
       {device.layers.map(l => { const group = l.groupId ? device.groups?.find(item => item.id === l.groupId) : undefined; if (!l.visible || group?.visible === false) return null;
+        let computedFilter = imageFilter(l.adjust);
+        if (softProofing) {
+          computedFilter += ' sepia(0.06) contrast(0.96) brightness(0.97)';
+        }
+        if (cmykPlate === 'cyan') {
+          computedFilter += ' grayscale(100%) sepia(100%) hue-rotate(150deg) saturate(300%)';
+        } else if (cmykPlate === 'magenta') {
+          computedFilter += ' grayscale(100%) sepia(100%) hue-rotate(280deg) saturate(300%)';
+        } else if (cmykPlate === 'yellow') {
+          computedFilter += ' grayscale(100%) sepia(100%) hue-rotate(40deg) saturate(300%)';
+        } else if (cmykPlate === 'black') {
+          computedFilter += ' grayscale(100%)';
+        }
+
         const layerStyle: React.CSSProperties = {
              position: 'absolute', left: l.x, top: l.y,
              transform: `rotate(${l.rotation || 0}deg) scale(${l.scale})`, transformOrigin: 'top left',
-             opacity: l.opacity * (group?.opacity ?? 1), mixBlendMode: (group?.blend && group.blend !== 'normal' ? group.blend : l.blend) as any, filter: imageFilter(l.adjust),
+             opacity: l.opacity * (group?.opacity ?? 1), mixBlendMode: (group?.blend && group.blend !== 'normal' ? group.blend : l.blend) as any, filter: computedFilter,
              ...imageMaskStyle(l.mask || group?.mask),
-             maxWidth: 'none', cursor: readOnly ? 'default' : 'move',
+             maxWidth: 'none', cursor: readOnly ? 'default' : eyedropperActive ? 'crosshair' : 'move',
              outline: !readOnly && selectedIds.includes(l.id) ? `2px solid ${l.id === selectedId ? 'var(--pj-magenta,#D40055)' : 'var(--pj-cyan,#00DAF3)'}` : 'none',
              outlineOffset: 1,
         };
         const menu = props.layerContextBindings?.(l);
-        const pointerDown = readOnly ? undefined : (e: React.PointerEvent<HTMLElement>) => { menu?.onPointerDown(e); onLayerPointerDown(e, l.id); };
+        const pointerDown = readOnly ? undefined : (e: React.PointerEvent<HTMLElement>) => { if (eyedropperActive) return; menu?.onPointerDown(e); onLayerPointerDown(e, l.id); };
         const pointerMove = menu?.onPointerMove as any, pointerUp = menu?.onPointerUp as any, pointerCancel = menu?.onPointerCancel as any;
         const contextMenu = readOnly ? undefined : (e: React.MouseEvent<HTMLElement>) => { select(l.id); if (menu) menu.onContextMenu(e); else { e.preventDefault(); e.stopPropagation(); props.onLayerContextMenu?.(e, l); } };
-        if (l.mediaKind === 'VIDEO') return <video key={l.id} src={l.src} autoPlay muted loop playsInline onLoadedMetadata={e => { const video=e.currentTarget; setNaturalSize(s => ({ ...s, [l.id]: { w:video.videoWidth || l.intrinsicWidth || 1280, h:video.videoHeight || l.intrinsicHeight || 720 } })); }} onPointerDown={pointerDown as any} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel} onContextMenu={contextMenu as any} style={layerStyle}/>;
+        if (l.mediaKind === 'VIDEO') return <video key={l.id} data-layer-id={l.id} src={l.src} autoPlay muted loop playsInline onLoadedMetadata={e => { const video=e.currentTarget; setNaturalSize(s => ({ ...s, [l.id]: { w:video.videoWidth || l.intrinsicWidth || 1280, h:video.videoHeight || l.intrinsicHeight || 720 } })); }} onPointerDown={pointerDown as any} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel} onContextMenu={contextMenu as any} style={layerStyle}/>;
         if (l.mediaKind === 'LOTTIE') return <TelaLottieLayer key={l.id} layer={l} onReady={(w,h) => setNaturalSize(s => ({ ...s, [l.id]: { w,h } }))} onPointerDown={pointerDown as any} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel} onContextMenu={contextMenu as any} style={layerStyle}/>;
-        return <img key={l.id} src={l.src} alt={l.name || ''} draggable={false} onLoad={e => { const image=e.currentTarget; setNaturalSize(s => ({ ...s, [l.id]: { w:image.naturalWidth, h:image.naturalHeight } })); }} onPointerDown={pointerDown as any} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel} onContextMenu={contextMenu as any} style={layerStyle}/>;
+        return <img key={l.id} data-layer-id={l.id} src={l.src} alt={l.name || ''} draggable={false} onLoad={e => { const image=e.currentTarget; setNaturalSize(s => ({ ...s, [l.id]: { w:image.naturalWidth, h:image.naturalHeight } })); }} onPointerDown={pointerDown as any} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel} onContextMenu={contextMenu as any} style={layerStyle}/>;
       })}
 
       {!readOnly && selectedIds.length === 1 && selected && naturalSize[selected.id] && (() => {
@@ -565,6 +703,32 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
               <Wand2 size={14} />
             </button>
 
+            <button
+              title="Generative Fill Brush (B)"
+              onClick={() => onToolChange(activeTool === 'brush_inpaint' ? 'none' : 'brush_inpaint')}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
+                color: activeTool === 'brush_inpaint' ? '#ef4444' : 'rgba(255,255,255,0.7)',
+                background: activeTool === 'brush_inpaint' ? 'rgba(239,68,68,0.22)' : 'transparent',
+              }}
+            >
+              <Paintbrush size={14} />
+            </button>
+
+            <button
+              title="Mask Eraser (E)"
+              onClick={() => onToolChange(activeTool === 'brush_erase' ? 'none' : 'brush_erase')}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
+                color: activeTool === 'brush_erase' ? '#fff' : 'rgba(255,255,255,0.7)',
+                background: activeTool === 'brush_erase' ? 'rgba(255,255,255,0.22)' : 'transparent',
+              }}
+            >
+              <Eraser size={14} />
+            </button>
+
             {activeRasterSelection?.bounds && (
               <button
                 title="Inverse Selection (Ctrl+Shift+I)"
@@ -582,6 +746,50 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
                 <FlipHorizontal size={14} />
               </button>
             )}
+
+            <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', margin: '5px 2px' }} />
+
+            {/* Precision Colorist Eyedropper */}
+            <button
+              title="Colorist Eyedropper & Loupe (I)"
+              onClick={() => setEyedropperActive(!eyedropperActive)}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
+                color: eyedropperActive ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+                background: eyedropperActive ? 'rgba(0,218,243,0.22)' : 'transparent',
+              }}
+            >
+              <Pipette size={14} />
+            </button>
+
+            {/* Colorist Suite & Scopes */}
+            <button
+              title="Tela Colorist Suite & Live Scopes (C)"
+              onClick={() => setColoristOpen(!coloristOpen)}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
+                color: coloristOpen ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+                background: coloristOpen ? 'rgba(0,218,243,0.22)' : 'transparent',
+              }}
+            >
+              <Palette size={14} />
+            </button>
+
+            {/* Soft Proofing & CMYK Plate Indicator */}
+            {(softProofing || cmykPlate !== 'composite') && (
+              <div
+                title={`Soft Proofing: ${softProofing ? 'ON' : 'OFF'} | Plate: ${cmykPlate.toUpperCase()}`}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 3, padding: '0 6px',
+                  borderRadius: 6, background: 'rgba(245,158,11,0.2)', border: '1px solid #f59e0b',
+                  fontSize: 9, fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase'
+                }}
+              >
+                <Printer size={11} /> {cmykPlate === 'composite' ? 'PROOF' : cmykPlate[0].toUpperCase()}
+              </div>
+            )}
           </div>
           {urlOpen && (
             <div style={{ display: 'flex', gap: 4, padding: 4, background: 'rgba(18,13,28,0.92)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10 }}>
@@ -589,7 +797,7 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
               <button onClick={addFromUrl} style={{ padding: '0 10px', borderRadius: 7, background: 'var(--pj-cyan,#00DAF3)', color: '#062', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: 12 }}>Add</button>
             </div>
           )}
-          <input ref={fileRef} type="file" accept="image/*,video/*,.lottie,application/zip+dotlottie,application/vnd.lottie" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void addFromFile(f); e.target.value = ''; }} />
+          <input ref={fileRef} type="file" accept="image/*,video/*,.lottie,application/zip+dotlottie,application/vnd.lottie,.arw,.cr2,.cr3,.nef,.dng,.raf,.orf,.rw2,.pef" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void addFromFile(f); e.target.value = ''; }} />
         </div>
       )}
 
@@ -614,6 +822,114 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
               <TelaImageLayerControls layer={selected} onUpdate={patch => onUpdateLayer(selected.id, patch)} />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Eyedropper Color Copied Toast */}
+      {sampleToast && (
+        <div style={{
+          position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(10, 8, 16, 0.95)', border: '1px solid #00DAF3', borderRadius: 8,
+          padding: '6px 14px', color: '#00DAF3', fontSize: 11, fontWeight: 700,
+          zIndex: 95, pointerEvents: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.7)'
+        }}>
+          {sampleToast}
+        </div>
+      )}
+
+      {/* High-Precision Multi-Aperture Loupe */}
+      {eyedropperActive && loupeCoords && currentSample && (
+        <TelaColorLoupe
+          cursorX={loupeCoords.x}
+          cursorY={loupeCoords.y}
+          canvasWidth={device.width}
+          canvasHeight={device.height}
+          sample={currentSample}
+          aperture={sampleAperture}
+          onApertureChange={setSampleAperture}
+        />
+      )}
+
+      {/* Floating Colorist Suite & Scopes Panel */}
+      {coloristOpen && (
+        <div
+          onPointerDown={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: 48,
+            right: 12,
+            zIndex: 50,
+            width: 360,
+            maxHeight: 'calc(100% - 60px)',
+            overflowY: 'auto',
+            background: 'rgba(12, 10, 18, 0.96)',
+            border: '1px solid rgba(255, 255, 255, 0.16)',
+            borderRadius: 14,
+            boxShadow: '0 24px 60px rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(16px)',
+            padding: 12,
+          }}
+          className="custom-scrollbar"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Palette size={14} className="text-[#00DAF3]" />
+              <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#fff' }}>
+                Tela Colorist Suite
+              </span>
+            </div>
+            <button
+              onClick={() => setColoristOpen(false)}
+              style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: 2 }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <TelaColoristSuite
+            sourceImageUrl={selected?.src || device.layers.find(l => l.visible)?.src}
+            canvasWidth={device.width}
+            canvasHeight={device.height}
+            colorSpace={colorSpace}
+            onColorSpaceChange={setColorSpace}
+            softProofing={softProofing}
+            onSoftProofingChange={setSoftProofing}
+            cmykPlate={cmykPlate}
+            onCmykPlateChange={setCmykPlate}
+            wheels={wheels}
+            onWheelsChange={(w) => {
+              setWheels(w);
+              if (selected) {
+                const exposureDelta = (w.gainMaster + w.offsetMaster * 0.5);
+                const brightnessDelta = 1 + w.gammaMaster * 0.3;
+                onUpdateLayer(selected.id, {
+                  adjust: {
+                    ...selected.adjust,
+                    exposure: Math.max(-2, Math.min(2, (selected.adjust?.exposure || 0) + exposureDelta * 0.05)),
+                    brightness: Math.max(0, Math.min(2, (selected.adjust?.brightness ?? 1) * brightnessDelta)),
+                  }
+                });
+              }
+            }}
+            curves={curves}
+            onCurvesChange={setCurves}
+            onEyedropperToggle={() => setEyedropperActive(!eyedropperActive)}
+            eyedropperActive={eyedropperActive}
+            onApplyLook={(lookId) => {
+              const look = CREATIVE_LOOKS.find(l => l.id === lookId);
+              if (look && selected) {
+                const adj = look.adjustments;
+                onUpdateLayer(selected.id, {
+                  adjust: {
+                    exposure: (adj.exposure || 0) / 50,
+                    brightness: 1 + (adj.brightness || 0) / 100,
+                    contrast: 1 + (adj.contrast || 0) / 100,
+                    saturate: 1 + (adj.saturation || 0) / 100,
+                    blur: selected.adjust?.blur || 0,
+                  }
+                });
+              }
+            }}
+          />
         </div>
       )}
     </div>
