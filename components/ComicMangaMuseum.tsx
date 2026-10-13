@@ -5,6 +5,7 @@ import type { Album } from '../types';
 import { fetchArchiveComics, fetchAnilistManga, resolveArchiveReadableUrl, COMIC_COLLECTIONS, MANGA_ERAS, COMIC_LEGENDS, MANGA_LEGENDS, COMICS_HISTORY, MANGA_HISTORY, type MangaEntry, type Legend, type HistoryEra } from '../services/comicsMangaService';
 import { searchOpenLibrary, openLibrarySubject, OPEN_LIBRARY_SHELVES } from '../services/openLibraryService';
 import type { ArchiveBook } from '../services/archiveContentService';
+import { comicToShowcaseStudioBook, studioBookToLoreaAlbum } from '../services/comic/comicStudioBridge';
 
 // The comic + manga digital museum & history — synthesizes free/open sources:
 // readable PUBLIC-DOMAIN comics (Internet Archive), manga history/metadata (AniList),
@@ -202,6 +203,72 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
         {tab === 'comics' && (
           <>
             <div className="flex items-center gap-2 mb-5 text-[11px] text-white/40"><Sparkles size={13} style={{ color: GOLD }} /> Golden & Silver Age comics in the public domain — free to read, preserved from the Internet Archive.</div>
+
+            {/* Featured Original Graphic Novels & Manga */}
+            <div className="mb-9">
+              <div className="flex items-center justify-between mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse" />
+                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">Plajah Story Council Originals</h3>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400">
+                    20-Page Full Editions · On-Device Production
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 1. The Obsidian Shroud */}
+                <div
+                  onClick={() => {
+                    const book = comicToShowcaseStudioBook('obsidian-shroud');
+                    onSelectBook(studioBookToLoreaAlbum(book));
+                  }}
+                  className="group relative rounded-2xl bg-white/[0.04] border border-white/10 hover:border-orange-500/60 p-4 cursor-pointer transition-all duration-200 flex gap-4 items-center shadow-lg hover:bg-white/[0.06]"
+                >
+                  <div className="w-24 h-32 rounded-xl overflow-hidden bg-black shrink-0 border border-white/10 group-hover:scale-105 transition-transform duration-300">
+                    <img src="/generated/comics/obsidian_full/p1_pan1.png" alt="The Obsidian Shroud" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-orange-400">Cyber-Gothic Dark Noir</span>
+                    <h4 className="text-sm font-black text-white group-hover:text-orange-300 transition-colors truncate mt-0.5">THE OBSIDIAN SHROUD</h4>
+                    <p className="text-[10px] text-white/40 mt-1 line-clamp-2 leading-relaxed">
+                      Detective Silas Vane in the flooded gutters of Old Neo-Babel. Frank Miller & Mike Mignola lens.
+                    </p>
+                    <div className="flex items-center gap-2 mt-2.5 text-[9px] text-white/50 font-bold">
+                      <span className="px-2 py-0.5 rounded bg-black/60 border border-white/10">20 Pages</span>
+                      <span className="px-2 py-0.5 rounded bg-black/60 border border-white/10">35 Panels</span>
+                      <span className="text-orange-400 ml-auto flex items-center gap-1 group-hover:underline">Read Now →</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Chrome Apostle */}
+                <div
+                  onClick={() => {
+                    const book = comicToShowcaseStudioBook('chrome-apostle');
+                    onSelectBook(studioBookToLoreaAlbum(book));
+                  }}
+                  className="group relative rounded-2xl bg-white/[0.04] border border-white/10 hover:border-sky-500/60 p-4 cursor-pointer transition-all duration-200 flex gap-4 items-center shadow-lg hover:bg-white/[0.06]"
+                >
+                  <div className="w-24 h-32 rounded-xl overflow-hidden bg-black shrink-0 border border-white/10 group-hover:scale-105 transition-transform duration-300">
+                    <img src="/generated/comics/chrome_full/p1_pan1.png" alt="Chrome Apostle" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-sky-400">Hard Sci-Fi Kinetic Manga · RTL</span>
+                    <h4 className="text-sm font-black text-white group-hover:text-sky-300 transition-colors truncate mt-0.5">CHROME APOSTLE: APHELION 9</h4>
+                    <p className="text-[10px] text-white/40 mt-1 line-clamp-2 leading-relaxed">
+                      Orbital tether space elevator war. Katsuhiro Otomo & Tsutomu Nihei lens with authentic Kanji sound layers.
+                    </p>
+                    <div className="flex items-center gap-2 mt-2.5 text-[9px] text-white/50 font-bold">
+                      <span className="px-2 py-0.5 rounded bg-black/60 border border-white/10">20 Pages</span>
+                      <span className="px-2 py-0.5 rounded bg-black/60 border border-white/10">27 Panels</span>
+                      <span className="text-sky-400 ml-auto flex items-center gap-1 group-hover:underline">Read Now →</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {COMIC_COLLECTIONS.map(c => (
               <Row key={c.label} label={c.label} load={() => fetchArchiveComics(c.query, 18)} onOpen={openComic} />
             ))}

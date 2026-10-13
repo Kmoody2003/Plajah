@@ -18,6 +18,9 @@ import type { Character, LoreEntry, IPWorld } from '../../types';
 import type { PaiGenerationItem } from '../localAi/paiGenerationHistory';
 import { peekComicHandoff, takeComicHandoff, ComicHandoff } from '../comicHandoff';
 import { parseScript, ScriptBeat, ScriptCharacter } from '../comicScript';
+import { SHOWCASE_BOOKS, showcaseById, ShowcaseBook } from '../../data/showcase';
+import { SHOWCASE_COMICS, getShowcaseComic } from '../../data/showcase/comics';
+import type { ShowcaseComicBook } from '../../data/showcase/comicTypes';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. PROSE / STORY ──▶ AUTOMATIC SEQUENTIAL COMIC BREAKDOWN
@@ -527,6 +530,9 @@ export interface StorybookPageSpread {
   featuredCharacters: string[];
   readingAgeTier: 'EARLY_READER' | 'STORYBOOK' | 'MIDDLE_GRADE';
   suggestedVoiceMood: 'gentle_bedtime' | 'adventurous' | 'whimsical' | 'educational';
+  turn?: string;
+  sfx?: string;
+  beat?: string;
 }
 
 export interface StorybookContextAnalysis {
@@ -534,7 +540,21 @@ export interface StorybookContextAnalysis {
   totalWords: number;
   readingAgeTier: 'EARLY_READER' | 'STORYBOOK' | 'MIDDLE_GRADE';
   spreads: StorybookPageSpread[];
-  cast: Array<{ name: string; role: string; quote: string; emoji: string }>;
+  cast: Array<{
+    name: string;
+    role: string;
+    quote: string;
+    emoji: string;
+    look?: string;
+    palette?: string[];
+  }>;
+  remixAttribution?: string;
+  sourceShowcaseId?: string;
+  templateId?: string;
+  medium?: string;
+  theme?: string;
+  refrain?: string;
+  remixIdeas?: string[];
 }
 
 /**
@@ -622,3 +642,213 @@ export function analyzeStorybookDocumentContext(
     cast,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. PLATFORM SHOWCASE BOOKS & COMICS LIVING TEMPLATES ENGINE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function getPlatformShowcaseBooks(): ShowcaseBook[] {
+  return SHOWCASE_BOOKS;
+}
+
+export function getPlatformShowcaseComics(): ShowcaseComicBook[] {
+  return SHOWCASE_COMICS;
+}
+
+/**
+ * Maps a canonical ShowcaseBook from data/showcase into a live, fully editable
+ * StorybookContextAnalysis for Design 2 (Story Magic Folio).
+ */
+export function convertShowcaseBookToStorybookContext(
+  book: ShowcaseBook,
+  remixAuthor = 'You (Remix Author)'
+): StorybookContextAnalysis {
+  // Map band to age tier
+  let readingAgeTier: 'EARLY_READER' | 'STORYBOOK' | 'MIDDLE_GRADE' = 'STORYBOOK';
+  if (book.band === 'toddler' || book.band === 'preschool') {
+    readingAgeTier = 'EARLY_READER';
+  } else if (book.band === 'read-alone' || book.band === 'story') {
+    readingAgeTier = 'MIDDLE_GRADE';
+  }
+
+  // Map characters
+  const cast = book.characters.map((c) => {
+    let emoji = '✨';
+    const k = c.kind.toLowerCase();
+    if (k.includes('bear')) emoji = '🐻';
+    else if (k.includes('moth') || k.includes('butterfly')) emoji = '🦋';
+    else if (k.includes('moon')) emoji = '🌙';
+    else if (k.includes('bus') || k.includes('vehicle')) emoji = '🚌';
+    else if (k.includes('pigeon') || k.includes('bird')) emoji = '🐦';
+    else if (k.includes('robot')) emoji = '🤖';
+    else if (k.includes('astronaut') || k.includes('explorer')) emoji = '🧑‍🚀';
+    else if (k.includes('pup') || k.includes('dog')) emoji = '🐕';
+    else if (k.includes('fox')) emoji = '🦊';
+    else if (k.includes('fawn') || k.includes('deer')) emoji = '🦌';
+    else if (k.includes('tree') || k.includes('cedar')) emoji = '🌲';
+    else if (k.includes('fish') || k.includes('reef')) emoji = '🐠';
+    else if (k.includes('crab')) emoji = '🦀';
+    else if (k.includes('weaver') || k.includes('girl')) emoji = '🪡';
+
+    return {
+      name: c.name,
+      role: `${c.role.toUpperCase()} • ${c.kind}`,
+      quote: c.signature || c.voice,
+      emoji,
+      look: c.look,
+      palette: c.palette,
+    };
+  });
+
+  // Cinemagraph mapping helper
+  const getCinemagraph = (s: typeof book.spreads[0]): StorybookPageSpread['leftPageCinemagraphEffect'] => {
+    const text = (s.art + ' ' + s.text).toLowerCase();
+    if (text.includes('rain') || text.includes('water') || text.includes('ocean') || text.includes('sea')) return 'falling_rain';
+    if (text.includes('star') || text.includes('space') || text.includes('moon') || text.includes('glow')) return 'lens_flare';
+    if (text.includes('fog') || text.includes('mist') || text.includes('forest') || text.includes('moss')) return 'fog_steam';
+    if (text.includes('ember') || text.includes('candle') || text.includes('fire') || text.includes('lantern')) return 'floating_embers';
+    return book.templateId === 'story-bedtime' ? 'lens_flare' : 'floating_embers';
+  };
+
+  const spreads: StorybookPageSpread[] = book.spreads.map((s) => ({
+    spreadNumber: s.n,
+    chapterTitle: `Spread ${s.n}: ${s.beat.toUpperCase()}${s.turn ? ` — ${s.turn}` : ''}`,
+    leftPageIllustrationPrompt: `${book.medium} art style. ${s.art} (Visual anchors: ${s.characters.map((cid) => book.characters.find((c) => c.id === cid)?.look).filter(Boolean).join('; ')})`,
+    leftPageCinemagraphEffect: getCinemagraph(s),
+    rightPageProse: s.text || (s.beat === 'cover' ? `${book.title}\n\nA living storybook template` : `[Visual beat: ${s.art}]`),
+    featuredCharacters: s.characters.map((cid) => book.characters.find((c) => c.id === cid)?.name || cid),
+    readingAgeTier,
+    suggestedVoiceMood: readingAgeTier === 'EARLY_READER' ? 'gentle_bedtime' : 'whimsical',
+    sfx: s.sfx,
+    turn: s.turn,
+    beat: s.beat,
+  }));
+
+  const totalWords = book.spreads.reduce((acc, s) => acc + (s.text ? s.text.split(/\s+/).filter(Boolean).length : 0), 0);
+
+  return {
+    documentTitle: `${book.title} (Remix)`,
+    totalWords,
+    readingAgeTier,
+    spreads,
+    cast,
+    remixAttribution: `Based on "${book.title}" by ${book.author} (CC BY 4.0). Original medium: ${book.medium}.`,
+    sourceShowcaseId: book.id,
+    templateId: book.templateId,
+    medium: book.medium,
+    theme: book.theme,
+    refrain: book.refrain,
+    remixIdeas: book.remixIdeas,
+  };
+}
+
+/**
+ * Converts a canonical ShowcaseComicBook into a live ComicMangaPage
+ * for Mode A (Master Sequential Studio).
+ */
+export function convertShowcaseComicToStudioPage(
+  comic: ShowcaseComicBook,
+  pageIndex = 0
+): ComicMangaPage {
+  const page = comic.pages[pageIndex] || comic.pages[0];
+  const isManga = comic.genre === 'seinen-kinetic' || comic.genre === 'shojo-gothic';
+
+  // Pick layout template matching panel count
+  const panelCount = page.panels.length;
+  let layoutId = 'grid_6_classic';
+  if (panelCount === 1) layoutId = 'picture_book_top_bottom';
+  else if (panelCount === 2) layoutId = 'bedtime_split_2';
+  else if (panelCount === 3) layoutId = 'sunday_funnies_3';
+  else if (panelCount === 4) layoutId = 'storybook_grid_4';
+  else if (panelCount === 5) layoutId = 'shonen_dynamic_5';
+  else layoutId = 'grid_6_classic';
+
+  const template = PANEL_LAYOUT_TEMPLATES[layoutId] || PANEL_LAYOUT_TEMPLATES.grid_6_classic;
+  const boxes = template.createBoxes(1.2);
+
+  const panels: ComicEnginePanel[] = page.panels.map((p, idx) => {
+    const box = boxes[idx % boxes.length] || { x: 5, y: 5 + idx * 30, width: 90, height: 28 };
+
+    // Map dialogue balloons
+    const balloons: ComicVectorBalloon[] = p.balloons.map((b, bIdx) => ({
+      id: `balloon_${pageIndex}_${idx}_${bIdx}`,
+      speaker: b.speaker,
+      text: b.text,
+      x: box.x + 8 + bIdx * 20,
+      y: box.y + 6 + bIdx * 15,
+      width: Math.min(220, Math.max(120, b.text.length * 5)),
+      height: Math.min(100, Math.max(50, Math.ceil(b.text.length / 25) * 22)),
+      balloonType: b.balloonType === 'shout' ? 'shout' : b.balloonType === 'thought' ? 'thought' : b.balloonType === 'whisper' ? 'whisper' : 'speech',
+      tailDirection: bIdx % 2 === 0 ? 'bottom_left' : 'bottom_right',
+      tailTipX: box.x + 12 + bIdx * 20,
+      tailTipY: box.y + 24 + bIdx * 15,
+      fontSize: 13,
+      fontFamily: isManga ? 'Manga Temple, CC Wild Words, sans-serif' : 'Comic Craft, Anime Ace, sans-serif',
+      fillColor: '#FFFFFF',
+      strokeColor: '#000000',
+      strokeWidth: 2,
+    }));
+
+    // Motion effects (cinemagraph, video loop)
+    let motionClip: ComicEnginePanel['motionClip'] = undefined;
+    if (idx === 0 || p.actionDescription.toLowerCase().includes('rain') || p.actionDescription.toLowerCase().includes('glow')) {
+      motionClip = {
+        cinemagraphEffect: p.actionDescription.toLowerCase().includes('rain') ? 'rain' : 'embers',
+        isLooping: true,
+        playbackSpeed: 1.0,
+      };
+    }
+
+    return {
+      id: `p_${pageIndex}_${idx}`,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      borderStyle: isManga ? 'manga_ink' : 'heavy_american',
+      borderThickness: isManga ? 2.5 : 3.5,
+      borderColor: '#0f172a',
+      backgroundFill: '#FFFFFF',
+      prompt: `${comic.genre} style: ${p.actionDescription}. Lighting: ${p.lightingEnvironment}`,
+      imageState: 'placeholder',
+      cameraShot: (p.cameraShot as any) || 'medium',
+      motionClip,
+      screentone: {
+        pattern: isManga ? (idx % 2 === 0 ? 'dots_fine' : 'dots_coarse') : 'none',
+        densityPercent: isManga ? 25 : 0,
+        angleDegrees: 45,
+      },
+      balloons,
+      foleyTakes: p.kineticSfx ? [{
+        id: `foley_${idx}`,
+        word: p.kineticSfx.soundWord,
+        category: 'impact',
+        sfxIntensity: 'heavy',
+        audioVolume: 0.8,
+        playbackOffsetMs: 0,
+        waveform: 'sawtooth',
+      }] : [],
+    };
+  });
+
+  return {
+    id: `comic_${comic.id}_page_${pageIndex + 1}`,
+    pageNumber: pageIndex + 1,
+    title: `${comic.title} — Page ${pageIndex + 1}`,
+    layoutTemplateId: layoutId,
+    stylePreset: isManga ? 'manga' : 'american_heroic',
+    gutterWidthPx: 12,
+    aspectRatio: 'standard_comic',
+    backgroundColor: '#FFFFFF',
+    panels,
+    globalPerspectiveGuides: {
+      type: 'two_point',
+      horizonY: 50,
+      vanishingPoint1X: 10,
+      vanishingPoint2X: 90,
+      enabled: false,
+    },
+    readingDirection: isManga ? 'right_to_left' : 'left_to_right',
+  };
+}
+

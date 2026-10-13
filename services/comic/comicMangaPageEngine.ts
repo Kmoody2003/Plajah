@@ -76,6 +76,218 @@ export interface ComicEnginePanel {
     opacity: number; // 0..1
   };
   balloons: ComicVectorBalloon[];
+  linkedDocId?: string; // Linked individual Tela Document Page ID (Smart Object paradigm)
+  nestedDoc?: NestedPanelDocument;
+}
+
+export type PanelLayerType =
+  | 'background'      // Background Art Plate (image, prompt, or video)
+  | 'ink'             // Inking & lineart drawing canvas
+  | 'character'       // Character figure cutout / turnaround
+  | 'cinemagraph_fx'  // Particle weather / effects (rain, embers, lightning)
+  | 'balloon'         // Dialogue speech balloon or caption
+  | 'sfx_lettering'   // Kinetic 3D onomatopoeia sound stamp
+  | 'audio_foley';    // Voice take audio & foley sound impact
+
+export interface PanelKeyframe {
+  id: string;
+  timeSec: number; // 0..duration
+  properties: {
+    x?: number;        // offset px
+    y?: number;
+    scale?: number;    // zoom factor e.g. 1.0 - 1.5
+    opacity?: number;  // 0..1
+    rotation?: number; // degrees
+    shakeIntensity?: number; // 0..1 (action recoil)
+    blurPx?: number;
+  };
+  easing?: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'spring';
+}
+
+export interface PanelAnimationLayer {
+  id: string;
+  name: string;
+  type: PanelLayerType;
+  visible: boolean;
+  locked: boolean;
+  opacity: number; // 0..1
+  blendMode?: 'normal' | 'multiply' | 'screen' | 'overlay';
+  keyframes: PanelKeyframe[];
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  contentData?: string;
+}
+
+export interface NestedPanelDocument {
+  id: string;                  // e.g. "doc_panel_1_silas_alley"
+  panelIndex: number;
+  pageId: string;              // parent comic page id
+  title: string;               // e.g. "Panel 1: Flooded Alleyway"
+  widthPx: number;             // High-res canvas width (e.g. 1200)
+  heightPx: number;            // High-res canvas height (e.g. 1200 or 1600)
+  layers: PanelAnimationLayer[];
+  timelineDurationSec: number; // e.g. 4.0s
+  currentTimeSec: number;
+  isPlaying: boolean;
+  inkDataUrl?: string;         // Drawn canvas dataURL
+  cameraShot: ComicEnginePanel['cameraShot'];
+  prompt: string;
+  updatedAt: number;
+}
+
+/**
+ * Creates a default Nested Tela Document for a comic panel.
+ * Every panel functions like a nested smart object with its own multi-track layer timeline!
+ */
+export function createDefaultNestedPanelDoc(
+  panel: ComicEnginePanel,
+  panelIndex: number,
+  pageId = 'page_1'
+): NestedPanelDocument {
+  const panelDocId = panel.linkedDocId || `doc_${pageId}_p${panelIndex + 1}`;
+  const balloon = panel.balloons[0];
+
+  const layers: PanelAnimationLayer[] = [
+    {
+      id: `layer_${panelIndex}_bg`,
+      name: 'Background Art Plate',
+      type: 'background',
+      visible: true,
+      locked: false,
+      opacity: 1.0,
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      rotation: 0,
+      contentData: panel.renderedImageUrl || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80',
+      keyframes: [
+        { id: `kf_bg_1`, timeSec: 0.0, properties: { scale: 1.0, x: 0, y: 0, opacity: 1 } },
+        { id: `kf_bg_2`, timeSec: 3.5, properties: { scale: 1.12, x: -8, y: -4, opacity: 1 }, easing: 'ease_out' },
+      ],
+    },
+    {
+      id: `layer_${panelIndex}_ink`,
+      name: 'Sketchbook Lineart & Inks',
+      type: 'ink',
+      visible: true,
+      locked: false,
+      opacity: 1.0,
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      rotation: 0,
+      keyframes: [
+        { id: `kf_ink_1`, timeSec: 0.0, properties: { opacity: 1, scale: 1.0 } },
+      ],
+    },
+    {
+      id: `layer_${panelIndex}_char`,
+      name: 'Character Figure Plate',
+      type: 'character',
+      visible: true,
+      locked: false,
+      opacity: 1.0,
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      rotation: 0,
+      keyframes: [
+        { id: `kf_char_1`, timeSec: 0.0, properties: { opacity: 1, scale: 1.0, x: 0 } },
+        { id: `kf_char_2`, timeSec: 2.0, properties: { opacity: 1, scale: 1.04, x: 4 } },
+      ],
+    },
+    {
+      id: `layer_${panelIndex}_fx`,
+      name: 'Cinemagraph Weather FX',
+      type: 'cinemagraph_fx',
+      visible: true,
+      locked: false,
+      opacity: 0.85,
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      rotation: 0,
+      contentData: panelIndex === 0 ? 'falling_rain' : 'floating_embers',
+      keyframes: [
+        { id: `kf_fx_1`, timeSec: 0.0, properties: { opacity: 0.8 } },
+        { id: `kf_fx_2`, timeSec: 2.0, properties: { opacity: 1.0 } },
+        { id: `kf_fx_3`, timeSec: 4.0, properties: { opacity: 0.8 } },
+      ],
+    },
+    {
+      id: `layer_${panelIndex}_balloon`,
+      name: balloon?.speakerName ? `Balloon: ${balloon.speakerName}` : 'Speech Balloon',
+      type: 'balloon',
+      visible: true,
+      locked: false,
+      opacity: 1.0,
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      rotation: 0,
+      contentData: balloon?.text || 'Down here at the drain level, the air tastes like burnt copper.',
+      keyframes: [
+        { id: `kf_bal_1`, timeSec: 0.0, properties: { opacity: 0, scale: 0.8 } },
+        { id: `kf_bal_2`, timeSec: 0.6, properties: { opacity: 1, scale: 1.0 }, easing: 'spring' },
+        { id: `kf_bal_3`, timeSec: 4.0, properties: { opacity: 1, scale: 1.0 } },
+      ],
+    },
+    {
+      id: `layer_${panelIndex}_sfx`,
+      name: 'Kinetic SFX Stamp',
+      type: 'sfx_lettering',
+      visible: true,
+      locked: false,
+      opacity: 1.0,
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      rotation: 0,
+      contentData: panelIndex === 0 ? 'DZZZZT' : 'BOOOM',
+      keyframes: [
+        { id: `kf_sfx_1`, timeSec: 1.2, properties: { opacity: 0, scale: 0.4 } },
+        { id: `kf_sfx_2`, timeSec: 1.4, properties: { opacity: 1, scale: 1.3, shakeIntensity: 0.8 }, easing: 'spring' },
+        { id: `kf_sfx_3`, timeSec: 1.8, properties: { opacity: 1, scale: 1.0, shakeIntensity: 0 } },
+      ],
+    },
+    {
+      id: `layer_${panelIndex}_audio`,
+      name: 'Voice Acting Take & Foley',
+      type: 'audio_foley',
+      visible: true,
+      locked: false,
+      opacity: 1.0,
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      rotation: 0,
+      contentData: 'Silas Vane (Whisper take)',
+      keyframes: [
+        { id: `kf_aud_1`, timeSec: 0.5, properties: { opacity: 1 } },
+      ],
+    },
+  ];
+
+  const wPct = panel.box?.widthPct || 45;
+  const hPct = panel.box?.heightPct || 30;
+
+  return {
+    id: panelDocId,
+    panelIndex,
+    pageId,
+    title: `Panel ${panelIndex + 1}: ${panel.actionPrompt ? panel.actionPrompt.slice(0, 36) : 'Scene View'}...`,
+    widthPx: 1200,
+    heightPx: Math.round(1200 * (hPct / (wPct || 1))),
+    layers,
+    timelineDurationSec: 4.0,
+    currentTimeSec: 0,
+    isPlaying: false,
+    cameraShot: panel.cameraShot,
+    prompt: panel.actionPrompt || 'Sequential Art Scene',
+    updatedAt: Date.now(),
+  };
 }
 
 export interface ComicMangaPage {

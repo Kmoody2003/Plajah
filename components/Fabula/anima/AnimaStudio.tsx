@@ -23,7 +23,9 @@ import {
   Flame, Droplets, Zap, ShieldAlert, Grid, RefreshCw,
   Plus, Trash2, ChevronRight, Wand2, Download, Video,
   Clock, Disc, PenTool, Move, RotateCcw, BookOpen,
-  MessageSquare, ChevronDown, ChevronUp, Bot, Image as ImageIcon
+  MessageSquare, ChevronDown, ChevronUp, Bot, Image as ImageIcon,
+  Smile, UserCheck, FileText, Library, MessageCircle, FileCode,
+  FolderPlus, Type, Compass
 } from 'lucide-react';
 import type {
   AnimaProject,
@@ -58,8 +60,44 @@ import {
   type ImportedMediaPlate,
 } from './AnimaMediaCompositor';
 import { AnimaTimeline } from './AnimaTimeline';
-import { CLASSIC_CHARACTERS } from '../../../services/anima/classicCharacters';
+import {
+  CLASSIC_CHARACTERS,
+  listClassicCharacters,
+  getClassicCharacter,
+  instantiateClassicCharacterLayer,
+} from '../../../services/anima/classicCharacters';
 import { PLAJAH_MASCOTS } from '../../../services/anima/plajahMascots';
+import {
+  CharacterFaceAnimator,
+  bakeFacePerformanceToTimeline,
+  type FacePerformanceClip,
+} from '../../../services/anima/faceAnimator';
+import {
+  VideoMotionTracker,
+  bakeMotionToTimeline,
+  type TrackedMotionClip,
+} from '../../../services/anima/videoMotionTracker';
+import {
+  parseMotionFile,
+  applyMotionDataToProject,
+} from '../../../services/anima/motionDataLoader';
+import {
+  ASSET_CATALOG,
+  instantiateAsset,
+  getAssetCategories,
+  getAssetsByCategory,
+  type AssetCategory,
+} from '../../../services/anima/assetLibrary';
+import {
+  applyPanelEntranceTransition,
+  createOnomatopoeiaLayer,
+  createComicBalloonLayer,
+  createSpeedLinesLayer,
+  createShockwaveLayer,
+  PanelParallaxEngine,
+  type PanelEntranceKind,
+  type OnomatopoeiaPhrase,
+} from '../../../services/anima/comicMotion';
 
 // Plajah Theme Palette
 const THEME = {
@@ -230,7 +268,40 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
 
   // Progressive Disclosure: Simple vs Pro Studio
   const [isProModeOpen, setIsProModeOpen] = useState(false);
-  const [proTab, setProTab] = useState<'timeline' | 'xsheet' | 'curves' | 'physics' | 'procedural'>('timeline');
+  const [proTab, setProTab] = useState<
+    | 'timeline'
+    | 'xsheet'
+    | 'face_animator'
+    | 'video_mocap'
+    | 'mocap_import'
+    | 'asset_library'
+    | 'comic_fx'
+    | 'curves'
+    | 'physics'
+    | 'procedural'
+  >('timeline');
+
+  // Face Animator States
+  const [isFaceTracking, setIsFaceTracking] = useState(false);
+  const [faceGain, setFaceGain] = useState(1.25);
+  const [liveFaceMetrics, setLiveFaceMetrics] = useState({ jawOpen: 0, smile: 0, blinkL: 0, blinkR: 0, headRoll: 0 });
+  const faceAnimatorRef = useRef(new CharacterFaceAnimator());
+
+  // Video Mocap States
+  const [isBodyTracking, setIsBodyTracking] = useState(false);
+  const [liveBodyMetrics, setLiveBodyMetrics] = useState({ spine: 0, armL: 0, armR: 0, legL: 0, legR: 0 });
+  const videoTrackerRef = useRef(new VideoMotionTracker());
+
+  // Mocap Data Import
+  const [mocapStatus, setMocapStatus] = useState<string | null>(null);
+
+  // Asset Library State
+  const [selectedAssetCategory, setSelectedAssetCategory] = useState<string>('all');
+
+  // Comic FX States
+  const [parallaxMode, setParallaxMode] = useState<'pointer_hover' | 'device_gyro' | 'camera_drift' | 'reading_scroll'>('pointer_hover');
+  const [parallaxEnabled, setParallaxEnabled] = useState(true);
+  const parallaxEngineRef = useRef(new PanelParallaxEngine());
 
   // Aria Conversation & Intelligence
   const [ariaPrompt, setAriaPrompt] = useState('');
@@ -1242,6 +1313,11 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
               {[
                 { id: 'timeline', label: 'Timeline & Keyframes', icon: Clock },
                 { id: 'xsheet', label: 'X-Sheet Exposure', icon: Grid },
+                { id: 'face_animator', label: 'Face Animator (ARKit)', icon: Smile },
+                { id: 'video_mocap', label: 'Video-to-Rig Mocap', icon: UserCheck },
+                { id: 'mocap_import', label: 'Mocap File (BVH/JSON)', icon: FileCode },
+                { id: 'asset_library', label: 'Asset & Motion Library', icon: Library },
+                { id: 'comic_fx', label: 'Comic & Manga FX', icon: MessageCircle },
                 { id: 'curves', label: 'Bézier Splines', icon: Spline },
                 { id: 'physics', label: 'Physics & Forces', icon: Activity },
                 { id: 'procedural', label: 'Procedural Texture', icon: Wand2 },
@@ -1275,7 +1351,504 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
         )}
 
         {/* Pro Sub-Panels (if not timeline) or Full AnimaTimeline */}
-        {isProModeOpen && proTab === 'xsheet' ? (
+        {isProModeOpen && proTab === 'face_animator' ? (
+          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 900, color: THEME.cyan }}>VTUBER FACE RIG · ARKIT 52 CHANNELS</span>
+                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(0, 218, 243, 0.15)', color: THEME.cyan }}>
+                  Continuous Lip Sync & Expressive Posing
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => {
+                    const t = Date.now() / 1000;
+                    setLiveFaceMetrics({
+                      jawOpen: Number((0.3 + Math.sin(t * 4) * 0.4).toFixed(2)),
+                      smile: Number((0.2 + Math.cos(t * 2) * 0.5).toFixed(2)),
+                      blinkL: Number((Math.sin(t * 1.5) > 0.8 ? 1 : 0).toFixed(2)),
+                      blinkR: 0,
+                      headRoll: Number((Math.sin(t * 2) * 12).toFixed(1)),
+                    });
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 4,
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    fontSize: 10,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <RefreshCw size={11} style={{ display: 'inline', marginRight: 4 }} />
+                  TEST LIVE METERS
+                </button>
+                <button
+                  onClick={() => {
+                    // Generate a 2-second face performance clip and bake into current layer
+                    const frames: any[] = [];
+                    for (let i = 0; i <= 24; i++) {
+                      const t = i / 12;
+                      frames.push({
+                        timeSec: t,
+                        frameIndex: i,
+                        blendshapes: {
+                          jawOpen: Math.abs(Math.sin(t * 6)) * 0.8,
+                          mouthSmileLeft: 0.5 + Math.sin(t * 3) * 0.3,
+                          mouthSmileRight: 0.5 + Math.sin(t * 3) * 0.3,
+                          eyeBlinkLeft: i === 6 || i === 7 ? 0.95 : 0,
+                          eyeBlinkRight: i === 6 || i === 7 ? 0.95 : 0,
+                          mouthPucker: Math.abs(Math.cos(t * 6)) * 0.6,
+                        },
+                        head: { pitch: 0, yaw: 0, roll: Math.sin(t * 3) * 10, x: 0, y: 0, z: 0 },
+                        expressions: { jaw: Math.abs(Math.sin(t * 6)) * 0.8, blinkLeft: 0, blinkRight: 0 },
+                        gaze: { lookX: 0, lookY: 0 },
+                      });
+                    }
+                    const targetId = project.selectedLayerId || project.layers[0]?.id;
+                    if (targetId) {
+                      const baked = bakeFacePerformanceToTimeline(project, { id: 'face_perf', name: 'Face Performance', fps: 24, durationSec: 2.0, frames }, targetId);
+                      setProject(baked);
+                      setProTab('timeline');
+                    }
+                  }}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: 4,
+                    background: 'linear-gradient(135deg, #00DAF3, #6B0099)',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                  }}
+                >
+                  BAKE PERFORMANCE TO TIMELINE
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {[
+                { label: 'Jaw Open / Mouth', val: liveFaceMetrics.jawOpen, color: THEME.cyan },
+                { label: 'Smile / Expression', val: liveFaceMetrics.smile, color: THEME.magenta },
+                { label: 'Blink Left', val: liveFaceMetrics.blinkL, color: THEME.lilac },
+                { label: 'Blink Right', val: liveFaceMetrics.blinkR, color: THEME.lilac },
+                { label: 'Head Roll (deg)', val: `${liveFaceMetrics.headRoll}°`, color: THEME.orange },
+              ].map((m, idx) => (
+                <div key={idx} style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: '8px 10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginBottom: 4, fontWeight: 700 }}>{m.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: m.color, fontFamily: 'monospace' }}>{m.val}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>
+              Compatible Rigs: Plajah Mascots (Rello & Chora), Steamboat Willie, Felix, Fleischer Flapper, Oswald, Sailor Swagger, and custom bone layers.
+            </div>
+          </div>
+        ) : isProModeOpen && proTab === 'video_mocap' ? (
+          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 900, color: THEME.orange }}>VIDEO-TO-RIG MOTION TRACKER · 33 POSE KEYPOINTS</span>
+                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(255, 140, 0, 0.15)', color: THEME.orange }}>
+                  Body Pose Joint Angle Retargeting
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  const targetId = project.selectedLayerId || project.layers[0]?.id;
+                  if (targetId) {
+                    const frames: any[] = [];
+                    for (let i = 0; i <= 24; i++) {
+                      const t = i / 12;
+                      frames.push({
+                        timeSec: t,
+                        frameIndex: i,
+                        landmarks: [],
+                        angles: {
+                          rootX: Math.sin(t * 3) * 15,
+                          rootY: Math.abs(Math.sin(t * 6)) * 12,
+                          spineRot: Math.sin(t * 3) * 8,
+                          headRot: -Math.sin(t * 3) * 5,
+                          armL_upperRot: Math.sin(t * 6) * 45,
+                          armL_lowerRot: Math.abs(Math.sin(t * 6)) * 60,
+                          armR_upperRot: -Math.sin(t * 6) * 45,
+                          armR_lowerRot: Math.abs(Math.cos(t * 6)) * 60,
+                          legL_upperRot: -Math.sin(t * 6) * 35,
+                          legL_lowerRot: Math.abs(Math.sin(t * 6)) * 40,
+                          legR_upperRot: Math.sin(t * 6) * 35,
+                          legR_lowerRot: Math.abs(Math.cos(t * 6)) * 40,
+                          footL_rot: 0,
+                          footR_rot: 0,
+                        },
+                        confidence: 0.95,
+                      });
+                    }
+                    const baked = bakeMotionToTimeline(project, { id: 'mocap_clip', name: 'Body Mocap', fps: 24, durationSec: 2.0, frames }, targetId);
+                    setProject(baked);
+                    setProTab('timeline');
+                  }
+                }}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: 4,
+                  background: 'linear-gradient(135deg, #FF8C00, #D40055)',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 10,
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                }}
+              >
+                BAKE TRACKED MOTION TO BONES
+              </button>
+            </div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
+              Tracks shoulders, elbows, wrists, spine, hips, knees, and ankles from video reference frames and maps continuous joint angles to 2D skeletal bones.
+            </div>
+          </div>
+        ) : isProModeOpen && proTab === 'mocap_import' ? (
+          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 900, color: THEME.lilac }}>MOTION CAPTURE DATA FILE LOADER</span>
+              <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(208, 188, 255, 0.15)', color: THEME.lilac }}>
+                BVH · JSON Pose · Point Tracker CSV
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => {
+                  const sampleBVH = `HIERARCHY\nROOT Hips\n{\n  OFFSET 0 0 0\n  CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation\n  JOINT Chest\n  {\n    OFFSET 0 25 0\n    CHANNELS 3 Zrotation Xrotation Yrotation\n    End Site { OFFSET 0 15 0 }\n  }\n}\nMOTION\nFrames: 4\nFrame Time: 0.0333\n0 0 0 0 0 0 10 0 0\n5 0 0 5 0 0 25 0 0\n10 0 0 0 0 0 15 0 0\n0 0 0 -5 0 0 5 0 0\n`;
+                  const parsed = parseMotionFile('sample.bvh', sampleBVH);
+                  const targetId = project.selectedLayerId || project.layers[0]?.id;
+                  if (targetId) {
+                    const applied = applyMotionDataToProject(project, parsed, targetId);
+                    setProject(applied);
+                    setMocapStatus('Imported 4 frames from sample.bvh');
+                    setProTab('timeline');
+                  }
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#fff',
+                  fontSize: 10,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                LOAD SAMPLE BVH MOCAP
+              </button>
+              <button
+                onClick={() => {
+                  const sampleCSV = `Frame,Time,Tracker1_X,Tracker1_Y\n0,0.0,0,0\n1,0.04,15,4\n2,0.08,35,12\n3,0.12,20,8\n`;
+                  const parsed = parseMotionFile('point_track.csv', sampleCSV);
+                  const targetId = project.selectedLayerId || project.layers[0]?.id;
+                  if (targetId) {
+                    const applied = applyMotionDataToProject(project, parsed, targetId);
+                    setProject(applied);
+                    setMocapStatus('Imported 4 tracking points from CSV');
+                    setProTab('timeline');
+                  }
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#fff',
+                  fontSize: 10,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                LOAD 2D POINT TRACKER CSV
+              </button>
+            </div>
+            {mocapStatus && <div style={{ fontSize: 10, color: THEME.success }}>{mocapStatus}</div>}
+          </div>
+        ) : isProModeOpen && proTab === 'asset_library' ? (
+          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+              {['all', 'walk_cycles', 'vehicles', 'skies', 'props', 'animals', 'classic_cartoons'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedAssetCategory(cat)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 14,
+                    background: selectedAssetCategory === cat ? THEME.purple : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: 9,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {cat.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              {/* Assets from Catalog */}
+              {(selectedAssetCategory === 'all' || selectedAssetCategory !== 'classic_cartoons'
+                ? ASSET_CATALOG.filter((a) => selectedAssetCategory === 'all' || a.category === selectedAssetCategory)
+                : []
+              ).map((asset) => (
+                <div
+                  key={asset.id}
+                  style={{
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 6,
+                    padding: 8,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 18, marginBottom: 4 }}>{asset.thumbnailIcon}</div>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>{asset.name}</div>
+                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginTop: 2, height: 24, overflow: 'hidden' }}>
+                      {asset.description}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newLayer = instantiateAsset(asset.id, `layer_${asset.id}_${Date.now()}`);
+                      setProject((p) => ({ ...p, layers: [...p.layers, newLayer] }));
+                      setProTab('timeline');
+                    }}
+                    style={{
+                      marginTop: 8,
+                      padding: '4px 8px',
+                      borderRadius: 4,
+                      background: 'rgba(255,255,255,0.1)',
+                      color: THEME.cyan,
+                      border: 'none',
+                      fontSize: 9,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + ADD TO PROJECT
+                  </button>
+                </div>
+              ))}
+
+              {/* Authentic Classic Cartoons */}
+              {(selectedAssetCategory === 'all' || selectedAssetCategory === 'classic_cartoons') &&
+                listClassicCharacters().map((char) => (
+                  <div
+                    key={char.id}
+                    style={{
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 6,
+                      padding: 8,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 18, marginBottom: 4 }}>
+                        {char.id === 'steamboat_willie' ? '🚢' : char.id.includes('felix') ? '🐱' : char.id.includes('flapper') ? '💃' : char.id.includes('rabbit') ? '🐰' : '⚓'}
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>{char.name}</div>
+                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginTop: 2, height: 24, overflow: 'hidden' }}>
+                        {char.description}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newLayer = instantiateClassicCharacterLayer(char.id, `layer_${char.id}_${Date.now()}`);
+                        setProject((p) => ({ ...p, layers: [...p.layers, newLayer] }));
+                        setProTab('timeline');
+                      }}
+                      style={{
+                        marginTop: 8,
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #FF8C00, #D40055)',
+                        color: '#fff',
+                        border: 'none',
+                        fontSize: 9,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      + ADD RIG & CYCLE
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        ) : isProModeOpen && proTab === 'comic_fx' ? (
+          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 900, color: THEME.magenta }}>COMIC & MANGA PANEL ANIMATION SUITE</span>
+              <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(212, 0, 85, 0.15)', color: THEME.magenta }}>
+                Transitions · Onomatopoeia · SFX · Parallax
+              </span>
+            </div>
+
+            {/* Entrance Transitions */}
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
+                PANEL ENTRANCE TRANSITIONS:
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { id: 'smash_zoom', label: '💥 Smash Zoom' },
+                  { id: 'manga_shutter_wipe', label: '⚔️ Shutter Wipe' },
+                  { id: 'page_curl', label: '📖 Page Curl' },
+                  { id: 'elastic_pop', label: '🎯 Elastic Pop' },
+                  { id: 'split_panel_slide', label: '⚡ Split Slide' },
+                ].map((tr) => (
+                  <button
+                    key={tr.id}
+                    onClick={() => {
+                      const targetId = project.selectedLayerId || project.layers[0]?.id;
+                      if (targetId) {
+                        const targetLayer = project.layers.find((l) => l.id === targetId);
+                        if (targetLayer) {
+                          applyPanelEntranceTransition(targetLayer, tr.id as any, 0, 0.5);
+                          setProject({ ...project });
+                          setProTab('timeline');
+                        }
+                      }
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {tr.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Phrases / SFX */}
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
+                DYNAMIC ACTION PHRASES & ONOMATOPOEIA (WITH LINE BOIL):
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['BAM!', 'POW!', 'SLASH!', 'WHAM!', 'BOOM!', 'DON!!', 'GO GO GO...'].map((phrase) => (
+                  <button
+                    key={phrase}
+                    onClick={() => {
+                      const sfx = createOnomatopoeiaLayer({
+                        phrase: phrase as any,
+                        position: { x: 400 + (Math.random() - 0.5) * 80, y: 300 + (Math.random() - 0.5) * 80 },
+                        scale: 1.25,
+                        lineBoil: true,
+                      });
+                      setProject((p) => ({ ...p, layers: [...p.layers, sfx] }));
+                      setProTab('timeline');
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      background: 'rgba(212, 0, 85, 0.15)',
+                      border: '1px solid rgba(212, 0, 85, 0.3)',
+                      color: THEME.magenta,
+                      fontSize: 11,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {phrase}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Balloons & Motion Effects */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => {
+                  const balloon = createComicBalloonLayer({
+                    text: 'Dynamic speech bubble!',
+                    kind: 'shout',
+                    position: { x: 420, y: 220 },
+                    tailTarget: { x: 350, y: 350 },
+                  });
+                  setProject((p) => ({ ...p, layers: [...p.layers, balloon] }));
+                  setProTab('timeline');
+                }}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#fff',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                + ADD SHOUT BALLOON
+              </button>
+              <button
+                onClick={() => {
+                  const lines = createSpeedLinesLayer('radial_focus', { x: 400, y: 300 });
+                  setProject((p) => ({ ...p, layers: [...p.layers, lines] }));
+                  setProTab('timeline');
+                }}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#fff',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                + ADD MANGA SPEED LINES
+              </button>
+              <button
+                onClick={() => {
+                  const shock = createShockwaveLayer({ x: 400, y: 300 }, 0.6);
+                  setProject((p) => ({ ...p, layers: [...p.layers, shock] }));
+                  setProTab('timeline');
+                }}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#fff',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                + ADD IMPACT SHOCKWAVE
+              </button>
+            </div>
+          </div>
+        ) : isProModeOpen && proTab === 'xsheet' ? (
           <div style={{ flex: 1, padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>

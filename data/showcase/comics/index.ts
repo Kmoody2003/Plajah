@@ -9,6 +9,15 @@ import { silentCrater } from './silentCrater';
 import { gildedVanguard } from './gildedVanguard';
 import { paleHydrangeas } from './paleHydrangeas';
 
+export {
+  obsidianShroud,
+  chromeApostle,
+  singularityGods,
+  silentCrater,
+  gildedVanguard,
+  paleHydrangeas,
+};
+
 export const SHOWCASE_COMICS: ShowcaseComicBook[] = [
   obsidianShroud,
   chromeApostle,

@@ -49,6 +49,12 @@ import {
   PenTool,
   Compass,
   Eye,
+  EyeOff,
+  Lock,
+  Key,
+  FolderPlus,
+  Minimize2,
+  ArrowLeft,
   Download,
   Film,
   FileText,
@@ -90,6 +96,10 @@ import {
   ComicEnginePanel,
   ComicVectorBalloon,
   comicMangaPageEngine,
+  NestedPanelDocument,
+  PanelAnimationLayer,
+  PanelKeyframe,
+  createDefaultNestedPanelDoc,
 } from '../../../services/comic/comicMangaPageEngine';
 import {
   PANEL_LAYOUT_TEMPLATES,
@@ -119,6 +129,10 @@ import {
   consumeLoreaHandoff,
   flowLoreaScriptToPage,
   analyzeStorybookDocumentContext,
+  getPlatformShowcaseBooks,
+  getPlatformShowcaseComics,
+  convertShowcaseBookToStorybookContext,
+  convertShowcaseComicToStudioPage,
   type StorybookContextAnalysis,
   type StorybookPageSpread,
 } from '../../../services/comic/storyIntelligenceBridge';
@@ -152,7 +166,7 @@ interface ComicMangaCreatorStudioProps {
 
 export type PrimaryStudioMode = 'MASTER_SEQUENTIAL' | 'STORY_FOLIO';
 export type SequentialViewMode = 'PAGE_GRID' | 'WEBTOON_STREAM';
-type StudioTab = 'TEMPLATES' | 'MOTION_CINEMAGRAPH' | 'LOREA_SCRIPT' | 'BUBBLES' | 'SFX' | 'BRUSHES' | 'WORLD_CAST' | 'PAI_GALLERY' | 'STORY_MAGIC' | 'COUNCIL';
+type StudioTab = 'TEMPLATES' | 'MOTION_CINEMAGRAPH' | 'PANEL_TIMELINE' | 'LOREA_SCRIPT' | 'BUBBLES' | 'SFX' | 'BRUSHES' | 'WORLD_CAST' | 'PAI_GALLERY' | 'STORY_MAGIC' | 'COUNCIL';
 
 // Japanese Manga Onomatopoeia SFX Stamps
 const JAPANESE_SFX_STAMPS = [
@@ -171,6 +185,46 @@ const DEMO_VIDEO_LOOPS = [
   { id: 'embers_flare', label: 'Floating Embers & Smoke', url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4' },
   { id: 'motion_sweep', label: 'Neon City Pulse', url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4' },
 ];
+
+/**
+ * Keyframe interpolation helper for timeline animation across panel layers.
+ */
+function getInterpolatedKeyframe(keyframes: PanelKeyframe[], timeSec: number) {
+  if (!keyframes || keyframes.length === 0) return {};
+  if (keyframes.length === 1) return keyframes[0].properties;
+
+  const sorted = [...keyframes].sort((a, b) => a.timeSec - b.timeSec);
+  if (timeSec <= sorted[0].timeSec) return sorted[0].properties;
+  if (timeSec >= sorted[sorted.length - 1].timeSec) return sorted[sorted.length - 1].properties;
+
+  let prev = sorted[0];
+  let next = sorted[1];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (timeSec >= sorted[i].timeSec && timeSec <= sorted[i + 1].timeSec) {
+      prev = sorted[i];
+      next = sorted[i + 1];
+      break;
+    }
+  }
+
+  const span = next.timeSec - prev.timeSec;
+  const t = span > 0 ? (timeSec - prev.timeSec) / span : 0;
+
+  const lerp = (a?: number, b?: number) => {
+    if (a === undefined && b === undefined) return undefined;
+    const v1 = a ?? 1;
+    const v2 = b ?? v1;
+    return v1 + (v2 - v1) * t;
+  };
+
+  return {
+    scale: lerp(prev.properties.scale, next.properties.scale),
+    x: lerp(prev.properties.x, next.properties.x),
+    y: lerp(prev.properties.y, next.properties.y),
+    opacity: lerp(prev.properties.opacity, next.properties.opacity),
+    shakeIntensity: lerp(prev.properties.shakeIntensity, next.properties.shakeIntensity),
+  };
+}
 
 export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = ({
   initialProseStory = '',
@@ -209,6 +263,19 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
 
   // In-panel image transforms (zoom, pan, rotation, flip)
   const [panelTransforms, setPanelTransforms] = useState<Record<number, PanelImageTransform>>({});
+
+  // ── NESTED TELA PANEL DOCUMENTS & SMART OBJECT STATE ──
+  const [deepEditPanelIdx, setDeepEditPanelIdx] = useState<number | null>(null);
+  const [nestedPanelDocs, setNestedPanelDocs] = useState<Record<number, NestedPanelDocument>>(() => {
+    const docs: Record<number, NestedPanelDocument> = {};
+    page.panels.forEach((p, idx) => {
+      docs[idx] = createDefaultNestedPanelDoc(p, idx, page.id);
+    });
+    return docs;
+  });
+  const [activeLayerId, setActiveLayerId] = useState<string | null>('layer_0_bg');
+  const [panelTimelineTime, setPanelTimelineTime] = useState<number>(0);
+  const [isPanelTimelinePlaying, setIsPanelTimelinePlaying] = useState<boolean>(false);
 
   // ── 4. MOTION, CINEMAGRAPH & VIDEO PANEL STATE ──
   const [panelMotions, setPanelMotions] = useState<Record<number, PanelMotionConfig>>({
@@ -261,22 +328,41 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
   );
   const [loreaHandoffFound, setLoreaHandoffFound] = useState<any>(null);
 
-  // ── 7. STORYBOOK DOCUMENT CONTEXT AWARENESS (Design 2: Story Magic Folio) ──
-  const [storyInputText, setStoryInputText] = useState(
-    initialProseStory ||
-      'In the quiet magical clearing of Sector Zero, little Pippin the fox discovered a mysterious patch of glowing pumpkins.\n\n"Look at those giant amber pumpkins!" Sparky the friendly dragon whispered, his wings fluttering with excitement.\n\nSuddenly, the ancient clockwork stone began to chime! Soft golden light swept across the clearing as the portal opened.'
-  );
-  const [storybookContext, setStorybookContext] = useState<StorybookContextAnalysis>(() =>
-    analyzeStorybookDocumentContext(storyInputText, initialTitle)
-  );
+  // ── 7. STORYBOOK & SEQUENTIAL SHOWCASE LIVING TEMPLATES ──
+  const platformStorybooks = getPlatformShowcaseBooks();
+  const platformComics = getPlatformShowcaseComics();
+  const [selectedStorybookTemplateId, setSelectedStorybookTemplateId] = useState<string>('moon-blanket');
+  const [selectedComicTemplateId, setSelectedComicTemplateId] = useState<string>('chrome-apostle');
+
+  const [storyInputText, setStoryInputText] = useState(() => {
+    if (initialProseStory) return initialProseStory;
+    const defaultBook = platformStorybooks[0];
+    return defaultBook?.spreads[0]?.text || 'Moon Blanket';
+  });
+  const [storybookContext, setStorybookContext] = useState<StorybookContextAnalysis>(() => {
+    if (initialProseStory) {
+      return analyzeStorybookDocumentContext(initialProseStory, initialTitle);
+    }
+    const defaultBook = platformStorybooks[0];
+    return defaultBook ? convertShowcaseBookToStorybookContext(defaultBook) : analyzeStorybookDocumentContext(storyInputText, initialTitle);
+  });
   const [activeSpreadIndex, setActiveSpreadIndex] = useState<number>(0);
   const [isNarratingStory, setIsNarratingStory] = useState<boolean>(false);
   const [droppedStickers, setDroppedStickers] = useState<
     Array<{ id: string; name: string; emoji: string; quote: string; xPct: number; yPct: number }>
-  >([
-    { id: 'stk_1', name: 'Pippin Fox', emoji: '🦊', quote: 'Look at the glowing pumpkins!', xPct: 32, yPct: 42 },
-    { id: 'stk_2', name: 'Sparky Dragon', emoji: '🐉', quote: 'The chrono-portal is opening!', xPct: 62, yPct: 56 },
-  ]);
+  >(() => {
+    const cast = storybookContext.cast;
+    if (cast && cast.length >= 2) {
+      return [
+        { id: 'stk_1', name: cast[0].name, emoji: cast[0].emoji, quote: cast[0].quote, xPct: 32, yPct: 42 },
+        { id: 'stk_2', name: cast[1].name, emoji: cast[1].emoji, quote: cast[1].quote, xPct: 62, yPct: 56 },
+      ];
+    }
+    return [
+      { id: 'stk_1', name: 'Bramble', emoji: '🐻', quote: 'Snug as a stitch.', xPct: 32, yPct: 42 },
+      { id: 'stk_2', name: 'Flit', emoji: '🦋', quote: 'flutter, flutter', xPct: 62, yPct: 56 },
+    ];
+  });
 
   // World Cast & PAI Gallery
   const [worldCast, setWorldCast] = useState<any[]>([]);
@@ -338,6 +424,49 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     }, 100);
     return () => clearInterval(interval);
   }, [isTimelinePlaying, timelineDuration, page.panels.length, activePanelIdx]);
+
+  // ── Sync Nested Panel Documents when Page Panels change ──
+  useEffect(() => {
+    setNestedPanelDocs((prev) => {
+      const next: Record<number, NestedPanelDocument> = { ...prev };
+      page.panels.forEach((p, idx) => {
+        if (!next[idx]) {
+          next[idx] = createDefaultNestedPanelDoc(p, idx, page.id);
+        }
+      });
+      return next;
+    });
+  }, [page]);
+
+  // ── Panel Layer Animation Timeline Playback Loop ──
+  useEffect(() => {
+    if (!isPanelTimelinePlaying) return;
+    const currentDoc = deepEditPanelIdx !== null ? nestedPanelDocs[deepEditPanelIdx] : nestedPanelDocs[activePanelIdx];
+    const duration = currentDoc?.timelineDurationSec || 4.0;
+
+    const interval = setInterval(() => {
+      setPanelTimelineTime((prev) => {
+        const next = Math.round((prev + 0.1) * 10) / 10;
+        if (next >= duration) {
+          return 0; // Loop panel animation!
+        }
+        return next;
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isPanelTimelinePlaying, deepEditPanelIdx, activePanelIdx, nestedPanelDocs]);
+
+  // ── Escape Key to Exit Deep Edit Mode ──
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && deepEditPanelIdx !== null) {
+        setDeepEditPanelIdx(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [deepEditPanelIdx]);
 
   // ── Cinemagraph Animation Loop ──
   useEffect(() => {
@@ -607,7 +736,136 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     }
   };
 
-  // ── Story Magic Folio Actions (Design 2: Context-Aware Storybook Authoring) ──
+  // ── Nested Panel Documents & Timeline Animation Handlers ──
+  const handleAddPanelLayer = (panelIdx: number) => {
+    const doc = nestedPanelDocs[panelIdx];
+    if (!doc) return;
+    const newLayerId = `layer_${panelIdx}_custom_${Date.now()}`;
+    const newLayer: PanelAnimationLayer = {
+      id: newLayerId,
+      name: `Layer ${doc.layers.length + 1}: Inks / Effects`,
+      type: 'ink',
+      visible: true,
+      locked: false,
+      opacity: 1.0,
+      x: 0,
+      y: 0,
+      scale: 1.0,
+      rotation: 0,
+      keyframes: [
+        { id: `kf_${Date.now()}_0`, timeSec: 0.0, properties: { opacity: 1, scale: 1.0 } },
+      ],
+    };
+    setNestedPanelDocs((prev) => ({
+      ...prev,
+      [panelIdx]: {
+        ...doc,
+        layers: [...doc.layers, newLayer],
+      },
+    }));
+    setActiveLayerId(newLayerId);
+  };
+
+  const handleToggleLayerVisibility = (panelIdx: number, layerId: string) => {
+    const doc = nestedPanelDocs[panelIdx];
+    if (!doc) return;
+    setNestedPanelDocs((prev) => ({
+      ...prev,
+      [panelIdx]: {
+        ...doc,
+        layers: doc.layers.map((l) => (l.id === layerId ? { ...l, visible: !l.visible } : l)),
+      },
+    }));
+  };
+
+  const handleToggleLayerLock = (panelIdx: number, layerId: string) => {
+    const doc = nestedPanelDocs[panelIdx];
+    if (!doc) return;
+    setNestedPanelDocs((prev) => ({
+      ...prev,
+      [panelIdx]: {
+        ...doc,
+        layers: doc.layers.map((l) => (l.id === layerId ? { ...l, locked: !l.locked } : l)),
+      },
+    }));
+  };
+
+  const handleAddKeyframe = (panelIdx: number, layerId: string | null, timeSec: number) => {
+    const doc = nestedPanelDocs[panelIdx];
+    if (!doc) return;
+    const targetLayerId = layerId || doc.layers[0]?.id;
+    if (!targetLayerId) return;
+
+    const newKeyframe: PanelKeyframe = {
+      id: `kf_${Date.now()}`,
+      timeSec: Math.round(timeSec * 10) / 10,
+      properties: {
+        scale: 1.05,
+        opacity: 1.0,
+        x: 0,
+        y: 0,
+        shakeIntensity: 0,
+      },
+      easing: 'ease_out',
+    };
+
+    setNestedPanelDocs((prev) => ({
+      ...prev,
+      [panelIdx]: {
+        ...doc,
+        layers: doc.layers.map((l) =>
+          l.id === targetLayerId
+            ? {
+                ...l,
+                keyframes: [...l.keyframes.filter((k) => Math.abs(k.timeSec - timeSec) > 0.1), newKeyframe].sort(
+                  (a, b) => a.timeSec - b.timeSec
+                ),
+              }
+            : l
+        ),
+      },
+    }));
+  };
+
+  // ── Story Magic Folio & Sequential Living Templates Handlers ──
+  const handleLoadStorybookTemplate = (bookId: string) => {
+    const book = platformStorybooks.find((b) => b.id === bookId);
+    if (!book) return;
+    setSelectedStorybookTemplateId(bookId);
+    const context = convertShowcaseBookToStorybookContext(book);
+    setStorybookContext(context);
+    setActiveSpreadIndex(0);
+    if (context.spreads[0]) {
+      setStoryInputText(context.spreads[0].rightPageProse);
+    }
+    const newStickers = context.cast.slice(0, 3).map((c, i) => ({
+      id: `stk_${Date.now()}_${i}`,
+      name: c.name,
+      emoji: c.emoji,
+      quote: c.quote,
+      xPct: 25 + i * 25,
+      yPct: 45 + (i % 2) * 15,
+    }));
+    setDroppedStickers(newStickers);
+  };
+
+  const handleLoadComicTemplate = (comicId: string) => {
+    const comic = platformComics.find((c) => c.id === comicId);
+    if (!comic) return;
+    setSelectedComicTemplateId(comicId);
+    const newPage = convertShowcaseComicToStudioPage(comic, 0);
+    setPage(newPage);
+    setActivePanelIdx(0);
+  };
+
+  const handleSpreadChange = (newIdx: number) => {
+    if (newIdx < 0 || newIdx >= storybookContext.spreads.length) return;
+    setActiveSpreadIndex(newIdx);
+    if (storybookContext.spreads[newIdx]) {
+      setStoryInputText(storybookContext.spreads[newIdx].rightPageProse);
+    }
+  };
+
   const handleMagicStoryWand = () => {
     const analyzed = analyzeStorybookDocumentContext(storyInputText, page.title);
     setStorybookContext(analyzed);
@@ -908,6 +1166,42 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
               <Bookmark size={13} />
               <span>Import Lorea Script!</span>
             </button>
+          )}
+
+          {/* Living Comic & Manga Template Selector */}
+          {studioMode === 'MASTER_SEQUENTIAL' && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                padding: '3px 10px',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+              }}
+            >
+              <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>⚡ Comic:</span>
+              <select
+                value={selectedComicTemplateId}
+                onChange={(e) => handleLoadComicTemplate(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                {platformComics.map((c) => (
+                  <option key={c.id} value={c.id} style={{ background: '#12141f', color: '#fff' }}>
+                    {c.title} ({c.genre})
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Sequential Play Motion Comic */}
@@ -1299,6 +1593,25 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
               Motion FX
             </button>
             <button
+              onClick={() => setActiveTab('PANEL_TIMELINE')}
+              style={{
+                padding: '6px 10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: activeTab === 'PANEL_TIMELINE' ? '#212638' : 'transparent',
+                color: activeTab === 'PANEL_TIMELINE' ? 'var(--pj-cyan)' : '#94a3b8',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <FolderPlus size={11} />
+              <span>Layers & TL</span>
+            </button>
+            <button
               onClick={() => setActiveTab('LOREA_SCRIPT')}
               style={{
                 padding: '6px 10px',
@@ -1603,6 +1916,175 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
               </div>
             )}
 
+            {/* 1B. PANEL TIMELINE & NESTED LAYERS INSPECTOR */}
+            {activeTab === 'PANEL_TIMELINE' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FolderPlus size={15} color="var(--pj-cyan)" />
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#fff' }}>
+                      Panel {activePanelIdx + 1} Nested Tela Doc
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setDeepEditPanelIdx(activePanelIdx)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(0, 218, 243, 0.15)',
+                      border: '1px solid var(--pj-cyan)',
+                      color: 'var(--pj-cyan)',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Maximize2 size={11} />
+                    <span>Deep Edit Canvas</span>
+                  </button>
+                </div>
+
+                <div style={{ padding: '6px 8px', borderRadius: '4px', backgroundColor: '#141724', border: '1px solid #232838', fontSize: '10px' }}>
+                  <div style={{ color: '#94a3b8' }}>
+                    Nested Doc ID: <span style={{ color: 'var(--pj-cyan)', fontWeight: 600 }}>{nestedPanelDocs[activePanelIdx]?.docId || `doc_p${activePanelIdx + 1}`}</span>
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: '9px', marginTop: '2px' }}>
+                    Functions like a Smart Object / Nested Page in Tela scene graph.
+                  </div>
+                </div>
+
+                {/* Layer Stacks */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                      Multi-Track Layers ({nestedPanelDocs[activePanelIdx]?.layers.length || 0}):
+                    </span>
+                    <button
+                      onClick={() => handleAddPanelLayer(activePanelIdx)}
+                      style={{
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        backgroundColor: '#1b2030',
+                        border: '1px solid #2e364e',
+                        color: 'var(--pj-cyan)',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      + Add Layer
+                    </button>
+                  </div>
+
+                  {(nestedPanelDocs[activePanelIdx]?.layers || []).map((layer) => {
+                    const isSelected = activeLayerId === layer.id;
+                    return (
+                      <div
+                        key={layer.id}
+                        onClick={() => setActiveLayerId(layer.id)}
+                        style={{
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: isSelected ? 'rgba(0, 218, 243, 0.12)' : '#141724',
+                          border: isSelected ? '1.5px solid var(--pj-cyan)' : '1px solid #232838',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleLayerVisibility(activePanelIdx, layer.id);
+                            }}
+                            style={{ background: 'none', border: 'none', color: layer.visible ? '#38bdf8' : '#64748b', cursor: 'pointer', padding: 0 }}
+                          >
+                            {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleLayerLock(activePanelIdx, layer.id);
+                            }}
+                            style={{ background: 'none', border: 'none', color: layer.locked ? '#f59e0b' : '#64748b', cursor: 'pointer', padding: 0 }}
+                          >
+                            <Lock size={12} />
+                          </button>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: layer.visible ? '#fff' : '#64748b' }}>
+                            {layer.name}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', backgroundColor: '#0d1017', color: 'var(--pj-cyan)' }}>
+                          {layer.keyframes.length} kf
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Timeline Transport for Selected Panel */}
+                <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#141724', border: '1px solid #232838', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px' }}>
+                    <span style={{ color: '#94a3b8' }}>Scrub Time:</span>
+                    <span style={{ color: 'var(--pj-cyan)', fontWeight: 700 }}>
+                      {panelTimelineTime.toFixed(1)}s / {(nestedPanelDocs[activePanelIdx]?.timelineDurationSec || 4.0).toFixed(1)}s
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => setIsPanelTimelinePlaying(!isPanelTimelinePlaying)}
+                      style={{
+                        flex: 1,
+                        padding: '6px',
+                        borderRadius: '4px',
+                        backgroundColor: isPanelTimelinePlaying ? '#d40055' : '#22c55e',
+                        border: 'none',
+                        color: '#fff',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      {isPanelTimelinePlaying ? <Pause size={12} /> : <Play size={12} />}
+                      <span>{isPanelTimelinePlaying ? 'Pause' : 'Play Timeline'}</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddKeyframe(activePanelIdx, activeLayerId, panelTimelineTime)}
+                      style={{
+                        flex: 1,
+                        padding: '6px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(0, 218, 243, 0.15)',
+                        border: '1px solid var(--pj-cyan)',
+                        color: 'var(--pj-cyan)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Key size={12} />
+                      <span>+ Keyframe</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 2. LOREA SCRIPT & COMIC AUTHORING INTEGRATION */}
             {activeTab === 'LOREA_SCRIPT' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1843,8 +2325,560 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                   filter: isBlackAndWhite ? 'grayscale(100%) contrast(120%)' : 'none',
                 }}
               >
-                {/* 1A. Page Grid View */}
-                {sequentialView === 'PAGE_GRID' ? (
+                {/* Check if Creator is in Full-Page Deep Edit (Nested Tela Document Page) */}
+                {deepEditPanelIdx !== null ? (
+                  /* ── FULL-PAGE PANEL DEEP EDIT CANVAS (NESTED TELA DOCUMENT PAGE) ── */
+                  (() => {
+                    const deepPanel = page.panels[deepEditPanelIdx];
+                    if (!deepPanel) return null;
+                    const deepDoc = nestedPanelDocs[deepEditPanelIdx] || createDefaultNestedPanelDoc(deepPanel, deepEditPanelIdx, page.id);
+                    const deepMotion = panelMotions[deepEditPanelIdx] || DEFAULT_PANEL_MOTION_CONFIG;
+                    const deepTransform = panelTransforms[deepEditPanelIdx] || DEFAULT_PANEL_IMAGE_TRANSFORM;
+
+                    // Layer keyframes interpolation based on panelTimelineTime
+                    const bgLayer = deepDoc.layers.find((l) => l.type === 'background') || deepDoc.layers[0];
+                    const bgKf = bgLayer ? getInterpolatedKeyframe(bgLayer.keyframes, panelTimelineTime) : { scale: 1, opacity: 1, x: 0, y: 0, shakeIntensity: 0 };
+
+                    const inkLayer = deepDoc.layers.find((l) => l.type === 'ink');
+                    const inkKf = inkLayer ? getInterpolatedKeyframe(inkLayer.keyframes, panelTimelineTime) : { scale: 1, opacity: 1, x: 0, y: 0, shakeIntensity: 0 };
+
+                    const charLayer = deepDoc.layers.find((l) => l.type === 'character');
+                    const charKf = charLayer ? getInterpolatedKeyframe(charLayer.keyframes, panelTimelineTime) : { scale: 1, opacity: 1, x: 0, y: 0, shakeIntensity: 0 };
+
+                    const balloonLayer = deepDoc.layers.find((l) => l.type === 'balloon');
+                    const balloonKf = balloonLayer ? getInterpolatedKeyframe(balloonLayer.keyframes, panelTimelineTime) : { scale: 1, opacity: 1, x: 0, y: 0, shakeIntensity: 0 };
+
+                    const sfxLayer = deepDoc.layers.find((l) => l.type === 'sfx_lettering');
+                    const sfxKf = sfxLayer ? getInterpolatedKeyframe(sfxLayer.keyframes, panelTimelineTime) : { scale: 1, opacity: 1, x: 0, y: 0, shakeIntensity: 0 };
+
+                    const fxLayer = deepDoc.layers.find((l) => l.type === 'cinemagraph_fx');
+
+                    const shakeTransform = (bgKf.shakeIntensity || 0) > 0
+                      ? `translate(${(Math.random() - 0.5) * (bgKf.shakeIntensity || 0) * 6}px, ${(Math.random() - 0.5) * (bgKf.shakeIntensity || 0) * 6}px)`
+                      : '';
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: '10px 14px', gap: '10px' }}>
+                        {/* Deep Edit Top Control & Breadcrumbs Bar */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 14px',
+                            backgroundColor: '#0c0f18',
+                            borderRadius: '8px',
+                            border: '1px solid #1e2438',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                          }}
+                        >
+                          {/* Left: Back Button & Breadcrumbs */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <button
+                              onClick={() => setDeepEditPanelIdx(null)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                backgroundColor: '#1b2032',
+                                border: '1px solid #2d3652',
+                                color: '#fff',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title="Return to Master Comic Page (Esc)"
+                            >
+                              <ArrowLeft size={14} />
+                              <span>Back to Comic Page</span>
+                            </button>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#94a3b8' }}>
+                              <span style={{ color: '#cbd5e1' }}>{page.title || 'Master Comic'}</span>
+                              <span>›</span>
+                              <span>Page {page.pageNumber || 1}</span>
+                              <span>›</span>
+                              <span style={{ color: 'var(--pj-cyan)', fontWeight: 700 }}>
+                                Panel {deepEditPanelIdx + 1} ({deepDoc.title})
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(0, 218, 243, 0.1)',
+                                border: '1px solid rgba(0, 218, 243, 0.3)',
+                                color: 'var(--pj-cyan)',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <FolderPlus size={11} />
+                              <span>Nested Doc: {deepDoc.docId}</span>
+                            </div>
+
+                            <div
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                border: '1px solid rgba(34, 197, 94, 0.3)',
+                                color: '#4ade80',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                              }}
+                            >
+                              ✨ Live-Synced Smart Object
+                            </div>
+                          </div>
+
+                          {/* Right: Transport Controls & Inking Tool Bar */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              onClick={() => setIsPanelTimelinePlaying(!isPanelTimelinePlaying)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '5px 10px',
+                                borderRadius: '5px',
+                                backgroundColor: isPanelTimelinePlaying ? '#d40055' : '#16a34a',
+                                border: 'none',
+                                color: '#fff',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {isPanelTimelinePlaying ? <Pause size={12} /> : <Play size={12} />}
+                              <span>{isPanelTimelinePlaying ? 'Pause' : 'Play Timeline'}</span>
+                            </button>
+
+                            <span style={{ fontSize: '11px', color: 'var(--pj-cyan)', fontWeight: 700 }}>
+                              {panelTimelineTime.toFixed(1)}s / {deepDoc.timelineDurationSec.toFixed(1)}s
+                            </span>
+
+                            <div style={{ height: '18px', width: '1px', backgroundColor: '#262d42', margin: '0 4px' }} />
+
+                            <button
+                              onClick={() => setActiveTool('SELECT')}
+                              style={{
+                                padding: '5px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: activeTool === 'SELECT' ? '#22283a' : 'transparent',
+                                border: activeTool === 'SELECT' ? '1px solid var(--pj-cyan)' : '1px solid transparent',
+                                color: activeTool === 'SELECT' ? 'var(--pj-cyan)' : '#94a3b8',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                              }}
+                              title="Select / Move Tool"
+                            >
+                              <Move size={13} />
+                            </button>
+                            <button
+                              onClick={() => setActiveTool('BRUSH')}
+                              style={{
+                                padding: '5px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: activeTool === 'BRUSH' ? '#22283a' : 'transparent',
+                                border: activeTool === 'BRUSH' ? '1px solid var(--pj-cyan)' : '1px solid transparent',
+                                color: activeTool === 'BRUSH' ? 'var(--pj-cyan)' : '#94a3b8',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                              }}
+                              title="Autodesk Inking Brush"
+                            >
+                              <PenTool size={13} />
+                            </button>
+                            <button
+                              onClick={() => setActiveTool('ERASER')}
+                              style={{
+                                padding: '5px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: activeTool === 'ERASER' ? '#22283a' : 'transparent',
+                                border: activeTool === 'ERASER' ? '1px solid var(--pj-cyan)' : '1px solid transparent',
+                                color: activeTool === 'ERASER' ? 'var(--pj-cyan)' : '#94a3b8',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                              }}
+                              title="Hard Eraser"
+                            >
+                              <Scissors size={13} />
+                            </button>
+
+                            <input
+                              type="color"
+                              value={brushColor}
+                              onChange={(e) => setBrushColor(e.target.value)}
+                              style={{ width: '22px', height: '22px', borderRadius: '4px', border: 'none', cursor: 'pointer', background: 'none' }}
+                              title="Brush Inking Color"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Deep Edit Main Staging Area: Canvas + Layer Stack */}
+                        <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: '16px', alignItems: 'center', justifyContent: 'center' }}>
+                          {/* Central High-Res Deep Edit Canvas */}
+                          <div
+                            style={{
+                              width: '540px',
+                              height: '540px',
+                              backgroundColor: '#0a0d14',
+                              borderRadius: '8px',
+                              border: '2px solid var(--pj-cyan)',
+                              boxShadow: '0 20px 60px rgba(0, 218, 243, 0.25), 0 0 100px rgba(0,0,0,0.9)',
+                              position: 'relative',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {/* Layer 1: Background Plate with Keyframed Transforms */}
+                            {bgLayer?.visible && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  opacity: bgKf.opacity ?? 1,
+                                  transform: `${shakeTransform} translate(${(deepTransform.xOffsetPct + bgKf.x)}%, ${(deepTransform.yOffsetPct + bgKf.y)}%) scale(${deepTransform.scale * bgKf.scale}) rotate(${deepTransform.rotationDeg}deg) scaleX(${deepTransform.flipX ? -1 : 1})`,
+                                  transition: isPanelTimelinePlaying ? 'none' : 'transform 0.2s ease',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                {deepMotion.mediaType === 'video' && deepMotion.videoUrl ? (
+                                  <video
+                                    src={deepMotion.videoUrl}
+                                    autoPlay
+                                    loop
+                                    muted
+                                    playsInline
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                ) : deepPanel.renderedImageUrl ? (
+                                  <img
+                                    src={deepPanel.renderedImageUrl}
+                                    alt={deepPanel.actionPrompt}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
+                                    <ImageIcon size={24} />
+                                    <span style={{ marginLeft: '8px' }}>{deepPanel.actionPrompt || `Panel ${deepEditPanelIdx + 1} Artwork Plate`}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Layer 2: 60 LPI Screentone Overlay */}
+                            {(isScreentoneEnabled || deepPanel.screentone?.enabled) && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  pointerEvents: 'none',
+                                  zIndex: 5,
+                                  opacity: 0.25,
+                                  backgroundImage:
+                                    screentonePattern === 'dots_fine'
+                                      ? 'radial-gradient(circle, #000 1.5px, transparent 1.5px)'
+                                      : screentonePattern === 'speed_lines'
+                                      ? 'repeating-linear-gradient(90deg, #000 0, #000 2px, transparent 2px, transparent 8px)'
+                                      : 'radial-gradient(circle, #000 2.5px, transparent 2.5px)',
+                                  backgroundSize: screentonePattern === 'speed_lines' ? '12px 100%' : '8px 8px',
+                                }}
+                              />
+                            )}
+
+                            {/* Layer 3: Perspective Guide Overlay */}
+                            {perspectiveMode !== 'OFF' && (
+                              <svg
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  pointerEvents: 'none',
+                                  zIndex: 6,
+                                  opacity: 0.45,
+                                }}
+                              >
+                                {perspectiveMode === '1_POINT' && (
+                                  <>
+                                    <line x1="0%" y1="50%" x2="100%" y2="50%" stroke="var(--pj-cyan)" strokeWidth="1" strokeDasharray="4 4" />
+                                    <circle cx="50%" cy="50%" r="4" fill="var(--pj-cyan)" />
+                                    {[0, 25, 50, 75, 100].map((x) => (
+                                      <React.Fragment key={x}>
+                                        <line x1="50%" y1="50%" x2={`${x}%`} y2="0%" stroke="var(--pj-cyan)" strokeWidth="0.8" />
+                                        <line x1="50%" y1="50%" x2={`${x}%`} y2="100%" stroke="var(--pj-cyan)" strokeWidth="0.8" />
+                                      </React.Fragment>
+                                    ))}
+                                  </>
+                                )}
+                                {perspectiveMode === 'SYMMETRY_Y' && (
+                                  <line x1="50%" y1="0%" x2="50%" y2="100%" stroke="var(--pj-cyan)" strokeWidth="1.5" strokeDasharray="6 4" />
+                                )}
+                              </svg>
+                            )}
+
+                            {/* Layer 4: Cinemagraph Particle Overlay Canvas */}
+                            {fxLayer?.visible && deepMotion.enabled && deepMotion.cinemagraphEffect !== 'none' && (
+                              <canvas
+                                ref={(el) => (cinemagraphCanvasRefs.current[deepEditPanelIdx] = el)}
+                                width={540}
+                                height={540}
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  pointerEvents: 'none',
+                                  zIndex: 7,
+                                }}
+                              />
+                            )}
+
+                            {/* Layer 5: Autodesk Sketchbook Inking Canvas */}
+                            {inkLayer?.visible && (
+                              <canvas
+                                ref={(el) => (canvasRefs.current[deepEditPanelIdx] = el)}
+                                width={540}
+                                height={540}
+                                onPointerDown={(e) => startDrawing(e, deepEditPanelIdx)}
+                                onPointerMove={(e) => drawMove(e, deepEditPanelIdx)}
+                                onPointerUp={stopDrawing}
+                                onPointerLeave={stopDrawing}
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  pointerEvents: activeTool === 'BRUSH' || activeTool === 'ERASER' ? 'auto' : 'none',
+                                  zIndex: 8,
+                                  opacity: inkKf.opacity ?? 1,
+                                  transform: `translate(${inkKf.x}px, ${inkKf.y}px) scale(${inkKf.scale})`,
+                                }}
+                              />
+                            )}
+
+                            {/* Layer 6: Speech Balloons and Sound Effects */}
+                            {deepPanel.balloons.map((balloon) => {
+                              const isBubbleActive = audioSpeechActiveId === balloon.id;
+                              const isSfx = balloon.type === 'sfx';
+                              const isVisible = isSfx ? sfxLayer?.visible !== false : balloonLayer?.visible !== false;
+                              if (!isVisible) return null;
+
+                              const layerKf = isSfx ? sfxKf : balloonKf;
+
+                              return (
+                                <div
+                                  key={balloon.id}
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${balloon.xPct}%`,
+                                    top: `${balloon.yPct}%`,
+                                    transform: `translate(-50%, -50%) translate(${layerKf.x}px, ${layerKf.y}px) scale(${layerKf.scale})`,
+                                    opacity: layerKf.opacity ?? 1,
+                                    zIndex: 10,
+                                    cursor: 'move',
+                                  }}
+                                >
+                                  {isSfx ? (
+                                    <div
+                                      style={{
+                                        fontFamily: 'Impact, sans-serif',
+                                        fontSize: `${24 * (balloon.sfxScale || 1)}px`,
+                                        fontWeight: 900,
+                                        fontStyle: 'italic',
+                                        color: balloon.sfxColor || '#ff0055',
+                                        textShadow: '3px 3px 0px #000',
+                                        letterSpacing: '1px',
+                                        transform: 'rotate(-6deg)',
+                                      }}
+                                    >
+                                      {balloon.text}
+                                    </div>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        backgroundColor: '#ffffff',
+                                        color: '#000000',
+                                        padding: '8px 14px',
+                                        borderRadius: balloon.type === 'thought' ? '20px' : '10px',
+                                        border: isBubbleActive ? '2.5px solid #22c55e' : '2px solid #000000',
+                                        boxShadow: '0 6px 16px rgba(0,0,0,0.4)',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        maxWidth: '200px',
+                                        lineHeight: 1.3,
+                                        textAlign: 'center',
+                                      }}
+                                    >
+                                      {balloon.text}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Right: Nested Panel Document Layers Inspector (Smart Object Stack) */}
+                          <div
+                            style={{
+                              width: '280px',
+                              height: '540px',
+                              backgroundColor: '#0c0f18',
+                              borderRadius: '8px',
+                              border: '1px solid #1e2438',
+                              boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              padding: '12px',
+                              gap: '10px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Layers size={15} color="var(--pj-cyan)" />
+                                <span style={{ fontWeight: 700, fontSize: '12px', color: '#fff' }}>
+                                  Smart Object Layers
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => handleAddPanelLayer(deepEditPanelIdx)}
+                                style={{
+                                  padding: '3px 7px',
+                                  borderRadius: '4px',
+                                  backgroundColor: '#1c2236',
+                                  border: '1px solid #2f3a5a',
+                                  color: 'var(--pj-cyan)',
+                                  fontSize: '9px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                + Add Layer
+                              </button>
+                            </div>
+
+                            <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+                              Panel {deepEditPanelIdx + 1} functions as an isolated Tela sub-document page with individual multi-track keyframes.
+                            </div>
+
+                            {/* Layer Stack Items */}
+                            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {deepDoc.layers.map((layer) => {
+                                const isSelected = activeLayerId === layer.id;
+                                return (
+                                  <div
+                                    key={layer.id}
+                                    onClick={() => setActiveLayerId(layer.id)}
+                                    style={{
+                                      padding: '8px 10px',
+                                      borderRadius: '6px',
+                                      backgroundColor: isSelected ? 'rgba(0, 218, 243, 0.12)' : '#121624',
+                                      border: isSelected ? '1.5px solid var(--pj-cyan)' : '1px solid #20263a',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '4px',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleLayerVisibility(deepEditPanelIdx, layer.id);
+                                          }}
+                                          style={{ background: 'none', border: 'none', color: layer.visible ? '#38bdf8' : '#64748b', cursor: 'pointer', padding: 0 }}
+                                        >
+                                          {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleLayerLock(deepEditPanelIdx, layer.id);
+                                          }}
+                                          style={{ background: 'none', border: 'none', color: layer.locked ? '#f59e0b' : '#64748b', cursor: 'pointer', padding: 0 }}
+                                        >
+                                          <Lock size={12} />
+                                        </button>
+                                        <span style={{ fontSize: '11px', fontWeight: 600, color: layer.visible ? '#fff' : '#64748b' }}>
+                                          {layer.name}
+                                        </span>
+                                      </div>
+                                      <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', backgroundColor: '#090b12', color: 'var(--pj-cyan)' }}>
+                                        {layer.keyframes.length} kf
+                                      </span>
+                                    </div>
+
+                                    {/* Keyframe time markers */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', color: '#64748b' }}>
+                                      <span>Keyframes:</span>
+                                      {layer.keyframes.map((kf, ki) => (
+                                        <span key={ki} style={{ color: Math.abs(kf.timeSec - panelTimelineTime) < 0.2 ? 'var(--pj-cyan)' : '#94a3b8', fontWeight: 600 }}>
+                                          ◆ {kf.timeSec}s
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Quick Actions */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #1e2438', paddingTop: '8px' }}>
+                              <button
+                                onClick={() => handleAddKeyframe(deepEditPanelIdx, activeLayerId, panelTimelineTime)}
+                                style={{
+                                  width: '100%',
+                                  padding: '7px',
+                                  borderRadius: '5px',
+                                  backgroundColor: 'rgba(0, 218, 243, 0.15)',
+                                  border: '1px solid var(--pj-cyan)',
+                                  color: 'var(--pj-cyan)',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '5px',
+                                }}
+                              >
+                                <Key size={12} />
+                                <span>+ Keyframe at {panelTimelineTime.toFixed(1)}s</span>
+                              </button>
+
+                              <button
+                                onClick={() => setDeepEditPanelIdx(null)}
+                                style={{
+                                  width: '100%',
+                                  padding: '7px',
+                                  borderRadius: '5px',
+                                  backgroundColor: '#181e2e',
+                                  border: '1px solid #2b354e',
+                                  color: '#cbd5e1',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Done Editing Panel (Esc)
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : sequentialView === 'PAGE_GRID' ? (
                   <div
                     style={{
                       width: '560px',
@@ -1878,6 +2912,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                         <div
                           key={panel.id}
                           onClick={() => setActivePanelIdx(idx)}
+                          onDoubleClick={() => setDeepEditPanelIdx(idx)}
                           style={{
                             position: 'absolute',
                             left: `${box.xPct}%`,
@@ -1892,6 +2927,59 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                             transition: 'all 0.3s ease-out',
                           }}
                         >
+                          {/* Nested Tela Document Badge & Deep Edit Action */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '6px',
+                              right: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              zIndex: 25,
+                            }}
+                          >
+                            <div
+                              style={{
+                                padding: '2px 5px',
+                                borderRadius: '3px',
+                                backgroundColor: 'rgba(8, 10, 16, 0.85)',
+                                border: '1px solid rgba(0, 218, 243, 0.4)',
+                                color: 'var(--pj-cyan)',
+                                fontSize: '8px',
+                                fontWeight: 700,
+                                backdropFilter: 'blur(4px)',
+                              }}
+                              title="Nested Tela Document Page (Smart Object)"
+                            >
+                              📄 P{idx + 1}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeepEditPanelIdx(idx);
+                              }}
+                              style={{
+                                padding: '2px 6px',
+                                borderRadius: '3px',
+                                backgroundColor: isSelected ? 'var(--pj-cyan)' : 'rgba(16, 20, 32, 0.9)',
+                                border: '1px solid var(--pj-cyan)',
+                                color: isSelected ? '#000' : 'var(--pj-cyan)',
+                                fontSize: '8px',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                              }}
+                              title="Enter Full-Page Deep Edit (Nested Tela Doc)"
+                            >
+                              <FolderPlus size={9} />
+                              <span>Deep Edit</span>
+                            </button>
+                          </div>
+
                           {/* Media: Video or Still */}
                           {motion.mediaType === 'video' && motion.videoUrl ? (
                             <video
@@ -2097,6 +3185,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                       <div
                         key={panel.id}
                         onClick={() => setActivePanelIdx(idx)}
+                        onDoubleClick={() => setDeepEditPanelIdx(idx)}
                         style={{
                           width: '100%',
                           height: '380px',
@@ -2109,6 +3198,55 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                           boxShadow: '0 10px 30px rgba(0,0,0,0.7)',
                         }}
                       >
+                        {/* Top-Right Nested Doc Pill & Deep Edit Button */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '10px',
+                            right: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            zIndex: 25,
+                          }}
+                        >
+                          <div
+                            style={{
+                              padding: '3px 7px',
+                              borderRadius: '4px',
+                              backgroundColor: 'rgba(8, 10, 16, 0.85)',
+                              border: '1px solid rgba(0, 218, 243, 0.4)',
+                              color: 'var(--pj-cyan)',
+                              fontSize: '9px',
+                              fontWeight: 700,
+                            }}
+                          >
+                            📄 Nested Doc P{idx + 1}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeepEditPanelIdx(idx);
+                            }}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: 'var(--pj-cyan)',
+                              border: 'none',
+                              color: '#000',
+                              fontSize: '9px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <FolderPlus size={10} />
+                            <span>Deep Edit</span>
+                          </button>
+                        </div>
+
                         {panel.renderedImageUrl ? (
                           <img src={panel.renderedImageUrl} alt={panel.actionPrompt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
@@ -2147,92 +3285,239 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                 <span style={{ fontSize: '9px', fontWeight: 800, color: '#fff', marginTop: '2px' }}>{brushSize}px</span>
               </div>
 
-              {/* Bottom Multi-Track Motion Comic Timeline Scrubber Bar */}
-              <div
-                style={{
-                  height: '70px',
-                  backgroundColor: '#0a0b12',
-                  borderTop: '1px solid #1c202e',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  padding: '6px 16px',
-                  gap: '4px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--pj-cyan)' }}>Motion Timeline</span>
-                    <span>
-                      {timelineCurrentTime.toFixed(1)}s / {timelineDuration}.0s
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '10px' }}>Active Beat: Panel {activePanelIdx + 1}</span>
-                </div>
+              {/* Bottom Multi-Track Timeline: Switches between Panel Layer Timeline & Master Motion Timeline */}
+              {deepEditPanelIdx !== null ? (
+                /* ── PANEL LAYER ANIMATION TIMELINE ── */
+                (() => {
+                  const deepDoc = nestedPanelDocs[deepEditPanelIdx] || createDefaultNestedPanelDoc(page.panels[deepEditPanelIdx], deepEditPanelIdx, page.id);
+                  const duration = deepDoc.timelineDurationSec || 4.0;
 
-                {/* Timeline Scrubber Track */}
-                <div
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                    setTimelineCurrentTime(Math.round(pct * timelineDuration * 10) / 10);
-                  }}
-                  style={{
-                    position: 'relative',
-                    height: '32px',
-                    backgroundColor: '#141724',
-                    borderRadius: '4px',
-                    border: '1px solid #252b3e',
-                    cursor: 'pointer',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {/* Track 1: Panels */}
-                  <div style={{ display: 'flex', height: '16px', width: '100%' }}>
-                    {page.panels.map((p, idx) => (
+                  return (
+                    <div
+                      style={{
+                        height: '110px',
+                        backgroundColor: '#07090f',
+                        borderTop: '1px solid #1a2030',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        padding: '6px 16px',
+                        gap: '4px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <FolderPlus size={12} color="var(--pj-cyan)" />
+                          <span style={{ fontWeight: 700, color: 'var(--pj-cyan)' }}>
+                            Panel {deepEditPanelIdx + 1} Layer Animation Timeline
+                          </span>
+                          <span>
+                            {panelTimelineTime.toFixed(1)}s / {duration.toFixed(1)}s
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            onClick={() => handleAddKeyframe(deepEditPanelIdx, activeLayerId, panelTimelineTime)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--pj-cyan)',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                          >
+                            <Key size={11} />
+                            <span>+ Keyframe at Scrub</span>
+                          </button>
+                          <span style={{ fontSize: '10px', color: '#64748b' }}>
+                            Active Layer: {deepDoc.layers.find((l) => l.id === activeLayerId)?.name || 'Default'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Multi-Track Scrubber for Nested Layers */}
                       <div
-                        key={p.id}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                          setPanelTimelineTime(Math.round(pct * duration * 10) / 10);
+                        }}
                         style={{
+                          position: 'relative',
                           flex: 1,
-                          backgroundColor: activePanelIdx === idx ? 'rgba(212, 0, 85, 0.4)' : 'rgba(107, 0, 153, 0.25)',
-                          borderRight: '1px solid #2c3348',
-                          fontSize: '9px',
+                          backgroundColor: '#10131e',
+                          borderRadius: '4px',
+                          border: '1px solid #1f2638',
+                          cursor: 'pointer',
+                          overflow: 'hidden',
                           display: 'flex',
-                          alignItems: 'center',
-                          paddingLeft: '6px',
-                          fontWeight: 700,
-                          color: activePanelIdx === idx ? '#fff' : '#94a3b8',
+                          flexDirection: 'column',
                         }}
                       >
-                        P{idx + 1} ({p.cameraShot})
+                        {deepDoc.layers.slice(0, 5).map((l, li) => (
+                          <div
+                            key={l.id}
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              borderBottom: li < 4 ? '1px solid #181d2a' : 'none',
+                              position: 'relative',
+                              backgroundColor: activeLayerId === l.id ? 'rgba(0, 218, 243, 0.05)' : 'transparent',
+                            }}
+                          >
+                            <div style={{ width: '120px', paddingLeft: '8px', fontSize: '9px', fontWeight: 600, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {l.name}
+                            </div>
+                            <div style={{ flex: 1, position: 'relative', height: '100%' }}>
+                              {l.keyframes.map((kf, ki) => (
+                                <div
+                                  key={ki}
+                                  style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: `${(kf.timeSec / duration) * 100}%`,
+                                    transform: 'translate(-50%, -50%) rotate(45deg)',
+                                    width: '7px',
+                                    height: '7px',
+                                    backgroundColor: 'var(--pj-cyan)',
+                                    boxShadow: '0 0 5px var(--pj-cyan)',
+                                    zIndex: 5,
+                                  }}
+                                  title={`Keyframe at ${kf.timeSec}s`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Scrubber Playhead Line */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            bottom: 0,
+                            left: `${(panelTimelineTime / duration) * 100}%`,
+                            width: '2px',
+                            backgroundColor: '#ff0055',
+                            boxShadow: '0 0 8px #ff0055',
+                            zIndex: 10,
+                          }}
+                        />
                       </div>
-                    ))}
+                    </div>
+                  );
+                })()
+              ) : (
+                /* ── MASTER MOTION COMIC TIMELINE SCRUBBER BAR ── */
+                <div
+                  style={{
+                    height: '70px',
+                    backgroundColor: '#0a0b12',
+                    borderTop: '1px solid #1c202e',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '6px 16px',
+                    gap: '4px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--pj-cyan)' }}>Motion Timeline</span>
+                      <span>
+                        {timelineCurrentTime.toFixed(1)}s / {timelineDuration}.0s
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '10px' }}>Active Beat: Panel {activePanelIdx + 1}</span>
+                      <button
+                        onClick={() => setDeepEditPanelIdx(activePanelIdx)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--pj-cyan)',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                        }}
+                      >
+                        <FolderPlus size={10} />
+                        <span>Open Layer TL (P{activePanelIdx + 1})</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Track 2: Dialogue & FX Waveform indicator */}
-                  <div style={{ display: 'flex', height: '16px', width: '100%', backgroundColor: '#0e111a' }}>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingLeft: '6px', fontSize: '8px', color: '#86efac' }}>
-                      🎙️ Silas Vane (Voice Take)
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingLeft: '6px', fontSize: '8px', color: '#38bdf8' }}>
-                      🌧️ Acid Rain FX
-                    </div>
-                  </div>
-
-                  {/* Playhead Marker */}
+                  {/* Timeline Scrubber Track */}
                   <div
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      bottom: 0,
-                      left: `${(timelineCurrentTime / timelineDuration) * 100}%`,
-                      width: '2px',
-                      backgroundColor: 'var(--pj-cyan)',
-                      boxShadow: '0 0 8px var(--pj-cyan)',
-                      zIndex: 10,
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                      setTimelineCurrentTime(Math.round(pct * timelineDuration * 10) / 10);
                     }}
-                  />
+                    style={{
+                      position: 'relative',
+                      height: '32px',
+                      backgroundColor: '#141724',
+                      borderRadius: '4px',
+                      border: '1px solid #252b3e',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* Track 1: Panels */}
+                    <div style={{ display: 'flex', height: '16px', width: '100%' }}>
+                      {page.panels.map((p, idx) => (
+                        <div
+                          key={p.id}
+                          style={{
+                            flex: 1,
+                            backgroundColor: activePanelIdx === idx ? 'rgba(212, 0, 85, 0.4)' : 'rgba(107, 0, 153, 0.25)',
+                            borderRight: '1px solid #2c3348',
+                            fontSize: '9px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            paddingLeft: '6px',
+                            fontWeight: 700,
+                            color: activePanelIdx === idx ? '#fff' : '#94a3b8',
+                          }}
+                        >
+                          P{idx + 1} ({p.cameraShot})
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Track 2: Dialogue & FX Waveform indicator */}
+                    <div style={{ display: 'flex', height: '16px', width: '100%', backgroundColor: '#0e111a' }}>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingLeft: '6px', fontSize: '8px', color: '#86efac' }}>
+                        🎙️ Silas Vane (Voice Take)
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingLeft: '6px', fontSize: '8px', color: '#38bdf8' }}>
+                        🌧️ Acid Rain FX
+                      </div>
+                    </div>
+
+                    {/* Playhead Marker */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: `${(timelineCurrentTime / timelineDuration) * 100}%`,
+                        width: '2px',
+                        backgroundColor: 'var(--pj-cyan)',
+                        boxShadow: '0 0 8px var(--pj-cyan)',
+                        zIndex: 10,
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -2251,13 +3536,15 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                   backgroundColor: 'rgba(255, 255, 255, 0.05)',
                   borderRadius: '12px',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
-                  marginBottom: '14px',
+                  marginBottom: '8px',
+                  flexWrap: 'wrap',
+                  gap: '8px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <Bookmark size={15} color="var(--pj-orange)" />
                   <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>
-                    Document Context: {storybookContext.documentTitle}
+                    Document: {storybookContext.documentTitle}
                   </span>
                   <span
                     style={{
@@ -2271,12 +3558,71 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                   >
                     {storybookContext.readingAgeTier.replace('_', ' ')}
                   </span>
+
+                  {/* Platform Living Storybook Template Selector */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}>
+                    <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 600 }}>📚 Living Template:</span>
+                    <select
+                      value={selectedStorybookTemplateId}
+                      onChange={(e) => handleLoadStorybookTemplate(e.target.value)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        cursor: 'pointer',
+                        outline: 'none',
+                      }}
+                    >
+                      {platformStorybooks.map((b) => (
+                        <option key={b.id} value={b.id} style={{ background: '#12141f', color: '#fff' }}>
+                          {b.title} (Ages {b.ageMin}-{b.ageMax} • {b.band})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* License & Medium Badges */}
+                  {storybookContext.remixAttribution && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                        color: '#4ade80',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        fontWeight: 700,
+                      }}
+                      title={storybookContext.remixAttribution}
+                    >
+                      CC BY 4.0 Remix
+                    </span>
+                  )}
+                  {storybookContext.medium && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                        color: '#c084fc',
+                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {storybookContext.medium}
+                    </span>
+                  )}
                 </div>
 
                 {/* Spread Navigation Controls */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button
-                    onClick={() => setActiveSpreadIndex(Math.max(0, activeSpreadIndex - 1))}
+                    onClick={() => handleSpreadChange(Math.max(0, activeSpreadIndex - 1))}
                     disabled={activeSpreadIndex === 0}
                     style={{
                       padding: '4px 8px',
@@ -2294,7 +3640,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                     Spread {activeSpreadIndex + 1} of {storybookContext.spreads.length}
                   </span>
                   <button
-                    onClick={() => setActiveSpreadIndex(Math.min(storybookContext.spreads.length - 1, activeSpreadIndex + 1))}
+                    onClick={() => handleSpreadChange(Math.min(storybookContext.spreads.length - 1, activeSpreadIndex + 1))}
                     disabled={activeSpreadIndex >= storybookContext.spreads.length - 1}
                     style={{
                       padding: '4px 8px',
@@ -2310,6 +3656,30 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                   </button>
                 </div>
               </div>
+
+              {/* Remix Guidance & Ideas Banner */}
+              {storybookContext.remixIdeas && storybookContext.remixIdeas.length > 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '4px 12px',
+                    backgroundColor: 'rgba(255, 140, 0, 0.08)',
+                    borderRadius: '8px',
+                    border: '1px dashed rgba(255, 140, 0, 0.25)',
+                    marginBottom: '10px',
+                    fontSize: '11px',
+                    color: '#fed7aa',
+                  }}
+                >
+                  <Sparkles size={13} color="var(--pj-orange)" />
+                  <span style={{ fontWeight: 700, color: 'var(--pj-orange)' }}>Remix Prompts:</span>
+                  <span style={{ opacity: 0.9 }}>
+                    {storybookContext.remixIdeas.slice(0, 2).join(' • ')}
+                  </span>
+                </div>
+              )}
 
               {/* Open 2-Page Storybook Folio Spread */}
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2429,7 +3799,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                         </div>
                       </div>
                       <h2 style={{ fontSize: '20px', fontWeight: 900, margin: '6px 0 2px 0', color: '#1f130b' }}>
-                        The Magic Pumpkin Garden
+                        {storybookContext.documentTitle.replace(' (Remix)', '')}
                       </h2>
                       {/* Lorea Hand-Drawn Wobbly Rule */}
                       <svg width="110" height="6" viewBox="0 0 110 6" style={{ margin: '4px 0 12px 0', opacity: 0.55 }}>
@@ -2437,8 +3807,17 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                       </svg>
                       <textarea
                         rows={7}
-                        value={currentSpread?.rightPageProse || storyInputText}
-                        onChange={(e) => setStoryInputText(e.target.value)}
+                        value={currentSpread?.rightPageProse ?? storyInputText}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStoryInputText(val);
+                          setStorybookContext((prev) => ({
+                            ...prev,
+                            spreads: prev.spreads.map((s, idx) =>
+                              idx === activeSpreadIndex ? { ...s, rightPageProse: val } : s
+                            ),
+                          }));
+                        }}
                         style={{
                           width: '100%',
                           backgroundColor: 'transparent',

@@ -322,5 +322,474 @@ console.log('🧪 Starting Anima Comprehensive Test Suite...\n');
   console.log('✅ 16. Plajah Kith Kaiju Mascots (Rello/Lumi & Chora/Lorik Articulated Rigs) verified');
 }
 
-console.log('\n🎉 ALL 16 ANIMA SYSTEM SUITES PASSED FLAWLESSLY!\n');
+// 17. AUTHENTIC CLASSIC CARTOON MODEL SHEETS & RIGS
+{
+  const { CLASSIC_CHARACTERS, getClassicCharacter, listClassicCharacters, instantiateClassicCharacterLayer } = await import('../services/anima/classicCharacters.ts');
+
+  const chars = listClassicCharacters();
+  assert.equal(chars.length, 5, 'Must contain all 5 authentic public domain characters');
+
+  // Steamboat Willie
+  const willie = getClassicCharacter('steamboat_willie');
+  assert.ok(willie, 'Steamboat Willie must exist');
+  assert.equal(willie.year, 1928);
+  assert.equal(willie.creator, 'Walt Disney & Ub Iwerks');
+  assert.equal(willie.cadence, 2, 'Willie animates on 2s');
+  assert.ok(willie.rig.walkCycle['bone.leg_l_foot.rot'], 'Must have authentic foot roll heel/toe keyframes');
+  assert.ok(willie.rig.walkCycle['bone.helm_wheel.rot'], 'Must have turning helm wheel keyframe track');
+
+  // Felix the Cat
+  const felix = getClassicCharacter('felix_the_cat') || getClassicCharacter('felix_cat');
+  assert.ok(felix, 'Felix the Cat must exist');
+  assert.equal(felix.year, 1919);
+  assert.equal(felix.creator, 'Otto Messmer & Pat Sullivan');
+  assert.ok(felix.rig.walkCycle['bone.tail_tip.rot'], 'Must have question-mark tail keyframes');
+  assert.ok(felix.rig.walkCycle['transform.rotationZ'], 'Must have signature 30-degree pacing torso tilt');
+
+  // Fleischer Jazz Flapper
+  const flapper = getClassicCharacter('fleischer_flapper');
+  assert.ok(flapper, 'Fleischer Jazz Flapper must exist');
+  assert.equal(flapper.year, 1930);
+  assert.ok(flapper.creator.includes('Fleischer'));
+  assert.ok(flapper.rig.walkCycle['bone.garter.y'], 'Must have garter bounce keyframes');
+  assert.ok(flapper.rig.walkCycle['bone.earring_l.rot'], 'Must have swinging gold hoop earring keyframes');
+
+  // Oswald the Lucky Rabbit
+  const oswald = getClassicCharacter('oswald_rabbit');
+  assert.ok(oswald, 'Oswald must exist');
+  assert.equal(oswald.year, 1927);
+  assert.ok(oswald.rig.walkCycle['bone.ear_l_mid.rot'], 'Must have floppy rubber ear secondary drag');
+
+  // Sailor Swagger
+  const sailor = getClassicCharacter('sailor_swagger');
+  assert.ok(sailor, 'Sailor Swagger must exist');
+  assert.ok(sailor.rig.walkCycle['bone.arm_l_lower.rot'], 'Must have bulging Popeye forearm swagger swing');
+
+  // Test layer instantiation
+  const layer = instantiateClassicCharacterLayer('steamboat_willie');
+  assert.ok(layer.name.includes('Steamboat'));
+  assert.ok(layer.bones.length >= 8);
+  assert.ok(layer.channels['bone.leg_l_foot.rot']);
+
+  console.log('✅ 17. Authentic Classic Cartoon Model Sheets & Rigs (Steamboat Willie, Felix, Fleischer, Oswald, Sailor) verified');
+}
+
+// 18. CHARACTER FACE ANIMATOR & TIMELINE BAKING
+{
+  const { CharacterFaceAnimator, bakeFacePerformanceToTimeline } = await import('../services/anima/faceAnimator.ts');
+
+  const animator = new CharacterFaceAnimator({ gain: 1.25, mirrorSelfie: true });
+
+  // Simulate a live video face frame with blendshapes & matrix
+  const mockFaceFrame = {
+    blendshapes: {
+      jawOpen: 0.7,
+      mouthSmileLeft: 0.8,
+      mouthSmileRight: 0.8,
+      eyeBlinkLeft: 0.95,
+      eyeBlinkRight: 0.05,
+      browInnerUp: 0.6,
+      mouthPucker: 0.4,
+    },
+    matrix: new Float32Array([
+      1, 0, 0, 0,
+      0, 0.98, -0.17, 0,
+      0, 0.17, 0.98, 0,
+      0, 0, 0, 1,
+    ]),
+    bbox: { x: 0.4, y: 0.3, w: 0.2, h: 0.25 },
+  };
+
+  animator.startRecording(0.0);
+  const perfFrame1 = animator.processFrame(mockFaceFrame, 0.0);
+  assert.ok(perfFrame1.blendshapes.jawOpen > 0);
+  assert.ok(perfFrame1.expressions.blinkLeft > 0.8);
+  assert.ok(perfFrame1.head.pitch !== undefined);
+
+  // Retarget to Kaiju
+  const kaijuPose = animator.retargetToKaiju(perfFrame1);
+  assert.ok(kaijuPose.eyeL < 0.2, 'Left eye should be closed from wink');
+  assert.ok(kaijuPose.eyeR > 0.8, 'Right eye should remain open');
+  assert.ok(kaijuPose.mouth > 0.5, 'Mouth should open');
+
+  // Retarget to Classic
+  const classicFace = animator.retargetToClassic(perfFrame1, 'steamboat_willie');
+  assert.ok(classicFace.mouthPucker > 0.5, 'Whistling pucker amplified for Steamboat Willie');
+  assert.ok(classicFace.eyeBlinkL > 0.9, 'Left eye blink captured');
+
+  // Record second frame and bake to timeline
+  const mockFaceFrame2 = {
+    blendshapes: { ...mockFaceFrame.blendshapes, jawOpen: 0.1, mouthSmileLeft: 0.2 },
+    matrix: mockFaceFrame.matrix,
+    bbox: mockFaceFrame.bbox,
+  };
+  animator.processFrame(mockFaceFrame2, 0.1);
+  const clip = animator.stopRecording('Test Lip Sync');
+  assert.equal(clip.frames.length, 2);
+
+  const testProject = {
+    id: 'proj_test',
+    name: 'Face Test',
+    fps: 24,
+    durationFrames: 48,
+    width: 1920,
+    height: 1080,
+    currentFrame: 0,
+    drawingBank: {},
+    layers: [
+      {
+        id: 'layer_hero',
+        name: 'Hero',
+        type: 'vector',
+        visible: true,
+        locked: false,
+        opacity: 1,
+        parentId: null,
+        transform: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1 },
+        channels: {},
+      },
+    ],
+    onionSkin: { enabled: false, prevFrames: 2, nextFrames: 1, prevColor: '', nextColor: '', opacityFalloff: 0.5 },
+    camera: { x: 0, y: 0, z: 0, zoom: 1, rotation: 0 },
+    selectedLayerId: 'layer_hero',
+    selectedBoneId: null,
+  };
+
+  const bakedProj = bakeFacePerformanceToTimeline(testProject, clip, 'layer_hero');
+  assert.ok(bakedProj.layers[0].channels['face.mouthOpen'], 'Must bake mouthOpen channel');
+  assert.ok(bakedProj.layers[0].channels['face.mouthOpen'].keyframes.length > 0);
+  assert.ok(bakedProj.layers[0].channels['face.eyeBlinkL']);
+
+  console.log('✅ 18. Character Face Animator (52 Blendshapes, Kaiju & Classic Retargeting, Timeline Baking) verified');
+}
+
+// 19. VIDEO-TO-RIG MOTION TRACKER & SKELETAL RETARGETING
+{
+  const { VideoMotionTracker, bakeMotionToTimeline, DEFAULT_BONE_MAPPING } = await import('../services/anima/videoMotionTracker.ts');
+
+  const tracker = new VideoMotionTracker({ mirrorSelfie: true, smoothingAlpha: 0.7 });
+
+  // Generate 33-point pose frame
+  const mockPts = Array.from({ length: 33 }, (_, i) => ({
+    x: 0.5 + Math.sin(i) * 0.1,
+    y: 0.1 + i * 0.025,
+    v: 0.95,
+  }));
+  // Custom shoulder, elbow, wrist coords to test arm angles
+  mockPts[11] = { x: 0.45, y: 0.3, v: 0.99 }; // shoulderL
+  mockPts[13] = { x: 0.35, y: 0.45, v: 0.99 }; // elbowL
+  mockPts[15] = { x: 0.35, y: 0.6, v: 0.99 }; // wristL
+  mockPts[23] = { x: 0.48, y: 0.55, v: 0.99 }; // hipL
+  mockPts[25] = { x: 0.48, y: 0.75, v: 0.99 }; // kneeL
+  mockPts[27] = { x: 0.48, y: 0.9, v: 0.99 }; // ankleL
+
+  tracker.startRecording();
+  const tracked1 = tracker.processFrame({ pts: mockPts }, 0.0);
+  assert.ok(tracked1);
+  assert.ok(typeof tracked1.angles.spineRot === 'number');
+  assert.ok(typeof tracked1.angles.armL_upperRot === 'number');
+  assert.ok(typeof tracked1.angles.legL_upperRot === 'number');
+
+  // Second frame
+  mockPts[13] = { x: 0.30, y: 0.40, v: 0.99 }; // moved arm
+  tracker.processFrame({ pts: mockPts }, 0.08);
+  const mocapClip = tracker.stopRecording('Dancer Walk');
+  assert.equal(mocapClip.frames.length, 2);
+
+  const riggedProject = {
+    id: 'proj_mocap',
+    name: 'Mocap Project',
+    fps: 24,
+    durationFrames: 48,
+    width: 1920,
+    height: 1080,
+    currentFrame: 0,
+    drawingBank: {},
+    layers: [
+      {
+        id: 'layer_puppet',
+        name: 'Puppet',
+        type: 'bone',
+        visible: true,
+        locked: false,
+        opacity: 1,
+        parentId: null,
+        transform: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1 },
+        bones: [
+          { id: 'b_spine', name: 'spine', parentId: null, length: 50, baseAngle: 0, pivot: [0,0,0] },
+          { id: 'b_arm_l', name: 'arm_l_upper', parentId: 'b_spine', length: 40, baseAngle: 0, pivot: [0,0,0] },
+          { id: 'b_leg_l', name: 'leg_l_upper', parentId: 'b_spine', length: 50, baseAngle: 0, pivot: [0,0,0] },
+        ],
+        channels: {},
+      },
+    ],
+    onionSkin: { enabled: false, prevFrames: 2, nextFrames: 1, prevColor: '', nextColor: '', opacityFalloff: 0.5 },
+    camera: { x: 0, y: 0, z: 0, zoom: 1, rotation: 0 },
+    selectedLayerId: 'layer_puppet',
+    selectedBoneId: null,
+  };
+
+  const bakedMocap = bakeMotionToTimeline(riggedProject, mocapClip, 'layer_puppet');
+  assert.ok(bakedMocap.layers[0].channels['bone.b_arm_l.rot'], 'Must bake arm_l_upper bone channel');
+  assert.ok(bakedMocap.layers[0].channels['bone.b_spine.rot'], 'Must bake spine bone channel');
+  assert.ok(bakedMocap.layers[0].channels['transform.x'], 'Must bake root translation');
+
+  console.log('✅ 19. Video-to-Rig Motion Tracker & Skeletal Retargeting verified');
+}
+
+// 20. MOTION CAPTURE DATA FILE LOADER (BVH, JSON, CSV)
+{
+  const { parseBVH, bvhToParsedMotion, parsePoseJSON, parseTrackerCSV, parseMotionFile, applyMotionDataToProject } = await import('../services/anima/motionDataLoader.ts');
+
+  // Test BVH parsing
+  const mockBVH = `HIERARCHY
+ROOT Hips
+{
+  OFFSET 0.00 0.00 0.00
+  CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation
+  JOINT Chest
+  {
+    OFFSET 0.00 20.00 0.00
+    CHANNELS 3 Zrotation Xrotation Yrotation
+    End Site
+    {
+      OFFSET 0.00 15.00 0.00
+    }
+  }
+}
+MOTION
+Frames: 2
+Frame Time: 0.0333333
+0.0 50.0 0.0 10.0 5.0 2.0 15.0 4.0 1.0
+2.0 51.0 0.0 12.0 6.0 3.0 18.0 5.0 2.0
+`;
+  const bvhStruct = parseBVH(mockBVH);
+  assert.equal(bvhStruct.root.name, 'Hips');
+  assert.equal(bvhStruct.motion.frameCount, 2);
+  const parsedBVH = bvhToParsedMotion(bvhStruct);
+  assert.ok(parsedBVH.tracks['root_x']);
+  assert.ok(parsedBVH.tracks['chest_rot']);
+  assert.equal(parsedBVH.tracks['chest_rot'].samples[0].v, 15.0);
+
+  // Test JSON pose parser
+  const mockPlajahPose = JSON.stringify({
+    format: 'plajah_pose',
+    fps: 30,
+    frames: [
+      { t: 0.0, bones: { arm_l: 30, leg_l: -20 }, root: { x: 10, y: 5 } },
+      { t: 0.1, bones: { arm_l: 45, leg_l: 0 }, root: { x: 12, y: 7 } },
+    ],
+  });
+  const parsedJSON = parseMotionFile('animation.json', mockPlajahPose);
+  assert.equal(parsedJSON.format, 'plajah_pose_json');
+  assert.equal(parsedJSON.tracks['arm_l'].samples[1].v, 45);
+
+  // Test CSV tracker parser
+  const mockCSV = `Frame,Time,Tracker1_X,Tracker1_Y
+0,0.0,100.5,200.2
+1,0.033,105.1,202.4
+2,0.066,110.0,205.8
+`;
+  const parsedCSV = parseTrackerCSV(mockCSV);
+  assert.equal(parsedCSV.format, 'tracker_csv');
+  assert.equal(parsedCSV.tracks['tracker1_x'].samples.length, 3);
+  assert.equal(parsedCSV.tracks['tracker1_x'].samples[0].v, 100.5);
+
+  // Apply parsed mocap to project
+  const testProject = {
+    id: 'proj_data',
+    name: 'Data Test',
+    fps: 24,
+    durationFrames: 24,
+    width: 1920,
+    height: 1080,
+    currentFrame: 0,
+    drawingBank: {},
+    layers: [
+      {
+        id: 'layer_target',
+        name: 'Target Rig',
+        type: 'bone',
+        visible: true,
+        locked: false,
+        opacity: 1,
+        parentId: null,
+        transform: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1 },
+        bones: [{ id: 'b_arm', name: 'arm_l', parentId: null, length: 40, baseAngle: 0, pivot: [0,0,0] }],
+        channels: {},
+      },
+    ],
+    onionSkin: { enabled: false, prevFrames: 2, nextFrames: 1, prevColor: '', nextColor: '', opacityFalloff: 0.5 },
+    camera: { x: 0, y: 0, z: 0, zoom: 1, rotation: 0 },
+    selectedLayerId: 'layer_target',
+    selectedBoneId: null,
+  };
+
+  const appliedProj = applyMotionDataToProject(testProject, parsedJSON, 'layer_target');
+  assert.ok(appliedProj.layers[0].channels['bone.b_arm.rot']);
+  assert.equal(appliedProj.layers[0].channels['bone.b_arm.rot'].keyframes[1].v, 45);
+
+  console.log('✅ 20. Motion Capture & Tracking Data Loader (BVH, JSON, CSV) verified');
+}
+
+// 21. ASSET & MOTION LIBRARY (WALK CYCLES, VEHICLES, SKIES, PROPS, ANIMALS)
+{
+  const {
+    getAssetCategories,
+    getAssetsByCategory,
+    findAssetById,
+    instantiateAsset,
+    createWalkCycleKeyframes,
+    createSneakCycleKeyframes,
+    createSprintCycleKeyframes,
+  } = await import('../services/anima/assetLibrary.ts');
+
+  const categories = getAssetCategories();
+  assert.ok(categories.includes('walk_cycles'));
+  assert.ok(categories.includes('vehicles'));
+  assert.ok(categories.includes('skies'));
+  assert.ok(categories.includes('props'));
+  assert.ok(categories.includes('animals'));
+
+  // Test Walk Cycles
+  const walkKfs = createWalkCycleKeyframes(1.0);
+  assert.ok(walkKfs['bone.leg_l_upper.rot'].length >= 5);
+  assert.ok(walkKfs['transform.y'].length >= 5);
+
+  const sprintKfs = createSprintCycleKeyframes(0.6);
+  assert.equal(sprintKfs['transform.rotationZ'][0].v, 22, 'Sprint has forward lean');
+
+  // Test Rigged Vehicles
+  const jalopy = instantiateAsset('veh_jalopy');
+  assert.equal(jalopy.name, '1930s Jalopy Car');
+  assert.ok(jalopy.channels['wheel_rot']);
+  assert.ok(jalopy.channels['exhaust_puff']);
+
+  const train = instantiateAsset('veh_train');
+  assert.ok(train.channels['piston_stroke']);
+
+  const biplane = instantiateAsset('veh_biplane');
+  assert.ok(biplane.channels['propeller_rot']);
+
+  // Test Skies
+  const ghibliSky = instantiateAsset('sky_ghibli');
+  assert.equal(ghibliSky.name, 'Studio Ghibli Volumetric Clouds');
+  assert.ok(ghibliSky.channels['cloud_drift_near']);
+
+  const starrySky = instantiateAsset('sky_starry');
+  assert.ok(starrySky.channels['stars_twinkle']);
+
+  const stormSky = instantiateAsset('sky_storm');
+  assert.ok(stormSky.channels['lightning_flash']);
+
+  // Test Props
+  const ball = instantiateAsset('prop_ball');
+  assert.ok(ball.channels['transform.scaleX']);
+  assert.ok(ball.channels['transform.scaleY']);
+
+  const flag = instantiateAsset('prop_flag');
+  assert.ok(flag.channels['wave_phase']);
+
+  // Test Animals
+  const cat = instantiateAsset('anim_cat');
+  assert.ok(cat.bones && cat.bones.length >= 4);
+  assert.ok(cat.channels['bone.cat_tail2.rot']);
+
+  const bird = instantiateAsset('anim_bird');
+  assert.ok(bird.channels['wing_l_rot']);
+
+  console.log('✅ 21. Animation & Rigged Asset Library (Walks, Vehicles, Skies, Props, Animals) verified');
+}
+
+// 22. COMIC & MANGA PANEL ANIMATION SUITE
+{
+  const {
+    applyPanelEntranceTransition,
+    createOnomatopoeiaLayer,
+    createComicBalloonLayer,
+    createSpeedLinesLayer,
+    createShockwaveLayer,
+    PanelParallaxEngine,
+  } = await import('../services/anima/comicMotion.ts');
+
+  // 1. Panel Entrance Transitions
+  const testLayer = {
+    id: 'layer_panel',
+    name: 'Manga Panel 1',
+    type: 'vector',
+    visible: true,
+    locked: false,
+    opacity: 1,
+    parentId: null,
+    transform: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1 },
+    channels: {},
+  };
+
+  applyPanelEntranceTransition(testLayer, 'smash_zoom', 0.0, 0.4);
+  assert.ok(testLayer.channels['transform.scaleX'], 'Smash zoom sets scaleX track');
+  assert.equal(testLayer.channels['transform.scaleX'].keyframes[0].v, 3.5);
+  assert.ok(testLayer.channels['transform.x'], 'Smash zoom adds camera impact shake');
+
+  applyPanelEntranceTransition(testLayer, 'elastic_pop', 0.5, 0.4);
+  assert.ok(testLayer.channels['transform.scaleX']);
+
+  // 2. Dynamic Action SFX / Onomatopoeia
+  const sfxLayer = createOnomatopoeiaLayer({
+    phrase: 'BAM!',
+    position: { x: 350, y: 280 },
+    scale: 1.2,
+    lineBoil: true,
+  });
+  assert.equal(sfxLayer.name, 'SFX: BAM!');
+  assert.ok(sfxLayer.channels['transform.scaleX']);
+  assert.ok(sfxLayer.channels['extrusion_depth']);
+  assert.ok(sfxLayer.channels['line_boil_seed'], 'Must have line boil seed channel for authentic hand-drawn vibration');
+
+  // 3. Dynamic Speech Balloon
+  const balloonLayer = createComicBalloonLayer({
+    text: 'Watch out, Kaiju incoming!',
+    kind: 'shout',
+    position: { x: 420, y: 180 },
+    tailTarget: { x: 300, y: 350 },
+  });
+  assert.ok(balloonLayer.name.includes('shout'));
+  assert.ok(balloonLayer.channels['transform.scaleX']);
+  assert.ok(balloonLayer.channels['tail.targetX'], 'Stores tail pointing target coordinates');
+
+  // 4. Motion Effects (Speed Lines & Shockwave)
+  const speedLines = createSpeedLinesLayer('radial_focus', { x: 400, y: 300 });
+  assert.ok(speedLines.channels['line_density']);
+  assert.ok(speedLines.channels['flicker_phase']);
+
+  const shockwave = createShockwaveLayer({ x: 400, y: 300 }, 0.5);
+  assert.ok(shockwave.channels['shockwave_radius']);
+  assert.equal(shockwave.channels['shockwave_radius'].keyframes[1].v, 350);
+
+  // 5. 2.5D Panel Parallax Engine
+  const parallax = new PanelParallaxEngine({
+    enabled: true,
+    driverMode: 'pointer_hover',
+    intensityX: 40,
+    intensityY: 30,
+    planes: [
+      { id: 'p_sky', name: 'Sky', depth: 0.2, layerId: 'layer_sky' },
+      { id: 'p_hero', name: 'Hero', depth: 1.0, layerId: 'layer_hero' },
+      { id: 'p_fg', name: 'Foreground Debris', depth: 1.8, layerId: 'layer_fg', blurDepthOfField: true },
+    ],
+  });
+
+  // Pointer at right edge (+1.0)
+  parallax.updatePointer(1.0, 0.0);
+  const offsets = parallax.computePlaneOffsets(0);
+
+  // Distant sky should move opposite to foreground
+  assert.ok(offsets['layer_sky'].x < 0, 'Distant background has negative parallax offset');
+  assert.equal(offsets['layer_hero'].x, 0, 'Focal midground layer stays stationary');
+  assert.ok(offsets['layer_fg'].x > 0, 'Foreground element shifts ahead with positive parallax offset');
+  assert.ok(offsets['layer_fg'].blurPx > 0, 'Foreground element receives depth-of-field blur');
+
+  console.log('✅ 22. Comic & Manga Panel Animation Suite (Transitions, SFX Onomatopoeia, Balloons, Speed Lines, 2.5D Parallax) verified');
+}
+
+console.log('\n🎉 ALL 22 ANIMA SYSTEM SUITES PASSED FLAWLESSLY!\n');
 

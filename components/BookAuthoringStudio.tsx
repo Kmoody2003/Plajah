@@ -40,6 +40,11 @@ const ComicPanelBuilder = lazy(() => import('./ComicPanelBuilder'));
 // Off for every account until the author turns it on inside the panel.
 const RightsIdentifiersPanel = lazy(() => import('./registry/RightsIdentifiersPanel'));
 const StudioBookTela = lazy(() => import('./bookTela/StudioBookTela'));
+import {
+  comicToShowcaseStudioBook,
+  openStudioBookInLorea,
+  getAvailableShowcaseComics,
+} from '../services/comic/comicStudioBridge';
 
 // ─── Typography CSS (injected once) ──────────────────────────────────────────
 
@@ -814,6 +819,7 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   const [bookTelaTab, setBookTelaTab] = useState<null | 'upgrade' | 'export'>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showComicShowcase, setShowComicShowcase] = useState(false);
   const [importDragging, setImportDragging] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -914,15 +920,34 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
         el.innerHTML = html;
         return (el.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
       };
-      const chapters = [...book.pages]
-        .sort((a, b) => a.order - b.order)
-        .map((p, i) => ({
-          id: p.id,
-          title: p.chapterTitle || `Chapter ${i + 1}`,
-          content: p.richText ? stripHtml(p.richText) : '',
-        }))
-        .filter(c => c.content.length > 0);
-      if (chapters.length === 0) { alert('Write at least one chapter before publishing.'); setPublishing(false); return; }
+      const isComicOrManga = ['COMIC', 'MANGA', 'GRAPHIC_NOVEL'].includes(book.format);
+      const chapters = isComicOrManga
+        ? [
+            {
+              id: `ch-comic-${book.id}`,
+              title: book.title || 'Graphic Novel',
+              format: 'COMIC' as any,
+              pages: [...book.pages]
+                .sort((a, b) => a.order - b.order)
+                .map((p, i) => {
+                  const firstImg = p.panels?.find(pan => !!pan.imageUrl)?.imageUrl || p.imageUrl;
+                  return {
+                    url: firstImg || `/generated/comics/obsidian_full/p${Math.min(20, i + 1)}_pan1.png`,
+                  };
+                }),
+              content: book.synopsis || `${book.pages.length} sequential pages`,
+            },
+          ]
+        : [...book.pages]
+            .sort((a, b) => a.order - b.order)
+            .map((p, i) => ({
+              id: p.id,
+              title: p.chapterTitle || `Chapter ${i + 1}`,
+              content: p.richText ? stripHtml(p.richText) : '',
+            }))
+            .filter(c => c.content.length > 0);
+
+      if (chapters.length === 0) { alert('Write at least one chapter or add comic pages before publishing.'); setPublishing(false); return; }
 
       const { publishToCloud } = await import('../services/backendService');
       const albumId = book.publishedAlbumId || `authored-${book.id}`;
@@ -938,11 +963,14 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
         description: book.synopsis || '',
         ownerId: user.uid,
         createdAt: Date.now(),
-        themeColor: '#FF8C00',
+        themeColor: book.format === 'MANGA' ? '#38BDF8' : '#FF8C00',
         tracks: [],
         bookChapters: chapters,
         ...(price > 0 ? { price, isPaywalled: true } : {}),
       } as Album;
+      (album as any).readingDir = book.readingDir;
+      (album as any).studioBook = book;
+      (album as any).pages = book.pages;
       await publishToCloud(album);
       setBookField('publishedAlbumId', albumId);
 
@@ -1174,6 +1202,19 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
             {saved ? 'Saved' : 'Saving…'}
           </span>
 
+          {/* Graphic Novel & Manga Importer */}
+          <button onClick={() => setShowComicShowcase(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-xs font-bold text-orange-400 hover:bg-orange-500/20 transition-all">
+            <Sparkles size={11} className="text-orange-400"/> Graphic Novels & Manga
+          </button>
+
+          {/* Direct Lorea Reader Preview Button */}
+          <button onClick={() => openStudioBookInLorea(book)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-xs font-bold text-orange-400 hover:bg-orange-500/30 transition-all shadow-sm"
+            title="Preview in Lorea Reader with interactive page turns and audio">
+            <BookOpen size={12}/> Read in Lorea
+          </button>
+
           <button onClick={() => setShowImport(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
             <Upload size={11}/> Import
@@ -1283,7 +1324,19 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                 {activePage.type === 'TEXT' && <TextPageEditor page={activePage} onChange={updatePage}/>}
                 {(activePage.type === 'COMIC' || activePage.type === 'MANGA') && (
                   <Suspense fallback={<div className="h-full flex items-center justify-center text-white/20 text-sm">Loading canvas…</div>}>
-                    <ComicPanelBuilder page={activePage} onChange={updatePage} isManga={activePage.type === 'MANGA'}/>
+                    <ComicPanelBuilder
+                      page={activePage}
+                      onChange={updatePage}
+                      isManga={activePage.type === 'MANGA' || book.readingDir === 'rtl'}
+                      currentPageIndex={sortedPages.findIndex(p => p.id === activePage.id)}
+                      totalPages={sortedPages.length}
+                      onNavigatePage={(delta) => {
+                        const curIdx = sortedPages.findIndex(p => p.id === activePage.id);
+                        const nextIdx = Math.max(0, Math.min(sortedPages.length - 1, curIdx + delta));
+                        setActivePageId(sortedPages[nextIdx].id);
+                      }}
+                      onOpenInLorea={() => openStudioBookInLorea(book)}
+                    />
                   </Suspense>
                 )}
                 {(activePage.type === 'COVER' || activePage.type === 'FULL_BLEED') && <BleedPageEditor page={activePage} onChange={updatePage}/>}
@@ -1650,6 +1703,127 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Graphic Novels & Manga Showcase Modal ── */}
+      <AnimatePresence>
+        {showComicShowcase && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-6"
+            onClick={() => setShowComicShowcase(false)}>
+            <motion.div initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} transition={{duration:.15}}
+              className="bg-[#121318] border border-white/10 rounded-3xl p-7 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
+                    <Sparkles size={16}/>
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-white">Graphic Novels & Manga Library</h3>
+                    <p className="text-xs text-white/40">Load completed 20-page masterworks with on-device generated panels and full editable layers.</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowComicShowcase(false)} className="text-white/30 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/5">
+                  <X size={18}/>
+                </button>
+              </div>
+
+              {/* Two Flagships Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {/* 1. The Obsidian Shroud */}
+                <div className="group relative rounded-2xl bg-white/[0.03] border border-white/10 hover:border-orange-500/50 p-4 transition-all duration-200 flex flex-col justify-between">
+                  <div>
+                    <div className="aspect-[16/9] rounded-xl overflow-hidden mb-3 bg-black relative border border-white/10">
+                      <img src="/generated/comics/obsidian_full/p1_pan1.png" alt="The Obsidian Shroud" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"/>
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/80 border border-white/20 text-[9px] font-black uppercase tracking-wider text-orange-400">
+                        Method 1: SDXL Turbo
+                      </div>
+                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-bold text-white/80">
+                        20 Pages · 35 Panels
+                      </div>
+                    </div>
+                    <h4 className="font-black text-sm text-white mb-1">THE OBSIDIAN SHROUD: SECTOR ZERO</h4>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-orange-400/90 mb-2">Cyber-Gothic Dark Noir (Miller & Mignola Lens)</p>
+                    <p className="text-xs text-white/50 leading-relaxed mb-3">
+                      Drowned subterranean gutter procedural in Old Neo-Babel. 100% on-device generated panels, dialogue balloons with tails, noir captions, and audio foley layers.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const loaded = comicToShowcaseStudioBook('obsidian-shroud');
+                      setBook(loaded);
+                      setActivePageId(loaded.pages[0]?.id || '');
+                      setShowComicShowcase(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-orange-500 text-black font-black text-xs uppercase tracking-wider hover:bg-orange-400 transition-colors flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    <Layers size={13}/> Load into Authoring Studio
+                  </button>
+                </div>
+
+                {/* 2. Chrome Apostle */}
+                <div className="group relative rounded-2xl bg-white/[0.03] border border-white/10 hover:border-sky-500/50 p-4 transition-all duration-200 flex flex-col justify-between">
+                  <div>
+                    <div className="aspect-[16/9] rounded-xl overflow-hidden mb-3 bg-black relative border border-white/10">
+                      <img src="/generated/comics/chrome_full/p1_pan1.png" alt="Chrome Apostle" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"/>
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/80 border border-white/20 text-[9px] font-black uppercase tracking-wider text-sky-400">
+                        Method 2: FLUX Manga
+                      </div>
+                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 text-[9px] font-bold text-white/80">
+                        20 Pages · 27 Panels · RTL
+                      </div>
+                    </div>
+                    <h4 className="font-black text-sm text-white mb-1">CHROME APOSTLE: APHELION 9</h4>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400/90 mb-2">Hard Sci-Fi Kinetic Mecha (Otomo & Nihei Lens)</p>
+                    <p className="text-xs text-white/50 leading-relaxed mb-3">
+                      Space elevator tether war against crystalline post-biological biomechs. Japanese RTL manga flow, screentones, forced perspective, and Kanji onomatopoeia stamps.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const loaded = comicToShowcaseStudioBook('chrome-apostle');
+                      setBook(loaded);
+                      setActivePageId(loaded.pages[0]?.id || '');
+                      setShowComicShowcase(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-sky-500 text-black font-black text-xs uppercase tracking-wider hover:bg-sky-400 transition-colors flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    <Grid size={13}/> Load into Authoring Studio
+                  </button>
+                </div>
+              </div>
+
+              {/* Other Genre Starters */}
+              <div className="pt-3 border-t border-white/10">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2.5">Additional Council Genre Templates</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'singularity-gods', name: "Singularity's Gods", genre: 'Silver Age Cosmic' },
+                    { id: 'silent-crater', name: 'Silent Crater', genre: 'Ligne Claire Sci-Fi' },
+                    { id: 'gilded-vanguard', name: 'Gilded Vanguard', genre: 'Cinematic Widescreen' },
+                    { id: 'pale-hydrangeas', name: 'Pale Hydrangeas', genre: 'Shojo Gothic Romance' },
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        const loaded = comicToShowcaseStudioBook(t.id);
+                        setBook(loaded);
+                        setActivePageId(loaded.pages[0]?.id || '');
+                        setShowComicShowcase(false);
+                      }}
+                      className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/20 hover:bg-white/[0.05] text-left transition-all"
+                    >
+                      <p className="text-[11px] font-bold text-white truncate">{t.name}</p>
+                      <p className="text-[9px] text-white/40 truncate">{t.genre}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
