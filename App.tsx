@@ -3128,6 +3128,27 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         return;
       }
 
+      // Deep-link: ?channel={number}, ?ch={number}, or ?type=channel — direct persistent channel tune-in
+      const directChannel = params.get('channel') || params.get('ch') || (shareType === 'channel' ? (params.get('n') || params.get('channel')) : null);
+      if (directChannel || shareType === 'channel') {
+        const raw = String(projectId || params.get('id') || '');
+        const number = directChannel || params.get('n') || (raw.startsWith('channel:') ? raw.slice('channel:'.length) : undefined);
+        const sourceId = params.get('source') || (raw.startsWith('source:') ? raw.slice(7) : undefined);
+        const ownerId = params.get('owner') || (raw.startsWith('owner:') ? raw.slice('owner:'.length) : undefined);
+        const plajahId = raw.startsWith('plajah:') ? raw.slice('plajah:'.length) : (!sourceId && !ownerId && !number && raw ? raw : undefined);
+
+        setLiveChannelFocus({
+          number: number ? String(number).trim() : undefined,
+          ownerId,
+          sourceId,
+          plajahId,
+        });
+        setView('LIVE_HUB');
+        document.title = number ? `Channel ${number} | Plajah Live` : 'Plajah Live';
+        setIsLoading(false);
+        return;
+      }
+
       if (projectId) {
         if (shareType === 'movie') {
           // A shared Taleo film/TV title — always lands on the Taleo movie page

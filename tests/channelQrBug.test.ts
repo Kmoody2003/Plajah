@@ -8,11 +8,11 @@ test('Channel QR link bug: builds direct channel share link with no signin requi
 
   // First-party channel
   const newsUrl = buildShareUrl('channel', 'plajah:news', { n: '1.1', source: 'plajah_news' });
-  assert.equal(newsUrl, 'https://plajah.com/share?type=channel&id=plajah%3Anews&n=1.1&source=plajah_news');
+  assert.equal(newsUrl, 'https://plajah.com/share?type=channel&id=plajah%3Anews&channel=1.1&n=1.1&source=plajah_news');
 
   // Creator channel
   const creatorUrl = buildShareUrl('channel', 'owner:user_123', { n: '42.1', source: 'fast_user_123' });
-  assert.equal(creatorUrl, 'https://plajah.com/share?type=channel&id=owner%3Auser_123&n=42.1&source=fast_user_123');
+  assert.equal(creatorUrl, 'https://plajah.com/share?type=channel&id=owner%3Auser_123&channel=42.1&n=42.1&source=fast_user_123');
 });
 
 test('Channel QR link bug: generates high-contrast QR code data URL successfully', async () => {
@@ -71,3 +71,31 @@ test('Channel QR link bug: simulated timer sequence transitions accurately', asy
   assert.equal(states[2].state, true);
   assert.equal(states[3].state, false);
 });
+
+test('channelQrService: buildChannelQrUrl produces consistent URL and caches QR code', async () => {
+  const { buildChannelQrUrl, generateChannelQrDataUrl, getChannelQrDataUrlSync } = await import('../services/fast/channelQrService');
+
+  (globalThis as any).window = { location: { origin: 'https://plajah.com' } };
+
+  const target = {
+    number: '42.1',
+    id: 'fast_great_faith',
+    scheduleOwner: 'user_great_faith',
+    name: 'Great Faith Church',
+  };
+
+  const url = buildChannelQrUrl(target);
+  assert.ok(url.includes('channel=42.1'));
+  assert.ok(url.includes('n=42.1'));
+  assert.ok(url.includes('source=fast_great_faith'));
+  assert.ok(url.includes('owner=user_great_faith'));
+
+  // Test caching
+  const dataUrl = await generateChannelQrDataUrl(url);
+  assert.ok(dataUrl.startsWith('data:image/png;base64,'));
+
+  // Synchronous cache lookup should now return the exact same data URL
+  const cached = getChannelQrDataUrlSync(url);
+  assert.equal(cached, dataUrl);
+});
+

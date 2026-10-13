@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import QRCode from 'qrcode';
 import Logo from '../Logo';
 import { QrCode, Check, Copy } from 'lucide-react';
+import { getChannelQrDataUrlSync, generateChannelQrDataUrl } from '../../services/fast/channelQrService';
 
 export interface ChannelQrBugProps {
   /** The direct share URL of the specific channel (no signin required) */
@@ -43,7 +43,7 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
   pauseOnHover = true,
 }) => {
   const [visible, setVisible] = useState(true);
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [qrDataUrl, setQrDataUrl] = useState<string>(() => (shareUrl ? getChannelQrDataUrlSync(shareUrl) || '' : ''));
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,19 +56,19 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
       setQrDataUrl('');
       return;
     }
+    const cached = getChannelQrDataUrlSync(shareUrl);
+    if (cached) {
+      setQrDataUrl(cached);
+      return;
+    }
+
+    // Immediately clear stale QR code so the previous station's QR is NEVER shown
+    setQrDataUrl('');
     let cancelled = false;
 
-    QRCode.toDataURL(shareUrl, {
-      margin: 1,
-      width: 180,
-      color: {
-        dark: '#000000',
-        light: '#ffffff',
-      },
-      errorCorrectionLevel: 'M',
-    })
+    generateChannelQrDataUrl(shareUrl)
       .then((url) => {
-        if (!cancelled) setQrDataUrl(url);
+        if (!cancelled && url) setQrDataUrl(url);
       })
       .catch((err) => {
         console.warn('Failed to generate channel QR code:', err);

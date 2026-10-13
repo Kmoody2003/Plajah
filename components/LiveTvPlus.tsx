@@ -36,6 +36,7 @@ import { buildShareUrl } from '../services/deepLinkService';
 import { createPost } from '../services/backendService';
 import ChannelLogo from './tv/ChannelLogo';
 import ChannelQrBug from './tv/ChannelQrBug';
+import { buildChannelQrUrl, preloadChannelQrs } from '../services/fast/channelQrService';
 import { isWindowsApp, setNativeFullscreen } from '../services/windowsBridgeService';
 import { useContextMenu } from './ui';
 import { subKeyFor, favoriteKey, resolveChannelLogo, type OwnerBranding } from '../services/fast/channelBranding';
@@ -529,6 +530,11 @@ const LiveTvPlus: React.FC<{
     return out;
   }, [feeds, fastChannels, registry, renamedSubs, ownerBranding, localLogos]);
 
+  // Pre-generate and cache persistent QR codes for all channels in lineup
+  useEffect(() => {
+    preloadChannelQrs(channels);
+  }, [channels]);
+
   // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
   const [epg, setEpg] = useState<EpgProgram[]>([]);
   const [preemptUntil, setPreemptUntil] = useState<number | null>(null); // FAST channel being pre-empted → show viewer warning until this ms
@@ -840,7 +846,7 @@ const LiveTvPlus: React.FC<{
     const owner = selected.scheduleOwner || selected.ownerId;
     const id = selected.plajahId ? `plajah:${selected.plajahId}` : owner ? `owner:${owner}` : `source:${selected.id}`;
     if (!id) return null;
-    const url = buildShareUrl('channel', id, { n: selected.number, source: selected.id });
+    const url = buildChannelQrUrl(selected);
     const title = `${selected.name} · Plajah ${selected.number}`;
     const text = selected.isLive
       ? `${selected.name} is live right now on Plajah ${selected.number}. Tune in.`
@@ -1324,6 +1330,7 @@ const LiveTvPlus: React.FC<{
         {/* QR Code link bug in the lower left corner of the video frame */}
         {shareMeta?.url && (
           <ChannelQrBug
+            key={`qr_${selected?.number || selected?.id || index}`}
             shareUrl={shareMeta.url}
             channelNumber={selected?.number}
             channelName={selected?.name}
