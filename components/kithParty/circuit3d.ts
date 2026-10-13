@@ -7,6 +7,107 @@ import {worldPoint, trackFrame, trackBanking} from './course3d';
 import {makeKart} from './karts3d';
 import {makeGardenWorld} from './gardenWorld3d';
 
+/** ---- Graphics-pass atmosphere helpers: procedural sky, clouds, glow sprites, asphalt ---- */
+
+function makeSkyDome():T.Mesh{
+ const geo=new T.SphereGeometry(420,32,20);
+ const sunDir=new T.Vector3(-30,68,28).normalize();
+ const material=new T.ShaderMaterial({
+  side:T.BackSide,depthWrite:false,fog:false,
+  uniforms:{sunDir:{value:sunDir}},
+  vertexShader:`
+   varying vec3 vDir;
+   void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`
+   varying vec3 vDir;uniform vec3 sunDir;
+   void main(){
+    vec3 d=normalize(vDir);
+    float h=d.y;
+    vec3 zenith=vec3(0.16,0.42,0.94);
+    vec3 mid=vec3(0.52,0.72,0.98);
+    vec3 horizon=vec3(1.0,0.85,0.92);
+    vec3 below=vec3(0.96,0.74,0.86);
+    vec3 col=h>0.0
+     ? mix(mix(horizon,mid,smoothstep(0.0,0.32,h)),zenith,smoothstep(0.28,0.85,h))
+     : mix(horizon,below,smoothstep(0.0,-0.35,h));
+    float s=max(dot(d,normalize(sunDir)),0.0);
+    col+=vec3(1.0,0.88,0.66)*pow(s,600.0)*1.6;
+    col+=vec3(1.0,0.72,0.5)*pow(s,10.0)*0.28;
+    float band=smoothstep(0.04,0.14,h)*smoothstep(0.65,0.28,h);
+    float n=sin(d.x*8.0+1.7)*sin(d.z*6.0-0.6)*sin((d.x+d.z)*4.5+0.8);
+    float clouds=smoothstep(0.15,0.8,n)*band;
+    col=mix(col,vec3(1.0,0.96,0.99),clouds*0.5);
+    gl_FragColor=vec4(col,1.0);
+   }`
+ });
+ const mesh=new T.Mesh(geo,material);mesh.renderOrder=-10;mesh.frustumCulled=false;return mesh;
+}
+
+function makePuffTexture():T.CanvasTexture{
+ const c=document.createElement('canvas');c.width=128;c.height=128;
+ const x=c.getContext('2d')!;
+ for(let i=0;i<9;i++){
+  const px=34+Math.random()*60,py=44+Math.random()*40,r=18+Math.random()*22;
+  const g=x.createRadialGradient(px,py,0,px,py,r);
+  g.addColorStop(0,'rgba(255,255,255,0.85)');g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g;x.beginPath();x.arc(px,py,r,0,7);x.fill();
+ }
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;
+}
+
+function makeGlowTexture():T.CanvasTexture{
+ const c=document.createElement('canvas');c.width=128;c.height=128;
+ const x=c.getContext('2d')!;
+ const g=x.createRadialGradient(64,64,4,64,64,64);
+ g.addColorStop(0,'rgba(255,255,255,0.9)');g.addColorStop(0.4,'rgba(255,255,255,0.35)');g.addColorStop(1,'rgba(255,255,255,0)');
+ x.fillStyle=g;x.fillRect(0,0,128,128);
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;
+}
+
+function makeAsphaltMaps():{map:T.CanvasTexture;rough:T.CanvasTexture}{
+ const c=document.createElement('canvas');c.width=256;c.height=256;
+ const x=c.getContext('2d')!;
+ x.fillStyle='#262737';x.fillRect(0,0,256,256);
+ for(let i=0;i<2600;i++){
+  const v=Math.random();
+  x.fillStyle=v>.55?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.18)';
+  const s=1+Math.random()*2.2;
+  x.fillRect(Math.random()*256,Math.random()*256,s,s);
+ }
+ for(let i=0;i<36;i++){
+  x.fillStyle='rgba(255,170,120,0.035)';
+  x.beginPath();x.arc(Math.random()*256,Math.random()*256,9+Math.random()*24,0,7);x.fill();
+ }
+ const map=new T.CanvasTexture(c);
+ map.wrapS=map.wrapT=T.RepeatWrapping;map.colorSpace=T.SRGBColorSpace;map.anisotropy=4;
+ const rc=document.createElement('canvas');rc.width=64;rc.height=64;
+ const rx=rc.getContext('2d')!;
+ rx.fillStyle='#c2c2c2';rx.fillRect(0,0,64,64);
+ for(let i=0;i<320;i++){
+  const v=140+(Math.random()*100|0);
+  rx.fillStyle=`rgb(${v},${v},${v})`;
+  rx.fillRect(Math.random()*64,Math.random()*64,2,2);
+ }
+ const rough=new T.CanvasTexture(rc);rough.wrapS=rough.wrapT=T.RepeatWrapping;
+ return {map,rough};
+}
+
+/** Tiny procedural sky baked to a PMREM env map so glossy paint & crystals have something vivid to reflect. */
+function buildEnvironment(renderer:T.WebGLRenderer):T.WebGLRenderTarget{
+ const pmrem=new T.PMREMGenerator(renderer);
+ const env=new T.Scene();
+ env.add(new T.Mesh(new T.SphereGeometry(50,16,12),new T.MeshBasicMaterial({side:T.BackSide,color:'#8fc3f7'})));
+ const ground=new T.Mesh(new T.CircleGeometry(45,16),new T.MeshBasicMaterial({color:'#c9889f'}));
+ ground.rotation.x=-Math.PI/2;ground.position.y=-4;env.add(ground);
+ const sun=new T.Mesh(new T.SphereGeometry(5,12,10),new T.MeshBasicMaterial({color:'#fff3d6'}));
+ sun.position.set(-19,34,18);env.add(sun);
+ const pink=new T.Mesh(new T.SphereGeometry(9,10,8),new T.MeshBasicMaterial({color:'#ff9ecf'}));
+ pink.position.set(28,6,-20);env.add(pink);
+ const rt=pmrem.fromScene(env,0.05);
+ pmrem.dispose();
+ return rt;
+}
+
 /** Procedural Web Audio synthesizer for kart racing (engine pitch, drift screech, turbo blast, curb buzz). */
 class KartAudioSynthesizer {
  private ctx:AudioContext|null=null;
@@ -112,8 +213,32 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
  canvas.dataset.renderer='three-webgl';
 
  const scene=new T.Scene();
- scene.background=new T.Color('#adccee');
- scene.fog=new T.FogExp2('#cbbce0',.0028);
+ scene.fog=new T.FogExp2('#f0d2e2',.0026);
+ scene.add(makeSkyDome());
+ const envRT=buildEnvironment(renderer);
+ scene.environment=envRT.texture;
+ scene.environmentIntensity=.62;
+
+ // Sun glow billboard, drifting candy clouds, golden air sparkles
+ const glowTex=makeGlowTexture();
+ const sunGlow=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:'#ffdf9e',transparent:true,opacity:.85,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
+ sunGlow.position.set(-30,68,28).normalize().multiplyScalar(390);sunGlow.scale.setScalar(150);scene.add(sunGlow);
+ const puffTex=makePuffTexture();
+ const clouds:{sprite:T.Sprite;speed:number}[]=[];
+ for(let i=0;i<12;i++){
+  const sp=new T.Sprite(new T.SpriteMaterial({map:puffTex,transparent:true,opacity:.42+Math.random()*.3,depthWrite:false,fog:false,color:'#ffffff'}));
+  const a=Math.random()*Math.PI*2,r=170+Math.random()*130;
+  sp.position.set(Math.cos(a)*r,58+Math.random()*46,Math.sin(a)*r);
+  const s=46+Math.random()*52;sp.scale.set(s,s*.55,1);
+  scene.add(sp);clouds.push({sprite:sp,speed:.6+Math.random()*1.4});
+ }
+ const moteCount=130;
+ const motePos=new Float32Array(moteCount*3);
+ for(let i=0;i<moteCount;i++){motePos[i*3]=(Math.random()-.5)*240;motePos[i*3+1]=2+Math.random()*38;motePos[i*3+2]=(Math.random()-.5)*240;}
+ const moteGeo=new T.BufferGeometry();
+ moteGeo.setAttribute('position',new T.BufferAttribute(motePos,3));
+ const moteMat=new T.PointsMaterial({color:'#ffe9a8',size:.22,transparent:true,opacity:.5,blending:T.AdditiveBlending,depthWrite:false});
+ const motes=new T.Points(moteGeo,moteMat);scene.add(motes);
 
  const hemi=new T.HemisphereLight('#f2f7ff','#6f5c73',2.2);scene.add(hemi);
  const sun=new T.DirectionalLight('#ffe8c7',3.4);
@@ -133,7 +258,9 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
  };
 
  // High-fidelity Banked Road Ribbons matching Concept Art
- function strip(l1:number,l2:number,color:string,offset=0,glow=0){
+ const asphaltMaps=makeAsphaltMaps();
+ const asphaltMat=new T.MeshStandardMaterial({map:asphaltMaps.map,roughnessMap:asphaltMaps.rough,roughness:1,metalness:.1,envMapIntensity:.5});
+ function strip(l1:number,l2:number,color:string,offset=0,glow=0,override?:T.Material){
   const positions:number[]=[],uv:number[]=[],idx:number[]=[];
   for(let i=0;i<=400;i++){
    for(const lane of [l1,l2]){
@@ -147,13 +274,13 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
   geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
   geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
   geo.setIndex(idx);geo.computeVertexNormals();
-  const material=mat(color,glow);material.side=T.DoubleSide;
+  const material=override??mat(color,glow);material.side=T.DoubleSide;
   const mesh=new T.Mesh(geo,material);mesh.receiveShadow=true;scene.add(mesh);return mesh;
  }
 
  // Under-deck foundation & dark asphalt track surface
  strip(-72,72,'#8c7996',-.32); // Stone bridge foundation
- strip(-56,56,'#212234'); // Dark competition tarmac
+ strip(-56,56,'#212234',0,0,asphaltMat); // Dark competition tarmac with procedural asphalt grain
  // High-contrast glowing edge boundary lines
  strip(-55,-51,'#ff7b00',.02,.6);
  strip(51,55,'#ff7b00',.02,.6);
@@ -303,7 +430,12 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
   }
   body.add(sparkGroup);
 
-  return {root,body,wheels,flames,sparkMeshes,flameMat};
+  // Soft neon underglow pooling beneath the kart (concept-art glow accents)
+  const glowMat=new T.MeshBasicMaterial({map:glowTex,color:c.accent,transparent:true,opacity:.38,blending:T.AdditiveBlending,depthWrite:false});
+  const underglow=new T.Mesh(new T.PlaneGeometry(3.6,4.6),glowMat);
+  underglow.rotation.x=-Math.PI/2;underglow.position.y=.06;body.add(underglow);
+
+  return {root,body,wheels,flames,sparkMeshes,flameMat,glowMat};
  });
 
  const humans=initial.players.filter(p=>p.human);
@@ -325,6 +457,18 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
    boostPads.forEach(bp=>{
     (bp.mesh.material as T.MeshStandardMaterial).emissiveIntensity=0.8+Math.sin(s.time*12)*.4;
    });
+
+   // Drift candy clouds, breathe golden air sparkles
+   clouds.forEach(cl=>{cl.sprite.position.x+=cl.speed*dt;if(cl.sprite.position.x>320)cl.sprite.position.x=-320;});
+   moteMat.opacity=.34+Math.sin(s.time*2.2)*.14;
+   const mAttr=moteGeo.getAttribute('position') as T.BufferAttribute;
+   const mArr=mAttr.array as Float32Array;
+   for(let mi=0;mi<moteCount;mi++){
+    mArr[mi*3+1]+=dt*.7;
+    mArr[mi*3]+=Math.sin(s.time*1.4+mi)*dt*.6;
+    if(mArr[mi*3+1]>42)mArr[mi*3+1]=2;
+   }
+   mAttr.needsUpdate=true;
 
    // Update Karts with authentic banked orientation, chassis physics, and particle FX
    s.players.forEach((p,i)=>{
@@ -370,6 +514,7 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
       spark.position.y=.38+Math.cos(s.time*70+sIdx)*.06;
      }
     });
+    kart.glowMat.opacity=isBoost?.62+Math.sin(s.time*26)*.12:.3+p.speed*1.4;
    });
 
    // Speed Streaks / Wind Rush Particle FX
@@ -451,6 +596,7 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
    mixers.forEach(m=>m.stopAllAction());
    audioSynthesizer.dispose();
    disposeTree(scene);
+   envRT.dispose();
    renderer.dispose();
    renderer.forceContextLoss();
    delete canvas.dataset.renderer;

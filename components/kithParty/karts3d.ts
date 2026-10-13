@@ -72,7 +72,8 @@ export function makeKart(c:Character){
   metalness:isRello?.55:.32,
   roughness:isRello?.22:.30,
   clearcoat:1,
-  clearcoatRoughness:.15
+  clearcoatRoughness:.15,
+  envMapIntensity:1.25
  });
  const accent=new T.MeshPhysicalMaterial({
   color:c.accent,
@@ -80,7 +81,8 @@ export function makeKart(c:Character){
   roughness:.25,
   clearcoat:1,
   emissive:isRello?'#ff6200':isChora?'#e8258b':c.accent,
-  emissiveIntensity:isRello?.32:isChora?.25:.12
+  emissiveIntensity:isRello?.32:isChora?.25:.12,
+  envMapIntensity:1.25
  });
  const fin=new T.MeshPhysicalMaterial({
   color:isRello?'#ff7b00':c.fin,
@@ -88,7 +90,10 @@ export function makeKart(c:Character){
   roughness:.18,
   clearcoat:1,
   emissive:isRello?'#ff5900':c.fin,
-  emissiveIntensity:isRello?.5:.35
+  emissiveIntensity:isRello?.5:.35,
+  envMapIntensity:1.3,
+  iridescence:.35,
+  iridescenceIOR:1.3
  });
  const ivory=new T.MeshStandardMaterial({color:'#fff9ed',roughness:.35,metalness:.12});
  const dark=new T.MeshStandardMaterial({color:'#11131e',roughness:.65});
@@ -115,7 +120,7 @@ export function makeKart(c:Character){
  const mainBody=oval(.84,.4,sleek?1.65:1.35,paint,0,.78,.1);
  if(isRello){
   const micaTex=createKartFlankTexture('stars','#121222','#ff9d00');
-  mainBody.material=new T.MeshPhysicalMaterial({map:micaTex,metalness:.5,roughness:.2,clearcoat:1});
+  mainBody.material=new T.MeshPhysicalMaterial({map:micaTex,metalness:.5,roughness:.2,clearcoat:1,envMapIntensity:1.2});
  }
 
  // Cockpit, padded bucket seat & sport steering wheel
