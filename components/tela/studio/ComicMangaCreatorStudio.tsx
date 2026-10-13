@@ -2418,14 +2418,25 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#9a7b56', letterSpacing: '2px', fontWeight: 800 }}>
-                        {currentSpread?.chapterTitle || 'Chapter One'}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#9a7b56', letterSpacing: '2px', fontWeight: 800 }}>
+                          {currentSpread?.chapterTitle || 'Chapter One'}
+                        </div>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#f5e8d0', color: '#68451c', fontWeight: 700 }}>
+                            Lorea Folio Craft
+                          </span>
+                        </div>
                       </div>
-                      <h2 style={{ fontSize: '20px', fontWeight: 900, margin: '8px 0 16px 0', color: '#1f130b' }}>
+                      <h2 style={{ fontSize: '20px', fontWeight: 900, margin: '6px 0 2px 0', color: '#1f130b' }}>
                         The Magic Pumpkin Garden
                       </h2>
+                      {/* Lorea Hand-Drawn Wobbly Rule */}
+                      <svg width="110" height="6" viewBox="0 0 110 6" style={{ margin: '4px 0 12px 0', opacity: 0.55 }}>
+                        <path d="M0 3 Q28 1, 55 3 T110 3" stroke="#9a7b56" strokeWidth="1.5" fill="none" />
+                      </svg>
                       <textarea
-                        rows={8}
+                        rows={7}
                         value={currentSpread?.rightPageProse || storyInputText}
                         onChange={(e) => setStoryInputText(e.target.value)}
                         style={{

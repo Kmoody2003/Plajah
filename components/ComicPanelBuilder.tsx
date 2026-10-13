@@ -1,12 +1,12 @@
 import React, {
   useState, useRef, useCallback, useEffect,
 } from 'react';
-import { Stage, Layer, Rect, Image as KImage, Text, Group, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Image as KImage, Text, Group, Transformer, Path } from 'react-konva';
 import Konva from 'konva';
 import {
   MessageCircle, Zap, AlignLeft, AlignCenter, Trash2, Plus, Upload,
   Type, RotateCcw, Square, Sun, Moon, Palette, Move, ChevronLeft, ChevronRight,
-  ZoomIn, ZoomOut, X, LayoutGrid, Images, Loader2, Brush,
+  ZoomIn, ZoomOut, X, LayoutGrid, Images, Loader2, Brush, BookOpen, Sparkles, Sliders,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { StudioPage, StudioPanel, SpeechBubble } from '../types';
@@ -47,10 +47,6 @@ const BUBBLE_STYLES: Record<SpeechBubble['type'], { label: string; color: string
   sfx:       { label: 'SFX',       color: 'transparent', textColor: '#ff2200', borderRadius: 0, fontWeight: '900' },
 };
 
-// ─── Screen tone patterns (manga) ─────────────────────────────────────────────
-
-const TONES = ['none', 'dots-fine', 'dots-coarse', 'lines-h', 'lines-v', 'crosshatch'];
-
 // ─── Panel image loader hook ──────────────────────────────────────────────────
 
 function useImage(url?: string): [HTMLImageElement | null] {
@@ -73,13 +69,28 @@ interface PanelNodeProps {
   canvasW: number;
   canvasH: number;
   selected: boolean;
+  selectedBubbleId: string | null;
   onSelect: () => void;
+  onSelectBubble: (id: string | null) => void;
+  onUpdateBubble: (id: string, updates: Partial<SpeechBubble>) => void;
   onChange: (p: StudioPanel) => void;
   gutter: number;
   isBW: boolean;
 }
 
-function PanelNode({ panel, canvasW, canvasH, selected, onSelect, onChange, gutter, isBW }: PanelNodeProps) {
+function PanelNode({
+  panel,
+  canvasW,
+  canvasH,
+  selected,
+  selectedBubbleId,
+  onSelect,
+  onSelectBubble,
+  onUpdateBubble,
+  onChange,
+  gutter,
+  isBW,
+}: PanelNodeProps) {
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [img] = useImage(panel.imageUrl);
@@ -100,6 +111,8 @@ function PanelNode({ panel, canvasW, canvasH, selected, onSelect, onChange, gutt
   const strokeWidth = panel.borderStyle === 'thick' ? 4 : panel.borderStyle === 'double' ? 3 : 2;
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    // Only drag the panel if the panel group itself was the drag target
+    if (e.target !== groupRef.current) return;
     const node = e.target;
     onChange({
       ...panel,
@@ -152,63 +165,164 @@ function PanelNode({ panel, canvasW, canvasH, selected, onSelect, onChange, gutt
         {/* Border */}
         <Rect width={pw} height={ph} stroke={borderColor} strokeWidth={strokeWidth} fill="transparent" />
 
-        {/* Speech bubbles */}
+        {/* Speech bubbles with interactive dragging & vector tails */}
         {panel.bubbles.map(b => {
-          const style = BUBBLE_STYLES[b.type];
+          const style = BUBBLE_STYLES[b.type] || BUBBLE_STYLES.speech;
           const bx = (b.x / 100) * pw;
           const by = (b.y / 100) * ph;
           const bw = (b.width / 100) * pw;
           const isNarr = b.type === 'narration';
           const isSfx  = b.type === 'sfx';
+          const isSelected = selectedBubbleId === b.id;
+
+          // Multi-line height wrapping estimation
+          const textLen = (b.text || '').length;
+          const charsPerLine = Math.max(10, Math.floor(bw / 7.5));
+          const lineCount = Math.max(1, Math.ceil(textLen / charsPerLine));
+          const bubbleH = isSfx ? 36 : Math.max(28, lineCount * 16 + 10);
+
+          // Vector speech bubble tail path
+          let tailPath = '';
+          if (b.tailDir === 'br') {
+            tailPath = `M ${Math.max(10, bw - 26)} ${bubbleH - 1} L ${Math.max(10, bw - 8)} ${bubbleH + 14} L ${Math.max(10, bw - 12)} ${bubbleH - 1} Z`;
+          } else if (b.tailDir === 'bl') {
+            tailPath = `M 12 ${bubbleH - 1} L 8 ${bubbleH + 14} L 26 ${bubbleH - 1} Z`;
+          } else if (b.tailDir === 'tr') {
+            tailPath = `M ${Math.max(10, bw - 26)} 1 L ${Math.max(10, bw - 8)} -14 L ${Math.max(10, bw - 12)} 1 Z`;
+          } else if (b.tailDir === 'tl') {
+            tailPath = `M 12 1 L 8 -14 L 26 1 Z`;
+          }
 
           return (
-            <Group key={b.id} x={bx} y={by}>
+            <Group
+              key={b.id}
+              x={bx}
+              y={by}
+              draggable
+              onClick={e => {
+                e.cancelBubble = true;
+                onSelect();
+                onSelectBubble(b.id);
+              }}
+              onTap={e => {
+                e.cancelBubble = true;
+                onSelect();
+                onSelectBubble(b.id);
+              }}
+              onDragStart={e => {
+                e.cancelBubble = true;
+              }}
+              onDragEnd={e => {
+                e.cancelBubble = true;
+                const newX = Math.max(0, Math.min(100 - (bw / pw) * 100, (e.target.x() / pw) * 100));
+                const newY = Math.max(0, Math.min(100 - (bubbleH / ph) * 100, (e.target.y() / ph) * 100));
+                onUpdateBubble(b.id, { x: Math.round(newX), y: Math.round(newY) });
+              }}
+            >
+              {/* Speaker Character badge */}
               {b.character && !isSfx && !isNarr && (
-                <Text text={b.character.toUpperCase()} y={-11} fontSize={8} fontStyle="bold" fill={isBW ? '#000' : '#ff8c00'} />
+                <Text
+                  text={b.character.toUpperCase()}
+                  y={-12}
+                  fontSize={8.5}
+                  fontStyle="bold"
+                  fill={isBW ? '#ffffff' : '#ff8c00'}
+                  shadowColor="#000000"
+                  shadowBlur={4}
+                  shadowOpacity={0.8}
+                />
               )}
+
+              {/* Bubble body */}
               {!isSfx && (
                 <Rect
                   width={bw}
-                  height={28}
-                  fill={isNarr ? '#00003388' : style.color}
+                  height={bubbleH}
+                  fill={isNarr ? '#000033ee' : style.color}
                   cornerRadius={style.borderRadius}
-                  stroke={isSfx ? 'transparent' : '#33333360'}
+                  stroke={isSelected ? '#ff8c00' : isNarr ? '#3b82f6' : '#33333360'}
+                  strokeWidth={isSelected ? 2 : 1}
+                  shadowColor={isSelected ? '#ff8c00' : '#000000'}
+                  shadowBlur={isSelected ? 8 : 4}
+                  shadowOpacity={0.4}
+                />
+              )}
+
+              {/* Vector tail */}
+              {tailPath && !isSfx && !isNarr && (
+                <Path
+                  data={tailPath}
+                  fill={style.color}
+                  stroke={isSelected ? '#ff8c00' : '#33333360'}
                   strokeWidth={1}
                 />
               )}
+
+              {/* Dialogue text */}
               <Text
                 text={b.text || (b.type === 'sfx' ? 'POW!' : 'Text…')}
                 width={bw}
-                padding={4}
+                padding={6}
                 fontSize={isSfx ? 22 : b.fontSize ?? 11}
                 fontStyle={isSfx ? 'bold' : style.fontWeight}
                 fill={style.textColor}
                 align="center"
                 verticalAlign="middle"
-                height={isSfx ? undefined : 28}
+                height={bubbleH}
                 wrap="word"
               />
             </Group>
           );
         })}
 
-        {/* Caption */}
+        {/* Narrative Caption */}
         {panel.caption && (
-          <Group x={0} y={panel.captionPos === 'top' ? 0 : ph - 24}>
-            <Rect width={pw} height={24} fill="#000000aa" />
-            <Text text={panel.caption} width={pw} height={24} fontSize={9} fill="#fff" align="left" padding={4} verticalAlign="middle" />
+          <Group
+            x={0}
+            y={panel.captionPos === 'top' ? 0 : ph - 28}
+            onClick={e => {
+              e.cancelBubble = true;
+              onSelect();
+              // Click caption to toggle top / bottom position
+              onChange({ ...panel, captionPos: panel.captionPos === 'top' ? 'bottom' : 'top' });
+            }}
+          >
+            <Rect width={pw} height={28} fill="#000000ee" stroke="#ffffff25" strokeWidth={1} />
+            <Text
+              text={panel.caption}
+              width={pw}
+              height={28}
+              fontSize={9.5}
+              fill="#f59e0b"
+              fontFamily="Courier New, monospace"
+              fontStyle="bold"
+              align="left"
+              padding={6}
+              verticalAlign="middle"
+            />
           </Group>
         )}
 
-        {/* SFX text */}
+        {/* Kinetic SFX text */}
         {panel.sfxText && (
           <Text
             text={panel.sfxText}
-            x={pw * 0.2} y={ph * 0.3}
-            fontSize={panel.sfxStyle === 'manga' ? 48 : 36}
+            x={pw * 0.25}
+            y={ph * 0.35}
+            fontSize={panel.sfxStyle === 'manga' ? 44 : 34}
             fontStyle="bold"
-            fill={isBW ? '#000' : '#ff2200'}
-            rotation={-15}
+            fill={isBW ? '#ffffff' : '#ff2200'}
+            stroke="#000000"
+            strokeWidth={4}
+            rotation={-12}
+            draggable
+            onClick={e => {
+              e.cancelBubble = true;
+              onSelect();
+            }}
+            onDragStart={e => {
+              e.cancelBubble = true;
+            }}
           />
         )}
       </Group>
@@ -233,16 +347,32 @@ function PanelNode({ panel, canvasW, canvasH, selected, onSelect, onChange, gutt
 
 // ─── Bubble editor sidebar ────────────────────────────────────────────────────
 
-function BubbleSidebar({ panel, onChange, onDraw }: { panel: StudioPanel; onChange: (p: StudioPanel) => void; onDraw: () => void }) {
+function BubbleSidebar({
+  panel,
+  selectedBubbleId,
+  onSelectBubble,
+  onChange,
+  onDraw,
+}: {
+  panel: StudioPanel;
+  selectedBubbleId: string | null;
+  onSelectBubble: (id: string | null) => void;
+  onChange: (p: StudioPanel) => void;
+  onDraw: () => void;
+}) {
+  const selectedBubble = panel.bubbles.find(b => b.id === selectedBubbleId) || null;
+
   const addBubble = (type: SpeechBubble['type']) => {
     const bubble: SpeechBubble = {
       id: uuidv4(),
       type,
-      text: type === 'sfx' ? 'POW!' : 'Text here…',
-      x: 5, y: 5, width: 50,
+      text: type === 'sfx' ? 'POW!' : 'Dialogue text…',
+      x: 15, y: 15, width: 60,
       tailDir: 'br',
+      fontSize: 11,
     };
     onChange({ ...panel, bubbles: [...panel.bubbles, bubble] });
+    onSelectBubble(bubble.id);
   };
 
   const updateBubble = (id: string, updates: Partial<SpeechBubble>) => {
@@ -251,64 +381,218 @@ function BubbleSidebar({ panel, onChange, onDraw }: { panel: StudioPanel; onChan
 
   const deleteBubble = (id: string) => {
     onChange({ ...panel, bubbles: panel.bubbles.filter(b => b.id !== id) });
+    if (selectedBubbleId === id) onSelectBubble(null);
   };
 
   return (
-    <div className="space-y-3">
-      <p className="text-[9px] font-bold uppercase tracking-widest text-white/30">Add speech element</p>
-      <div className="grid grid-cols-3 gap-1">
-        {(Object.keys(BUBBLE_STYLES) as SpeechBubble['type'][]).map(type => (
-          <button key={type} onClick={() => addBubble(type)}
-            className="py-1.5 text-[10px] rounded-lg border border-white/10 bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors text-center">
-            {BUBBLE_STYLES[type].label}
-          </button>
-        ))}
+    <div className="space-y-4">
+      {/* If a bubble is selected, show focused editor */}
+      {selectedBubble ? (
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-orange-400">
+              Selected {selectedBubble.type}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => deleteBubble(selectedBubble.id)}
+                className="text-red-400 hover:text-red-300 p-1"
+                title="Delete bubble"
+              >
+                <Trash2 size={12} />
+              </button>
+              <button
+                onClick={() => onSelectBubble(null)}
+                className="text-white/40 hover:text-white p-1"
+                title="Deselect"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+
+          {/* Speaker character tag */}
+          <div>
+            <label className="text-[8px] uppercase tracking-widest text-white/40 block mb-1">Speaker Character</label>
+            <input
+              type="text"
+              value={selectedBubble.character ?? ''}
+              onChange={e => updateBubble(selectedBubble.id, { character: e.target.value })}
+              placeholder="e.g. Silas Vane, Echo-9"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-orange-400/50"
+            />
+          </div>
+
+          {/* Dialogue text */}
+          <div>
+            <label className="text-[8px] uppercase tracking-widest text-white/40 block mb-1">Dialogue Text</label>
+            <textarea
+              rows={3}
+              value={selectedBubble.text}
+              onChange={e => updateBubble(selectedBubble.id, { text: e.target.value })}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-400/50 resize-none font-sans"
+              placeholder="Enter speech or thought..."
+            />
+          </div>
+
+          {/* Bubble style pills */}
+          <div>
+            <label className="text-[8px] uppercase tracking-widest text-white/40 block mb-1">Bubble Style</label>
+            <div className="grid grid-cols-3 gap-1">
+              {(Object.keys(BUBBLE_STYLES) as SpeechBubble['type'][]).map(type => (
+                <button
+                  key={type}
+                  onClick={() => updateBubble(selectedBubble.id, { type })}
+                  className={`py-1 text-[9px] rounded-lg border transition-colors ${
+                    selectedBubble.type === type
+                      ? 'bg-orange-500 border-orange-400 text-black font-bold'
+                      : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
+                  }`}
+                >
+                  {BUBBLE_STYLES[type].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tail direction */}
+          <div>
+            <label className="text-[8px] uppercase tracking-widest text-white/40 block mb-1">Tail Direction</label>
+            <div className="grid grid-cols-4 gap-1">
+              {(['tl', 'tr', 'bl', 'br'] as const).map(dir => (
+                <button
+                  key={dir}
+                  onClick={() => updateBubble(selectedBubble.id, { tailDir: dir })}
+                  className={`py-1 text-[9px] uppercase font-bold rounded border transition-colors ${
+                    selectedBubble.tailDir === dir
+                      ? 'bg-orange-500/20 border-orange-400 text-orange-400'
+                      : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                  }`}
+                >
+                  {dir}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Width & Font Size */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[8px] uppercase tracking-widest text-white/40 block mb-1">Width %</label>
+              <input
+                type="number"
+                min={20}
+                max={95}
+                value={selectedBubble.width}
+                onChange={e => updateBubble(selectedBubble.id, { width: Number(e.target.value) })}
+                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white"
+              />
+            </div>
+            <div>
+              <label className="text-[8px] uppercase tracking-widest text-white/40 block mb-1">Font Size</label>
+              <input
+                type="number"
+                min={8}
+                max={32}
+                value={selectedBubble.fontSize ?? 11}
+                onChange={e => updateBubble(selectedBubble.id, { fontSize: Number(e.target.value) })}
+                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Add new bubble elements */}
+      <div>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-2">Add speech element</p>
+        <div className="grid grid-cols-3 gap-1">
+          {(Object.keys(BUBBLE_STYLES) as SpeechBubble['type'][]).map(type => (
+            <button
+              key={type}
+              onClick={() => addBubble(type)}
+              className="py-1.5 text-[10px] rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors text-center"
+            >
+              + {BUBBLE_STYLES[type].label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {panel.bubbles.length > 0 && (
-        <div className="space-y-2 mt-2">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20">Bubbles on this panel</p>
+      {/* All bubbles on panel */}
+      {panel.bubbles.length > 0 && !selectedBubble && (
+        <div className="space-y-1.5">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white/30">Bubbles on this panel</p>
           {panel.bubbles.map(b => (
-            <div key={b.id} className="bg-white/5 border border-white/10 rounded-xl p-2 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-bold text-white/40 uppercase">{b.type}</span>
-                <button onClick={() => deleteBubble(b.id)} className="text-red-400/60 hover:text-red-400"><Trash2 size={10} /></button>
+            <div
+              key={b.id}
+              onClick={() => onSelectBubble(b.id)}
+              className="group flex items-center justify-between p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-orange-500/50 cursor-pointer transition-colors"
+            >
+              <div className="min-w-0 pr-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[8px] font-black uppercase text-orange-400">{b.character || b.type}</span>
+                </div>
+                <p className="text-[11px] text-white/70 truncate">{b.text || 'Empty'}</p>
               </div>
-              <input
-                type="text"
-                value={b.text}
-                onChange={e => updateBubble(b.id, { text: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                placeholder="Bubble text…"
-              />
-              <div className="grid grid-cols-3 gap-1">
-                {(['x','y','width'] as const).map(key => (
-                  <div key={key}>
-                    <div className="text-[8px] text-white/25 uppercase">{key}%</div>
-                    <input type="number" min={0} max={100} value={b[key]} onChange={e => updateBubble(b.id, { [key]: Number(e.target.value) })}
-                      className="w-full bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none" />
-                  </div>
-                ))}
-              </div>
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  deleteBubble(b.id);
+                }}
+                className="text-white/20 hover:text-red-400 p-1"
+              >
+                <Trash2 size={10} />
+              </button>
             </div>
           ))}
         </div>
       )}
 
+      {/* Caption bar */}
+      <div className="pt-2 border-t border-white/5">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-1.5">Narrative Caption</p>
+        <textarea
+          rows={2}
+          value={panel.caption ?? ''}
+          onChange={e => onChange({ ...panel, caption: e.target.value })}
+          placeholder="Monologue / Time-Location caption…"
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none mb-1.5 resize-none font-mono"
+        />
+        <div className="flex gap-1">
+          {(['top', 'bottom'] as const).map(pos => (
+            <button
+              key={pos}
+              onClick={() => onChange({ ...panel, captionPos: pos })}
+              className={`flex-1 py-1 rounded text-[9px] border transition-colors capitalize ${
+                panel.captionPos === pos ? 'bg-orange-500/20 border-orange-500 text-orange-400 font-bold' : 'border-white/10 text-white/40 hover:text-white'
+              }`}
+            >
+              {pos}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* SFX text */}
       <div className="pt-2 border-t border-white/5">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-1.5">Panel SFX text</p>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-1.5">Panel SFX Text</p>
         <input
           type="text"
           value={panel.sfxText ?? ''}
           onChange={e => onChange({ ...panel, sfxText: e.target.value })}
-          placeholder="BOOM! CRASH! (optional)"
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none mb-1"
+          placeholder="BOOM! SHHH! (optional)"
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none mb-1.5 font-bold"
         />
         <div className="flex gap-1">
-          {(['bold','impact','manga'] as const).map(s => (
-            <button key={s} onClick={() => onChange({ ...panel, sfxStyle: s })}
-              className={`flex-1 py-0.5 rounded text-[9px] border transition-colors ${panel.sfxStyle === s ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'border-white/10 text-white/30 hover:text-white'}`}>
+          {(['bold', 'impact', 'manga'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => onChange({ ...panel, sfxStyle: s })}
+              className={`flex-1 py-0.5 rounded text-[9px] border transition-colors ${
+                panel.sfxStyle === s ? 'bg-orange-500/20 border-orange-500 text-orange-400 font-bold' : 'border-white/10 text-white/30 hover:text-white'
+              }`}
+            >
               {s}
             </button>
           ))}
@@ -317,47 +601,42 @@ function BubbleSidebar({ panel, onChange, onDraw }: { panel: StudioPanel; onChan
 
       {/* Panel image */}
       <div className="pt-2 border-t border-white/5">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-1.5">Panel image</p>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-1.5">Panel Artwork</p>
+        {panel.imageUrl && (
+          <div className="mb-2 rounded-lg overflow-hidden border border-white/10 aspect-video bg-black relative">
+            <img src={panel.imageUrl} alt="" className="w-full h-full object-cover" />
+            <button
+              onClick={() => onChange({ ...panel, imageUrl: undefined })}
+              className="absolute top-1 right-1 bg-black/70 hover:bg-red-500 p-1 rounded text-white"
+              title="Remove art"
+            >
+              <Trash2 size={10} />
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-1.5">
-          <label className="flex items-center justify-center gap-1.5 cursor-pointer px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white text-xs transition-colors">
+          <label className="flex items-center justify-center gap-1.5 cursor-pointer px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs transition-colors">
             <Upload size={11} /> Upload
-            <input type="file" accept="image/*" className="hidden" onChange={async e => {
-              const file = e.target.files?.[0];
-              if (!file || !auth.currentUser) return;
-              const storageRef = ref(storage, `books/${auth.currentUser.uid}/${uuidv4()}_${file.name}`);
-              await uploadBytes(storageRef, file);
-              const url = await getDownloadURL(storageRef);
-              onChange({ ...panel, imageUrl: url });
-            }} />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async e => {
+                const file = e.target.files?.[0];
+                if (!file || !auth.currentUser) return;
+                const storageRef = ref(storage, `books/${auth.currentUser.uid}/${uuidv4()}_${file.name}`);
+                await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(storageRef);
+                onChange({ ...panel, imageUrl: url });
+              }}
+            />
           </label>
-          <button onClick={onDraw} className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25 text-xs transition-colors">
+          <button
+            onClick={onDraw}
+            className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25 text-xs transition-colors"
+          >
             <Brush size={11} /> Draw
           </button>
-        </div>
-        {panel.imageUrl && (
-          <button onClick={() => onChange({ ...panel, imageUrl: undefined })} className="mt-1 text-[10px] text-red-400/60 hover:text-red-400 flex items-center gap-1">
-            <Trash2 size={10} /> Remove image
-          </button>
-        )}
-      </div>
-
-      {/* Caption */}
-      <div className="pt-2 border-t border-white/5">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-1.5">Caption bar</p>
-        <input
-          type="text"
-          value={panel.caption ?? ''}
-          onChange={e => onChange({ ...panel, caption: e.target.value })}
-          placeholder="Narration / caption text…"
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none mb-1"
-        />
-        <div className="flex gap-1">
-          {(['top','bottom'] as const).map(pos => (
-            <button key={pos} onClick={() => onChange({ ...panel, captionPos: pos })}
-              className={`flex-1 py-0.5 rounded text-[9px] border transition-colors capitalize ${panel.captionPos === pos ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'border-white/10 text-white/30 hover:text-white'}`}>
-              {pos}
-            </button>
-          ))}
         </div>
       </div>
     </div>
@@ -370,13 +649,26 @@ interface Props {
   page: StudioPage;
   onChange: (p: StudioPage) => void;
   isManga: boolean;
+  currentPageIndex?: number;
+  totalPages?: number;
+  onNavigatePage?: (delta: number) => void;
+  onOpenInLorea?: () => void;
 }
 
 const CANVAS_W = 800;
 const CANVAS_H = 1100;
 
-export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
+export default function ComicPanelBuilder({
+  page,
+  onChange,
+  isManga,
+  currentPageIndex,
+  totalPages,
+  onNavigatePage,
+  onOpenInLorea,
+}: Props) {
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
+  const [selectedBubbleId, setSelectedBubbleId] = useState<string | null>(null);
   const [isBW, setIsBW] = useState(page.colorMode === 'bw' || isManga);
   const [gutter, setGutter] = useState(page.panelGutter ?? 6);
   const [scale, setScale] = useState(0.65);
@@ -388,6 +680,12 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
 
   const updatePanel = (updated: StudioPanel) => {
     onChange({ ...page, panels: panels.map(p => p.id === updated.id ? updated : p) });
+  };
+
+  const updateBubbleOnActivePanel = (bubbleId: string, updates: Partial<SpeechBubble>) => {
+    if (!selectedPanel) return;
+    const updatedBubbles = selectedPanel.bubbles.map(b => b.id === bubbleId ? { ...b, ...updates } : b);
+    updatePanel({ ...selectedPanel, bubbles: updatedBubbles });
   };
 
   const addPanel = () => {
@@ -462,40 +760,11 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
     ? [...list].sort((a, b) => a.x !== b.x ? b.x - a.x : a.y - b.y)
     : [...list].sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
 
-  // Drop N images and auto-format them into panels: upload all, then assign to panels in
-  // reading order. If there aren't enough panels, extend with a matching grid first.
-  const autoFillImages = async (files: FileList | null) => {
-    if (!files?.length || !auth.currentUser) return;
-    setUploading(true);
-    try {
-      const uid = auth.currentUser.uid;
-      const urls: string[] = [];
-      for (const file of Array.from(files)) {
-        const storageRef = ref(storage, `books/${uid}/${uuidv4()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        urls.push(await getDownloadURL(storageRef));
-      }
-      // Ensure there are at least as many panels as images.
-      let target = panels;
-      if (target.length < urls.length) {
-        const n = urls.length;
-        const cols = n <= 2 ? 1 : n <= 6 ? 2 : 3;
-        const rowsN = Math.ceil(n / cols);
-        const specs: LayoutPanelSpec[] = [];
-        for (let i = 0; i < n; i++) { const c = i % cols, r = Math.floor(i / cols); specs.push({ x: (100 / cols) * c, y: (100 / rowsN) * r, width: 100 / cols, height: 100 / rowsN }); }
-        target = panelsFromLayout(specs, target, isBW);
-      }
-      const ordered = readingOrder(target);
-      const byId: Record<string, string> = {};
-      ordered.forEach((p, i) => { if (urls[i]) byId[p.id] = urls[i]; });
-      onChange({ ...page, panels: target.map(p => byId[p.id] ? { ...p, imageUrl: byId[p.id] } : p) });
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const deselect = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.target === stageRef.current) setSelectedPanelId(null);
+    if (e.target === stageRef.current) {
+      setSelectedPanelId(null);
+      setSelectedBubbleId(null);
+    }
   };
 
   // Render panels in RTL order for manga
@@ -506,19 +775,40 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
   return (
     <div className="flex h-full" style={{ backgroundColor: page.bgColor ?? '#0a0a0a' }}>
       {/* Canvas area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Canvas toolbar */}
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-black/40 shrink-0 overflow-x-auto no-scrollbar">
+          {/* Quick Page Navigation */}
+          {totalPages !== undefined && currentPageIndex !== undefined && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-xs shrink-0">
+              <button
+                onClick={() => onNavigatePage && onNavigatePage(-1)}
+                disabled={currentPageIndex <= 0}
+                className="p-1 rounded hover:bg-white/10 disabled:opacity-20 text-white/60 hover:text-white transition-colors"
+                title="Previous Page"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-[10px] font-bold text-white/80 px-1 whitespace-nowrap">
+                Page {currentPageIndex + 1} of {totalPages}
+              </span>
+              <button
+                onClick={() => onNavigatePage && onNavigatePage(1)}
+                disabled={currentPageIndex >= totalPages - 1}
+                className="p-1 rounded hover:bg-white/10 disabled:opacity-20 text-white/60 hover:text-white transition-colors"
+                title="Next Page"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+
           <button onClick={() => setShowLayouts(v => !v)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${showLayouts ? 'bg-orange-500 text-black' : 'bg-white/5 border border-white/10 text-white/60 hover:text-white'}`}>
             <LayoutGrid size={12} /> Layouts
           </button>
           <button onClick={() => setShowScript(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-colors">
             <Type size={12} /> Script
           </button>
-          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold cursor-pointer transition-colors">
-            {uploading ? <Loader2 size={12} className="animate-spin" /> : <Images size={12} />} Auto-fill images
-            <input type="file" accept="image/*" multiple className="hidden" onChange={e => autoFillImages(e.target.files)} />
-          </label>
           <button onClick={addPanel} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-colors">
             <Plus size={12} /> Panel
           </button>
@@ -528,7 +818,7 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
             <Trash2 size={12} /> Delete
           </button>
 
-          <div className="w-px h-4 bg-white/10 mx-1" />
+          <div className="w-px h-4 bg-white/10 mx-1 shrink-0" />
 
           {/* B&W toggle */}
           <button onClick={() => { setIsBW(v => !v); onChange({ ...page, colorMode: isBW ? 'color' : 'bw' }); }}
@@ -538,15 +828,26 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
           </button>
 
           {/* Gutter */}
-          <label className="flex items-center gap-2 text-xs text-white/40">
+          <label className="flex items-center gap-2 text-xs text-white/40 shrink-0">
             Gutter
             <input type="range" min={0} max={20} value={gutter}
               onChange={e => { const v = Number(e.target.value); setGutter(v); onChange({ ...page, panelGutter: v }); }}
-              className="w-20 accent-orange-500" />
+              className="w-16 accent-orange-500" />
             <span className="text-white/30 w-4">{gutter}</span>
           </label>
 
-          <div className="ml-auto flex items-center gap-1">
+          {/* Lorea Reader Link */}
+          {onOpenInLorea && (
+            <button
+              onClick={onOpenInLorea}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500/30 text-xs font-bold transition-all shadow-sm shrink-0 ml-1"
+              title="Preview in Lorea Reader"
+            >
+              <BookOpen size={12} /> Read in Lorea
+            </button>
+          )}
+
+          <div className="ml-auto flex items-center gap-1 shrink-0">
             <button onClick={() => setScale(s => Math.max(0.3, s - 0.1))} className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors"><ZoomOut size={13} /></button>
             <span className="text-xs text-white/30 w-10 text-center">{Math.round(scale * 100)}%</span>
             <button onClick={() => setScale(s => Math.min(1.5, s + 0.1))} className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white transition-colors"><ZoomIn size={13} /></button>
@@ -576,13 +877,13 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
 
         {/* Konva canvas */}
         <div ref={containerRef} className="flex-1 overflow-auto flex items-start justify-center p-6"
-          style={{ backgroundColor: isBW ? '#555' : '#333' }}>
+          style={{ backgroundColor: isBW ? '#222' : '#181818' }}>
           <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
             <Stage
               ref={stageRef}
               width={CANVAS_W}
               height={CANVAS_H}
-              style={{ background: page.bgColor ?? '#0a0a0a', borderRadius: 4, boxShadow: '0 0 40px rgba(0,0,0,0.6)' }}
+              style={{ background: page.bgColor ?? '#0a0a0a', borderRadius: 6, boxShadow: '0 0 50px rgba(0,0,0,0.8)' }}
               onMouseDown={deselect}
               onTouchStart={deselect as any}
             >
@@ -598,7 +899,15 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
                     canvasW={CANVAS_W}
                     canvasH={CANVAS_H}
                     selected={panel.id === selectedPanelId}
-                    onSelect={() => setSelectedPanelId(panel.id)}
+                    selectedBubbleId={selectedBubbleId}
+                    onSelect={() => {
+                      setSelectedPanelId(panel.id);
+                    }}
+                    onSelectBubble={(bubbleId) => {
+                      setSelectedPanelId(panel.id);
+                      setSelectedBubbleId(bubbleId);
+                    }}
+                    onUpdateBubble={updateBubbleOnActivePanel}
                     onChange={updatePanel}
                     gutter={gutter}
                     isBW={isBW}
@@ -608,9 +917,9 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
                 {/* Reading direction indicator for manga */}
                 {isManga && (
                   <Text
-                    text="← 読む方向"
-                    x={CANVAS_W - 90} y={10}
-                    fontSize={11} fill="#ffffff40"
+                    text="← 読む方向 (RTL Manga Flow)"
+                    x={CANVAS_W - 160} y={12}
+                    fontSize={11} fill="#ffffff50" fontStyle="bold"
                   />
                 )}
               </Layer>
@@ -620,10 +929,10 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
 
         {/* Panel position controls (keyboard-accessible) */}
         {selectedPanel && (
-          <div className="shrink-0 border-t border-white/5 bg-black/20 px-4 py-2 flex items-center gap-4 text-xs text-white/40">
-            <span className="text-white/20">Position</span>
+          <div className="shrink-0 border-t border-white/5 bg-black/30 px-4 py-2 flex items-center gap-4 text-xs text-white/40 overflow-x-auto no-scrollbar">
+            <span className="text-white/30 font-bold uppercase text-[9px]">Panel Geometry</span>
             {(['x','y','width','height'] as const).map(key => (
-              <label key={key} className="flex items-center gap-1.5">
+              <label key={key} className="flex items-center gap-1.5 shrink-0">
                 <span className="uppercase text-[9px] text-white/25">{key}</span>
                 <input
                   type="number" min={0} max={100} step={0.5}
@@ -634,7 +943,7 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
                 <span className="text-white/20">%</span>
               </label>
             ))}
-            <label className="flex items-center gap-1.5 ml-4">
+            <label className="flex items-center gap-1.5 ml-2 shrink-0">
               <span className="text-[9px] text-white/25">BORDER</span>
               <select
                 value={selectedPanel.borderStyle ?? 'solid'}
@@ -644,7 +953,7 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
                 {['solid','thick','double','none'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-1.5">
+            <label className="flex items-center gap-1.5 shrink-0">
               <span className="text-[9px] text-white/25">BG</span>
               <input type="color" value={selectedPanel.bgColor ?? '#111'}
                 onChange={e => updatePanel({ ...selectedPanel, bgColor: e.target.value })}
@@ -655,22 +964,30 @@ export default function ComicPanelBuilder({ page, onChange, isManga }: Props) {
       </div>
 
       {/* Right sidebar: bubble editor */}
-      <div className="w-[220px] shrink-0 border-l border-white/5 bg-[#0d0d0d] overflow-y-auto p-3">
+      <div className="w-[240px] shrink-0 border-l border-white/5 bg-[#0d0d0f] overflow-y-auto p-3">
         {selectedPanel ? (
           <>
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-bold text-white/60">Panel editor</div>
-              <button onClick={() => setSelectedPanelId(null)} className="text-white/20 hover:text-white">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
+              <div className="text-xs font-black uppercase tracking-wider text-white/70">Panel Layer Editor</div>
+              <button onClick={() => { setSelectedPanelId(null); setSelectedBubbleId(null); }} className="text-white/20 hover:text-white">
                 <X size={12} />
               </button>
             </div>
-            <BubbleSidebar panel={selectedPanel} onChange={updatePanel} onDraw={() => setDrawingPanelId(selectedPanel.id)} />
+            <BubbleSidebar
+              panel={selectedPanel}
+              selectedBubbleId={selectedBubbleId}
+              onSelectBubble={setSelectedBubbleId}
+              onChange={updatePanel}
+              onDraw={() => setDrawingPanelId(selectedPanel.id)}
+            />
           </>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center gap-3 text-white/20">
+          <div className="h-full flex flex-col items-center justify-center text-center gap-3 text-white/20 p-4">
             <Square size={24} className="opacity-30" />
-            <p className="text-xs">Click a panel on the canvas to edit it</p>
-            <p className="text-[10px] text-white/10">Add speech bubbles, images, captions, and SFX text</p>
+            <p className="text-xs font-bold text-white/40">Select a Panel</p>
+            <p className="text-[10px] text-white/30 leading-relaxed">
+              Click any panel on the canvas to drag speech bubbles with directional tails, edit character dialogue, adjust captions, and replace artwork.
+            </p>
           </div>
         )}
       </div>

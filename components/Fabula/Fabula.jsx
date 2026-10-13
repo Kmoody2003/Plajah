@@ -77,6 +77,7 @@ import AudioEditor from "./AudioEditor";
 import AudioTimeline from "./AudioTimeline";
 import ColorWheels from "./ColorWheels";
 import CurveEditor from "./CurveEditor";
+import PlajahColoristSuite from "../shared/color/PlajahColoristSuite";
 import { buildCurveLut, isCurvesIdentity } from "../../services/fabula/gradeCurves";
 import { isQualifierIdentity, keyFromPixel, QUALIFIER_DEFAULT } from "../../services/fabula/hslKey";
 import { isWindowEnabled, WINDOW_DEFAULT } from "../../services/fabula/gradeWindow";
@@ -8254,7 +8255,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                     ...(isWindowEnabled(g.window) ? { window: g.window } : {}) });
                   const extraMon = (fx?.grades || []).filter((g) => g && g.enabled !== false).map(monToGrade);
                   const glgStack = extraMon.length ? [glg, ...extraMon].filter(Boolean) : null;
-                  const CTABS = [["looks", "LOOKS"], ["develop", "DEVELOP"], ["wheels", "WHEELS"], ["curves", "CURVES"], ["qualifier", "QUALIFIER"], ["windows", "WINDOWS"], ["primaries", "PRIMARIES"]];
+                  const CTABS = [["suite", "COLORIST SUITE"], ["looks", "LOOKS"], ["develop", "DEVELOP"], ["wheels", "WHEELS"], ["curves", "CURVES"], ["qualifier", "QUALIFIER"], ["windows", "WINDOWS"], ["primaries", "PRIMARIES"]];
                   const stillOn = colorStills.find((st) => st.id === wipeStill) || null;
                   const grabStill = () => {
                     const cv = gradeMonRef.current;
@@ -8387,6 +8388,22 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         </div>
 
                         <div className="colorbody">
+                          {colorTab === "suite" && (gradeable ? (
+                            <div style={{ maxWidth: 960, margin: "0 auto", width: "100%", padding: "4px 0" }}>
+                              <PlajahColoristSuite
+                                sourceRef={gradeMonRef}
+                                colorSpace={prod.design?.colorSpace || "rec709"}
+                                onColorSpaceChange={(cs) => updateProd((p) => { if (!p.design) p.design = {}; p.design.colorSpace = cs; })}
+                                wheels={wheel}
+                                onWheelsChange={(w) => setWheel(w)}
+                                curves={layerData.curves}
+                                onCurvesChange={(c) => setLayer({ curves: c })}
+                                scopeMode="grid"
+                                compact={false}
+                              />
+                            </div>
+                          ) : <div className="dim small colorempty">Select a clip in the EDIT room &mdash; or click one in the timeline below &mdash; to grade it with the Colorist Suite.</div>)}
+
                           {colorTab === "looks" && (
                             <div>
                             <div className="colorlooks wide">

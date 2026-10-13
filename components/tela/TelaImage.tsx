@@ -1068,8 +1068,8 @@ const TelaImage: React.FC<TelaImageProps> = (props) => {
             onWheelsChange={(w) => {
               setWheels(w);
               if (selected) {
-                const exposureDelta = (w.gainMaster + w.offsetMaster * 0.5);
-                const brightnessDelta = 1 + w.gammaMaster * 0.3;
+                const exposureDelta = ((w.gainMaster ?? 1) - 1 + (w.offsetMaster ?? 0) * 0.5);
+                const brightnessDelta = 1 + ((w.gammaMaster ?? 1) - 1) * 0.3;
                 onUpdateLayer(selected.id, {
                   adjust: {
                     ...selected.adjust,
