@@ -18,6 +18,7 @@ import {
   Image as ImageIcon, HardDrive, Eye,
 } from "lucide-react";
 import SpatialStudio from "./SpatialStudio";
+const AnimaStudio = lazy(() => import("./anima/AnimaStudio"));
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { putBytes as mediaPutBytes, getBytes as mediaGetBytes, delBytes as mediaDelBytes } from "../../services/fabula/mediaStore";
@@ -6159,7 +6160,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         D,
         { label: `Snapping: ${snapOn ? "On" : "Off"}`, fn: () => setSnapOn((s) => !s) },
         D,
-        ...[["media", "MEDIA"], ["edit", "EDIT"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
+        ...[["media", "MEDIA"], ["edit", "EDIT"], ["anima", "ANIMA 2D/3D"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
         D,
         { label: "Keyboard shortcuts…", fn: () => setShowShortcuts(true) },
       ],
@@ -8121,6 +8122,14 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                   </>
                 )}
 
+                {editWs === "anima" && (
+                  <div style={{ flex: 1, minHeight: 0, display: "flex", width: "100%", height: "100%" }}>
+                    <Suspense fallback={<div className="p-8 text-center text-xs opacity-50">Loading Anima 2D/3D Studio…</div>}>
+                      <AnimaStudio onBackToEdit={() => setEditWs("edit")} />
+                    </Suspense>
+                  </div>
+                )}
+
                 {editWs === "vfx" && (() => {
                   // Four-band VFX/COMP: monitor + inspector reference surface; the three authoring
                   // tools (comp / lottie / capture) become a tabbed control band.
@@ -8912,7 +8921,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           {page === "edit" && prod && container && (
             <>
               <span className="raildiv" />
-              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo]].map(([id, lab, Ic]) => (
+              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["anima", "ANIMA 2D/3D", Sparkles], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo]].map(([id, lab, Ic]) => (
                 <button key={id} className={`raildot ws ${editWs === id ? "on" : ""}`} onClick={() => setEditWs(id)} title={lab}>
                   <Ic size={13} />
                 </button>
