@@ -7381,6 +7381,14 @@ export interface TelaVectorObject {
   textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
   /** Word-wrap the text inside the object's width (explicit \n still breaks). */
   wrap?: boolean;
+  /** Rich structured paragraphs inside a text box (headings, body, lists, quotes). */
+  blocks?: TelaBlock[];
+  /** Card background fill behind the text box (hex, rgba or css color). */
+  backgroundColor?: string;
+  /** Internal padding in px (default 0 or 12 for cards). */
+  padding?: number;
+  /** Multi-column typography layout inside the box (1, 2, or 3). */
+  columns?: number;
   // ── Shape finish ──
   /** Corner radius for RECT (px). */
   rx?: number;
@@ -7710,8 +7718,8 @@ export interface TelaDoc {
   bindings?: TelaBinding[];
   /** Living layer: behaviours, music scores and narration that make the document's pages interactive in the reader. See services/living/contracts.ts. Export strips it. */
   living?: import('./services/living/contracts').LivingBook;
-  /** Self-description of a published picture book (the showcase books): who wrote it, under what licence, for what ages, and how it was made. */
-  publication?: { kind: 'picture-book'; bookId: string; templateId: string; author: string; license: string; licenseId?: string; ageMin: number; ageMax: number; language: string; aiDisclosure: string; pageCount: number };
+  /** Self-description of a published picture book, comic, or graphic novel: who wrote it, under what licence, for what ages, and how it was made. */
+  publication?: { kind: 'picture-book' | 'comic-book' | 'manga' | 'graphic-novel'; bookId: string; templateId: string; author: string; license: string; licenseId?: string; ageMin: number; ageMax: number; language: string; aiDisclosure: string; pageCount: number };
   createdAt: number;
   updatedAt: number;
   /** Last structural assignment formatting pass. Source content remains editable. */

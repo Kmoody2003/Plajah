@@ -19,9 +19,10 @@
 import React, { useRef, useState } from 'react';
 import {
   MousePointer2, MousePointerClick, Scan, Square, Circle, Minus, PenTool, Type, Brush, Pen, Pencil, Highlighter, Eraser, Lasso,
-  ChevronUp, ChevronDown, Trash2, Link2, Unlink,
+  ChevronUp, ChevronDown, Trash2, Link2, Unlink, Copy, Plus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  Bold, Italic, Underline, Strikethrough, Heading1, Heading2, List, Quote, Palette,
 } from 'lucide-react';
-import type { TelaVectorDevice, TelaVectorObject, TelaVectorObjectKind } from '../../types';
+import type { TelaBlock, TelaVectorDevice, TelaVectorObject, TelaVectorObjectKind } from '../../types';
 import { pathDataFromNodes } from '../../services/telaImageTrace';
 import { layoutTextLines } from '../../services/tela/telaText';
 import { InkLayer, type NoteTool } from '../ink';
@@ -58,9 +59,21 @@ function makeObject(kind: TelaVectorObjectKind, x: number, y: number): TelaVecto
     rotation: 0, opacity: 1,
   };
   if (kind === 'TEXT') {
-    base.w = 260; base.h = 48; base.text = 'Text';
-    base.fontSize = 34; base.fontFamily = 'system-ui, sans-serif'; base.fontWeight = 700;
+    base.w = 340; base.h = 160;
+    base.fontSize = 18; base.fontFamily = 'Inter, system-ui, sans-serif'; base.fontWeight = 400;
     base.fill = '#1B1523';
+    base.lineHeight = 1.5;
+    base.textAlign = 'left';
+    base.wrap = true;
+    base.backgroundColor = 'rgba(255, 255, 255, 0.96)';
+    base.padding = 16;
+    base.rx = 8;
+    base.shadow = { x: 0, y: 4, blur: 16, color: 'rgba(0,0,0,0.1)' };
+    base.text = 'Typography Heading\nFree-moving text box with rich paragraphing. Drag to position anywhere on any document page.';
+    base.blocks = [
+      { id: newObjId(), kind: 'h2', text: 'Typography Heading' },
+      { id: newObjId(), kind: 'p', text: 'Free-moving text box with rich paragraphing. Drag to position anywhere on any document page.' },
+    ];
   }
   if (kind === 'LINE') base.points = [x, y, x, y];
   return base;
@@ -92,12 +105,13 @@ export const ObjectEl: React.FC<{
   interactive: boolean;
   /** Thumbnails/galleries: LOTTIE shows its poster frame instead of a live player. */
   staticRender?: boolean;
+  isSelected?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onPointerMove?: (e: React.PointerEvent) => void;
   onPointerUp?: (e: React.PointerEvent) => void;
   onPointerCancel?: (e: React.PointerEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
-}> = ({ o, writerTexts, interactive, staticRender, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
+}> = ({ o, writerTexts, interactive, staticRender, isSelected, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
   if (usesSerializer(o)) {
     return <g data-tela-geom="1" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu}
       style={{ cursor: interactive ? 'move' : 'default' }} dangerouslySetInnerHTML={{ __html: geomSvg(o, writerTexts) }} />;
@@ -136,8 +150,6 @@ export const ObjectEl: React.FC<{
     return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>);
   }
   if (o.kind === 'LOTTIE') {
-    // Live player in a foreignObject; static renders (thumbnails) use the cached poster
-    // frame, or a labelled placeholder — never a broken image.
     const L = o.lottie;
     const w = Math.max(1, o.w), h = Math.max(1, o.h);
     const par = !L || L.fit === 'contain' ? 'xMidYMid meet' : L.fit === 'cover' ? 'xMidYMid slice' : 'none';
@@ -152,8 +164,6 @@ export const ObjectEl: React.FC<{
     </g>);
   }
   if (o.kind === 'MOTION_TEMPLATE') {
-    // Ambo slide template / scripture look drawn live from the platform code; static
-    // renders (thumbnails) use the cached poster, or a labelled placeholder.
     const M = o.motionTemplate;
     const w = Math.max(1, o.w), h = Math.max(1, o.h);
     const body = M && !staticRender
@@ -169,21 +179,142 @@ export const ObjectEl: React.FC<{
   if (o.kind === 'PATH' && o.svgPathData) {
     const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y;
     const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h);
-    // Stroke width is specified in artboard px; undo the origin-box scale so it stays even.
     const strokeScale = Math.max(.0001, Math.sqrt(Math.abs(sx * sy)));
     return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish}><path d={o.svgPathData} fill={o.gradient ? `url(#${gradientId})` : o.fill} stroke={o.stroke} strokeWidth={o.strokeWidth / strokeScale} strokeLinecap="round" strokeLinejoin="round" fillRule="evenodd" transform={`translate(${o.x} ${o.y}) scale(${sx} ${sy}) translate(${-ox} ${-oy})`} /></g>);
   }
   if (o.kind === 'PATH' && o.points) {
     const pts = [];
     for (let i = 0; i + 1 < o.points.length; i += 2) pts.push(`${o.points[i]},${o.points[i + 1]}`);
-    // Open freehand strokes render smoothed (quadratic through midpoints), matching Notes ink.
     if (!o.pathClosed && o.points.length >= 6) return decorate(<path d={pathData(o.points)} {...common} />);
     return decorate(o.pathClosed ? <polygon points={pts.join(' ')} {...common} /> : <polyline points={pts.join(' ')} {...common} />);
   }
   if (o.kind === 'TEXT') {
-    const size = o.fontSize || 24;
-    const lines = textLines(o, writerTexts);
+    const size = o.fontSize || 18;
     const align = o.textAlign || 'left';
+    const isRichTextBox = !!o.blocks?.length || !!o.wrap || !!o.backgroundColor || !!o.padding || (o.w >= 60 && o.h >= 24);
+
+    if (isRichTextBox) {
+      const boxW = Math.max(80, o.w || 320);
+      const boxH = Math.max(32, o.h || 120);
+      const bg = o.backgroundColor || 'transparent';
+      const border = o.stroke && o.stroke !== 'none' && o.strokeWidth > 0
+        ? `${o.strokeWidth}px solid ${o.stroke}`
+        : 'none';
+      const pad = o.padding !== undefined ? o.padding : (bg !== 'transparent' ? 14 : 4);
+      const textColor = o.fill && o.fill !== 'none' ? o.fill : '#1E1B26';
+      const fontFamily = o.fontFamily || 'Inter, system-ui, -apple-system, sans-serif';
+      const leading = o.lineHeight ?? 1.5;
+      const tracking = o.letterSpacing ? `${o.letterSpacing * size}px` : undefined;
+      const textDecor = o.underline ? 'underline' : o.strike ? 'line-through' : undefined;
+
+      const renderedBlocks: TelaBlock[] = o.blocks && o.blocks.length > 0 ? o.blocks : (
+        (o.text || '').split('\n').filter(Boolean).length > 0
+          ? (o.text || '').split('\n').map((line, i) => ({ id: `p${i}`, kind: (i === 0 && (o.text || '').split('\n').length > 1 ? 'h2' : 'p') as const, text: line }))
+          : [{ id: 'p0', kind: 'p' as const, text: o.text || 'Type rich text here...' }]
+      );
+
+      return decorate(
+        <g
+          transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onContextMenu={onContextMenu}
+          style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }}
+          opacity={o.opacity}
+          {...finish}
+          data-tela-kind="TEXT_BOX"
+        >
+          <foreignObject
+            x={o.x}
+            y={o.y}
+            width={boxW}
+            height={boxH}
+            style={{ overflow: 'hidden' }}
+          >
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                boxSizing: 'border-box',
+                background: bg,
+                borderRadius: o.rx ? `${o.rx}px` : undefined,
+                border,
+                padding: `${pad}px`,
+                color: textColor,
+                fontFamily,
+                fontSize: `${size}px`,
+                lineHeight: leading,
+                letterSpacing: tracking,
+                textAlign: align,
+                fontWeight: o.fontWeight || 400,
+                fontStyle: o.fontStyle || 'normal',
+                textTransform: o.textTransform || 'none',
+                textDecoration: textDecor,
+                columnCount: o.columns && o.columns > 1 ? o.columns : undefined,
+                columnGap: o.columns && o.columns > 1 ? '18px' : undefined,
+                wordBreak: 'break-word',
+                userSelect: isSelected ? 'text' : 'none',
+                cursor: interactive ? 'move' : 'default',
+              }}
+            >
+              {renderedBlocks.map((blk, idx) => {
+                const bText = blk.text ?? '';
+                if (blk.kind === 'h1') {
+                  return (
+                    <div key={blk.id || idx} style={{ fontWeight: 800, fontSize: '1.45em', marginBottom: '0.35em', lineHeight: 1.25, letterSpacing: '-0.02em' }}>
+                      {bText || <span style={{ opacity: 0.35 }}>Heading 1</span>}
+                    </div>
+                  );
+                }
+                if (blk.kind === 'h2') {
+                  return (
+                    <div key={blk.id || idx} style={{ fontWeight: 700, fontSize: '1.2em', marginBottom: '0.3em', lineHeight: 1.3, letterSpacing: '-0.01em' }}>
+                      {bText || <span style={{ opacity: 0.35 }}>Heading 2</span>}
+                    </div>
+                  );
+                }
+                if (blk.kind === 'li') {
+                  return (
+                    <div key={blk.id || idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '0.25em' }}>
+                      <span style={{ color: 'var(--pj-magenta, #D40055)', fontWeight: 800 }}>•</span>
+                      <span>{bText || <span style={{ opacity: 0.35 }}>List item</span>}</span>
+                    </div>
+                  );
+                }
+                const isQuote = blk.semanticLabel?.toLowerCase().includes('quote') || (blk as any).textRole === 'QUOTE';
+                if (isQuote) {
+                  return (
+                    <div
+                      key={blk.id || idx}
+                      style={{
+                        borderLeft: '3px solid var(--pj-lilac, #8B5CFF)',
+                        paddingLeft: '10px',
+                        margin: '6px 0',
+                        fontStyle: 'italic',
+                        background: 'rgba(139, 92, 255, 0.08)',
+                        borderRadius: '0 6px 6px 0',
+                      }}
+                    >
+                      {bText || <span style={{ opacity: 0.35 }}>Quote or callout…</span>}
+                    </div>
+                  );
+                }
+                return (
+                  <div key={blk.id || idx} style={{ marginBottom: '0.4em', minHeight: '1.2em' }}>
+                    {bText || <span style={{ opacity: 0.35 }}>Type text…</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </foreignObject>
+          <rect x={o.x} y={o.y} width={boxW} height={boxH} fill="transparent" />
+        </g>
+      );
+    }
+
+    const lines = textLines(o, writerTexts);
     const ax = align === 'center' ? o.x + o.w / 2 : align === 'right' ? o.x + o.w : o.x;
     const leading = size * (o.lineHeight ?? 1.22);
     const outlined = o.stroke !== 'none' && o.strokeWidth > 0;
@@ -196,7 +327,7 @@ export const ObjectEl: React.FC<{
         textAnchor={align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start'}
         stroke={outlined ? o.stroke : undefined} strokeWidth={outlined ? o.strokeWidth : undefined} paintOrder="stroke" strokeLinejoin="round"
         transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}
-        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', userSelect: 'none', ...blendStyle }}
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', userSelect: 'none', pointerEvents: 'auto', ...blendStyle }}
         {...finish}
       >
         {lines.map((ln, i) => (
@@ -206,6 +337,233 @@ export const ObjectEl: React.FC<{
     );
   }
   return null;
+};
+
+export const TelaTypographyToolbar: React.FC<{
+  object: TelaVectorObject;
+  onUpdate: (patch: Partial<TelaVectorObject>) => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  bounds: { x: number; y: number; w: number; h: number };
+}> = ({ object: o, onUpdate, onDelete, onDuplicate, bounds }) => {
+  const size = o.fontSize || 18;
+
+  const addBlock = (kind: 'h1' | 'h2' | 'p' | 'li' | 'quote') => {
+    const existing = o.blocks && o.blocks.length > 0 ? [...o.blocks] : [
+      { id: `blk_${Date.now()}_0`, kind: 'h2' as const, text: o.text || 'Heading' }
+    ];
+    const newId = `blk_${Date.now()}_${existing.length}`;
+    if (kind === 'quote') {
+      existing.push({ id: newId, kind: 'p', text: 'Callout or memorable quote', semanticLabel: 'quote' });
+    } else {
+      existing.push({ id: newId, kind: kind === 'quote' ? 'p' : kind, text: kind === 'li' ? 'New list item' : kind === 'h1' ? 'Heading 1' : kind === 'h2' ? 'Heading 2' : 'New paragraph text' });
+    }
+    const fullText = existing.map(b => b.text).join('\n');
+    onUpdate({ blocks: existing, text: fullText, wrap: true });
+  };
+
+  const fonts = [
+    { label: 'Inter (Sans)', value: 'Inter, system-ui, sans-serif' },
+    { label: 'Playfair (Serif)', value: 'Playfair Display, Georgia, serif' },
+    { label: 'Cormorant (Editorial)', value: 'Cormorant Garamond, serif' },
+    { label: 'JetBrains (Mono)', value: 'JetBrains Mono, monospace' },
+    { label: 'Syne (Display)', value: 'Syne, sans-serif' },
+    { label: 'Georgia (Classic)', value: 'Georgia, serif' },
+  ];
+
+  const cardBgs = [
+    { label: 'Clear', value: 'transparent' },
+    { label: 'White Card', value: 'rgba(255, 255, 255, 0.98)' },
+    { label: 'Dark Card', value: 'rgba(24, 19, 36, 0.96)' },
+    { label: 'Lilac Tint', value: 'rgba(107, 0, 153, 0.08)' },
+    { label: 'Amber Tint', value: 'rgba(245, 158, 11, 0.08)' },
+    { label: 'Cyan Tint', value: 'rgba(0, 218, 243, 0.08)' },
+  ];
+
+  return (
+    <div
+      onPointerDown={e => e.stopPropagation()}
+      style={{
+        position: 'absolute',
+        left: Math.max(8, bounds.x),
+        top: Math.max(8, bounds.y - 48),
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '3px 8px',
+        background: 'rgba(18, 13, 28, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.16)',
+        borderRadius: 12,
+        boxShadow: '0 12px 32px rgba(0,0,0,0.65)',
+        backdropFilter: 'blur(10px)',
+        color: '#fff',
+        fontSize: 11,
+        userSelect: 'none',
+        pointerEvents: 'auto',
+      }}
+    >
+      {/* Block quick adds */}
+      <div className="flex items-center gap-1 pr-1.5 border-r border-white/15">
+        <button
+          onClick={() => addBlock('h1')}
+          title="Add Heading 1"
+          className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 font-black text-[11px] text-[#D0BCFF]"
+        >
+          H1
+        </button>
+        <button
+          onClick={() => addBlock('h2')}
+          title="Add Heading 2"
+          className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 font-bold text-[11px] text-[#D0BCFF]"
+        >
+          H2
+        </button>
+        <button
+          onClick={() => addBlock('p')}
+          title="Add Body Paragraph"
+          className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 font-medium text-[11px] text-white/80"
+        >
+          ¶
+        </button>
+        <button
+          onClick={() => addBlock('li')}
+          title="Add Bullet List Item"
+          className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 font-bold text-[11px] text-[#D40055]"
+        >
+          • List
+        </button>
+        <button
+          onClick={() => addBlock('quote')}
+          title="Add Quote / Callout Box"
+          className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 italic font-serif text-[11px] text-[#00DAF3]"
+        >
+          “ ”
+        </button>
+      </div>
+
+      {/* Font Family selector */}
+      <select
+        value={o.fontFamily || fonts[0].value}
+        onChange={e => onUpdate({ fontFamily: e.target.value })}
+        className="h-6 px-1.5 rounded-[6px] bg-white/10 border border-white/15 text-[11px] font-semibold text-white/90 outline-none"
+      >
+        {fonts.map(f => (
+          <option key={f.value} value={f.value} style={{ background: '#1c1728', color: '#fff' }}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+
+      {/* Font Size */}
+      <div className="flex items-center rounded-[6px] bg-white/10 border border-white/15 px-1 h-6">
+        <button
+          onClick={() => onUpdate({ fontSize: Math.max(8, size - 2) })}
+          className="px-1 hover:text-[#00DAF3] font-bold text-[11px]"
+        >
+          −
+        </button>
+        <span className="px-1 font-mono text-[10px] min-w-[26px] text-center font-bold">{size}</span>
+        <button
+          onClick={() => onUpdate({ fontSize: Math.min(120, size + 2) })}
+          className="px-1 hover:text-[#00DAF3] font-bold text-[11px]"
+        >
+          +
+        </button>
+      </div>
+
+      {/* Style toggles */}
+      <button
+        onClick={() => onUpdate({ fontWeight: (o.fontWeight || 400) >= 700 ? 400 : 700 })}
+        className={`w-6 h-6 rounded-[6px] grid place-items-center font-black text-[11px] ${
+          (o.fontWeight || 400) >= 700 ? 'bg-[var(--pj-magenta,#D40055)] text-white' : 'hover:bg-white/10 text-white/70'
+        }`}
+        title="Bold"
+      >
+        B
+      </button>
+      <button
+        onClick={() => onUpdate({ fontStyle: o.fontStyle === 'italic' ? 'normal' : 'italic' })}
+        className={`w-6 h-6 rounded-[6px] grid place-items-center font-serif italic text-[11px] ${
+          o.fontStyle === 'italic' ? 'bg-[var(--pj-magenta,#D40055)] text-white' : 'hover:bg-white/10 text-white/70'
+        }`}
+        title="Italic"
+      >
+        I
+      </button>
+      <button
+        onClick={() => onUpdate({ underline: !o.underline })}
+        className={`w-6 h-6 rounded-[6px] grid place-items-center underline text-[11px] ${
+          o.underline ? 'bg-[var(--pj-magenta,#D40055)] text-white' : 'hover:bg-white/10 text-white/70'
+        }`}
+        title="Underline"
+      >
+        U
+      </button>
+
+      {/* Alignment */}
+      <div className="flex items-center gap-0.5 pl-1 border-l border-white/15">
+        {(['left', 'center', 'right'] as const).map(a => (
+          <button
+            key={a}
+            onClick={() => onUpdate({ textAlign: a })}
+            className={`w-5 h-6 rounded-[5px] grid place-items-center text-[9px] font-bold ${
+              (o.textAlign || 'left') === a ? 'text-[#00DAF3] bg-white/15' : 'text-white/50 hover:bg-white/10'
+            }`}
+            title={`Align ${a}`}
+          >
+            {a === 'left' ? '⫷' : a === 'center' ? '☰' : '⫸'}
+          </button>
+        ))}
+      </div>
+
+      {/* Colors */}
+      <div className="flex items-center gap-1.5 pl-1.5 border-l border-white/15">
+        <label title="Text Color" className="flex items-center cursor-pointer">
+          <input
+            type="color"
+            value={o.fill && o.fill !== 'none' ? o.fill : '#1E1B26'}
+            onChange={e => onUpdate({ fill: e.target.value })}
+            className="w-4 h-4 rounded-full border border-white/30 cursor-pointer p-0 bg-transparent"
+          />
+        </label>
+        <button
+          onClick={() => {
+            const currentIdx = cardBgs.findIndex(c => c.value === (o.backgroundColor || 'transparent'));
+            const next = cardBgs[(currentIdx + 1) % cardBgs.length];
+            onUpdate({
+              backgroundColor: next.value,
+              rx: next.value !== 'transparent' ? (o.rx || 8) : o.rx,
+              padding: next.value !== 'transparent' ? (o.padding || 14) : o.padding,
+              wrap: true,
+            });
+          }}
+          className="h-6 px-1.5 rounded-[6px] bg-white/10 hover:bg-white/20 text-[10px] font-bold text-white/80"
+          title="Toggle Card Background style"
+        >
+          {o.backgroundColor && o.backgroundColor !== 'transparent' ? 'Card' : 'Clear'}
+        </button>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex items-center gap-0.5 pl-1.5 border-l border-white/15">
+        <button
+          onClick={onDuplicate}
+          title="Duplicate text box"
+          className="w-6 h-6 rounded-[6px] hover:bg-white/10 grid place-items-center text-white/70 hover:text-white"
+        >
+          <Copy size={12} />
+        </button>
+        <button
+          onClick={onDelete}
+          title="Delete text box"
+          className="w-6 h-6 rounded-[6px] hover:bg-red-500/20 grid place-items-center text-white/50 hover:text-red-400"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+    </div>
+  );
 };
 
 // ── Object properties (reused by the inline popover AND the Studio panel) ─────
@@ -226,78 +584,204 @@ export const TelaVectorObjectProps: React.FC<{
   const rowCls = 'flex items-center gap-2 mb-2';
   const numStyle: React.CSSProperties = { width: 56, height: 28, padding: '0 7px', borderRadius: 7, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, outline: 'none' };
   const swatch: React.CSSProperties = { width: 30, height: 28, padding: 0, border: '1px solid rgba(255,255,255,0.18)', borderRadius: 7, background: 'transparent', cursor: 'pointer' };
+
+  const fonts = [
+    { label: 'Inter (Sans)', value: 'Inter, system-ui, sans-serif' },
+    { label: 'Playfair Display (Serif)', value: 'Playfair Display, Georgia, serif' },
+    { label: 'Cormorant Garamond (Editorial)', value: 'Cormorant Garamond, serif' },
+    { label: 'JetBrains Mono (Code)', value: 'JetBrains Mono, monospace' },
+    { label: 'Syne (Display)', value: 'Syne, sans-serif' },
+    { label: 'Georgia (Classic)', value: 'Georgia, serif' },
+  ];
+
+  const addBlockToProp = (kind: 'h1' | 'h2' | 'p' | 'li' | 'quote') => {
+    const existing = o.blocks && o.blocks.length > 0 ? [...o.blocks] : [
+      { id: `blk_${Date.now()}_0`, kind: 'h2' as const, text: o.text || 'Heading' }
+    ];
+    const newId = `blk_${Date.now()}_${existing.length}`;
+    if (kind === 'quote') {
+      existing.push({ id: newId, kind: 'p', text: 'Callout or quote', semanticLabel: 'quote' });
+    } else {
+      existing.push({ id: newId, kind: kind === 'quote' ? 'p' : kind, text: kind === 'li' ? 'List item' : kind === 'h1' ? 'Heading 1' : kind === 'h2' ? 'Heading 2' : 'Paragraph text' });
+    }
+    const fullText = existing.map(b => b.text).join('\n');
+    onUpdate({ blocks: existing, text: fullText, wrap: true });
+  };
+
   return (
     <div style={{ color: '#fff' }}>
       {o.kind === 'LOTTIE' && <TelaLottieInspector object={o} onUpdate={onUpdate} />}
       {o.kind === 'MOTION_TEMPLATE' && <TelaMotionTemplateInspector object={o} onUpdate={onUpdate} />}
       {isText && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={lbl}>Text</div>
-          <textarea
-            value={o.text ?? ''}
-            onChange={e => onUpdate({ text: e.target.value })}
-            rows={2}
-            disabled={!!o.boundWriterDeviceId}
-            placeholder={o.boundWriterDeviceId ? 'Bound to a Writer — edit it there' : 'Type…'}
-            style={{ width: '100%', padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: o.boundWriterDeviceId ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: 12.5, resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
-          />
+        <div style={{ marginBottom: 12 }}>
+          {/* Paragraph Blocks Toolset */}
+          <div style={{ marginBottom: 8 }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <div style={lbl}>Paragraph Blocks</div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => addBlockToProp('h1')} className="px-1.5 py-0.5 rounded text-[10px] font-black bg-white/10 text-[#D0BCFF] hover:bg-white/20">H1</button>
+                <button onClick={() => addBlockToProp('h2')} className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/10 text-[#D0BCFF] hover:bg-white/20">H2</button>
+                <button onClick={() => addBlockToProp('p')} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/10 text-white/80 hover:bg-white/20">¶</button>
+                <button onClick={() => addBlockToProp('li')} className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/10 text-[#D40055] hover:bg-white/20">• List</button>
+                <button onClick={() => addBlockToProp('quote')} className="px-1.5 py-0.5 rounded text-[10px] font-serif italic bg-white/10 text-[#00DAF3] hover:bg-white/20">“ ”</button>
+              </div>
+            </div>
+
+            {o.blocks && o.blocks.length > 0 ? (
+              <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar p-1 rounded-lg bg-black/20 border border-white/10">
+                {o.blocks.map((blk, idx) => (
+                  <div key={blk.id || idx} className="flex items-center gap-1.5 p-1 rounded bg-white/[0.04]">
+                    <span className="text-[9px] font-bold text-white/40 uppercase w-4">{blk.kind}</span>
+                    <input
+                      type="text"
+                      value={blk.text ?? ''}
+                      onChange={e => {
+                        const updated = [...o.blocks!];
+                        updated[idx] = { ...updated[idx], text: e.target.value };
+                        onUpdate({ blocks: updated, text: updated.map(b => b.text).join('\n') });
+                      }}
+                      className="flex-1 bg-transparent border-none text-[11px] text-white outline-none"
+                    />
+                    <button
+                      onClick={() => {
+                        const updated = o.blocks!.filter((_, i) => i !== idx);
+                        onUpdate({ blocks: updated, text: updated.map(b => b.text).join('\n') });
+                      }}
+                      className="text-white/30 hover:text-red-400 p-0.5"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <textarea
+                value={o.text ?? ''}
+                onChange={e => onUpdate({ text: e.target.value })}
+                rows={3}
+                disabled={!!o.boundWriterDeviceId}
+                placeholder={o.boundWriterDeviceId ? 'Bound to a Writer — edit it there' : 'Type paragraphs here…'}
+                style={{ width: '100%', padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: o.boundWriterDeviceId ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: 12, resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
+
+          {/* Font Family */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={lbl}>Font Family</div>
+            <select
+              value={o.fontFamily || fonts[0].value}
+              onChange={e => onUpdate({ fontFamily: e.target.value })}
+              style={{ width: '100%', height: 28, padding: '0 8px', borderRadius: 7, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', fontSize: 11.5, outline: 'none' }}
+            >
+              {fonts.map(f => <option key={f.value} value={f.value} style={{ background: '#1c1728', color: '#fff' }}>{f.label}</option>)}
+            </select>
+          </div>
+
           {writers && writers.length > 0 && (
-            <div style={{ marginTop: 6 }}>
+            <div style={{ marginTop: 6, marginBottom: 8 }}>
               <div style={lbl}>Bind to Writer <span style={{ color: 'var(--pj-cyan,#00DAF3)' }}>· live</span></div>
               <div className="flex items-center gap-2">
                 <select
                   value={o.boundWriterDeviceId || ''}
                   onChange={e => onUpdate({ boundWriterDeviceId: e.target.value || undefined })}
-                  style={{ flex: 1, height: 30, padding: '0 8px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(0,218,243,0.35)', color: '#8fe9f6', fontSize: 12, outline: 'none' }}
+                  style={{ flex: 1, height: 28, padding: '0 8px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(0,218,243,0.35)', color: '#8fe9f6', fontSize: 11, outline: 'none' }}
                 >
                   <option value="">— not bound —</option>
                   {writers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
                 {o.boundWriterDeviceId && (
-                  <button title="Unbind" onClick={() => onUpdate({ boundWriterDeviceId: undefined })} style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', cursor: 'pointer' }}><Unlink size={14} /></button>
+                  <button title="Unbind" onClick={() => onUpdate({ boundWriterDeviceId: undefined })} style={{ display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', cursor: 'pointer' }}><Unlink size={13} /></button>
                 )}
               </div>
             </div>
           )}
+
+          {/* Size, Weight, Style */}
           <div className="flex items-center gap-2" style={{ marginTop: 8 }}>
             <div>
               <div style={lbl}>Size</div>
-              <input type="number" value={o.fontSize || 24} onChange={e => onUpdate({ fontSize: Math.max(4, +e.target.value || 24) })} style={numStyle} />
+              <input type="number" value={o.fontSize || 18} onChange={e => onUpdate({ fontSize: Math.max(4, +e.target.value || 18) })} style={numStyle} />
             </div>
             <div>
               <div style={lbl}>Weight</div>
-              <select value={o.fontWeight || 400} onChange={e => onUpdate({ fontWeight: +e.target.value })} style={{ ...numStyle, width: 74 }}>
-                {[100, 200, 300, 400, 500, 600, 700, 800, 900].map(w => <option key={w} value={w}>{w}</option>)}
+              <select value={o.fontWeight || 400} onChange={e => onUpdate({ fontWeight: +e.target.value })} style={{ ...numStyle, width: 70 }}>
+                {[100, 200, 300, 400, 500, 600, 700, 800, 900].map(w => <option key={w} value={w} style={{ background: '#1c1728' }}>{w}</option>)}
               </select>
             </div>
             <div>
               <div style={lbl}>Style</div>
-              <button title="Italic" onClick={() => onUpdate({ fontStyle: o.fontStyle === 'italic' ? 'normal' : 'italic' })} style={{ ...numStyle, width: 34, fontStyle: 'italic', fontWeight: 700, cursor: 'pointer', color: o.fontStyle === 'italic' ? 'var(--pj-cyan,#00DAF3)' : '#fff' }}>I</button>
+              <div className="flex gap-1">
+                <button title="Italic" onClick={() => onUpdate({ fontStyle: o.fontStyle === 'italic' ? 'normal' : 'italic' })} style={{ ...numStyle, width: 28, padding: 0, fontStyle: 'italic', fontWeight: 700, cursor: 'pointer', color: o.fontStyle === 'italic' ? 'var(--pj-cyan,#00DAF3)' : '#fff' }}>I</button>
+                <button title="Underline" onClick={() => onUpdate({ underline: !o.underline })} style={{ ...numStyle, width: 28, padding: 0, textDecoration: 'underline', fontWeight: 700, cursor: 'pointer', color: o.underline ? 'var(--pj-cyan,#00DAF3)' : '#fff' }}>U</button>
+              </div>
             </div>
           </div>
+
+          {/* Align, Track, Lead */}
           <div className="flex items-center gap-2" style={{ marginTop: 8 }}>
             <div>
               <div style={lbl}>Align</div>
               <div className="flex" style={{ gap: 2 }}>
-                {(['left', 'center', 'right'] as const).map(a => <button key={a} title={a} onClick={() => onUpdate({ textAlign: a })} style={{ ...numStyle, width: 30, padding: 0, cursor: 'pointer', fontSize: 10, fontWeight: 800, color: (o.textAlign || 'left') === a ? 'var(--pj-cyan,#00DAF3)' : 'rgba(255,255,255,.6)' }}>{a === 'left' ? '⫷' : a === 'center' ? '☰' : '⫸'}</button>)}
+                {(['left', 'center', 'right'] as const).map(a => (
+                  <button key={a} title={a} onClick={() => onUpdate({ textAlign: a })} style={{ ...numStyle, width: 26, padding: 0, cursor: 'pointer', fontSize: 10, fontWeight: 800, color: (o.textAlign || 'left') === a ? 'var(--pj-cyan,#00DAF3)' : 'rgba(255,255,255,.6)' }}>
+                    {a === 'left' ? '⫷' : a === 'center' ? '☰' : '⫸'}
+                  </button>
+                ))}
               </div>
             </div>
             <div>
-              <div style={lbl} title="Tracking (letter-spacing) in % of size">Track</div>
-              <input type="number" step={1} value={Math.round((o.letterSpacing || 0) * 100)} onChange={e => onUpdate({ letterSpacing: (+e.target.value || 0) / 100 })} style={{ ...numStyle, width: 52 }} />
+              <div style={lbl} title="Tracking in %">Track</div>
+              <input type="number" step={1} value={Math.round((o.letterSpacing || 0) * 100)} onChange={e => onUpdate({ letterSpacing: (+e.target.value || 0) / 100 })} style={{ ...numStyle, width: 48 }} />
             </div>
             <div>
-              <div style={lbl} title="Leading (line-height) multiple">Lead</div>
-              <input type="number" step={0.05} value={o.lineHeight ?? 1.22} onChange={e => onUpdate({ lineHeight: Math.max(.6, +e.target.value || 1.22) })} style={{ ...numStyle, width: 56 }} />
+              <div style={lbl} title="Leading multiple">Lead</div>
+              <input type="number" step={0.05} value={o.lineHeight ?? 1.5} onChange={e => onUpdate({ lineHeight: Math.max(.6, +e.target.value || 1.5) })} style={{ ...numStyle, width: 50 }} />
             </div>
           </div>
-          <div className="flex items-center gap-2" style={{ marginTop: 8 }}>
-            <select value={o.textTransform || 'none'} onChange={e => onUpdate({ textTransform: e.target.value as any })} style={{ ...numStyle, width: 96 }} title="Case">
-              <option value="none">As typed</option><option value="uppercase">UPPERCASE</option><option value="lowercase">lowercase</option><option value="capitalize">Capitalize</option>
-            </select>
-            <label className="flex items-center gap-1.5" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
-              <input type="checkbox" checked={!!o.wrap} onChange={e => onUpdate({ wrap: e.target.checked })} /> Wrap to box
-            </label>
+
+          {/* Box Style (Background, Padding, Radius) */}
+          <div style={{ marginTop: 10, padding: '8px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={lbl}>Card & Box Styling</div>
+            <div className="flex items-center gap-2 mt-1">
+              <div>
+                <span className="text-[10px] text-white/50 block mb-1">Background</span>
+                <input
+                  type="color"
+                  value={o.backgroundColor && o.backgroundColor !== 'transparent' ? o.backgroundColor : '#ffffff'}
+                  onChange={e => onUpdate({ backgroundColor: e.target.value, wrap: true })}
+                  style={swatch}
+                />
+              </div>
+              <button
+                onClick={() => onUpdate({ backgroundColor: o.backgroundColor === 'transparent' || !o.backgroundColor ? 'rgba(255,255,255,0.96)' : 'transparent' })}
+                className="h-7 px-2 rounded text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white/80"
+              >
+                {o.backgroundColor && o.backgroundColor !== 'transparent' ? 'Solid' : 'Clear'}
+              </button>
+              <div>
+                <span className="text-[10px] text-white/50 block mb-1">Padding</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={48}
+                  value={o.padding ?? (o.backgroundColor ? 14 : 0)}
+                  onChange={e => onUpdate({ padding: Math.max(0, +e.target.value || 0), wrap: true })}
+                  style={{ ...numStyle, width: 48 }}
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-white/50 block mb-1">Radius</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={32}
+                  value={o.rx ?? 0}
+                  onChange={e => onUpdate({ rx: Math.max(0, +e.target.value || 0) })}
+                  style={{ ...numStyle, width: 44 }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -397,6 +881,8 @@ interface TelaVectorProps {
   readOnly?: boolean;
   /** Studio drives tool/selection + hides internal chrome; default = self-managed. */
   chrome?: boolean;
+  /** When true, renders with a transparent background as an overlay on any page */
+  overlay?: boolean;
   tool?: VectorTool;
   onToolChange?: (t: VectorTool) => void;
   selectedId?: string | null;
@@ -417,13 +903,13 @@ interface TelaVectorProps {
 const TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }[] = [
   { id: 'select', icon: <MousePointer2 size={15} />, label: 'Select' },
   { id: 'direct', icon: <MousePointerClick size={15} />, label: 'Direct select / edit anchors' },
-  { id: 'marquee', icon: <Scan size={15} />, label: 'Marquee select' },
+  { id: 'text', icon: <Type size={15} />, label: 'Typography / Text Box' },
   { id: 'rect', icon: <Square size={15} />, label: 'Rectangle' },
   { id: 'ellipse', icon: <Circle size={15} />, label: 'Ellipse' },
   { id: 'line', icon: <Minus size={15} />, label: 'Line' },
   { id: 'pen', icon: <PenTool size={15} />, label: 'Pen / polyline' },
-  { id: 'text', icon: <Type size={15} />, label: 'Text' },
   { id: 'ink', icon: <Brush size={15} />, label: 'Ink — freehand pen, pencil, highlighter' },
+  { id: 'marquee', icon: <Scan size={15} />, label: 'Marquee select' },
 ];
 
 const INK_TOOLS: { id: NoteTool; icon: React.ReactNode; label: string }[] = [
@@ -683,7 +1169,17 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
     : [];
 
   return (
-    <div className="tela-vector" style={{ position: 'relative', width: device.width, height: device.height, background: '#fff' }}>
+    <div
+      className="tela-vector"
+      style={{
+        position: props.overlay ? 'absolute' : 'relative',
+        inset: props.overlay ? 0 : undefined,
+        width: device.width,
+        height: device.height,
+        background: props.overlay ? 'transparent' : '#fff',
+        pointerEvents: props.overlay ? 'none' : 'auto',
+      }}
+    >
       {/* Internal tool palette — hidden when Studio drives the tool. */}
       {chrome && !readOnly && (
         <div
@@ -732,7 +1228,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
         width={device.width}
         height={device.height}
         viewBox={`0 0 ${device.width} ${device.height}`}
-        style={{ display: 'block', touchAction: 'none' }}
+        style={{ display: 'block', touchAction: 'none', pointerEvents: props.overlay ? 'none' : 'auto' }}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onKeyDown={onKeyDown}
@@ -740,12 +1236,21 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
         onDoubleClick={() => { if (penPts) finishPen(); }}
       >
         {/* Artboard background — captures create/deselect pointers. */}
-        <rect x={0} y={0} width={device.width} height={device.height} fill="#FFFFFF" onPointerDown={onBgPointerDown} />
+        <rect
+          x={0}
+          y={0}
+          width={device.width}
+          height={device.height}
+          fill={props.overlay ? 'transparent' : '#FFFFFF'}
+          pointerEvents={props.overlay && (tool === 'select' || tool === 'direct') ? 'none' : 'all'}
+          onPointerDown={onBgPointerDown}
+        />
 
         {device.objects.map(o => { const menu = props.objectContextBindings?.(o); return (
           <ObjectEl
             key={o.id} o={o} writerTexts={writerTexts}
             interactive={!readOnly && (tool === 'select' || tool === 'direct')}
+            isSelected={o.id === selectedId}
             onPointerDown={readOnly ? undefined : e => { menu?.onPointerDown(e); onObjectPointerDown(e, o.id); }}
             onPointerMove={menu?.onPointerMove} onPointerUp={menu?.onPointerUp} onPointerCancel={menu?.onPointerCancel}
             onContextMenu={readOnly ? undefined : e => { select(o.id); if (menu) menu.onContextMenu(e); else { e.preventDefault(); e.stopPropagation(); props.onObjectContextMenu?.(e, o); } }}
@@ -794,6 +1299,26 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
           </g>
         )}
       </svg>
+
+      {/* Floating typography toolbar above selected text box */}
+      {!readOnly && selected && selected.kind === 'TEXT' && selBounds && (
+        <TelaTypographyToolbar
+          object={selected}
+          bounds={selBounds}
+          onUpdate={patch => onUpdateObject(selected.id, patch)}
+          onDelete={() => { onDeleteObject(selected.id); select(null); }}
+          onDuplicate={() => {
+            const copy: TelaVectorObject = {
+              ...structuredClone(selected),
+              id: newObjId(),
+              x: selected.x + 24,
+              y: selected.y + 24,
+            };
+            onAddObject(copy);
+            select(copy.id);
+          }}
+        />
+      )}
 
       {/* Freehand ink: a pressure-aware canvas over the artboard; each stroke is committed as a PATH object. */}
       {!readOnly && tool === 'ink' && (

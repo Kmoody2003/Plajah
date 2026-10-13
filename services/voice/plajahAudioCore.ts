@@ -46,6 +46,7 @@ export interface FabulaDialogueRequest {
 export interface FabulaDialogueTake {
   takeId: string;
   speakerName: string;
+  emotion?: string;
   text: string;
   durationSeconds: number;
   audioBlob: Blob;
@@ -144,6 +145,7 @@ export class PlajahAudioCore {
     return {
       takeId: `take_${Date.now()}_${req.takeIndex || 1}`,
       speakerName: req.speakerName || 'Aria',
+      emotion: req.emotion || 'neutral',
       text: req.text,
       durationSeconds: durSec,
       audioBlob: (result.audio instanceof Blob) ? result.audio : new Blob(),

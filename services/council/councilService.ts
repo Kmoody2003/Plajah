@@ -6,9 +6,10 @@
 import { auth } from '../firebase';
 import { COUNCIL_DIRECTORS, COUNCIL_LIST } from './councilDirectors';
 import type { CouncilBrief, CouncilDirector, CouncilDirectorId, Deliberation, DeliberationDepth, DirectorProfile, ResearchResult } from './councilTypes';
+import { assembleStoryCouncil, type StoryDossierInput, type AssembledStoryCouncil } from './storyAdaptiveCouncil';
 
-export { COUNCIL_DIRECTORS, COUNCIL_LIST };
-export type { CouncilBrief, CouncilDirector, CouncilDirectorId, Deliberation, DirectorProfile, ResearchResult };
+export { COUNCIL_DIRECTORS, COUNCIL_LIST, assembleStoryCouncil };
+export type { CouncilBrief, CouncilDirector, CouncilDirectorId, Deliberation, DirectorProfile, ResearchResult, StoryDossierInput, AssembledStoryCouncil };
 
 async function token(): Promise<string | null> {
   const user = auth?.currentUser; if (!user) return null;

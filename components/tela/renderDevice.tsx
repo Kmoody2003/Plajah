@@ -46,7 +46,7 @@ export interface RenderDeviceCtx {
  * Render a single device. When `readOnly`, editing chrome is suppressed and the
  * device is display-only — the embed's default, and the print path's default.
  */
-export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly = false): React.ReactNode {
+export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly = false, overlay = false): React.ReactNode {
   const { devices, dispatchOp, writerTexts, writers, bases, formulaContext, uid, onWriterSelection, onWriterInteraction } = ctx;
 
   if (device.type === 'WRITER') {
@@ -98,6 +98,7 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
         device={device}
         readOnly={readOnly}
         chrome={!readOnly}
+        overlay={overlay}
         writerTexts={writerTexts}
         writers={writers}
         onAddObject={object => dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: device.id, object })}

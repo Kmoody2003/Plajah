@@ -30,6 +30,7 @@ import {
 import { Knob } from '../melos/beats/shared/Knob';
 import { plajahAudioCore } from '../../services/voice/plajahAudioCore';
 import { proceduralFoley, FOLEY_PRESETS } from '../../services/audio/proceduralFoleyEngine';
+import { choraGenerativeMusicEngine, ChoraMusicStem } from '../../services/chora/choraGenerativeMusicEngine';
 import {
   SURFACE,
   SURFACE_RAISED,
@@ -86,6 +87,29 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
   const [smartMixMode, setSmartMixMode] = useState(true); // Easy vs Pro Channel
   const [omtBroadcasting, setOmtBroadcasting] = useState(false);
   const [srtStreaming, setSrtStreaming] = useState(false);
+
+  // Generative Chord Progression state
+  const [selectedProgressionId, setSelectedProgressionId] = useState('epic-minor');
+  const [chordPreset, setChordPreset] = useState<'piano' | 'synth_pad' | 'sub_bass'>('synth_pad');
+
+  const handleGenerateChordStem = () => {
+    try {
+      const stem = choraGenerativeMusicEngine.generateChordProgressionStem({
+        progressionId: selectedProgressionId,
+        rootKey: vocalKey,
+        bpm: vocalBpm,
+        instrumentPreset: chordPreset,
+      });
+      const newTrack = choraGenerativeMusicEngine.convertStemToMixerTrack(stem);
+      setTracks(prev => [...prev, newTrack]);
+      setSelectedTrackIndex(tracks.length);
+      if (stem.audioUrl) {
+        new Audio(stem.audioUrl).play().catch(() => {});
+      }
+    } catch (e) {
+      console.error('Failed generating chord stem:', e);
+    }
+  };
 
   // AI Vocal Drop & Foley Generator state
   const [vocalPrompt, setVocalPrompt] = useState('Drop into the bassline, spatial night.');
@@ -1085,6 +1109,68 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
                 {/* 4. AI Vocal Drop & Foley Rack (Chora Studio Expression) */}
                 {drawerOpen === 'VOCAL_FOLEY_RACK' && (
                   <div className="flex flex-col gap-5">
+                    {/* Generative Chord Progression & MIDI Stem Section */}
+                    <div className="p-4 rounded-xl border flex flex-col gap-3" style={{ background: SURFACE_RAISED, borderColor: 'rgba(255,255,255,0.09)' }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Music size={14} style={{ color: '#00DAF3' }} />
+                          <span className="font-bold text-white uppercase tracking-wider text-[11px]">Generative Chord &amp; MIDI Stem Engine</span>
+                        </div>
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded border border-cyan-500/30 text-cyan-400 bg-cyan-500/10">
+                          BPM &amp; Key Quantized
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-white/60 leading-relaxed">
+                        Synthesizes harmonic chord progressions and basslines into quantized MIDI tracks synced to the timeline tempo.
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Chord Progression</label>
+                          <select
+                            value={selectedProgressionId}
+                            onChange={(e) => setSelectedProgressionId(e.target.value)}
+                            className="px-2.5 py-1.5 rounded-lg border text-white font-mono text-xs outline-none focus:border-cyan-400"
+                            style={{ background: SURFACE_CELL, borderColor: 'rgba(255,255,255,0.1)' }}
+                          >
+                            <option value="epic-minor">Epic Minor (i - VI - III - VII)</option>
+                            <option value="synthwave">Synthwave (i - bVII - bVI - bVII)</option>
+                            <option value="sad-pop">Sad Pop (vi - IV - I - V)</option>
+                            <option value="ii-v-i">Jazz Cadence (ii - V - I)</option>
+                            <option value="amapiano">Amapiano House Groove</option>
+                            <option value="lofi">Lo-Fi Soul Chillout</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Instrument Stem</label>
+                          <select
+                            value={chordPreset}
+                            onChange={(e) => setChordPreset(e.target.value as any)}
+                            className="px-2.5 py-1.5 rounded-lg border text-white font-mono text-xs outline-none focus:border-cyan-400"
+                            style={{ background: SURFACE_CELL, borderColor: 'rgba(255,255,255,0.1)' }}
+                          >
+                            <option value="synth_pad">Atmospheric Synth Pad</option>
+                            <option value="sub_bass">808 / Analog Sub Bass</option>
+                            <option value="piano">Concert Grand Piano</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleGenerateChordStem}
+                        className="mt-1 w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer hover:opacity-95"
+                        style={{
+                          background: 'linear-gradient(135deg, #00DAF3, #6B0099)',
+                          color: '#fff',
+                        }}
+                      >
+                        <Sparkles size={13} />
+                        <span>Generate MIDI Stem &amp; Place on Timeline</span>
+                      </button>
+                    </div>
+
                     {/* AI Vocal Drop Section */}
                     <div className="p-4 rounded-xl border flex flex-col gap-3" style={{ background: SURFACE_RAISED, borderColor: 'rgba(255,255,255,0.09)' }}>
                       <div className="flex items-center justify-between">

@@ -206,11 +206,23 @@ export const RECOMMENDED_MODELS: ModelPackage[] = [
     id: 'wan_video_14b',
     name: 'Wan 2.1 Video (I2V / T2V)',
     category: 'cinema_video',
-    vramRequiredGb: 12,
+    vramRequiredGb: 8,
     sizeGb: 7.8,
     description: 'Alibaba Wan 2.1 cinematic video generator with physics-accurate motion and 24fps cinema dynamics.',
     recommendedRole: 'Cinematic Camera & Subject Motion',
     fileName: 'Wan2.1-I2V-14B-480P.safetensors',
+    destinationSubfolder: 'diffusion_models',
+    downloadUrl: 'https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-480P/resolve/main/Wan2.1_I2V_14B_480P_fp8.safetensors',
+  },
+  {
+    id: 'wan_video_fl',
+    name: 'Wan 2.1 / 2.2 FL-I2V (First & Last Frame Continuity)',
+    category: 'cinema_video',
+    vramRequiredGb: 8,
+    sizeGb: 7.9,
+    description: 'Alibaba Wan 2.1/2.2 dual-frame conditioning diffusion model. Synthesizes seamless physical motion and transitions between start and end keyframes at 480p/720p 24fps.',
+    recommendedRole: 'Keyframe-to-Keyframe Scene Continuity & Storyboard Motion',
+    fileName: 'Wan2.1_FL_I2V_14B_480P_fp8.safetensors',
     destinationSubfolder: 'diffusion_models',
     downloadUrl: 'https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-480P/resolve/main/Wan2.1_I2V_14B_480P_fp8.safetensors',
   },
@@ -308,6 +320,7 @@ export async function auditInstalledModels(): Promise<Record<string, boolean>> {
     installed.supir_detail = !!status.models.supirDetail;
     installed.ic_light_fc = !!status.models.icLight;
     installed.wan_video_14b = !!status.models.wanVideo;
+    installed.wan_video_fl = !!status.models.wanVideo;
     installed.ipadapter_faceid = !!status.models.ipAdapter;
     installed.nvidia_nemotron = true;
     installed.nvidia_cosmos = true;

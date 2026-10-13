@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { PenLine, BookOpen, X, Film, BookMarked, Sparkles } from 'lucide-react';
+import { PenLine, BookOpen, X, Film, BookMarked, Sparkles, Headphones } from 'lucide-react';
+import { TelaAudiobookStudio } from './TelaAudiobookStudio';
 import type { ScriptElement } from '../../types';
 import type { TelaBlock } from '../../types';
 import { makeBlock, newBlockId } from './TelaWriter';
@@ -11,7 +12,7 @@ export interface TelaWritingStudioProps {
   onClose: () => void;
   user?: any;
   onInsertScriptToCanvas: (script: { title: string; blocks: TelaBlock[] }) => void;
-  initialTab?: 'SCRIPT' | 'DESK';
+  initialTab?: 'SCRIPT' | 'DESK' | 'AUDIOBOOK';
 }
 
 /**
@@ -119,7 +120,7 @@ export const TelaWritingStudio: React.FC<TelaWritingStudioProps> = ({
   onInsertScriptToCanvas,
   initialTab = 'SCRIPT',
 }) => {
-  const [tab, setTab] = useState<'SCRIPT' | 'DESK'>(initialTab);
+  const [tab, setTab] = useState<'SCRIPT' | 'DESK' | 'AUDIOBOOK'>(initialTab);
 
   if (!isOpen) return null;
 
@@ -186,6 +187,17 @@ export const TelaWritingStudio: React.FC<TelaWritingStudioProps> = ({
               <BookMarked size={13} />
               <span>The Writer&apos;s Desk (Lorea)</span>
             </button>
+            <button
+              onClick={() => setTab('AUDIOBOOK')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                tab === 'AUDIOBOOK'
+                  ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow'
+                  : 'text-white/50 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Headphones size={13} />
+              <span>Audiobook Studio</span>
+            </button>
           </div>
         </div>
 
@@ -212,11 +224,13 @@ export const TelaWritingStudio: React.FC<TelaWritingStudioProps> = ({
               onClose();
             }}
           />
-        ) : (
+        ) : tab === 'DESK' ? (
           <WritersDesk
             currentUser={user}
             onBackToLibrary={onClose}
           />
+        ) : (
+          <TelaAudiobookStudio onClose={onClose} />
         )}
       </div>
     </div>

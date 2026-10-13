@@ -8,6 +8,8 @@ import { MAI_VOICES, synthesizeNarration, getMicrosoftAIConfig } from "../../ser
 import { onDeviceVoiceEngine, KOKORO_VOICES } from "../../services/voice/onDeviceVoiceEngine";
 import { plajahAudioCore } from "../../services/voice/plajahAudioCore";
 import { proceduralFoley, FOLEY_PRESETS } from "../../services/audio/proceduralFoleyEngine";
+import { wanVideoEngine } from "../../services/video/wanVideoEngine";
+import SlateWaveformVisualizer from "./SlateWaveformVisualizer";
 
 export default function VoiceStudio({ audioTracks = [], playhead, setPlayhead, setPlaying, onPlaceClip, ping, activeScene }) {
   const [tab, setTab] = useState("slate"); // Default to Slate Script Reel in Fabula!
@@ -103,6 +105,42 @@ export default function VoiceStudio({ audioTracks = [], playhead, setPlayhead, s
       ping?.(`🎬 ${line.speakerName} Take ${take.takeNum} placed. Video cut snapped to ${dialogueTake.sceneSnapSeconds}s!`);
     } catch (e) {
       ping?.("Failed placing script take: " + (e?.message || e));
+    }
+    setBusy(false);
+  };
+
+  // Generate Wan 2.1 Video Shot Snapped to Dialogue
+  const generateWanVideoForTake = async (line, take, snapDuration) => {
+    setBusy(true);
+    ping?.(`🎬 Synthesizing Wan 2.1 video shot for ${line.speakerName} (T${take.takeNum}, ${snapDuration}s snapped)...`);
+    try {
+      const dialogueTake = await plajahAudioCore.synthesizeFabulaDialogue({
+        text: line.text,
+        speakerName: line.speakerName,
+        emotion: take.emotion,
+        takeIndex: take.takeNum,
+        engine: voiceSource === "fish_speech" ? "fish_speech" : "kokoro",
+      });
+
+      const shot = await wanVideoEngine.generateDialogueSnappedShot({
+        keyframeUrl: line.speakerName.toLowerCase().includes("aria")
+          ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80"
+          : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
+        prompt: `Cinematic medium shot, ${line.speakerName} in the observatory, dramatic rim lighting, 24fps motion`,
+        dialogueTake,
+        cameraMovement: take.emotion === "urgent" ? "push_in" : "pan_left",
+        resolution: "480p",
+      });
+
+      // Place audio take onto timeline
+      onPlaceClip(dialogueTake.audioBlob, `${line.speakerName} (T${take.takeNum})`, {
+        trackId: track,
+        at: playhead,
+      });
+
+      ping?.(`✨ Wan 2.1 video shot generated (${shot.dimensions.width}x${shot.dimensions.height} @ ${shot.fps}fps, ${shot.durationSeconds}s) & snapped to timeline!`);
+    } catch (e) {
+      ping?.("Wan Video generation failed: " + (e?.message || e));
     }
     setBusy(false);
   };
@@ -231,33 +269,22 @@ export default function VoiceStudio({ audioTracks = [], playhead, setPlayhead, s
               <div style={{ fontSize: 10, fontWeight: "bold", color: "#00DAF3", marginBottom: 6, textTransform: "uppercase" }}>
                 Multi-Take Audition Strip: {activeLine.speakerName}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {activeLine.takes.map((take) => (
-                  <div
+                  <SlateWaveformVisualizer
                     key={take.takeNum}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "6px 8px",
-                      borderRadius: 6,
-                      background: activeLine.selectedTake === take.takeNum ? "rgba(255,140,0,0.2)" : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${activeLine.selectedTake === take.takeNum ? "#FF8C00" : "transparent"}`,
+                    line={activeLine}
+                    take={take}
+                    isSelected={activeLine.selectedTake === take.takeNum}
+                    voiceEngine={voiceSource === "fish_speech" ? "fish_speech" : "kokoro"}
+                    onSelectTake={() => {
+                      setScriptLines((prev) =>
+                        prev.map((l) => (l.id === activeLine.id ? { ...l, selectedTake: take.takeNum } : l))
+                      );
                     }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 10, fontWeight: "bold", color: "#fff" }}>{take.label}</div>
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }} className="font-mono">{take.dur}s duration</div>
-                    </div>
-                    <button
-                      className="cta sm"
-                      style={{ fontSize: 9, padding: "3px 8px" }}
-                      disabled={busy}
-                      onClick={() => placeSlateTake(activeLine, take)}
-                    >
-                      ⚡ SNAP TAKE
-                    </button>
-                  </div>
+                    onSnapTake={() => placeSlateTake(activeLine, take)}
+                    onGenerateWanVideoShot={(snapDuration) => generateWanVideoForTake(activeLine, take, snapDuration)}
+                  />
                 ))}
               </div>
             </div>

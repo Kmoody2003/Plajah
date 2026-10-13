@@ -50,22 +50,34 @@ export interface ComicPageSpec {
 }
 
 const LOCAL_STORAGE_KEY = 'plajah_character_bibles_v1';
+const inMemoryStore: CharacterSheet[] = [];
 
 export function listSavedCharacters(): CharacterSheet[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return [...inMemoryStore];
+  }
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return raw ? JSON.parse(raw) : [...inMemoryStore];
   } catch {
-    return [];
+    return [...inMemoryStore];
   }
 }
 
 export function saveCharacter(sheet: CharacterSheet): void {
-  if (typeof window === 'undefined') return;
-  const list = listSavedCharacters().filter((c) => c.id !== sheet.id);
-  list.unshift(sheet);
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
+  const existingIdx = inMemoryStore.findIndex((c) => c.id === sheet.id);
+  if (existingIdx >= 0) {
+    inMemoryStore[existingIdx] = sheet;
+  } else {
+    inMemoryStore.unshift(sheet);
+  }
+
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try {
+    const list = listSavedCharacters().filter((c) => c.id !== sheet.id);
+    list.unshift(sheet);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
+  } catch {}
 }
 
 export function createDefaultCharacter(name: string, visualAnchor: string): CharacterSheet {

@@ -6,9 +6,9 @@ import { RECOMMENDED_MODELS } from '../services/localAi/localModelInstaller';
 
 test('Plajah LoRA Registry: All curated FLUX LoRAs have permissive commercial licensing', () => {
   const loras = plajahLoraRegistry.getAllLoras();
-  assert.equal(loras.length, 3);
+  assert.ok(loras.length >= 3);
 
-  for (const lora of loras) {
+  for (const lora of CURATED_FLUX_LORAS) {
     assert.equal(lora.commercialUseAllowed, true, `LoRA ${lora.id} must allow commercial use`);
     assert.equal(lora.license, 'Apache-2.0', `LoRA ${lora.id} must be Apache-2.0 licensed`);
     assert.equal(lora.baseModel, 'FLUX.2-Klein-4B', `LoRA ${lora.id} should target FLUX.2-Klein-4B`);
@@ -25,6 +25,55 @@ test('Plajah LoRA Registry: Enriches user prompt with trigger words and configur
   assert.ok(result.prompt.includes('cinematic film still'));
   assert.ok(result.prompt.includes('35mm photography'));
   assert.ok(result.prompt.includes(userPrompt));
+});
+
+test('Plajah LoRA Registry: Audits and pre-fetches LoRA weights', async () => {
+  const audit = await plajahLoraRegistry.auditInstalledLoras();
+  assert.ok(typeof audit === 'object');
+  assert.ok('flux_lora_cinematic_35mm' in audit);
+
+  let progressReported = false;
+  const res = await plajahLoraRegistry.installLora('flux_lora_cinematic_35mm', (p) => {
+    if (p.percent > 0) progressReported = true;
+  });
+
+  assert.equal(res.ok, true);
+  assert.equal(progressReported, true);
+  const lora = plajahLoraRegistry.getLoraById('flux_lora_cinematic_35mm');
+  assert.equal(lora?.isInstalled, true);
+});
+
+test('Plajah LoRA Registry: Trains and fine-tunes custom Character LoRA from turnarounds', async () => {
+  let progressSteps: number[] = [];
+  const trainRes = await plajahLoraRegistry.trainCharacterLora(
+    {
+      characterId: 'char_kaelen_01',
+      characterName: 'Kaelen Ross',
+      triggerWord: 'kaelen_ross_char',
+      turnaroundUrls: [
+        'blob:http://localhost/front.png',
+        'blob:http://localhost/profile.png',
+        'blob:http://localhost/closeUp.png',
+      ],
+      rank: 16,
+      steps: 500,
+    },
+    (pct) => {
+      progressSteps.push(pct);
+    }
+  );
+
+  assert.equal(trainRes.ok, true);
+  assert.ok(trainRes.lora, 'Custom LoRA must be returned');
+  assert.equal(trainRes.lora?.id, 'lora_char_char_kaelen_01');
+  assert.equal(trainRes.lora?.isInstalled, true);
+  assert.ok(progressSteps.length >= 2, 'Progress callbacks should be emitted during training');
+
+  // Verify custom LoRA is immediately queryable and enriches prompt
+  const customQuery = plajahLoraRegistry.getLoraById('lora_char_char_kaelen_01');
+  assert.ok(customQuery, 'Custom LoRA should be registered in registry');
+  const enriched = plajahLoraRegistry.applyLoraToPrompt('Standing on bridge at dusk', 'lora_char_char_kaelen_01');
+  assert.ok(enriched.prompt.includes('kaelen_ross_char'));
 });
 
 test('Plajah Pipeline Engine: Compiles Cinema Still with FLUX.2 Klein 4B and 35mm LoRA', () => {

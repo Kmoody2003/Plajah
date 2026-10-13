@@ -18,7 +18,8 @@ import {
   Camera,
   Volume2,
   Mic,
-  Music
+  Music,
+  Download
 } from 'lucide-react';
 import { plajahAudioCore } from '../../services/voice/plajahAudioCore';
 import { proceduralFoley } from '../../services/audio/proceduralFoleyEngine';
@@ -33,6 +34,7 @@ import {
 import { compileComicPanelTask } from '../../services/localAi/plajahPipelineEngine';
 import { executePlajahNativeTask } from '../../services/localAi/plajahNativeRunner';
 import { getLocalEngineStatus } from '../../services/localAi/localEngineDiscovery';
+import { comicMangaPageEngine, ComicMangaPage, PageLayoutId } from '../../services/comic/comicMangaPageEngine';
 
 interface TelaComicStudioProps {
   onInsertPageIntoTela?: (pageSpec: ComicPageSpec) => void;
@@ -207,6 +209,37 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
 
     setActiveAudioBubbleId(null);
     setPlayingPageAudio(false);
+  };
+
+  const handleExportSvg = () => {
+    const layoutId: PageLayoutId = layout === 'dynamic_manga_4' ? 'dynamic_manga_5' : 'grid_6_classic';
+    const comicPage = comicMangaPageEngine.createPage({
+      title: pageTitle,
+      layoutId,
+      stylePreset,
+      primaryCharacterId: selectedCharId,
+    });
+    comicPage.panels.forEach((cp, idx) => {
+      if (panels[idx]) {
+        cp.renderedImageUrl = panels[idx].renderedImageUrl;
+        cp.balloons = panels[idx].speechBubbles.map((sb) => ({
+          id: sb.id,
+          type: sb.type as any,
+          text: sb.text,
+          xPct: sb.xPct,
+          yPct: sb.yPct,
+          tailDirection: sb.tailDirection,
+        }));
+      }
+    });
+    const svgStr = comicMangaPageEngine.renderPageToSvg(comicPage);
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${pageTitle.toLowerCase().replace(/\s+/g, '_')}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handlePushToTela = () => {
@@ -499,6 +532,27 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
               <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>Page Audio Director</span>
               <span style={{ fontSize: '9px', color: '#94a3b8', fontFamily: 'monospace' }}>Aria Kokoro & Fish Speech</span>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={handleExportSvg}
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  padding: '4px 10px',
+                  borderRadius: '9999px',
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+                title="Download standalone SVG comic page with screentone shaders & vector speech bubbles"
+              >
+                <Download size={10} />
+                <span>Export SVG</span>
+              </button>
             <button
               onClick={handlePlayFullPageAudio}
               disabled={playingPageAudio}
@@ -519,6 +573,7 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
               <Play size={10} />
               <span>{playingPageAudio ? 'Reading Page…' : 'Play Full Page Audio'}</span>
             </button>
+            </div>
           </div>
 
           {/* Simulated Comic Page Preview */}

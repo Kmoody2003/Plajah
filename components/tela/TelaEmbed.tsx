@@ -202,9 +202,27 @@ const TelaEmbed: React.FC<TelaEmbedProps> = ({
           style={{ width: frame.w, height: frame.h, transform: `scale(${scale})`, transformOrigin: '0 0', position: 'relative' }}
           onClick={onSurfaceClick}
         >
-          {frame.deviceIds.map(id => {
+          {frame.deviceIds.map((id, devIdx) => {
             const dev = doc.devices[id];
-            return dev ? <div key={id} style={{ width: frame.w }}>{renderTelaDevice(dev, renderCtx, true)}</div> : null;
+            if (!dev) return null;
+            const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
+            return (
+              <div
+                key={id}
+                style={isOverlay ? {
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 10 + devIdx,
+                  pointerEvents: 'none',
+                } : {
+                  width: frame.w,
+                  position: 'relative',
+                  zIndex: 1,
+                }}
+              >
+                {renderTelaDevice(dev, renderCtx, true, isOverlay)}
+              </div>
+            );
           })}
 
           {/* Vector picking overlay — a hotspot per object, in artboard coords so it

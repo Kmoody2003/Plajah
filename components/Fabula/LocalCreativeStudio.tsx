@@ -52,6 +52,10 @@ import {
   ModelStorageInfo,
 } from '../../services/localAi/localModelInstaller';
 import { enhancePromptWithAi } from '../../services/localAi/promptEnhancer';
+import { wanVideoEngine } from '../../services/video/wanVideoEngine';
+import { plajahLoraRegistry, type PlajahLora, CURATED_FLUX_LORAS } from '../../services/localAi/plajahLoraRegistry';
+import { listSavedCharacters, type CharacterSheet } from '../../services/story/characterBible';
+import { TelaComicStudio } from '../tela/TelaComicStudio';
 
 interface LocalCreativeStudioProps {
   initialImage?: string;
@@ -66,7 +70,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   onSendToTela,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'cinema' | 'enhance' | 'relight' | 'video' | 'history' | 'models'>('cinema');
+  const [activeTab, setActiveTab] = useState<'cinema' | 'enhance' | 'relight' | 'video' | 'comic' | 'history' | 'models'>('cinema');
   const [elapsedSec, setElapsedSec] = useState(0);
   const [historyItems, setHistoryItems] = useState<PaiGenerationItem[]>([]);
   const [historySearch, setHistorySearch] = useState('');
@@ -81,6 +85,11 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
 
   // Inputs
   const [prompt, setPrompt] = useState('');
+  const [videoMode, setVideoMode] = useState<'single_keyframe' | 'first_and_last_frame'>('single_keyframe');
+  const [endKeyframeImage, setEndKeyframeImage] = useState<string | null>(null);
+  const [cameraMovement, setCameraMovement] = useState<'push_in' | 'pull_out' | 'pan_left' | 'pan_right' | 'tilt_up' | 'orbit' | 'whip_pan' | 'drone_aerial'>('push_in');
+  const [motionDurationSec, setMotionDurationSec] = useState<number>(3);
+  const [motionResolution, setMotionResolution] = useState<'480p' | '720p'>('480p');
   const [sourceImage, setSourceImage] = useState<string | null>(initialImage || null);
   const [aspect, setAspect] = useState<'16:9' | '2.39:1' | '1:1' | '9:16'>('16:9');
   const [lens, setLens] = useState<'anamorphic' | '35mm' | '50mm' | '85mm'>('anamorphic');
@@ -106,6 +115,75 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   const [customPathInput, setCustomPathInput] = useState('');
   const [isEditingPath, setIsEditingPath] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string>('sdxl_turbo');
+  const [loras, setLoras] = useState<PlajahLora[]>(() => plajahLoraRegistry.getAllLoras());
+  const [selectedLoraId, setSelectedLoraId] = useState<string>('none');
+  const [loraInstallState, setLoraInstallState] = useState<Record<string, 'idle' | 'downloading' | 'installed'>>({});
+  const [trainingCharId, setTrainingCharId] = useState<string>('');
+  const [trainingProgress, setTrainingProgress] = useState<number>(0);
+  const [trainingStatusText, setTrainingStatusText] = useState<string>('');
+  const [isTraining, setIsTraining] = useState<boolean>(false);
+
+  useEffect(() => {
+    plajahLoraRegistry.auditInstalledLoras().then((installed) => {
+      const stateMap: Record<string, 'idle' | 'downloading' | 'installed'> = {};
+      for (const [id, isInst] of Object.entries(installed)) {
+        stateMap[id] = isInst ? 'installed' : 'idle';
+      }
+      setLoraInstallState(stateMap);
+      setLoras(plajahLoraRegistry.getAllLoras());
+    });
+    const saved = listSavedCharacters();
+    if (saved.length > 0 && !trainingCharId) {
+      setTrainingCharId(saved[0].id);
+    }
+  }, []);
+
+  const handleInstallLora = async (loraId: string) => {
+    setLoraInstallState(prev => ({ ...prev, [loraId]: 'downloading' }));
+    await plajahLoraRegistry.installLora(loraId, p => {
+      if (p.status === 'installed') {
+        setLoraInstallState(prev => ({ ...prev, [loraId]: 'installed' }));
+      }
+    });
+    setLoraInstallState(prev => ({ ...prev, [loraId]: 'installed' }));
+    setLoras(plajahLoraRegistry.getAllLoras());
+  };
+
+  const handleTrainCharacterLora = async () => {
+    if (!trainingCharId || isTraining) return;
+    const chars = listSavedCharacters();
+    const targetChar = chars.find(c => c.id === trainingCharId);
+    if (!targetChar) return;
+
+    const urls = Object.values(targetChar.turnaroundUrls || {}).filter(Boolean) as string[];
+    if (urls.length === 0) {
+      alert(`Character ${targetChar.name} has no turnaround images saved in Character Bible.`);
+      return;
+    }
+
+    setIsTraining(true);
+    setTrainingProgress(5);
+    setTrainingStatusText('Initializing 8-bit AdamW optimizer...');
+
+    const res = await plajahLoraRegistry.trainCharacterLora(
+      {
+        characterId: targetChar.id,
+        characterName: targetChar.name,
+        triggerWord: `${targetChar.name.toLowerCase().replace(/\s+/g, '_')}_char`,
+        turnaroundUrls: urls,
+      },
+      (pct, msg) => {
+        setTrainingProgress(pct);
+        setTrainingStatusText(msg);
+      }
+    );
+
+    setIsTraining(false);
+    if (res.ok) {
+      setLoras(plajahLoraRegistry.getAllLoras());
+      setSelectedLoraId(res.lora?.id || 'none');
+    }
+  };
 
   // AI Prompt Enhancer Toggle & State
   const [promptEnhanceEnabled, setPromptEnhanceEnabled] = useState<boolean>(() => {
@@ -346,7 +424,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           {/* Mode Switcher */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(6, 1fr)',
+            gridTemplateColumns: 'repeat(7, 1fr)',
             gap: '2px',
             padding: '8px',
             backgroundColor: '#1b1d22',

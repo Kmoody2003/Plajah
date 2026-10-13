@@ -41,11 +41,20 @@ export interface RelightIntent {
 }
 
 export interface CinemaMotionIntent {
-  keyframeImageUrl: string;
   motionPrompt: string;
-  cameraMovement?: 'push_in' | 'pull_out' | 'pan_left' | 'pan_right' | 'tilt_up' | 'orbit' | 'static';
+  mode?: 'single_keyframe' | 'first_and_last_frame' | 'text_to_video';
+  startKeyframeUrl?: string; // First Frame (Frame 0)
+  endKeyframeUrl?: string;   // Last Frame (Frame N)
+  keyframeImageUrl?: string; // backwards-compatible alias for startKeyframeUrl
+  modelId?: 'wan_video_14b' | 'wan_video_fl' | 'wan_2_2' | 'ltx_video' | 'svd_video';
+  cameraMovement?: 'push_in' | 'pull_out' | 'pan_left' | 'pan_right' | 'tilt_up' | 'orbit' | 'orbit_360' | 'crane_down' | 'crane_up' | 'whip_pan' | 'drone_aerial' | 'static';
   motionStrength?: number; // 1 to 10
-  durationSec?: 3 | 5;
+  durationSec?: number;    // e.g. 3, 4, 5, or snapped to dialogue seconds
+  resolution?: '480p' | '720p';
+  aspect?: '16:9' | '9:16' | '2.39:1' | '1:1';
+  dialogueDurationSec?: number; // Automatic audio cradle snap
+  dialogueAudioRef?: string;
+  fps?: number; // default 24
   seed?: number;
 }
 
@@ -109,9 +118,16 @@ export interface PlajahNativeTask {
     ambientPrompt?: string;
   };
   motion?: {
+    mode: 'single_keyframe' | 'first_and_last_frame' | 'text_to_video';
     cameraMovement: string;
     motionStrength: number;
     durationSec: number;
+    fps: number;
+    startKeyframeUrl?: string;
+    endKeyframeUrl?: string;
+    resolution: '480p' | '720p';
+    audioDurationSnapped?: boolean;
+    dialogueDurationSec?: number;
   };
   identity?: {
     characterRef?: string;
@@ -267,32 +283,84 @@ export function compileRelightTask(intent: RelightIntent): PlajahNativeTask {
  * Compiles Cinema Motion parameters into a Plajah Native execution task.
  */
 export function compileCinemaMotionTask(intent: CinemaMotionIntent): PlajahNativeTask {
+  const startKeyframe = intent.startKeyframeUrl || intent.keyframeImageUrl;
+  const endKeyframe = intent.endKeyframeUrl;
+  const mode = intent.mode || (endKeyframe ? 'first_and_last_frame' : 'single_keyframe');
+
+  // Compute duration: snapped to dialogue duration (+0.6s breathing cradle) or user specified
+  let duration = intent.durationSec || 3;
+  let audioSnapped = false;
+  if (intent.dialogueDurationSec) {
+    duration = Math.min(8, Math.max(2, Math.round(intent.dialogueDurationSec + 0.6)));
+    audioSnapped = true;
+  }
+
+  // Determine model: use First & Last Frame model (wan_video_fl) if interpolating between two keyframes
+  const modelId = intent.modelId || (mode === 'first_and_last_frame' ? 'wan_video_fl' : 'wan_video_14b');
+
+  // Dimensions based on resolution & aspect ratio
+  const res = intent.resolution || '480p';
+  let width = 832;
+  let height = 480;
+
+  if (res === '720p') {
+    if (intent.aspect === '9:16') {
+      width = 720; height = 1280;
+    } else {
+      width = 1280; height = 720;
+    }
+  } else {
+    if (intent.aspect === '9:16') {
+      width = 480; height = 832;
+    } else {
+      width = 832; height = 480;
+    }
+  }
+
   let motionTrajectory = '';
   switch (intent.cameraMovement) {
     case 'push_in': motionTrajectory = 'slow cinematic camera push-in dolly forward, dramatic focal immersion'; break;
-    case 'pull_out': motionTrajectory = 'smooth camera pull-out crane shot, revealing wide environment'; break;
+    case 'crane_down':
+    case 'pull_out': motionTrajectory = 'smooth camera pull-out crane shot descending, revealing wide environment'; break;
+    case 'crane_up': motionTrajectory = 'smooth camera crane shot ascending, sweeping monumental perspective'; break;
     case 'pan_left': motionTrajectory = 'graceful horizontal camera pan left, sweeping cinematic view'; break;
     case 'pan_right': motionTrajectory = 'graceful horizontal camera pan right, cinematic movement'; break;
     case 'tilt_up': motionTrajectory = 'low angle camera tilt up, monumental scale'; break;
-    case 'orbit': motionTrajectory = 'subtle 360 cinematic camera orbit around subject, parallax depth'; break;
+    case 'orbit':
+    case 'orbit_360': motionTrajectory = 'subtle dynamic 360-degree rotational arc orbit around subject, parallax depth'; break;
+    case 'whip_pan': motionTrajectory = 'dynamic whip pan kinetic camera movement, energy and speed'; break;
+    case 'drone_aerial': motionTrajectory = 'smooth sweeping drone aerial shot, grand bird-eye vista'; break;
     default: motionTrajectory = 'gentle organic cinematic camera breathing, high production value';
   }
+
+  let fullPrompt = intent.motionPrompt;
+  if (mode === 'first_and_last_frame') {
+    fullPrompt = `${fullPrompt}, first and last frame interpolation, seamless physical transition from start keyframe to end keyframe, continuous subject morphology, physics-based movement`;
+  }
+  fullPrompt = `${fullPrompt}, ${motionTrajectory}, 24 frames per second, filmic motion blur, smooth physical dynamics`;
 
   return {
     id: `plajah_motion_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     taskType: 'cinema_motion',
-    modelId: 'wan_video_14b',
-    prompt: `${intent.motionPrompt}, ${motionTrajectory}, 24 frames per second, filmic motion blur, smooth physical dynamics`,
-    negativePrompt: 'jerky movement, camera stutter, morphing artifacts, distorted limbs, static freeze',
-    dimensions: { width: 832, height: 480 },
-    steps: 30,
+    modelId,
+    prompt: fullPrompt,
+    negativePrompt: 'jerky movement, camera stutter, morphing artifacts, distorted limbs, static freeze, watermark',
+    dimensions: { width, height },
+    steps: res === '720p' ? 35 : 28,
     cfgScale: 6.0,
     seed: intent.seed ?? Math.floor(Math.random() * 2147483647),
-    sourceImage: intent.keyframeImageUrl,
+    sourceImage: startKeyframe,
     motion: {
+      mode,
       cameraMovement: intent.cameraMovement || 'push_in',
       motionStrength: intent.motionStrength || 5,
-      durationSec: intent.durationSec || 3,
+      durationSec: duration,
+      fps: intent.fps || 24,
+      startKeyframeUrl: startKeyframe,
+      endKeyframeUrl: endKeyframe,
+      resolution: res,
+      audioDurationSnapped: audioSnapped,
+      dialogueDurationSec: intent.dialogueDurationSec,
     },
   };
 }
@@ -329,15 +397,19 @@ export function compileComicPanelTask(intent: ComicPanelIntent): PlajahNativeTas
     }
   }
 
+  const loraDef = intent.loraId ? plajahLoraRegistry.getLoraById(intent.loraId) : undefined;
+  const isFlux = intent.loraId?.includes('flux') || loraDef?.baseModel === 'FLUX.2-Klein-4B' || loraDef?.baseModel === 'FLUX.1-Schnell';
+  const targetModel = intent.modelId || (isFlux ? 'flux2_klein_4b' : 'animagine_xl');
+
   return {
     id: `plajah_comic_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     taskType: 'comic_panel',
-    modelId: intent.modelId || (intent.loraId?.includes('flux') ? 'flux2_klein_4b' : 'animagine_xl'),
+    modelId: targetModel,
     prompt,
     negativePrompt: 'photorealistic, messy sketch, blurry lines, flat colors, bad hands, mutated fingers',
     dimensions: { width, height },
-    steps: intent.loraId?.includes('flux') ? 12 : 28,
-    cfgScale: intent.loraId?.includes('flux') ? 3.5 : 7.5,
+    steps: isFlux ? 12 : 28,
+    cfgScale: isFlux ? 3.5 : 7.5,
     seed: Math.floor(Math.random() * 2147483647),
     identity: {
       characterRef: intent.faceEmbeddingRef,

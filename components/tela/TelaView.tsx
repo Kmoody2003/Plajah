@@ -1242,6 +1242,105 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     setPosture('STUDIO');
   };
 
+  // ── Universal Page Layer Tools (Typography, Shapes, Layers) ──────────────────
+  const ensureVectorOverlayForFrame = (targetFrame: TelaFrame): string => {
+    let vecDev = targetFrame.deviceIds.map(id => docRef.current?.devices[id]).find((d): d is TelaVectorDevice => d?.type === 'VECTOR');
+    if (vecDev) return vecDev.id;
+
+    const newDevId = uid('dev');
+    const overlayDev: TelaVectorDevice = {
+      id: newDevId,
+      type: 'VECTOR',
+      name: `${targetFrame.label || 'Page'} Overlay`,
+      width: targetFrame.w,
+      height: targetFrame.h,
+      objects: [],
+    };
+    dispatchOp({
+      type: 'ADD_DEVICES_TO_FRAME',
+      frameId: targetFrame.id,
+      devices: [overlayDev],
+    });
+    return newDevId;
+  };
+
+  const addTextBoxToActiveFrame = (targetFrameId?: string) => {
+    const cur = docRef.current;
+    if (!cur) return;
+    const frameId = targetFrameId || activeFrameId || cur.frames[0]?.id;
+    const targetFrame = cur.frames.find(f => f.id === frameId) || cur.frames[0];
+    if (!targetFrame) return;
+
+    const vecDeviceId = ensureVectorOverlayForFrame(targetFrame);
+    const boxId = uid('obj');
+    const newBox: TelaVectorObject = {
+      id: boxId,
+      kind: 'TEXT',
+      x: Math.round(targetFrame.w * 0.08),
+      y: 120,
+      w: Math.min(380, Math.round(targetFrame.w * 0.84)),
+      h: 170,
+      fill: '#1B1523',
+      fontSize: 16,
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontWeight: 400,
+      wrap: true,
+      backgroundColor: '#FFFFFF',
+      padding: 16,
+      rx: 8,
+      shadowColor: 'rgba(0,0,0,0.12)',
+      shadowBlur: 14,
+      shadowOffsetY: 4,
+      blocks: [
+        { id: uid('blk'), kind: 'h2', text: 'Typography & Text Box' },
+        { id: uid('blk'), kind: 'p', text: 'Free-moving text box with rich paragraphs. Drag anywhere on the page, change fonts, styles, or add callouts.' },
+      ],
+      text: 'Typography & Text Box\nFree-moving text box with rich paragraphs. Drag anywhere on the page, change fonts, styles, or add callouts.',
+    };
+
+    dispatchOp({
+      type: 'ADD_VECTOR_OBJECT',
+      deviceId: vecDeviceId,
+      object: newBox,
+    });
+    setStudioSel(boxId);
+    setActiveFrameId(targetFrame.id);
+  };
+
+  const addShapeToActiveFrame = (kind: 'RECT' | 'CIRCLE' | 'STAR' | 'CALLOUT' = 'RECT', targetFrameId?: string) => {
+    const cur = docRef.current;
+    if (!cur) return;
+    const frameId = targetFrameId || activeFrameId || cur.frames[0]?.id;
+    const targetFrame = cur.frames.find(f => f.id === frameId) || cur.frames[0];
+    if (!targetFrame) return;
+
+    const vecDeviceId = ensureVectorOverlayForFrame(targetFrame);
+    const shapeId = uid('obj');
+    const newShape: TelaVectorObject = {
+      id: shapeId,
+      kind,
+      x: Math.round(targetFrame.w * 0.15),
+      y: 160,
+      w: kind === 'CIRCLE' ? 140 : kind === 'STAR' ? 140 : 200,
+      h: kind === 'CIRCLE' ? 140 : kind === 'STAR' ? 140 : 120,
+      fill: kind === 'CALLOUT' ? '#FFFFFF' : 'rgba(0, 218, 243, 0.18)',
+      stroke: kind === 'CALLOUT' ? '#D40055' : '#00DAF3',
+      strokeWidth: 2,
+      rx: kind === 'RECT' ? 8 : undefined,
+      shadowColor: 'rgba(0,0,0,0.15)',
+      shadowBlur: 10,
+      shadowOffsetY: 3,
+    };
+
+    dispatchOp({
+      type: 'ADD_VECTOR_OBJECT',
+      deviceId: vecDeviceId,
+      object: newShape,
+    });
+    setStudioSel(shapeId);
+    setActiveFrameId(targetFrame.id);
+  };
+
   // Studio image adds — dispatched here so the Studio's own rail/panel can add
   // layers while the device renders chrome-less (Studio hosts the controls).
   const studioAddImageFile = async (deviceId: string, file: File) => {
@@ -2111,7 +2210,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     onWriterInteraction: handleWriterInteraction,
   }), [doc?.devices, dispatchOp, writerTexts, writerList, baseList, formulaContext, handleWriterInteraction]);
 
-  const renderDevice = (device: TelaDevice, readOnly = false) => renderTelaDevice(device, renderCtx, readOnly);
+  const renderDevice = (device: TelaDevice, readOnly = false, overlay = false) => renderTelaDevice(device, renderCtx, readOnly, overlay);
 
   // ── Author-in-place flying menu (canvas ↔ same menu as the embed) ────────────
 
@@ -2764,9 +2863,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               ) : (
                 <>
                   <button title="Select / move (V)" style={railBtn(studioTool === 'select')} onClick={() => setStudioTool('select')}><MousePointer2 size={17} /></button>
+                  <button title="Typography / Free Text Box (T) — Add rich paragraph text box to this page" style={railBtn(false)} onClick={() => addTextBoxToActiveFrame()}><Type size={17} color="#D0BCFF" /></button>
+                  <button title="Shapes and callouts (R) — Add shape layer to this page" style={railBtn(false)} onClick={() => addShapeToActiveFrame('RECT')}><Shapes size={17} color="#00DAF3" /></button>
                   <button title="Direct select / anchors (A)" style={railBtn(studioTool === 'direct')} onClick={() => setStudioTool('direct')}><MousePointerClick size={17} /></button>
-                  <button title="Pen / vector spline (P)" style={railBtn(studioTool === 'pen')} onClick={() => { if (!isVec) addVectorArtboard(); setStudioTool('pen'); }}><PenLine size={17} color="#00DAF3" /></button>
-                  <button title="Shapes and templates (R)" style={railBtn(false)} onClick={() => { if (!isVec) addVectorArtboard(); setStudioTool('rect'); }}><Shapes size={17} color="#a78bfa" /></button>
+                  <button title="Pen / vector spline (P)" style={railBtn(studioTool === 'pen')} onClick={() => { if (!isVec) addVectorArtboard(); setStudioTool('pen'); }}><PenLine size={17} color="#a78bfa" /></button>
                   <button title="Lorea pressure paint engine (B)" style={railBtn(studioPaintOpen)} onClick={() => setStudioPaintOpen(true)}><Brush size={17} color="#f472b6" /></button>
                   <button title="Upload image layer" style={railBtn(false)} disabled={studioImgBusy} onClick={() => { if (img) studioFileRef.current?.click(); else addImageCanvas(); }}>{studioImgBusy ? <Loader2 size={17} className="animate-spin" /> : <ImagePlus size={17} color="#38bdf8" />}</button>
                 </>
@@ -2848,6 +2948,23 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                 <select aria-label="Ruler unit" value={studioUnit} onChange={event => setStudioUnit(event.target.value as StudioUnit)} className="h-7 px-2 rounded-[8px] text-[.62rem] font-bold text-white/65 outline-none shrink-0" style={{ background: '#17131d', border: '1px solid rgba(255,255,255,.1)' }}><option value="PX">Pixels</option><option value="IN">Inches</option><option value="MM">Millimetres</option><option value="CM">Centimetres</option></select>
                 <select aria-label="Safe area guides" value={studioSafeArea} onChange={event => setStudioSafeArea(event.target.value as StudioSafeArea)} className="h-7 px-2 rounded-[8px] text-[.62rem] font-bold text-white/65 outline-none shrink-0" style={{ background: '#17131d', border: '1px solid rgba(255,255,255,.1)' }}><option value="NONE">No safe margins</option><option value="PRINT">Print safe</option><option value="VIDEO">Video safe</option><option value="BOTH">Print + video safe</option></select>
 
+                <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
+
+                <button
+                  onClick={() => addTextBoxToActiveFrame()}
+                  className="h-7 px-2.5 rounded-[8px] text-[.64rem] font-bold text-white bg-[var(--pj-magenta,#D40055)]/25 hover:bg-[var(--pj-magenta,#D40055)]/40 border border-[var(--pj-magenta,#D40055)]/40 flex items-center gap-1.5 transition-colors shrink-0 shadow-sm"
+                  title="Add Free-moving Typography / Text Box to the active document page"
+                >
+                  <Type size={12} className="text-[#D0BCFF]" /> Typography
+                </button>
+                <button
+                  onClick={() => addShapeToActiveFrame('RECT')}
+                  className="h-7 px-2.5 rounded-[8px] text-[.64rem] font-bold text-white/80 hover:text-white bg-white/[0.06] hover:bg-white/15 border border-white/10 flex items-center gap-1.5 transition-colors shrink-0"
+                  title="Add Vector Shape layer to the active document page"
+                >
+                  <Shapes size={12} className="text-[#00DAF3]" /> Shape
+                </button>
+
                 <div className="ml-auto flex items-center gap-1 shrink-0">
                   <button onClick={() => setStudioZoom(value => Math.max(.1, value / 1.2))} className="w-7 h-7 rounded-[8px] text-white/60 bg-white/[.045] hover:bg-white/[.09]">−</button>
                   <button onClick={() => setStudioZoom(1)} className="min-w-[48px] h-7 px-1 rounded-[8px] text-[.62rem] font-extrabold text-white/65 bg-white/[.045] hover:bg-white/[.09]">{Math.round(studioZoom * 100)}%</button>
@@ -2885,6 +3002,20 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                           </div>
                           <div className="flex items-center gap-2 text-[10px]">
                             <button
+                              onClick={() => addTextBoxToActiveFrame(frame.id)}
+                              className="px-2.5 py-1 rounded-[7px] bg-[var(--pj-magenta,#D40055)]/20 hover:bg-[var(--pj-magenta,#D40055)]/35 text-white/90 hover:text-white transition-colors flex items-center gap-1 font-semibold border border-[var(--pj-magenta,#D40055)]/30"
+                              title="Add Free-moving Typography / Text Box to this page"
+                            >
+                              <Type size={12} className="text-[#D0BCFF]" /> ＋ Text Box
+                            </button>
+                            <button
+                              onClick={() => addShapeToActiveFrame('RECT', frame.id)}
+                              className="px-2.5 py-1 rounded-[7px] bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors flex items-center gap-1 font-semibold"
+                              title="Add Shape / Callout layer to this page"
+                            >
+                              <Shapes size={12} className="text-[#00DAF3]" /> ＋ Shape
+                            </button>
+                            <button
                               onClick={() => { setActiveFrameId(frame.id); setStudioDocView('focus'); if (posture === 'PAGE') setPosture('STUDIO'); }}
                               className="px-2.5 py-1 rounded-[7px] bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors flex items-center gap-1 font-semibold"
                               title="Focus on this page in Studio canvas with precision rulers"
@@ -2920,12 +3051,26 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                             overflow: 'visible',
                           }}
                         >
-                          {frame.deviceIds.map(id => {
+                          {frame.deviceIds.map((id, devIdx) => {
                             const dev = doc.devices[id];
                             if (!dev) return null;
+                            const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
                             return (
-                              <div key={id} style={{ flex: 1, minHeight: frame.h }}>
-                                {renderDevice(dev)}
+                              <div
+                                key={id}
+                                style={isOverlay ? {
+                                  position: 'absolute',
+                                  inset: 0,
+                                  zIndex: 10 + devIdx,
+                                  pointerEvents: 'none',
+                                } : {
+                                  flex: 1,
+                                  minHeight: frame.h,
+                                  position: 'relative',
+                                  zIndex: 1,
+                                }}
+                              >
+                                {renderDevice(dev, false, isOverlay)}
                               </div>
                             );
                           })}
@@ -2936,6 +3081,12 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
                   {/* ＋ Add Page Strip at the bottom of the document */}
                   <div className="flex items-center gap-2.5 my-8 pb-16 flex-wrap justify-center">
+                    <button onClick={() => addTextBoxToActiveFrame()} className="flex items-center gap-1.5 h-9 px-4 rounded-[10px] text-[.75rem] font-bold text-white bg-[var(--pj-magenta,#D40055)]/20 border border-[var(--pj-magenta,#D40055)]/40 hover:bg-[var(--pj-magenta,#D40055)]/35 transition-all shadow-sm">
+                      <Type size={14} className="text-[#D0BCFF]" /> ＋ Text Box / Typography
+                    </button>
+                    <button onClick={() => addShapeToActiveFrame('RECT')} className="flex items-center gap-1.5 h-9 px-4 rounded-[10px] text-[.75rem] font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all shadow-sm">
+                      <Shapes size={14} className="text-[#00DAF3]" /> ＋ Shape Layer
+                    </button>
                     <button onClick={addWriterPage} className="flex items-center gap-1.5 h-9 px-4 rounded-[10px] text-[.75rem] font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all shadow-sm">
                       <Type size={14} className="text-[#D0BCFF]" /> ＋ Add Writer Page
                     </button>
@@ -3015,15 +3166,29 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                               minHeight: focusHeight,
                               background: '#FFFFFF',
                               borderRadius: 4,
+                              position: 'relative',
                               overflow: 'visible',
                             }}
                           >
-                            {activeFrame.deviceIds.map(id => {
+                            {activeFrame.deviceIds.map((id, devIdx) => {
                               const dev = doc.devices[id];
                               if (!dev) return null;
+                              const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
                               return (
-                                <div key={id} style={{ minHeight: focusHeight }}>
-                                  {renderDevice(dev)}
+                                <div
+                                  key={id}
+                                  style={isOverlay ? {
+                                    position: 'absolute',
+                                    inset: 0,
+                                    zIndex: 10 + devIdx,
+                                    pointerEvents: 'none',
+                                  } : {
+                                    minHeight: focusHeight,
+                                    position: 'relative',
+                                    zIndex: 1,
+                                  }}
+                                >
+                                  {renderDevice(dev, false, isOverlay)}
                                 </div>
                               );
                             })}
@@ -3608,14 +3773,33 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                       display: positionedForm ? 'block' : 'flex', flexDirection: 'column', position: 'relative',
                     }}
                   >
-                    {frame.deviceIds.map(id => {
+                    {frame.deviceIds.map((id, devIdx) => {
                       const dev = doc.devices[id];
                       if (!dev) return null;
                       if (positionedForm && dev.type === 'BASE') return null;
+                      const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
                       const positionedLayer = positionedForm && (dev.id === positionedForm.pageDeviceId || dev.id === positionedForm.id);
                       return (
-                        <div key={id} style={positionedLayer ? { position: 'absolute', inset: 0, zIndex: dev.id === positionedForm.id ? 3 : 1, minHeight: 0 } : { flex: 1, minHeight: 0 }}>
-                          {renderDevice(dev)}
+                        <div
+                          key={id}
+                          style={positionedLayer ? {
+                            position: 'absolute',
+                            inset: 0,
+                            zIndex: dev.id === positionedForm.id ? 3 : 1,
+                            minHeight: 0,
+                          } : isOverlay ? {
+                            position: 'absolute',
+                            inset: 0,
+                            zIndex: 10 + devIdx,
+                            pointerEvents: 'none',
+                          } : {
+                            flex: 1,
+                            minHeight: 0,
+                            position: 'relative',
+                            zIndex: 1,
+                          }}
+                        >
+                          {renderDevice(dev, false, isOverlay)}
                         </div>
                       );
                     })}
@@ -3872,10 +4056,26 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             }
             @page { size: ${printPageSize}; margin: 0; }
           `}</style>
-          <div style={{ width: printFrame.w, background: '#fff' }}>
-            {printFrame.deviceIds.map(id => {
+          <div style={{ width: printFrame.w, minHeight: printFrame.h, background: '#fff', position: 'relative' }}>
+            {printFrame.deviceIds.map((id, devIdx) => {
               const dev = doc.devices[id];
-              return dev ? <div key={id}>{renderDevice(dev, true)}</div> : null;
+              if (!dev) return null;
+              const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
+              return (
+                <div
+                  key={id}
+                  style={isOverlay ? {
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 10 + devIdx,
+                  } : {
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  {renderDevice(dev, true, isOverlay)}
+                </div>
+              );
             })}
           </div>
         </div>,
