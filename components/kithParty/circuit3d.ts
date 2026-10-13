@@ -120,6 +120,7 @@ class KartAudioSynthesizer {
  private curbGain:GainNode|null=null;
  private curbOsc:OscillatorNode|null=null;
  private lastBoost=0;
+ private enabled=true;
 
  init(ctx:AudioContext){
   this.ctx=ctx;
@@ -156,6 +157,7 @@ class KartAudioSynthesizer {
  }
 
  update(p:Player,soundEnabled:boolean){
+  this.enabled=soundEnabled;
   if(!this.ctx||!soundEnabled||this.ctx.state!=='running') {
    if(this.engineGain) this.engineGain.gain.value=0;
    if(this.driftGain) this.driftGain.gain.value=0;
@@ -188,7 +190,7 @@ class KartAudioSynthesizer {
  }
 
  playTurboBlast(){
-  if(!this.ctx||this.ctx.state!=='running') return;
+  if(!this.ctx||!this.enabled||this.ctx.state!=='running') return;
   try{
    const ctx=this.ctx,t=ctx.currentTime;
    const osc=ctx.createOscillator();osc.type='sawtooth';
@@ -442,7 +444,7 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
  const cameras=humans.map(()=>new T.PerspectiveCamera(63,960/560,.1,500));
  const cameraTargets=humans.map(()=>new T.Vector3());
  const audioSynthesizer=new KartAudioSynthesizer();
- let initialized=false;
+ let initialized=false;let audioInitialized=false;
 
  return {
   render(s:State,dt:number,audioCtx?:AudioContext|null,soundEnabled?:boolean){
@@ -450,7 +452,7 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
    for(const m of mixers)m.update(dt);
 
    // Update Audio Synthesizer for Player 1
-   if(audioCtx&&!initialized) audioSynthesizer.init(audioCtx);
+   if(audioCtx&&!audioInitialized){audioSynthesizer.init(audioCtx);audioInitialized=true;}
    if(s.players[0]) audioSynthesizer.update(s.players[0],!!soundEnabled);
 
    // Update Boost Pad Chevrons Pulse
