@@ -16,6 +16,12 @@ import { layoutsFor, type ComicLayout, type LayoutPanelSpec } from '../data/comi
 import { parseScript, applyScriptToPage, charactersInScript, type ScriptCharacter } from '../services/comicScript';
 import { takeComicHandoff } from '../services/comicHandoff';
 import ComicDrawCanvas from './ComicDrawCanvas';
+import {
+  decomposeProseToComicBeatsAsync,
+  requestStoryCouncilCritique,
+  type StoryBreakdownResult,
+  type StoryCouncilCritiqueResult,
+} from '../services/comic/storyIntelligenceBridge';
 
 // Build fresh panels from a preset layout, carrying existing art/bubbles across by index
 // so re-templating a page keeps the work already placed.
@@ -736,6 +742,87 @@ export default function ComicPanelBuilder({
     setSelectedPanelId(null);
   };
 
+  // Story Intelligence on-device engine (Gemma 2 2B + Nemotron 4B)
+  const [showStoryIntel, setShowStoryIntel] = useState(false);
+  const [storyIntelInput, setStoryIntelInput] = useState('');
+  const [storyIntelModel, setStoryIntelModel] = useState<'gemma-2-2b' | 'nemotron-4b'>('gemma-2-2b');
+  const [storyIntelStyle, setStoryIntelStyle] = useState<'manga' | 'comic_western' | 'storybook_watercolor'>(isManga ? 'manga' : 'comic_western');
+  const [storyIntelLoading, setStoryIntelLoading] = useState(false);
+  const [storyIntelResult, setStoryIntelResult] = useState<StoryBreakdownResult | null>(null);
+  const [storyCouncilResult, setStoryCouncilResult] = useState<StoryCouncilCritiqueResult | null>(null);
+  const [storyIntelTab, setStoryIntelTab] = useState<'decompose' | 'council'>('decompose');
+
+  const handleDeconstructStory = async () => {
+    if (!storyIntelInput.trim()) return;
+    setStoryIntelLoading(true);
+    try {
+      const res = await decomposeProseToComicBeatsAsync(storyIntelInput, {
+        title: page.title || 'Scene Breakdown',
+        style: storyIntelStyle,
+        modelPreference: storyIntelModel,
+      });
+      setStoryIntelResult(res);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setStoryIntelLoading(false);
+    }
+  };
+
+  const handleRunCouncil = async () => {
+    if (!storyIntelInput.trim()) return;
+    setStoryIntelLoading(true);
+    try {
+      const res = await requestStoryCouncilCritique(storyIntelInput, undefined, storyIntelModel);
+      setStoryCouncilResult(res);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setStoryIntelLoading(false);
+    }
+  };
+
+  const handleApplyIntelToPage = () => {
+    if (!storyIntelResult || !storyIntelResult.beats.length) return;
+    const count = storyIntelResult.beats.length;
+    const allLayouts = layoutsFor(isManga);
+    const matchedLayout = allLayouts.find(l => l.panels.length === count) || allLayouts[0];
+    const newPanels = panelsFromLayout(matchedLayout.panels, [], isBW);
+
+    storyIntelResult.beats.forEach((b, idx) => {
+      if (newPanels[idx]) {
+        newPanels[idx].caption = b.environment || b.actionSummary.slice(0, 90);
+        newPanels[idx].captionPos = 'bottom';
+        if (b.suggestedSfx) {
+          newPanels[idx].sfxText = b.suggestedSfx;
+          newPanels[idx].sfxStyle = 'impact';
+        }
+        newPanels[idx].bubbles = (b.dialogueLines || []).map((d, bIdx) => ({
+          id: uuidv4(),
+          text: d.text,
+          speakerName: d.speaker,
+          type: d.type as any,
+          x: bIdx % 2 === 0 ? 15 : 52,
+          y: 12 + bIdx * 26,
+          tailDirection: (d.tailDirection as any) || (bIdx % 2 === 0 ? 'bl' : 'br'),
+          color: '#ffffff',
+          textColor: '#000000',
+          borderRadius: 16,
+          fontWeight: '500',
+          fontSize: 14,
+        }));
+      }
+    });
+
+    onChange({
+      ...page,
+      panels: newPanels,
+      colorMode: isBW ? 'bw' : 'color',
+    });
+    setShowStoryIntel(false);
+    setSelectedPanelId(null);
+  };
+
   // Draw the selected panel's art on the paint canvas → upload → set as its image.
   const [drawingPanelId, setDrawingPanelId] = useState<string | null>(null);
   const drawingPanel = panels.find(p => p.id === drawingPanelId) || null;
@@ -808,6 +895,13 @@ export default function ComicPanelBuilder({
           </button>
           <button onClick={() => setShowScript(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-colors">
             <Type size={12} /> Script
+          </button>
+          <button
+            onClick={() => setShowStoryIntel(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-500/40 text-purple-300 hover:from-purple-500/30 hover:to-indigo-500/30 text-xs font-bold transition-all shadow-sm shrink-0"
+            title="Plajah Story Intelligence (Gemma 2 2B & Nemotron 4B on NVIDIA GPU)"
+          >
+            <Sparkles size={12} className="text-purple-400" /> Story Intelligence
           </button>
           <button onClick={addPanel} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-colors">
             <Plus size={12} /> Panel
@@ -1026,6 +1120,214 @@ export default function ComicPanelBuilder({
                 <button onClick={() => setShowScript(false)} className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white/70 font-black text-xs uppercase tracking-widest">Cancel</button>
               </div>
               {!panels.length && <p className="text-[10px] text-orange-400/70">Pick a layout first so there are panels to flow into.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Story Intelligence On-Device Modal (Gemma 2 2B + Nemotron 4B) */}
+      {showStoryIntel && (
+        <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setShowStoryIntel(false)}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl bg-[#0d0d11] border border-purple-500/30 shadow-2xl shadow-purple-950/40 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-black/40">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                    Story Intelligence
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      RTX 4070 Native GPU
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-white/40">
+                    Dual On-Device AI Engine: Ultra-Fast Deconstruction & Writers Council
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowStoryIntel(false)} className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Tab Selector & Model Selector */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setStoryIntelTab('decompose')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      storyIntelTab === 'decompose'
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'text-white/50 hover:text-white'
+                    }`}
+                  >
+                    Beat Deconstruction
+                  </button>
+                  <button
+                    onClick={() => setStoryIntelTab('council')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      storyIntelTab === 'council'
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'text-white/50 hover:text-white'
+                    }`}
+                  >
+                    Writers Council Review
+                  </button>
+                </div>
+
+                {/* Model Selector */}
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider">Engine:</span>
+                  <button
+                    onClick={() => setStoryIntelModel('gemma-2-2b')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                      storyIntelModel === 'gemma-2-2b'
+                        ? 'bg-purple-500/25 border-purple-500 text-purple-300'
+                        : 'border-white/10 text-white/40 hover:text-white'
+                    }`}
+                    title="Google Gemma 2 2B: 120-140 tokens/sec ultra-fast inference"
+                  >
+                    ⚡ Gemma 2 2B (Speed)
+                  </button>
+                  <button
+                    onClick={() => setStoryIntelModel('nemotron-4b')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                      storyIntelModel === 'nemotron-4b'
+                        ? 'bg-purple-500/25 border-purple-500 text-purple-300'
+                        : 'border-white/10 text-white/40 hover:text-white'
+                    }`}
+                    title="NVIDIA Nemotron 4B: Deep dramatic reasoning & continuity"
+                  >
+                    🧠 Nemotron 4B (Reasoning)
+                  </button>
+                </div>
+              </div>
+
+              {/* Prose / Manuscript Input */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-white/50 flex items-center justify-between">
+                  <span>Input Prose, Chapter, or Scene Draft</span>
+                  <span className="text-[9px] text-white/30">{storyIntelInput.length} chars</span>
+                </label>
+                <textarea
+                  rows={5}
+                  value={storyIntelInput}
+                  onChange={e => setStoryIntelInput(e.target.value)}
+                  placeholder={'Paste novel prose, screenplay beat, or live transcription here... (e.g., Rain hammered the asphalt as Kael peered through the shattered skylight. "They are already inside," he whispered. BOOM! An optic blast ignited the gloom.)'}
+                  className="w-full bg-black/50 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-purple-500/60 font-mono resize-none leading-relaxed"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3">
+                {storyIntelTab === 'decompose' ? (
+                  <button
+                    onClick={handleDeconstructStory}
+                    disabled={storyIntelLoading || !storyIntelInput.trim()}
+                    className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-900/30"
+                  >
+                    {storyIntelLoading ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Deconstructing with {storyIntelModel === 'gemma-2-2b' ? 'Gemma 2 2B' : 'Nemotron 4B'}...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={14} /> Deconstruct into Sequential Comic Beats
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRunCouncil}
+                    disabled={storyIntelLoading || !storyIntelInput.trim()}
+                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-900/30"
+                  >
+                    {storyIntelLoading ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Consulting Writers Council...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={14} /> Convene Editorial Writers Council
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Results Display */}
+              {storyIntelTab === 'decompose' && storyIntelResult && (
+                <div className="space-y-3 pt-3 border-t border-white/10">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-purple-300">
+                      Discovered: {storyIntelResult.beats.length} Panels · {storyIntelResult.discoveredCharacters.length} Characters
+                    </span>
+                    <button
+                      onClick={handleApplyIntelToPage}
+                      className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs transition-all shadow-md"
+                    >
+                      Apply Panels to Page
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
+                    {storyIntelResult.beats.map((b, i) => (
+                      <div key={i} className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white/90">Panel {i + 1}</span>
+                          <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                            {b.cameraShot}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-white/60 line-clamp-2">{b.actionSummary}</p>
+                        {b.suggestedSfx && (
+                          <div className="text-[10px] font-black text-orange-400">SFX: {b.suggestedSfx}</div>
+                        )}
+                        {b.dialogueLines?.map((d, dIdx) => (
+                          <div key={dIdx} className="text-[10px] bg-black/40 p-1.5 rounded border border-white/5 text-white/80">
+                            <span className="font-bold text-purple-400">{d.speaker}: </span>
+                            <span>"{d.text}"</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Council Results Display */}
+              {storyIntelTab === 'council' && storyCouncilResult && (
+                <div className="space-y-3 pt-3 border-t border-white/10">
+                  <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/30 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-purple-300">Writers Council Overall Score</div>
+                      <div className="text-[11px] text-white/60">{storyCouncilResult.executiveSummary}</div>
+                    </div>
+                    <div className="text-2xl font-black text-purple-400">{storyCouncilResult.overallScore}/100</div>
+                  </div>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {storyCouncilResult.councilMembers?.map((m, mIdx) => (
+                      <div key={mIdx} className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white/90">{m.role}</span>
+                          <span className="text-emerald-400 font-mono font-bold">{m.score}/100</span>
+                        </div>
+                        <p className="text-[11px] text-white/60">{m.critique}</p>
+                        {m.actionableRecommendations?.map((rec, rIdx) => (
+                          <div key={rIdx} className="text-[10px] text-purple-300/80 pl-2 border-l border-purple-500/40">
+                            • {rec}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

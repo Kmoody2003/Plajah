@@ -26,6 +26,8 @@ export interface LocalModelInventory {
   icLight: boolean;       // IC-Light (3D Directional Relighting)
   supirDetail: boolean;   // SUPIR Detail Enhancer & 4K Upscaler
   ipAdapter: boolean;     // IP-Adapter & FaceID Character Bible locks
+  gemma2_2b: boolean;     // Gemma 2 2B (Ultra-fast Story Intelligence & beat splitting)
+  nemotron4b: boolean;    // Nemotron-Mini-4B (Deep reasoning & Writers Council)
   segmentAnything: boolean; // SAM / SlimSAM
   whisper: boolean;       // Voice transcription
   kokoro: boolean;        // High-quality local voice synthesis
@@ -50,6 +52,8 @@ const DEFAULT_MODELS: LocalModelInventory = {
   icLight: false,
   supirDetail: false,
   ipAdapter: false,
+  gemma2_2b: false,
+  nemotron4b: false,
   segmentAnything: false,
   whisper: false,
   kokoro: false,
@@ -180,6 +184,8 @@ export async function getLocalEngineStatus(forceRefresh = false): Promise<LocalE
         icLight: !!sModels.icLight,
         supirDetail: !!sModels.supirDetail,
         ipAdapter: !!sModels.ipAdapter,
+        gemma2_2b: !!sModels.gemma2_2b,
+        nemotron4b: !!sModels.nemotron4b,
         segmentAnything: true,
         whisper: true,
         kokoro: true,
@@ -206,6 +212,8 @@ export async function getLocalEngineStatus(forceRefresh = false): Promise<LocalE
           supirDetail: true,
           wanVideo: true,
           ipAdapter: true,
+          gemma2_2b: true,
+          nemotron4b: true,
           segmentAnything: true,
           whisper: true,
           kokoro: true,

@@ -26,6 +26,17 @@ COMFY_ROOT = r"D:\ComfyUI_windows_portable\ComfyUI_windows_portable\ComfyUI"
 if os.path.exists(COMFY_ROOT) and COMFY_ROOT not in sys.path:
     sys.path.insert(0, COMFY_ROOT)
 
+# Plajah Story Intelligence Engine (Gemma 2 2B + Nemotron 4B on NVIDIA GPU)
+try:
+    from story_intelligence_engine import story_intel_engine
+except ImportError:
+    try:
+        sys.path.insert(0, os.path.dirname(__file__))
+        from story_intelligence_engine import story_intel_engine
+    except Exception as e:
+        story_intel_engine = None
+        print(f"[Sidecar] Could not load story_intel_engine: {e}")
+
 import torch
 import folder_paths
 import yaml
@@ -81,6 +92,7 @@ def get_installed_models_inventory():
         "nvidia_cosmos": False,
         "nvidia_mistral_nemo": False,
         "qwen25_7b": False,
+        "gemma2_2b": False,
         "supir_detail": False,
         "wan_video_14b": False,
         "wan_video_fl": False,
@@ -110,6 +122,7 @@ def get_installed_models_inventory():
         "nvidia_cosmos": ["cosmos-prompt-upscaler.gguf"],
         "nvidia_mistral_nemo": ["Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"],
         "qwen25_7b": ["qwen2.5-7b-instruct-q4_k_m.gguf"],
+        "gemma2_2b": ["gemma-2-2b-it-Q4_K_M.gguf", "gemma-2-2b-it-IQ4_XS.gguf", "gemma-2-2b-it-Q4_K_S.gguf"],
         "supir_detail": ["SUPIR_v0Q.ckpt"],
         "wan_video_14b": ["Wan2.1-I2V-14B-480P.safetensors", "Wan2.1_I2V_14B_480P_fp8.safetensors"],
         "wan_video_fl": ["Wan2.1_FL_I2V_14B_480P_fp8.safetensors"],
@@ -481,6 +494,8 @@ class PlajahSidecarHandler(BaseHTTPRequestHandler):
                     "icLight": inventory["ic_light_fc"],
                     "supirDetail": inventory["supir_detail"],
                     "ipAdapter": inventory["ipadapter_faceid"],
+                    "gemma2_2b": inventory["gemma2_2b"],
+                    "nemotron4b": inventory["nvidia_nemotron"],
                     "segmentAnything": True,
                     "whisper": True,
                     "kokoro": True,
@@ -500,6 +515,31 @@ class PlajahSidecarHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"installed": inventory}).encode("utf-8"))
+
+        elif self.path in ("/story-intel/models", "/api/story-intel/models"):
+            inventory = get_installed_models_inventory()
+            body = {
+                "models": {
+                    "gemma2_2b": {
+                        "available": inventory["gemma2_2b"],
+                        "role": "ultra_fast_beat_deconstruction",
+                        "recommendedFor": "speed, real-time speech-to-comic, camera shot selection",
+                        "speedTokensPerSec": "120-140"
+                    },
+                    "nemotron4b": {
+                        "available": inventory["nvidia_nemotron"],
+                        "role": "deep_reasoning_and_editorial_council",
+                        "recommendedFor": "character bible continuity, writers council critique, screenplay depth",
+                        "speedTokensPerSec": "65-80"
+                    }
+                },
+                "activeModel": getattr(story_intel_engine, "active_model_id", None) if story_intel_engine else None
+            }
+            self.send_response(200)
+            self._send_cors()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(body).encode("utf-8"))
         else:
             self.send_response(404)
             self.end_headers()
@@ -563,6 +603,57 @@ class PlajahSidecarHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(result).encode("utf-8"))
             except Exception as e:
                 print(f"[Sidecar] Error decoding RAW image: {e}")
+                self.send_response(500)
+                self._send_cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode("utf-8"))
+
+        elif self.path in ("/story-intel/decompose", "/api/story-intel/decompose"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length > 0 else b"{}"
+                payload = json.loads(body.decode("utf-8"))
+                prose = payload.get("prose", "")
+                title = payload.get("title", "Untitled Story")
+                style = payload.get("style", "manga")
+                model = payload.get("model", "gemma-2-2b")
+                if story_intel_engine:
+                    result = story_intel_engine.decompose_prose(prose, title, style, model)
+                else:
+                    result = {"success": False, "error": "Story Intelligence engine not available"}
+                self.send_response(200)
+                self._send_cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode("utf-8"))
+            except Exception as e:
+                print(f"[Sidecar] Error decomposing story: {e}")
+                self.send_response(500)
+                self._send_cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode("utf-8"))
+
+        elif self.path in ("/story-intel/council", "/api/story-intel/council"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length > 0 else b"{}"
+                payload = json.loads(body.decode("utf-8"))
+                manuscript = payload.get("manuscript", "")
+                council_members = payload.get("councilMembers", None)
+                model = payload.get("model", "nemotron-4b")
+                if story_intel_engine:
+                    result = story_intel_engine.critique_council(manuscript, council_members, model)
+                else:
+                    result = {"success": False, "error": "Story Intelligence engine not available"}
+                self.send_response(200)
+                self._send_cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode("utf-8"))
+            except Exception as e:
+                print(f"[Sidecar] Error running council critique: {e}")
                 self.send_response(500)
                 self._send_cors()
                 self.send_header("Content-Type", "application/json")
