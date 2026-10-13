@@ -9,6 +9,8 @@ import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayA
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 import { now as clockNow } from '../services/platformClock';
 import AdBreakBumper from './tv/AdBreakBumper';
+import ChannelQrBug from './tv/ChannelQrBug';
+import { buildShareUrl } from '../services/deepLinkService';
 import type { UpNextItem } from './tv/ComingUpNextBumper';
 
 interface FastChannelPlayerProps {
@@ -380,6 +382,12 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
     .filter(({ slot }) => slot.type === 'VIDEO' || slot.type === 'PUBLIC_DOMAIN' || slot.type === 'LIVE_INTERRUPT');
 
   const channelName = profile.displayName ? `${profile.displayName}'s Channel` : 'FAST Channel';
+  const fastChannelUrl = React.useMemo(() => {
+    return buildShareUrl('channel', `owner:${profile.uid}`, {
+      n: (profile as any).fastChannelConfig?.channelNumber,
+      source: `fast_${profile.uid}`,
+    });
+  }, [profile.uid, (profile as any).fastChannelConfig?.channelNumber]);
 
   const FeedTabs = hasLiveFeed ? (
     <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pt-4">
@@ -563,6 +571,16 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
         <div className={`absolute top-4 right-4 z-20 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-[0.3em] backdrop-blur-sm border ${currentSlot?.isReplay ? 'bg-red-600/80 border-red-400/40 text-white' : 'bg-fuchsia-600/80 border-fuchsia-400/40 text-white'}`}>
           {currentSlot?.bugLabel || (currentSlot?.isReplay ? 'REPLAY' : 'PROMO')}
         </div>
+      )}
+
+      {/* QR Code link bug in the lower left corner of the video frame */}
+      {fastChannelUrl && (
+        <ChannelQrBug
+          shareUrl={fastChannelUrl}
+          channelNumber={(profile as any).fastChannelConfig?.channelNumber}
+          channelName={channelName}
+          className={showControls ? 'bottom-28 left-6 sm:bottom-32 sm:left-8' : 'bottom-6 left-6 sm:bottom-8 sm:left-8'}
+        />
       )}
 
       {FeedTabs}

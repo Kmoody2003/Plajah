@@ -35,6 +35,7 @@ import ShareButton from './ShareButton';
 import { buildShareUrl } from '../services/deepLinkService';
 import { createPost } from '../services/backendService';
 import ChannelLogo from './tv/ChannelLogo';
+import ChannelQrBug from './tv/ChannelQrBug';
 import { isWindowsApp, setNativeFullscreen } from '../services/windowsBridgeService';
 import { useContextMenu } from './ui';
 import { subKeyFor, favoriteKey, resolveChannelLogo, type OwnerBranding } from '../services/fast/channelBranding';
@@ -1318,6 +1319,16 @@ const LiveTvPlus: React.FC<{
               className="w-11 h-10 rounded-xl bg-black/60 border border-white/15 backdrop-blur grid place-items-center hover:bg-white/20 active:scale-95"><ChevronDown size={20} /></button>
           </div>
         </div>
+        )}
+
+        {/* QR Code link bug in the lower left corner of the video frame */}
+        {shareMeta?.url && (
+          <ChannelQrBug
+            shareUrl={shareMeta.url}
+            channelNumber={selected?.number}
+            channelName={selected?.name}
+            className={compact && !immersive ? 'bottom-2 left-2 scale-[0.72] origin-bottom-left' : 'bottom-6 left-6'}
+          />
         )}
       </div>
 
