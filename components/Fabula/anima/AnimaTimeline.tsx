@@ -511,7 +511,7 @@ export const AnimaTimeline: React.FC<AnimaTimelineProps> = ({
                       )}
 
                       {/* Property Tracks: Position X, Position Y, Rotation, Opacity */}
-                      {Object.entries(layer.channels).map(([chKey, channel]) => (
+                      {Object.entries(layer.channels).map(([chKey, channel]: [string, any]) => (
                         <div
                           key={chKey}
                           style={{
@@ -695,7 +695,7 @@ export const AnimaTimeline: React.FC<AnimaTimelineProps> = ({
                     }}
                   >
                     {/* Summary Diamonds: show keyframe if any sub-channel has one */}
-                    {Object.values(layer.channels).flatMap((ch) =>
+                    {Object.values(layer.channels).flatMap((ch: any) =>
                       ch.keyframes.map((k) => {
                         const framePos = Math.round(k.t * fps) + 1;
                         return (
@@ -772,7 +772,7 @@ export const AnimaTimeline: React.FC<AnimaTimelineProps> = ({
                       )}
 
                       {/* Property Lanes with Diamond Keyframes */}
-                      {Object.entries(layer.channels).map(([chKey, channel]) => (
+                      {Object.entries(layer.channels).map(([chKey, channel]: [string, any]) => (
                         <div
                           key={chKey}
                           style={{

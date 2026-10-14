@@ -197,8 +197,88 @@
   <div class="flex-1 flex overflow-hidden relative">
 
     <!-- Center Stage Canvas -->
-    <div class="flex-1 relative flex items-center justify-center bg-[#09080c] overflow-hidden">
-      <canvas id="anima-canvas" width="1280" height="720" class="rounded-xl border border-white/10 shadow-2xl max-w-[94%] max-h-[92%] object-contain cursor-pointer" onclick="handleStageClick(event)"></canvas>
+    <div class="flex-1 relative flex items-center justify-center bg-[#09080c] overflow-hidden" id="stage-wrapper">
+
+      <!-- Floating Magic Action Bar (Mode Switcher, Puppet Record, Presets, Lip Sync, Pose Stamps, FX Brushes) -->
+      <div class="absolute top-4 left-1/2 -translate-x-1/2 bg-[#14121a]/92 backdrop-blur-md border border-white/10 rounded-full px-3.5 py-1.5 flex items-center gap-2 shadow-2xl z-30">
+        <!-- Dual Mode Switcher -->
+        <div class="flex bg-black/40 rounded-full p-0.5 border border-white/10">
+          <button onclick="setPreviewStudioMode('creator')" id="smode-creator" class="px-3 py-1 rounded-full text-[10px] font-black tracking-wide transition bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-white shadow cursor-pointer">
+            ✨ MAGIC PLAY
+          </button>
+          <button onclick="setPreviewStudioMode('master')" id="smode-master" class="px-3 py-1 rounded-full text-[10px] font-black tracking-wide transition text-white/50 hover:text-white cursor-pointer">
+            🛠️ MASTER PRO
+          </button>
+        </div>
+
+        <div class="h-4 w-px bg-white/15 mx-1"></div>
+
+        <!-- Live Drag Puppeteer Record -->
+        <button onclick="togglePreviewPuppetRecord()" id="btn-puppet-rec" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-white/5 border border-white/10 text-white/80 hover:text-white cursor-pointer transition">
+          <span class="w-2 h-2 rounded-full bg-[#D40055]" id="puppet-rec-dot"></span>
+          <span id="puppet-rec-label">🔴 PUPPET RECORD</span>
+        </button>
+
+        <!-- Magic Presets Dropdown/Toggle -->
+        <div class="relative">
+          <button onclick="togglePreviewPresetMenu()" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-white hover:text-[#00DAF3] cursor-pointer">
+            <span>🪄</span> PRESETS
+          </button>
+          <div id="preview-preset-menu" class="hidden absolute top-8 left-0 w-48 bg-[#181522] border border-white/15 rounded-lg p-1.5 shadow-2xl flex flex-col gap-1 z-50">
+            <button onclick="applySmartPresetPreview('auto_walk')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white flex justify-between">
+              <span>🚶 Auto Walk</span><span class="text-[8px] text-white/40">8-pose cycle</span>
+            </button>
+            <button onclick="applySmartPresetPreview('idle_breathing')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white flex justify-between">
+              <span>🫁 Idle Breathe</span><span class="text-[8px] text-white/40">Life rhythm</span>
+            </button>
+            <button onclick="applySmartPresetPreview('jelly_physics')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white flex justify-between">
+              <span>🍮 Jelly Wobble</span><span class="text-[8px] text-white/40">XPBD lag</span>
+            </button>
+            <button onclick="applySmartPresetPreview('ghibli_float')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white flex justify-between">
+              <span>🍃 Ghibli Wind</span><span class="text-[8px] text-white/40">Levitation</span>
+            </button>
+            <button onclick="applySmartPresetPreview('comic_impact')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white flex justify-between">
+              <span>💥 Comic Impact</span><span class="text-[8px] text-white/40">Pop burst</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Voice Lip-Sync -->
+        <button onclick="togglePreviewVoiceLipSync()" id="btn-preview-lipsync" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-white/80 hover:text-white cursor-pointer">
+          <span>🗣️</span> <span id="preview-lipsync-label">LIP-SYNC</span>
+        </button>
+
+        <!-- Pose Stamps Dropdown/Toggle -->
+        <div class="relative">
+          <button onclick="togglePreviewPoseMenu()" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-white hover:text-[#FF8C00] cursor-pointer">
+            <span>🎭</span> POSES
+          </button>
+          <div id="preview-pose-menu" class="hidden absolute top-8 left-0 w-44 bg-[#181522] border border-white/15 rounded-lg p-1.5 shadow-2xl flex flex-col gap-1 z-50">
+            <button onclick="applyPoseStampPreview('happy_jump')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white">🌟 Happy Jump</button>
+            <button onclick="applyPoseStampPreview('sneak_crouch')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white">🕵️ Sneak Crouch</button>
+            <button onclick="applyPoseStampPreview('shocked_take')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white">😱 Shocked Take</button>
+            <button onclick="applyPoseStampPreview('hero_landing')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white">🦸 Hero Landing</button>
+            <button onclick="applyPoseStampPreview('jazz_shimmy')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white">🎷 Jazz Shimmy</button>
+            <button onclick="applyPoseStampPreview('triumphant_roar')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white">🦖 Triumphant Roar</button>
+          </div>
+        </div>
+
+        <!-- Motion FX Brushes -->
+        <div class="relative">
+          <button onclick="togglePreviewBrushMenu()" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-white hover:text-[#06D6A0] cursor-pointer">
+            <span>🎨</span> <span id="preview-brush-label">BRUSH</span>
+          </button>
+          <div id="preview-brush-menu" class="hidden absolute top-8 right-0 w-44 bg-[#181522] border border-white/15 rounded-lg p-1.5 shadow-2xl flex flex-col gap-1 z-50">
+            <button onclick="selectPreviewBrush('none')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-white/50">Off (Default Tap)</button>
+            <button onclick="selectPreviewBrush('sparkle_stardust')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-[#FFD700]">✨ Stardust Trail</button>
+            <button onclick="selectPreviewBrush('ghibli_leaves')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-[#06D6A0]">🍃 Ghibli Leaves</button>
+            <button onclick="selectPreviewBrush('action_fire')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-[#FF8C00]">🔥 Action Fire Sparks</button>
+            <button onclick="selectPreviewBrush('manga_ink')" class="px-2 py-1 text-left rounded hover:bg-white/10 text-[10px] font-bold text-[#D0BCFF]">🖋️ Manga Ink Splatter</button>
+          </div>
+        </div>
+      </div>
+
+      <canvas id="anima-canvas" width="1280" height="720" class="rounded-xl border border-white/10 shadow-2xl max-w-[94%] max-h-[92%] object-contain cursor-pointer" onclick="handleStageClick(event)" onpointerdown="handleStagePointerDown(event)" onpointermove="handleStagePointerMove(event)" onpointerup="handleStagePointerUp(event)" onpointercancel="handleStagePointerUp(event)"></canvas>
 
       <!-- Stage HUD Overlay -->
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#14121b]/90 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 flex items-center gap-3 shadow-xl z-10">
@@ -594,6 +674,125 @@
   <!-- ── 4. UNIFIED MULTI-TRACK TIMELINE & KEYFRAME SYSTEM (ALWAYS DOCKED & VISIBLE) ── -->
   <div id="timeline-dock" class="h-64 bg-[#121018] border-t border-[var(--pj-border)] flex flex-col shrink-0 z-20 select-none">
     
+    <!-- 4.0 Magic Creator Deck View (Zero Tedium) -->
+    <div id="timeline-creator-view" class="flex-1 flex flex-col p-3 gap-2.5 overflow-y-auto">
+      <!-- Creator Deck Top Bar -->
+      <div class="flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xs font-black tracking-wide bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#00DAF3] bg-clip-text text-transparent flex items-center gap-1.5">
+            <span>✨</span> MAGIC CREATOR DECK · ZERO-TEDIUM ANIMATION
+          </span>
+          <span class="text-[10px] text-white/50 px-2 py-0.5 rounded-full bg-white/5">
+            1-Tap Living Presets · Live Drag Puppeteering · Pose Stamps
+          </span>
+        </div>
+        <button onclick="setPreviewStudioMode('master')" class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/15 text-[#00DAF3] text-xs font-extrabold cursor-pointer">
+          <span>🛠️</span> OPEN MASTER PRO STUDIO (◆ Splines, X-Sheet & Mocap) →
+        </button>
+      </div>
+
+      <!-- Quick Creator Control Cards -->
+      <div class="grid grid-cols-[260px_1fr_1fr] gap-3 flex-1 min-h-0">
+        <!-- Card 1: Transport & Scrubber -->
+        <div class="bg-white/[0.025] border border-white/10 rounded-lg p-2.5 flex flex-col justify-between gap-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-extrabold text-white/50">SCRUB & PLAY</span>
+            <span class="text-xs font-mono font-black text-[#00DAF3]" id="creator-frame-label">F1 / 72</span>
+          </div>
+
+          <!-- Slider -->
+          <input type="range" min="1" max="72" value="1" id="creator-frame-slider" oninput="jumpFrame(parseInt(this.value))" class="w-full accent-[#00DAF3] cursor-pointer" />
+
+          <div class="flex gap-1.5 items-center">
+            <button onclick="togglePlay()" id="btn-creator-play" class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-gradient-to-r from-[#00DAF3] to-[#6B0099] text-white text-xs font-black cursor-pointer shadow">
+              <span id="creator-play-icon">⏸</span> <span id="creator-play-text">PAUSE</span>
+            </button>
+            <button onclick="stepFrame(-2)" title="Step -2 frames (on 2s)" class="px-2 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-white text-xs font-bold cursor-pointer">
+              -2f
+            </button>
+            <button onclick="stepFrame(2)" title="Step +2 frames (on 2s)" class="px-2 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-white text-xs font-bold cursor-pointer">
+              +2f
+            </button>
+          </div>
+
+          <!-- Puppet Drag Toggle -->
+          <button onclick="togglePreviewPuppetRecord()" id="btn-creator-rec" class="flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-white/5 border border-white/10 text-white/70 text-xs font-black cursor-pointer transition">
+            <span>🔴</span> <span id="creator-rec-label">POINTER PUPPETEER</span>
+          </button>
+        </div>
+
+        <!-- Card 2: 1-Tap Magic Motion Presets -->
+        <div class="bg-white/[0.025] border border-white/10 rounded-lg p-2.5 flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-extrabold text-white/50">1-TAP LIVING MOTION PRESETS</span>
+            <span class="text-[10px] font-bold text-[#FF8C00]">Zero Keyframing</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 flex-1">
+            <button onclick="applySmartPresetPreview('auto_walk')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col text-left cursor-pointer">
+              <span class="text-xs font-black text-[#00DAF3]">🚶 Auto-Walk</span>
+              <span class="text-[9px] text-white/40 mt-0.5">8-pose stride with bob on 2s</span>
+            </button>
+            <button onclick="applySmartPresetPreview('idle_breathing')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col text-left cursor-pointer">
+              <span class="text-xs font-black text-[#D0BCFF]">🫁 Idle Breathe</span>
+              <span class="text-[9px] text-white/40 mt-0.5">Organic squash & life rhythm</span>
+            </button>
+            <button onclick="applySmartPresetPreview('jelly_physics')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col text-left cursor-pointer">
+              <span class="text-xs font-black text-[#FF8C00]">🍮 Jelly Wobble</span>
+              <span class="text-[9px] text-white/40 mt-0.5">Juicy secondary inertia lag</span>
+            </button>
+            <button onclick="applySmartPresetPreview('ghibli_float')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col text-left cursor-pointer">
+              <span class="text-xs font-black text-[#06D6A0]">🍃 Ghibli Wind</span>
+              <span class="text-[9px] text-white/40 mt-0.5">Ethereal floating levitation</span>
+            </button>
+            <button onclick="applySmartPresetPreview('comic_impact')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col text-left cursor-pointer col-span-2">
+              <span class="text-xs font-black text-[#D40055]">💥 Comic Impact Burst</span>
+              <span class="text-[9px] text-white/40 mt-0.5">Anticipation squat into explosive pop</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 3: Instant Pose Stamps Rack -->
+        <div class="bg-white/[0.025] border border-white/10 rounded-lg p-2.5 flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-extrabold text-white/50">POSE STAMP RACK</span>
+            <span class="text-[10px] font-bold text-[#D40055]">1-Tap Stance</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 flex-1">
+            <button onclick="applyPoseStampPreview('happy_jump')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col items-center justify-center cursor-pointer">
+              <span class="text-base">🌟</span>
+              <span class="text-[10px] font-bold text-white mt-0.5">Happy Jump</span>
+            </button>
+            <button onclick="applyPoseStampPreview('sneak_crouch')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col items-center justify-center cursor-pointer">
+              <span class="text-base">🕵️</span>
+              <span class="text-[10px] font-bold text-white mt-0.5">Sneak Crouch</span>
+            </button>
+            <button onclick="applyPoseStampPreview('shocked_take')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col items-center justify-center cursor-pointer">
+              <span class="text-base">😱</span>
+              <span class="text-[10px] font-bold text-white mt-0.5">Shocked Take</span>
+            </button>
+            <button onclick="applyPoseStampPreview('hero_landing')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col items-center justify-center cursor-pointer">
+              <span class="text-base">🦸</span>
+              <span class="text-[10px] font-bold text-white mt-0.5">Hero Landing</span>
+            </button>
+            <button onclick="applyPoseStampPreview('jazz_shimmy')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col items-center justify-center cursor-pointer">
+              <span class="text-base">🎷</span>
+              <span class="text-[10px] font-bold text-white mt-0.5">Jazz Shimmy</span>
+            </button>
+            <button onclick="applyPoseStampPreview('triumphant_roar')" class="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/5 flex flex-col items-center justify-center cursor-pointer">
+              <span class="text-base">🦖</span>
+              <span class="text-[10px] font-bold text-white mt-0.5">Roar Pose</span>
+            </button>
+          </div>
+          <button onclick="togglePreviewVoiceLipSync()" id="btn-creator-lipsync" class="w-full py-1 rounded bg-white/5 border border-white/10 text-[#00DAF3] text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1.5">
+            <span>🗣️</span> <span id="creator-lipsync-label">AUTO VOICE LIP-SYNC</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4.1-4.3 Master Pro Timeline View (Hidden by default in Creator mode) -->
+    <div id="timeline-master-view" class="hidden flex-1 flex flex-col min-h-0">
+    
     <!-- 4.1 Transport & Cadence Toolbar -->
     <div class="h-9 bg-[#181520] border-b border-white/10 px-3 flex items-center justify-between shrink-0">
       <!-- Left: Transport Controls & Timecode -->
@@ -703,6 +902,7 @@
       </div>
 
     </div>
+    </div>
   </div>
 
   <!-- ── 5. COMPLETE MULTI-CHARACTER & ANIMATION ENGINE SCRIPT ── -->
@@ -723,6 +923,15 @@
     let customCodeFn = null;
     let isScrubbing = false;
     let selectedKeyId = null;
+
+    // Dual Studio Mode ('creator' | 'master')
+    let previewStudioMode = 'creator';
+    let isPreviewPuppetRecording = false;
+    let isPreviewPuppetDragging = false;
+    let previewPuppetPath = [];
+    let activePreviewBrush = 'none';
+    let previewBrushParticles = [];
+    let isPreviewLipSyncActive = false;
 
     // Mascots SVG vector images (embedded data URI from canonical assets)
     const relloSvg = new Image();
@@ -915,6 +1124,394 @@
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // MAGIC CREATOR STUDIO & WORLD-CLASS ENGINE PREVIEW
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function setPreviewStudioMode(mode) {
+      previewStudioMode = mode;
+      const btnCreator = document.getElementById('smode-creator');
+      const btnMaster = document.getElementById('smode-master');
+      const creatorView = document.getElementById('timeline-creator-view');
+      const masterView = document.getElementById('timeline-master-view');
+
+      if (mode === 'creator') {
+        if (btnCreator) btnCreator.className = 'px-3 py-1 rounded-full text-[10px] font-black tracking-wide transition bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-white shadow cursor-pointer';
+        if (btnMaster) btnMaster.className = 'px-3 py-1 rounded-full text-[10px] font-black tracking-wide transition text-white/50 hover:text-white cursor-pointer';
+        if (creatorView) creatorView.classList.remove('hidden');
+        if (masterView) masterView.classList.add('hidden');
+      } else {
+        if (btnCreator) btnCreator.className = 'px-3 py-1 rounded-full text-[10px] font-black tracking-wide transition text-white/50 hover:text-white cursor-pointer';
+        if (btnMaster) btnMaster.className = 'px-3 py-1 rounded-full text-[10px] font-black tracking-wide transition bg-gradient-to-r from-[#6B0099] to-[#00DAF3] text-white shadow cursor-pointer';
+        if (creatorView) creatorView.classList.add('hidden');
+        if (masterView) masterView.classList.remove('hidden');
+        renderTimelineOutliner();
+        renderTimelineRuler();
+        renderTimelineLanes();
+        updatePlayheadUI();
+      }
+    }
+
+    function togglePreviewPuppetRecord() {
+      isPreviewPuppetRecording = !isPreviewPuppetRecording;
+      const btnTop = document.getElementById('btn-puppet-rec');
+      const labelTop = document.getElementById('puppet-rec-label');
+      const dotTop = document.getElementById('puppet-rec-dot');
+      const btnDeck = document.getElementById('btn-creator-rec');
+      const labelDeck = document.getElementById('creator-rec-label');
+
+      if (isPreviewPuppetRecording) {
+        if (btnTop) btnTop.className = 'flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-[#D40055]/30 border border-[#D40055] text-white shadow-[0_0_12px_rgba(212,0,85,0.6)] animate-pulse cursor-pointer transition';
+        if (labelTop) labelTop.textContent = '⏹ RECORDING PUPPET';
+        if (dotTop) dotTop.className = 'w-2 h-2 rounded-full bg-[#00DAF3] animate-ping';
+        if (btnDeck) btnDeck.className = 'flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-[#D40055]/30 border border-[#D40055] text-white text-xs font-black shadow-[0_0_12px_rgba(212,0,85,0.5)] animate-pulse cursor-pointer transition';
+        if (labelDeck) labelDeck.textContent = 'STOP RECORDING';
+
+        const toast = document.getElementById('kf-toast');
+        const text = document.getElementById('kf-toast-text');
+        text.textContent = '🔴 Drag pointer on canvas to record gesture with live squash & stretch!';
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3000);
+      } else {
+        if (btnTop) btnTop.className = 'flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-white/5 border border-white/10 text-white/80 hover:text-white cursor-pointer transition';
+        if (labelTop) labelTop.textContent = '🔴 PUPPET RECORD';
+        if (dotTop) dotTop.className = 'w-2 h-2 rounded-full bg-[#D40055]';
+        if (btnDeck) btnDeck.className = 'flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-white/5 border border-white/10 text-white/70 text-xs font-black cursor-pointer transition';
+        if (labelDeck) labelDeck.textContent = 'POINTER PUPPETEER';
+      }
+    }
+
+    function togglePreviewPresetMenu() {
+      const el = document.getElementById('preview-preset-menu');
+      if (el) el.classList.toggle('hidden');
+    }
+
+    function togglePreviewPoseMenu() {
+      const el = document.getElementById('preview-pose-menu');
+      if (el) el.classList.toggle('hidden');
+    }
+
+    function togglePreviewBrushMenu() {
+      const el = document.getElementById('preview-brush-menu');
+      if (el) el.classList.toggle('hidden');
+    }
+
+    function selectPreviewBrush(brush) {
+      activePreviewBrush = brush;
+      const label = document.getElementById('preview-brush-label');
+      if (label) {
+        if (brush === 'sparkle_stardust') label.textContent = '✨ STARDUST';
+        else if (brush === 'ghibli_leaves') label.textContent = '🍃 GHIBLI';
+        else if (brush === 'action_fire') label.textContent = '🔥 FIRE';
+        else if (brush === 'manga_ink') label.textContent = '🖋️ INK';
+        else label.textContent = 'BRUSH';
+      }
+      const menu = document.getElementById('preview-brush-menu');
+      if (menu) menu.classList.add('hidden');
+    }
+
+    function togglePreviewVoiceLipSync() {
+      isPreviewLipSyncActive = !isPreviewLipSyncActive;
+      const btnTop = document.getElementById('btn-preview-lipsync');
+      const labelTop = document.getElementById('preview-lipsync-label');
+      const btnDeck = document.getElementById('btn-creator-lipsync');
+      const labelDeck = document.getElementById('creator-lipsync-label');
+
+      if (isPreviewLipSyncActive) {
+        if (btnTop) btnTop.className = 'flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#00DAF3]/20 border border-[#00DAF3] text-[#00DAF3] shadow-[0_0_10px_rgba(0,218,243,0.5)] cursor-pointer';
+        if (labelTop) labelTop.textContent = 'VOICE ACTIVE';
+        if (btnDeck) btnDeck.className = 'w-full py-1 rounded bg-[#00DAF3]/20 border border-[#00DAF3] text-[#00DAF3] text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(0,218,243,0.4)]';
+        if (labelDeck) labelDeck.textContent = 'LIP-SYNC ACTIVE (A,E,I,O,U,M)';
+
+        const toast = document.getElementById('kf-toast');
+        const text = document.getElementById('kf-toast-text');
+        text.textContent = '🗣️ Audio spectrum & phoneme visemes generating real-time lip-sync mouth shapes!';
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 2500);
+      } else {
+        if (btnTop) btnTop.className = 'flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-white/80 hover:text-white cursor-pointer';
+        if (labelTop) labelTop.textContent = 'LIP-SYNC';
+        if (btnDeck) btnDeck.className = 'w-full py-1 rounded bg-white/5 border border-white/10 text-[#00DAF3] text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1.5';
+        if (labelDeck) labelDeck.textContent = 'AUTO VOICE LIP-SYNC';
+      }
+    }
+
+    function applySmartPresetPreview(kind) {
+      const menu = document.getElementById('preview-preset-menu');
+      if (menu) menu.classList.add('hidden');
+
+      const hero = projectData.layers[0];
+      if (!hero) return;
+
+      const card = document.getElementById('aria-status-card');
+      if (card) card.classList.remove('hidden');
+
+      if (kind === 'auto_walk') {
+        hero.channels.x.keys = [
+          { id: 'sw_x_1', frame: 1, val: -60, ease: 'smooth' },
+          { id: 'sw_x_2', frame: 18, val: -20, ease: 'smooth' },
+          { id: 'sw_x_3', frame: 36, val: 20, ease: 'smooth' },
+          { id: 'sw_x_4', frame: 54, val: 60, ease: 'smooth' },
+          { id: 'sw_x_5', frame: 72, val: -60, ease: 'smooth' }
+        ];
+        hero.channels.y.keys = [
+          { id: 'sw_y_1', frame: 1, val: 0, ease: 'smooth' },
+          { id: 'sw_y_2', frame: 9, val: -22, ease: 'smooth' },
+          { id: 'sw_y_3', frame: 18, val: 0, ease: 'smooth' },
+          { id: 'sw_y_4', frame: 27, val: -22, ease: 'smooth' },
+          { id: 'sw_y_5', frame: 36, val: 0, ease: 'smooth' },
+          { id: 'sw_y_6', frame: 45, val: -22, ease: 'smooth' },
+          { id: 'sw_y_7', frame: 54, val: 0, ease: 'smooth' },
+          { id: 'sw_y_8', frame: 63, val: -22, ease: 'smooth' },
+          { id: 'sw_y_9', frame: 72, val: 0, ease: 'smooth' }
+        ];
+        hero.channels.rot.keys = [
+          { id: 'sw_r_1', frame: 1, val: 3, ease: 'smooth' },
+          { id: 'sw_r_2', frame: 18, val: -3, ease: 'smooth' },
+          { id: 'sw_r_3', frame: 36, val: 3, ease: 'smooth' },
+          { id: 'sw_r_4', frame: 54, val: -3, ease: 'smooth' },
+          { id: 'sw_r_5', frame: 72, val: 3, ease: 'smooth' }
+        ];
+        document.getElementById('aria-lens-tag').textContent = '[Smart Preset · Walk Cycle]:';
+        document.getElementById('aria-headline').textContent = 'Auto-Walk 8-Pose Stride Applied';
+        document.getElementById('aria-summary').textContent = '— Alternating stride with foot roll, cadence bob on 2s, zero manual keyframing';
+      } else if (kind === 'idle_breathing') {
+        hero.channels.y.keys = [
+          { id: 'ib_y_1', frame: 1, val: 0, ease: 'smooth' },
+          { id: 'ib_y_2', frame: 24, val: -14, ease: 'smooth' },
+          { id: 'ib_y_3', frame: 48, val: 4, ease: 'smooth' },
+          { id: 'ib_y_4', frame: 72, val: 0, ease: 'smooth' }
+        ];
+        hero.channels.rot.keys = [
+          { id: 'ib_r_1', frame: 1, val: 0, ease: 'smooth' },
+          { id: 'ib_r_2', frame: 24, val: 1.5, ease: 'smooth' },
+          { id: 'ib_r_3', frame: 48, val: -1.5, ease: 'smooth' },
+          { id: 'ib_r_4', frame: 72, val: 0, ease: 'smooth' }
+        ];
+        document.getElementById('aria-lens-tag').textContent = '[Smart Preset · Life Rhythm]:';
+        document.getElementById('aria-headline').textContent = 'Organic Idle Breathing Applied';
+        document.getElementById('aria-summary').textContent = '— Gentle diaphragm expansion, squash & stretch life rhythm on 2s';
+      } else if (kind === 'jelly_physics') {
+        hero.channels.y.keys = [
+          { id: 'jp_y_1', frame: 1, val: 0, ease: 'smooth' },
+          { id: 'jp_y_2', frame: 12, val: -35, ease: 'smooth' },
+          { id: 'jp_y_3', frame: 24, val: 18, ease: 'smooth' },
+          { id: 'jp_y_4', frame: 36, val: -10, ease: 'smooth' },
+          { id: 'jp_y_5', frame: 48, val: 5, ease: 'smooth' },
+          { id: 'jp_y_6', frame: 60, val: -2, ease: 'smooth' },
+          { id: 'jp_y_7', frame: 72, val: 0, ease: 'smooth' }
+        ];
+        hero.channels.rot.keys = [
+          { id: 'jp_r_1', frame: 1, val: 0, ease: 'smooth' },
+          { id: 'jp_r_2', frame: 16, val: -6, ease: 'smooth' },
+          { id: 'jp_r_3', frame: 32, val: 4, ease: 'smooth' },
+          { id: 'jp_r_4', frame: 48, val: -2, ease: 'smooth' },
+          { id: 'jp_r_5', frame: 72, val: 0, ease: 'smooth' }
+        ];
+        document.getElementById('aria-lens-tag').textContent = '[Smart Preset · XPBD Physics]:';
+        document.getElementById('aria-headline').textContent = 'Juicy Jelly Wobble Applied';
+        document.getElementById('aria-summary').textContent = '— Secondary inertia lag, volume-preserving harmonic oscillation';
+      } else if (kind === 'ghibli_float') {
+        hero.channels.y.keys = [
+          { id: 'gf_y_1', frame: 1, val: -10, ease: 'smooth' },
+          { id: 'gf_y_2', frame: 36, val: 20, ease: 'smooth' },
+          { id: 'gf_y_3', frame: 72, val: -10, ease: 'smooth' }
+        ];
+        hero.channels.rot.keys = [
+          { id: 'gf_r_1', frame: 1, val: -2.5, ease: 'smooth' },
+          { id: 'gf_r_2', frame: 36, val: 2.5, ease: 'smooth' },
+          { id: 'gf_r_3', frame: 72, val: -2.5, ease: 'smooth' }
+        ];
+        document.getElementById('aria-lens-tag').textContent = '[Smart Preset · Ghibli "Ma"]:';
+        document.getElementById('aria-headline').textContent = 'Ethereal Ghibli Float Applied';
+        document.getElementById('aria-summary').textContent = '— Gentle harmonic wind float with volumetric camera sway';
+      } else if (kind === 'comic_impact') {
+        hero.channels.y.keys = [
+          { id: 'ci_y_1', frame: 1, val: 0, ease: 'smooth' },
+          { id: 'ci_y_2', frame: 8, val: 25, ease: 'hold' },
+          { id: 'ci_y_3', frame: 12, val: -65, ease: 'smooth' },
+          { id: 'ci_y_4', frame: 22, val: -45, ease: 'smooth' },
+          { id: 'ci_y_5', frame: 32, val: 5, ease: 'smooth' },
+          { id: 'ci_y_6', frame: 40, val: 0, ease: 'smooth' }
+        ];
+        hero.channels.rot.keys = [
+          { id: 'ci_r_1', frame: 1, val: 0, ease: 'hold' },
+          { id: 'ci_r_2', frame: 12, val: -8, ease: 'smooth' },
+          { id: 'ci_r_3', frame: 24, val: 4, ease: 'smooth' },
+          { id: 'ci_r_4', frame: 36, val: 0, ease: 'smooth' }
+        ];
+        triggerComicShockwave(640, 520);
+        triggerMangaSpeedLines('radial');
+        triggerComicSFX('POW!', 640, 360);
+        document.getElementById('aria-lens-tag').textContent = '[Smart Preset · Comic Burst]:';
+        document.getElementById('aria-headline').textContent = 'Comic Impact Burst Applied';
+        document.getElementById('aria-summary').textContent = '— Anticipation squat, explosive apex pop, shockwave & onomatopoeia SFX';
+      }
+
+      renderTimelineOutliner();
+      renderTimelineLanes();
+      updatePlayheadUI();
+    }
+
+    const PREVIEW_POSE_DEFINITIONS = {
+      happy_jump: { y: -45, rot: 6, desc: 'Triumphant celebratory leap' },
+      sneak_crouch: { y: 25, rot: -5, desc: 'Stealth low crouch tiptoe' },
+      shocked_take: { y: -30, rot: -8, desc: 'Classic cartoon double take' },
+      hero_landing: { y: 35, rot: 2, desc: 'Three-point dynamic landing' },
+      jazz_shimmy: { y: -8, rot: 12, desc: '1930s swing syncopated tilt' },
+      triumphant_roar: { y: -20, rot: -14, desc: 'Mighty kaiju skyward roar' }
+    };
+
+    function applyPoseStampPreview(poseId) {
+      const menu = document.getElementById('preview-pose-menu');
+      if (menu) menu.classList.add('hidden');
+
+      const pose = PREVIEW_POSE_DEFINITIONS[poseId];
+      if (!pose) return;
+
+      const hero = projectData.layers[0];
+      if (!hero) return;
+
+      const f = currentFrame;
+      const easeMode = 'hold';
+
+      const updateCh = (chName, val) => {
+        const ch = hero.channels[chName];
+        if (!ch) return;
+        const idx = ch.keys.findIndex(k => k.frame === f);
+        if (idx >= 0) {
+          ch.keys[idx].val = val;
+          ch.keys[idx].ease = easeMode;
+        } else {
+          ch.keys.push({ id: `kf_stamp_${chName}_${f}`, frame: f, val, ease: easeMode });
+          ch.keys.sort((a, b) => a.frame - b.frame);
+        }
+      };
+
+      updateCh('y', pose.y);
+      updateCh('rot', pose.rot);
+
+      renderTimelineOutliner();
+      renderTimelineLanes();
+      updatePlayheadUI();
+
+      const toast = document.getElementById('kf-toast');
+      const text = document.getElementById('kf-toast-text');
+      text.textContent = `🎭 Pose Stamped: ${poseId.replace('_', ' ').toUpperCase()} at Frame ${f} (${pose.desc})`;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2600);
+    }
+
+    function getCanvasCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function emitBrushParticles(x, y) {
+      if (activePreviewBrush === 'none') return;
+      const count = activePreviewBrush === 'action_fire' ? 6 : 4;
+      for (let i = 0; i < count; i++) {
+        previewBrushParticles.push({
+          x: x + (Math.random() - 0.5) * 16,
+          y: y + (Math.random() - 0.5) * 16,
+          vx: (Math.random() - 0.5) * 3,
+          vy: activePreviewBrush === 'action_fire' ? -2 - Math.random() * 3 : (Math.random() - 0.5) * 3,
+          size: 4 + Math.random() * 8,
+          alpha: 1.0,
+          rot: Math.random() * Math.PI * 2,
+          type: activePreviewBrush
+        });
+      }
+    }
+
+    function handleStagePointerDown(e) {
+      const pos = getCanvasCoords(e);
+      emitBrushParticles(pos.x, pos.y);
+
+      if (isPreviewPuppetRecording) {
+        isPreviewPuppetDragging = true;
+        previewPuppetPath = [{ x: pos.x, y: pos.y, time: performance.now() }];
+      }
+    }
+
+    function handleStagePointerMove(e) {
+      const pos = getCanvasCoords(e);
+      if (activePreviewBrush !== 'none') {
+        emitBrushParticles(pos.x, pos.y);
+      }
+
+      if (isPreviewPuppetRecording && isPreviewPuppetDragging) {
+        previewPuppetPath.push({ x: pos.x, y: pos.y, time: performance.now() });
+
+        const hero = projectData.layers[0];
+        if (hero) {
+          hero.channels.x.keys.forEach(k => {
+            if (k.frame === currentFrame) k.val = Math.round((pos.x - 640) * 0.45);
+          });
+          hero.channels.y.keys.forEach(k => {
+            if (k.frame === currentFrame) k.val = Math.round((pos.y - 520) * 0.45);
+          });
+        }
+      }
+    }
+
+    function handleStagePointerUp(e) {
+      if (isPreviewPuppetRecording && isPreviewPuppetDragging) {
+        isPreviewPuppetDragging = false;
+        if (previewPuppetPath.length > 3) {
+          bakePuppetPathToKeyframes(previewPuppetPath);
+        }
+      }
+    }
+
+    function bakePuppetPathToKeyframes(pts) {
+      const hero = projectData.layers[0];
+      if (!hero) return;
+
+      const durationSec = Math.max(0.5, (pts[pts.length - 1].time - pts[0].time) / 1000);
+      const totalFrames = Math.min(72, Math.round(durationSec * projectData.fps));
+
+      const newKeysX = [];
+      const newKeysY = [];
+      const newKeysRot = [];
+
+      const step = 2; // On 2s
+      for (let f = 1; f <= totalFrames; f += step) {
+        const progress = (f - 1) / Math.max(1, totalFrames - 1);
+        const idx = Math.min(pts.length - 1, Math.floor(progress * (pts.length - 1)));
+        const pt = pts[idx];
+        const nextPt = pts[Math.min(pts.length - 1, idx + 1)];
+
+        const xVal = Math.round((pt.x - 640) * 0.45);
+        const yVal = Math.round((pt.y - 520) * 0.45);
+        const angle = Math.atan2(nextPt.y - pt.y, nextPt.x - pt.x) * (180 / Math.PI);
+        const rotVal = Math.max(-15, Math.min(15, Math.round((angle - 90) * 0.2)));
+
+        newKeysX.push({ id: `kf_pup_x_${f}`, frame: f, val: xVal, ease: 'smooth' });
+        newKeysY.push({ id: `kf_pup_y_${f}`, frame: f, val: yVal, ease: 'smooth' });
+        newKeysRot.push({ id: `kf_pup_r_${f}`, frame: f, val: rotVal, ease: 'smooth' });
+      }
+
+      hero.channels.x.keys = newKeysX;
+      hero.channels.y.keys = newKeysY;
+      hero.channels.rot.keys = newKeysRot;
+
+      renderTimelineOutliner();
+      renderTimelineLanes();
+      updatePlayheadUI();
+
+      const toast = document.getElementById('kf-toast');
+      const text = document.getElementById('kf-toast-text');
+      text.textContent = `✨ Puppeteer Captured! Baked ${newKeysX.length} keyframes on 2s with organic velocity squash & stretch.`;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // PLAYBACK & TIMELINE CONTROLS
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -923,13 +1520,39 @@
       const icon = isPlaying ? '⏸' : '▶';
       const txt = isPlaying ? 'PAUSE' : 'PLAY';
 
-      document.getElementById('play-icon').textContent = icon;
-      document.getElementById('play-text').textContent = txt;
-      document.getElementById('tl-play-icon').textContent = icon;
-      document.getElementById('tl-play-text').textContent = txt;
-      document.getElementById('btn-tl-play').className = isPlaying
-        ? 'flex items-center gap-1 px-3 py-1 bg-[#FF8C00] hover:bg-[#FF8C00]/90 text-black font-black text-xs rounded shadow cursor-pointer'
-        : 'flex items-center gap-1 px-3 py-1 bg-[#00DAF3] hover:bg-[#00DAF3]/90 text-black font-black text-xs rounded shadow cursor-pointer';
+      const playIcon = document.getElementById('play-icon');
+      if (playIcon) playIcon.textContent = icon;
+      const playText = document.getElementById('play-text');
+      if (playText) playText.textContent = txt;
+      const btnPlay = document.getElementById('btn-play');
+      if (btnPlay) {
+        btnPlay.className = isPlaying
+          ? 'flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#FF8C00] hover:bg-[#FF8C00]/90 text-black font-black text-xs cursor-pointer shadow'
+          : 'flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#00DAF3] hover:bg-[#00DAF3]/90 text-black font-black text-xs cursor-pointer shadow cyan-glow';
+      }
+
+      const tlPlayIcon = document.getElementById('tl-play-icon');
+      if (tlPlayIcon) tlPlayIcon.textContent = icon;
+      const tlPlayText = document.getElementById('tl-play-text');
+      if (tlPlayText) tlPlayText.textContent = txt;
+      const btnTlPlay = document.getElementById('btn-tl-play');
+      if (btnTlPlay) {
+        btnTlPlay.className = isPlaying
+          ? 'flex items-center gap-1 px-3 py-1 bg-[#FF8C00] hover:bg-[#FF8C00]/90 text-black font-black text-xs rounded shadow cursor-pointer'
+          : 'flex items-center gap-1 px-3 py-1 bg-[#00DAF3] hover:bg-[#00DAF3]/90 text-black font-black text-xs rounded shadow cursor-pointer';
+      }
+
+      // Creator Deck play button
+      const cPlayIcon = document.getElementById('creator-play-icon');
+      if (cPlayIcon) cPlayIcon.textContent = icon;
+      const cPlayText = document.getElementById('creator-play-text');
+      if (cPlayText) cPlayText.textContent = txt;
+      const btnCreatorPlay = document.getElementById('btn-creator-play');
+      if (btnCreatorPlay) {
+        btnCreatorPlay.className = isPlaying
+          ? 'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-white text-xs font-black cursor-pointer shadow'
+          : 'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-gradient-to-r from-[#00DAF3] to-[#6B0099] text-white text-xs font-black cursor-pointer shadow';
+      }
     }
 
     function jumpFrame(target) {
@@ -1049,7 +1672,9 @@
     }
 
     function handleStageClick(e) {
-      triggerActionBloom();
+      if (activePreviewBrush === 'none' && !isPreviewPuppetRecording) {
+        triggerActionBloom();
+      }
     }
 
     function triggerActionBloom() {
@@ -1096,6 +1721,11 @@
       const pxPos = (currentFrame - 1) * timelineZoom;
       document.getElementById('tl-playhead-head').style.left = `${pxPos}px`;
       document.getElementById('tl-playhead-line').style.left = `${pxPos}px`;
+
+      const cSlider = document.getElementById('creator-frame-slider');
+      if (cSlider) cSlider.value = currentFrame;
+      const cLabel = document.getElementById('creator-frame-label');
+      if (cLabel) cLabel.textContent = `F${currentFrame} / ${projectData.durationFrames}`;
     }
 
     function renderTimelineOutliner() {
@@ -2217,6 +2847,80 @@
         }
       }
 
+      // 11. Render Motion FX Brush Particles
+      for (let i = previewBrushParticles.length - 1; i >= 0; i--) {
+        const p = previewBrushParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha *= 0.94;
+        p.size *= 0.98;
+        if (p.alpha < 0.05 || p.size < 1) {
+          previewBrushParticles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+
+        if (p.type === 'sparkle_stardust') {
+          ctx.fillStyle = '#FFD700';
+          ctx.beginPath();
+          for (let s = 0; s < 4; s++) {
+            ctx.rotate(Math.PI / 2);
+            ctx.lineTo(p.size, 0);
+            ctx.lineTo(p.size * 0.25, p.size * 0.25);
+          }
+          ctx.closePath();
+          ctx.fill();
+        } else if (p.type === 'ghibli_leaves') {
+          ctx.fillStyle = Math.random() > 0.5 ? '#06D6A0' : '#88D49E';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, p.size * 1.5, p.size * 0.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.type === 'action_fire') {
+          ctx.fillStyle = p.alpha > 0.5 ? '#FF8C00' : '#D40055';
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.type === 'manga_ink') {
+          ctx.fillStyle = '#100e16';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, p.size * 1.2, p.size * 0.8, p.rot, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // 12. Render Live Puppet Drag Tracer
+      if (isPreviewPuppetDragging && previewPuppetPath.length > 1) {
+        ctx.save();
+        ctx.strokeStyle = '#00DAF3';
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowColor = 'rgba(0, 218, 243, 0.8)';
+        ctx.shadowBlur = 12;
+
+        ctx.beginPath();
+        ctx.moveTo(previewPuppetPath[0].x, previewPuppetPath[0].y);
+        for (let i = 1; i < previewPuppetPath.length; i++) {
+          ctx.lineTo(previewPuppetPath[i].x, previewPuppetPath[i].y);
+        }
+        ctx.stroke();
+
+        const tip = previewPuppetPath[previewPuppetPath.length - 1];
+        ctx.fillStyle = '#D40055';
+        ctx.beginPath();
+        ctx.arc(tip.x, tip.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
       requestAnimationFrame(render);
     }
 
@@ -2225,6 +2929,7 @@
     renderTimelineRuler();
     renderTimelineLanes();
     updatePlayheadUI();
+    setPreviewStudioMode('creator');
 
     spawnClassic('rello');
     requestAnimationFrame(render);

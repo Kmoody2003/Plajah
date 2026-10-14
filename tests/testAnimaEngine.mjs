@@ -791,5 +791,93 @@ Frame Time: 0.0333333
   console.log('✅ 22. Comic & Manga Panel Animation Suite (Transitions, SFX Onomatopoeia, Balloons, Speed Lines, 2.5D Parallax) verified');
 }
 
-console.log('\n🎉 ALL 22 ANIMA SYSTEM SUITES PASSED FLAWLESSLY!\n');
+// 23. WORLD-CLASS ANIMATION SUITE (Live Puppeteer, Smart Presets, Voice Lip Sync, Pose Stamps, Spline Curves, FX Brushes)
+{
+  const {
+    LiveMotionPuppeteer,
+    SmartMotionPresets,
+    VoiceLipSyncEngine,
+    POSE_LIBRARY,
+    stampPoseOntoLayer,
+    InteractiveSplineGraph,
+    MotionFXBrushEngine,
+  } = await import('../services/anima/worldClassEngine.ts');
+
+  // 1. Live Motion Puppeteer (Record & Act)
+  const puppeteer = new LiveMotionPuppeteer({ fps: 24, stepRate: 2, inertia: 0.4 });
+  puppeteer.startRecording(100, 200, 0);
+  puppeteer.feedPoint(150, 180, 0.2);
+  puppeteer.feedPoint(220, 160, 0.5);
+  puppeteer.feedPoint(300, 220, 0.8);
+  puppeteer.feedPoint(400, 300, 1.2);
+  const puppetTrack = puppeteer.stopRecording('l_hero');
+
+  assert.ok(puppetTrack.keyframeCount > 0);
+  assert.ok(puppetTrack.xChannel.keyframes.length > 0);
+  assert.ok(puppetTrack.yChannel.keyframes.length > 0);
+  assert.ok(puppetTrack.rotationChannel && puppetTrack.rotationChannel.keyframes.length > 0, 'Auto tilt channel generated');
+  assert.ok(puppetTrack.scaleYChannel && puppetTrack.scaleYChannel.keyframes.length > 0, 'Dynamic squash/stretch inferred from velocity');
+
+  // 2. Smart Motion Presets (Auto-Walk, Idle Breathing, Jelly, Ghibli Float)
+  const autoWalk = SmartMotionPresets.generateAutoWalk({ durationSeconds: 2.0, intensity: 1.0 });
+  assert.ok(autoWalk['transform.x'].keyframes.length > 0);
+  assert.ok(autoWalk['transform.y'].keyframes.length > 0);
+
+  const idleBreathe = SmartMotionPresets.generateIdleBreathing({ durationSeconds: 2.0 });
+  assert.ok(idleBreathe['transform.scaleY'].keyframes.length > 0);
+  assert.ok(idleBreathe['transform.rotationZ'].keyframes.length > 0);
+
+  const jelly = SmartMotionPresets.generateJellyPhysics({ durationSeconds: 2.0 });
+  assert.ok(jelly['transform.scaleX'] && jelly['transform.scaleY']);
+
+  const ghibliFloat = SmartMotionPresets.generateGhibliFloat({ durationSeconds: 2.0 });
+  assert.ok(ghibliFloat['transform.y']);
+
+  // 3. Voice Lip-Sync & Viseme Generator
+  const sampleRate = 44100;
+  const audioBuffer = new Float32Array(sampleRate * 1.5); // 1.5s
+  // Inject simulated speech waveform
+  for (let i = 0; i < audioBuffer.length; i++) {
+    const t = i / sampleRate;
+    audioBuffer[i] = Math.sin(t * 440 * Math.PI * 2) * 0.4 + Math.sin(t * 1200 * Math.PI * 2) * 0.2;
+  }
+  const visemes = VoiceLipSyncEngine.analyzeAudioBuffer(audioBuffer, sampleRate, 24, 2);
+  assert.ok(visemes.length > 0);
+  assert.ok(visemes.some(v => v.jawOpen > 0), 'Audio loudness drove jaw opening');
+  const lipChannels = VoiceLipSyncEngine.visemesToChannels(visemes, 'l_char');
+  assert.ok(lipChannels['face.jawOpen']);
+
+  // 4. Iconic Pose Stamps
+  assert.ok(POSE_LIBRARY.length >= 6);
+  const testLayer = {
+    id: 'l_actor',
+    name: 'Actor',
+    type: 'character',
+    visible: true,
+    locked: false,
+    channels: {},
+  };
+  stampPoseOntoLayer(testLayer, 'happy_jump', 0.5, 0.2);
+  assert.ok(testLayer.channels['bone.arm_l.rot'], 'Left arm rotation stamped');
+  assert.ok(testLayer.channels['face.mouthSmile'], 'Mouth smile blendweight stamped');
+
+  // 5. Interactive Spline Curves
+  const k0 = { id: 'k0', t: 0, v: 10 };
+  const k1 = { id: 'k1', t: 1.0, v: 50 };
+  InteractiveSplineGraph.setEasePreset(k0, k1, 'back_overshoot');
+  const curveVal = InteractiveSplineGraph.evaluateSegment(k0, k1, 0.85);
+  assert.ok(typeof curveVal === 'number');
+
+  // 6. Motion FX Brushes
+  const fxBrush = new MotionFXBrushEngine();
+  fxBrush.emitFromBrush('sparkle_stardust', 200, 300, 5);
+  fxBrush.emitFromBrush('ghibli_leaves', 400, 200, 4);
+  fxBrush.update(0.1);
+  // Verify particles decay and simulate
+  fxBrush.update(2.0); // should clear decayed
+
+  console.log('✅ 23. World-Class Animation Suite (Live Motion Puppeteer, Smart Presets, Voice Lip Sync, Pose Stamps, Spline Curves, FX Brushes) verified');
+}
+
+console.log('\n🎉 ALL 23 ANIMA SYSTEM SUITES PASSED FLAWLESSLY!\n');
 

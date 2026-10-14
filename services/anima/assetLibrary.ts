@@ -34,7 +34,7 @@ export interface AssetDefinition {
 }
 
 // Helper to make smooth keyframes
-function makeKf(id: string, t: number, v: number, ease: 'smooth' | 'linear' | 'bounce' = 'smooth'): Keyframe<number> {
+function makeKf(id: string, t: number, v: number, ease: 'smooth' | 'linear' | 'bounce' | 'hold' = 'smooth'): Keyframe<number> {
   return { id, t, v, ease };
 }
 

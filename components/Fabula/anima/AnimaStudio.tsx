@@ -25,7 +25,7 @@ import {
   Clock, Disc, PenTool, Move, RotateCcw, BookOpen,
   MessageSquare, ChevronDown, ChevronUp, Bot, Image as ImageIcon,
   Smile, UserCheck, FileText, Library, MessageCircle, FileCode,
-  FolderPlus, Type, Compass
+  FolderPlus, Type, Compass, Mic, MicOff, Hand, Palette, Footprints
 } from 'lucide-react';
 import type {
   AnimaProject,
@@ -33,6 +33,7 @@ import type {
   DrawingCel,
   DrawingStroke,
   OnionSkinConfig,
+  AnimaChannel,
 } from '../../../services/anima/types';
 import { evaluateProjectAtFrame } from '../../../services/anima/evaluator';
 import {
@@ -98,6 +99,18 @@ import {
   type PanelEntranceKind,
   type OnomatopoeiaPhrase,
 } from '../../../services/anima/comicMotion';
+import {
+  LiveMotionPuppeteer,
+  SmartMotionPresets,
+  VoiceLipSyncEngine,
+  POSE_LIBRARY,
+  stampPoseOntoLayer,
+  InteractiveSplineGraph,
+  MotionFXBrushEngine,
+  type MotionBrushKind,
+  type MagicPresetKind,
+  type PoseDefinition,
+} from '../../../services/anima/worldClassEngine';
 
 // Plajah Theme Palette
 const THEME = {
@@ -261,6 +274,244 @@ const createInitialProject = (): AnimaProject => ({
   selectedBoneId: null,
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PRO SUB-COMPONENT: INTERACTIVE BÉZIER SPLINE GRAPH EDITOR
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SplineGraphEditorProps {
+  channel: AnimaChannel<number>;
+  durationFrames: number;
+  fps: number;
+  onUpdateChannel: (ch: AnimaChannel<number>) => void;
+}
+
+const SplineGraphEditor: React.FC<SplineGraphEditorProps> = ({
+  channel,
+  durationFrames,
+  fps,
+  onUpdateChannel,
+}) => {
+  const [selectedKeyIndex, setSelectedKeyIndex] = useState<number | null>(null);
+  const durationSec = durationFrames / fps;
+  const width = 840;
+  const height = 180;
+  const padding = 28;
+
+  const valMin = -100;
+  const valMax = 100;
+
+  const toSvgX = (t: number) => padding + (t / durationSec) * (width - padding * 2);
+  const toSvgY = (v: number) => {
+    const norm = (v - valMin) / (valMax - valMin);
+    return (height - padding) - norm * (height - padding * 2);
+  };
+
+  const pathD = useMemo(() => {
+    const kfs = channel.keyframes;
+    if (kfs.length === 0) return '';
+    if (kfs.length === 1) return `M ${toSvgX(kfs[0].t)} ${toSvgY(kfs[0].v)}`;
+
+    let d = `M ${toSvgX(kfs[0].t)} ${toSvgY(kfs[0].v)}`;
+    for (let i = 0; i < kfs.length - 1; i++) {
+      const k0 = kfs[i];
+      const k1 = kfs[i + 1];
+      const span = k1.t - k0.t;
+      const h0x = k0.t + (k0.outHandle ? k0.outHandle.dx : span * 0.35);
+      const h0y = k0.v + (k0.outHandle ? k0.outHandle.dy : 0);
+      const h1x = k1.t + (k1.inHandle ? k1.inHandle.dx : -span * 0.35);
+      const h1y = k1.v + (k1.inHandle ? k1.inHandle.dy : 0);
+
+      d += ` C ${toSvgX(h0x)} ${toSvgY(h0y)}, ${toSvgX(h1x)} ${toSvgY(h1y)}, ${toSvgX(k1.t)} ${toSvgY(k1.v)}`;
+    }
+    return d;
+  }, [channel.keyframes, durationSec]);
+
+  const applyEaseToSelected = (easePreset: 'easy_ease' | 'ease_in' | 'ease_out' | 'back_overshoot' | 'linear') => {
+    if (selectedKeyIndex === null || selectedKeyIndex >= channel.keyframes.length - 1) return;
+    const cloned = JSON.parse(JSON.stringify(channel)) as AnimaChannel<number>;
+    InteractiveSplineGraph.setEasePreset(cloned.keyframes[selectedKeyIndex], cloned.keyframes[selectedKeyIndex + 1], easePreset);
+    onUpdateChannel(cloned);
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
+      {/* Ease Presets Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 900, color: THEME.cyan }}>SPLINE GRAPH: {channel.name}</span>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>({channel.keyframes.length} keyframes)</span>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { id: 'easy_ease', label: 'Easy Ease (S-Curve)' },
+            { id: 'ease_in', label: 'Ease In (Accelerate)' },
+            { id: 'ease_out', label: 'Ease Out (Decelerate)' },
+            { id: 'back_overshoot', label: 'Back (Overshoot Bounce)' },
+            { id: 'linear', label: 'Linear' },
+          ].map((btn) => (
+            <button
+              key={btn.id}
+              onClick={() => applyEaseToSelected(btn.id as any)}
+              disabled={selectedKeyIndex === null || selectedKeyIndex >= channel.keyframes.length - 1}
+              style={{
+                padding: '3px 8px', borderRadius: 4,
+                background: selectedKeyIndex !== null ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: selectedKeyIndex !== null ? '#fff' : 'rgba(255,255,255,0.3)',
+                fontSize: 9, fontWeight: 800, cursor: selectedKeyIndex !== null ? 'pointer' : 'default',
+              }}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* SVG Spline Canvas */}
+      <div style={{
+        background: '#09080c', border: `1px solid ${THEME.border}`, borderRadius: 8,
+        height: height, position: 'relative', overflow: 'hidden',
+      }}>
+        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+          <line x1={padding} y1={toSvgY(0)} x2={width - padding} y2={toSvgY(0)} stroke="rgba(255,255,255,0.15)" strokeWidth={1} strokeDasharray="3 3" />
+          
+          {[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0].map((t) => (
+            <g key={t}>
+              <line x1={toSvgX(t)} y1={padding} x2={toSvgX(t)} y2={height - padding} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+              <text x={toSvgX(t)} y={height - 8} fill="rgba(255,255,255,0.35)" fontSize={8} textAnchor="middle">{t}s</text>
+            </g>
+          ))}
+
+          <path d={pathD} fill="none" stroke={THEME.cyan} strokeWidth={2.5} />
+
+          {channel.keyframes.map((kf, idx) => {
+            const cx = toSvgX(kf.t);
+            const cy = toSvgY(kf.v);
+            const isSelected = selectedKeyIndex === idx;
+
+            return (
+              <g key={kf.id || idx}>
+                {isSelected && kf.outHandle && (
+                  <line
+                    x1={cx} y1={cy}
+                    x2={toSvgX(kf.t + kf.outHandle.dx)} y2={toSvgY(kf.v + kf.outHandle.dy)}
+                    stroke="rgba(212, 0, 85, 0.7)" strokeWidth={1.5}
+                  />
+                )}
+                <polygon
+                  points={`${cx},${cy - 5} ${cx + 5},${cy} ${cx},${cy + 5} ${cx - 5},${cy}`}
+                  fill={isSelected ? THEME.magenta : THEME.cyan}
+                  stroke="#fff" strokeWidth={1.5}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedKeyIndex(idx)}
+                />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRO SUB-COMPONENT: TRADITIONAL DISNEY/ANIME CEL EXPOSURE DOPE SHEET (X-SHEET)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface XSheetProps {
+  project: AnimaProject;
+  currentFrame: number;
+  onSelectFrame: (frame: number) => void;
+  onSetStepRate: (rate: 1 | 2 | 3 | 4) => void;
+}
+
+const TraditionalXSheet: React.FC<XSheetProps> = ({
+  project,
+  currentFrame,
+  onSelectFrame,
+  onSetStepRate,
+}) => {
+  const heroLayer = project.layers.find((l) => l.id === 'l_hero');
+  const currentStep = heroLayer?.celTrack?.stepRate ?? 2;
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: 10, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 900, color: THEME.lilac }}>TRADITIONAL CEL EXPOSURE (X-SHEET)</span>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Disney / Anime Exposure Desk</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>HOLD TIMING:</span>
+          {[1, 2, 3, 4].map((rate) => (
+            <button
+              key={rate}
+              onClick={() => onSetStepRate(rate as any)}
+              style={{
+                padding: '3px 8px', borderRadius: 4,
+                background: currentStep === rate ? THEME.purple : 'rgba(255,255,255,0.06)',
+                border: 'none', color: '#fff', fontSize: 9, fontWeight: 900, cursor: 'pointer',
+              }}
+            >
+              ON {rate}s ({Math.floor(24 / rate)} FPS)
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{
+        flex: 1, overflowY: 'auto', background: '#09080c', border: `1px solid ${THEME.border}`, borderRadius: 8,
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9, fontFamily: 'monospace' }}>
+          <thead>
+            <tr style={{ background: 'rgba(255,255,255,0.04)', borderBottom: `1px solid ${THEME.border}`, textAlign: 'left', color: 'rgba(255,255,255,0.6)' }}>
+              <th style={{ padding: '6px 10px', width: 60 }}>FRAME</th>
+              <th style={{ padding: '6px 10px', width: 140 }}>HERO CEL (LVL A)</th>
+              <th style={{ padding: '6px 10px', width: 140 }}>MASCOT / CHAR (LVL B)</th>
+              <th style={{ padding: '6px 10px', width: 100 }}>CADENCE</th>
+              <th style={{ padding: '6px 10px' }}>PHONETIC DIALOGUE & NOTES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: project.durationFrames }, (_, i) => i + 1).map((f) => {
+              const isCurrent = f === currentFrame;
+              const isHoldFrame = (f - 1) % currentStep === 0;
+
+              return (
+                <tr
+                  key={f}
+                  onClick={() => onSelectFrame(f)}
+                  style={{
+                    background: isCurrent ? 'rgba(212, 0, 85, 0.25)' : isHoldFrame ? 'rgba(255,255,255,0.02)' : 'transparent',
+                    borderBottom: '1px solid rgba(255,255,255,0.03)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <td style={{ padding: '4px 10px', fontWeight: isCurrent ? 900 : 600, color: isCurrent ? '#FF4F8B' : 'rgba(255,255,255,0.6)' }}>
+                    {f.toString().padStart(2, '0')}
+                  </td>
+                  <td style={{ padding: '4px 10px', color: isHoldFrame ? THEME.cyan : 'rgba(255,255,255,0.2)' }}>
+                    {isHoldFrame ? `Key Drawing ${Math.floor((f - 1) / currentStep) + 1}` : '— hold —'}
+                  </td>
+                  <td style={{ padding: '4px 10px', color: isHoldFrame ? THEME.orange : 'rgba(255,255,255,0.2)' }}>
+                    {isHoldFrame ? 'Pose Stance' : '— hold —'}
+                  </td>
+                  <td style={{ padding: '4px 10px', color: 'rgba(255,255,255,0.4)' }}>
+                    {isHoldFrame ? `On ${currentStep}s` : ''}
+                  </td>
+                  <td style={{ padding: '4px 10px', color: isCurrent ? '#fff' : 'rgba(255,255,255,0.4)' }}>
+                    {f === 1 ? 'Action Beat: Opening Stance' : f === 24 ? 'Phoneme /A/ (Jaw Open)' : f === 48 ? 'Impact Recovery' : ''}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToEdit }) => {
   const [project, setProject] = useState<AnimaProject>(createInitialProject);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -336,7 +587,31 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
   const [speechBalloon, setSpeechBalloon] = useState<{ text: string; x: number; y: number } | null>(null);
 
   // Active Rigged Character or Kaiju Mascot
-  const [activeRigId, setActiveRigId] = useState<'none' | 'rello' | 'chora' | 'steamboat_willie' | 'felix_the_cat' | 'fleischer_flapper' | 'oswald_rabbit'>('rello');
+  const [activeRigId, setActiveRigId] = useState<'none' | 'rello' | 'chora' | 'steamboat_willie' | 'felix_the_cat' | 'fleischer_flapper' | 'oswald_rabbit' | 'sailor_swagger'>('rello');
+
+  // ── World-Class Animation State (Creator Play vs Master Pro) ──
+  const [studioMode, setStudioMode] = useState<'creator' | 'master'>('creator');
+  const [isPuppetRecording, setIsPuppetRecording] = useState(false);
+  const [isPuppetDragging, setIsPuppetDragging] = useState(false);
+  const puppeteerRef = useRef(new LiveMotionPuppeteer({ fps: 24, stepRate: 2, inertia: 0.45, enableSquashStretch: true }));
+  const puppetPathRef = useRef<{ x: number; y: number }[]>([]);
+
+  // Smart Presets, Poses & FX Paint Brushes
+  const [activePresetMenu, setActivePresetMenu] = useState(false);
+  const [activePoseMenu, setActivePoseMenu] = useState(false);
+  const [activeBrushMenu, setActiveBrushMenu] = useState(false);
+  const [activeBrush, setActiveBrush] = useState<MotionBrushKind | 'none'>('none');
+  const fxBrushRef = useRef(new MotionFXBrushEngine());
+
+  // Voice & Beat Lip Sync
+  const [isVoiceLipSyncActive, setIsVoiceLipSyncActive] = useState(false);
+
+  // Spline Curve Editor
+  const [curveChannelPath, setCurveChannelPath] = useState<string>('transform.y');
+  const [selectedSplineKeyId, setSelectedSplineKeyId] = useState<string | null>(null);
+
+  // X-Sheet Dope Sheet
+  const [xsheetSelectedFrame, setXsheetSelectedFrame] = useState<number>(1);
 
   // Load plate image
   useEffect(() => {
@@ -432,6 +707,19 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
           lens: 'Universal / Disney 1927',
           headline: 'Oswald the Lucky Rabbit Stride Active',
           actionSummary: 'Springy high-stepping stride, floppy ears with secondary overlap drag on 2s',
+          channels: {},
+        });
+        setIsAriaThinking(false);
+      }, 150);
+      return;
+    }
+    if (lower.includes('sailor') || lower.includes('popeye') || lower.includes('swagger')) {
+      setTimeout(() => {
+        setActiveRigId('sailor_swagger');
+        setAriaProposal({
+          lens: 'Fleischer Archetype 1933',
+          headline: 'Sailor Swagger Sea-Legs Strut Active',
+          actionSummary: 'Bulging forearms with anchor tattoos, corncob pipe puffing smoke rings, squinted eye & rolling sea-legs swagger on 2s',
           channels: {},
         });
         setIsAriaThinking(false);
@@ -600,6 +888,145 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
       };
       (ps as any).defaultEmitter = em;
       setActiveSim('particles');
+    }
+  };
+
+  // ── World-Class Handlers: Live Motion Puppeteering, Presets & Stamps ──
+
+  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 1280;
+    const y = ((e.clientY - rect.top) / rect.height) * 720;
+
+    if (isPuppetRecording) {
+      setIsPuppetDragging(true);
+      puppetPathRef.current = [{ x, y }];
+      puppeteerRef.current.startRecording(x, y, (project.currentFrame - 1) / project.fps);
+      if (!isPlaying) setIsPlaying(true);
+    } else if (activeBrush !== 'none') {
+      fxBrushRef.current.emitFromBrush(activeBrush, x, y, 4);
+    } else {
+      handleCanvasTap(e as any);
+    }
+  };
+
+  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 1280;
+    const y = ((e.clientY - rect.top) / rect.height) * 720;
+
+    if (isPuppetRecording && isPuppetDragging) {
+      puppetPathRef.current.push({ x, y });
+      if (puppetPathRef.current.length > 50) puppetPathRef.current.shift();
+      const currentSec = (project.currentFrame - 1) / project.fps;
+      puppeteerRef.current.feedPoint(x, y, currentSec);
+    } else if (activeBrush !== 'none' && e.buttons === 1) {
+      fxBrushRef.current.emitFromBrush(activeBrush, x, y, 2);
+    }
+  };
+
+  const handleCanvasPointerUp = () => {
+    if (isPuppetRecording && isPuppetDragging) {
+      setIsPuppetDragging(false);
+      const targetLayerId = project.selectedLayerId || project.layers[0]?.id || 'l_hero';
+      const result = puppeteerRef.current.stopRecording(targetLayerId);
+
+      setProject((prev) => {
+        const nextLayers = prev.layers.map((l) => {
+          if (l.id === targetLayerId) {
+            return {
+              ...l,
+              channels: {
+                ...l.channels,
+                'transform.x': result.xChannel,
+                'transform.y': result.yChannel,
+                ...(result.rotationChannel ? { 'transform.rotationZ': result.rotationChannel } : {}),
+                ...(result.scaleXChannel ? { 'transform.scaleX': result.scaleXChannel } : {}),
+                ...(result.scaleYChannel ? { 'transform.scaleY': result.scaleYChannel } : {}),
+              },
+            };
+          }
+          return l;
+        });
+        return { ...prev, layers: nextLayers };
+      });
+      setIsPuppetRecording(false);
+      puppetPathRef.current = [];
+    }
+  };
+
+  const applySmartPreset = (preset: MagicPresetKind) => {
+    const targetLayerId = project.selectedLayerId || project.layers[0]?.id || 'l_hero';
+    let newChannels: Record<string, AnimaChannel<number>> = {};
+
+    if (preset === 'auto_walk') {
+      newChannels = SmartMotionPresets.generateAutoWalk({ durationSeconds: 3.0, intensity: 1.0 });
+    } else if (preset === 'idle_breathing') {
+      newChannels = SmartMotionPresets.generateIdleBreathing({ durationSeconds: 3.0, intensity: 1.0 });
+    } else if (preset === 'jelly_physics') {
+      newChannels = SmartMotionPresets.generateJellyPhysics({ durationSeconds: 2.0, intensity: 1.0 });
+    } else if (preset === 'ghibli_float') {
+      newChannels = SmartMotionPresets.generateGhibliFloat({ durationSeconds: 3.5, intensity: 1.0 });
+    } else if (preset === 'comic_impact_burst') {
+      newChannels = SmartMotionPresets.generateComicImpactBurst();
+    }
+
+    setProject((prev) => ({
+      ...prev,
+      layers: prev.layers.map((l) =>
+        l.id === targetLayerId ? { ...l, channels: { ...l.channels, ...newChannels } } : l
+      ),
+    }));
+    setActivePresetMenu(false);
+  };
+
+  const applyPoseStamp = (poseId: string) => {
+    const targetLayerId = project.selectedLayerId || project.layers[0]?.id || 'l_hero';
+    const currentTimeSec = (project.currentFrame - 1) / project.fps;
+    setProject((prev) => {
+      const nextLayers = prev.layers.map((l) => {
+        if (l.id === targetLayerId) {
+          const cloned = JSON.parse(JSON.stringify(l));
+          stampPoseOntoLayer(cloned, poseId, currentTimeSec, 0.25);
+          return cloned;
+        }
+        return l;
+      });
+      return { ...prev, layers: nextLayers };
+    });
+    setActivePoseMenu(false);
+  };
+
+  const toggleVoiceLipSync = () => {
+    if (isVoiceLipSyncActive) {
+      setIsVoiceLipSyncActive(false);
+    } else {
+      setIsVoiceLipSyncActive(true);
+      const visemes: any[] = [];
+      for (let f = 0; f <= 72; f += 2) {
+        const t = f / 24;
+        const speechAmp = Math.max(0, Math.sin(t * 7) * 0.85);
+        visemes.push({
+          time: t,
+          jawOpen: speechAmp,
+          mouthSmile: 0.4 + Math.cos(t * 4) * 0.4,
+          mouthPucker: Math.sin(t * 9) > 0.4 ? 0.7 : 0.1,
+          mouthWide: 0.5,
+          phoneme: speechAmp > 0.6 ? 'A' : speechAmp > 0.3 ? 'E' : 'silence',
+        });
+      }
+      const targetLayerId = project.selectedLayerId || project.layers[0]?.id || 'l_hero';
+      const lipChannels = VoiceLipSyncEngine.visemesToChannels(visemes, targetLayerId);
+      setProject((prev) => ({
+        ...prev,
+        layers: prev.layers.map((l) =>
+          l.id === targetLayerId ? { ...l, channels: { ...l.channels, ...lipChannels } } : l
+        ),
+      }));
     }
   };
 
@@ -785,12 +1212,45 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
         fl.paintToCanvas(ctx, canvas.width, canvas.height);
       }
 
+      // 6. Real-Time Motion FX Brush Particles
+      fxBrushRef.current.update(dt);
+      fxBrushRef.current.render(ctx);
+
+      // 7. Live Puppet Path Tracer (Glowing Interactive Motion Feedback)
+      if (isPuppetRecording && isPuppetDragging && puppetPathRef.current.length > 1) {
+        ctx.save();
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#00DAF3';
+        ctx.shadowColor = '#00DAF3';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        const pts = puppetPathRef.current;
+        pts.forEach((pt, idx) => {
+          if (idx === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.stroke();
+
+        // Tip reticle
+        const latest = pts[pts.length - 1];
+        ctx.fillStyle = '#D40055';
+        ctx.beginPath();
+        ctx.arc(latest.x, latest.y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
       animId = requestAnimationFrame(render);
     };
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [project, isCameraActive, activeSim, speedLinesActive, speechBalloon, activeRigId]);
+  }, [project, isCameraActive, activeSim, speedLinesActive, speechBalloon, activeRigId, isPuppetRecording, isPuppetDragging]);
 
   return (
     <div style={{
@@ -1164,19 +1624,246 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
           background: '#09080c',
         }}>
           <video ref={videoRef} autoPlay playsInline muted style={{ display: 'none' }} />
+
+          {/* ── World-Class Floating Magic Creative Bar over Canvas ── */}
+          <div style={{
+            position: 'absolute',
+            top: 14,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(15, 14, 20, 0.88)',
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${THEME.border}`,
+            borderRadius: 30,
+            padding: '4px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
+            zIndex: 30,
+          }}>
+            {/* Mode Switcher */}
+            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.5)', padding: 2, borderRadius: 20 }}>
+              <button
+                onClick={() => setStudioMode('creator')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 16,
+                  fontSize: 10, fontWeight: 900, border: 'none', cursor: 'pointer',
+                  background: studioMode === 'creator' ? 'linear-gradient(135deg, #00DAF3, #6B0099)' : 'transparent',
+                  color: studioMode === 'creator' ? '#fff' : 'rgba(255,255,255,0.6)',
+                }}
+              >
+                <Sparkles size={11} />
+                MAGIC PLAY
+              </button>
+              <button
+                onClick={() => { setStudioMode('master'); setIsProModeOpen(true); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 16,
+                  fontSize: 10, fontWeight: 900, border: 'none', cursor: 'pointer',
+                  background: studioMode === 'master' ? 'linear-gradient(135deg, #FF8C00, #D40055)' : 'transparent',
+                  color: studioMode === 'master' ? '#fff' : 'rgba(255,255,255,0.6)',
+                }}
+              >
+                <Sliders size={11} />
+                MASTER PRO
+              </button>
+            </div>
+
+            <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.15)' }} />
+
+            {/* 1. Puppet Record (Record & Act) */}
+            <button
+              onClick={() => {
+                setIsPuppetRecording(!isPuppetRecording);
+                if (!isPuppetRecording) setIsPlaying(true);
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: isPuppetRecording ? '#D40055' : 'rgba(212, 0, 85, 0.15)',
+                border: `1px solid ${isPuppetRecording ? '#FF4F8B' : 'rgba(212, 0, 85, 0.35)'}`,
+                color: isPuppetRecording ? '#fff' : '#FF4F8B',
+                borderRadius: 18, padding: '4px 12px', fontSize: 10, fontWeight: 900, cursor: 'pointer',
+                boxShadow: isPuppetRecording ? '0 0 16px rgba(212, 0, 85, 0.7)' : 'none',
+              }}
+            >
+              <Hand size={12} />
+              {isPuppetRecording ? '🔴 DRAG CHARACTER TO ACT' : 'PUPPET RECORD'}
+            </button>
+
+            {/* 2. Magic Presets Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setActivePresetMenu(!activePresetMenu)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#fff', borderRadius: 16, padding: '4px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
+                }}
+              >
+                <Wand2 size={11} color={THEME.cyan} />
+                MAGIC PRESETS
+                <ChevronDown size={10} />
+              </button>
+
+              {activePresetMenu && (
+                <div style={{
+                  position: 'absolute', top: 32, left: 0, width: 220,
+                  background: '#181622', border: `1px solid ${THEME.border}`, borderRadius: 10,
+                  padding: 6, boxShadow: '0 12px 36px rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', flexDirection: 'column', gap: 4,
+                }}>
+                  {[
+                    { id: 'auto_walk', label: '🚶 1-Tap Auto Walk', desc: '8-pose stride & hip bob on 2s' },
+                    { id: 'idle_breathing', label: '🫁 Life & Idle Breathing', desc: 'Subtle chest expansion & life wiggles' },
+                    { id: 'jelly_physics', label: '🍮 Jelly Physics Wobble', desc: 'Elastic squash/stretch bounce' },
+                    { id: 'ghibli_float', label: '☁️ Ghibli Floating Drift', desc: 'Organic wind flutter & levitation' },
+                    { id: 'comic_impact_burst', label: '💥 Comic Action Burst', desc: 'Anticipation squat -> explosive pop' },
+                  ].map((pr) => (
+                    <button
+                      key={pr.id}
+                      onClick={() => applySmartPreset(pr.id as any)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                        background: 'transparent', border: 'none', borderRadius: 6, padding: '6px 8px',
+                        textAlign: 'left', cursor: 'pointer', color: '#fff', fontSize: 10, fontWeight: 800,
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <div>{pr.label}</div>
+                      <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>{pr.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Voice & Beat Lip-Sync */}
+            <button
+              onClick={toggleVoiceLipSync}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: isVoiceLipSyncActive ? 'rgba(0, 218, 243, 0.25)' : 'rgba(255,255,255,0.06)',
+                border: `1px solid ${isVoiceLipSyncActive ? THEME.cyan : 'rgba(255,255,255,0.12)'}`,
+                color: isVoiceLipSyncActive ? THEME.cyan : '#fff',
+                borderRadius: 16, padding: '4px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
+              }}
+            >
+              {isVoiceLipSyncActive ? <Mic size={11} /> : <MicOff size={11} />}
+              {isVoiceLipSyncActive ? 'LIP-SYNC ACTIVE' : 'LIP-SYNC / BEAT'}
+            </button>
+
+            {/* 4. Pose Stamps Drawer */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setActivePoseMenu(!activePoseMenu)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#fff', borderRadius: 16, padding: '4px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
+                }}
+              >
+                <span>🎭</span>
+                POSE STAMPS
+                <ChevronDown size={10} />
+              </button>
+
+              {activePoseMenu && (
+                <div style={{
+                  position: 'absolute', top: 32, left: -60, width: 320,
+                  background: '#181622', border: `1px solid ${THEME.border}`, borderRadius: 12,
+                  padding: 10, boxShadow: '0 16px 48px rgba(0,0,0,0.85)', zIndex: 50,
+                  display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6,
+                }}>
+                  {POSE_LIBRARY.map((pose) => (
+                    <button
+                      key={pose.id}
+                      onClick={() => applyPoseStamp(pose.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 8, padding: 8, textAlign: 'left', cursor: 'pointer', color: '#fff',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                    >
+                      <span style={{ fontSize: 20 }}>{pose.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 900 }}>{pose.name}</div>
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)' }}>{pose.description}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 5. Motion FX Paint Brush */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setActiveBrushMenu(!activeBrushMenu)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: activeBrush !== 'none' ? 'rgba(255, 140, 0, 0.25)' : 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${activeBrush !== 'none' ? THEME.orange : 'rgba(255,255,255,0.12)'}`,
+                  color: activeBrush !== 'none' ? THEME.orange : '#fff',
+                  borderRadius: 16, padding: '4px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
+                }}
+              >
+                <Palette size={11} />
+                {activeBrush === 'none' ? 'FX BRUSH' : activeBrush.replace('_', ' ').toUpperCase()}
+                <ChevronDown size={10} />
+              </button>
+
+              {activeBrushMenu && (
+                <div style={{
+                  position: 'absolute', top: 32, right: 0, width: 180,
+                  background: '#181622', border: `1px solid ${THEME.border}`, borderRadius: 10,
+                  padding: 6, boxShadow: '0 12px 36px rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', flexDirection: 'column', gap: 4,
+                }}>
+                  {[
+                    { id: 'none', label: '✕ Off (Normal Pointer)' },
+                    { id: 'sparkle_stardust', label: '✨ Sparkle Stardust' },
+                    { id: 'ghibli_leaves', label: '🍂 Ghibli Autumn Leaves' },
+                    { id: 'action_fire', label: '🔥 Action Fire Sparks' },
+                    { id: 'manga_ink', label: '🖋️ Manga Sumi Ink' },
+                  ].map((br) => (
+                    <button
+                      key={br.id}
+                      onClick={() => { setActiveBrush(br.id as any); setActiveBrushMenu(false); }}
+                      style={{
+                        background: activeBrush === br.id ? 'rgba(255,255,255,0.12)' : 'transparent',
+                        border: 'none', borderRadius: 6, padding: '6px 8px',
+                        textAlign: 'left', cursor: 'pointer', color: activeBrush === br.id ? THEME.orange : '#fff',
+                        fontSize: 10, fontWeight: 800,
+                      }}
+                    >
+                      {br.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           <canvas
             ref={canvasRef}
             width={1280}
             height={720}
             onClick={handleCanvasTap}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handleCanvasPointerMove}
+            onPointerUp={handleCanvasPointerUp}
+            onPointerCancel={handleCanvasPointerUp}
             style={{
               width: '94%',
               height: '94%',
               objectFit: 'contain',
               borderRadius: 10,
-              border: `1px solid ${THEME.border}`,
-              boxShadow: '0 16px 64px rgba(0, 0, 0, 0.85)',
-              cursor: activeMedium === 'storybook' ? 'pointer' : 'default',
+              border: `1px solid ${isPuppetRecording ? '#D40055' : THEME.border}`,
+              boxShadow: isPuppetRecording ? '0 0 32px rgba(212, 0, 85, 0.45)' : '0 16px 64px rgba(0, 0, 0, 0.85)',
+              cursor: isPuppetRecording ? 'crosshair' : activeBrush !== 'none' ? 'cell' : activeMedium === 'storybook' ? 'pointer' : 'default',
+              touchAction: 'none',
             }}
           />
 
@@ -1289,7 +1976,7 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
 
       {/* ── 4. UNIFIED MULTI-TRACK TIMELINE & KEYFRAME SYSTEM (ALWAYS DOCKED & VISIBLE) ── */}
       <div style={{
-        height: isProModeOpen ? 300 : 240,
+        height: studioMode === 'creator' ? 260 : isProModeOpen ? 300 : 240,
         backgroundColor: '#121018',
         borderTop: `1px solid ${THEME.border}`,
         display: 'flex',
@@ -1297,58 +1984,348 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
         flexShrink: 0,
         zIndex: 15,
       }}>
-        {/* Pro Mode Sub-Tab Header if expanded */}
-        {isProModeOpen && (
-          <div style={{
-            height: 32,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            borderBottom: `1px solid ${THEME.border}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 16px',
-            flexShrink: 0,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {[
-                { id: 'timeline', label: 'Timeline & Keyframes', icon: Clock },
-                { id: 'xsheet', label: 'X-Sheet Exposure', icon: Grid },
-                { id: 'face_animator', label: 'Face Animator (ARKit)', icon: Smile },
-                { id: 'video_mocap', label: 'Video-to-Rig Mocap', icon: UserCheck },
-                { id: 'mocap_import', label: 'Mocap File (BVH/JSON)', icon: FileCode },
-                { id: 'asset_library', label: 'Asset & Motion Library', icon: Library },
-                { id: 'comic_fx', label: 'Comic & Manga FX', icon: MessageCircle },
-                { id: 'curves', label: 'Bézier Splines', icon: Spline },
-                { id: 'physics', label: 'Physics & Forces', icon: Activity },
-                { id: 'procedural', label: 'Procedural Texture', icon: Wand2 },
-              ].map(({ id, label, icon: Icon }) => (
+        {studioMode === 'creator' ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px 16px', gap: 10, overflowY: 'auto' }}>
+            {/* Creator Deck Top Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 900,
+                  letterSpacing: '0.05em',
+                  background: 'linear-gradient(135deg, #FF8C00, #D40055, #00DAF3)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  <Sparkles size={14} color={THEME.orange} /> MAGIC CREATOR DECK · ZERO-TEDIUM ANIMATION
+                </span>
+                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', padding: '2px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.05)' }}>
+                  1-Tap Living Presets · Live Drag Puppeteering · Pose Stamps
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setStudioMode('master');
+                  setIsProModeOpen(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 12px',
+                  borderRadius: 6,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: THEME.cyan,
+                  fontSize: 10,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                <Spline size={12} />
+                OPEN MASTER PRO STUDIO (◆ Splines, X-Sheet & Mocap) →
+              </button>
+            </div>
+
+            {/* Quick Creator Control Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 1fr', gap: 12, flex: 1 }}>
+              {/* Card 1: Transport & Scrubber */}
+              <div style={{
+                background: 'rgba(255,255,255,0.025)',
+                border: `1px solid ${THEME.border}`,
+                borderRadius: 8,
+                padding: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: 8,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>SCRUB & PLAY</span>
+                  <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 900, color: THEME.cyan }}>
+                    F{project.currentFrame} / {project.durationFrames}
+                  </span>
+                </div>
+
+                {/* Frame Slider */}
+                <input
+                  type="range"
+                  min={1}
+                  max={project.durationFrames}
+                  value={project.currentFrame}
+                  onChange={(e) => setProject((p) => ({ ...p, currentFrame: parseInt(e.target.value) || 1 }))}
+                  style={{ width: '100%', accentColor: THEME.cyan, cursor: 'pointer' }}
+                />
+
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '6px 12px',
+                      borderRadius: 6,
+                      background: isPlaying ? 'linear-gradient(135deg, #FF8C00, #D40055)' : 'linear-gradient(135deg, #00DAF3, #6B0099)',
+                      color: '#fff',
+                      border: 'none',
+                      fontSize: 10,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {isPlaying ? <Pause size={12} /> : <Play size={12} />}
+                    {isPlaying ? 'PAUSE' : 'PLAY LOOP'}
+                  </button>
+                  <button
+                    onClick={() => setProject((p) => ({ ...p, currentFrame: Math.max(1, p.currentFrame - 2) }))}
+                    title="Step -2 frames (on 2s)"
+                    style={{
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: 'none',
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    -2f
+                  </button>
+                  <button
+                    onClick={() => setProject((p) => ({ ...p, currentFrame: Math.min(p.durationFrames, p.currentFrame + 2) }))}
+                    title="Step +2 frames (on 2s)"
+                    style={{
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: 'none',
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    +2f
+                  </button>
+                </div>
+
+                {/* Puppet Drag Toggle */}
                 <button
-                  key={id}
-                  onClick={() => setProTab(id as any)}
+                  onClick={() => setIsPuppetRecording(!isPuppetRecording)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: 6,
-                    padding: '3px 8px',
-                    borderRadius: 4,
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    background: isPuppetRecording ? 'linear-gradient(135deg, #FF0055, #FF8C00)' : 'rgba(255,255,255,0.05)',
+                    border: isPuppetRecording ? '1px solid #FF8C00' : '1px solid rgba(255,255,255,0.1)',
+                    color: isPuppetRecording ? '#fff' : 'rgba(255,255,255,0.7)',
                     fontSize: 10,
-                    fontWeight: 800,
-                    border: 'none',
+                    fontWeight: 900,
                     cursor: 'pointer',
-                    background: proTab === id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                    color: proTab === id ? THEME.cyan : 'rgba(255,255,255,0.5)',
+                    boxShadow: isPuppetRecording ? '0 0 16px rgba(255, 0, 85, 0.4)' : 'none',
                   }}
                 >
-                  <Icon size={12} />
-                  {label}
+                  <Hand size={12} />
+                  {isPuppetRecording ? '🔴 RECORDING (DRAG CANVAS)' : '🔴 POINTER PUPPETEER'}
                 </button>
-              ))}
-            </div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
-              O(log N) Spline Binary Search · Diamond Keyframes (◆)
+              </div>
+
+              {/* Card 2: 1-Tap Magic Motion Presets */}
+              <div style={{
+                background: 'rgba(255,255,255,0.025)',
+                border: `1px solid ${THEME.border}`,
+                borderRadius: 8,
+                padding: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>1-TAP LIVING MOTION PRESETS</span>
+                  <span style={{ fontSize: 9, color: THEME.orange, fontWeight: 700 }}>Zero Keyframing</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, flex: 1 }}>
+                  {[
+                    { id: 'auto_walk', label: '🚶 Auto-Walk', desc: '8-pose stride with bob on 2s', color: THEME.cyan },
+                    { id: 'idle_breathing', label: '🫁 Idle Breathe', desc: 'Organic squash & life rhythm', color: THEME.lilac },
+                    { id: 'jelly_physics', label: '🍮 Jelly Wobble', desc: 'Juicy secondary inertia lag', color: THEME.orange },
+                    { id: 'ghibli_float', label: '🍃 Ghibli Wind', desc: 'Ethereal floating levitation', color: THEME.success },
+                    { id: 'comic_impact', label: '💥 Comic Impact', desc: 'Anticipation squat -> pop', color: THEME.magenta },
+                  ].map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => applySmartPreset(preset.id as any)}
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 6,
+                        padding: '6px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span style={{ fontSize: 10, fontWeight: 900, color: preset.color }}>{preset.label}</span>
+                      <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{preset.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card 3: Instant Pose Stamps Rack */}
+              <div style={{
+                background: 'rgba(255,255,255,0.025)',
+                border: `1px solid ${THEME.border}`,
+                borderRadius: 8,
+                padding: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>POSE STAMP RACK (FRAME {project.currentFrame})</span>
+                  <span style={{ fontSize: 9, color: THEME.magenta, fontWeight: 700 }}>1-Tap Stance</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, flex: 1 }}>
+                  {POSE_LIBRARY.map((pose) => (
+                    <button
+                      key={pose.id}
+                      onClick={() => applyPoseStamp(pose.id)}
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 6,
+                        padding: '6px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: 16 }}>{pose.icon}</span>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', marginTop: 2 }}>{pose.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  <button
+                    onClick={toggleVoiceLipSync}
+                    style={{
+                      flex: 1,
+                      padding: '4px 8px',
+                      borderRadius: 4,
+                      background: isVoiceLipSyncActive ? 'rgba(0, 218, 243, 0.2)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${isVoiceLipSyncActive ? THEME.cyan : 'rgba(255,255,255,0.1)'}`,
+                      color: isVoiceLipSyncActive ? THEME.cyan : 'rgba(255,255,255,0.7)',
+                      fontSize: 9,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <Mic size={10} />
+                    {isVoiceLipSyncActive ? 'LIP-SYNC ACTIVE' : 'AUTO VOICE LIP-SYNC'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Pro Mode Sub-Tab Header if expanded */}
+            {isProModeOpen && (
+              <div style={{
+                height: 32,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderBottom: `1px solid ${THEME.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 16px',
+                flexShrink: 0,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {[
+                    { id: 'timeline', label: 'Timeline & Keyframes', icon: Clock },
+                    { id: 'xsheet', label: 'X-Sheet Exposure', icon: Grid },
+                    { id: 'face_animator', label: 'Face Animator (ARKit)', icon: Smile },
+                    { id: 'video_mocap', label: 'Video-to-Rig Mocap', icon: UserCheck },
+                    { id: 'mocap_import', label: 'Mocap File (BVH/JSON)', icon: FileCode },
+                    { id: 'asset_library', label: 'Asset & Motion Library', icon: Library },
+                    { id: 'comic_fx', label: 'Comic & Manga FX', icon: MessageCircle },
+                    { id: 'curves', label: 'Bézier Splines', icon: Spline },
+                    { id: 'physics', label: 'Physics & Forces', icon: Activity },
+                    { id: 'procedural', label: 'Procedural Texture', icon: Wand2 },
+                  ].map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setProTab(id as any)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '3px 8px',
+                        borderRadius: 4,
+                        fontSize: 10,
+                        fontWeight: 800,
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: proTab === id ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        color: proTab === id ? THEME.cyan : 'rgba(255,255,255,0.5)',
+                      }}
+                    >
+                      <Icon size={12} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    onClick={() => {
+                      setStudioMode('creator');
+                      setIsProModeOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      background: 'rgba(255, 140, 0, 0.15)',
+                      border: '1px solid rgba(255, 140, 0, 0.3)',
+                      color: THEME.orange,
+                      fontSize: 9,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Sparkles size={11} />
+                    ✨ MAGIC CREATOR DECK
+                  </button>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+                    O(log N) Splines · Diamond Keyframes (◆)
+                  </div>
+                </div>
+              </div>
+            )}
 
         {/* Pro Sub-Panels (if not timeline) or Full AnimaTimeline */}
         {isProModeOpen && proTab === 'face_animator' ? (
@@ -1849,40 +2826,22 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             </div>
           </div>
         ) : isProModeOpen && proTab === 'xsheet' ? (
-          <div style={{ flex: 1, padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>
-                HOLD CADENCE:
-              </div>
-              {[1, 2, 3, 4].map((rate) => (
-                <button
-                  key={rate}
-                  onClick={() => {
-                    setProject((p) => {
-                      const hero = p.layers.find((l) => l.id === 'l_hero');
-                      if (hero && hero.celTrack) hero.celTrack.stepRate = rate as any;
-                      return { ...p };
-                    });
-                  }}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 4,
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: '#fff',
-                    fontSize: 10,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  ON {rate}s ({Math.floor(24 / rate)} FPS)
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
-              Cel Timing Sheet: Active drawings exposed on hold intervals with instant onion-skin registration.
-            </div>
-          </div>
+          <TraditionalXSheet
+            project={project}
+            currentFrame={project.currentFrame}
+            onSelectFrame={(f) => setProject((p) => ({ ...p, currentFrame: f }))}
+            onSetStepRate={(rate) => {
+              setProject((p) => {
+                const targetId = p.selectedLayerId || 'l_hero';
+                return {
+                  ...p,
+                  layers: p.layers.map((l) =>
+                    l.id === targetId && l.celTrack ? { ...l, celTrack: { ...l.celTrack, stepRate: rate } } : l
+                  ),
+                };
+              });
+            }}
+          />
         ) : isProModeOpen && proTab === 'physics' ? (
           <div style={{ flex: 1, padding: 12, overflowY: 'auto' }}>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -1907,10 +2866,71 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             </div>
           </div>
         ) : isProModeOpen && proTab === 'curves' ? (
-          <div style={{ flex: 1, padding: 12, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
-            <div style={{ fontWeight: 800, color: THEME.cyan, marginBottom: 6 }}>Bézier Tangents & Spline Interpolation:</div>
-            Hermite cubic tangents evaluated per keyframe with binary search. Adjust in/out ease vectors dynamically on any diamond keyframe.
-          </div>
+          (() => {
+            const heroLayer = project.layers.find((l) => l.id === (project.selectedLayerId || 'l_hero')) || project.layers[0];
+            const channelKeys = heroLayer ? Object.keys(heroLayer.channels) : [];
+            const activeKey = channelKeys.includes(curveChannelPath) ? curveChannelPath : channelKeys[0] || 'transform.y';
+            const ch = heroLayer?.channels?.[activeKey];
+
+            if (!heroLayer || !ch) {
+              return (
+                <div style={{ flex: 1, padding: 16, fontSize: 11, color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  Select an animated layer with keyframed channels to edit Bézier spline curves.
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 14px',
+                  background: 'rgba(0,0,0,0.4)',
+                  borderBottom: `1px solid ${THEME.border}`,
+                  overflowX: 'auto',
+                }}>
+                  <span style={{ fontSize: 9, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>
+                    EDIT CHANNEL:
+                  </span>
+                  {channelKeys.map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => setCurveChannelPath(k)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 4,
+                        fontSize: 9,
+                        fontWeight: 800,
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: activeKey === k ? THEME.cyan : 'rgba(255,255,255,0.06)',
+                        color: activeKey === k ? '#000' : 'rgba(255,255,255,0.8)',
+                      }}
+                    >
+                      {heroLayer.channels[k].name || k}
+                    </button>
+                  ))}
+                </div>
+                <SplineGraphEditor
+                  channel={ch as any}
+                  durationFrames={project.durationFrames}
+                  fps={project.fps}
+                  onUpdateChannel={(updatedCh) => {
+                    setProject((prev) => ({
+                      ...prev,
+                      layers: prev.layers.map((l) =>
+                        l.id === heroLayer.id
+                          ? { ...l, channels: { ...l.channels, [activeKey]: updatedCh } }
+                          : l
+                      ),
+                    }));
+                  }}
+                />
+              </div>
+            );
+          })()
         ) : isProModeOpen && proTab === 'procedural' ? (
           <div style={{ flex: 1, padding: 12, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
             <div style={{ fontWeight: 800, color: THEME.lilac, marginBottom: 6 }}>Procedural Shader & Noise Engine:</div>
@@ -1926,7 +2946,9 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             />
           </div>
         )}
-      </div>
+      </>
+    )}
+  </div>
     </div>
   );
 };

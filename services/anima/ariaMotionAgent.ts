@@ -23,11 +23,11 @@ import type { AnimaChannel, BehaviorConfig, Keyframe } from './types';
 export type CreativeMedium = 'storybook' | 'comic' | 'living_canvas' | 'film_vfx';
 
 export interface AriaMotionProposal {
-  id: string;
+  id?: string;
   headline: string;
-  lens: 'The Animator' | 'The Compositor' | 'The Kinetic Typographer' | 'The Generative Artist' | 'The Cinematic Dramatist';
-  explanation: string;
-  medium: CreativeMedium;
+  lens: 'The Animator' | 'The Compositor' | 'The Kinetic Typographer' | 'The Generative Artist' | 'The Cinematic Dramatist' | (string & {});
+  explanation?: string;
+  medium?: CreativeMedium;
   actionSummary: string;
   appliedPreset?: {
     category: 'camera' | 'atmosphere' | 'character_life' | 'comic_fx' | 'storybook_interact' | 'fluid_magic';

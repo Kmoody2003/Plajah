@@ -68,7 +68,8 @@ export interface BehaviorConfig {
 export interface AnimaChannel<T = number> {
   id: string;
   name: string;
-  path: string;         // target property path: 'transform.x', 'fx.blur', 'points'
+  path?: string;        // target property path: 'transform.x', 'fx.blur', 'points'
+  targetProperty?: string;
   defaultValue: T;
   keyframes: Keyframe<T>[];
   expression?: ExpressionDef;
@@ -155,7 +156,7 @@ export interface OnionSkinConfig {
 export interface AnimaLayer {
   id: string;
   name: string;
-  type: 'vector' | 'cel' | 'bone' | 'group' | 'camera' | 'audio' | 'stop_motion';
+  type: 'vector' | 'cel' | 'bone' | 'group' | 'camera' | 'audio' | 'stop_motion' | 'character';
   visible: boolean;
   locked: boolean;
   opacity: number;
