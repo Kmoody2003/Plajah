@@ -98,3 +98,43 @@ test('channelQrService: buildChannelQrUrl produces consistent URL and caches QR 
   assert.equal(cached, dataUrl);
 });
 
+test('channelQrService: flipping channels preserves each station unique persistent QR code', async () => {
+  const { buildChannelQrUrl, preloadChannelQrs, getChannelQrDataUrlSync } = await import('../services/fast/channelQrService');
+
+  const channel1 = { number: '8.1', id: 'plajah_endless-hour', plajahId: 'endless-hour', name: 'The Endless Hour' };
+  const channel2 = { number: '42.1', id: 'fast_great_faith', scheduleOwner: 'user_gf', name: 'Great Faith Church' };
+
+  preloadChannelQrs([channel1, channel2]);
+
+  const url1 = buildChannelQrUrl(channel1);
+  const url2 = buildChannelQrUrl(channel2);
+
+  // URLs are distinct and persistent to each channel
+  assert.notEqual(url1, url2);
+  assert.ok(url1.includes('channel=8.1'));
+  assert.ok(url2.includes('channel=42.1'));
+  assert.ok(url2.includes('owner=user_gf'));
+
+  // Flip from Channel 1 to Channel 2, and back to Channel 1
+  const flip1 = buildChannelQrUrl(channel1);
+  const flip2 = buildChannelQrUrl(channel2);
+  const flipBack = buildChannelQrUrl(channel1);
+
+  assert.equal(flip1, url1);
+  assert.equal(flip2, url2);
+  assert.equal(flipBack, url1);
+});
+
+test('channelQrService: unnumbered channels still encode stable station ID and owner', async () => {
+  const { buildChannelQrUrl } = await import('../services/fast/channelQrService');
+
+  const unnumberedChannel = { number: '—', id: 'fast_creator_xyz', ownerId: 'user_xyz', name: 'Fresh Station' };
+  const url = buildChannelQrUrl(unnumberedChannel);
+
+  assert.ok(url.includes('owner=user_xyz'));
+  assert.ok(url.includes('source=fast_creator_xyz'));
+  assert.ok(!url.includes('channel=%E2%80%94'), 'Must not encode em-dash as channel number');
+});
+
+
+

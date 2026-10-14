@@ -588,11 +588,17 @@ const LiveTvPlus: React.FC<{
     return () => clearInterval(t);
   }, [preemptUntil]);
 
+  // Active channel identifier ref — pins user selection to the exact station across background lineup refreshes
+  const activeChannelRef = useRef<{ id?: string; number?: string } | null>(null);
+
   const setIdx = useCallback((i: number) => {
     setIndex(i);
+    if (channels[i]) {
+      activeChannelRef.current = { id: channels[i].id, number: channels[i].number };
+    }
     if (settleRef.current) clearTimeout(settleRef.current);
     settleRef.current = setTimeout(() => setLoadedIndex(i), 320); // swap playback once the dial settles
-  }, []);
+  }, [channels]);
 
   // Tuned in from the guide, or from a shared-channel link → jump straight to the matching channel.
   useEffect(() => {
@@ -603,9 +609,52 @@ const LiveTvPlus: React.FC<{
     const key = [focusOwnerId, focusPlajahId, focusNumber, focusSourceId].join('|');
     if (focusAppliedRef.current === key) return;
     const i = findSharedChannel(channels, { ownerId: focusOwnerId, plajahId: focusPlajahId, number: focusNumber, sourceId: focusSourceId });
-    if (i >= 0) { focusAppliedRef.current = key; setIndex(i); setLoadedIndex(i); }
+    if (i >= 0) {
+      focusAppliedRef.current = key;
+      if (channels[i]) {
+        activeChannelRef.current = { id: channels[i].id, number: channels[i].number };
+      }
+      setIndex(i);
+      setLoadedIndex(i);
+    }
   }, [focusOwnerId, focusPlajahId, focusNumber, focusSourceId, channels]);
   const focusAppliedRef = useRef<string>('');
+
+  // Keep player and dial pinned to the exact channel when channels lineup is recomputed / re-sorted
+  useEffect(() => {
+    if (!channels.length) return;
+    const target = activeChannelRef.current;
+    if (!target) {
+      if (channels[index]) {
+        activeChannelRef.current = { id: channels[index].id, number: channels[index].number };
+      }
+      return;
+    }
+    // Match by unique sub-channel id first
+    if (target.id) {
+      const exactIdx = channels.findIndex(c => c.id === target.id);
+      if (exactIdx >= 0) {
+        if (exactIdx !== index) {
+          setIndex(exactIdx);
+          setLoadedIndex(exactIdx);
+        }
+        activeChannelRef.current = { id: channels[exactIdx].id, number: channels[exactIdx].number };
+        return;
+      }
+    }
+    // Match by channel number fallback
+    if (target.number && target.number !== UNNUMBERED) {
+      const numIdx = channels.findIndex(c => String(c.number).trim() === String(target.number).trim());
+      if (numIdx >= 0) {
+        if (numIdx !== index) {
+          setIndex(numIdx);
+          setLoadedIndex(numIdx);
+        }
+        activeChannelRef.current = { id: channels[numIdx].id, number: channels[numIdx].number };
+        return;
+      }
+    }
+  }, [channels, index]);
 
   // Keyboard / D-pad (works on the TV app too).
   //
@@ -1185,7 +1234,14 @@ const LiveTvPlus: React.FC<{
     let i = -1;
     if (g.kind === 'live' && g.feed?.id) i = channels.findIndex(c => c.feed?.id === g.feed.id);
     if (i < 0 && (g.ownerId || g.plajahId)) i = findSharedChannel(channels, { ownerId: g.ownerId, plajahId: g.plajahId });
-    if (i >= 0) { setIndex(i); setLoadedIndex(i); setMuted(false); }
+    if (i >= 0) {
+      setIndex(i);
+      setLoadedIndex(i);
+      setMuted(false);
+      if (channels[i]) {
+        activeChannelRef.current = { id: channels[i].id, number: channels[i].number };
+      }
+    }
   }, [channels]);
 
   // Bottom-guide window: on the horizontal (non-compact) guide, only ±GUIDE_HALF_WINDOW cards around

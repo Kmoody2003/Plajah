@@ -32,18 +32,28 @@ export function getChannelQrBase(): string {
  */
 export function buildChannelQrUrl(target: ChannelQrTarget): string {
   const base = getChannelQrBase();
-  const num = target.number != null ? String(target.number).trim() : '';
+  const rawNum = target.number != null ? String(target.number).trim() : '';
+  const num = rawNum && rawNum !== '—' && rawNum !== '-' ? rawNum : '';
+  const owner = target.scheduleOwner || target.ownerId || '';
+  const plajahId = target.plajahId || '';
   const source = target.id || '';
 
   const u = new URLSearchParams();
   if (num) {
     u.set('channel', num);
   }
+  if (owner) {
+    u.set('owner', owner);
+  }
   if (source && !source.startsWith('plajah_')) {
     u.set('source', source);
   }
+  if (plajahId) {
+    u.set('plajahId', plajahId);
+  }
 
-  return `${base}/?${u.toString()}`;
+  const query = u.toString();
+  return query ? `${base}/?${query}` : `${base}/`;
 }
 
 /**

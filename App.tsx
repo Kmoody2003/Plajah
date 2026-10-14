@@ -3135,7 +3135,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         const number = directChannel || params.get('n') || (raw.startsWith('channel:') ? raw.slice('channel:'.length) : undefined);
         const sourceId = params.get('source') || (raw.startsWith('source:') ? raw.slice(7) : undefined);
         const ownerId = params.get('owner') || (raw.startsWith('owner:') ? raw.slice('owner:'.length) : undefined);
-        const plajahId = raw.startsWith('plajah:') ? raw.slice('plajah:'.length) : (!sourceId && !ownerId && !number && raw ? raw : undefined);
+        const plajahId = params.get('plajahId') || (raw.startsWith('plajah:') ? raw.slice('plajah:'.length) : (!sourceId && !ownerId && !number && raw ? raw : undefined));
 
         setLiveChannelFocus({
           number: number ? String(number).trim() : undefined,

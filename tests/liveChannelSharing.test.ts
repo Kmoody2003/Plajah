@@ -44,3 +44,28 @@ test('channels 3 through 9 remain eligible even when their publication dates are
   }));
   assert.deepEqual(feeds.filter(isChannelFeed).map(f => f.channelNumber), [3, 4, 5, 6, 7, 8, 9]);
 });
+
+test('Great Faith Church station tunes accurately by channel number, owner ID, or source ID', () => {
+  const fullLineup = [
+    { id: 'plajah_endless-hour', number: '8.1', plajahId: 'endless-hour', name: 'The Endless Hour' },
+    { id: 'fast_great_faith', number: '42.1', ownerId: 'user_gf', scheduleOwner: 'user_gf', name: 'Great Faith Church' },
+    { id: 'fast_other', number: '50.1', ownerId: 'user_other', scheduleOwner: 'user_other', name: 'Other Station' },
+  ];
+
+  // 1. Direct channel number match
+  assert.equal(findSharedChannel(fullLineup, { number: '42.1' }), 1);
+
+  // 2. Direct channel number with source ID and owner ID from QR scan
+  assert.equal(findSharedChannel(fullLineup, { number: '42.1', ownerId: 'user_gf', sourceId: 'fast_great_faith' }), 1);
+
+  // 3. Fallback when source ID changed (e.g. live feed changed to fast channel)
+  assert.equal(findSharedChannel(fullLineup, { number: '42.1', ownerId: 'user_gf', sourceId: 'live_temporary_feed' }), 1);
+
+  // 4. Major number fallback (e.g. dial 42 matching 42.1)
+  assert.equal(findSharedChannel(fullLineup, { number: '42' }), 1);
+
+  // 5. When lineup only has provisional Channel 8.1, scanning Great Faith 42.1 must NOT falsely tune 8.1
+  const provisional = fullLineup.slice(0, 1);
+  assert.equal(findSharedChannel(provisional, { number: '42.1', ownerId: 'user_gf', sourceId: 'fast_great_faith' }), -1);
+});
+
