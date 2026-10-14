@@ -243,9 +243,19 @@
           </div>
         </div>
 
-        <!-- Voice Lip-Sync -->
-        <button onclick="togglePreviewVoiceLipSync()" id="btn-preview-lipsync" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-white/80 hover:text-white cursor-pointer">
-          <span>🗣️</span> <span id="preview-lipsync-label">LIP-SYNC</span>
+        <!-- Auto-Rig Quick Action -->
+        <button onclick="setRightTab('autorig')" id="btn-preview-autorig" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#00DAF3]/15 border border-[#00DAF3]/40 text-[#00DAF3] hover:brightness-110 cursor-pointer shadow-[0_0_10px_rgba(0,218,243,0.2)]">
+          <span>⚡</span> <span>AUTO-RIG</span>
+        </button>
+
+        <!-- Video Lip-Sync Quick Action -->
+        <button onclick="setRightTab('lipsync')" id="btn-preview-lipsync" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FF8C00]/15 border border-[#FF8C00]/40 text-[#FF8C00] hover:brightness-110 cursor-pointer shadow-[0_0_10px_rgba(255,140,0,0.2)]">
+          <span>📹</span> <span>LIP-SYNC</span>
+        </button>
+
+        <!-- Background Dialogue Quick Action -->
+        <button onclick="setRightTab('bgdialogue')" id="btn-preview-bgdialogue" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#D40055]/15 border border-[#D40055]/40 text-[#FF4F8B] hover:brightness-110 cursor-pointer shadow-[0_0_10px_rgba(212,0,85,0.2)]">
+          <span>🎙️</span> <span>BG SYNTH</span>
         </button>
 
         <!-- Pose Stamps Dropdown/Toggle -->
@@ -308,14 +318,23 @@
         <button onclick="setRightTab('plates')" id="rtab-plates" class="font-bold text-[#00DAF3] pb-1 border-b-2 border-[#00DAF3] shrink-0">
           🖼️ Plates
         </button>
+        <button onclick="setRightTab('autorig')" id="rtab-autorig" class="font-bold text-white/50 hover:text-white pb-1 shrink-0">
+          ⚡ Auto-Rig
+        </button>
+        <button onclick="setRightTab('lipsync')" id="rtab-lipsync" class="font-bold text-white/50 hover:text-white pb-1 shrink-0">
+          📹 Lip-Sync
+        </button>
+        <button onclick="setRightTab('bgdialogue')" id="rtab-bgdialogue" class="font-bold text-white/50 hover:text-white pb-1 shrink-0">
+          🎙️ Dialogue
+        </button>
         <button onclick="setRightTab('rigs')" id="rtab-rigs" class="font-bold text-white/50 hover:text-white pb-1 shrink-0">
-          🎭 Rigs & Mascots
+          🎭 Mascots
         </button>
         <button onclick="setRightTab('face_mocap')" id="rtab-face_mocap" class="font-bold text-white/50 hover:text-white pb-1 shrink-0">
           😊 Face & Mocap
         </button>
         <button onclick="setRightTab('assets')" id="rtab-assets" class="font-bold text-white/50 hover:text-white pb-1 shrink-0">
-          📚 Asset Library
+          📚 Library
         </button>
         <button onclick="setRightTab('comic')" id="rtab-comic" class="font-bold text-white/50 hover:text-white pb-1 shrink-0">
           💥 Comic FX
@@ -664,6 +683,188 @@
               <span>Layer 3: Ambient Weather Particle Pass</span>
               <span class="text-[#06D6A0]">EVALUATING</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Auto-Rig & Mass Dynamics -->
+      <div id="rcontent-autorig" class="hidden flex flex-col gap-3">
+        <div class="text-[11px] font-black uppercase text-[#00DAF3] flex items-center justify-between">
+          <span>⚡ Auto-Rig & Mass Dynamics:</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#00DAF3]/20 text-[#00DAF3] font-bold">STORY INTEL READY</span>
+        </div>
+
+        <div class="bg-black/40 border border-white/10 rounded-lg p-2.5 flex flex-col gap-2 text-xs">
+          <div>
+            <label class="text-[10px] text-white/50 font-bold block mb-1">ARTWORK DESCRIPTOR / PROMPT:</label>
+            <input type="text" id="ar-prompt" value="Reello the Film Kaiju mascot, navy fur with flame crest" class="w-full bg-white/5 border border-white/15 rounded px-2 py-1 text-white text-[11px] outline-none" />
+          </div>
+
+          <div>
+            <label class="text-[10px] text-white/50 font-bold block mb-1">STORY INTELLIGENCE DOSSIER:</label>
+            <select id="ar-dossier" onchange="onAutoRigDossierChange(this.value)" class="w-full bg-[#181522] border border-white/15 rounded px-2 py-1 text-white text-[11px] outline-none">
+              <option value="rello">Reello (Lumi) · Mascot / Film Kaiju (140 kg)</option>
+              <option value="chora">Chora (Lorik) · Mascot / Music Kaiju (120 kg)</option>
+              <option value="kael">Kael · Humanoid Operative (85 kg)</option>
+              <option value="maya">Maya · Tech Specialist (62 kg)</option>
+              <option value="custom">Custom Concept Artwork</option>
+            </select>
+          </div>
+
+          <!-- Recognition Status -->
+          <div class="p-2 rounded bg-[#00DAF3]/10 border border-[#00DAF3]/30 text-[10px] flex flex-col gap-1">
+            <div class="flex justify-between font-bold text-[#00DAF3]">
+              <span id="ar-match-name">Matched: Reello (Lumi)</span>
+              <span id="ar-match-conf">96% Confidence</span>
+            </div>
+            <div class="text-white/70" id="ar-match-traits">Anchors: Navy fur, bandit mask, radiating frill, camera strap</div>
+          </div>
+
+          <!-- Morphology Picker -->
+          <div>
+            <label class="text-[10px] text-white/50 font-bold block mb-1">MORPHOLOGY TYPE:</label>
+            <div class="grid grid-cols-2 gap-1 text-[10px]">
+              <button onclick="setPreviewMorphology('mascot_creature')" id="ar-morph-mascot" class="py-1 px-1.5 rounded bg-[#6B0099] text-white font-bold cursor-pointer">🦖 Mascot</button>
+              <button onclick="setPreviewMorphology('biped_humanoid')" id="ar-morph-humanoid" class="py-1 px-1.5 rounded bg-white/5 text-white/60 font-bold cursor-pointer">🧍 Humanoid</button>
+              <button onclick="setPreviewMorphology('quadruped_animal')" id="ar-morph-quadruped" class="py-1 px-1.5 rounded bg-white/5 text-white/60 font-bold cursor-pointer">🐾 Quadruped</button>
+              <button onclick="setPreviewMorphology('mechanical_vehicle')" id="ar-morph-vehicle" class="py-1 px-1.5 rounded bg-white/5 text-white/60 font-bold cursor-pointer">🚗 Vehicle</button>
+            </div>
+          </div>
+
+          <!-- Mass & Inertia Sliders -->
+          <div>
+            <div class="flex justify-between text-[10px] font-bold text-white/70 mb-0.5">
+              <span>Total Mass:</span>
+              <span id="ar-mass-val" class="text-[#FF8C00]">140 kg</span>
+            </div>
+            <input type="range" id="ar-mass-slider" min="15" max="1000" value="140" oninput="updateMassValue(this.value)" class="w-full accent-[#FF8C00]" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[10px] font-bold text-white/70 mb-0.5">
+              <span>Squash / Elasticity:</span>
+              <span id="ar-elast-val" class="text-[#00DAF3]">0.70</span>
+            </div>
+            <input type="range" id="ar-elast-slider" min="0.1" max="1.0" step="0.05" value="0.7" oninput="document.getElementById('ar-elast-val').textContent = Number(this.value).toFixed(2)" class="w-full accent-[#00DAF3]" />
+          </div>
+
+          <button onclick="runAutoRigPreview()" class="w-full py-2 rounded-lg bg-gradient-to-r from-[#00DAF3] to-[#6B0099] text-white font-black text-xs uppercase tracking-wider shadow cursor-pointer hover:brightness-110">
+            ⚡ Run Auto-Rig & Calculate Mass
+          </button>
+        </div>
+
+        <!-- Rig Stances & Bones -->
+        <div id="ar-results-card" class="bg-black/40 border border-white/10 rounded-lg p-2.5 flex flex-col gap-2 text-xs">
+          <div class="flex justify-between items-center text-[10px] font-bold">
+            <span class="text-[#06D6A0]">🦴 Adaptive Skeleton Generated</span>
+            <span class="text-white/40">14 Bones · FK/IK</span>
+          </div>
+          <div class="text-[10px] text-white/60">
+            Center of Gravity: <span class="font-mono text-white" id="ar-cog-val">(640, 480)</span> · Inertia: <span class="font-mono text-[#00DAF3]" id="ar-moi-val">12,600 kg·px²</span>
+          </div>
+
+          <div class="text-[10px] font-bold text-white/50 mt-1">EMOTION STANCES:</div>
+          <div class="grid grid-cols-2 gap-1 text-[9px] font-bold">
+            <button onclick="applyEmotionStancePreview('heroic_resolve')" class="py-1 px-1.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[#D0BCFF] cursor-pointer">🦸 Heroic Resolve</button>
+            <button onclick="applyEmotionStancePreview('stealth_crouch')" class="py-1 px-1.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[#D0BCFF] cursor-pointer">🕵️ Stealth Crouch</button>
+            <button onclick="applyEmotionStancePreview('shocked_take')" class="py-1 px-1.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[#D0BCFF] cursor-pointer">😱 Shocked Take</button>
+            <button onclick="applyEmotionStancePreview('celebratory_leap')" class="py-1 px-1.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[#D0BCFF] cursor-pointer">🎉 Celebrate Leap</button>
+            <button onclick="applyEmotionStancePreview('dramatic_despair')" class="py-1 px-1.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[#D0BCFF] cursor-pointer">🌧️ Despair Fall</button>
+            <button onclick="applyEmotionStancePreview('battle_ready')" class="py-1 px-1.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[#D0BCFF] cursor-pointer">⚔️ Battle Ready</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Video Lip-Sync Bridge -->
+      <div id="rcontent-lipsync" class="hidden flex flex-col gap-3">
+        <div class="text-[11px] font-black uppercase text-[#FF8C00] flex items-center justify-between">
+          <span>📹 Video Lip-Sync Bridge:</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#FF8C00]/20 text-[#FF8C00] font-bold">OFF-PLATFORM BRIDGE</span>
+        </div>
+
+        <div class="bg-black/40 border border-white/10 rounded-lg p-2.5 flex flex-col gap-2 text-xs">
+          <div>
+            <label class="text-[10px] text-white/50 font-bold block mb-1">EXTERNAL VIDEO URL (RUNWAY/PIKA/KLING):</label>
+            <input type="text" id="vlip-url" value="https://storage.plajah.com/external_kaiju_shot.mp4" class="w-full bg-white/5 border border-white/15 rounded px-2 py-1 text-white text-[11px] outline-none" />
+          </div>
+
+          <div>
+            <label class="text-[10px] text-white/50 font-bold block mb-1">SPEECH AUDIO TAKE TO SYNCHRONIZE:</label>
+            <select id="vlip-take" class="w-full bg-[#181522] border border-white/15 rounded px-2 py-1 text-white text-[11px] outline-none">
+              <option value="take_maya">[Maya] "Hold on! The perimeter defense is breached!" (2.4s)</option>
+              <option value="take_kael">[Kael] "Open the bulkhead door right now!" (1.9s)</option>
+              <option value="take_rello">[Reello] "Roll camera, action living studio beat!" (2.1s)</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[10px] font-bold text-white/70 mb-0.5">
+              <span>Jaw Drop Amplification:</span>
+              <span id="vlip-jaw-val" class="text-[#FF8C00]">1.25x</span>
+            </div>
+            <input type="range" id="vlip-jaw-slider" min="0.5" max="2.5" step="0.05" value="1.25" oninput="document.getElementById('vlip-jaw-val').textContent = Number(this.value).toFixed(2) + 'x'" class="w-full accent-[#FF8C00]" />
+          </div>
+
+          <!-- Viseme Envelopes -->
+          <div>
+            <div class="text-[10px] font-bold text-white/50 mb-1">PHONEME VISEMES:</div>
+            <div class="flex gap-1">
+              <span class="px-2 py-0.5 rounded bg-[#00DAF3]/20 text-[#00DAF3] text-[9px] font-black">/A/</span>
+              <span class="px-2 py-0.5 rounded bg-[#00DAF3]/20 text-[#00DAF3] text-[9px] font-black">/E/</span>
+              <span class="px-2 py-0.5 rounded bg-[#00DAF3]/20 text-[#00DAF3] text-[9px] font-black">/I/</span>
+              <span class="px-2 py-0.5 rounded bg-[#00DAF3]/20 text-[#00DAF3] text-[9px] font-black">/O/</span>
+              <span class="px-2 py-0.5 rounded bg-[#00DAF3]/20 text-[#00DAF3] text-[9px] font-black">/U/</span>
+              <span class="px-2 py-0.5 rounded bg-[#00DAF3]/20 text-[#00DAF3] text-[9px] font-black">/M/</span>
+            </div>
+          </div>
+
+          <button onclick="bakeLipSyncPreview()" class="w-full py-2 rounded-lg bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-white font-black text-xs uppercase tracking-wider shadow cursor-pointer hover:brightness-110 mt-1">
+            📹 Bake Lip-Sync to Video Mouth
+          </button>
+        </div>
+
+        <div id="vlip-status-box" class="p-2 rounded bg-white/5 border border-white/10 text-[10px] text-white/70">
+          Feathered warping articulates the mouth region without re-rendering background pixels.
+        </div>
+      </div>
+
+      <!-- Tab Content: Background Dialogue & Sound Design Synthesizer -->
+      <div id="rcontent-bgdialogue" class="hidden flex flex-col gap-3">
+        <div class="text-[11px] font-black uppercase text-[#D40055] flex items-center justify-between">
+          <span>🎙️ Live Dialogue & SFX:</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">REACTIVE ON-THE-FLY</span>
+        </div>
+
+        <div class="bg-black/40 border border-white/10 rounded-lg p-2.5 flex flex-col gap-2 text-xs">
+          <div>
+            <label class="text-[10px] text-white/50 font-bold block mb-1">CHARACTER SPEAKER:</label>
+            <select id="bgd-speaker" class="w-full bg-[#181522] border border-white/15 rounded px-2 py-1 text-white text-[11px] outline-none">
+              <option value="Maya">Maya · Kokoro af_heart (Warm Soprano)</option>
+              <option value="Kael">Kael · Kokoro am_fenrir (Gravelly Baritone)</option>
+              <option value="Reello">Reello (Lumi) · Kokoro bm_george (Playful Tenor)</option>
+              <option value="Chora">Chora (Lorik) · Kokoro bf_emma (Resonant Alto)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[10px] text-white/50 font-bold block mb-1">SCREENPLAY DIALOGUE (WITH [SFX] FOLEY):</label>
+            <textarea id="bgd-cue" rows="3" class="w-full bg-white/5 border border-white/15 rounded p-2 text-white text-[11px] outline-none resize-none">Hold on! [bulkhead door slams] The perimeter defense is breached!</textarea>
+          </div>
+
+          <!-- Detected SFX Foley -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-[10px] text-white/50 font-bold">Detected SFX:</span>
+            <span class="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase">⚡ Bulkhead Slam</span>
+            <span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[9px] font-black uppercase">⚡ Tension Riser</span>
+          </div>
+
+          <div class="flex gap-2 mt-1">
+            <button onclick="synthesizeDialoguePreview()" class="flex-1 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black text-xs uppercase tracking-wider shadow cursor-pointer hover:brightness-110">
+              ▶ Audition Audio + Foley
+            </button>
+            <button onclick="alert('Take synced to Fabula & Anima timeline!')" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase cursor-pointer">
+              Send to Fabula
+            </button>
           </div>
         </div>
       </div>
@@ -1067,7 +1268,7 @@
     }
 
     function setRightTab(tab) {
-      ['plates', 'rigs', 'face_mocap', 'assets', 'comic', 'code', 'tela'].forEach(t => {
+      ['plates', 'autorig', 'lipsync', 'bgdialogue', 'rigs', 'face_mocap', 'assets', 'comic', 'code', 'tela'].forEach(t => {
         const btn = document.getElementById('rtab-' + t);
         const content = document.getElementById('rcontent-' + t);
         if (btn) {
@@ -1077,6 +1278,140 @@
           content.classList.toggle('hidden', t !== tab);
         }
       });
+      if (tab === 'code' && !document.getElementById('code-editor').value) {
+        loadCodeScript('floral');
+      }
+    }
+
+    let currentAutoRigMorphology = 'mascot_creature';
+    function setPreviewMorphology(morph) {
+      currentAutoRigMorphology = morph;
+      ['mascot', 'humanoid', 'quadruped', 'vehicle'].forEach(m => {
+        const btn = document.getElementById('ar-morph-' + m);
+        if (btn) {
+          const match = (m === 'mascot' && morph === 'mascot_creature') ||
+                        (m === 'humanoid' && morph === 'biped_humanoid') ||
+                        (m === 'quadruped' && morph === 'quadruped_animal') ||
+                        (m === 'vehicle' && morph === 'mechanical_vehicle');
+          btn.className = match ? 'py-1 px-1.5 rounded bg-[#6B0099] text-white font-bold cursor-pointer' : 'py-1 px-1.5 rounded bg-white/5 text-white/60 font-bold cursor-pointer';
+        }
+      });
+    }
+
+    function onAutoRigDossierChange(val) {
+      if (val === 'rello') {
+        document.getElementById('ar-prompt').value = 'Reello the Film Kaiju mascot, navy fur with flame crest';
+        document.getElementById('ar-match-name').textContent = 'Matched: Reello (Lumi)';
+        document.getElementById('ar-match-conf').textContent = '96% Confidence';
+        document.getElementById('ar-match-traits').textContent = 'Anchors: Navy fur, bandit mask, radiating frill, camera strap';
+        updateMassValue(140);
+        setPreviewMorphology('mascot_creature');
+      } else if (val === 'chora') {
+        document.getElementById('ar-prompt').value = 'Chora the Sonic Kaiju mascot, lavender fur with music notes';
+        document.getElementById('ar-match-name').textContent = 'Matched: Chora (Lorik)';
+        document.getElementById('ar-match-conf').textContent = '94% Confidence';
+        document.getElementById('ar-match-traits').textContent = 'Anchors: Lavender fur, purple mask, gold eighth notes, LORIK book';
+        updateMassValue(120);
+        setPreviewMorphology('mascot_creature');
+      } else if (val === 'kael') {
+        document.getElementById('ar-prompt').value = 'Kael the tactical rogue in longcoat with energy blade';
+        document.getElementById('ar-match-name').textContent = 'Matched: Kael (Rogue)';
+        document.getElementById('ar-match-conf').textContent = '91% Confidence';
+        document.getElementById('ar-match-traits').textContent = 'Anchors: Leather trenchcoat, high collar, combat boots';
+        updateMassValue(85);
+        setPreviewMorphology('biped_humanoid');
+      } else if (val === 'maya') {
+        document.getElementById('ar-prompt').value = 'Maya the tech specialist with holographic gauntlet';
+        document.getElementById('ar-match-name').textContent = 'Matched: Maya (Tech)';
+        document.getElementById('ar-match-conf').textContent = '93% Confidence';
+        document.getElementById('ar-match-traits').textContent = 'Anchors: Aviator flight jacket, auburn hair, holographic gauntlet';
+        updateMassValue(62);
+        setPreviewMorphology('biped_humanoid');
+      }
+    }
+
+    function updateMassValue(val) {
+      document.getElementById('ar-mass-slider').value = val;
+      document.getElementById('ar-mass-val').textContent = val + ' kg';
+      const moi = Math.round(val * 90);
+      document.getElementById('ar-moi-val').textContent = moi.toLocaleString() + ' kg·px²';
+    }
+
+    function runAutoRigPreview() {
+      const dossier = document.getElementById('ar-dossier').value;
+      if (dossier === 'rello' || dossier === 'chora') {
+        spawnClassic(dossier);
+      }
+      document.getElementById('aria-lens-tag').textContent = '[Auto-Rig & Mass Dynamics]:';
+      document.getElementById('aria-headline').textContent = 'Adaptive Rig & Walk Cycle Generated';
+      document.getElementById('aria-summary').textContent = `— Skeleton contoured non-destructively, Mass: ${document.getElementById('ar-mass-val').textContent}, Bob cadence on 2s`;
+      document.getElementById('aria-status-card').classList.remove('hidden');
+    }
+
+    function applyEmotionStancePreview(stance) {
+      const hero = projectData.layers[0];
+      if (stance === 'heroic_resolve') {
+        hero.channels.rot.keys = [{ id: 'k1', frame: 1, val: 5, ease: 'smooth' }, { id: 'k2', frame: 72, val: 5, ease: 'smooth' }];
+        hero.channels.y.keys = [{ id: 'k1', frame: 1, val: -18, ease: 'smooth' }, { id: 'k2', frame: 72, val: -18, ease: 'smooth' }];
+      } else if (stance === 'stealth_crouch') {
+        hero.channels.rot.keys = [{ id: 'k1', frame: 1, val: -15, ease: 'smooth' }, { id: 'k2', frame: 72, val: -15, ease: 'smooth' }];
+        hero.channels.y.keys = [{ id: 'k1', frame: 1, val: 35, ease: 'smooth' }, { id: 'k2', frame: 72, val: 35, ease: 'smooth' }];
+      } else if (stance === 'shocked_take') {
+        hero.channels.rot.keys = [{ id: 'k1', frame: 1, val: -8, ease: 'smooth' }, { id: 'k2', frame: 72, val: -8, ease: 'smooth' }];
+        hero.channels.y.keys = [{ id: 'k1', frame: 1, val: -40, ease: 'smooth' }, { id: 'k2', frame: 72, val: -40, ease: 'smooth' }];
+      } else if (stance === 'celebratory_leap') {
+        hero.channels.rot.keys = [{ id: 'k1', frame: 1, val: 12, ease: 'smooth' }, { id: 'k2', frame: 72, val: 12, ease: 'smooth' }];
+        hero.channels.y.keys = [{ id: 'k1', frame: 1, val: -55, ease: 'smooth' }, { id: 'k2', frame: 72, val: -55, ease: 'smooth' }];
+      } else if (stance === 'dramatic_despair') {
+        hero.channels.rot.keys = [{ id: 'k1', frame: 1, val: 20, ease: 'smooth' }, { id: 'k2', frame: 72, val: 20, ease: 'smooth' }];
+        hero.channels.y.keys = [{ id: 'k1', frame: 1, val: 25, ease: 'smooth' }, { id: 'k2', frame: 72, val: 25, ease: 'smooth' }];
+      } else if (stance === 'battle_ready') {
+        hero.channels.rot.keys = [{ id: 'k1', frame: 1, val: -6, ease: 'smooth' }, { id: 'k2', frame: 72, val: -6, ease: 'smooth' }];
+        hero.channels.y.keys = [{ id: 'k1', frame: 1, val: 8, ease: 'smooth' }, { id: 'k2', frame: 72, val: 8, ease: 'smooth' }];
+      }
+      renderTimelineLanes();
+      updatePlayheadUI();
+    }
+
+    function bakeLipSyncPreview() {
+      const hero = projectData.layers[0];
+      hero.channels.y.keys = [
+        { id: 'ls_1', frame: 1, val: -5, ease: 'smooth' },
+        { id: 'ls_2', frame: 12, val: -28, ease: 'smooth' },
+        { id: 'ls_3', frame: 24, val: -4, ease: 'smooth' },
+        { id: 'ls_4', frame: 36, val: -32, ease: 'smooth' },
+        { id: 'ls_5', frame: 48, val: -12, ease: 'smooth' },
+        { id: 'ls_6', frame: 60, val: -25, ease: 'smooth' },
+        { id: 'ls_7', frame: 72, val: 0, ease: 'smooth' }
+      ];
+      renderTimelineLanes();
+      document.getElementById('vlip-status-box').innerHTML = '✅ <span class="text-[#06D6A0] font-bold">Baked 7 keyframes on 2s hold cadence:</span> face.jawOpen & mouth bounding warp synchronized to dialogue!';
+    }
+
+    function synthesizeDialoguePreview() {
+      const speaker = document.getElementById('bgd-speaker').value;
+      const text = document.getElementById('bgd-cue').value;
+      
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = speaker === 'Maya' ? 'sine' : speaker === 'Kael' ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(speaker === 'Maya' ? 220 : speaker === 'Kael' ? 110 : 160, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(speaker === 'Maya' ? 330 : speaker === 'Kael' ? 90 : 220, audioCtx.currentTime + 0.8);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.8);
+      } catch (e) {}
+
+      document.getElementById('aria-lens-tag').textContent = '[Background Synthesizer]:';
+      document.getElementById('aria-headline').textContent = `${speaker} Speech Take Generated`;
+      document.getElementById('aria-summary').textContent = `— Synthesized procedural dialogue + bulkhead door Foley on-the-fly`;
+      document.getElementById('aria-status-card').classList.remove('hidden');
+    }
       if (tab === 'code' && !document.getElementById('code-editor').value) {
         loadCodeScript('floral');
       }

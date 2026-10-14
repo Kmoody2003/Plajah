@@ -879,5 +879,174 @@ Frame Time: 0.0333333
   console.log('✅ 23. World-Class Animation Suite (Live Motion Puppeteer, Smart Presets, Voice Lip Sync, Pose Stamps, Spline Curves, FX Brushes) verified');
 }
 
-console.log('\n🎉 ALL 23 ANIMA SYSTEM SUITES PASSED FLAWLESSLY!\n');
+// 24. INTELLIGENT AUTO-RIG & MASS DYNAMICS ENGINE
+{
+  const {
+    analyzeArtworkStructure,
+    calculateMassDynamics,
+    generateAdaptiveSkeleton,
+    generateCustomWalkCycle,
+    generateEmotionStances,
+    autoRigArtwork,
+  } = await import('../services/anima/autoRigEngine.ts');
+
+  // Test 1: Biped Humanoid Artwork Auto-Rig
+  const bipedInput = {
+    width: 1280,
+    height: 720,
+    silhouetteBounds: { minX: 0.35, minY: 0.1, maxX: 0.65, maxY: 0.9 },
+    suggestedMorphology: 'biped_humanoid',
+    storyDossier: {
+      characterId: 'char_hero',
+      name: 'Kael',
+      archetype: 'Warrior Knight',
+      physicalStats: { weight: '210 lbs', height: '6 ft 2 in' },
+      personalityTraits: ['resolute', 'tactical'],
+      locomotionStyle: 'nimble_stride',
+    },
+  };
+  const bipedRig = autoRigArtwork(bipedInput);
+  assert.equal(bipedRig.morphology, 'biped_humanoid');
+  assert.ok(bipedRig.landmarks.length >= 14, 'Should extract full anatomical landmarks');
+  assert.ok(bipedRig.bones.length >= 13, 'Should generate hierarchical skeleton');
+  assert.ok(bipedRig.bones.some(b => b.name === 'pelvis_root'));
+  assert.ok(bipedRig.bones.some(b => b.name === 'arm_l_upper'));
+  assert.ok(bipedRig.bones.some(b => b.name === 'leg_r_thigh'));
+  assert.ok(bipedRig.massProfile.estimatedMassKg > 90, 'Parsed 210 lbs into ~95 kg');
+  assert.ok(bipedRig.walkCycleChannels['bone.b_leg_l_thigh.rot'], 'Generates leg swing channel');
+  assert.ok(bipedRig.walkCycleChannels['bone.b_arm_r_upper.rot'], 'Generates counter-arm swing');
+  assert.ok(bipedRig.emotionStances.heroic_resolve);
+
+  // Test 2: Heavy Kaiju Mascot (Sense of Mass & Ground Damping)
+  const kaijuInput = {
+    width: 1280,
+    height: 720,
+    silhouetteBounds: { minX: 0.25, minY: 0.15, maxX: 0.75, maxY: 0.85 },
+    suggestedMorphology: 'mascot_creature',
+    storyDossier: {
+      characterId: 'char_titan',
+      name: 'Reello Titan Mode',
+      archetype: 'Titan Kaiju Mascot',
+      physicalStats: { weight: '45000 lbs' },
+      personalityTraits: ['heavy', 'massive'],
+    },
+  };
+  const kaijuRig = autoRigArtwork(kaijuInput);
+  assert.ok(kaijuRig.massProfile.estimatedMassKg > 400, 'Heavy archetype mass amplified');
+  assert.ok(kaijuRig.massProfile.gravityDamping >= 28, 'Heavy ground damping increased');
+  assert.ok(kaijuRig.bones.some(b => b.name === 'tail_root'), 'Tail bones generated for mascot');
+
+  // Test 3: Mechanical Vehicle Auto-Rig
+  const vehicleRig = autoRigArtwork({
+    width: 1280,
+    height: 720,
+    suggestedMorphology: 'mechanical_vehicle',
+  });
+  assert.equal(vehicleRig.morphology, 'mechanical_vehicle');
+  assert.ok(vehicleRig.bones.some(b => b.name === 'chassis_root'));
+  assert.ok(vehicleRig.walkCycleChannels['bone.b_wheel_f.rot'], 'Wheel spin synthesized');
+
+  console.log('✅ 24. Intelligent Auto-Rig & Mass Dynamics Engine (Morphology, Inertia, Skeleton, Walk Cycles) verified');
+}
+
+// 25. MULTIMODAL VISUAL & AUDIO STORY INTELLIGENCE
+{
+  const {
+    visualStoryIntelligence,
+    storyVoiceIntelligence,
+    CANONICAL_VOICE_PRINTS,
+  } = await import('../services/story/visualStoryIntelligence.ts');
+
+  // Test Visual Recognition of Reello (Lumi) Mascot
+  const recogRello = visualStoryIntelligence.recognizeCharacterInAsset('A curious Kaiju with camera flash and orange bandit mask', ['#F2621C']);
+  assert.ok(recogRello.matchedCharacter);
+  assert.equal(recogRello.matchedCharacter.name, 'Reello (Lumi)');
+  assert.ok(recogRello.confidence >= 0.9);
+  assert.equal(recogRello.recommendedVoicePrintId, 'vp_rello');
+
+  // Test Visual Recognition of Chora (Lorik) Mascot
+  const recogChora = visualStoryIntelligence.recognizeCharacterInAsset('A musical purple kaiju with eighth note emblem and songbook', ['#7A66BC']);
+  assert.ok(recogChora.matchedCharacter);
+  assert.equal(recogChora.matchedCharacter.name, 'Chora (Lorik)');
+  assert.ok(recogChora.confidence >= 0.9);
+
+  // Test Voice Print Registry
+  const vpKael = storyVoiceIntelligence.getVoicePrintForCharacter('Kael');
+  assert.equal(vpKael.voiceId, 'am_fenrir');
+  assert.equal(vpKael.provider, 'kokoro');
+
+  // Test Auto-Synthesis of Voice Print from Dossier
+  const autoVp = storyVoiceIntelligence.getVoicePrintForCharacter('Grom Ironbreaker', {
+    characterId: 'char_grom',
+    name: 'Grom Ironbreaker',
+    archetype: 'Titan Brawler',
+    personalityTraits: ['heavy', 'stoic'],
+  });
+  assert.ok(autoVp.timbreDescription.toLowerCase().includes('baritone') || autoVp.pitchMultiplier < 1.0);
+
+  console.log('✅ 25. Multimodal Visual & Audio Story Intelligence (Asset Recognition, Voice Prints) verified');
+}
+
+// 26. REAL-TIME BACKGROUND DIALOGUE & SOUND DESIGN SYNTHESIZER
+{
+  const { backgroundDialogueSynthesizer } = await import('../services/voice/backgroundDialogueSynthesizer.ts');
+
+  let notifiedTake = null;
+  const unsubscribe = backgroundDialogueSynthesizer.subscribe(take => {
+    notifiedTake = take;
+  });
+
+  const cue = {
+    id: 'cue_scene1_1',
+    speaker: 'Maya',
+    text: 'Hold on! [bulkhead door slams] The perimeter defense is breached!',
+    parenthetical: '(urgent, looking up)',
+    sceneIndex: 1,
+    lineIndex: 1,
+  };
+
+  const take = await backgroundDialogueSynthesizer.synthesizeCueAsync(cue);
+  assert.ok(take);
+  assert.equal(take.speaker, 'Maya');
+  assert.ok(take.durationSeconds > 0.5);
+  assert.ok(take.wordMarks.length >= 6);
+  assert.ok(take.synthesizedSfx.some(s => s.preset === 'bulkhead'), 'Detected and synthesized bulkhead door slam SFX');
+  assert.ok(take.audioWavBlob, 'Generated 16-bit PCM WAV blob');
+  assert.ok(notifiedTake, 'Subscriber notified of generated dialogue take');
+
+  unsubscribe();
+  console.log('✅ 26. Real-Time Background Dialogue & Sound Design Synthesizer (Streaming Dialogue & Procedural Foley) verified');
+}
+
+// 27. OFF-PLATFORM VIDEO LIP-SYNC BRIDGE
+{
+  const { videoLipSyncBridge } = await import('../services/anima/videoLipSyncBridge.ts');
+  const { backgroundDialogueSynthesizer } = await import('../services/voice/backgroundDialogueSynthesizer.ts');
+
+  // Mock dialogue take
+  const take = await backgroundDialogueSynthesizer.synthesizeCueAsync({
+    id: 'cue_lip_1',
+    speaker: 'Kael',
+    text: 'Open the gate now!',
+    sceneIndex: 2,
+    lineIndex: 1,
+  });
+
+  const lipSyncTrack = videoLipSyncBridge.generateLipSyncFromAudioTake(take, 'https://storage.plajah.com/external_runway_gen.mp4', {
+    fps: 24,
+    jawAmplification: 1.25,
+  });
+
+  assert.ok(lipSyncTrack);
+  assert.equal(lipSyncTrack.audioTakeId, take.takeId);
+  assert.ok(lipSyncTrack.visemeFrames.length > 0);
+  assert.ok(lipSyncTrack.visemeFrames.some(f => f.jawOpen > 0.2), 'Speech drove jaw displacement');
+  assert.ok(lipSyncTrack.bakedChannels['face.jawOpen'], 'Bakes face.jawOpen timeline channel');
+  assert.ok(lipSyncTrack.bakedChannels['face.mouthWide'], 'Bakes face.mouthWide timeline channel');
+
+  console.log('✅ 27. Off-Platform Video Lip-Sync Bridge (Viseme Phonemes, Video Mouth Warper, Timeline Channels) verified');
+}
+
+console.log('\n🎉 ALL 27 ANIMA SYSTEM SUITES PASSED FLAWLESSLY!\n');
+
 

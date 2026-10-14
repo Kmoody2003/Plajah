@@ -111,6 +111,27 @@ import {
   type MagicPresetKind,
   type PoseDefinition,
 } from '../../../services/anima/worldClassEngine';
+import {
+  autoRigEngine,
+  type AutoRigResult,
+  type ArtworkAnalysisInput,
+} from '../../../services/anima/autoRigEngine';
+import {
+  visualStoryIntelligence,
+  storyVoiceIntelligence,
+} from '../../../services/story/visualStoryIntelligence';
+import {
+  videoLipSyncBridge,
+} from '../../../services/anima/videoLipSyncBridge';
+import {
+  backgroundDialogueSynthesizer,
+} from '../../../services/voice/backgroundDialogueSynthesizer';
+import type {
+  CharacterMorphologyType,
+  CharacterStoryDossier,
+  BackgroundDialogueTakeResult,
+  VideoLipSyncTrackResult,
+} from '../../../services/anima/types';
 
 // Plajah Theme Palette
 const THEME = {
@@ -522,6 +543,8 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
   const [proTab, setProTab] = useState<
     | 'timeline'
     | 'xsheet'
+    | 'auto_rig'
+    | 'video_lipsync'
     | 'face_animator'
     | 'video_mocap'
     | 'mocap_import'
@@ -612,6 +635,130 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
 
   // X-Sheet Dope Sheet
   const [xsheetSelectedFrame, setXsheetSelectedFrame] = useState<number>(1);
+
+  // ── Auto-Rig & Mass Dynamics State ──
+  const [autoRigMorphology, setAutoRigMorphology] = useState<CharacterMorphologyType>('mascot_creature');
+  const [autoRigMassKg, setAutoRigMassKg] = useState<number>(140);
+  const [autoRigElasticity, setAutoRigElasticity] = useState<number>(0.7);
+  const [autoRigDamping, setAutoRigDamping] = useState<number>(0.55);
+  const [autoRigStoryDossierId, setAutoRigStoryDossierId] = useState<string>('char_rello');
+  const [autoRigResult, setAutoRigResult] = useState<AutoRigResult | null>(null);
+  const [isAutoRigging, setIsAutoRigging] = useState<boolean>(false);
+  const [autoRigSamplePrompt, setAutoRigSamplePrompt] = useState<string>('Reello the Film Kaiju mascot, navy fur with flame crest');
+
+  // ── Off-Platform Video Lip-Sync Bridge State ──
+  const [lipSyncVideoUrl, setLipSyncVideoUrl] = useState<string>('https://storage.plajah.com/external_mascot_walk.mp4');
+  const [lipSyncSelectedTakeId, setLipSyncSelectedTakeId] = useState<string>('');
+  const [lipSyncJawGain, setLipSyncJawGain] = useState<number>(1.25);
+  const [activeLipSyncTrack, setActiveLipSyncTrack] = useState<VideoLipSyncTrackResult | null>(null);
+  const [recentTakes, setRecentTakes] = useState<BackgroundDialogueTakeResult[]>([]);
+
+  // Subscribe to background dialogue takes from script/story
+  useEffect(() => {
+    const unsub = backgroundDialogueSynthesizer.subscribe((take) => {
+      setRecentTakes((prev) => [take, ...prev.filter(t => t.takeId !== take.takeId)].slice(0, 8));
+      setLipSyncSelectedTakeId(take.takeId);
+    });
+    return unsub;
+  }, []);
+
+  const handleRunAutoRig = () => {
+    setIsAutoRigging(true);
+    setTimeout(() => {
+      const recognition = visualStoryIntelligence.recognizeCharacterInArtwork(
+        autoRigSamplePrompt,
+        [autoRigSamplePrompt]
+      );
+
+      const dossier: CharacterStoryDossier = recognition.matchedCharacter || {
+        characterId: autoRigStoryDossierId,
+        name: autoRigStoryDossierId === 'char_rello' ? 'Reello (Lumi)' : autoRigStoryDossierId === 'char_chora' ? 'Chora (Lorik)' : 'Cyber Adventurer',
+        archetype: 'mascot',
+        physicalStats: { weight: `${autoRigMassKg} kg` },
+        locomotionStyle: 'mascot_bob',
+      };
+
+      const res = autoRigEngine.autoRigArtwork({
+        width: 1280,
+        height: 720,
+        suggestedMorphology: autoRigMorphology,
+        storyDossier: dossier,
+      });
+
+      setAutoRigResult(res);
+      setIsAutoRigging(false);
+    }, 200);
+  };
+
+  const handleApplyAutoRigToCanvas = () => {
+    if (!autoRigResult) return;
+    const newLayerId = `layer_autorig_${Date.now()}`;
+    const newRigLayer: AnimaLayer = {
+      id: newLayerId,
+      name: `${autoRigResult.morphology.toUpperCase()} [Mass: ${Math.round(autoRigResult.massProfile.estimatedMassKg)}kg]`,
+      type: 'character',
+      visible: true,
+      locked: false,
+      opacity: 1,
+      parentId: null,
+      transform: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1 },
+      channels: autoRigResult.walkCycleChannels,
+    };
+
+    setProject(prev => ({
+      ...prev,
+      selectedLayerId: newLayerId,
+      layers: [newRigLayer, ...prev.layers],
+    }));
+    setProTab('timeline');
+  };
+
+  const handleRunVideoLipSync = () => {
+    let take = recentTakes.find(t => t.takeId === lipSyncSelectedTakeId);
+    if (!take) {
+      take = {
+        takeId: `take_lip_${Date.now()}`,
+        cueId: 'cue_ext_1',
+        speaker: 'Reello',
+        text: 'Action! Welcome to the unified living media studio!',
+        durationSeconds: 2.8,
+        audioWavBlob: new Blob([], { type: 'audio/wav' }),
+        wordMarks: [
+          { word: 'Action!', startSec: 0.1, endSec: 0.6, viseme: 'A' },
+          { word: 'Welcome', startSec: 0.7, endSec: 1.2, viseme: 'E' },
+          { word: 'to', startSec: 1.25, endSec: 1.45, viseme: 'U' },
+          { word: 'the', startSec: 1.5, endSec: 1.7, viseme: 'E' },
+          { word: 'unified', startSec: 1.75, endSec: 2.2, viseme: 'I' },
+          { word: 'studio!', startSec: 2.25, endSec: 2.7, viseme: 'O' },
+        ],
+        synthesizedSfx: [{ sfxId: 'sfx_1', preset: 'whoosh', offsetSec: 0 }],
+        generatedAt: Date.now(),
+      };
+    }
+
+    const track = videoLipSyncBridge.generateLipSyncFromAudioTake(take, lipSyncVideoUrl, {
+      fps: 24,
+      jawAmplification: lipSyncJawGain,
+    });
+    setActiveLipSyncTrack(track);
+
+    const targetId = project.selectedLayerId || project.layers[0]?.id;
+    if (targetId) {
+      setProject(prev => ({
+        ...prev,
+        layers: prev.layers.map(l => {
+          if (l.id !== targetId) return l;
+          return {
+            ...l,
+            channels: {
+              ...l.channels,
+              ...track.bakedChannels,
+            },
+          };
+        }),
+      }));
+    }
+  };
 
   // Load plate image
   useEffect(() => {
@@ -1559,6 +1706,56 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             <span>🐱</span> Felix (1919)
           </button>
 
+          {/* ⚡ Auto-Rig Quick Launcher */}
+          <button
+            onClick={() => {
+              setIsProModeOpen(true);
+              setProTab('auto_rig');
+            }}
+            style={{
+              flex: 'none',
+              background: 'linear-gradient(135deg, rgba(0, 218, 243, 0.2), rgba(107, 0, 153, 0.2))',
+              border: `1px solid ${THEME.cyan}`,
+              borderRadius: 14,
+              padding: '3px 10px',
+              fontSize: 10,
+              fontWeight: 900,
+              color: THEME.cyan,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              boxShadow: '0 0 10px rgba(0, 218, 243, 0.2)',
+            }}
+          >
+            <span>⚡</span> AUTO-RIG ARTWORK
+          </button>
+
+          {/* 📹 Video Lip-Sync Quick Launcher */}
+          <button
+            onClick={() => {
+              setIsProModeOpen(true);
+              setProTab('video_lipsync');
+            }}
+            style={{
+              flex: 'none',
+              background: 'linear-gradient(135deg, rgba(255, 140, 0, 0.2), rgba(212, 0, 85, 0.2))',
+              border: `1px solid ${THEME.orange}`,
+              borderRadius: 14,
+              padding: '3px 10px',
+              fontSize: 10,
+              fontWeight: 900,
+              color: THEME.orange,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              boxShadow: '0 0 10px rgba(255, 140, 0, 0.2)',
+            }}
+          >
+            <span>📹</span> VIDEO LIP-SYNC
+          </button>
+
           {/* Clear / Stage Only */}
           {activeRigId !== 'none' && (
             <button
@@ -2265,6 +2462,8 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {[
                     { id: 'timeline', label: 'Timeline & Keyframes', icon: Clock },
+                    { id: 'auto_rig', label: '⚡ Auto-Rig & Mass Dynamics', icon: Zap },
+                    { id: 'video_lipsync', label: '📹 Off-Platform Lip-Sync', icon: Video },
                     { id: 'xsheet', label: 'X-Sheet Exposure', icon: Grid },
                     { id: 'face_animator', label: 'Face Animator (ARKit)', icon: Smile },
                     { id: 'video_mocap', label: 'Video-to-Rig Mocap', icon: UserCheck },
@@ -2328,7 +2527,448 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             )}
 
         {/* Pro Sub-Panels (if not timeline) or Full AnimaTimeline */}
-        {isProModeOpen && proTab === 'face_animator' ? (
+        {isProModeOpen && proTab === 'auto_rig' ? (
+          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 900, color: THEME.cyan }}>
+                  ⚡ INTELLIGENT AUTO-RIG & MASS DYNAMICS
+                </span>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(0, 218, 243, 0.15)', color: THEME.cyan, fontWeight: 700 }}>
+                  Non-Destructive Silhouette Contouring · Inertia & Gravity Profiles · Bespoke Walk Cycles
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleRunAutoRig}
+                  disabled={isAutoRigging}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: 6,
+                    background: isAutoRigging ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #00DAF3, #6B0099)',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    cursor: isAutoRigging ? 'wait' : 'pointer',
+                    boxShadow: '0 0 16px rgba(0, 218, 243, 0.3)',
+                  }}
+                >
+                  {isAutoRigging ? 'ANALYZING MORPHOLOGY…' : '⚡ RUN AUTO-RIG & DERIVE MASS'}
+                </button>
+                {autoRigResult && (
+                  <button
+                    onClick={handleApplyAutoRigToCanvas}
+                    style={{
+                      padding: '5px 14px',
+                      borderRadius: 6,
+                      background: 'linear-gradient(135deg, #06D6A0, #00DAF3)',
+                      color: '#000',
+                      border: 'none',
+                      fontSize: 10,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    APPLY RIG TO CANVAS LAYER
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Main 3-column control grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              {/* Column 1: Artwork & Story Intelligence Matching */}
+              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.lilac }}>
+                  1. ARTWORK & STORY DOSSIER MATCHING
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>ARTWORK VISUAL PROMPT / SOURCE:</label>
+                  <input
+                    type="text"
+                    value={autoRigSamplePrompt}
+                    onChange={(e) => setAutoRigSamplePrompt(e.target.value)}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 6,
+                      padding: '5px 8px',
+                      fontSize: 10,
+                      color: '#fff',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>STORY DOSSIER / CHARACTER BIBLE:</label>
+                  <select
+                    value={autoRigStoryDossierId}
+                    onChange={(e) => {
+                      setAutoRigStoryDossierId(e.target.value);
+                      if (e.target.value === 'char_rello') {
+                        setAutoRigMorphology('mascot_creature');
+                        setAutoRigMassKg(140);
+                        setAutoRigSamplePrompt('Reello the Film Kaiju mascot, navy fur with flame crest');
+                      } else if (e.target.value === 'char_chora') {
+                        setAutoRigMorphology('mascot_creature');
+                        setAutoRigMassKg(120);
+                        setAutoRigSamplePrompt('Chora the Sonic Kaiju mascot, purple fur with music notes');
+                      } else if (e.target.value === 'char_kael') {
+                        setAutoRigMorphology('biped_humanoid');
+                        setAutoRigMassKg(85);
+                        setAutoRigSamplePrompt('Kael the rugged cyber operative in trenchcoat');
+                      } else if (e.target.value === 'char_maya') {
+                        setAutoRigMorphology('biped_humanoid');
+                        setAutoRigMassKg(62);
+                        setAutoRigSamplePrompt('Maya the tech specialist with holographic gauntlet');
+                      }
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 6,
+                      padding: '5px 8px',
+                      fontSize: 10,
+                      color: '#fff',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="char_rello" style={{ background: '#191721' }}>Reello (Lumi) · Film Mascot (140 kg)</option>
+                    <option value="char_chora" style={{ background: '#191721' }}>Chora (Lorik) · Music Mascot (120 kg)</option>
+                    <option value="char_kael" style={{ background: '#191721' }}>Kael · Humanoid Operative (85 kg)</option>
+                    <option value="char_maya" style={{ background: '#191721' }}>Maya · Humanoid Specialist (62 kg)</option>
+                    <option value="custom" style={{ background: '#191721' }}>Custom Artwork Silhouette</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>DETECTED MORPHOLOGY TYPE:</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
+                    {(['mascot_creature', 'biped_humanoid', 'quadruped_animal', 'mechanical_vehicle', 'ethereal_spirit'] as CharacterMorphologyType[]).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setAutoRigMorphology(m)}
+                        style={{
+                          padding: '4px 6px',
+                          borderRadius: 4,
+                          fontSize: 9,
+                          fontWeight: 800,
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: autoRigMorphology === m ? THEME.purple : 'rgba(255,255,255,0.05)',
+                          color: autoRigMorphology === m ? '#fff' : 'rgba(255,255,255,0.6)',
+                        }}
+                      >
+                        {m.replace('_', ' ').toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Column 2: Physical Sense of Mass & Dynamics */}
+              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.orange }}>
+                  2. PHYSICAL MASS & INERTIA DYNAMICS
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>TOTAL MASS:</span>
+                    <span style={{ color: THEME.orange, fontWeight: 900 }}>{autoRigMassKg} kg</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="15"
+                    max="1200"
+                    value={autoRigMassKg}
+                    onChange={(e) => setAutoRigMassKg(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: THEME.orange }}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>ELASTICITY (SQUASH & STRETCH):</span>
+                    <span style={{ color: THEME.cyan, fontWeight: 900 }}>{autoRigElasticity.toFixed(2)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.05"
+                    value={autoRigElasticity}
+                    onChange={(e) => setAutoRigElasticity(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: THEME.cyan }}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>GROUND IMPACT DAMPING:</span>
+                    <span style={{ color: THEME.lilac, fontWeight: 900 }}>{autoRigDamping.toFixed(2)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="0.95"
+                    step="0.05"
+                    value={autoRigDamping}
+                    onChange={(e) => setAutoRigDamping(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: THEME.lilac }}
+                  />
+                </div>
+
+                {autoRigResult && (
+                  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px', fontSize: 9, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>CALCULATED PHYSICS METRICS:</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.7)' }}>Center of Mass:</span>
+                      <span style={{ color: '#fff', fontFamily: 'monospace' }}>({Math.round(autoRigResult.massProfile.centerOfMass.x)}, {Math.round(autoRigResult.massProfile.centerOfMass.y)})</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.7)' }}>Moment of Inertia:</span>
+                      <span style={{ color: '#fff', fontFamily: 'monospace' }}>{Math.round(autoRigResult.massProfile.momentOfInertia)} kg·px²</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.7)' }}>Material Kind:</span>
+                      <span style={{ color: THEME.success, fontWeight: 800 }}>{autoRigResult.massProfile.materialKind.toUpperCase()}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Column 3: Skeleton Bones & Walk Cycle */}
+              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.success }}>
+                  3. ADAPTIVE SKELETON & BESPOKE MOTION
+                </div>
+                {autoRigResult ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.5)' }}>Hierarchical Bones:</span>
+                      <span style={{ color: THEME.success, fontWeight: 900 }}>{autoRigResult.bones.length} FK/IK Bones</span>
+                    </div>
+                    <div style={{ maxHeight: 90, overflowY: 'auto', background: 'rgba(0,0,0,0.3)', borderRadius: 4, padding: 4, fontSize: 8, fontFamily: 'monospace', color: 'rgba(255,255,255,0.7)' }}>
+                      {autoRigResult.bones.map((b) => (
+                        <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 4px' }}>
+                          <span>🦴 {b.name}</span>
+                          <span style={{ color: 'rgba(255,255,255,0.3)' }}>len: {Math.round(b.length)}px</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>SYNTHESIZED EMOTION STANCES:</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
+                      {Object.keys(autoRigResult.emotionStances).map((stanceKey) => (
+                        <button
+                          key={stanceKey}
+                          onClick={() => {
+                            const stance = autoRigResult.emotionStances[stanceKey];
+                            if (stance && project.selectedLayerId) {
+                              setProject(prev => ({
+                                ...prev,
+                                layers: prev.layers.map(l => {
+                                  if (l.id !== project.selectedLayerId) return l;
+                                  const updated = { ...l.channels };
+                                  Object.entries(stance).forEach(([prop, val]) => {
+                                    const ch = updated[prop] || {
+                                      id: `ch_${prop}_${Date.now()}`,
+                                      name: prop,
+                                      targetProperty: prop,
+                                      defaultValue: val,
+                                      keyframes: [],
+                                    };
+                                    updated[prop] = {
+                                      ...ch,
+                                      keyframes: [
+                                        ...ch.keyframes.filter(k => Math.abs(k.t - (prev.currentFrame / prev.fps)) > 0.05),
+                                        { id: `kf_${Date.now()}_${Math.random()}`, t: prev.currentFrame / prev.fps, v: val, ease: 'smooth' }
+                                      ],
+                                    };
+                                  });
+                                  return { ...l, channels: updated };
+                                }),
+                              }));
+                            }
+                          }}
+                          style={{
+                            padding: '3px 6px',
+                            borderRadius: 4,
+                            fontSize: 8,
+                            fontWeight: 800,
+                            background: 'rgba(255,255,255,0.06)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            color: THEME.lilac,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {stanceKey.replace('_', ' ').toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: 'auto' }}>
+                    Click "RUN AUTO-RIG" above to generate adaptive skeleton and custom mass-driven walk cycles.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : isProModeOpen && proTab === 'video_lipsync' ? (
+          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 900, color: THEME.orange }}>
+                  📹 OFF-PLATFORM VIDEO LIP-SYNC BRIDGE
+                </span>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(255, 140, 0, 0.15)', color: THEME.orange, fontWeight: 700 }}>
+                  Runway / Pika / Kling Video Plates · Viseme Phoneme Alignment · Feathered Mouth Warping
+                </span>
+              </div>
+              <button
+                onClick={handleRunVideoLipSync}
+                style={{
+                  padding: '5px 14px',
+                  borderRadius: 6,
+                  background: 'linear-gradient(135deg, #FF8C00, #D40055)',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 10,
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  boxShadow: '0 0 16px rgba(255, 140, 0, 0.3)',
+                }}
+              >
+                📹 BAKE LIP-SYNC CHANNELS TO TIMELINE
+              </button>
+            </div>
+
+            {/* 2-Column Controls */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              {/* Column 1: Video File & Audio Take Selector */}
+              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.cyan }}>
+                  1. OFF-PLATFORM VIDEO & AUDIO SOURCE
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>VIDEO FILE URL / DROPPER:</label>
+                  <input
+                    type="text"
+                    value={lipSyncVideoUrl}
+                    onChange={(e) => setLipSyncVideoUrl(e.target.value)}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 6,
+                      padding: '5px 8px',
+                      fontSize: 10,
+                      color: '#fff',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>SYNCHRONIZED DIALOGUE TAKE (FROM SCRIPT / STORY):</label>
+                  <select
+                    value={lipSyncSelectedTakeId}
+                    onChange={(e) => setLipSyncSelectedTakeId(e.target.value)}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 6,
+                      padding: '5px 8px',
+                      fontSize: 10,
+                      color: '#fff',
+                      outline: 'none',
+                    }}
+                  >
+                    {recentTakes.length > 0 ? (
+                      recentTakes.map((t) => (
+                        <option key={t.takeId} value={t.takeId} style={{ background: '#191721' }}>
+                          [{t.speaker}] "{t.text.slice(0, 32)}..." ({t.durationSeconds}s)
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="sample_maya" style={{ background: '#191721' }}>[Maya] "Hold on! The perimeter is breached!" (2.4s)</option>
+                        <option value="sample_kael" style={{ background: '#191721' }}>[Kael] "Open the bulkhead door now!" (1.9s)</option>
+                        <option value="sample_rello" style={{ background: '#191721' }}>[Reello] "Roll camera, living canvas rolling!" (2.1s)</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>JAW AMPLIFICATION:</span>
+                    <span style={{ color: THEME.orange, fontWeight: 900 }}>{lipSyncJawGain.toFixed(2)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2.5"
+                    step="0.05"
+                    value={lipSyncJawGain}
+                    onChange={(e) => setLipSyncJawGain(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: THEME.orange }}
+                  />
+                </div>
+              </div>
+
+              {/* Column 2: Visemes Preview & Channel Readout */}
+              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.lilac }}>
+                  2. PHONETIC VISEMES & JAW TRACKING
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>VISEME PHONEME ENVELOPES:</span>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {['A', 'E', 'I', 'O', 'U', 'M'].map((vis) => (
+                      <span key={vis} style={{ padding: '2px 8px', borderRadius: 4, background: 'rgba(0, 218, 243, 0.12)', color: THEME.cyan, fontSize: 9, fontWeight: 900 }}>
+                        /{vis}/
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {activeLipSyncTrack ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 9, color: THEME.success, fontWeight: 800 }}>
+                      ✅ Lip-Sync Track Synchronized ({activeLipSyncTrack.visemeFrames.length} frames)
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px', fontSize: 9, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>Mouth Bounds:</span>
+                        <span style={{ color: '#fff', fontFamily: 'monospace' }}>
+                          x:{activeLipSyncTrack.mouthRegion.x} y:{activeLipSyncTrack.mouthRegion.y} ({activeLipSyncTrack.mouthRegion.width}×{activeLipSyncTrack.mouthRegion.height})
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>Feather Radius:</span>
+                        <span style={{ color: THEME.cyan }}>{activeLipSyncTrack.mouthRegion.featherRadius}px</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>Baked Channels:</span>
+                        <span style={{ color: THEME.lilac, fontWeight: 800 }}>face.jawOpen, face.mouthWide, face.mouthPucker</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: 'auto' }}>
+                    Select an external video plate and click "BAKE LIP-SYNC CHANNELS" to align mouth articulation.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : isProModeOpen && proTab === 'face_animator' ? (
           <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

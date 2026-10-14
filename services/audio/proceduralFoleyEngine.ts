@@ -280,6 +280,13 @@ export class ProceduralFoleyEngine {
   }
 
   /**
+   * Alias for renderFoley
+   */
+  render(opts: RenderFoleyOptions): FoleyRenderResult {
+    return this.renderFoley(opts);
+  }
+
+  /**
    * List available procedural sound design presets.
    */
   listPresets(): FoleyPreset[] {

@@ -199,3 +199,135 @@ export interface AnimaProject {
   selectedLayerId: string | null;
   selectedBoneId: string | null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTO-RIGGING, MASS DYNAMICS & STORY DOSSIER TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CharacterMorphologyType = 'biped_humanoid' | 'quadruped_animal' | 'mascot_creature' | 'mechanical_vehicle' | 'ethereal_spirit';
+
+export type MassMaterialKind = 'organic_flesh' | 'jelly_mascot' | 'heavy_mech' | 'ethereal_cloth' | 'rigid_solid';
+
+export interface AnatomicalLandmark {
+  id: string;
+  name: string;
+  x: number;          // relative 0..1 coordinate in artwork bbox
+  y: number;
+  z?: number;
+  confidence: number; // 0..1
+  partType: 'head' | 'neck' | 'chest' | 'pelvis' | 'shoulder_l' | 'elbow_l' | 'wrist_l' | 'hand_l'
+          | 'shoulder_r' | 'elbow_r' | 'wrist_r' | 'hand_r' | 'hip_l' | 'knee_l' | 'ankle_l' | 'foot_l'
+          | 'hip_r' | 'knee_r' | 'ankle_r' | 'foot_r' | 'tail_root' | 'tail_tip' | 'jaw' | 'eye_l' | 'eye_r'
+          | 'wheel_front' | 'wheel_rear' | 'chassis_center';
+}
+
+export interface CharacterMassProfile {
+  estimatedMassKg: number;
+  centerOfMass: { x: number; y: number }; // normalized 0..1
+  momentOfInertia: number;                // rotational resistance
+  materialKind: MassMaterialKind;
+  bounceElasticity: number;               // 0 (clay) .. 1 (superball)
+  squashStretchFactor: number;            // 0 (steel) .. 2.0 (squashy jelly)
+  gravityDamping: number;                 // ground impact settling speed
+}
+
+export interface CharacterStoryDossier {
+  characterId: string;
+  worldId?: string;
+  name: string;
+  archetype?: string;                     // e.g. "Titan / Kaiju", "Nimble Thief", "Playful Mascot", "Android"
+  role?: string;
+  physicalStats?: {
+    height?: string;                      // e.g. "6'2"" or "45 meters"
+    weight?: string;                      // e.g. "210 lbs" or "40,000 tons"
+    age?: string;
+    species?: string;
+  };
+  personalityTraits?: string[];           // ["stoic", "heavy footed", "protective"]
+  locomotionStyle?: 'heavy_lumber' | 'nimble_stride' | 'mascot_bob' | 'quadruped_prowl' | 'ethereal_float' | 'vehicle_cruise';
+  defaultMood?: string;
+  voicePrintId?: string;
+}
+
+export interface AutoRigResult {
+  rigId: string;
+  morphology: CharacterMorphologyType;
+  landmarks: AnatomicalLandmark[];
+  bones: AnimaBone[];
+  massProfile: CharacterMassProfile;
+  walkCycleChannels: Record<string, AnimaChannel<number>>;
+  emotionStances: Record<string, Record<string, number>>; // stanceName -> channelPath: value
+  storyDossierApplied?: CharacterStoryDossier;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORY INTELLIGENCE VOICE PRINTS & REAL-TIME BACKGROUND DIALOGUE TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CharacterVoicePrint {
+  id: string;
+  characterId: string;
+  characterName: string;
+  provider: 'kokoro' | 'fish_speech' | 'web_speech';
+  voiceId: string;                        // e.g. 'af_heart', 'am_fenrir', 'bf_alice'
+  pitchMultiplier: number;                // 0.5 .. 2.0
+  rateMultiplier: number;                 // 0.5 .. 2.0
+  timbreDescription: string;              // "Deep, gravelly bass with deliberate cadence"
+  emotionalPresets: Record<string, { pitch: number; rate: number; energy: number }>;
+}
+
+export interface ScriptDialogueCue {
+  id: string;
+  speaker: string;
+  text: string;
+  parenthetical?: string;
+  sceneIndex: number;
+  lineIndex: number;
+  associatedSfx?: string[];               // e.g. ["door_slam", "thunder"]
+}
+
+export interface BackgroundDialogueTakeResult {
+  takeId: string;
+  cueId: string;
+  speaker: string;
+  text: string;
+  durationSeconds: number;
+  audioWavBlob?: Blob;
+  audioDataUri?: string;
+  wordMarks: Array<{ word: string; startSec: number; endSec: number; viseme?: string }>;
+  synthesizedSfx: Array<{ sfxId: string; preset: string; offsetSec: number }>;
+  generatedAt: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OFF-PLATFORM VIDEO LIP-SYNC BRIDGE TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface VideoMouthRegion {
+  x: number;      // 0..1 bounding box
+  y: number;
+  width: number;
+  height: number;
+  anchorCenter: { x: number; y: number };
+  featherRadius?: number;
+}
+
+export interface LipSyncVisemeFrame {
+  timeSec: number;
+  frameIndex: number;
+  visemePhoneme: 'A' | 'E' | 'I' | 'O' | 'U' | 'M' | 'REST';
+  jawOpen: number;      // 0..1
+  mouthWide: number;    // 0..1
+  mouthPucker: number;  // 0..1
+  audioEnergy: number;  // 0..1
+}
+
+export interface VideoLipSyncTrackResult {
+  id: string;
+  videoSourceUrl: string;
+  audioTakeId: string;
+  durationSeconds: number;
+  mouthRegion: VideoMouthRegion;
+  visemeFrames: LipSyncVisemeFrame[];
+  bakedChannels: Record<string, AnimaChannel<number>>;
+}

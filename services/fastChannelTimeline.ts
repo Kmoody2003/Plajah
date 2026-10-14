@@ -49,8 +49,9 @@ function storedOr(v: unknown, fallback: number): number {
 }
 
 /** Canonical whole-second duration of a slot. The single source of truth for loop math everywhere. */
-export function slotDurationSec(s: FastChannelSlot): number {
-  switch (s?.type) {
+export function slotDurationSec(s?: FastChannelSlot | null): number {
+  if (!s) return DEFAULT_VIDEO_SEC;
+  switch (s.type) {
     case 'VIDEO':
     case 'PUBLIC_DOMAIN':  return storedOr(s.videoDurationSeconds, DEFAULT_VIDEO_SEC);
     case 'BUMPER':         return storedOr(s.bumperDurationSeconds, DEFAULT_BUMPER_SEC);
@@ -186,9 +187,11 @@ export function buildAsRunLog(slots: FastChannelSlot[], dayStartMs?: number, tz?
  * epoch-anchored linearPosition so 3pm always means the 3pm programme.
  */
 export function dayAnchoredPosition(slots: FastChannelSlot[], atMs: number, tz?: string): { index: number; offsetSec: number } {
+  if (!slots?.length) return { index: 0, offsetSec: 0 };
   const total = loopTotalSec(slots);
-  if (!slots?.length || total <= 0) return { index: 0, offsetSec: 0 };
+  if (!Number.isFinite(total) || total <= 0) return { index: 0, offsetSec: 0 };
   let pos = Math.floor((atMs - localMidnightMs(atMs, tz)) / 1000) % total;
+  if (!Number.isFinite(pos)) return { index: 0, offsetSec: 0 };
   if (pos < 0) pos += total;
   for (let i = 0; i < slots.length; i++) {
     const d = slotDurationSec(slots[i]);
@@ -211,7 +214,7 @@ export function playoutPosition(
   const tz = (schedule as any)?.timezone as string | undefined;
   if (schedule?.midnightAnchored) {
     const p = linearPositionMidnight(slots, atMs, tz);
-    return p.offAir ? { slots, offAir: true, resumesInSec: p.resumesInSec } : { slots, offAir: false, index: p.index, offsetSec: p.offsetSec };
+    return p.offAir ? { slots, offAir: true, resumesInSec: p.resumesInSec } : { slots, offAir: false, index: (p as any).index, offsetSec: (p as any).offsetSec };
   }
   return { slots, offAir: false, ...dayAnchoredPosition(slots, atMs, tz) };
 }
@@ -304,7 +307,18 @@ export const isEmbedUrl = (u = ''): boolean =>
  * Resolve a slot to something playable. Mux ids are extracted from the stored stream url so old
  * schedules (which stored videoUrl = https://stream.mux.com/<id>.m3u8) still play via MuxPlayer.
  */
-export function resolveSlotMedia(s: FastChannelSlot): SlotMedia {
+export function resolveSlotMedia(s?: FastChannelSlot | null): SlotMedia {
+  if (!s) {
+    return {
+      kind: 'MEDIA',
+      title: 'Program',
+      durationSec: DEFAULT_VIDEO_SEC,
+      isHls: false,
+      isAd: false,
+      isBumper: false,
+      isPublicDomain: false,
+    };
+  }
   const durationSec = slotDurationSec(s);
   if (s.type === 'GENERATIVE') {
     // Resolved against the wall clock by the caller (resolveGenerativeSlot) — this path only

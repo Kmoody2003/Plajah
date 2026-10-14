@@ -9,7 +9,11 @@ import {
   Copy, Share2, Palette, Layers, Eye, EyeOff,
   Lock, Unlock, ChevronRight, Star, Zap, Settings,
   AlignLeft, AlignCenter, Edit3, Upload, FileUp, AlertCircle,
+  Volume2, Play, Pause, Radio, PenLine,
 } from 'lucide-react';
+import { backgroundDialogueSynthesizer } from '../services/voice/backgroundDialogueSynthesizer';
+import { storyVoiceIntelligence } from '../services/story/visualStoryIntelligence';
+import type { BackgroundDialogueTakeResult, ScriptDialogueCue } from '../services/anima/types';
 import { db, auth } from '../services/firebase';
 import { doc, setDoc, getDoc, serverTimestamp, collection } from 'firebase/firestore';
 import {
@@ -265,6 +269,50 @@ export default function ScriptWritingStudio({
   const [aiOutput, setAiOutput]     = useState('');
   const [coverage, setCoverage]     = useState('');
 
+  // ── Background Dialogue & Sound Design State ──
+  const [latestTake, setLatestTake] = useState<BackgroundDialogueTakeResult | null>(null);
+  const [isPlayingTake, setIsPlayingTake] = useState(false);
+  const [showTakeAuditionBar, setShowTakeAuditionBar] = useState(true);
+  const [takeFabulaNotified, setTakeFabulaNotified] = useState(false);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  // Subscribe to background dialogue synthesizer
+  useEffect(() => {
+    const unsub = backgroundDialogueSynthesizer.subscribe((take) => {
+      setLatestTake(take);
+    });
+    return unsub;
+  }, []);
+
+  const playAuditionTake = useCallback((take: BackgroundDialogueTakeResult) => {
+    if (isPlayingTake) {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current = null;
+      }
+      setIsPlayingTake(false);
+      return;
+    }
+
+    if (!take.audioWavBlob) return;
+    try {
+      const url = URL.createObjectURL(take.audioWavBlob);
+      const audio = new Audio(url);
+      audioPlayerRef.current = audio;
+      setIsPlayingTake(true);
+      audio.onended = () => {
+        setIsPlayingTake(false);
+        URL.revokeObjectURL(url);
+      };
+      audio.onerror = () => {
+        setIsPlayingTake(false);
+      };
+      audio.play().catch(() => setIsPlayingTake(false));
+    } catch {
+      setIsPlayingTake(false);
+    }
+  }, [isPlayingTake]);
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
   const editorRef = useRef<HTMLDivElement>(null);
@@ -424,7 +472,38 @@ export default function ScriptWritingStudio({
 
   // ── Element CRUD ──────────────────────────────────────────────────────────
   const updateEl = useCallback((id: string, text: string) => {
-    setElements(prev => prev.map(e => e.id === id ? { ...e, text } : e));
+    setElements(prev => {
+      const updated = prev.map(e => e.id === id ? { ...e, text } : e);
+      const currentIdx = updated.findIndex(e => e.id === id);
+      if (currentIdx !== -1) {
+        const curEl = updated[currentIdx];
+        if (curEl.type === 'DIALOGUE') {
+          let speaker = 'SPEAKER';
+          let parenthetical = '';
+          for (let i = currentIdx - 1; i >= 0; i--) {
+            if (updated[i].type === 'CHARACTER') {
+              speaker = updated[i].text.trim().toUpperCase() || 'SPEAKER';
+              break;
+            } else if (updated[i].type === 'PARENTHETICAL') {
+              parenthetical = updated[i].text.trim();
+            } else if (updated[i].type === 'SCENE_HEADING') {
+              break;
+            }
+          }
+          if (curEl.text.trim()) {
+            backgroundDialogueSynthesizer.queueDialogueSynthesis({
+              id: `cue_${curEl.id}`,
+              speaker,
+              text: curEl.text,
+              parenthetical,
+              sceneIndex: 1,
+              lineIndex: currentIdx,
+            }, 350);
+          }
+        }
+      }
+      return updated;
+    });
   }, []);
 
   const updateElType = useCallback((id: string, type: ScriptElementType) => {
@@ -1586,7 +1665,66 @@ export default function ScriptWritingStudio({
         {showSidebar && renderSidebar()}
 
         {/* Script Editor */}
-        <div className="flex-1 overflow-y-auto bg-[#1a1a1a]" ref={editorRef}>
+        <div className="flex-1 overflow-y-auto bg-[#1a1a1a] flex flex-col" ref={editorRef}>
+          {/* ── 🎙️ BACKGROUND DIALOGUE & SOUND DESIGN BAR ── */}
+          {showTakeAuditionBar && (
+            <div className="sticky top-0 z-20 px-4 py-2 bg-[#121019]/95 backdrop-blur-md border-b border-white/10 flex items-center justify-between shadow-xl">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[9px] font-black tracking-wider uppercase shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>VOICE & SFX SYNTHESIZER ACTIVE</span>
+                </div>
+
+                {latestTake ? (
+                  <div className="flex items-center gap-2 min-w-0 overflow-hidden text-xs">
+                    <span className="font-extrabold text-[#D0BCFF] shrink-0">
+                      [{latestTake.speaker}]
+                    </span>
+                    <span className="text-white/80 truncate text-[11px]">
+                      "{latestTake.text}"
+                    </span>
+                    <span className="text-[10px] text-white/40 shrink-0 font-mono">
+                      ({latestTake.durationSeconds}s · {latestTake.wordMarks.length} words)
+                    </span>
+                    {latestTake.synthesizedSfx.map((s, idx) => (
+                      <span key={idx} className="px-1.5 py-0.5 rounded bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[8px] font-black uppercase shrink-0">
+                        ⚡ {s.preset}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-white/40 italic">
+                    Type character dialogue or bracketed Foley cues [door slam, laser, boom] to synthesize voice takes on the fly…
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {latestTake && (
+                  <>
+                    <button
+                      onClick={() => playAuditionTake(latestTake)}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black text-[9px] uppercase tracking-wider hover:brightness-110 transition shadow cursor-pointer"
+                    >
+                      {isPlayingTake ? <Pause size={10} /> : <Play size={10} />}
+                      {isPlayingTake ? 'PAUSE AUDITION' : '▶ AUDITION TAKE'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTakeFabulaNotified(true);
+                        setTimeout(() => setTakeFabulaNotified(false), 2500);
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-white/80 hover:text-white font-bold text-[9px] uppercase tracking-wider transition cursor-pointer"
+                    >
+                      <Volume2 size={10} />
+                      {takeFabulaNotified ? '✅ SYNCED TO FABULA!' : 'SEND TO FABULA'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {showTitlePage ? (
             <div className="py-12 px-6">
               {renderTitlePage()}
