@@ -24,42 +24,120 @@ export interface StreamingOnnxConfig {
 export class DeltaWordAssembler {
   private emitted = 0;
   private last: string[] = [];
+  private emittedWords: string[] = [];
 
   partial(text: string): string {
     const w = text.trim().split(/\s+/).filter(Boolean);
     if (!w.length) return '';
+    // Every word but the trailing one is stable once it agrees with the previous hypothesis
+    // (words beyond the previous hypothesis are new and count as stable too); the trailing
+    // word is held back until it repeats or a pause flushes it.
     let stable = 0;
     while (
       stable < w.length - 1 &&
-      stable < this.last.length &&
-      this.last[stable].toLowerCase() === w[stable].toLowerCase()
+      (stable >= this.last.length || this.last[stable].toLowerCase() === w[stable].toLowerCase())
     ) {
       stable++;
     }
-    // If the hypothesis is growing monotonically, stabilize prefix
-    if (w.length > this.emitted + 1) {
-      stable = Math.max(stable, w.length - 1);
+    // If the trailing word has remained identical across two consecutive passes, it is stable
+    if (
+      w.length === this.last.length &&
+      w.length > 0 &&
+      stable === w.length - 1 &&
+      this.last[w.length - 1].toLowerCase() === w[w.length - 1].toLowerCase()
+    ) {
+      stable = w.length;
     }
     let delta = '';
-    if (stable > this.emitted) {
-      delta = w.slice(this.emitted, stable).join(' ');
-      this.emitted = stable;
+    let start = this.emitted;
+    const checkFrom = Math.max(0, this.emitted - 2);
+    const checkTo = Math.min(stable, this.emitted);
+    for (let i = checkFrom; i < checkTo; i++) {
+      if (this.emittedWords[i] && this.emittedWords[i].toLowerCase() !== w[i].toLowerCase()) {
+        start = i;
+        break;
+      }
+    }
+    if (stable > start) {
+      delta = w.slice(start, stable).join(' ');
+      for (let i = start; i < stable; i++) {
+        this.emittedWords[i] = w[i];
+      }
+      this.emitted = Math.max(this.emitted, stable);
     }
     this.last = w;
     return delta;
   }
 
-  final(text: string): string {
+  /** Flush any held-back trailing word (or revised tail word) when a brief speech pause is detected. */
+  flushPending(): string {
+    let start = this.emitted;
+    const checkFrom = Math.max(0, this.emitted - 2);
+    for (let i = checkFrom; i < this.emitted && i < this.last.length; i++) {
+      if (this.emittedWords[i] && this.emittedWords[i].toLowerCase() !== this.last[i].toLowerCase()) {
+        start = i;
+        break;
+      }
+    }
+    if (this.last.length <= start) return '';
+    const delta = this.last.slice(start).join(' ');
+    for (let i = start; i < this.last.length; i++) {
+      this.emittedWords[i] = this.last[i];
+    }
+    this.emitted = this.last.length;
+    return delta;
+  }
+
+  /** Words emitted so far for the current utterance. */
+  emittedCount(): number { return this.emitted; }
+
+  /**
+   * Finish an utterance with a final pass that may come from a DIFFERENT (better) model:
+   * returns only the words beyond what the live passes already emitted, so a sentence the
+   * room has read is never put up twice. Words the final disagrees with are left as they
+   * were. Resets for the next utterance.
+   */
+  finalTail(text: string): string {
     const w = text.trim().split(/\s+/).filter(Boolean);
-    const delta = w.slice(this.emitted).join(' ');
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9']/g, '');
+    let commonPrefix = 0;
+    while (
+      commonPrefix < this.emitted &&
+      commonPrefix < w.length &&
+      this.emittedWords[commonPrefix] &&
+      norm(this.emittedWords[commonPrefix]) === norm(w[commonPrefix])
+    ) {
+      commonPrefix++;
+    }
+    const delta = w.slice(Math.max(commonPrefix, this.emitted)).join(' ');
     this.emitted = 0;
     this.last = [];
+    this.emittedWords = [];
+    return delta;
+  }
+
+  final(text: string): string {
+    const w = text.trim().split(/\s+/).filter(Boolean);
+    let commonPrefix = 0;
+    while (
+      commonPrefix < this.emitted &&
+      commonPrefix < w.length &&
+      this.emittedWords[commonPrefix] &&
+      this.emittedWords[commonPrefix].toLowerCase() === w[commonPrefix].toLowerCase()
+    ) {
+      commonPrefix++;
+    }
+    const delta = w.slice(commonPrefix).join(' ');
+    this.emitted = 0;
+    this.last = [];
+    this.emittedWords = [];
     return delta;
   }
 
   reset(): void {
     this.emitted = 0;
     this.last = [];
+    this.emittedWords = [];
   }
 }
 

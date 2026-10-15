@@ -37,4 +37,25 @@ describe('DeltaWordAssembler', () => {
     const f1 = asm.final('Hallelujah');
     assert.equal(f1, 'Hallelujah');
   });
+
+  it('confirms repeated trailing word across consecutive passes and supports flushPending', () => {
+    const asm = new DeltaWordAssembler();
+    assert.equal(asm.partial('Romans chapter'), 'Romans');
+    // Repeating the same partial confirms the trailing word immediately
+    assert.equal(asm.partial('Romans chapter'), 'chapter');
+
+    // Single trailing word flushed on brief pause
+    assert.equal(asm.partial('Romans chapter eight'), '');
+    assert.equal(asm.flushPending(), 'eight');
+  });
+
+  it('emits tail-word revisions when ASR refines the last emitted word', () => {
+    const asm = new DeltaWordAssembler();
+    assert.equal(asm.partial('John three six'), 'John three');
+    assert.equal(asm.flushPending(), 'six');
+    // Next pass refines "six" -> "sixteen" and pauses or stabilizes
+    assert.equal(asm.partial('John three sixteen'), '');
+    assert.equal(asm.flushPending(), 'sixteen');
+  });
 });
+

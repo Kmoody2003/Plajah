@@ -131,3 +131,6 @@ gemini_chat_extracted.txt
 # Python bytecode
 __pycache__/
 *.py[cod]
+
+# On-device Whisper ONNX weights (hundreds of MB; fetched from the HF CDN when absent)
+public/models/onnx-community/

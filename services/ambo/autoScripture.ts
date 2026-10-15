@@ -18,11 +18,11 @@
 //   look    any of the scripture looks/templates, chosen once (the operator's
 //           own look is restored when auto mode stops)
 
-import { fetchChapter } from '../bibleService';
-import { formatRef, refId, expandRef, normalizeSpoken, type ScriptureRef } from '../scriptureRef';
-import { createScriptureListener, type ListenerHit } from './scriptureListener';
+import { getChapter, DEFAULT_TRANSLATION } from '../scriptureText';
+import { formatRef, refId, expandRef, normalizeSpoken, parseRef, type ScriptureRef } from '../scriptureRef';
+import { createScriptureListener, ScriptureReadingTracker, type ListenerHit } from './scriptureListener';
 import { createGivingListener, tagTokens, type GivingHit, type WordTag } from './speechIntents';
-import { startLiveTranscription, type TranscribeSource, type TranscriberHandle } from './liveTranscriber';
+import { startSpeechTranscription, type TranscribeSource, type TranscriberHandle } from './liveTranscriber';
 import { getScriptureLook, setScriptureLook } from './scriptureLook';
 
 export interface AutoCue { refId: string; reference: string; translation: string; lines: string[]; }
@@ -62,6 +62,20 @@ export interface AutoScripturePrefs {
 export type AutoTriggerKind = 'scripture' | 'giving';
 
 export interface AutoScriptureHistoryItem { at: number; label: string; delivered: AutoDelivery; ok: boolean; kind?: AutoTriggerKind; }
+
+export interface ScriptureReadingState {
+  refId: string;
+  reference: string;
+  book: number;
+  chapter: number;
+  verse: number;
+  endVerse?: number;
+  verseWordIndex: number;
+  globalWordIndex: number;
+  totalVerseWords: number;
+  totalGlobalWords: number;
+  updatedAt: number;
+}
 
 export interface AutoScriptureState {
   running: boolean;
@@ -107,6 +121,83 @@ export function setAutoScripturePrefs(patch: Partial<AutoScripturePrefs>) {
   emit();
 }
 const setState = (patch: Partial<AutoScriptureState>) => { state = { ...state, ...patch }; emit(); };
+
+// ── live scripture reading store (word-by-word highlight + auto-advance) ─────
+const readingTracker = new ScriptureReadingTracker();
+let activeReadingRef: ScriptureRef | null = null;
+let activeReadingRefId = '';
+let activeReadingReference = '';
+let readingState: ScriptureReadingState | null = null;
+const readingListeners = new Set<() => void>();
+const emitReading = () => { for (const fn of readingListeners) { try { fn(); } catch { /* */ } } };
+export const getScriptureReading = () => readingState;
+export function subscribeScriptureReading(fn: () => void): () => void { readingListeners.add(fn); return () => { readingListeners.delete(fn); }; }
+
+function setReadingState(next: ScriptureReadingState | null) {
+  if (
+    readingState === next ||
+    (readingState && next &&
+      readingState.refId === next.refId &&
+      readingState.globalWordIndex === next.globalWordIndex &&
+      readingState.verseWordIndex === next.verseWordIndex &&
+      readingState.verse === next.verse)
+  ) {
+    return;
+  }
+  readingState = next;
+  emitReading();
+}
+
+async function fetchChapterOfflineSafe(translation: string, book: number, chapter: number) {
+  let verses = await getChapter(translation, book, chapter);
+  if (!verses.length && translation.toLowerCase() !== DEFAULT_TRANSLATION) {
+    verses = await getChapter(DEFAULT_TRANSLATION, book, chapter);
+  }
+  return verses;
+}
+
+/** Sync the active passage into the word-by-word reading tracker (called on auto-deliver or manual verse take). */
+export async function syncActiveScriptureReading(
+  refOrCue: ScriptureRef | { reference: string; refId?: string; translation?: string },
+  translation = prefs.translation,
+  initialVerseWordIndex = -1,
+): Promise<void> {
+  const parsed: ScriptureRef | null = 'book' in refOrCue ? refOrCue : parseRef(refOrCue.reference);
+  if (!parsed) return;
+  const verses = await fetchChapterOfflineSafe(translation, parsed.book, parsed.chapter);
+  if (!verses.length) return;
+  const startVerse = parsed.verse ?? 1;
+  const endVerse = parsed.endVerse ?? (parsed.verse !== undefined ? parsed.verse : Math.min(verses.length, Math.max(1, prefs.versesPerScreen)));
+  const effectiveRef: ScriptureRef = {
+    ...parsed,
+    verse: startVerse,
+    endVerse: endVerse > startVerse ? endVerse : undefined,
+    endChapter: undefined,
+  };
+  activeReadingRef = effectiveRef;
+  activeReadingRefId = ('refId' in refOrCue && refOrCue.refId) ? refOrCue.refId : refId(effectiveRef);
+  activeReadingReference = ('reference' in refOrCue && refOrCue.reference) ? refOrCue.reference : formatRef(effectiveRef);
+  const r = readingTracker.isTracking(parsed.book, parsed.chapter, startVerse, endVerse, Math.max(0, initialVerseWordIndex))
+    ? readingTracker.currentReading()
+    : readingTracker.setPassage(parsed.book, parsed.chapter, startVerse, endVerse, verses, initialVerseWordIndex);
+  if (r) {
+    setReadingState({
+      refId: activeReadingRefId,
+      reference: activeReadingReference,
+      book: r.book,
+      chapter: r.chapter,
+      verse: r.verse,
+      endVerse: effectiveRef.endVerse,
+      verseWordIndex: r.verseWordIndex,
+      globalWordIndex: r.globalWordIndex,
+      totalVerseWords: r.totalVerseWords,
+      totalGlobalWords: r.totalGlobalWords,
+      updatedAt: Date.now(),
+    });
+  } else {
+    setReadingState(null);
+  }
+}
 
 // ── live feed: words over the waveform ──────────────────────────────────────
 // Separate from `state` so the waveform can redraw on every word without the
@@ -181,7 +272,7 @@ export function setAutoScriptureSink(s: AutoScriptureSink | null) { sink = s; }
 
 /** Verses for a reference, split into screens of `per` verses. */
 export async function cuesForRef(ref: ScriptureRef, translation: string, per: number): Promise<AutoCue[]> {
-  const verses = await fetchChapter(translation, ref.book, ref.chapter);
+  const verses = await fetchChapterOfflineSafe(translation, ref.book, ref.chapter);
   if (!verses.length) return [];
   const wanted = ref.verse === undefined
     ? verses.map(v => v.verse).slice(0, per)                       // a bare chapter opens at verse 1
@@ -208,6 +299,7 @@ let clearTimer: ReturnType<typeof setTimeout> | null = null;
 let savedLayout: string | null = null;
 let heardWords: string[] = [];
 let runId = 0;
+let activeListener: ReturnType<typeof createScriptureListener> | null = null;
 
 // ── nav: the reference the live input is driving (the Scripture tab follows it) ──
 export interface AutoNav { ref: ScriptureRef; seq: number; at: number; }
@@ -217,26 +309,104 @@ const navListeners = new Set<() => void>();
 export const getAutoNav = () => nav;
 export function subscribeAutoNav(fn: () => void): () => void { navListeners.add(fn); return () => { navListeners.delete(fn); }; }
 function publishNav(ref: ScriptureRef) {
+  if (nav && nav.ref.book === ref.book && nav.ref.chapter === ref.chapter && nav.ref.verse === ref.verse && nav.ref.endVerse === ref.endVerse) {
+    return;
+  }
   nav = { ref, seq: ++navSeq, at: Date.now() };
   for (const fn of navListeners) { try { fn(); } catch { /* */ } }
 }
 
-async function deliver(hit: ListenerHit, via: 'room' | 'operator' = 'room') {
+async function deliver(
+  hit: ListenerHit,
+  via: 'room' | 'operator' | 'auto-advance' = 'room',
+  initialVerseWordIndex = -1,
+) {
   const p = prefs;
   if (!p.listenScripture) return;
   publishNav(hit.ref);                       // the tab jumps + highlights immediately, before the text loads
+  activeListener?.setContext?.(hit.ref);
   let cues: AutoCue[] = [];
   try { cues = await cuesForRef(hit.ref, p.translation, p.versesPerScreen); } catch { /* offline */ }
   const first = cues[0];
-  const item: AutoScriptureHistoryItem = { at: Date.now(), label: via === 'operator' ? `🎙 ${hit.label}` : hit.label, delivered: p.delivery, ok: !!first, kind: 'scripture' };
+  const labelPrefix = via === 'operator' ? '🎙 ' : via === 'auto-advance' ? '⏭ ' : '';
+  const item: AutoScriptureHistoryItem = {
+    at: Date.now(),
+    label: `${labelPrefix}${hit.label}`,
+    delivered: via === 'auto-advance' ? 'auto' : p.delivery,
+    ok: !!first,
+    kind: 'scripture',
+  };
   setState({ history: [item, ...state.history].slice(0, 12), hearing: null });
   pushMarker('scripture', hit.label, !!first);
+  void syncActiveScriptureReading(
+    first ? { reference: first.reference, refId: first.refId, translation: p.translation } : hit.ref,
+    p.translation,
+    initialVerseWordIndex,
+  );
   if (!first || !sink) return;
   // The look owns the layout while auto mode runs; the operator's own is restored on stop.
   setScriptureLook({ layoutId: p.style === 'overlay' ? p.overlayLayoutId : p.lookLayoutId });
-  if (p.delivery === 'auto') sink.fire(first); else sink.cue(first);
+  // When auto-advancing to the next verse as the speaker continues reading, transition live on Program (or cue if nothing is on screen and delivery is 'cue')
+  if (p.delivery === 'auto' || via === 'auto-advance') sink.fire(first); else sink.cue(first);
   if (clearTimer) clearTimeout(clearTimer);
   if (p.delivery === 'auto' && p.autoClearSec > 0) clearTimer = setTimeout(() => sink?.clear(), p.autoClearSec * 1000);
+}
+
+function handleReadingWords(text: string) {
+  if (!prefs.listenScripture || !activeReadingRef) return;
+  const res = readingTracker.feed(text);
+  if (res.advanceTo && activeReadingRef) {
+    const nextRef: ScriptureRef = {
+      ...activeReadingRef,
+      verse: res.advanceTo.verse,
+      endVerse: undefined,
+      endChapter: undefined,
+    };
+    activeReadingRef = nextRef;
+    activeReadingRefId = refId(nextRef);
+    activeReadingReference = formatRef(nextRef);
+    if (res.reading) {
+      setReadingState({
+        refId: activeReadingRefId,
+        reference: activeReadingReference,
+        book: res.reading.book,
+        chapter: res.reading.chapter,
+        verse: res.reading.verse,
+        endVerse: nextRef.endVerse,
+        verseWordIndex: res.reading.verseWordIndex,
+        globalWordIndex: res.reading.globalWordIndex,
+        totalVerseWords: res.reading.totalVerseWords,
+        totalGlobalWords: res.reading.totalGlobalWords,
+        updatedAt: Date.now(),
+      });
+    }
+    const hit: ListenerHit = {
+      ref: nextRef,
+      refId: activeReadingRefId,
+      label: activeReadingReference,
+      heard: text.trim(),
+      confidence: 0.95,
+      at: Date.now(),
+      contextual: true,
+    };
+    void deliver(hit, 'auto-advance', res.advanceTo.verseWordIndex);
+    return;
+  }
+  if (res.reading) {
+    setReadingState({
+      refId: activeReadingRefId,
+      reference: activeReadingReference,
+      book: res.reading.book,
+      chapter: res.reading.chapter,
+      verse: res.reading.verse,
+      endVerse: activeReadingRef.endVerse,
+      verseWordIndex: res.reading.verseWordIndex,
+      globalWordIndex: res.reading.globalWordIndex,
+      totalVerseWords: res.reading.totalVerseWords,
+      totalGlobalWords: res.reading.totalGlobalWords,
+      updatedAt: Date.now(),
+    });
+  }
 }
 
 function deliverGiving(_hit: GivingHit) {
@@ -248,22 +418,25 @@ function deliverGiving(_hit: GivingHit) {
   pushMarker('giving', 'Giving', !!went);
 }
 
-export async function startAutoScripture(): Promise<void> {
+export async function startAutoScripture(customSource?: TranscribeSource): Promise<void> {
   if (state.running || state.starting) return;
   const my = ++runId;
   setState({ starting: true, error: '', status: 'Starting…', heard: '', hearing: null, hearingGiving: null, operator: OPERATOR_OFF });
-  const listener = createScriptureListener({ minConfidence: Math.min(prefs.minConfidence, 0.6), requireCue: false, settleMs: 750, cooldownMs: 20_000 });
+  // Pre-warm bundled KJV in memory so verse lookup is 0ms
+  void getChapter(DEFAULT_TRANSLATION, 43, 3);
+  const listener = createScriptureListener({ minConfidence: Math.min(prefs.minConfidence, 0.6), requireCue: false, settleMs: 520, cooldownMs: 18_000 });
+  activeListener = listener;
   // One giving listener hears both channels: the operator saying "offering" counts too.
   const giving = createGivingListener();
   heardWords = [];
   feed = { words: [], markers: [] }; emitFeed();
-  const useDevice = prefs.source === 'device' && !!prefs.deviceId;
-  const source: TranscribeSource = useDevice ? { kind: 'device', deviceId: prefs.deviceId } : { kind: 'mic' };
+  const useDevice = !customSource && prefs.source === 'device' && !!prefs.deviceId;
+  const source: TranscribeSource = customSource ?? (useDevice ? { kind: 'device', deviceId: prefs.deviceId } : { kind: 'mic' });
   // The operator's mic, beside the chosen input — a command channel, so no cue
   // phrase is needed and it settles faster. It starts in parallel: the room
   // input may be downloading its speech model, and the operator should not wait.
   const opListener = useDevice && prefs.operatorMic
-    ? createScriptureListener({ minConfidence: 0.6, requireCue: false, settleMs: 700, cooldownMs: 8000 })
+    ? createScriptureListener({ minConfidence: 0.6, requireCue: false, settleMs: 480, cooldownMs: 8000 })
     : null;
   savedLayout = getScriptureLook().layoutId;
   if (opListener) void startOperatorMic(my, opListener, giving);
@@ -272,15 +445,25 @@ export async function startAutoScripture(): Promise<void> {
     for (const hit of listener.poll(now)) void deliver(hit);
     if (opListener) for (const hit of opListener.poll(now)) void deliver(hit, 'operator');
     for (const hit of giving.poll(now)) deliverGiving(hit);
-  }, 250);
+  }, 100);
   try {
-    const h = await startLiveTranscription(source, {
+    const h = await startSpeechTranscription(source, {
       onWords: (text, final) => {
         const now = Date.now();
-        heardWords = heardWords.concat(text.split(/\s+/).filter(Boolean)).slice(-14);
+        if (text.trim()) {
+          heardWords = heardWords.concat(text.split(/\s+/).filter(Boolean)).slice(-14);
+        }
         listener.feed(text, now, final);
         giving.feed(text, now);
-        pushWords(text, 'room');
+        if (text.trim()) {
+          pushWords(text, 'room');
+          handleReadingWords(text);
+        }
+        const pend = prefs.listenScripture ? listener.pending() : null;
+        if (pend && pend.confidence >= 0.75) {
+          publishNav(pend.ref);
+        }
+        for (const hit of listener.poll(now)) void deliver(hit);
         setState({
           heard: normalizeSpoken(heardWords.join(' ')),   // book names shown correctly spelled
           hearing: prefs.listenScripture ? listener.pending() : null,
@@ -294,7 +477,7 @@ export async function startAutoScripture(): Promise<void> {
         if (Math.abs(level - state.level) > 0.08) setState({ level });
       },
       onError: m => setState({ error: m }),
-    });
+    }, 'en-US', 'Auto scripture');
     if (my !== runId) { h.stop(); return; }
     handle = h;
     room.analyser = h.analyser;
@@ -311,12 +494,18 @@ async function startOperatorMic(my: number, listener: ReturnType<typeof createSc
   let words: string[] = [];
   const op = (patch: Partial<AutoScriptureState['operator']>) => { if (my === runId) setState({ operator: { ...state.operator, ...patch } }); };
   try {
-    const h = await startLiveTranscription({ kind: 'mic' }, {
+    const h = await startSpeechTranscription({ kind: 'mic' }, {
       onWords: (text, final) => {
-        words = words.concat(text.split(/\s+/).filter(Boolean)).slice(-10);
-        listener.feed(text, Date.now(), final);
-        giving.feed(text, Date.now());
-        pushWords(text, 'operator');
+        const now = Date.now();
+        if (text.trim()) {
+          words = words.concat(text.split(/\s+/).filter(Boolean)).slice(-10);
+        }
+        listener.feed(text, now, final);
+        giving.feed(text, now);
+        if (text.trim()) pushWords(text, 'operator');
+        const pend = prefs.listenScripture ? listener.pending() : null;
+        if (pend && pend.confidence >= 0.75) publishNav(pend.ref);
+        for (const hit of listener.poll(now)) void deliver(hit, 'operator');
         op({ heard: normalizeSpoken(words.join(' ')) });
         if (!state.hearing && listener.pending() && prefs.listenScripture) setState({ hearing: listener.pending() });
         if (!state.hearingGiving && giving.pending() && prefs.listenGiving) setState({ hearingGiving: giving.pending() });
@@ -327,7 +516,7 @@ async function startOperatorMic(my: number, listener: ReturnType<typeof createSc
         if (Math.abs(level - state.operator.level) > 0.08) op({ level });
       },
       onError: m => op({ error: m }),
-    });
+    }, 'en-US', 'Operator mic');
     if (my !== runId) { h.stop(); return; }
     operatorHandle = h;
     operatorTap.analyser = h.analyser;
@@ -339,6 +528,9 @@ async function startOperatorMic(my: number, listener: ReturnType<typeof createSc
 
 export function stopAutoScripture(): void {
   runId++;
+  activeListener = null;
+  readingTracker.clear();
+  setReadingState(null);
   if (timer) { clearInterval(timer); timer = null; }
   if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
   try { handle?.stop(); } catch { /* */ }
@@ -350,3 +542,45 @@ export function stopAutoScripture(): void {
   if (savedLayout) { setScriptureLook({ layoutId: savedLayout }); savedLayout = null; }
   setState({ running: false, starting: false, engine: null, status: 'Off', level: 0, hearing: null, hearingGiving: null, operator: OPERATOR_OFF });
 }
+
+/**
+ * Feed transcribed speech words directly into the Auto-Scripture Speech Signal Chain.
+ * Used by real-audio WAV stream tests and external speech engines so book/chapter/verse
+ * detection, word-by-word reading highlights, and auto-advance run identically to live mic.
+ */
+export function feedAutoScriptureSpeech(text: string, final = false): void {
+  if (!activeListener) {
+    activeListener = createScriptureListener({ minConfidence: Math.min(prefs.minConfidence, 0.6), requireCue: false, settleMs: 420, cooldownMs: 8000 });
+    void getChapter(DEFAULT_TRANSLATION, 43, 3);
+    if (!timer) {
+      timer = setInterval(() => {
+        if (!activeListener) return;
+        const now = Date.now();
+        for (const hit of activeListener.poll(now)) void deliver(hit);
+      }, 100);
+    }
+  }
+  const now = Date.now();
+  if (text.trim()) {
+    heardWords = heardWords.concat(text.split(/\s+/).filter(Boolean)).slice(-14);
+  }
+  activeListener.feed(text, now, final);
+  if (text.trim()) {
+    pushWords(text, 'room');
+    handleReadingWords(text);
+  }
+  const pend = prefs.listenScripture ? activeListener.pending() : null;
+  if (pend && pend.confidence >= 0.75) {
+    publishNav(pend.ref);
+  }
+  for (const hit of activeListener.poll(now)) void deliver(hit);
+  setState({
+    running: true,
+    engine: state.engine || 'speech',
+    status: 'Listening · Speech Signal Chain',
+    heard: normalizeSpoken(heardWords.join(' ')),
+    hearing: prefs.listenScripture ? activeListener.pending() : null,
+  });
+}
+
+

@@ -6,13 +6,14 @@
 // (the sermon point stays under the reading); Clear drops just that layer.
 // Chapters come through scriptureText (IDB-cached, works offline once read).
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { X, MonitorUp, Eraser, Loader2 } from 'lucide-react';
 import { ScriptureQuickBar } from './AmboTemplateMenus';
 import AmboScriptureListenBar from './AmboScriptureListenBar';
 import { BOOKS, TRANSLATIONS, type BibleBook, type BibleVerse } from '../../services/bibleService';
 import { getChapter, DEFAULT_TRANSLATION } from '../../services/scriptureText';
 import { resolveScriptureQuery, queryLabel } from '../../services/scriptureSearch';
+import { getAutoNav, subscribeAutoNav, getAutoScriptureState, subscribeAutoScripture, getScriptureReading, subscribeScriptureReading, syncActiveScriptureReading } from '../../services/ambo/autoScripture';
 
 export interface ScriptureCue {
   refId: string;
@@ -45,6 +46,19 @@ const AmboScriptureDock: React.FC<AmboScriptureDockProps> = ({ scriptureLive, on
   const listRef = useRef<HTMLDivElement>(null);
   const fireOnLoad = useRef(false);
 
+  const autoNav = useSyncExternalStore(subscribeAutoNav, getAutoNav);
+  const autoState = useSyncExternalStore(subscribeAutoScripture, getAutoScriptureState);
+  const scriptureReading = useSyncExternalStore(subscribeScriptureReading, getScriptureReading);
+  const autoOn = autoState.running || autoState.starting;
+
+  useEffect(() => {
+    if (!autoNav || !autoOn) return;
+    const foundBook = BOOKS.find(b => b.num === autoNav.ref.book);
+    if (foundBook) setBook(foundBook);
+    setChapter(autoNav.ref.chapter);
+    setSel(autoNav.ref.verse ?? 1);
+  }, [autoNav?.seq, autoOn]);
+
   const q = useMemo(() => (query.trim() ? resolveScriptureQuery(query) : null), [query]);
 
   useEffect(() => {
@@ -66,7 +80,9 @@ const AmboScriptureDock: React.FC<AmboScriptureDockProps> = ({ scriptureLive, on
 
   const fire = (v = verse) => {
     if (!v) return;
-    onFire({ refId: `${book.name.toLowerCase()}.${chapter}.${v.verse}`, reference: `${book.name} ${chapter}:${v.verse}`, translation, lines: [v.text] });
+    const cue = { refId: `${book.name.toLowerCase()}.${chapter}.${v.verse}`, reference: `${book.name} ${chapter}:${v.verse}`, translation, lines: [v.text] };
+    onFire(cue);
+    void syncActiveScriptureReading(cue, slug);
   };
 
   // Take a typed reference once its chapter is in.
@@ -165,14 +181,32 @@ const AmboScriptureDock: React.FC<AmboScriptureDockProps> = ({ scriptureLive, on
             <div className="flex items-center justify-center gap-2 h-24 text-white/50 text-[12px]"><Loader2 size={14} className="animate-spin" /> Loading {book.name} {chapter}…</div>
           ) : verses.length === 0 ? (
             <div className="text-center text-white/45 text-[12px] py-8 px-4">This chapter is not available offline in {translation} yet.</div>
-          ) : verses.map(v => (
-            <button key={v.verse} data-v={v.verse} onClick={() => setSel(v.verse)} onDoubleClick={() => { setSel(v.verse); fire(v); }}
-              className="w-full text-left px-3 py-2.5 rounded-lg flex gap-2.5 transition-colors"
-              style={{ background: v.verse === sel ? 'rgba(227,197,126,0.12)' : 'transparent', boxShadow: v.verse === sel ? `inset 3px 0 0 ${GOLD}` : undefined }}>
-              <span className="font-mono text-[11px] flex-none pt-0.5" style={{ color: GOLD, opacity: 0.85 }}>{v.verse}</span>
-              <span className="text-[13px] leading-snug" style={{ fontFamily: SERIF, color: v.verse === sel ? '#fff' : 'rgba(255,255,255,0.7)' }}>{v.text}</span>
-            </button>
-          ))}
+          ) : verses.map(v => {
+            const isReadingThis = autoOn && scriptureReading && scriptureReading.book === book.num && scriptureReading.chapter === chapter && scriptureReading.verse === v.verse && scriptureReading.verseWordIndex >= 0;
+            return (
+              <button key={v.verse} data-v={v.verse} onClick={() => setSel(v.verse)} onDoubleClick={() => { setSel(v.verse); fire(v); }}
+                className="w-full text-left px-3 py-2.5 rounded-lg flex gap-2.5 transition-colors"
+                style={{ background: v.verse === sel ? 'rgba(227,197,126,0.12)' : 'transparent', boxShadow: v.verse === sel ? `inset 3px 0 0 ${GOLD}` : undefined }}>
+                <span className="font-mono text-[11px] flex-none pt-0.5" style={{ color: GOLD, opacity: 0.85 }}>{v.verse}</span>
+                <span className="text-[13px] leading-snug" style={{ fontFamily: SERIF, color: v.verse === sel ? '#fff' : 'rgba(255,255,255,0.7)' }}>
+                  {isReadingThis
+                    ? v.text.split(/\s+/).filter(Boolean).map((word, wi) => {
+                        const isCurrent = wi === scriptureReading.verseWordIndex;
+                        const isRead = wi < scriptureReading.verseWordIndex;
+                        return (
+                          <React.Fragment key={wi}>
+                            {wi > 0 ? ' ' : ''}
+                            <span className={isCurrent ? 'bg-[#E3C57E]/30 text-white font-semibold px-0.5 rounded' : isRead ? 'text-[#FDE68A]' : 'text-white/60'}>
+                              {word}
+                            </span>
+                          </React.Fragment>
+                        );
+                      })
+                    : v.text}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="px-4 py-3 border-t flex flex-col gap-2 flex-none" style={{ borderColor: line }}>

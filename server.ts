@@ -15,7 +15,7 @@ import { plajahTrustProxy } from './services/trustProxy';
 import { BskyAgent } from '@atproto/api';
 import fs from 'fs/promises';
 import { Readable } from 'stream';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { buildProgramGuide, buildXmltv, buildMrss, nowAndNext, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
 import { slotDurationSec } from './services/fastChannelTimeline';
@@ -6166,6 +6166,37 @@ async function startServer() {
     return localNodeAsrPromise;
   };
 
+  app.get('/api/ai/live-speech-stream', (req: any, res: any) => {
+    const workerScript = path.join(process.cwd(), 'scripts', 'winSpeechWorker.ps1');
+    if (process.platform !== 'win32' || !fs.existsSync(workerScript)) {
+      return res.status(404).end();
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+    });
+    const ps = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', workerScript, '-Mode', 'mic'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let buf = '';
+    ps.stdout.on('data', (chunk: Buffer) => {
+      buf += chunk.toString('utf8');
+      const lines = buf.split(/\r?\n/);
+      buf = lines.pop() || '';
+      for (const line of lines) {
+        const t = line.trim();
+        if (t.startsWith('{') && t.endsWith('}')) {
+          res.write(`data: ${t}\n\n`);
+        }
+      }
+    });
+    req.on('close', () => {
+      try { ps.stdin.write('STOP\n'); } catch { /* */ }
+      setTimeout(() => { try { ps.kill(); } catch { /* */ } }, 200);
+    });
+  });
+
   app.post('/api/ai/captions-window', aiLimiter, express.json({ limit: '10mb' }), async (req: any, res) => {
     const { audioBase64, mimeType, title, artist, kind, windowSec } = (req.body || {}) as {
       audioBase64?: string; mimeType?: string; title?: string; artist?: string; kind?: string; windowSec?: number;
@@ -9818,6 +9849,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     // parsed to 0 items → "No articles found").
     app.use((req, res, next) => {
       if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();
+      // Vite's SPA fallback answers ANY unknown path with index.html — including a missing
+      // on-device model file under /models/ (transformers.js then hands HTML to ONNX Runtime:
+      // "protobuf parsing failed"). A model path that isn't in public/ is a 404, full stop.
+      if (req.path.startsWith('/models/') && !existsSync(path.join(__dirname, 'public', decodeURIComponent(req.path)))) {
+        return res.status(404).end();
+      }
       return (vite.middlewares as any)(req, res, next);
     });
   } else {

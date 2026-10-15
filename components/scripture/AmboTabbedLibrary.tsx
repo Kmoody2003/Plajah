@@ -25,7 +25,7 @@ import {
 import { listSongs, subscribeSongs, songsVersion } from '../../services/ambo/songLibrary';
 import { BOOKS, TRANSLATIONS, type BibleBook, type BibleVerse } from '../../services/bibleService';
 import { parseRef, formatRef, type ScriptureRef } from '../../services/scriptureRef';
-import { getAutoNav, subscribeAutoNav, getAutoScriptureState, subscribeAutoScripture } from '../../services/ambo/autoScripture';
+import { getAutoNav, subscribeAutoNav, getAutoScriptureState, subscribeAutoScripture, getScriptureReading, subscribeScriptureReading, syncActiveScriptureReading } from '../../services/ambo/autoScripture';
 import { resolveScriptureQuery, queryLabel, type ScriptureQuery } from '../../services/scriptureSearch';
 import { getChapter, DEFAULT_TRANSLATION } from '../../services/scriptureText';
 import { newId, type Slide, type Show } from '../../services/ambo/showModel';
@@ -1131,6 +1131,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   // ── Auto scripture: the live input drives book → chapter → verse, shown in purple ──
   const autoNav = useSyncExternalStore(subscribeAutoNav, getAutoNav);
   const autoState = useSyncExternalStore(subscribeAutoScripture, getAutoScriptureState);
+  const scriptureReading = useSyncExternalStore(subscribeScriptureReading, getScriptureReading);
   const autoOn = autoState.running || autoState.starting;
   const autoBook = !!(autoOn && autoNav && autoNav.ref.book === selectedBookNum && autoNav.ref.chapter === selectedChapter);
   const autoCovers = (book: number, chapter: number, verse: number): boolean => {
@@ -1300,7 +1301,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   // 3. Single-click when NOT live: cues in Preview and highlights in context
   /** Take a verse to Program. With Auto-cue next on, the presenter cues the following verse into Preview; here the list follows it. */
   const fireVerse = (verse: BibleVerse) => {
-    onFireScripture(buildScriptureCue(verse));
+    const cue = buildScriptureCue(verse);
+    onFireScripture(cue);
+    void syncActiveScriptureReading(cue, translationSlug);
     if (getAutoCueNext()) {
       const next = chapterVerses.find(v => v.verse > verse.verse);
       setHighlightVerseNum(next ? next.verse : verse.verse);
@@ -1314,7 +1317,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       fireVerse(verse);
     } else {
       setHighlightVerseNum(verse.verse);
-      if (onCueScripture) onCueScripture(buildScriptureCue(verse));
+      const cue = buildScriptureCue(verse);
+      if (onCueScripture) onCueScripture(cue);
+      void syncActiveScriptureReading(cue, translationSlug);
     }
   };
 
@@ -2293,6 +2298,11 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                                   {autoCueOn && isScriptureLive ? 'NEXT · IN PREVIEW' : 'IN PREVIEW'}
                                 </span>
                               )}
+                              {autoOn && scriptureReading && scriptureReading.book === selectedBookNum && scriptureReading.chapter === selectedChapter && scriptureReading.verse === v.verse && scriptureReading.verseWordIndex >= 0 && (
+                                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[#A78BFA]/25 text-[#E9D5FF] border border-[#A78BFA]/50 uppercase tracking-wider">
+                                  ● Reading Live · Word {scriptureReading.verseWordIndex + 1}/{scriptureReading.totalVerseWords}
+                                </span>
+                              )}
                             </div>
                             <p
                               className={`text-[13px] leading-relaxed select-text font-serif ${
@@ -2300,7 +2310,35 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                               }`}
                               style={{ fontFamily: 'Palatino Linotype, Palatino, Georgia, serif' }}
                             >
-                              {v.text}
+                              {autoOn &&
+                              scriptureReading &&
+                              scriptureReading.book === selectedBookNum &&
+                              scriptureReading.chapter === selectedChapter &&
+                              scriptureReading.verse === v.verse &&
+                              scriptureReading.verseWordIndex >= 0 ? (
+                                v.text.split(/\s+/).filter(Boolean).map((word, wi) => {
+                                  const isCurrent = wi === scriptureReading.verseWordIndex;
+                                  const isRead = wi < scriptureReading.verseWordIndex;
+                                  return (
+                                    <React.Fragment key={wi}>
+                                      {wi > 0 ? ' ' : ''}
+                                      <span
+                                        className={
+                                          isCurrent
+                                            ? 'bg-[#E3C57E]/30 text-white font-semibold px-1 py-0.5 rounded shadow-[0_0_10px_rgba(227,197,126,0.45)] transition-colors'
+                                            : isRead
+                                            ? 'text-[#FDE68A] font-medium transition-colors'
+                                            : 'text-white/60 transition-colors'
+                                        }
+                                      >
+                                        {word}
+                                      </span>
+                                    </React.Fragment>
+                                  );
+                                })
+                              ) : (
+                                v.text
+                              )}
                             </p>
                           </div>
 
@@ -2696,7 +2734,12 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         {/* ========================================================================= */}
         {/* SONG LYRICS (next to Scripture): song library + live song-follow           */}
         {/* ========================================================================= */}
-        {activeTab === 'lyrics' && <AmboSongLyricsTab />}
+        {activeTab === 'lyrics' && (
+          <AmboSongLyricsTab
+            onInsertSlide={onInsertTemplateSlide}
+            activeShowTitle={shows.find(sh => sh.id === activeShowId)?.title}
+          />
+        )}
 
         {/* ========================================================================= */}
         {/* TAB 4: CHORA (All Artists, Albums, Personal Music Locker, Playlists & DJ) */}

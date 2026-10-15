@@ -19,6 +19,7 @@ import {
   normalizeSpoken,
   type ScriptureRef,
 } from '../services/scriptureRef';
+import { ScriptureReadingTracker, createScriptureListener } from '../services/ambo/scriptureListener';
 
 const d = (s: string) => formatRef(parseRef(s)!, 'display');
 
@@ -282,8 +283,87 @@ describe('normalizeSpoken — ASR chunks', () => {
     assert.deepEqual(spoken('Romans chapter eight verses twenty eight through thirty one'), ['Romans 8:28–31']);
   });
 
+  test('filler phrases, compound ordinals, and bare chapter phonetic books', () => {
+    assert.deepEqual(spoken('John chapter 3 starting at verse 16'), ['John 3:16']);
+    assert.deepEqual(spoken('Romans chapter eight beginning in verse twenty eight'), ['Romans 8:28']);
+    assert.deepEqual(spoken('the twenty-third Psalm verse one'), ['Psalms 23:1']);
+    assert.deepEqual(spoken('turn to Romance chapter 8'), ['Romans 8']);
+    assert.deepEqual(spoken('first the salonians five sixteen'), ['1 Thessalonians 5:16']);
+  });
+
   test('ordinary speech is left alone', () => {
     assert.deepEqual(spoken('and I want to talk about grace this morning'), []);
     assert.deepEqual(spoken('there were about five hundred people there'), []);
   });
+
+  test('mis-heard book names snap to the likeliest book in front of chapter:verse', () => {
+    // There are only 66 books: words right before "C V" / "C:V" are a book however the ASR spelt them.
+    assert.deepEqual(spoken('turn with me to a fee shins 2 verse 8'), ['Ephesians 2:8']);
+    assert.deepEqual(spoken('do to run to me 6 verse 4'), ['Deuteronomy 6:4']);
+    assert.deepEqual(spoken('collisions 3 16'), ['Colossians 3:16']);
+    assert.deepEqual(spoken('jenna says 1 1'), ['Genesis 1:1']);
+    assert.deepEqual(spoken('eye zay uh 40 verse 31'), ['Isaiah 40:31']);
+    assert.deepEqual(spoken('jerry my uh 29 11'), ['Jeremiah 29:11']);
+    assert.deepEqual(spoken('hey be cook 3 17'), ['Habakkuk 3:17']);
+    assert.deepEqual(spoken('heat brews 11 1'), ['Hebrews 11:1']);
+    assert.deepEqual(spoken('first quarantines 13 verse 4'), ['1 Corinthians 13:4']);
+    assert.deepEqual(spoken('a fees ends chapter 6 verse 10'), ['Ephesians 6:10']);
+    // bare chapter after a convincing book sound
+    assert.deepEqual(spoken('go to a fee shins chapter 2'), ['Ephesians 2']);
+    // numbers in ordinary speech still do not grow a book
+    assert.deepEqual(spoken('we have 3 16 people here'), []);
+    assert.deepEqual(spoken('I saw 40 cars'), []);
+    // an alias never matches inside a word ("page 3" is not "ge 3", Genesis 3)
+    assert.deepEqual(spoken('take 5 minutes and look at page 3'), []);
+  });
 });
+
+describe('ScriptureListener & ScriptureReadingTracker — live speech & per-word reading', () => {
+  test('contextual verse follow-up resolves after bare chapter', () => {
+    const listener = createScriptureListener({ settleMs: 50 });
+
+    listener.feed('Turn with me to Romans chapter 8', 1000, true);
+    const f1 = listener.poll(2000);
+    assert.equal(f1.length, 1);
+    assert.equal(formatRef(f1[0].ref, 'display'), 'Romans 8');
+
+    // Speaker pauses and then says "verse 28"
+    listener.feed('verse 28', 2200, true);
+    const f2 = listener.poll(2500);
+    assert.equal(f2.length, 1);
+    assert.equal(formatRef(f2[0].ref, 'display'), 'Romans 8:28');
+  });
+
+  test('ScriptureReadingTracker highlights word-by-word and auto-advances to next verse', () => {
+    const tracker = new ScriptureReadingTracker();
+    const ref = parseRef('John 3:16')!;
+    tracker.setPassage(
+      ref.book,
+      ref.chapter,
+      16,
+      16,
+      [
+        { verse: 16, text: 'For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.' },
+        { verse: 17, text: 'For God sent not his Son into the world to condemn the world; but that the world through him might be saved.' },
+        { verse: 18, text: 'He that believeth on him is not condemned.' },
+      ],
+    );
+
+    const r1 = tracker.feed('For God so loved the world');
+    assert.ok(r1.reading);
+    assert.equal(r1.reading!.verseWordIndex, 5); // "world" is index 5 (0-based)
+    assert.equal(r1.advanceTo, null);
+
+    // KJV archaic normalization ("believes" -> "believeth")
+    const r2 = tracker.feed('that he gave his only begotten Son that whosoever believes in him');
+    assert.ok(r2.reading);
+    assert.equal(r2.reading!.verseWordIndex, 17); // "him"
+
+    // Finish verse 16 and continue reading into verse 17 (not yet on screen)
+    const r3 = tracker.feed('should not perish but have everlasting life For God sent not his Son into the world');
+    assert.ok(r3.advanceTo, 'should trigger auto-advance to verse 17');
+    assert.equal(r3.advanceTo!.verse, 17);
+    assert.ok(r3.advanceTo!.verseWordIndex >= 1);
+  });
+});
+

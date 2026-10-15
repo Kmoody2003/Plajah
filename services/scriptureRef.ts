@@ -224,6 +224,8 @@ function resolveBookNum(ordinal: string | undefined, base: string): number | nul
 const DASH = '[-–—]';
 
 const REF_RE = new RegExp(
+  // Never start inside a word: "page 3" must not read as "ge 3" (Genesis 3).
+  `(?<![a-z])` +
   `(?:(${ORDINAL_PATTERN})\\.?[\\s.]*)?` +           // 1  ordinal
   `(${BOOK_PATTERN})\\.?` +                          // 2  book base
   `\\s*` +
@@ -574,17 +576,23 @@ const ORDINAL_WORDS: Record<string, number> = {
   eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12, thirteenth: 13,
   fourteenth: 14, fifteenth: 15, sixteenth: 16, seventeenth: 17, eighteenth: 18,
   nineteenth: 19, twentieth: 20, thirtieth: 30, fortieth: 40, fiftieth: 50,
+  sixtieth: 60, seventieth: 70, eightieth: 80, ninetieth: 90, hundredth: 100,
 };
 
+const COMPOUND_ORDINAL = new RegExp(
+  `\\b(${Object.keys(TENS).join('|')})[\\s-](first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)\\b`,
+  'gi',
+);
+
 const NUM_WORD = new RegExp(
-  `\\b(?:(?:${Object.keys(TENS).join('|')})(?:[\\s-](?:${Object.keys(UNITS).join('|')}))?` +
+  `\\b(?:(?:a\\s+hundred)|(?:(?:${Object.keys(TENS).join('|')})(?:[\\s-](?:${Object.keys(UNITS).join('|')}))?` +
   `|(?:${Object.keys(UNITS).join('|')}))` +
-  `(?:\\s+hundred(?:\\s+(?:and\\s+)?(?:(?:${Object.keys(TENS).join('|')})(?:[\\s-](?:${Object.keys(UNITS).join('|')}))?|(?:${Object.keys(UNITS).join('|')})))?)?\\b`,
+  `(?:\\s+hundred(?:\\s+(?:and\\s+)?(?:(?:${Object.keys(TENS).join('|')})(?:[\\s-](?:${Object.keys(UNITS).join('|')}))?|(?:${Object.keys(UNITS).join('|')})))?)?)\\b`,
   'gi',
 );
 
 function wordsToNumber(phrase: string): number | null {
-  const parts = phrase.toLowerCase().replace(/-/g, ' ').split(/\s+/).filter(w => w && w !== 'and');
+  const parts = phrase.toLowerCase().replace(/-/g, ' ').split(/\s+/).filter(w => w && w !== 'and' && w !== 'a');
   let total = 0, current = 0, saw = false;
   for (const w of parts) {
     if (w === 'hundred') { current = (current || 1) * 100; saw = true; continue; }
@@ -610,6 +618,7 @@ export function phoneticKey(word: string): string {
   let s = word.toLowerCase().replace(/[^a-z]/g, '');
   if (!s) return '';
   s = s.replace(/^ps/, 's').replace(/^kn/, 'n').replace(/^wr/, 'r')
+    .replace(/alm/g, 'am')
     .replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/th/g, 't').replace(/sch/g, 'sk').replace(/ch/g, 'k')
     .replace(/dge/g, 'j').replace(/g(?=[eiy])/g, 'j').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k')
     .replace(/q/g, 'k').replace(/x/g, 'ks').replace(/z/g, 's').replace(/v/g, 'b').replace(/d/g, 't').replace(/gh/g, 'g');
@@ -642,6 +651,46 @@ const SPOKEN_BOOKS: Array<{ name: string; flat: string; key: string }> = [
   'Colossians', 'Thessalonians', 'Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', 'Peter', 'Jude', 'Revelation',
 ].map(name => { const flat = name.toLowerCase().replace(/[^a-z]/g, ''); return { name, flat, key: phoneticKey(flat) }; });
 
+/** Direct high-frequency ASR homophones for Bible books when followed by chapter:verse. */
+const SPOKEN_BOOK_HOMOPHONES: Record<string, string> = {
+  some: 'Psalms',
+  sum: 'Psalms',
+  sums: 'Psalms',
+  palm: 'Psalms',
+  palms: 'Psalms',
+  salm: 'Psalms',
+  salms: 'Psalms',
+  soms: 'Psalms',
+  romance: 'Romans',
+  roman: 'Romans',
+  philippines: 'Philippians',
+  philippine: 'Philippians',
+  filipinos: 'Philippians',
+  collisions: 'Colossians',
+  collision: 'Colossians',
+  coalitions: 'Colossians',
+  quarantines: 'Corinthians',
+  corinthian: 'Corinthians',
+  thessalonian: 'Thessalonians',
+  salonians: 'Thessalonians',
+  thesalonians: 'Thessalonians',
+  galatian: 'Galatians',
+  ephesian: 'Ephesians',
+  hebrew: 'Hebrews',
+  proverb: 'Proverbs',
+  lamentation: 'Lamentations',
+  axe: 'Acts',
+  ax: 'Acts',
+  jose: 'Hosea',
+  stephanie: 'Zephaniah',
+  filemon: 'Philemon',
+  habakuk: 'Habakkuk',
+  haveacook: 'Habakkuk',
+  jennasis: 'Genesis',
+  jennasays: 'Genesis',
+  isequal: 'Ezekiel',
+};
+
 /** Words that are never (the start of) a mis-heard book name. */
 const NOT_A_BOOK = new Set(('the an and or of to in on at by for from with are was were be been it its this that these those ' +
   'i me my we our you your he him his she her they them their page pages number numbers times minutes hours days years ' +
@@ -651,17 +700,32 @@ const NOT_A_BOOK = new Set(('the an and or of to in on at by for from with are w
 const ORDINAL_TOKEN = /^(?:1|2|3|1st|2nd|3rd|first|second|third)$/i;
 const ALIAS_SET = new Set(Object.keys(BASE_ALIASES));
 
+export interface SoundMatchOptions {
+  /**
+   * The words sit right in front of a chapter[:verse] number, so they are almost certainly a
+   * book name however the recogniser spelt it. There are only 66 books: take the likeliest one
+   * even on a weak match, rather than leaving the reference undetected.
+   */
+  loose?: boolean;
+}
+
 /** The closest book by sound to `words` joined, or null if nothing is convincingly close. */
-export function closestBookBySound(words: string): { name: string; score: number } | null {
+export function closestBookBySound(words: string, opts: SoundMatchOptions = {}): { name: string; score: number } | null {
   const flat = words.toLowerCase().replace(/[^a-z]/g, '');
   if (flat.length < 3) return null;
+  if (SPOKEN_BOOK_HOMOPHONES[flat]) {
+    return { name: SPOKEN_BOOK_HOMOPHONES[flat], score: 0.94 };
+  }
   const key = phoneticKey(flat);
   let best: { name: string; score: number } | null = null;
   let second = 0;
   for (const b of SPOKEN_BOOKS) {
     const ks = sim(key, b.key), rs = sim(flat, b.flat);
-    // short names (Job, Mark, Luke, Acts…) must sound identical — otherwise everyday words slip in
-    if (Math.min(b.flat.length, flat.length) <= 4 && key !== b.key) continue;
+    // short names (Job, Mark, Luke, Acts…) must sound identical — otherwise everyday words slip in.
+    // In front of a reference a near-identical sound is enough ("Luke" heard as "Look 15").
+    if (Math.min(b.flat.length, flat.length) <= 4 && key !== b.key) {
+      if (!opts.loose || (ks < 0.75 && rs < 0.75)) continue;
+    }
     const score = 0.6 * ks + 0.4 * rs;
     if (!best || score > best.score) { if (best && best.name.split(' ')[0] !== b.name.split(' ')[0]) second = Math.max(second, best.score); best = { name: b.name, score }; }
     else if (best.name.split(' ')[0] !== b.name.split(' ')[0]) second = Math.max(second, score);
@@ -671,33 +735,49 @@ export function closestBookBySound(words: string): { name: string; score: number
   // a clear match outright, or a weaker one that still stands well clear of every other book.
   if (best.score >= 0.72) return best;
   if (best.score >= 0.58 && best.score - second >= 0.1) return best;
+  // Right before chapter:verse the finite set decides it: the likeliest book wins as long as it
+  // sounds at all like one and nothing else sounds as close.
+  if (opts.loose && best.score >= 0.45 && (best.score - second >= 0.04 || best.score >= 0.55)) return best;
   return null;
 }
 
 /**
  * Rewrite mis-heard book names that come right before a reference. Runs on text whose number
- * words are already digits. Only fires in front of "C:V", "C V" or a run-together "CVV" so
- * ordinary speech with a lone number is left alone.
+ * words are already digits. Fires in front of "C:V", "C V", a run-together "CVV", or a single
+ * chapter number when the preceding word(s) strongly match a Bible book by sound.
  */
 export function correctSpokenBooks(text: string): string {
   const toks = text.split(/\s+/).filter(Boolean);
   const isNum = (t?: string) => !!t && /^\d{1,3}$/.test(t);
   for (let i = 1; i < toks.length; i++) {
-    const t = toks[i];
-    const refLike = /^\d{1,3}:\d{1,3}/.test(t) || (isNum(t) && isNum(toks[i + 1]?.replace(/[.,;]$/, ''))) || /^\d{3,4}$/.test(t);
-    if (!refLike) continue;
+    const t = toks[i].replace(/[.,;!?]+$/, '');
+    const multiNum = /^\d{1,3}:\d{1,3}/.test(t) || (isNum(t) && isNum(toks[i + 1]?.replace(/[.,;!?]+$/, ''))) || /^\d{3,4}$/.test(t);
+    const singleNum = !multiNum && isNum(t) && Number(t) >= 1 && Number(t) <= 150;
+    if (!multiNum && !singleNum) continue;
     const prev = toks[i - 1].toLowerCase().replace(/[^a-z]/g, '');
     if (!prev || ALIAS_SET.has(prev) || /^\d/.test(toks[i - 1])) continue;          // already a book (or no words)
-    // try the last 1–3 words before the number; keep the best-sounding span
+    // try the last 1–4 words before the number; keep the best-sounding span
     let pick: { from: number; name: string; score: number } | null = null;
-    for (let len = 1; len <= 3 && i - len >= 0; len++) {
+    for (let len = 1; len <= 5 && i - len >= 0; len++) {
       const span = toks.slice(i - len, i);
       if (span.some(w => /\d/.test(w) || ORDINAL_TOKEN.test(w))) break;
-      if (NOT_A_BOOK.has(span[0].toLowerCase().replace(/[^a-z]/g, ''))) continue;
-      const hit = closestBookBySound(span.join(''));
+      const firstClean = span[0].toLowerCase().replace(/[^a-z]/g, '');
+      // Allow "some"/"sum" only when followed by an explicit multiNum (e.g. "Some 23:1"), not bare "some 20 people"
+      // A long book name can be heard as a run of small words ("do to run to me 6:4"), so a span of
+      // three or more words may start with one of them.
+      if (NOT_A_BOOK.has(firstClean) && len < 3) continue;
+      if ((firstClean === 'some' || firstClean === 'sum') && !multiNum) continue;
+      // chapter:verse after the words leaves little doubt they are a book name — take the likeliest one
+      const hit = closestBookBySound(span.join(''), { loose: multiNum });
       if (hit && (!pick || hit.score > pick.score + 0.02)) pick = { from: i - len, ...hit };
     }
     if (!pick) continue;
+    if (singleNum) {
+      // Bare chapter: a convincing phonetic book match and a valid chapter number for that book
+      const bk = lookupBook(pick.name);
+      const ch = Number(t);
+      if (pick.score < 0.66 || !bk || ch < 1 || ch > bk.chapters) continue;
+    }
     toks.splice(pick.from, i - pick.from, pick.name);
     i = pick.from + 1;
   }
@@ -712,15 +792,36 @@ export function correctSpokenBooks(text: string): string {
 export function normalizeSpoken(text: string): string {
   let s = ` ${text || ''} `;
 
-  // "the eighth chapter of Romans" → "Romans 8"
+  // Compound ordinals: "twenty-third" / "thirty first" → "23rd" / "31st" or plain number in ordinal phrasing
+  s = s.replace(COMPOUND_ORDINAL, (_all, ten: string, unitOrd: string) => {
+    const val = (TENS[ten.toLowerCase()] || 0) + (ORDINAL_WORDS[unitOrd.toLowerCase()] || 0);
+    return val ? `${val}th` : _all;
+  });
+
+  // "the 23rd Psalm" / "the twenty-third psalm" / "the eighth psalm" → "Psalms 23"
   s = s.replace(
-    new RegExp(`\\b(?:the\\s+)?(${Object.keys(ORDINAL_WORDS).join('|')})\\s+chapter\\s+of\\s+((?:${ORDINAL_PATTERN})?\\s*[a-z]+(?:\\s+of\\s+\\w+){0,2})`, 'gi'),
-    (_all, ord: string, book: string) => ` ${book.trim()} ${ORDINAL_WORDS[ord.toLowerCase()]} `,
+    new RegExp(`\\b(?:the\\s+)?(?:(\\d{1,3})(?:st|nd|rd|th)|(${Object.keys(ORDINAL_WORDS).join('|')}))\\s+psalms?\\b`, 'gi'),
+    (_all, num?: string, ord?: string) => ` Psalms ${num ? Number(num) : ORDINAL_WORDS[ord!.toLowerCase()]} `,
+  );
+
+  // "the eighth chapter of Romans" / "the 8th chapter of Romans" → "Romans 8"
+  s = s.replace(
+    new RegExp(`\\b(?:the\\s+)?(?:(\\d{1,3})(?:st|nd|rd|th)|(${Object.keys(ORDINAL_WORDS).join('|')}))\\s+chapter\\s+of\\s+((?:${ORDINAL_PATTERN})?\\s*[a-z]+(?:\\s+of\\s+\\w+){0,2})`, 'gi'),
+    (_all, num: string | undefined, ord: string | undefined, book: string) => ` ${book.trim()} ${num ? Number(num) : ORDINAL_WORDS[ord!.toLowerCase()]} `,
   );
 
   // Ordinal book prefixes must survive before generic number-word replacement.
-  s = s.replace(/\b(first|second|third)\s+(john|corinthians|samuel|kings|chronicles|peter|timothy|thessalonians|cor|sam|kgs|chr|pet|tim|thess)\b/gi,
-    (_all, ord: string, book: string) => ` ${ORDINAL_WORDS[ord.toLowerCase()]} ${book} `);
+  s = s.replace(/\b(first|second|third|1st|2nd|3rd|one|two|three)\s+(john|corinthians|samuel|kings|chronicles|peter|timothy|thessalonians|cor|sam|kgs|chr|pet|tim|thess)\b/gi,
+    (_all, ord: string, book: string) => {
+      const k = ord.toLowerCase();
+      const n = ORDINAL_WORDS[k] ?? UNITS[k] ?? parseInt(k, 10);
+      return ` ${n} ${book} `;
+    });
+
+  // Also convert "first/second/third" right before a mis-heard numbered book ("first the salonians", "second collisions")
+  s = s.replace(/\b(first|second|third)\s+(?=[a-z]{3,}\b)/gi, (_all, ord: string) => {
+    return ` ${ORDINAL_WORDS[ord.toLowerCase()]} `;
+  });
 
   // Number words → digits.
   s = s.replace(NUM_WORD, (match) => {
@@ -728,13 +829,27 @@ export function normalizeSpoken(text: string): string {
     return n === null ? match : String(n);
   });
 
-  // "chapter 8 verse 28" → "8:28"; "chapter 8" → "8"; "verse 28" after a ref → ":28"
-  s = s.replace(/\bchapters?\s+(\d{1,3})\s*(?:,|and)?\s*(?:verses?|vs?)\.?\s*(\d{1,3})(?:\s*(?:through|to|thru)\s*(\d{1,3}))?/gi,
-    (_all, c: string, v: string, e?: string) => ` ${c}:${v}${e ? `-${e}` : ''} `);
-  s = s.replace(/\bchapters?\s+(\d{1,3})\b/gi, ' $1 ');
-  s = s.replace(/\b(\d{1,3})\s*(?:,)?\s*(?:verses?|vs)\.?\s+(\d{1,3})\b/gi, ' $1:$2 ');
+  // "chapter 8 of Romans" → "Romans 8"
+  s = s.replace(
+    new RegExp(`\\bchapters?\\s+(\\d{1,3})\\s+of\\s+(?:the\\s+(?:book|gospel)\\s+of\\s+)?((?:${ORDINAL_PATTERN})?\\s*[a-z]+(?:\\s+of\\s+\\w+){0,2})`, 'gi'),
+    (_all, c: string, book: string) => ` ${book.trim()} ${c} `,
+  );
 
-  // Mis-heard book names ("Collisions 3 16", "Jenna says 1 1") → the closest-sounding book.
+  // Optional spoken filler between chapter and verse: "starting at", "beginning in", "reading from", "down to", "and", etc.
+  const FILLER = `(?:[,;.]?\\s*(?:and\\s+)?(?:(?:we(?:'ll|\\s+will)?\\s+)?(?:start(?:ing)?|begin(?:ning)?|read(?:ing)?|pick(?:ing)?\\s+up|drop(?:ping)?\\s+down|down|over|jump(?:ing)?)\\s+)?(?:at|in|from|with|to|on)?\\s*)?`;
+
+  // "chapter 8 [starting at] verse 28 [through 31]" → "8:28[-31]"
+  s = s.replace(
+    new RegExp(`\\bchapters?\\s+(\\d{1,3})${FILLER}\\b(?:verses?|vs?)\\.?\\s*(\\d{1,3})(?:\\s*(?:through|to|thru|-|and\\s+(?:verse\\s+)?)\\s*(\\d{1,3}))?`, 'gi'),
+    (_all, c: string, v: string, e?: string) => ` ${c}:${v}${e ? `-${e}` : ''} `,
+  );
+  s = s.replace(/\bchapters?\s+(\d{1,3})\b/gi, ' $1 ');
+  s = s.replace(
+    new RegExp(`\\b(\\d{1,3})${FILLER}\\b(?:verses?|vs)\\.?\\s+(\\d{1,3})(?:\\s*(?:through|to|thru|-|and\\s+(?:verse\\s+)?)\\s*(\\d{1,3}))?\\b`, 'gi'),
+    (_all, c: string, v: string, e?: string) => ` ${c}:${v}${e ? `-${e}` : ''} `,
+  );
+
+  // Mis-heard book names ("Collisions 3 16", "Jenna says 1 1", "Romance 8") → the closest-sounding book.
   s = ` ${correctSpokenBooks(s)} `;
 
   // "John three sixteen" → "John 3:16" (two bare numbers straight after a book).
