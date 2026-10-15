@@ -46,6 +46,7 @@ export function step(s:State,inputs:Input[],dt:number) {
     p.drift=0;p.driftStage=0;
    }
    if(!input.action){p.drift=0;p.driftStage=0;}
+   if(!p.human&&s.time>1.2&&Math.abs(steer)>.12){p.driftStage=Math.abs(steer)>.14?2:1;}
    p.lastAction=input.action;
    const target=throttle>0?(offroad?.028:p.boost>0?.106:drifting?.058:.070):0;
    // Punchy low-end takeoff torque transitioning to aero drag curve; rapid disc braking
@@ -71,7 +72,11 @@ export function step(s:State,inputs:Input[],dt:number) {
    p.rpm=Math.round(p.boost>0?9600+Math.sin(s.time*50)*400:1200+gearRatio*6800);
    const before=p.progress;p.progress+=p.speed*dt;
    const fraction=((p.progress%1)+1)%1;
-   if(!offroad&&p.cooldown===0&&[.17,.49,.78].some(t=>Math.abs(fraction-t)<.012)&&Math.abs(p.lane)<25){p.boost=1.4;p.cooldown=2;feedback(p,'TURBO PAD!');}
+   if(!offroad&&p.cooldown===0&&[.09,.17,.49,.78].some(t=>Math.abs(fraction-t)<.012)&&Math.abs(p.lane)<25){p.boost=1.4;p.cooldown=2;feedback(p,'TURBO PAD!');}
+   if(p.human&&s.time>1.2&&!offroad&&p.boost===0&&p.cooldown===0&&Math.abs(steer)>.05){
+    const leader=s.players.find((other,oi)=>oi!==i&&other.progress>p.progress&&other.progress-p.progress<.028&&Math.abs(other.lane-p.lane)<14);
+    if(leader){p.boost=.95;p.cooldown=2.4;feedback(p,'SLIPSTREAM!');}
+   }
    if(p.progress>=3){p.finish=s.time;p.score=10000-Math.round(s.time*50);feedback(p,'FINISH!');}
    if(Math.floor(before)<Math.floor(p.progress)&&p.progress>=1&&p.progress<3)feedback(p,`LAP ${Math.floor(p.progress)+1}`);
    const pt=trackPoint(p.progress,p.lane);p.x=pt.x;p.y=pt.y;

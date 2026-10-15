@@ -31,7 +31,7 @@ export function trackFrame(progress:number,lane=0){
   Math.sin(bank),
   hRight.z*Math.cos(bank)
  ).normalize();
- const normal=new T.Vector3().crossVectors(right,tangent).normalize();
+ const normal=new T.Vector3().crossVectors(tangent,right).normalize();
  const position=center.clone().addScaledVector(right,lane*0.18);
  return {position,tangent,right,normal,bankAngle:bank,center};
 }

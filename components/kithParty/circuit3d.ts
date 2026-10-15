@@ -67,24 +67,24 @@ function makeGlowTexture():T.CanvasTexture{
 function makeAsphaltMaps():{map:T.CanvasTexture;rough:T.CanvasTexture}{
  const c=document.createElement('canvas');c.width=256;c.height=256;
  const x=c.getContext('2d')!;
- x.fillStyle='#262737';x.fillRect(0,0,256,256);
- for(let i=0;i<2600;i++){
+ x.fillStyle='#191a2b';x.fillRect(0,0,256,256);
+ for(let i=0;i<2800;i++){
   const v=Math.random();
-  x.fillStyle=v>.55?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.18)';
+  x.fillStyle=v>.58?'rgba(255,210,180,0.055)':'rgba(6,8,18,0.28)';
   const s=1+Math.random()*2.2;
   x.fillRect(Math.random()*256,Math.random()*256,s,s);
  }
- for(let i=0;i<36;i++){
-  x.fillStyle='rgba(255,170,120,0.035)';
+ for(let i=0;i<42;i++){
+  x.fillStyle='rgba(255,150,90,0.04)';
   x.beginPath();x.arc(Math.random()*256,Math.random()*256,9+Math.random()*24,0,7);x.fill();
  }
  const map=new T.CanvasTexture(c);
  map.wrapS=map.wrapT=T.RepeatWrapping;map.colorSpace=T.SRGBColorSpace;map.anisotropy=4;
  const rc=document.createElement('canvas');rc.width=64;rc.height=64;
  const rx=rc.getContext('2d')!;
- rx.fillStyle='#c2c2c2';rx.fillRect(0,0,64,64);
+ rx.fillStyle='#787888';rx.fillRect(0,0,64,64);
  for(let i=0;i<320;i++){
-  const v=140+(Math.random()*100|0);
+  const v=80+(Math.random()*95|0);
   rx.fillStyle=`rgb(${v},${v},${v})`;
   rx.fillRect(Math.random()*64,Math.random()*64,2,2);
  }
@@ -92,18 +92,32 @@ function makeAsphaltMaps():{map:T.CanvasTexture;rough:T.CanvasTexture}{
  return {map,rough};
 }
 
+/** Shared cached loader for Blender-sculpted drivers.glb (for the 8 non-locked Kith drivers). */
+let driversGlbPromise:Promise<T.Group>|null=null;
+function loadDriversGlb():Promise<T.Group>{
+ if(!driversGlbPromise){
+  driversGlbPromise=new Promise((resolve,reject)=>{
+   if(typeof window==='undefined'){reject(new Error('no-window'));return;}
+   new GLTFLoader().load('/kith-party/models/drivers.glb',gltf=>resolve(gltf.scene),undefined,err=>reject(err));
+  });
+ }
+ return driversGlbPromise;
+}
+
 /** Tiny procedural sky baked to a PMREM env map so glossy paint & crystals have something vivid to reflect. */
 function buildEnvironment(renderer:T.WebGLRenderer):T.WebGLRenderTarget{
  const pmrem=new T.PMREMGenerator(renderer);
  const env=new T.Scene();
- env.add(new T.Mesh(new T.SphereGeometry(50,16,12),new T.MeshBasicMaterial({side:T.BackSide,color:'#8fc3f7'})));
- const ground=new T.Mesh(new T.CircleGeometry(45,16),new T.MeshBasicMaterial({color:'#c9889f'}));
+ env.add(new T.Mesh(new T.SphereGeometry(50,16,12),new T.MeshBasicMaterial({side:T.BackSide,color:'#7db8f5'})));
+ const ground=new T.Mesh(new T.CircleGeometry(45,16),new T.MeshBasicMaterial({color:'#d48aa6'}));
  ground.rotation.x=-Math.PI/2;ground.position.y=-4;env.add(ground);
- const sun=new T.Mesh(new T.SphereGeometry(5,12,10),new T.MeshBasicMaterial({color:'#fff3d6'}));
- sun.position.set(-19,34,18);env.add(sun);
- const pink=new T.Mesh(new T.SphereGeometry(9,10,8),new T.MeshBasicMaterial({color:'#ff9ecf'}));
- pink.position.set(28,6,-20);env.add(pink);
- const rt=pmrem.fromScene(env,0.05);
+ const sun=new T.Mesh(new T.SphereGeometry(6,12,10),new T.MeshBasicMaterial({color:'#fff2d0'}));
+ sun.position.set(28,32,-12);env.add(sun);
+ const pink=new T.Mesh(new T.SphereGeometry(10,10,8),new T.MeshBasicMaterial({color:'#ff9ecf'}));
+ pink.position.set(-24,10,22);env.add(pink);
+ const warm=new T.Mesh(new T.SphereGeometry(8,10,8),new T.MeshBasicMaterial({color:'#ff9d3b'}));
+ warm.position.set(18,4,15);env.add(warm);
+ const rt=pmrem.fromScene(env,0.04);
  pmrem.dispose();
  return rt;
 }
@@ -210,49 +224,49 @@ class KartAudioSynthesizer {
 
 export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
  const renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
- renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));renderer.setSize(960,560,false);
- renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.3;
+ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));renderer.setSize(960,560,false);
+ renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;
  canvas.dataset.renderer='three-webgl';
 
  const scene=new T.Scene();
- scene.fog=new T.FogExp2('#f0d2e2',.0026);
+ scene.fog=new T.FogExp2('#f4d5e6',.0019);
  scene.add(makeSkyDome());
  const envRT=buildEnvironment(renderer);
  scene.environment=envRT.texture;
- scene.environmentIntensity=.62;
+ scene.environmentIntensity=.78;
 
- // Sun glow billboard, drifting candy clouds, golden air sparkles
+ // Sun glow billboard, drifting candy clouds, golden air sparkles (with soft radial glow texture!)
  const glowTex=makeGlowTexture();
  const sunGlow=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:'#ffdf9e',transparent:true,opacity:.85,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
- sunGlow.position.set(-30,68,28).normalize().multiplyScalar(390);sunGlow.scale.setScalar(150);scene.add(sunGlow);
+ sunGlow.position.set(55,64,-10).normalize().multiplyScalar(390);sunGlow.scale.setScalar(165);scene.add(sunGlow);
  const puffTex=makePuffTexture();
  const clouds:{sprite:T.Sprite;speed:number}[]=[];
- for(let i=0;i<12;i++){
-  const sp=new T.Sprite(new T.SpriteMaterial({map:puffTex,transparent:true,opacity:.42+Math.random()*.3,depthWrite:false,fog:false,color:'#ffffff'}));
-  const a=Math.random()*Math.PI*2,r=170+Math.random()*130;
-  sp.position.set(Math.cos(a)*r,58+Math.random()*46,Math.sin(a)*r);
-  const s=46+Math.random()*52;sp.scale.set(s,s*.55,1);
+ for(let i=0;i<14;i++){
+  const sp=new T.Sprite(new T.SpriteMaterial({map:puffTex,transparent:true,opacity:.48+Math.random()*.28,depthWrite:false,fog:false,color:'#fff7fb'}));
+  const a=Math.random()*Math.PI*2,r=165+Math.random()*130;
+  sp.position.set(Math.cos(a)*r,52+Math.random()*44,Math.sin(a)*r);
+  const s=48+Math.random()*54;sp.scale.set(s,s*.52,1);
   scene.add(sp);clouds.push({sprite:sp,speed:.6+Math.random()*1.4});
  }
- const moteCount=130;
+ const moteCount=150;
  const motePos=new Float32Array(moteCount*3);
- for(let i=0;i<moteCount;i++){motePos[i*3]=(Math.random()-.5)*240;motePos[i*3+1]=2+Math.random()*38;motePos[i*3+2]=(Math.random()-.5)*240;}
+ for(let i=0;i<moteCount;i++){motePos[i*3]=(Math.random()-.5)*220;motePos[i*3+1]=2+Math.random()*36;motePos[i*3+2]=(Math.random()-.5)*220;}
  const moteGeo=new T.BufferGeometry();
  moteGeo.setAttribute('position',new T.BufferAttribute(motePos,3));
- const moteMat=new T.PointsMaterial({color:'#ffe9a8',size:.22,transparent:true,opacity:.5,blending:T.AdditiveBlending,depthWrite:false});
+ const moteMat=new T.PointsMaterial({map:glowTex,color:'#ffe7a0',size:.85,transparent:true,opacity:.65,blending:T.AdditiveBlending,depthWrite:false,alphaTest:.02});
  const motes=new T.Points(moteGeo,moteMat);scene.add(motes);
 
- const hemi=new T.HemisphereLight('#f2f7ff','#6f5c73',2.2);scene.add(hemi);
- const sun=new T.DirectionalLight('#ffe8c7',3.4);
- sun.position.set(-30,68,28);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
- Object.assign(sun.shadow.camera,{left:-90,right:90,top:75,bottom:-75,near:1,far:160});
- sun.shadow.bias=-.0008;scene.add(sun);
- const fill=new T.DirectionalLight('#c579ff',1.2);fill.position.set(45,22,-32);scene.add(fill);
+ const hemi=new T.HemisphereLight('#f6f8ff','#7a5d7e',2.1);scene.add(hemi);
+ const sun=new T.DirectionalLight('#ffebd2',3.6);
+ sun.position.set(42,68,-18);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+ Object.assign(sun.shadow.camera,{left:-95,right:95,top:80,bottom:-80,near:1,far:180});
+ sun.shadow.bias=-.0006;scene.add(sun);
+ const fill=new T.DirectionalLight('#e38cff',1.35);fill.position.set(-45,26,38);scene.add(fill);
 
  const mats=new Map<string,T.MeshStandardMaterial>();
  const mat=(color:string,glow=0)=>{
   const key=color+glow;
-  if(!mats.has(key)) mats.set(key,new T.MeshStandardMaterial({color,roughness:.64,metalness:glow?.25:.06,emissive:glow?color:'#000',emissiveIntensity:glow}));
+  if(!mats.has(key)) mats.set(key,new T.MeshStandardMaterial({color,roughness:glow?.32:.58,metalness:glow?.25:.08,emissive:glow?color:'#000',emissiveIntensity:glow}));
   return mats.get(key)!;
  };
  const box=(x:number,y:number,z:number,sx:number,sy:number,sz:number,color:string,glow=0)=>{
@@ -261,7 +275,16 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
 
  // High-fidelity Banked Road Ribbons matching Concept Art
  const asphaltMaps=makeAsphaltMaps();
- const asphaltMat=new T.MeshStandardMaterial({map:asphaltMaps.map,roughnessMap:asphaltMaps.rough,roughness:1,metalness:.1,envMapIntensity:.5});
+ const asphaltMat=new T.MeshPhysicalMaterial({
+  map:asphaltMaps.map,
+  roughnessMap:asphaltMaps.rough,
+  color:'#202236',
+  roughness:.44,
+  metalness:.14,
+  clearcoat:.38,
+  clearcoatRoughness:.26,
+  envMapIntensity:.9
+ });
  function strip(l1:number,l2:number,color:string,offset=0,glow=0,override?:T.Material){
   const positions:number[]=[],uv:number[]=[],idx:number[]=[];
   for(let i=0;i<=400;i++){
@@ -280,98 +303,94 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
   const mesh=new T.Mesh(geo,material);mesh.receiveShadow=true;scene.add(mesh);return mesh;
  }
 
- // Under-deck foundation & dark asphalt track surface
- strip(-72,72,'#8c7996',-.32); // Stone bridge foundation
- strip(-56,56,'#212234',0,0,asphaltMat); // Dark competition tarmac with procedural asphalt grain
- // High-contrast glowing edge boundary lines
- strip(-55,-51,'#ff7b00',.02,.6);
- strip(51,55,'#ff7b00',.02,.6);
- // Center parallel lane markings with warm golden glow
- strip(-1.2,-.4,'#ffa826',.03,.5);
- strip(.4,1.2,'#ffa826',.03,.5);
+ // Under-deck carved stone bridge foundation & dark reflective asphalt track surface
+ strip(-74,74,'#cbb8cc',-.34); // Warm stone viaduct deck foundation underneath road
+ strip(-69,-63,'#ded0be',.01); // Left carved stone curb coping
+ strip(63,69,'#ded0be',.01);   // Right carved stone curb coping
+ strip(-63,63,'#1c1d30',0,0,asphaltMat); // Dark competition tarmac with clearcoat sheen
 
- // Red & White / Orange racing rumble strips (curbs) on corner edges
- for(let i=0;i<120;i++){
-  const t=i/120;
+ // Concept-Art Glowing Orange Edge & Double-Center Striping
+ strip(-58.5,-54.5,'#ff7b00',.025,1.25);
+ strip(54.5,58.5,'#ff7b00',.025,1.25);
+ strip(-2.4,-.7,'#ff9b1f',.03,1.15);
+ strip(.7,2.4,'#ff9b1f',.03,1.15);
+ // Subtle racing lane guide filaments
+ strip(-28.5,-27.5,'#ff8811',.022,.55);
+ strip(27.5,28.5,'#ff8811',.022,.55);
+
+ // Alternating Amber & Ivory Corner Apex Curbs
+ for(let i=0;i<140;i++){
+  const t=i/140;
   for(const side of [-1,1]){
-   const p=worldPoint(t,side*53,.04);
-   const q=worldPoint(t+.001,side*53,.04);
+   const p=worldPoint(t,side*60.2,.03);
+   const q=worldPoint(t+.001,side*60.2,.03);
    const angle=Math.atan2(q.x-p.x,q.z-p.z);
-   const curbColor=i%2===0?'#ff2a4b':'#ffffff';
-   const curb=box(p.x,p.y,p.z,1.1,.06,1.4,curbColor,.2);
+   const curbColor=i%2===0?'#ff7300':'#f7ead8';
+   const curb=box(p.x,p.y,p.z,.95,.06,1.35,curbColor,i%2===0?.65:.05);
    curb.rotation.y=angle;
-  }
- }
-
- // Illuminated guardrail posts & glowing jewel beacons
- for(let i=0;i<90;i++){
-  const t=i/90;
-  if(i%2===0)for(const lane of [-66,66]){
-   const r=worldPoint(t,lane);
-   box(r.x,r.y+.45,r.z,.12,.88,.12,'#b3a2cb');
-   const rail=new T.Mesh(new T.SphereGeometry(.16,8,6),mat(i%4?'#ff9900':'#00e5ff',1.2));
-   rail.position.set(r.x,r.y+.95,r.z);scene.add(rail);
   }
  }
 
  // Animated Boost Pads with glowing directional chevrons
  const boostPads:{mesh:T.Mesh;padT:number}[]=[];
- for(const t of [.17,.49,.78]){
+ for(const t of [.09,.17,.49,.78]){
   const p=worldPoint(t),q=worldPoint(t+.001),angle=Math.atan2(q.x-p.x,q.z-p.z);
-  const pad=box(p.x,p.y+.08,p.z,7.2,.08,3.2,'#ff7300',1.1);
+  const pad=box(p.x,p.y+.06,p.z,6.8,.06,3.4,'#ff7300',1.35);
   pad.rotation.y=angle;
   boostPads.push({mesh:pad,padT:t});
   for(let i=0;i<3;i++){
-   const v=box(p.x,p.y+.14,p.z,2.2,.03,.16,'#fff4d0',1.4);
+   const v=box(p.x,p.y+.11,p.z,2.4,.03,.18,'#fff4d0',1.6);
    v.rotation.y=angle+Math.PI/4;
-   v.position.add(new T.Vector3(Math.sin(angle),0,Math.cos(angle)).multiplyScalar(i*.7-.7));
+   v.position.add(new T.Vector3(Math.sin(angle),0,Math.cos(angle)).multiplyScalar(i*.75-.75));
   }
  }
 
- // Viaduct support columns
- for(let i=0;i<12;i++){
-  const p=worldPoint(i/12);
-  const support=box(p.x,-4,p.z,2.2,Math.max(1,p.y+8),2.2,'#362552');
+ // Viaduct stone support columns beneath the circuit
+ for(let i=0;i<14;i++){
+  const p=worldPoint(i/14);
+  const support=box(p.x,-4,p.z,2.6,Math.max(1,p.y+8),2.6,'#8e7b96');
   support.position.y=(p.y-8)/2;
  }
 
- // Start/Finish Gantry & Banner
+ // Start/Finish Ceremonial Arch (placed slightly behind grid at t=0.985 so opening vista is 100% unobstructed)
  function sign(label:string,width=512,height=128){
   const c=document.createElement('canvas');c.width=width;c.height=height;
   const ctx=c.getContext('2d')!;
-  ctx.fillStyle='#1c0e2c';ctx.fillRect(0,0,width,height);
-  ctx.fillStyle='#ff8c00';ctx.fillRect(0,height-10,width,10);
-  ctx.fillStyle='#fff';ctx.font=`900 ${height*.48}px Arial, sans-serif`;ctx.textAlign='center';ctx.fillText(label,width/2,height*.66);
+  ctx.fillStyle='#2a153d';ctx.fillRect(0,0,width,height);
+  ctx.fillStyle='#ff9419';ctx.fillRect(0,height-12,width,12);
+  ctx.fillStyle='#ff9419';ctx.fillRect(0,0,width,8);
+  ctx.fillStyle='#fff6e8';ctx.font=`900 ${height*.44}px Arial, sans-serif`;ctx.textAlign='center';ctx.fillText(label,width/2,height*.65);
   const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;
   return new T.MeshBasicMaterial({map:tex,side:T.DoubleSide});
  }
- const start=worldPoint(0);
+ const gantryT=0.982;
+ const start=worldPoint(gantryT);
  for(const lane of [-64,64]){
-  const p=worldPoint(0,lane);
-  box(p.x,p.y+4.6,p.z,.7,9.2,.7,'#6c009b');
+  const p=worldPoint(gantryT,lane);
+  box(p.x,p.y+5.8,p.z,1.1,11.6,1.1,'#e6d7c3');
  }
- const banner=new T.Mesh(new T.BoxGeometry(24,2.8,.38),sign('KITH CIRCUIT'));
- banner.position.set(start.x,start.y+8.4,start.z);
- const startDir=worldPoint(.001).sub(start).normalize();
+ const banner=new T.Mesh(new T.BoxGeometry(24,2.4,.42),sign('KITH CIRCUIT'));
+ banner.position.set(start.x,start.y+11.2,start.z);
+ const startDir=worldPoint(gantryT+.001).sub(start).normalize();
  banner.rotation.y=Math.atan2(startDir.x,startDir.z);scene.add(banner);
 
- // Start Grid Checkered Line
+ // Start Grid Checkered Line at t=0
  for(let col=0;col<12;col++)for(let row=0;row<2;row++){
-  const p=worldPoint(row*.002,(col-5.5)*9);
-  box(p.x,p.y+.07,p.z,1.55,.02,.75,(row+col)%2?'#ffffff':'#161022');
+  const p=worldPoint(row*.002,(col-5.5)*8.8,.025);
+  box(p.x,p.y,p.z,1.45,.02,.72,(row+col)%2?'#fff8eb':'#181426');
  }
 
- // Neon Speed Arches framing the final corner
- for(let i=0;i<7;i++){
-  const t=.61+i*.018,p=worldPoint(t),q=worldPoint(t+.001),arch=new T.Mesh(new T.TorusGeometry(10.5,.18,6,30,Math.PI),mat(i%2?'#00e5ff':'#ff0066',1.3));
+ // Glowing Crystal Speed Arches framing the final sector
+ for(let i=0;i<6;i++){
+  const t=.62+i*.02,p=worldPoint(t),q=worldPoint(t+.001),arch=new T.Mesh(new T.TorusGeometry(11.5,.22,8,32,Math.PI),mat(i%2?'#ff8c00':'#ff2e93',1.35));
   arch.position.copy(p);arch.rotation.y=Math.atan2(q.x-p.x,q.z-p.z);scene.add(arch);
  }
 
  const garden=makeGardenWorld(scene,worldPoint);
  canvas.dataset.course='crestfall-gardens';canvas.dataset.kartDesigns=String(garden.stats.kartDesigns);
 
- // Wind Rush & Speed Streak Particles (Sense of Speed)
- const speedStreakCount=140;
+ // Wind Rush & Speed Streak Particles (with soft radial glow texture!)
+ const speedStreakCount=120;
  const streakPositions=new Float32Array(speedStreakCount*3);
  for(let i=0;i<speedStreakCount;i++){
   streakPositions[i*3]=(Math.random()-.5)*24;
@@ -380,38 +399,65 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
  }
  const streakGeo=new T.BufferGeometry();
  streakGeo.setAttribute('position',new T.BufferAttribute(streakPositions,3));
- const streakMat=new T.PointsMaterial({color:'#ffffff',size:.25,transparent:true,opacity:0,blending:T.AdditiveBlending});
+ const streakMat=new T.PointsMaterial({map:glowTex,color:'#fff4d8',size:.42,transparent:true,opacity:0,blending:T.AdditiveBlending,depthWrite:false,alphaTest:.02});
  const speedStreaks=new T.Points(streakGeo,streakMat);
  scene.add(speedStreaks);
 
  const mixers:T.AnimationMixer[]=[];let disposed=false;
+ let cameraMode:'hero'|'wide'='hero';
 
- // Initialize Karts with Dual Rocket Exhausts, Multi-tier Drift Sparks, and Suspension Springs
+ // Initialize Karts with Blender karts.glb + 3D Drivers (rello.glb, chora.glb, and drivers.glb)
  const karts=initial.players.map((p)=>{
   const c=characterById(p.character),root=new T.Group(),{body,wheels,exhaustPorts}=makeKart(c);
   root.add(body);scene.add(root);
-  const driver=makeCreature(c);driver.position.set(0,.85,-.15);driver.scale.setScalar(.93);body.add(driver);
+  const driver=makeCreature(c);driver.position.set(0,.78,-.18);driver.scale.setScalar(.9);body.add(driver);
 
-  if(p.character==='rello'||p.character==='chora')new GLTFLoader().load(`/kith-party/models/${p.character}.glb`,gltf=>{
-   if(disposed){disposeTree(gltf.scene);return;}
-   const bounds=new T.Box3().setFromObject(gltf.scene),size=bounds.getSize(new T.Vector3()),center=bounds.getCenter(new T.Vector3());
-   const wrapper=new T.Group();const scale=1.8/size.y;
-   gltf.scene.position.set(-center.x,-bounds.min.y,-center.z);
-   wrapper.add(gltf.scene);wrapper.scale.setScalar(scale);wrapper.position.set(0,.85,-.15);
-   gltf.scene.traverse(o=>{if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
-   body.remove(driver);disposeTree(driver);body.add(wrapper);
-   const idle=gltf.animations.find(a=>a.name==='idle');
-   if(idle){const mixer=new T.AnimationMixer(gltf.scene);mixer.clipAction(idle).play();mixers.push(mixer);}
-  },undefined,()=>{canvas.dataset.modelFallback='true';});
+  if(p.character==='rello'||p.character==='chora'){
+   new GLTFLoader().load(`/kith-party/models/${p.character}.glb`,gltf=>{
+    if(disposed){disposeTree(gltf.scene);return;}
+    const bounds=new T.Box3().setFromObject(gltf.scene),size=bounds.getSize(new T.Vector3()),center=bounds.getCenter(new T.Vector3());
+    const wrapper=new T.Group();const scale=1.68/size.y;
+    gltf.scene.position.set(-center.x,-bounds.min.y,-center.z);
+    wrapper.add(gltf.scene);wrapper.scale.setScalar(scale);wrapper.position.set(0,.68,-.18);
+    gltf.scene.traverse(o=>{if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
+    body.remove(driver);disposeTree(driver);body.add(wrapper);
+    const idle=gltf.animations.find(a=>a.name==='idle');
+    if(idle){const mixer=new T.AnimationMixer(gltf.scene);mixer.clipAction(idle).play();mixers.push(mixer);}
+   },undefined,()=>{canvas.dataset.modelFallback='true';});
+  } else {
+   loadDriversGlb().then(driversRoot=>{
+    if(disposed) return;
+    const template=driversRoot.getObjectByName(`driver_${p.character}`);
+    if(!template) return;
+    const clonedDriver=template.clone(true);
+    clonedDriver.position.set(0,.56,-.18);
+    clonedDriver.scale.setScalar(.95);
+    clonedDriver.traverse(o=>{
+     if(o instanceof T.Mesh){
+      o.castShadow=true;o.receiveShadow=true;
+      const hasVcol=o.geometry.hasAttribute('color');
+      o.material=new T.MeshPhysicalMaterial({
+       color:hasVcol?'#ffffff':c.color,
+       vertexColors:hasVcol,
+       roughness:.34,
+       metalness:.06,
+       clearcoat:.45,
+       envMapIntensity:1.25
+      });
+     }
+    });
+    body.remove(driver);disposeTree(driver);body.add(clonedDriver);
+   }).catch(()=>{});
+  }
 
   // Dual Rocket Exhaust Flame Plumes
   const flames:T.Mesh[]=[];
-  const flameMat=new T.MeshBasicMaterial({color:'#ff8c00',transparent:true,opacity:.9});
-  const ports=exhaustPorts||[new T.Vector3(-.58,.64,-1.52),new T.Vector3(.58,.64,-1.52)];
+  const flameMat=new T.MeshBasicMaterial({color:'#ff8c00',transparent:true,opacity:.92});
+  const ports=exhaustPorts||[new T.Vector3(-.36,.48,-1.50),new T.Vector3(.36,.48,-1.50)];
   ports.forEach(pos=>{
-   const flame=new T.Mesh(new T.ConeGeometry(.22,1.8,12),flameMat);
+   const flame=new T.Mesh(new T.ConeGeometry(.18,1.5,12),flameMat);
    flame.rotation.x=-Math.PI/2;
-   flame.position.set(pos.x,pos.y,pos.z-.9);
+   flame.position.set(pos.x,pos.y,pos.z-.75);
    flame.visible=false;body.add(flame);flames.push(flame);
   });
 
@@ -426,27 +472,30 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
   for(const sign of [-1,1]){
    for(let k=0;k<3;k++){
     const m=new T.Mesh(new T.SphereGeometry(.14,6,5),sparkMats[k]);
-    m.position.set(sign*1.08,.4,-1.05+k*.1);
+    m.position.set(sign*1.08,.38,-.95+k*.1);
     m.visible=false;sparkGroup.add(m);sparkMeshes.push(m);
    }
   }
   body.add(sparkGroup);
 
-  // Soft neon underglow pooling beneath the kart (concept-art glow accents)
-  const glowMat=new T.MeshBasicMaterial({map:glowTex,color:c.accent,transparent:true,opacity:.38,blending:T.AdditiveBlending,depthWrite:false});
-  const underglow=new T.Mesh(new T.PlaneGeometry(3.6,4.6),glowMat);
-  underglow.rotation.x=-Math.PI/2;underglow.position.y=.06;body.add(underglow);
+  // Soft neon underglow pooling beneath the kart (concept-art warm orange/magenta road reflection)
+  const glowColor=p.character==='rello'?'#ff7300':p.character==='chora'?'#ff2e93':c.accent;
+  const glowMat=new T.MeshBasicMaterial({map:glowTex,color:glowColor,transparent:true,opacity:.48,blending:T.AdditiveBlending,depthWrite:false});
+  const underglow=new T.Mesh(new T.PlaneGeometry(3.8,4.8),glowMat);
+  underglow.rotation.x=-Math.PI/2;underglow.position.y=.05;body.add(underglow);
 
   return {root,body,wheels,flames,sparkMeshes,flameMat,glowMat};
  });
 
  const humans=initial.players.filter(p=>p.human);
- const cameras=humans.map(()=>new T.PerspectiveCamera(63,960/560,.1,500));
+ const cameras=humans.map(()=>new T.PerspectiveCamera(58,960/560,.1,520));
  const cameraTargets=humans.map(()=>new T.Vector3());
  const audioSynthesizer=new KartAudioSynthesizer();
  let initialized=false;let audioInitialized=false;
 
  return {
+  setCameraMode(mode:'hero'|'wide'){cameraMode=mode;},
+  getCameraMode(){return cameraMode;},
   render(s:State,dt:number,audioCtx?:AudioContext|null,soundEnabled?:boolean){
    garden.update(dt,Math.max(0,s.time));
    for(const m of mixers)m.update(dt);
@@ -457,12 +506,12 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
 
    // Update Boost Pad Chevrons Pulse
    boostPads.forEach(bp=>{
-    (bp.mesh.material as T.MeshStandardMaterial).emissiveIntensity=0.8+Math.sin(s.time*12)*.4;
+    (bp.mesh.material as T.MeshStandardMaterial).emissiveIntensity=0.95+Math.sin(s.time*12)*.4;
    });
 
    // Drift candy clouds, breathe golden air sparkles
    clouds.forEach(cl=>{cl.sprite.position.x+=cl.speed*dt;if(cl.sprite.position.x>320)cl.sprite.position.x=-320;});
-   moteMat.opacity=.34+Math.sin(s.time*2.2)*.14;
+   moteMat.opacity=.45+Math.sin(s.time*2.2)*.15;
    const mAttr=moteGeo.getAttribute('position') as T.BufferAttribute;
    const mArr=mAttr.array as Float32Array;
    for(let mi=0;mi<moteCount;mi++){
@@ -490,9 +539,9 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
     kart.body.rotation.z=p.roll;
     kart.body.rotation.x=p.pitch;
 
-    // Front wheels steer with input angle
+    // Front wheels steer cleanly around Y axis (order='YXZ')
     kart.wheels.slice(2,4).forEach(w=>{
-     w.rotation.y=p.steerAngle*.35;
+     w.rotation.y=p.steerAngle*.38;
     });
     // Spin all wheels with forward speed
     kart.wheels.forEach(w=>w.rotation.x-=p.speed*dt*140);
@@ -501,8 +550,8 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
     const isBoost=p.boost>0;
     const isDrift=p.driftStage>0;
     kart.flames.forEach((flame,fIdx)=>{
-     flame.visible=isBoost||p.speed>.05;
-     const flameLen=isBoost?2.4+Math.sin(s.time*45+fIdx)*.3:0.7+p.speed*8;
+     flame.visible=isBoost||p.speed>.035;
+     const flameLen=isBoost?2.2+Math.sin(s.time*45+fIdx)*.3:0.55+p.speed*7.5;
      flame.scale.y=flameLen;
      kart.flameMat.color.set(isBoost?'#ff5500':'#ff9900');
     });
@@ -516,13 +565,13 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
       spark.position.y=.38+Math.cos(s.time*70+sIdx)*.06;
      }
     });
-    kart.glowMat.opacity=isBoost?.62+Math.sin(s.time*26)*.12:.3+p.speed*1.4;
+    kart.glowMat.opacity=isBoost?.72+Math.sin(s.time*26)*.12:.38+p.speed*1.6;
    });
 
    // Speed Streaks / Wind Rush Particle FX
    const humanP=s.players[0];
-   const speedFactor=humanP?Math.max(0,(humanP.speed-.04)/.065):0;
-   streakMat.opacity=humanP?.boost>0?0.75:speedFactor*0.45;
+   const speedFactor=humanP?Math.max(0,(humanP.speed-.045)/.065):0;
+   streakMat.opacity=humanP?.boost>0?0.65:speedFactor*0.35;
    if(humanP&&streakMat.opacity>0){
     const camPos=cameras[0].position;
     speedStreaks.position.copy(camPos);
@@ -542,46 +591,53 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
    if(size.x!==w||size.y!==h) renderer.setSize(w,h,false);
    renderer.setScissorTest(true);
 
-   // Dynamic Spring Chase Camera with Speed FOV Expansion
+   // Heroic Low Rear-3/4 Chase Camera (Faithfully matching Concept Art Perspective & following curved road corridor)
    cameras.forEach((camera,i)=>{
     const p=s.players[i];
     const frame=trackFrame(p.progress,p.lane);
     const forward=trackFrame(p.progress+.012,p.lane).position.sub(frame.position).normalize();
-    const right=frame.right;
 
-    // Camera pulls back slightly under speed & swings outward during drifts
-    const camDist=-(9.2+(p.boost>0?1.8:p.speed*18));
-    const camHeight=5.2+(p.boost>0?-.4:0);
-    const driftOffset=p.drift>0?(p.steerAngle<0?1:-1)*1.6:0;
+    const isHero=cameraMode==='hero';
+    const arcBack=(isHero?.0128:.0185)+(p.boost>0?.003:p.speed*.022);
+    const camHeight=(isHero?2.42:4.35)+(p.boost>0?-.22:0);
+    // Subtle rear-3/4 chase offset clamped strictly within [-54, 54] (well inside the ±67 balustrade guardrails!)
+    const heroLaneBias=isHero?-2.2:0;
+    const driftLaneShift=p.drift>0?(p.steerAngle<0?5.5:-5.5):p.steerAngle*-1.8;
+    const camLane=Math.max(-54,Math.min(54,p.lane+heroLaneBias+driftLaneShift));
+    const camTrackFrame=trackFrame(p.progress-arcBack,camLane);
 
-    const desired=frame.position.clone()
-     .addScaledVector(forward,camDist)
-     .addScaledVector(right,driftOffset)
-     .add(new T.Vector3(0,camHeight,0));
+    const desired=camTrackFrame.position.clone().add(new T.Vector3(0,camHeight,0));
 
     // Curb vibration and speed rumble shake
     if(p.surface==='curb'||p.boost>0||p.speed>.07){
-     const shakeAmp=p.surface==='curb'?.14:p.boost>0?.09:.04;
+     const shakeAmp=p.surface==='curb'?.10:p.boost>0?.06:.025;
      desired.x+=Math.sin(s.time*85)*shakeAmp;
      desired.y+=Math.cos(s.time*95)*shakeAmp;
     }
 
-    if(!initialized) camera.position.copy(desired);
-    else camera.position.lerp(desired,1-Math.exp(-dt*9));
+    const lookLane=Math.max(-54,Math.min(54,p.lane*.92));
+    const lookAheadFrame=trackFrame(p.progress+(isHero?.032:.024),lookLane);
+    const lookTarget=lookAheadFrame.position.clone().add(new T.Vector3(0,isHero?2.65:1.65,0));
 
-    const lookTarget=frame.position.clone().addScaledVector(forward,8.5).add(new T.Vector3(0,1.2,0));
-    cameraTargets[i].lerp(lookTarget,1-Math.exp(-dt*12));
+    if(!initialized){
+     camera.position.copy(desired);
+     cameraTargets[i].copy(lookTarget);
+    } else {
+     camera.position.lerp(desired,1-Math.exp(-dt*11));
+     cameraTargets[i].lerp(lookTarget,1-Math.exp(-dt*14));
+    }
     camera.lookAt(cameraTargets[i]);
 
     // Roll camera slightly into road banking
-    camera.rotation.z+=frame.bankAngle*.45;
+    camera.rotation.z+=frame.bankAngle*.38;
 
     const vh=humans.length>1?h/2:h;
     const bottom=humans.length>1?(1-i)*vh:0;
     camera.aspect=w/vh;
 
-    // DYNAMIC FOV WARP: 64° at rest, expanding up to 90° on turbo boost!
-    const targetFov=p.boost>0?89:64+(p.speed/.070)*14;
+    // Dynamic FOV warp: 56° at rest (cinematic 35mm lens), expanding on turbo boost!
+    const baseFov=isHero?56:62;
+    const targetFov=p.boost>0?baseFov+18:baseFov+(p.speed/.070)*10;
     camera.fov+=(targetFov-camera.fov)*Math.min(1,dt*8);
     camera.updateProjectionMatrix();
 

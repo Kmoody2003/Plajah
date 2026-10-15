@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type {Character} from './catalog';
 
@@ -14,6 +15,18 @@ export const KART_NAMES:Record<string,string>={
  tavi:'Copper Wasp',
  fenn:'Frostwing'
 };
+
+/** Shared cached loader for Blender-authored karts.glb so all karts reuse a single fetch. */
+let kartsGlbPromise:Promise<T.Group>|null=null;
+function loadKartsGlb():Promise<T.Group>{
+ if(!kartsGlbPromise){
+  kartsGlbPromise=new Promise((resolve,reject)=>{
+   if(typeof window==='undefined'){reject(new Error('no-window'));return;}
+   new GLTFLoader().load('/kith-party/models/karts.glb',gltf=>resolve(gltf.scene),undefined,err=>reject(err));
+  });
+ }
+ return kartsGlbPromise;
+}
 
 /** Solid, bevelled crest used by fairings, wheel hubs, and track monuments. */
 export function crestGeometry(){
@@ -33,8 +46,8 @@ function createKartFlankTexture(type:'stars'|'note'|'leaf'|'crest', baseColor:st
  const ctx=c.getContext('2d')!;
  ctx.fillStyle=baseColor;ctx.fillRect(0,0,256,128);
  if(type==='stars'){
-  for(let i=0;i<120;i++){
-   const x=(i*37)%256, y=(i*59)%128, r=0.8+(i%3)*0.7;
+  for(let i=0;i<140;i++){
+   const x=(i*37)%256, y=(i*59)%128, r=0.8+(i%3)*0.75;
    ctx.fillStyle=i%4===0?'#ffae42':i%3===0?'#ffa07a':'#ffffff';
    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
   }
@@ -61,275 +74,266 @@ function createKartFlankTexture(type:'stars'|'note'|'leaf'|'crest', baseColor:st
 
 export function makeKart(c:Character){
  const body=new T.Group();body.name=KART_NAMES[c.id];
+ const chassisGroup=new T.Group();chassisGroup.name=`${c.id}_chassis_holder`;
+ body.add(chassisGroup);
+
  const isRello=c.id==='rello', isChora=c.id==='chora', isMoki=c.id==='moki', isFenn=c.id==='fenn';
  const rugged=['moki','bram','tavi'].includes(c.id);
  const sleek=['fenn','zippi','nori','luma'].includes(c.id);
 
  // Materials faithfully matching concept art
- const paintColor=isRello?'#141424':c.color;
+ const paintColor=isRello?'#121328':c.color;
  const paint=new T.MeshPhysicalMaterial({
   color:paintColor,
-  metalness:isRello?.55:.32,
-  roughness:isRello?.22:.30,
+  metalness:isRello?.52:.30,
+  roughness:isRello?.18:.24,
   clearcoat:1,
-  clearcoatRoughness:.15,
-  envMapIntensity:1.25
+  clearcoatRoughness:.12,
+  envMapIntensity:1.4
  });
  const accent=new T.MeshPhysicalMaterial({
   color:c.accent,
-  metalness:.3,
-  roughness:.25,
+  metalness:.32,
+  roughness:.22,
   clearcoat:1,
   emissive:isRello?'#ff6200':isChora?'#e8258b':c.accent,
-  emissiveIntensity:isRello?.32:isChora?.25:.12,
-  envMapIntensity:1.25
+  emissiveIntensity:isRello?.42:isChora?.3:.18,
+  envMapIntensity:1.35
  });
  const fin=new T.MeshPhysicalMaterial({
   color:isRello?'#ff7b00':c.fin,
   metalness:.15,
-  roughness:.18,
+  roughness:.14,
   clearcoat:1,
   emissive:isRello?'#ff5900':c.fin,
-  emissiveIntensity:isRello?.5:.35,
-  envMapIntensity:1.3,
+  emissiveIntensity:isRello?.58:.42,
+  envMapIntensity:1.45,
   iridescence:.35,
   iridescenceIOR:1.3
  });
- const ivory=new T.MeshStandardMaterial({color:'#fff9ed',roughness:.35,metalness:.12});
- const dark=new T.MeshStandardMaterial({color:'#11131e',roughness:.65});
- const rubber=new T.MeshStandardMaterial({color:'#14141c',roughness:.92});
+ const ivory=new T.MeshStandardMaterial({color:'#f7efe2',roughness:.32,metalness:.1});
+ const dark=new T.MeshStandardMaterial({color:'#11131e',roughness:.55,metalness:.25});
+ const rubber=new T.MeshStandardMaterial({color:'#12131a',roughness:.35,metalness:.08});
  const metal=new T.MeshStandardMaterial({color:'#a8b3c4',metalness:.85,roughness:.22});
- const gold=new T.MeshStandardMaterial({color:'#f4c542',metalness:.88,roughness:.25,emissive:'#d49b20',emissiveIntensity:.25});
- const lamp=new T.MeshStandardMaterial({color:'#fff1b4',emissive:'#ffaa33',emissiveIntensity:2});
- const wood=new T.MeshStandardMaterial({color:'#5c3d26',roughness:.85,bumpScale:.08});
+ const gold=new T.MeshStandardMaterial({color:'#f4c542',metalness:.88,roughness:.22,emissive:'#d49b20',emissiveIntensity:.3});
+ const lamp=new T.MeshStandardMaterial({color:'#fff1b4',emissive:'#ff7711',emissiveIntensity:2.2});
+ const wood=new T.MeshStandardMaterial({color:'#5c3d26',roughness:.82});
 
- const add=(g:T.BufferGeometry,m:T.Material,x=0,y=0,z=0,parent:T.Object3D=body)=>{
+ const add=(g:T.BufferGeometry,m:T.Material,x=0,y=0,z=0,parent:T.Object3D=chassisGroup)=>{
   const o=new T.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;
  };
- const rounded=(sx:number,sy:number,sz:number,m:T.Material,x:number,y:number,z:number,parent:T.Object3D=body)=>add(new RoundedBoxGeometry(sx,sy,sz,2,.12),m,x,y,z,parent);
- const oval=(sx:number,sy:number,sz:number,m:T.Material,x:number,y:number,z:number,parent:T.Object3D=body)=>{
-  const o=add(new T.SphereGeometry(1,16,10),m,x,y,z,parent);o.scale.set(sx,sy,sz);return o;
+ const rounded=(sx:number,sy:number,sz:number,m:T.Material,x:number,y:number,z:number,parent:T.Object3D=chassisGroup)=>add(new RoundedBoxGeometry(sx,sy,sz,2,.1),m,x,y,z,parent);
+ const oval=(sx:number,sy:number,sz:number,m:T.Material,x:number,y:number,z:number,parent:T.Object3D=chassisGroup)=>{
+  const o=add(new T.SphereGeometry(1,16,12),m,x,y,z,parent);o.scale.set(sx,sy,sz);return o;
  };
- const crest=(x:number,y:number,z:number,sx:number,sy:number,angle:number,m:T.Material=fin,parent:T.Object3D=body)=>{
+ const crest=(x:number,y:number,z:number,sx:number,sy:number,angle:number,m:T.Material=fin,parent:T.Object3D=chassisGroup)=>{
   const o=add(crestGeometry(),m,x,y,z,parent);o.scale.set(sx,sy,1);o.rotation.z=angle;return o;
  };
- const tube=(points:number[][],radius:number,m:T.Material,parent:T.Object3D=body)=>add(new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p as [number,number,number]))),16,radius,6,false),m,0,0,0,parent);
+ const tube=(points:number[][],radius:number,m:T.Material,parent:T.Object3D=chassisGroup)=>add(new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p as [number,number,number]))),16,radius,6,false),m,0,0,0,parent);
 
- // Main Chassis Bed & Underbody Floor
- rounded(1.65,.28,2.75,dark,0,.55,0);
- const mainBody=oval(.84,.4,sleek?1.65:1.35,paint,0,.78,.1);
- if(isRello){
-  const micaTex=createKartFlankTexture('stars','#121222','#ff9d00');
-  mainBody.material=new T.MeshPhysicalMaterial({map:micaTex,metalness:.5,roughness:.2,clearcoat:1,envMapIntensity:1.2});
+ // Low-slung V-wedge Chassis & Sculpted Rear Haunches
+ rounded(1.62,.24,2.82,dark,0,.38,0);
+ const mainBody=oval(.86,.36,sleek?1.68:1.45,paint,0,.64,.05);
+ const starTex=isRello?createKartFlankTexture('stars','#111328','#ff9d00'):null;
+ if(starTex){
+  mainBody.material=new T.MeshPhysicalMaterial({map:starTex,metalness:.48,roughness:.18,clearcoat:1,envMapIntensity:1.35});
  }
+ // Low sloped front nose cone
+ const noseCone=rounded(1.28,.22,1.15,mainBody.material as T.Material,0,.52,.98);
+ noseCone.rotation.x=.16;
 
  // Cockpit, padded bucket seat & sport steering wheel
- rounded(.96,.18,1.15,dark,0,.96,-.3);
- rounded(.88,.8,.24,dark,0,1.24,-.78);
- rounded(.7,.62,.04,accent,0,1.26,-.93);
- const steering=add(new T.TorusGeometry(.24,.04,6,18),dark,0,1.22,.44);
+ rounded(.92,.18,1.08,dark,0,.62,-.28);
+ rounded(.84,.76,.24,dark,0,.98,-.68);
+ rounded(.68,.58,.05,accent,0,1.02,-.81);
+ const steering=add(new T.TorusGeometry(.22,.038,8,18),dark,0,.94,.36);
  steering.rotation.x=-.55;
- tube([[0,.82,.5],[0,1.16,.43]],.04,metal);
+ tube([[0,.62,.46],[0,.92,.36]],.038,metal);
 
- // Front bumper & jaw splitter
- if(isRello){
-  // Angular white jaw splitter with geometric triangular teeth vents matching concept art
-  const jaw=rounded(1.72,.34,.32,ivory,0,.58,1.44);
-  jaw.rotation.x=-.18;
-  for(const side of [-1,1]){
-   // Triangular intake cuts in jaw
-   const tooth1=rounded(.2,.12,.08,dark,side*.45,.57,1.59);tooth1.rotation.z=side*.4;
-   const tooth2=rounded(.16,.1,.08,dark,side*.22,.54,1.59);tooth2.rotation.z=-side*.3;
-   // Headlamp lenses angled like predatory eyes
-   const eye=oval(.32,.09,.11,lamp,side*.52,.96,1.26);eye.rotation.z=-side*.28;
-  }
- } else if(isMoki){
-  // Organic wooden nose mask with leafy crest
-  const mask=rounded(1.6,.36,.3,wood,0,.6,1.42);mask.rotation.x=-.15;
-  crest(0,.98,1.38,.6,.55,0,fin);
-  for(const side of [-1,1]){
-   oval(.26,.1,.1,lamp,side*.48,.92,1.22);
-  }
- } else {
-  const bumper=rounded(1.65,.32,.25,ivory,0,.58,1.4);bumper.rotation.x=-.15;
-  for(const side of [-1,1]){
-   const light=oval(.29,.085,.09,lamp,side*.51,.94,1.25);light.rotation.z=-side*.25;
-   rounded(.26,.105,.045,dark,side*.49,.59,1.54).rotation.z=side*.35;
-  }
- }
-
- // Dual Rocket Exhaust Nozzles in Rear (Prominent on all karts, massive on Ember Fang)
- const exhaustPorts:T.Vector3[]=[];
+ // Front fanged jaw bumper & rear sculpted ivory diffuser bumper (Concept Art)
+ const frontJaw=rounded(1.64,.26,.3,ivory,0,.38,1.48);
+ frontJaw.rotation.x=-.12;
+ const rearDiffuser=rounded(1.52,.28,.26,ivory,0,.36,-1.44);
+ rearDiffuser.rotation.x=.08;
  for(const side of [-1,1]){
-  const exX=side*(isRello?.58:.65);
-  const exY=.64;
-  const exZ=-1.52;
-  exhaustPorts.push(new T.Vector3(exX,exY,exZ));
-  // Exhaust housing barrel
-  const barrel=add(new T.CylinderGeometry(.22,.22,.48,16),metal,exX,exY,exZ+.12);
-  barrel.rotation.x=Math.PI/2;
-  // Outer nozzle ring with accent/fin glow
-  const rimNozzle=add(new T.TorusGeometry(.21,.045,8,18),accent,exX,exY,exZ-.12);
-  rimNozzle.rotation.y=Math.PI;
-  // Inner turbine flame chamber (glowing core)
-  const chamber=add(new T.CylinderGeometry(.14,.14,.22,12),lamp,exX,exY,exZ-.02);
-  chamber.rotation.x=Math.PI/2;
-  // Side aerodynamic fairing pod
-  oval(.44,.28,.84,paint,side*.8,.81,0);
+  // Front fang vents
+  const fVent=rounded(.22,.1,.08,dark,side*.42,.36,1.62);fVent.rotation.z=side*.38;
+  // Rear diffuser fang cutouts
+  const rVent=rounded(.24,.11,.08,dark,side*.38,.34,-1.56);rVent.rotation.z=-side*.42;
+  // Side aerodynamic pod haunches
+  oval(.42,.28,.92,mainBody.material as T.Material,side*.76,.68,-.15);
  }
 
- // Wheels, Heavy-duty Coilover Springs, and Thematic Rims
+ // Dual Rocket Exhaust Nozzles in Rear + Central Reactor Core Taillight
+ const exhaustPorts:T.Vector3[]=[];
+ // Central dark housing + glowing orange trapezoid reactor taillight above nozzles
+ rounded(1.06,.34,.22,dark,0,.52,-1.42);
+ rounded(.12,.28,.24,dark,0,.48,-1.48);
+ rounded(.34,.15,.16,lamp,0,.69,-1.44);
+ for(const side of [-1,1]){
+  const exX=side*(isRello?.36:.44);
+  const exY=.48;
+  const exZ=-1.50;
+  exhaustPorts.push(new T.Vector3(exX,exY,exZ));
+  const barrel=add(new T.CylinderGeometry(.22,.24,.38,20),dark,exX,exY,exZ+.08);
+  barrel.rotation.x=Math.PI/2;
+  const rimNozzle=add(new T.TorusGeometry(.20,.052,10,22),accent,exX,exY,exZ-.08);
+  rimNozzle.rotation.y=Math.PI;
+  const chamber=add(new T.CylinderGeometry(.14,.14,.18,14),lamp,exX,exY,exZ-.02);
+  chamber.rotation.x=Math.PI/2;
+ }
+
+ // Wheels: Ordered strictly [RL, RR, FL, FR] so wheels.slice(2,4) are the front steering wheels!
  const wheels:T.Group[]=[];
- for(const side of [-1,1])for(const z of [-.87,.91]){
+ const wheelConfigs=[
+  {name:'rl',side:-1,z:-.92,isRear:true},
+  {name:'rr',side:1,z:-.92,isRear:true},
+  {name:'fl',side:-1,z:.95,isRear:false},
+  {name:'fr',side:1,z:.95,isRear:false},
+ ];
+ for(const cfg of wheelConfigs){
+  const {side,z,isRear}=cfg;
+  const radius=rugged?(isRear?.52:.46):(isRear?.50:.42);
+  const width=isRear?.46:.36;
+  const wheelX=side*(isRear?1.08:1.02);
   const wheel=new T.Group();
-  wheel.position.set(side*1.05,.46,z);
+  wheel.rotation.order='YXZ';
+  wheel.position.set(wheelX,radius,z);
   body.add(wheel);wheels.push(wheel);
-  const radius=rugged?.49:.44;
-  // Thick racing rubber tire
-  const tire=add(new T.CylinderGeometry(radius,radius,.38,22),rubber,0,0,0,wheel);
+
+  const tire=add(new T.CylinderGeometry(radius,radius,width,24),rubber,0,0,0,wheel);
   tire.rotation.z=Math.PI/2;
-  // Deep-dish alloy rim
-  const rim=add(new T.CylinderGeometry(radius*.66,radius*.66,.4,18),metal,0,0,0,wheel);
+  const rim=add(new T.CylinderGeometry(radius*.64,radius*.64,width+.02,18),dark,0,0,0,wheel);
   rim.rotation.z=Math.PI/2;
-  // Glowing colored outer rim band
   const bandColor=isRello?'#ff7300':isChora?'#e8258b':isMoki?'#bee16f':isFenn?'#54e1ff':c.accent;
-  const bandMat=new T.MeshStandardMaterial({color:bandColor,emissive:bandColor,emissiveIntensity:1.2});
-  const ring=add(new T.TorusGeometry(radius*.78,.032,6,22),bandMat,side*.201,0,0,wheel);
+  const bandMat=new T.MeshStandardMaterial({color:bandColor,emissive:bandColor,emissiveIntensity:1.35});
+  const ring=add(new T.TorusGeometry(radius*.76,.032,8,24),bandMat,side*(width*.5+.01),0,0,wheel);
   ring.rotation.y=Math.PI/2;
-  // Central hub with crest
-  const hub=add(new T.CylinderGeometry(.14,.14,.44,14),accent,0,0,0,wheel);
+  const hub=add(new T.CylinderGeometry(.13,.13,width+.05,14),accent,0,0,0,wheel);
   hub.rotation.z=Math.PI/2;
 
-  // Thematic rim spokes:
-  if(isChora){
-   // Swirl rim design
-   for(let j=0;j<5;j++){
-    const a=j*Math.PI*2/5;
-    const spoke=add(new RoundedBoxGeometry(.032,.08,.44,1,.015),accent,side*.21,Math.cos(a)*radius*.35,Math.sin(a)*radius*.35,wheel);
-    spoke.rotation.x=a+Math.PI/6;
-   }
-  } else {
-   // Heavy star alloy spokes
-   for(let j=0;j<6;j++){
-    const spoke=add(new RoundedBoxGeometry(.035,.07,.49,1,.015),paint,side*.21,0,0,wheel);
-    spoke.rotation.x=j*Math.PI/3;
+  if(rugged){
+   for(let j=0;j<12;j++){
+    const a=j*Math.PI/6;
+    const tread=add(new T.BoxGeometry(width+.02,.04,.12),rubber,0,Math.cos(a)*radius,Math.sin(a)*radius,wheel);
+    tread.rotation.x=a;
    }
   }
-  // High-grip tire treads
-  for(let j=0;j<14;j++){
-   const a=j*Math.PI/7;
-   const tread=add(new T.BoxGeometry(.39,.03,rugged?.14:.07),rubber,0,Math.cos(a)*radius,Math.sin(a)*radius,wheel);
-   tread.rotation.x=a;
-  }
-  // Exposed Coilover Suspension Springs outside the fairings
+  // Exposed Coilover Suspension Springs
   const springColor=isRello?'#ff6a00':isMoki?'#78ba5e':c.accent;
-  const springMat=new T.MeshStandardMaterial({color:springColor,metalness:.7,roughness:.28,emissive:springColor,emissiveIntensity:.35});
-  const springPoints=Array.from({length:52},(_,i)=>new T.Vector3(side*.8+Math.cos(i*Math.PI/4)*.075,.46+i*.008,z+Math.sin(i*Math.PI/4)*.075));
-  add(new T.TubeGeometry(new T.CatmullRomCurve3(springPoints),50,.024,6,false),springMat);
+  const springMat=new T.MeshStandardMaterial({color:springColor,metalness:.65,roughness:.25,emissive:springColor,emissiveIntensity:.4});
+  const springPoints=Array.from({length:40},(_,i)=>new T.Vector3(side*.75+Math.cos(i*Math.PI/3)*.07,.38+i*.008,z+Math.sin(i*Math.PI/3)*.07));
+  add(new T.TubeGeometry(new T.CatmullRomCurve3(springPoints),36,.024,6,false),springMat);
  }
 
- // Hero Customizations for Specific Kith Karts (Concept Art Alignment)
+ // Hero Customizations for Fallback Karts
  switch(c.id){
   case 'rello':{
-   // Ember Fang: Sharp glowing orange crystal spikes along flanks, dorsal hood, and rear spoiler
    for(const s of [-1,1]){
-    crest(s*.88,.94,-.92,.75,.7,-s*.37,fin);
-    crest(s*.9,.94,.38,.5,.45,-s*.65,fin);
-    crest(s*.44,1.06,-1.05,.45,.62,-s*.18,fin);
-    crest(s*.95,.95,-.35,.55,.5,-s*.45,fin);
+    crest(s*.54,1.08,-.98,.68,.88,-s*.22,fin);
+    crest(s*.88,.82,-.42,.62,.58,-s*.52,fin);
+    crest(s*.82,.72,.28,.48,.44,-s*.68,fin);
    }
-   // Center dorsal spine crystal
-   crest(0,1.25,-1.15,.55,.7,0,fin);
    break;
   }
   case 'chora':{
-   // Petal Pulse: Musical note "♫" decal on flank, swept magenta crystal wings
+   // Gold ♫ emblem on front hood + magenta crystal wings
+   const noteDecal=add(new T.PlaneGeometry(.62,.42),new T.MeshBasicMaterial({map:createKartFlankTexture('note','#6b1452','#ffd447'),transparent:true,side:T.DoubleSide}),0,.66,.95);
+   noteDecal.rotation.x=-Math.PI/2+.2;
    for(const s of [-1,1]){
-    const flankDecal=add(new T.PlaneGeometry(.6,.35),new T.MeshBasicMaterial({map:createKartFlankTexture('note','#823485','#ffd154'),transparent:true,side:T.DoubleSide}),s*.96,.84,-.2);
-    flankDecal.rotation.y=s*Math.PI/2;
     for(let j=0;j<3;j++){
-     crest(s*(.62+j*.11),.86,-.9+j*.66,.62,.48+j*.04,-s*(.45+j*.25),fin);
+     crest(s*(.56+j*.12),.88,-.92+j*.55,.58,.56+j*.05,-s*(.32+j*.22),fin);
     }
-    const speaker=add(new T.TorusGeometry(.19,.07,8,16),gold,s*.65,1.04,-1.03);
+    const speaker=add(new T.TorusGeometry(.18,.06,8,16),gold,s*.44,.52,-1.52);
     speaker.rotation.y=Math.PI;
-    oval(.14,.14,.06,dark,s*.65,1.04,-1.06);
    }
    break;
   }
   case 'moki':{
-   // Grove Runner: Living gnarly branch roll cage, leafy green crystal wings, hanging lantern
-   tube([[-.82,.85,-.85],[-.88,1.8,-.88],[-.5,2.15,-.9],[.5,2.15,-.9],[.88,1.8,-.88],[.82,.85,-.85]],.08,wood);
-   tube([[0,2.15,-.9],[0,1.7,.4]],.065,wood);
+   tube([[-.72,.68,-.75],[-.78,1.55,-.72],[-.45,1.88,-.45],[.45,1.88,-.45],[.78,1.55,-.72],[.72,.68,-.75]],.075,wood);
    for(const s of [-1,1]){
-    crest(s*.92,1.7,-.92,.42,.35,-s*.8,fin);
-    crest(s*.85,.94,.7,.48,.42,-s*.8,fin);
-    crest(s*.9,.92,-.2,.52,.48,-s*.5,fin);
+    crest(s*.82,1.45,-.65,.42,.38,-s*.65,fin);
+    crest(s*.84,.78,-.2,.52,.48,-s*.5,fin);
    }
-   // Hanging warm amber lantern
-   const lanternPost=tube([[.65,1.9,-.88],[.78,1.98,-.75]],.03,metal);
-   const lanternBody=add(new T.CylinderGeometry(.08,.1,.22,8),lamp,.78,1.8,-.75);
-   const lanternCap=add(new T.ConeGeometry(.12,.08,8),gold,.78,1.94,-.75);
+   add(new T.ConeGeometry(.12,.26,10),lamp,.86,1.35,.22);
    break;
   }
   case 'fenn':{
-   // Frostwing: Sweeping multi-layered feathered ice-crystal wings
-   for(const s of [-1,1])for(let j=0;j<4;j++){
-    const feather=crest(s*(.6+j*.18),.9+j*.04,-.95+j*.32,.42,.68-j*.08,-s*(.52+j*.22),j%2?ivory:fin);
-    feather.rotation.x=-.35;
-   }
-   oval(.52,.2,.92,fin,0,1.02,.8);
-   break;
-  }
-  case 'zippi':{
-   for(const s of [-1,1]){
-    crest(s*.55,1,-1,.27,.8,-s*.21,accent);
-    rounded(.16,.14,1.7,fin,s*.73,.93,.2);
-   }
-   oval(.38,.23,.8,accent,0,1.01,.8);
-   break;
-  }
-  case 'nori':{
-   for(const s of [-1,1]){
-    const wing=oval(.65,.13,.86,accent,s*.92,.88,.1);
-    wing.rotation.z=s*.17;
-    crest(s*.7,.87,-.95,.5,.45,-s*.8);
-   }
-   tube([[-.5,1.02,.7],[0,1.17,1.5],[.5,1.02,.7]],.055,ivory);
-   break;
-  }
-  case 'pippa':{
    for(const s of [-1,1])for(let j=0;j<3;j++){
-    const wing=crest(s*.83,1,-.87+j*.5,.88,.48,-s*(.95+j*.22));
-    wing.rotation.y=s*.3;
+    const feather=crest(s*(.54+j*.18),.88+j*.04,-.92+j*.36,.44,.72-j*.08,-s*(.35+j*.22),j%2?ivory:fin);
+    feather.rotation.x=-.28;
    }
-   oval(.52,.22,.54,accent,0,1.04,.91);
    break;
   }
-  case 'bram':{
+  default:{
    for(const s of [-1,1]){
-    rounded(.62,.39,1.98,paint,s*.86,.96,0);
-    crest(s*.62,1.1,-.85,.57,.43,-s*.2,ivory);
+    crest(s*.58,.96,-.92,.55,.68,-s*.28,fin);
+    crest(s*.84,.78,-.25,.48,.45,-s*.55,accent);
    }
-   rounded(1.76,.2,.33,metal,0,.63,1.54);
-   break;
-  }
-  case 'luma':{
-   const halo=add(new T.TorusGeometry(.65,.08,8,28,Math.PI*1.65),fin,0,1.55,-1.03);
-   halo.rotation.z=.5;
-   for(const s of [-1,1])crest(s*.86,.88,.1,.49,.48,-s*1.05,accent);
-   break;
-  }
-  case 'tavi':{
-   for(const s of [-1,1]){
-    const turbine=add(new T.CylinderGeometry(.27,.27,.83,16),metal,s*.78,1.03,-.82);
-    turbine.rotation.x=Math.PI/2;
-    const ring=add(new T.TorusGeometry(.22,.06,6,18),fin,s*.78,1.03,-1.26);
-    ring.rotation.y=Math.PI;
-   }
-   rounded(1.83,.11,.42,accent,0,1.47,-1.05);
    break;
   }
  }
 
+ // Upgrade asynchronously with Blender-sculpted karts.glb meshes (preserving vertex-painted gradients & cosmic speckles)
+ const applyBlenderKartMaterial=(o:T.Object3D)=>{
+  o.traverse(node=>{
+   if(node instanceof T.Mesh){
+    node.castShadow=true;node.receiveShadow=true;
+    const hasVcol=node.geometry.hasAttribute('color');
+    const oldMat=node.material as T.MeshStandardMaterial;
+    const isGlow=oldMat?.name?.includes('Glow')||false;
+    const upgraded=new T.MeshPhysicalMaterial({
+     color:hasVcol?'#ffffff':(oldMat?.color||paintColor),
+     vertexColors:hasVcol,
+     metalness:isGlow?.18:.38,
+     roughness:isGlow?.14:.20,
+     clearcoat:1,
+     clearcoatRoughness:.1,
+     envMapIntensity:1.5,
+     emissive:isGlow?new T.Color('#ffffff'):new T.Color('#000000'),
+     emissiveIntensity:isGlow?.52:0,
+    });
+    if(isGlow&&hasVcol){
+     upgraded.onBeforeCompile=shader=>{
+      shader.fragmentShader=shader.fragmentShader.replace(
+       'vec3 totalEmissiveRadiance = emissive;',
+       'vec3 totalEmissiveRadiance = emissive * vColor.rgb;'
+      );
+     };
+    }
+    node.material=upgraded;
+   }
+  });
+ };
+
+ loadKartsGlb().then(glbRoot=>{
+  const template=glbRoot.getObjectByName(`kart_${c.id}`);
+  if(!template) return;
+  const glbChassis=template.getObjectByName(`${c.id}_chassis`);
+  if(glbChassis){
+   const clonedChassis=glbChassis.clone(true);
+   clonedChassis.position.set(0,0,0);
+   applyBlenderKartMaterial(clonedChassis);
+   while(chassisGroup.children.length>0) chassisGroup.remove(chassisGroup.children[0]);
+   chassisGroup.add(clonedChassis);
+  }
+  const wheelNames=['rl','rr','fl','fr'];
+  wheelNames.forEach((wn,idx)=>{
+   const glbWheel=template.getObjectByName(`${c.id}_wheel_${wn}`);
+   const targetWheel=wheels[idx];
+   if(glbWheel&&targetWheel){
+    const clonedWheel=glbWheel.clone(true);
+    const wBox=new T.Box3().setFromObject(clonedWheel);
+    const wCenter=wBox.getCenter(new T.Vector3());
+    targetWheel.position.copy(wCenter);
+    clonedWheel.position.sub(wCenter);
+    while(targetWheel.children.length>0) targetWheel.remove(targetWheel.children[0]);
+    applyBlenderKartMaterial(clonedWheel);
+    targetWheel.add(clonedWheel);
+   }
+  });
+ }).catch(()=>{});
+
  return {body,wheels,exhaustPorts};
 }
+
