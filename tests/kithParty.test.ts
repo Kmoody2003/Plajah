@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createState,emptyInput,step,standings} from '../components/kithParty/engine';
 import {CHARACTERS,GAMES} from '../components/kithParty/catalog';
-import {COURSES,trackFrame} from '../components/kithParty/course3d';
+import {COURSES,trackFrame,worldPoint,courseMinimapPath,ensureOffTrackXZ} from '../components/kithParty/course3d';
+import {lyriaMusic} from '../components/kithParty/lyriaMusic';
+
 test('ten unique playable Kith, four games, and five 3D courses',()=>{assert.equal(new Set(CHARACTERS.map(c=>c.id)).size,10);assert.equal(GAMES.length,4);assert.equal(COURSES.length,5);});
 test('countdown prevents movement; an idle player does not win a race',()=>{const s=createState('circuit',['rello']);s.autoAccelerate=false;const p=s.players[0].progress;step(s,[emptyInput()],.05);assert.equal(s.players[0].progress,p);for(let i=0;i<15000;i++)step(s,[emptyInput()],1/120);assert.equal(s.phase,'finished');assert.equal(s.players[0].finish,null);assert.notEqual(standings(s)[0].character,'rello');});
 test('accelerating completes three laps and ends a solo race',()=>{const s=createState('circuit',['rello']);const input={...emptyInput(),y:-1};for(let i=0;i<13000&&s.phase!=='finished';i++)step(s,[input],1/120);assert.equal(s.phase,'finished');assert.ok(s.players[0].finish);assert.ok(s.players[0].progress>=3);});
@@ -13,14 +15,57 @@ test('mario kart hop-drift, 4-wheel suspension, and amazon 360 loop boost',()=>{
  assert.ok(p.hopVy>0);assert.equal(p.driftDir,1);
  for(let i=0;i<25;i++)step(s,[{...emptyInput(),x:.5,action:true}],1/120);
  assert.notEqual(p.suspensionFL,p.suspensionFR);
- // Verify Amazon Canopy Loop inverts track normal at loop apex (centerT = 0.215)
- const apexFrame=trackFrame(0.215,0,'amazon-canopy');
+ // Verify Amazon Canopy Loop inverts track normal at loop apex (centerT = 0.200)
+ const apexFrame=trackFrame(0.200,0,'amazon-canopy');
  assert.equal(apexFrame.inLoop,true);
  assert.ok(apexFrame.normal.y<-0.5);
- // Verify Loop Power Boost pad at t=0.178 grants high-power loop boost
- p.progress=0.177;p.cooldown=0;p.lane=0;
+ // Verify Loop Power Boost pad at t=0.165 grants high-power loop boost
+ p.progress=0.164;p.cooldown=0;p.lane=0;
  step(s,[emptyInput()],1/120);
  assert.ok(p.boost>=1.8);
+});
+test('all 5 courses have distinct circuit minimap paths, tear-free road edges, and off-track clearance',()=>{
+ const paths=new Set(COURSES.map(c=>courseMinimapPath(c.id)));
+ assert.equal(paths.size,5);
+ for(const c of COURSES){
+  const N=320;
+  for(let i=0;i<N;i++){
+   const t0=i/N,t1=((i+1)%N)/N;
+   const f0=trackFrame(t0,0,c.id);
+   const pL0=worldPoint(t0,-74,0,c.id),pL1=worldPoint(t1,-74,0,c.id);
+   const pR0=worldPoint(t0,74,0,c.id),pR1=worldPoint(t1,74,0,c.id);
+   assert.ok(pL1.clone().sub(pL0).dot(f0.tangent)>0.15,`Left edge tear on ${c.id} at t=${t0}`);
+   assert.ok(pR1.clone().sub(pR0).dot(f0.tangent)>0.15,`Right edge tear on ${c.id} at t=${t0}`);
+  }
+  const onRoad=worldPoint(0.25,0,0,c.id);
+  const pushed=ensureOffTrackXZ(onRoad.x,onRoad.z,8,c.id);
+  assert.ok(Math.hypot(pushed.x-onRoad.x,pushed.z-onRoad.z)>=20);
+ }
+});
+test('note-driven Lyria controller responds to game music note events and race telemetry',()=>{
+ lyriaMusic.onNoteStep({
+  track:'race',
+  courseId:'polar-vortex',
+  step:0,
+  bar:1,
+  bpm:142,
+  midiNote:84, // C6
+  bassNote:29, // F1
+  chordNotes:[53,56,60,63],
+  scaleName:'F_MINOR',
+  intensity:0.85,
+  speedNorm:1.2,
+  driftStage:3,
+  boostActive:true,
+  inLoop:false,
+  lap:3,
+ },0,0.1);
+ const st=lyriaMusic.getStatus();
+ assert.equal(st.lastNoteName,'C6');
+ assert.equal(st.currentScale,'F_MINOR');
+ assert.equal(st.bpm,142);
+ assert.ok(st.density>0.8);
+ assert.ok(st.brightness>0.8);
 });
 test('kith tennis rally returns ball and awards smash & point scores',()=>{
  const s=createState('tennis',['rello','chora']);s.time=0;
@@ -37,4 +82,3 @@ test('seeded arena simulations reproduce the same result',()=>{const a=createSta
 test('auto-acceleration gives the human the same launch curve as bots',()=>{const s=createState('circuit',['rello']);s.time=0;for(let i=0;i<90;i++)step(s,[],1/120);assert.ok(s.players[0].speed>0);for(const bot of s.players.slice(1))assert.ok(Math.abs(bot.speed-s.players[0].speed)<1e-9);});
 test('braking overrides auto-acceleration and manual mode requires throttle',()=>{const s=createState('circuit',['rello']);s.time=0;for(let i=0;i<120;i++)step(s,[],1/120);const speed=s.players[0].speed;for(let i=0;i<120;i++)step(s,[{...emptyInput(),y:1}],1/120);assert.ok(s.players[0].speed<speed*.02);s.autoAccelerate=false;s.players[0].speed=0;step(s,[],.05);assert.equal(s.players[0].speed,0);step(s,[{...emptyInput(),y:-1}],.05);assert.ok(s.players[0].speed>0);});
 test('right input steers inward for the clockwise chase-camera course',()=>{const s=createState('circuit',['rello']);s.time=0;const lane=s.players[0].lane;step(s,[{...emptyInput(),x:1}],.05);assert.ok(s.players[0].lane<lane);});
-

@@ -1,5 +1,5 @@
 import { type GameId } from './catalog';
-import { type CourseId, courseById, jumpFactorAt, loopPitchAt } from './course3d';
+import { type CourseId, courseById, jumpFactorAt, loopPitchAt, courseMinimapPoint, getActiveCourse } from './course3d';
 
 export interface Input { x:number; y:number; action:boolean; lanes:boolean[]; }
 export const emptyInput = ():Input => ({x:0,y:0,action:false,lanes:[false,false,false,false]});
@@ -53,10 +53,9 @@ export const TAU=Math.PI*2;
 const clamp=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
 function random(s:State) {s.seed=(Math.imul(s.seed,1664525)+1013904223)>>>0; return s.seed/4294967296;}
 
-export function trackPoint(t:number,lane=0) {
- const a=t*TAU-Math.PI/2;
- const r=1+.075*Math.sin(a*3);
- return {x:480+Math.cos(a)*(333*r+lane),y:280+Math.sin(a)*(183*r+lane*.7)};
+export function trackPoint(t:number,lane=0,course:CourseId=getActiveCourse()) {
+ const mp=courseMinimapPoint(t,lane,course);
+ return {x:480+(mp.x-60)*7.2,y:280+(mp.y-42)*5.8};
 }
 
 export function createState(game:GameId,characters:string[],seed=421,course:CourseId='crestfall-gardens'):State {
@@ -168,11 +167,12 @@ export function step(s:State,inputs:Input[],dt:number) {
    p.lane=clamp(p.lane-effectiveSteer*(input.action?34:52)*dt,-55,55);
 
    if(!p.human){
-    // Bots steer toward boost pads before vertical loops on Amazon Canopy Loop
+    // Bots steer toward boost pads before vertical loops and weave around single-lane hazards
     const frac=((p.progress%1)+1)%1;
     const approachingLoop=courseDef.loops.some(l=>frac>=l.boostPadT-0.04&&frac<=l.centerT+l.halfWidth);
-    const desiredLane=approachingLoop?0:Math.sin(s.time*.35+i)*25;
-    p.lane+=(desiredLane-p.lane)*dt*(approachingLoop?3.5:1);
+    const nearHazard=courseDef.hazards.find(h=>frac>=h.t-0.035&&frac<=h.t+0.01);
+    const desiredLane=approachingLoop?0:nearHazard?(nearHazard.lane>0?-22:22):Math.sin(s.time*.35+i)*25;
+    p.lane+=(desiredLane-p.lane)*dt*(approachingLoop||nearHazard?3.5:1);
    }
 
    const absLane=Math.abs(p.lane);
@@ -280,13 +280,23 @@ export function step(s:State,inputs:Input[],dt:number) {
     p.jounceVel=1.2;
     feedback(p,isLoopPad?'LOOP POWER BOOST!':'TURBO PAD!');
    }
+   // Small single-lane avoidable surface hazards (can also be hopped over!)
+   if(p.hopY<0.2&&p.boost<=0&&p.invincible<=0){
+    const hitHaz=courseDef.hazards.find(h=>Math.abs(fraction-h.t)<.007&&Math.abs(p.lane-h.lane)<7.5);
+    if(hitHaz){
+     p.speed*=.74;
+     p.jounceVel=-1.5;
+     p.invincible=.85;
+     feedback(p,`${hitHaz.label}!`);
+    }
+   }
    if(p.human&&s.time>1.2&&!offroad&&p.boost===0&&p.cooldown===0&&Math.abs(steer)>.05){
     const leader=s.players.find((other,oi)=>oi!==i&&other.progress>p.progress&&other.progress-p.progress<.028&&Math.abs(other.lane-p.lane)<14);
     if(leader){p.boost=.95;p.cooldown=2.4;feedback(p,'SLIPSTREAM!');}
    }
    if(p.progress>=3){p.finish=s.time;p.score=10000-Math.round(s.time*50);feedback(p,'FINISH!');}
    if(Math.floor(before)<Math.floor(p.progress)&&p.progress>=1&&p.progress<3)feedback(p,`LAP ${Math.floor(p.progress)+1}`);
-   const pt=trackPoint(p.progress,p.lane);p.x=pt.x;p.y=pt.y;
+   const pt=trackPoint(p.progress,p.lane,s.course);p.x=pt.x;p.y=pt.y;
   } else if(s.game==='crystals') {
    let dx=input.x,dy=input.y,action=input.action;
    if(!p.human) {
