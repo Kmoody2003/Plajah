@@ -193,27 +193,102 @@ export function transformSelection(s: Selection, m: Affine): Selection {
   return { ...out, bounds: computeBounds(out) };
 }
 
-// ── Select and Mask: guided-filter refine edge ──────────────────────────────
-export interface RefineOptions { radius: number; epsilon?: number; smooth?: number; feather?: number; contrast?: number; shiftEdge?: number }
-/** Edge-aware refinement (He et al. guided filter, gray guide) + PS-style smooth/feather/contrast/shift. */
+// ── Select and Mask: Compositing-grade Hair/Fringe Alpha Matting & De-Spill ──
+import { refineAlphaMatteAndDecontaminate, type AlphaMattingResult } from '../../matting/alphaMattingEngine';
+
+export interface RefineOptions {
+  radius: number;
+  epsilon?: number;
+  smooth?: number;
+  feather?: number;
+  contrast?: number;
+  shiftEdge?: number;
+  /** Sensitivity (0..1) for punching out background pass-through between hair strands/fringes. Default: 0.78 */
+  passThroughSensitivity?: number;
+  /** Strength (0..1) of foreground color decontamination / halo de-spill. Default: 0.90 */
+  decontaminateColors?: number;
+}
+
+/**
+ * Compositing-grade edge & hair/fringe refinement:
+ * Combines Adaptive Hair/Fringe Trimap expansion, CIE L*a*b* Inter-Strand Background Pass-Through
+ * Hole Punching, Shared Color-Line Analytical Unmixing, and Full 3x3 RGB Covariance Guided Filtering.
+ */
 export function refineEdge(s: Selection, image: Bitmap8, o: RefineOptions): Selection {
-  const W = s.width, H = s.height, N = W * H, r = Math.max(1, Math.round(o.radius)), eps = o.epsilon ?? 0.001;
-  const I = new Float32Array(N), p = new Float32Array(N);
-  for (let i = 0; i < N; i++) { const k = i * 4; I[i] = (0.299 * image.data[k] + 0.587 * image.data[k + 1] + 0.114 * image.data[k + 2]) / 255; p[i] = s.data[i] / 255; }
-  const mean = (f: Float32Array) => boxBlurGray(f, W, H, r);
-  const mI = mean(I), mp = mean(p), Ip = new Float32Array(N), II = new Float32Array(N);
-  for (let i = 0; i < N; i++) { Ip[i] = I[i] * p[i]; II[i] = I[i] * I[i]; }
-  const mIp = mean(Ip), mII = mean(II), a = new Float32Array(N), b = new Float32Array(N);
-  for (let i = 0; i < N; i++) { const cov = mIp[i] - mI[i] * mp[i], v = mII[i] - mI[i] * mI[i]; a[i] = cov / (v + eps); b[i] = mp[i] - a[i] * mI[i]; }
-  const ma = mean(a), mb = mean(b); let q = new Float32Array(N);
-  for (let i = 0; i < N; i++) q[i] = ma[i] * I[i] + mb[i];
+  const W = s.width, H = s.height, N = W * H;
+  const r = Math.max(2, Math.round(o.radius));
+  const eps = o.epsilon ?? 1e-4;
+
+  const rgba = new Uint8ClampedArray(image.data.buffer, image.data.byteOffset, image.data.byteLength);
+  const matting = refineAlphaMatteAndDecontaminate(rgba, s.data, W, H, {
+    baseEdgeRadius: Math.max(2, Math.round(r * 0.35)),
+    hairFringeRadius: Math.max(8, r * 2),
+    passThroughSensitivity: o.passThroughSensitivity ?? 0.78,
+    decontaminateColors: o.decontaminateColors ?? 0,
+    guidedFilterEps: eps,
+  });
+
+  let q = new Float32Array(matting.alphaFloat);
   if (o.smooth) q = boxBlurGray(q, W, H, Math.round(o.smooth));
-  if (o.contrast) { const c = 1 + o.contrast / 25; for (let i = 0; i < N; i++) q[i] = (q[i] - 0.5) * c + 0.5; }
-  if (o.shiftEdge) for (let i = 0; i < N; i++) q[i] = q[i] + o.shiftEdge / 200;
+  if (o.contrast) {
+    const c = 1 + o.contrast / 25;
+    for (let i = 0; i < N; i++) q[i] = (q[i] - 0.5) * c + 0.5;
+  }
+  if (o.shiftEdge) {
+    for (let i = 0; i < N; i++) q[i] = q[i] + o.shiftEdge / 200;
+  }
   let out = fromCoverage(W, H, q);
   if (o.feather) out = featherSelection(out, o.feather);
   return out;
 }
+
+/**
+ * Full compositing extraction: returns both the refined hair/fringe + pass-through alpha selection
+ * AND a color-decontaminated Bitmap8 with background spill unmixed from semi-transparent hair/fringe pixels.
+ */
+export function refineEdgeWithColorDecontamination(
+  s: Selection,
+  image: Bitmap8,
+  o: RefineOptions
+): { selection: Selection; decontaminatedBitmap: Bitmap8; metrics: AlphaMattingResult['metrics'] } {
+  const W = s.width, H = s.height, N = W * H;
+  const r = Math.max(2, Math.round(o.radius));
+  const eps = o.epsilon ?? 1e-4;
+
+  const rgba = new Uint8ClampedArray(image.data.buffer, image.data.byteOffset, image.data.byteLength);
+  const matting = refineAlphaMatteAndDecontaminate(rgba, s.data, W, H, {
+    baseEdgeRadius: Math.max(2, Math.round(r * 0.35)),
+    hairFringeRadius: Math.max(10, r * 2),
+    passThroughSensitivity: o.passThroughSensitivity ?? 0.80,
+    decontaminateColors: o.decontaminateColors ?? 0.92,
+    guidedFilterEps: eps,
+  });
+
+  let q = new Float32Array(matting.alphaFloat);
+  if (o.smooth) q = boxBlurGray(q, W, H, Math.round(o.smooth));
+  if (o.contrast) {
+    const c = 1 + o.contrast / 25;
+    for (let i = 0; i < N; i++) q[i] = (q[i] - 0.5) * c + 0.5;
+  }
+  if (o.shiftEdge) {
+    for (let i = 0; i < N; i++) q[i] = q[i] + o.shiftEdge / 200;
+  }
+  let selection = fromCoverage(W, H, q);
+  if (o.feather) selection = featherSelection(selection, o.feather);
+
+  const decontaminatedData = new Uint8Array(matting.decontaminatedRgba.length);
+  decontaminatedData.set(matting.decontaminatedRgba);
+  for (let i = 0; i < N; i++) {
+    decontaminatedData[i * 4 + 3] = selection.data[i];
+  }
+
+  return {
+    selection,
+    decontaminatedBitmap: { width: W, height: H, data: decontaminatedData },
+    metrics: matting.metrics,
+  };
+}
+
 
 // ── Conversions ─────────────────────────────────────────────────────────────
 /** Selection → layer mask bitmap cropped to its bounds (with defaultColor 0 outside). */

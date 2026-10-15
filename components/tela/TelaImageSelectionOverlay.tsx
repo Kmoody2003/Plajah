@@ -49,9 +49,11 @@ import {
   stampBrushCircle,
   stampBrushLine,
   recalculateSelectionBounds,
+  refineSelectionHairAndFringes,
+  selectSubjectWithHairMatting,
 } from '../../services/tela/raster/selectionWorkflow';
-import { executeGenerativeInpaint } from '../../services/tela/telaInpaintService';
-import { samSegmentationService } from '../../services/samSegmentationService';
+import { executeGenerativeInpaint, executeGenerativeOutpaint } from '../../services/tela/telaInpaintService';
+import { samSegmentationService, type PromptPoint } from '../../services/samSegmentationService';
 import type { TelaImageLayer } from '../../types';
 
 export interface TelaImageSelectionOverlayProps {
@@ -313,70 +315,32 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     }
   }, [selection, activeLayer, inpaintPrompt, width, height, onAddLayer, onUpdateLayer]);
 
+  const samPointsRef = useRef<PromptPoint[]>([]);
+
   const handleGenerativeOutpaint = useCallback(async (outpaint: { left: number; top: number; right: number; bottom: number }) => {
     if (!activeLayer?.src) return;
     setInpaintBusy(true);
     setOutpaintMenuOpen(false);
-    setInpaintMsg('Outpainting canvas with NVIDIA RTX GPU Sidecar…');
+    setInpaintMsg('Scene-reasoning & outpainting canvas…');
     try {
       const prompt = inpaintPrompt.trim() || 'Extended panoramic scenery, continuous environment, seamless background, highly detailed';
-      const eps = ['http://127.0.0.1:51122/generate', 'http://localhost:51122/generate'];
-      let resultDataUrl: string | null = null;
-      let newW = width;
-      let newH = height;
+      const res = await executeGenerativeOutpaint(
+        {
+          sourceImageUrl: activeLayer.src,
+          outpaint,
+          prompt,
+        },
+        { width, height }
+      );
 
-      for (const ep of eps) {
-        try {
-          const resp = await fetch(ep, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              task: {
-                taskType: 'cinema_generate',
-                prompt,
-                sourceImage: activeLayer.src,
-                outpaint,
-                seed: Math.floor(Math.random() * 1000000),
-              },
-            }),
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data?.mediaUrl) {
-              resultDataUrl = data.mediaUrl;
-              newW = data.width || width;
-              newH = data.height || height;
-              break;
-            }
-          }
-        } catch {}
-      }
-
-      if (resultDataUrl) {
-        const newLayer: TelaImageLayer = {
-          id: `lyr_outpaint_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          name: `Outpaint: ${prompt.slice(0, 24)}…`,
-          src: resultDataUrl,
-          visible: true,
-          opacity: 1,
-          blend: 'normal',
-          x: 0,
-          y: 0,
-          scale: 1,
-          rotation: 0,
-          intrinsicWidth: newW,
-          intrinsicHeight: newH,
-          adjust: { brightness: 1, contrast: 1, saturate: 1, exposure: 0, blur: 0 },
-        };
+      if (res?.newLayer) {
         if (onAddLayer) {
-          onAddLayer(newLayer);
+          onAddLayer(res.newLayer);
         } else if (onUpdateLayer) {
-          onUpdateLayer(activeLayer.id, { ...newLayer });
+          onUpdateLayer(activeLayer.id, { ...res.newLayer });
         }
-        setInpaintMsg('Outpaint complete!');
+        setInpaintMsg(`Outpaint complete (${res.engine || 'scene-reasoned'}) in ${res.ms || 0}ms`);
         setTimeout(() => setInpaintMsg(null), 3000);
-      } else {
-        throw new Error('GPU outpaint failed or unavailable');
       }
     } catch (err: any) {
       setInpaintMsg(`Outpaint failed: ${err.message || 'error'}`);
@@ -386,36 +350,63 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     }
   }, [activeLayer, inpaintPrompt, width, height, onAddLayer, onUpdateLayer]);
 
-  const handleSelectSubject = useCallback(async () => {
+  const handleSelectSubject = useCallback(async (
+    points?: PromptPoint[],
+    box?: { x1: number; y1: number; x2: number; y2: number }
+  ) => {
     if (!activeLayer?.src) return;
-    setInpaintMsg('Meta SAM detecting subject…');
+    setInpaintBusy(true);
+    setInpaintMsg('Isolating subject + hair, fringes & pass-through gaps…');
     try {
-      const res = await samSegmentationService.segment(activeLayer.src, {
-        points: [{ x: 0.5, y: 0.5, label: 1 }],
-        feather: 0.005,
-        invert: false,
+      const res = await selectSubjectWithHairMatting(activeLayer, width, height, {
+        points: points && points.length > 0 ? points : [{ x: 0.5, y: 0.5, label: 1 }],
+        box,
+        hairFringeRadius: 20,
+        passThroughSensitivity: 0.78,
+        decontaminateColors: 0.92,
       });
-      if (res?.maskDataUrl) {
-        const bm = await loadLayerAsBitmap8(res.maskDataUrl, width, height);
-        const sel: Selection = {
-          width,
-          height,
-          data: new Uint8Array(width * height),
-          bounds: null,
-        };
-        for (let i = 0; i < width * height; i++) {
-          sel.data[i] = bm.data[i * 4 + 3];
-        }
-        recalculateSelectionBounds(sel);
-        onSelectionChange(sel);
-        setInpaintMsg('Subject selected');
-        setTimeout(() => setInpaintMsg(null), 2000);
+      if (res?.selection) {
+        onSelectionChange(res.selection);
+        const m = res.metrics;
+        const detailMsg = m
+          ? `Subject matted: ${m.hairFringePixelsDetected} hair/fringe px · ${m.passThroughHolesPunched} pass-through gaps removed (${m.processingTimeMs}ms)`
+          : 'Subject matted with hair & fringe isolation';
+        setInpaintMsg(detailMsg);
+        setTimeout(() => setInpaintMsg(null), 3200);
       }
     } catch (err: any) {
       setInpaintMsg(`Subject selection failed: ${err.message}`);
       setTimeout(() => setInpaintMsg(null), 3000);
+    } finally {
+      setInpaintBusy(false);
     }
   }, [activeLayer, width, height, onSelectionChange]);
+
+  const handleRefineHairAndFringes = useCallback(async () => {
+    if (!selection || !activeLayer) return;
+    setInpaintBusy(true);
+    setInpaintMsg('Refining hair strands, fabric fringes & punching pass-through background…');
+    try {
+      const res = await refineSelectionHairAndFringes(activeLayer, selection, width, height, {
+        hairFringeRadius: 22,
+        passThroughSensitivity: 0.80,
+        decontaminateColors: 0.92,
+      });
+      if (res?.selection) {
+        onSelectionChange(res.selection);
+        const m = res.metrics;
+        setInpaintMsg(
+          `Refined: ${m.hairFringePixelsDetected} hair/fringe px · ${m.passThroughHolesPunched} pass-through gaps · ${m.decontaminatedEdgePixels} de-spilled (${m.processingTimeMs}ms)`
+        );
+        setTimeout(() => setInpaintMsg(null), 3500);
+      }
+    } catch (err: any) {
+      setInpaintMsg(`Hair refinement failed: ${err.message}`);
+      setTimeout(() => setInpaintMsg(null), 3000);
+    } finally {
+      setInpaintBusy(false);
+    }
+  }, [selection, activeLayer, width, height, onSelectionChange]);
 
   // Pointer interactions on canvas
   const getCanvasCoords = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -555,6 +546,37 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     const rectW = Math.abs(currentX - startX);
     const rectH = Math.abs(currentY - startY);
 
+    if (activeTool === 'select_subject' || activeTool === 'quick_select') {
+      setDragState(null);
+      if (rectW > 10 && rectH > 10) {
+        // User dragged an object bounding box -> segment object inside box with hair/fringe matting
+        const box = {
+          x1: rectX / width,
+          y1: rectY / height,
+          x2: (rectX + rectW) / width,
+          y2: (rectY + rectH) / height,
+        };
+        const cx = (box.x1 + box.x2) * 0.5;
+        const cy = (box.y1 + box.y2) * 0.5;
+        samPointsRef.current = [{ x: cx, y: cy, label: 1 }];
+        void handleSelectSubject(samPointsRef.current, box);
+      } else {
+        // User clicked a point -> Shift+click adds positive point, Alt+click adds negative exclusion point
+        const pt: PromptPoint = {
+          x: currentX / width,
+          y: currentY / height,
+          label: e.altKey ? 0 : 1,
+        };
+        if (e.shiftKey || e.altKey) {
+          samPointsRef.current = [...samPointsRef.current, pt];
+        } else {
+          samPointsRef.current = [pt];
+        }
+        void handleSelectSubject(samPointsRef.current);
+      }
+      return;
+    }
+
     let nextSel: Selection | null = null;
 
     if (activeTool === 'marquee_rect' && rectW > 3 && rectH > 3) {
@@ -582,20 +604,21 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
 
   // Preview box while dragging
   const dragPreview = dragState?.active && activeTool !== 'none' && (() => {
-    if (activeTool === 'marquee_rect') {
+    if (activeTool === 'marquee_rect' || activeTool === 'select_subject' || activeTool === 'quick_select') {
       const x = Math.min(dragState.startX, dragState.currentX);
       const y = Math.min(dragState.startY, dragState.currentY);
       const w = Math.abs(dragState.currentX - dragState.startX);
       const h = Math.abs(dragState.currentY - dragState.startY);
+      const isObj = activeTool === 'select_subject' || activeTool === 'quick_select';
       return (
         <rect
           x={x}
           y={y}
           width={w}
           height={h}
-          fill="rgba(0, 218, 243, 0.12)"
-          stroke="#00DAF3"
-          strokeWidth={1}
+          fill={isObj ? 'rgba(181, 108, 255, 0.14)' : 'rgba(0, 218, 243, 0.12)'}
+          stroke={isObj ? '#b56cff' : '#00DAF3'}
+          strokeWidth={1.5}
           strokeDasharray="4 4"
         />
       );
@@ -775,7 +798,29 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
             }}
           >
             <FlipHorizontal size={14} />
-            <span>Inverse (Ctrl+Shift+I)</span>
+            <span>Inverse</span>
+          </button>
+
+          {/* Refine Hair & Fringes + Pass-Through Hole Punching Button */}
+          <button
+            onClick={() => void handleRefineHairAndFringes()}
+            disabled={inpaintBusy}
+            title="Compositing Alpha Matting: Isolate fine hair strands & fabric fringes, punch out background pass-through between strands, and decontaminate edge colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid rgba(181, 108, 255, 0.45)',
+              background: 'linear-gradient(135deg, rgba(181,108,255,0.22), rgba(212,0,85,0.22))',
+              color: '#f3e8ff',
+              fontWeight: 700,
+              cursor: inpaintBusy ? 'wait' : 'pointer',
+            }}
+          >
+            <Wand2 size={13} />
+            <span>Refine Hair & Fringes</span>
           </button>
 
           <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', margin: '0 2px' }} />

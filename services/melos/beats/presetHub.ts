@@ -5,7 +5,6 @@
 
 import type { GrooveDoc, InstrumentType, ArrangeTrack } from './grooveDoc';
 import { isSuite, syncPadWithTrack } from './instrumentFactory';
-import { BeatsEngine } from './engine/BeatsEngine';
 import { FACTORY_PRESETS } from '../instruments/onda/presets';
 import { serializePatch } from '../instruments/onda/patch';
 import { BAJO_PRESETS } from '../instruments/bajo/presets';
@@ -17,11 +16,16 @@ import {
   deserializeVelaPatch, applyVelaPreset, serializeVelaPatch, newVelaPatch,
 } from '../instruments/vela/patch';
 import { presetsFor } from '../instruments/vela/suite';
+import { AURA_PRESETS, AURA_CATEGORY_LABELS } from '../instruments/aura/presets';
+import {
+  newAuraPatch, deserializeAuraPatch, applyAuraPreset, serializeAuraPatch,
+} from '../instruments/aura/patch';
 
 export interface PresetEntry {
   id: string;
   name: string;
   category?: string;
+  description?: string;
   /** Saved by the user (deletable), vs shipped factory. */
   user?: boolean;
 }
@@ -87,7 +91,14 @@ export function listPresets(type: InstrumentType): PresetEntry[] {
   let factory: PresetEntry[] = [];
   if (type === 'onda') factory = FACTORY_PRESETS.map((p) => ({ id: `f_${p.name}`, name: p.name, category: p.category }));
   else if (type === 'bajo') factory = BAJO_PRESETS.map((p) => ({ id: `f_${p.id}`, name: p.name, category: p.genre }));
-  else if (isSuite(type)) {
+  else if (type === 'aura') {
+    factory = AURA_PRESETS.map((p) => ({
+      id: `f_${p.id}`,
+      name: p.name,
+      category: AURA_CATEGORY_LABELS[p.category],
+      description: `${p.year} · ${p.inspiration} — ${p.description}`,
+    }));
+  } else if (isSuite(type)) {
     const bank = type === 'vela' ? VELA_PRESETS : presetsFor(type);
     factory = bank.map((p) => ({ id: `f_${p.id}`, name: p.name }));
   }
@@ -135,6 +146,14 @@ export function applyPresetToDoc(d: GrooveDoc, trackId: string, presetId: string
     t.instrument.patch = serializeBajoPatch(next) as Record<string, unknown>;
     t.instrument.presetName = preset.name;
     t.name = preset.name;
+  } else if (type === 'aura') {
+    const preset = AURA_PRESETS.find((p) => p.id === fid);
+    if (!preset) return false;
+    const current = deserializeAuraPatch(t.instrument.patch);
+    const next = current ? applyAuraPreset(current, preset) : newAuraPatch(preset);
+    t.instrument.patch = serializeAuraPatch(next) as Record<string, unknown>;
+    t.instrument.presetName = preset.name;
+    t.name = preset.name;
   } else if (isSuite(type)) {
     const bank = type === 'vela' ? VELA_PRESETS : presetsFor(type);
     const preset = bank.find((p) => p.id === fid);
@@ -157,7 +176,9 @@ export function applyPresetToDoc(d: GrooveDoc, trackId: string, presetId: string
  * the old panels wrote the doc and then poked an instrument that was often not there.
  */
 export function pushTrackPatch(trackId: string): void {
-  const engine = BeatsEngine.get();
-  const track = engine.getDoc().arrangement.find((x) => x.id === trackId);
-  if (track) void engine.reloadPatch(track);
+  void import('./engine/BeatsEngine').then(({ BeatsEngine }) => {
+    const engine = BeatsEngine.get();
+    const track = engine.getDoc().arrangement.find((x) => x.id === trackId);
+    if (track) void engine.reloadPatch(track);
+  });
 }

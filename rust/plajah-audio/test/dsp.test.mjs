@@ -60,6 +60,13 @@ const P = {
   scMix: (st) => 1560 + st * 8 + 4,
   SC_INPUT: 1590, SC_FOCUS: 1591, SC_SAFE: 1592, SC_SUB: 1593, SC_OUTPUT: 1594,
   MONO_BELOW: 1650,
+
+  // AURA — block 1700 constants in src/params.rs.
+  A_OSC_SYNC: 1700, A_XMOD_PITCH: 1701, A_XMOD_FILTER: 1702, A_RING_MOD: 1703,
+  A_AURA: 1704, A_WARMTH: 1705,
+  A_ENS_ON: 1710, A_ENS_MODE: 1711, A_ENS_DEPTH: 1712, A_ENS_MIX: 1713,
+  A_PH_ON: 1720, A_PH_RATE: 1721, A_PH_DEPTH: 1722, A_PH_FEEDBACK: 1723, A_PH_MIX: 1724,
+  A_TAPE_SAT: 1730, A_HUM: 1731, A_CRACKLE: 1732,
 };
 
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -101,7 +108,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 10);
+  assert.equal(x.pa_abi_version(), 11);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -1095,3 +1102,111 @@ test('CANTUS: period doubling adds partials without moving pitch or level', asyn
   const drop = buzz.fundamental / Math.max(clean.fundamental, 1e-12);
   assert.ok(drop > 0.7 && drop < 1.5, `the fundamental must hold (${drop.toFixed(2)}x)`);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AURA — 1960s & 1970s analogue circuitry (Hard Sync, Ring Mod, Cross-Mod, BBD Ensemble, Phaser)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('AURA: Hard Sync locks Osc 2 period to Osc 1 fundamental while sculpting upper harmonics', async () => {
+  const renderSync = async (syncAmt) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    // Osc 1 silent master at C3, Osc 2 audible slave +7 semitones above
+    x.pa_set_param(eng, P.oscEnable(0), 1);
+    x.pa_set_param(eng, P.oscLevel(0), 0.0);
+    x.pa_set_param(eng, P.oscMode(0), 1);
+    x.pa_set_param(eng, P.oscShape(0), 0);
+    x.pa_set_param(eng, P.oscEnable(1), 1);
+    x.pa_set_param(eng, P.oscLevel(1), 0.85);
+    x.pa_set_param(eng, P.oscMode(1), 1);
+    x.pa_set_param(eng, P.oscShape(1), 0);
+    x.pa_set_param(eng, P.oscCoarse(1), 0.5 + 7 / 48); // +7 semitones (G3)
+    x.pa_set_param(eng, P.fltEnable(0), 0);
+    x.pa_set_param(eng, P.envAttack(0), 0);
+    x.pa_set_param(eng, P.envSustain(0), 1);
+    x.pa_set_param(eng, P.A_OSC_SYNC, syncAmt);
+    x.pa_note_on(eng, 48, 1.0, 1, 0); // C3 = 130.813 Hz
+    renderMono(ctx, 2048);
+    return renderMono(ctx, 16384);
+  };
+
+  const unsynced = await renderSync(0.0);
+  const synced = await renderSync(1.0);
+  const fMaster = mtof(48); // C3
+  // Unsynced Osc 2 is at G3, so energy at C3 fundamental is near zero; synced locks period to C3!
+  const c3Unsynced = magAt(unsynced, fMaster, SR);
+  const c3Synced = magAt(synced, fMaster, SR);
+  assert.ok(
+    c3Synced > c3Unsynced * 8,
+    `hard sync must lock slave periodicity to master fundamental (${c3Unsynced.toExponential(2)} -> ${c3Synced.toExponential(2)})`,
+  );
+});
+
+test('AURA: Balanced Ring Modulator produces sum and difference sidebands (f1 + f2, |f1 - f2|)', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  // Two sine oscillators: Osc 1 at A4 (440 Hz, level 0), Osc 2 at +7 semitones (E5 ~659.25 Hz, level 0)
+  // With Ring Mod > 0, output is pure product: cos(w1 t) * cos(w2 t) -> (w2 - w1) and (w1 + w2)
+  x.pa_set_param(eng, P.oscEnable(0), 1);
+  x.pa_set_param(eng, P.oscLevel(0), 0.0);
+  x.pa_set_param(eng, P.oscMode(0), 1);
+  x.pa_set_param(eng, P.oscShape(0), 3); // Sine
+  x.pa_set_param(eng, P.oscEnable(1), 1);
+  x.pa_set_param(eng, P.oscLevel(1), 0.0);
+  x.pa_set_param(eng, P.oscMode(1), 1);
+  x.pa_set_param(eng, P.oscShape(1), 3); // Sine
+  x.pa_set_param(eng, P.oscCoarse(1), 0.5 + 7 / 48);
+  x.pa_set_param(eng, P.fltEnable(0), 0);
+  x.pa_set_param(eng, P.envAttack(0), 0);
+  x.pa_set_param(eng, P.envSustain(0), 1);
+  x.pa_set_param(eng, P.A_RING_MOD, 1.0);
+  x.pa_note_on(eng, 69, 1.0, 1, 0);
+  renderMono(ctx, 2048);
+  const sig = renderMono(ctx, 16384);
+
+  const f1 = mtof(69);
+  const f2 = mtof(76);
+  const sumMag = magAt(sig, f1 + f2, SR);
+  const diffMag = magAt(sig, f2 - f1, SR);
+  const carrierMag = magAt(sig, f1, SR);
+  assert.ok(sumMag > 0.05 && diffMag > 0.05, `ring mod must generate sum (${sumMag.toFixed(3)}) and diff (${diffMag.toFixed(3)}) sidebands`);
+  assert.ok(sumMag > carrierMag * 5, `balanced ring mod suppresses suppressed carrier (${sumMag.toFixed(3)} vs ${carrierMag.toFixed(4)})`);
+});
+
+test('AURA: BBD String Ensemble, 6-Stage Phaser, and 15 IPS Tape stay bounded and modulate signal', async () => {
+  const runRack = async (fxOn) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    plainVoice(ctx);
+    if (fxOn) {
+      x.pa_set_param(eng, P.A_WARMTH, 0.65);
+      x.pa_set_param(eng, P.A_AURA, 0.5);
+      x.pa_set_param(eng, P.A_ENS_ON, 1.0);
+      x.pa_set_param(eng, P.A_ENS_MODE, 0.0);
+      x.pa_set_param(eng, P.A_ENS_DEPTH, 0.75);
+      x.pa_set_param(eng, P.A_ENS_MIX, 0.65);
+      x.pa_set_param(eng, P.A_PH_ON, 1.0);
+      x.pa_set_param(eng, P.A_PH_RATE, 0.45);
+      x.pa_set_param(eng, P.A_PH_DEPTH, 0.8);
+      x.pa_set_param(eng, P.A_PH_FEEDBACK, 0.6);
+      x.pa_set_param(eng, P.A_PH_MIX, 0.5);
+      x.pa_set_param(eng, P.A_TAPE_SAT, 0.55);
+      x.pa_set_param(eng, P.A_HUM, 0.25);
+      x.pa_set_param(eng, P.A_CRACKLE, 0.2);
+    }
+    x.pa_note_on(eng, 60, 0.9, 1, 0);
+    renderMono(ctx, 4096);
+    return renderMono(ctx, 16384);
+  };
+
+  const dry = await runRack(false);
+  const wet = await runRack(true);
+  const wetRms = rmsOf(wet);
+  assert.ok(Number.isFinite(wetRms) && wetRms > 0.05 && wetRms < 1.0, `AURA rack output must be finite and audible (rms=${wetRms.toFixed(3)})`);
+  let diffEnergy = 0;
+  for (let i = 0; i < dry.length; i++) {
+    diffEnergy += Math.abs(wet[i] - dry[i]);
+  }
+  assert.ok(diffEnergy / dry.length > 0.02, 'AURA rack must audibly transform the dry waveform');
+});
+

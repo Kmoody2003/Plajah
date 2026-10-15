@@ -239,14 +239,177 @@ export async function loadLayerAsBitmap8(
   });
 }
 
+import { refineAlphaMatteAndDecontaminate, type AlphaMattingOptions, type AlphaMattingResult } from '../../matting/alphaMattingEngine';
+import { samSegmentationService, type PromptPoint, type PromptBox } from '../../samSegmentationService';
+
 /**
- * Extracts pixels in the active selection into a brand new non-destructive layer above (Ctrl+J).
+ * Refines an existing selection using the 5-stage Compositing Alpha Matting,
+ * Hair/Fringe Isolation, and Inter-Strand Background Pass-Through Hole Punching engine.
+ */
+export async function refineSelectionHairAndFringes(
+  sourceLayer: TelaImageLayer,
+  selection: Selection,
+  canvasW: number,
+  canvasH: number,
+  options: AlphaMattingOptions = {}
+): Promise<{ selection: Selection; decontaminatedDataUrl: string; metrics: AlphaMattingResult['metrics'] } | null> {
+  if (!selection.bounds) return null;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.save();
+        ctx.translate(sourceLayer.x, sourceLayer.y);
+        if (sourceLayer.rotation) {
+          ctx.rotate((sourceLayer.rotation * Math.PI) / 180);
+        }
+        ctx.scale(sourceLayer.scale, sourceLayer.scale);
+        ctx.drawImage(img, 0, 0);
+        ctx.restore();
+
+        const imgData = ctx.getImageData(0, 0, canvasW, canvasH);
+        const matting = refineAlphaMatteAndDecontaminate(
+          imgData.data,
+          selection.data,
+          canvasW,
+          canvasH,
+          {
+            hairFringeRadius: options.hairFringeRadius ?? 20,
+            passThroughSensitivity: options.passThroughSensitivity ?? 0.78,
+            decontaminateColors: options.decontaminateColors ?? 0.92,
+            ...options,
+          }
+        );
+
+        const refinedSel: Selection = {
+          width: canvasW,
+          height: canvasH,
+          data: matting.alpha,
+          bounds: null,
+        };
+        recalculateSelectionBounds(refinedSel);
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = canvasW;
+        outCanvas.height = canvasH;
+        const outCtx = outCanvas.getContext('2d')!;
+        outCtx.putImageData(new ImageData(new Uint8ClampedArray(matting.decontaminatedRgba), canvasW, canvasH), 0, 0);
+
+        resolve({
+          selection: refinedSel,
+          decontaminatedDataUrl: outCanvas.toDataURL('image/png'),
+          metrics: matting.metrics,
+        });
+      } catch (err) {
+        console.warn('[Tela Selection] Hair/fringe refinement error:', err);
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = sourceLayer.src;
+  });
+}
+
+/**
+ * Runs AI Object/Subject Selection with automatic Hair/Fringe Isolation,
+ * Inter-Strand Background Pass-Through Removal, and Foreground Color Decontamination.
+ */
+export async function selectSubjectWithHairMatting(
+  sourceLayer: TelaImageLayer,
+  canvasW: number,
+  canvasH: number,
+  opts: {
+    points?: PromptPoint[];
+    box?: PromptBox;
+    hairFringeRadius?: number;
+    passThroughSensitivity?: number;
+    decontaminateColors?: number;
+  } = {}
+): Promise<{
+  selection: Selection;
+  cutoutDataUrl: string;
+  metrics?: AlphaMattingResult['metrics'];
+} | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = async () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.save();
+        ctx.translate(sourceLayer.x, sourceLayer.y);
+        if (sourceLayer.rotation) {
+          ctx.rotate((sourceLayer.rotation * Math.PI) / 180);
+        }
+        ctx.scale(sourceLayer.scale, sourceLayer.scale);
+        ctx.drawImage(img, 0, 0);
+        ctx.restore();
+
+        const segResult = await samSegmentationService.segment(canvas, {
+          points: opts.points,
+          box: opts.box,
+          outputWidth: canvasW,
+          outputHeight: canvasH,
+          refineHairAndFringes: true,
+          hairFringeRadius: opts.hairFringeRadius ?? 20,
+          passThroughSensitivity: opts.passThroughSensitivity ?? 0.78,
+          decontaminateColors: opts.decontaminateColors ?? 0.92,
+        });
+
+        if (!segResult) {
+          resolve(null);
+          return;
+        }
+
+        const sel: Selection = {
+          width: canvasW,
+          height: canvasH,
+          data: segResult.alphaMask,
+          bounds: null,
+        };
+        recalculateSelectionBounds(sel);
+
+        resolve({
+          selection: sel,
+          cutoutDataUrl: segResult.alphaDataUrl,
+          metrics: segResult.mattingMetrics,
+        });
+      } catch (err) {
+        console.warn('[Tela Selection] Subject hair matting error:', err);
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = sourceLayer.src;
+  });
+}
+
+/**
+ * Extracts pixels in the active selection into a brand new non-destructive layer above (Ctrl+J),
+ * performing automatic Foreground Color Decontamination (de-spill) on semi-transparent hair and fringe pixels.
  */
 export async function layerViaCopy(
   sourceLayer: TelaImageLayer,
   selection: Selection,
   canvasW: number,
-  canvasH: number
+  canvasH: number,
+  decontaminateColors: boolean = true
 ): Promise<TelaImageLayer | null> {
   if (!selection.bounds) return null;
   return new Promise((resolve, reject) => {
@@ -273,31 +436,48 @@ export async function layerViaCopy(
         ctx.drawImage(img, 0, 0);
         ctx.restore();
 
-        // Mask out non-selected pixels using the selection mask
-        const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = canvasW;
-        maskCanvas.height = canvasH;
-        const maskCtx = maskCanvas.getContext('2d');
-        if (maskCtx) {
-          const maskImgData = maskCtx.createImageData(canvasW, canvasH);
-          for (let i = 0; i < selection.data.length; i++) {
-            const v = selection.data[i];
-            const idx = i * 4;
-            maskImgData.data[idx] = 0;
-            maskImgData.data[idx + 1] = 0;
-            maskImgData.data[idx + 2] = 0;
-            maskImgData.data[idx + 3] = v;
-          }
-          maskCtx.putImageData(maskImgData, 0, 0);
+        if (decontaminateColors) {
+          const imgData = ctx.getImageData(0, 0, canvasW, canvasH);
+          const matting = refineAlphaMatteAndDecontaminate(
+            imgData.data,
+            selection.data,
+            canvasW,
+            canvasH,
+            {
+              baseEdgeRadius: 2,
+              hairFringeRadius: 14,
+              passThroughSensitivity: 0.75,
+              decontaminateColors: 0.90,
+            }
+          );
+          ctx.putImageData(new ImageData(new Uint8ClampedArray(matting.decontaminatedRgba), canvasW, canvasH), 0, 0);
+        } else {
+          // Mask out non-selected pixels using the selection mask
+          const maskCanvas = document.createElement('canvas');
+          maskCanvas.width = canvasW;
+          maskCanvas.height = canvasH;
+          const maskCtx = maskCanvas.getContext('2d');
+          if (maskCtx) {
+            const maskImgData = maskCtx.createImageData(canvasW, canvasH);
+            for (let i = 0; i < selection.data.length; i++) {
+              const v = selection.data[i];
+              const idx = i * 4;
+              maskImgData.data[idx] = 0;
+              maskImgData.data[idx + 1] = 0;
+              maskImgData.data[idx + 2] = 0;
+              maskImgData.data[idx + 3] = v;
+            }
+            maskCtx.putImageData(maskImgData, 0, 0);
 
-          ctx.globalCompositeOperation = 'destination-in';
-          ctx.drawImage(maskCanvas, 0, 0);
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.drawImage(maskCanvas, 0, 0);
+          }
         }
 
         const newSrc = canvas.toDataURL('image/png');
         const newLayer: TelaImageLayer = {
           id: `lyr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          name: `${sourceLayer.name || 'Layer'} (Copy)`,
+          name: `${sourceLayer.name || 'Layer'} (Cutout)`,
           src: newSrc,
           x: 0,
           y: 0,
@@ -380,3 +560,4 @@ export async function deleteSelectedPixels(
     img.src = sourceLayer.src;
   });
 }
+

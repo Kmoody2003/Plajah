@@ -37,22 +37,66 @@ export function loadSubjectSegmenter(): Promise<SegmenterHandle | null> {
   return loading;
 }
 
-/** Confidence mask → grayscale canvas (white = subject), resampled to w×h. */
-function maskToCanvas(result: any, w: number, h: number, into?: HTMLCanvasElement): HTMLCanvasElement | null {
+import { refineAlphaMatteAndDecontaminate } from '../matting/alphaMattingEngine';
+
+/** Confidence mask → compositing-refined hair/fringe & pass-through alpha matte at w×h. */
+function maskToCanvas(
+  el: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  result: any,
+  w: number,
+  h: number,
+  into?: HTMLCanvasElement
+): HTMLCanvasElement | null {
   const m = result?.confidenceMasks?.[0];
   if (!m) return null;
   const mw = m.width, mh = m.height;
   const data: Float32Array = typeof m.getAsFloat32Array === 'function' ? m.getAsFloat32Array() : m.data;
   if (!data) return null;
-  const small = document.createElement('canvas'); small.width = mw; small.height = mh;
-  const sctx = small.getContext('2d'); if (!sctx) return null;
-  const img = sctx.createImageData(mw, mh);
-  for (let i = 0; i < mw * mh; i++) { const v = Math.max(0, Math.min(255, Math.round(data[i] * 255))); img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255; }
-  sctx.putImageData(img, 0, 0);
+
+  // Upsample soft probabilities and coarse mask to native w x h
+  const n = w * h;
+  const coarseMask = new Uint8Array(n);
+  const softProb = new Float32Array(n);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(mh - 1, Math.floor((y / h) * mh));
+    const rowOut = y * w;
+    const rowIn = sy * mw;
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(mw - 1, Math.floor((x / w) * mw));
+      const p = Math.max(0, Math.min(1, data[rowIn + sx] ?? 0));
+      softProb[rowOut + x] = p;
+      coarseMask[rowOut + x] = p >= 0.48 ? 255 : 0;
+    }
+  }
   try { m.close?.(); } catch { /* */ }
-  const out = into || document.createElement('canvas'); out.width = w; out.height = h;
-  const octx = out.getContext('2d'); if (!octx) return null;
-  octx.imageSmoothingEnabled = true; octx.drawImage(small, 0, 0, w, h);
+
+  const out = into || document.createElement('canvas');
+  out.width = w;
+  out.height = h;
+  const octx = out.getContext('2d', { willReadFrequently: true });
+  if (!octx) return null;
+
+  // Extract native frame RGB and refine hair strands, fringes, and pass-through background gaps
+  octx.drawImage(el, 0, 0, w, h);
+  const frameRgba = octx.getImageData(0, 0, w, h).data;
+  const matting = refineAlphaMatteAndDecontaminate(frameRgba, coarseMask, w, h, {
+    baseEdgeRadius: 3,
+    hairFringeRadius: 16,
+    passThroughSensitivity: 0.76,
+    decontaminateColors: 0,
+    softProbabilities: softProb,
+  });
+
+  const img = octx.createImageData(w, h);
+  for (let i = 0; i < n; i++) {
+    const v = matting.alpha[i];
+    const p4 = i * 4;
+    img.data[p4] = v;
+    img.data[p4 + 1] = v;
+    img.data[p4 + 2] = v;
+    img.data[p4 + 3] = 255;
+  }
+  octx.putImageData(img, 0, 0);
   return out;
 }
 
@@ -69,7 +113,7 @@ function workFrame(el: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement):
 export async function segmentSubject(el: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement, w: number, h: number): Promise<HTMLCanvasElement | null> {
   const seg = await loadSubjectSegmenter(); if (!seg) return null;
   const frame = workFrame(el); if (!frame) return null;
-  try { return maskToCanvas(seg.segment(frame), w, h); } catch (e) { console.warn('[subjectMatte] segment failed:', (e as Error)?.message || e); return null; }
+  try { return maskToCanvas(el, seg.segment(frame), w, h); } catch (e) { console.warn('[subjectMatte] segment failed:', (e as Error)?.message || e); return null; }
 }
 
 // ── Live path: last-known matte per element, refreshed on a throttle ────────────────────────
@@ -87,7 +131,7 @@ export function segmentSubjectLatest(el: HTMLVideoElement | HTMLImageElement | H
     if (!frame) { entry.busy = false; return entry.canvas; }
     loadSubjectSegmenter().then(seg => {
       if (!seg) { entry!.busy = false; return; }
-      try { const c = maskToCanvas(seg.segment(frame), w, h, entry!.canvas || undefined); if (c) entry!.canvas = c; }
+      try { const c = maskToCanvas(el, seg.segment(frame), w, h, entry!.canvas || undefined); if (c) entry!.canvas = c; }
       catch (e) { console.warn('[subjectMatte] live segment failed:', (e as Error)?.message || e); }
       entry!.busy = false;
     });

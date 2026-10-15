@@ -93,6 +93,13 @@ pub struct Voice {
     /// Per-voice wobble smoothing state. Every voice follows the same phase from the engine, so
     /// they agree; only the one-pole is local.
     wob_smooth: f32,
+
+    /// AURA per-voice vintage circuit state: separate RNG so existing instruments stay
+    /// bit-identical, permanent voice-card trimpot tolerances, thermal wander, and Osc 2 feedback.
+    aura_rng: Rng,
+    card_tol: [f32; 3],
+    thermal_walk: f32,
+    last_osc2: [f32; MAX_UNISON],
 }
 
 impl Voice {
@@ -102,9 +109,15 @@ impl Voice {
         for d in drift.iter_mut() {
             *d = rng.bipolar();
         }
+        let mut aura_rng = Rng((seed ^ 0xA5A5_1968) | 1);
+        let card_tol = [aura_rng.bipolar(), aura_rng.bipolar(), aura_rng.bipolar()];
         Self {
             string: StringVoice::new(48000.0, seed ^ 0x5F35_63AD),
             wob_smooth: 0.0,
+            aura_rng,
+            card_tol,
+            thermal_walk: 0.0,
+            last_osc2: [0.0; MAX_UNISON],
             active: false,
             note: 60.0,
             velocity: 0.8,
@@ -194,13 +207,16 @@ impl Voice {
                 self.svfs[slot][c].reset();
             }
         }
+        self.last_osc2 = [0.0; MAX_UNISON];
 
+        let aura_env = p.get(AURA_BASE + A_AURA).clamp(0.0, 1.0);
+        let env_scale = if aura_env > 0.0005 { 1.0 + self.card_tol[2] * 0.14 * aura_env } else { 1.0 };
         for e in 0..NUM_ENV {
             self.envs[e].set_adsr(
-                env_time(p.get(env_param(e, E_ATTACK))),
-                env_time(p.get(env_param(e, E_DECAY))),
+                env_time(p.get(env_param(e, E_ATTACK))) * env_scale,
+                env_time(p.get(env_param(e, E_DECAY))) * env_scale,
                 p.get(env_param(e, E_SUSTAIN)),
-                env_time(p.get(env_param(e, E_RELEASE))),
+                env_time(p.get(env_param(e, E_RELEASE))) * env_scale,
             );
             self.envs[e].note_on();
         }
@@ -406,7 +422,25 @@ impl Voice {
             let wob_morph = wob * wf.depth_for(WOB_DEST_MORPH);
             let wob_reso = wob * wf.depth_for(WOB_DEST_RESO);
 
-            let bent = self.glide_note + self.expr.pitch_bend * bend_range + wob_pitch * 12.0;
+            // ── AURA per-voice vintage circuitry ─────────────────────────────────
+            let sync_amt = (p.get(AURA_BASE + A_OSC_SYNC) + matrix.amount_for(AURA_BASE + A_OSC_SYNC, &mv)).clamp(0.0, 1.0);
+            let xmod_pitch = (p.get(AURA_BASE + A_XMOD_PITCH) + matrix.amount_for(AURA_BASE + A_XMOD_PITCH, &mv)).clamp(0.0, 1.0);
+            let xmod_flt = (p.get(AURA_BASE + A_XMOD_FILTER) + matrix.amount_for(AURA_BASE + A_XMOD_FILTER, &mv)).clamp(0.0, 1.0);
+            let ring_amt = (p.get(AURA_BASE + A_RING_MOD) + matrix.amount_for(AURA_BASE + A_RING_MOD, &mv)).clamp(0.0, 1.0);
+            let aura_amt = (p.get(AURA_BASE + A_AURA) + matrix.amount_for(AURA_BASE + A_AURA, &mv)).clamp(0.0, 1.0);
+            let warmth_amt = (p.get(AURA_BASE + A_WARMTH) + matrix.amount_for(AURA_BASE + A_WARMTH, &mv)).clamp(0.0, 1.0);
+            let xmod_active = sync_amt > 0.0005 || xmod_pitch > 0.0005 || xmod_flt > 0.0005 || ring_amt > 0.0005;
+
+            let (aura_pitch_semi, aura_cut_scale) = if aura_amt > 0.0005 {
+                self.thermal_walk = (self.thermal_walk * 0.9985 + self.aura_rng.bipolar() * 0.012).clamp(-1.0, 1.0);
+                let p_semi = (self.card_tol[0] * 0.22 + self.thermal_walk * 0.14) * aura_amt;
+                let c_scale = (1.0 + (self.card_tol[1] * 0.16 + self.thermal_walk * 0.08) * aura_amt).clamp(0.75, 1.3);
+                (p_semi, c_scale)
+            } else {
+                (0.0, 1.0)
+            };
+
+            let bent = self.glide_note + self.expr.pitch_bend * bend_range + wob_pitch * 12.0 + aura_pitch_semi;
 
             // Filters
             let mut cut = [0.0f32; 2];
@@ -421,7 +455,7 @@ impl Voice {
                 let m = matrix.amount_for(flt_param(f, F_CUTOFF), &mv);
                 let kt = p.get(flt_param(f, F_KEYTRACK)) * (self.note - 60.0) / 60.0;
                 let envamt = (p.get(flt_param(f, F_ENV_AMT)) - 0.5) * 2.0 * mv.env[1];
-                let target = cutoff_hz((base + m + kt + envamt).clamp(0.0, 1.0));
+                let target = cutoff_hz((base + m + kt + envamt).clamp(0.0, 1.0)) * aura_cut_scale;
                 // One-pole smoothing: a stepped cutoff is the classic digital-synth zipper.
                 self.cutoff_smooth[f] += (target - self.cutoff_smooth[f]) * 0.35;
                 // Four octaves of wobble, applied after the smoother and in the log domain so
@@ -447,11 +481,16 @@ impl Voice {
             let mut o_drive = [0.0f32; NUM_OSC];
             let mut o_drive_mode = [ShapeMode::Off; NUM_OSC];
             for o in 0..NUM_OSC {
-                o_on[o] = p.get(osc_param(o, O_ENABLE)) > 0.5;
+                o_on[o] = p.get(osc_param(o, O_ENABLE)) > 0.5 || (xmod_active && o < 2);
                 if !o_on[o] {
                     continue;
                 }
-                o_lvl[o] = (p.get(osc_param(o, O_LEVEL)) + matrix.amount_for(osc_param(o, O_LEVEL), &mv)).clamp(0.0, 1.5);
+                let raw_en = p.get(osc_param(o, O_ENABLE)) > 0.5;
+                o_lvl[o] = if raw_en {
+                    (p.get(osc_param(o, O_LEVEL)) + matrix.amount_for(osc_param(o, O_LEVEL), &mv)).clamp(0.0, 1.5)
+                } else {
+                    0.0
+                };
                 let coarse = (p.get(osc_param(o, O_COARSE)) - 0.5) * 48.0;
                 let fine = (p.get(osc_param(o, O_FINE)) - 0.5) * 2.0; // ±1 semitone
                 let drift = self.drift[o] * drift_amt * 0.06;
@@ -592,36 +631,144 @@ impl Voice {
                     continue;
                 }
 
-                for o in 0..NUM_OSC {
-                    if !o_on[o] || o_lvl[o] <= 0.0001 {
-                        continue;
-                    }
-                    let table = &tables[o_table[o]];
+                let mut osc2_filter_mod = 0.0f32;
+                if xmod_active {
+                    // Coupled Osc 1 / Osc 2 path for Hard Sync, Cross-Mod (Poly-Mod) and Ring Mod.
+                    let mut raw0_stack = [0.0f32; MAX_UNISON];
+                    let mut raw1_stack = [0.0f32; MAX_UNISON];
+                    let t0 = &tables[o_table[0]];
+                    let t1 = &tables[o_table[1]];
+
                     for u in 0..uni_count {
                         let det = unison_detune_curve(u, uni_count) * uni_detune * 0.14;
-                        let inc = o_inc[o] * (1.0 + det);
-                        let raw = if o_wavetable[o] {
-                            self.phasors[o][u].wavetable(table, o_morph[o], inc)
+                        let fm_mult = if xmod_pitch > 0.0005 {
+                            (2.0f32).powf(self.last_osc2[u] * xmod_pitch * 2.5)
                         } else {
-                            self.phasors[o][u].analog(o_shape[o], inc, o_pw[o])
+                            1.0
                         };
-                        let v = raw * o_lvl[o] * uni_level[u];
-                        let g = &uni_gains[u];
-                        for c in 0..nch {
-                            ch_acc[c] += v * g[c];
+                        let inc0 = (o_inc[0] * (1.0 + det) * fm_mult).clamp(0.0, 0.48);
+                        let inc1 = (o_inc[1] * (1.0 + det)).clamp(0.0, 0.48);
+
+                        let prev_ph0 = self.phasors[0][u].phase;
+                        let r0 = if o_wavetable[0] {
+                            self.phasors[0][u].wavetable(t0, o_morph[0], inc0)
+                        } else {
+                            self.phasors[0][u].analog(o_shape[0], inc0, o_pw[0])
+                        };
+                        raw0_stack[u] = r0;
+
+                        // Hard / Soft Oscillator Sync: when Osc 1 wraps past 1.0, reset Osc 2 phase
+                        if sync_amt > 0.0005 && prev_ph0 + inc0 >= 1.0 {
+                            let frac_after_wrap = ((prev_ph0 + inc0 - 1.0) / inc0.max(1e-6)).clamp(0.0, 1.0);
+                            let synced_ph = (frac_after_wrap * inc1).fract();
+                            self.phasors[1][u].phase = self.phasors[1][u].phase * (1.0 - sync_amt) + synced_ph * sync_amt;
                         }
-                        mono_pre += v;
+
+                        let r1 = if o_wavetable[1] {
+                            self.phasors[1][u].wavetable(t1, o_morph[1], inc1)
+                        } else {
+                            self.phasors[1][u].analog(o_shape[1], inc1, o_pw[1])
+                        };
+                        raw1_stack[u] = r1;
+                        self.last_osc2[u] = r1;
+                        osc2_filter_mod += r1 * uni_level[u];
                     }
-                    // Per-oscillator drive on the summed unison stack (cheaper and thicker than
-                    // shaping each unison voice separately).
-                    if o_drive_mode[o] != ShapeMode::Off {
-                        let shaped = self.shapers[o].process(mono_pre, o_drive_mode[o], o_drive[o]);
-                        let delta = shaped - mono_pre;
-                        let gc = &uni_gains[uni_count / 2];
-                        for c in 0..nch {
-                            ch_acc[c] += delta * gc[c];
+
+                    // Mix Osc 1, Osc 2, and Ring Modulator (Osc 1 × Osc 2)
+                    for o in 0..2 {
+                        if o_lvl[o] > 0.0001 {
+                            for u in 0..uni_count {
+                                let raw = if o == 0 { raw0_stack[u] } else { raw1_stack[u] };
+                                let v = raw * o_lvl[o] * uni_level[u];
+                                let g = &uni_gains[u];
+                                for c in 0..nch {
+                                    ch_acc[c] += v * g[c];
+                                }
+                                mono_pre += v;
+                            }
+                            if o_drive_mode[o] != ShapeMode::Off {
+                                let shaped = self.shapers[o].process(mono_pre, o_drive_mode[o], o_drive[o]);
+                                let delta = shaped - mono_pre;
+                                let gc = &uni_gains[uni_count / 2];
+                                for c in 0..nch {
+                                    ch_acc[c] += delta * gc[c];
+                                }
+                                mono_pre = shaped;
+                            }
                         }
-                        mono_pre = shaped;
+                    }
+
+                    if ring_amt > 0.0005 {
+                        for u in 0..uni_count {
+                            let rm = raw0_stack[u] * raw1_stack[u] * ring_amt * 1.25 * uni_level[u];
+                            let g = &uni_gains[u];
+                            for c in 0..nch {
+                                ch_acc[c] += rm * g[c];
+                            }
+                            mono_pre += rm;
+                        }
+                    }
+
+                    // Oscillator 3 runs normally
+                    if o_on[2] && o_lvl[2] > 0.0001 {
+                        let table = &tables[o_table[2]];
+                        for u in 0..uni_count {
+                            let det = unison_detune_curve(u, uni_count) * uni_detune * 0.14;
+                            let inc = o_inc[2] * (1.0 + det);
+                            let raw = if o_wavetable[2] {
+                                self.phasors[2][u].wavetable(table, o_morph[2], inc)
+                            } else {
+                                self.phasors[2][u].analog(o_shape[2], inc, o_pw[2])
+                            };
+                            let v = raw * o_lvl[2] * uni_level[u];
+                            let g = &uni_gains[u];
+                            for c in 0..nch {
+                                ch_acc[c] += v * g[c];
+                            }
+                            mono_pre += v;
+                        }
+                        if o_drive_mode[2] != ShapeMode::Off {
+                            let shaped = self.shapers[2].process(mono_pre, o_drive_mode[2], o_drive[2]);
+                            let delta = shaped - mono_pre;
+                            let gc = &uni_gains[uni_count / 2];
+                            for c in 0..nch {
+                                ch_acc[c] += delta * gc[c];
+                            }
+                            mono_pre = shaped;
+                        }
+                    }
+                } else {
+                    for o in 0..NUM_OSC {
+                        if !o_on[o] || o_lvl[o] <= 0.0001 {
+                            continue;
+                        }
+                        let table = &tables[o_table[o]];
+                        for u in 0..uni_count {
+                            let det = unison_detune_curve(u, uni_count) * uni_detune * 0.14;
+                            let inc = o_inc[o] * (1.0 + det);
+                            let raw = if o_wavetable[o] {
+                                self.phasors[o][u].wavetable(table, o_morph[o], inc)
+                            } else {
+                                self.phasors[o][u].analog(o_shape[o], inc, o_pw[o])
+                            };
+                            let v = raw * o_lvl[o] * uni_level[u];
+                            let g = &uni_gains[u];
+                            for c in 0..nch {
+                                ch_acc[c] += v * g[c];
+                            }
+                            mono_pre += v;
+                        }
+                        // Per-oscillator drive on the summed unison stack (cheaper and thicker than
+                        // shaping each unison voice separately).
+                        if o_drive_mode[o] != ShapeMode::Off {
+                            let shaped = self.shapers[o].process(mono_pre, o_drive_mode[o], o_drive[o]);
+                            let delta = shaped - mono_pre;
+                            let gc = &uni_gains[uni_count / 2];
+                            for c in 0..nch {
+                                ch_acc[c] += delta * gc[c];
+                            }
+                            mono_pre = shaped;
+                        }
                     }
                 }
 
@@ -650,16 +797,28 @@ impl Voice {
                     }
                 }
 
+                let cut0_eff = if xmod_flt > 0.0005 {
+                    (cut[0] * (2.0f32).powf(osc2_filter_mod * xmod_flt * 2.5)).clamp(20.0, 20000.0)
+                } else {
+                    cut[0]
+                };
+
                 // Filters run per channel, each with its own state, so resonance images correctly
                 // instead of collapsing to the centre.
                 for c in 0..nch {
-                    let x = ch_acc[c];
+                    let mut x = ch_acc[c];
+                    if warmth_amt > 0.0005 {
+                        let d = 1.0 + warmth_amt * 2.2;
+                        let bias = 0.14 * warmth_amt;
+                        x = (crate::filter::tanh_fast((x + bias) * d) - crate::filter::tanh_fast(bias * d))
+                            * (1.0 / (1.0 + warmth_amt * 0.55));
+                    }
                     let mut y = x;
                     if f_on[0] {
                         y = if is_ladder[0] {
-                            self.ladders[0][c].process(x, cut[0], res[0], drv[0], sr)
+                            self.ladders[0][c].process(x, cut0_eff, res[0], drv[0], sr)
                         } else {
-                            self.svfs[0][c].process(x, cut[0], res[0], sr, svf_mode[0])
+                            self.svfs[0][c].process(x, cut0_eff, res[0], sr, svf_mode[0])
                         };
                     }
                     if f_on[1] {

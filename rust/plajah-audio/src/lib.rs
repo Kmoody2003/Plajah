@@ -1,4 +1,4 @@
-//! plajah-audio — the DSP core for Melos instruments (ONDA, KERA, VELA, BAJO).
+//! plajah-audio — the DSP core for Melos instruments (ONDA, KERA, VELA, BAJO, AURA).
 //!
 //! Compiled to `wasm32-unknown-unknown` as a bare `cdylib` and instantiated inside an
 //! AudioWorklet. Deliberately no wasm-bindgen: the worklet talks to this flat `extern "C"` ABI,
@@ -6,6 +6,7 @@
 //!
 //! This file is the ABI surface only — all logic lives in the modules.
 
+mod aura;
 mod bajo;
 mod diffuser;
 mod engine;
@@ -41,9 +42,11 @@ use spatial::{IamfRole, Layout, Position};
 /// which is exactly what this guard exists to prevent.
 /// v10 adds the Voice material (a glottal source rather than a body) and period doubling —
 /// the kargyraa buzz. v9 adds CANTUS's overtone spotlight (emphasis on a single partial INDEX, which is what
-/// throat singing physically is) and pitch vibrato. Additive ids, but a .wasm built before them
-/// reports 9 and silently ignores the new params — which is the exact failure this guard is for.
-pub const ABI_VERSION: u32 = 10;
+/// throat singing physically is) and pitch vibrato.
+/// v11 adds AURA (param block 1700+): 1960s & 1970s analogue synthesis circuitry (hard sync,
+/// audio-rate cross-mod, balanced ring modulator, per-voice trimpot tolerance & thermal drift,
+/// 3-phase BBD string ensemble, 6-stage analog phaser, 15 IPS tape saturation & mains floor).
+pub const ABI_VERSION: u32 = 11;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

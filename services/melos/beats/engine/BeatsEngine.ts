@@ -486,6 +486,11 @@ export class BeatsEngine {
           await import('../../instruments/bajo/patch');
         const patch = deserializeBajoPatch(track.instrument.patch);
         if (patch) applyBajoPatch(inst, patch);
+      } else if (track.instrument?.type === 'aura' && track.instrument?.patch) {
+        const { deserializeAuraPatch, applyAuraPatch } =
+          await import('../../instruments/aura/patch');
+        const patch = deserializeAuraPatch(track.instrument.patch);
+        if (patch) applyAuraPatch(inst, patch);
       } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),
@@ -693,6 +698,12 @@ export class BeatsEngine {
       const { deserializeBajoPatch, applyBajoPatch } = await import('../../instruments/bajo/patch');
       const patch = deserializeBajoPatch(track.instrument.patch);
       if (patch) applyBajoPatch(inst, patch);
+      return;
+    }
+    if (track.instrument.type === 'aura') {
+      const { deserializeAuraPatch, applyAuraPatch } = await import('../../instruments/aura/patch');
+      const patch = deserializeAuraPatch(track.instrument.patch);
+      if (patch) applyAuraPatch(inst, patch);
       return;
     }
     if (track.instrument.type === 'kera') {

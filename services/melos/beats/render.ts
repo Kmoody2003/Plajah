@@ -128,8 +128,18 @@ export async function renderGroove(
       inst.setTempo(1 / spb);
       if (track.position) inst.setSpatial({ position: track.position });
       if (track.instrument?.patch) {
-        const patch = deserializePatch(track.instrument.patch);
-        if (patch) applyPatch(inst, patch);
+        if (track.instrument.type === 'aura') {
+          const { deserializeAuraPatch, applyAuraPatch } = await import('../instruments/aura/patch');
+          const p = deserializeAuraPatch(track.instrument.patch);
+          if (p) applyAuraPatch(inst, p);
+        } else if (track.instrument.type === 'bajo') {
+          const { deserializeBajoPatch, applyBajoPatch } = await import('../instruments/bajo/patch');
+          const p = deserializeBajoPatch(track.instrument.patch);
+          if (p) applyBajoPatch(inst, p);
+        } else {
+          const patch = deserializePatch(track.instrument.patch);
+          if (patch) applyPatch(inst, patch);
+        }
       }
       inst.resetTransport(0);
       inst.clearSchedule();

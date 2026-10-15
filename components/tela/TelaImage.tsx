@@ -156,12 +156,16 @@ export const TelaImageLayerControls: React.FC<{
   const handleSamCutout = async (invert = false) => {
     if (!layer.src) return;
     setIsSegmenting(true);
-    setSegmentFeedback('Meta SAM extracting subject…');
+    setSegmentFeedback('SAM + Alpha Matting (isolating hair, fringes & pass-through)…');
     try {
       const res = await samSegmentationService.segment(layer.src, {
         points: [{ x: 0.5, y: 0.5, label: 1 }],
         feather: 0.005,
         invert,
+        refineHairAndFringes: true,
+        hairFringeRadius: 20,
+        passThroughSensitivity: 0.78,
+        decontaminateColors: 0.92,
       });
       if (res?.maskDataUrl) {
         onUpdate({
@@ -172,8 +176,12 @@ export const TelaImageLayerControls: React.FC<{
             invert: false,
           },
         });
-        setSegmentFeedback('Subject matted successfully');
-        setTimeout(() => setSegmentFeedback(null), 2500);
+        const m = res.mattingMetrics;
+        const msg = m
+          ? `Matted: ${m.hairFringePixelsDetected} hair/fringe px · ${m.passThroughHolesPunched} pass-through gaps removed`
+          : 'Subject matted with hair & fringe isolation';
+        setSegmentFeedback(msg);
+        setTimeout(() => setSegmentFeedback(null), 3500);
       } else {
         setSegmentFeedback('Cutout failed: could not isolate subject');
         setTimeout(() => setSegmentFeedback(null), 3000);

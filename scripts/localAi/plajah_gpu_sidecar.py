@@ -205,6 +205,12 @@ def load_model_if_needed(ckpt_name):
     if CACHED_MODEL is not None and LOADED_CHECKPOINT_NAME == ckpt_name:
         return CACHED_MODEL, CACHED_CLIP, CACHED_VAE
 
+    if story_intel_engine is not None and torch.cuda.is_available():
+        free_mb = round(torch.cuda.mem_get_info()[0] / (1024 * 1024))
+        if free_mb < 4200:
+            story_intel_engine.evict_all_models()
+            torch.cuda.empty_cache()
+
     import nodes
     print(f"[Sidecar] Loading checkpoint: {ckpt_name} onto GPU...")
     loader = nodes.CheckpointLoaderSimple()
@@ -273,24 +279,38 @@ def generate_image_diffusion(params):
         init_pil = decode_data_url(source_img_raw).convert("RGB")
         orig_w, orig_h = init_pil.size
         
-        # Outpainting: expand canvas dimensions and construct border mask
+        # Outpainting: expand canvas dimensions with Reflective + Harmonic Extrapolation (never flat gray!)
         if any([outpaint_left, outpaint_top, outpaint_right, outpaint_bottom]):
             new_w = orig_w + outpaint_left + outpaint_right
             new_h = orig_h + outpaint_top + outpaint_bottom
-            # Align canvas to 64
             aligned_w = ((new_w + 63) // 64) * 64
             aligned_h = ((new_h + 63) // 64) * 64
             
-            # Create padded image with neutral border
-            padded_pil = Image.new("RGB", (aligned_w, aligned_h), (128, 128, 128))
-            padded_pil.paste(init_pil, (outpaint_left, outpaint_top))
+            src_np = np.array(init_pil).astype(np.float32)
+            pad_r = aligned_w - orig_w - outpaint_left
+            pad_b = aligned_h - orig_h - outpaint_top
             
-            # Mask: 255 where newly padded area, 0 inside original image
+            # Reflective padding preserves horizon lines, sky/ground gradients, and exact color temperature
+            padded_np = np.pad(
+                src_np,
+                ((max(0, outpaint_top), max(0, pad_b)), (max(0, outpaint_left), max(0, pad_r)), (0, 0)),
+                mode="reflect"
+            )
+            padded_pil = Image.fromarray(padded_np.clip(0, 255).astype(np.uint8))
+            # Softly diffuse the reflected outer region while keeping the original core untouched
+            blurred_pad = padded_pil.filter(ImageFilter.GaussianBlur(radius=18))
+            
+            # Mask: 255 in expanded border + 12px overlap zone, 0 inside original core
+            overlap = 12
             outpaint_mask = Image.new("L", (aligned_w, aligned_h), 255)
-            inner_mask = Image.new("L", (orig_w, orig_h), 0)
-            outpaint_mask.paste(inner_mask, (outpaint_left, outpaint_top))
+            core_w = max(16, orig_w - overlap * 2)
+            core_h = max(16, orig_h - overlap * 2)
+            inner_mask = Image.new("L", (core_w, core_h), 0)
+            outpaint_mask.paste(inner_mask, (outpaint_left + overlap, outpaint_top + overlap))
             
-            init_pil = padded_pil
+            # Pre-condition border with 50% reflected detail + 50% harmonic blur
+            soft_mask = outpaint_mask.filter(ImageFilter.GaussianBlur(radius=10))
+            init_pil = Image.composite(blurred_pad, padded_pil, soft_mask)
             mask_pil = outpaint_mask
         else:
             # Standard Inpainting with provided mask
@@ -311,28 +331,48 @@ def generate_image_diffusion(params):
         init_scaled = init_pil.resize((work_w, work_h), Image.LANCZOS)
         mask_scaled = mask_pil.resize((work_w, work_h), Image.BILINEAR)
 
-        # Convert to PyTorch float tensors
-        # Image shape: (1, H, W, 3), range [0.0, 1.0]
+        # Dilate & feather mask slightly so latent transition has zero hard step
+        mask_feathered_latent = mask_scaled.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(radius=4))
+
+        # Harmonic color pre-conditioning inside masked zone so VAE never encodes flat gray (0.5, 0.5, 0.5)
         img_np = np.array(init_scaled).astype(np.float32) / 255.0
-        img_tensor = torch.from_numpy(img_np)[None, ...]
-        
-        # Mask shape: (1, H, W), range [0.0, 1.0] where 1.0 = inpaint
-        mask_np = np.array(mask_scaled).astype(np.float32) / 255.0
+        mask_np = np.array(mask_feathered_latent).astype(np.float32) / 255.0
+
+        # Compute unmasked boundary color statistics for harmonic seeding & post-decode color matching
+        unmasked_sel = mask_np < 0.25
+        if np.any(unmasked_sel):
+            ref_mean = img_np[unmasked_sel].mean(axis=0)
+            ref_std = np.maximum(0.02, img_np[unmasked_sel].std(axis=0))
+        else:
+            ref_mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+            ref_std = np.array([0.15, 0.15, 0.15], dtype=np.float32)
+
+        # Multi-scale harmonic fill blend into masked region (preserves pre-filled PatchMatch structure + matched micro-grain)
+        harmonic_pil = init_scaled.filter(ImageFilter.GaussianBlur(radius=16))
+        harmonic_np = np.array(harmonic_pil).astype(np.float32) / 255.0
+        rng = np.random.default_rng(seed)
+        matched_grain = rng.normal(0.0, 1.0, size=img_np.shape).astype(np.float32) * (ref_std * 0.22)
+        precond_np = np.clip(
+            img_np * (1.0 - mask_np[..., None] * 0.35) + (harmonic_np + matched_grain) * (mask_np[..., None] * 0.35),
+            0.0,
+            1.0
+        )
+
+        img_tensor = torch.from_numpy(precond_np)[None, ...]
         mask_tensor = torch.from_numpy(mask_np)[None, ...]
 
-        # VAE Inpaint Conditioning (ComfyUI VAEEncodeForInpaint)
-        inpaint_encoder = nodes.VAEEncodeForInpaint()
-        latent = inpaint_encoder.encode(
-            vae=vae,
-            pixels=img_tensor,
-            mask=mask_tensor,
-            grow_mask_by=6
-        )[0]
+        # Encode pre-conditioned image with standard VAEEncode + SetLatentNoiseMask
+        # (Avoids VAEEncodeForInpaint which wipes out masked pixels with flat 0.5 gray!)
+        vae_encoder = nodes.VAEEncode()
+        encoded_latent = vae_encoder.encode(vae, img_tensor)[0]
+        noise_masker = nodes.SetLatentNoiseMask()
+        latent = noise_masker.set_mask(encoded_latent, mask_tensor)[0]
 
-        # Inpaint steps & CFG tuning
-        steps = 2 if is_turbo else (4 if is_lightning else params.get("steps", 6))
-        cfg = 1.0 if is_turbo else (1.5 if is_lightning else float(params.get("cfgScale", 2.5)))
+        # Use 4 steps on Turbo for inpaint/outpaint so texture and structure resolve cleanly
+        steps = 4 if is_turbo else (6 if is_lightning else params.get("steps", 8))
+        cfg = 1.15 if is_turbo else (1.6 if is_lightning else float(params.get("cfgScale", 2.5)))
         sampler_name = "euler_ancestral" if is_turbo else "euler"
+        inpaint_denoise = float(params.get("strength", 0.80 if is_turbo else denoise))
 
         sampled_latent = sampler.sample(
             model=model,
@@ -344,24 +384,33 @@ def generate_image_diffusion(params):
             positive=pos_cond,
             negative=neg_cond,
             latent_image=latent,
-            denoise=denoise
+            denoise=inpaint_denoise
         )[0]
 
         decoded = decoder.decode(vae, sampled_latent)[0]
-        gen_np = (decoded[0].detach().cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+        gen_float = decoded[0].detach().cpu().numpy().clip(0.0, 1.0)
+
+        # Harmonize generated boundary color mean & std with unmasked reference context
+        masked_sel = mask_np > 0.35
+        if np.any(masked_sel) and np.any(unmasked_sel):
+            gen_mean = gen_float[masked_sel].mean(axis=0)
+            gen_std = np.maximum(0.02, gen_float[masked_sel].std(axis=0))
+            gain = np.clip(ref_std / gen_std, 0.70, 1.38)
+            harmonized = (gen_float - gen_mean) * gain + ref_mean
+            gen_float = np.clip(gen_float * 0.35 + harmonized * 0.65, 0.0, 1.0)
+
+        gen_np = (gen_float * 255.0).clip(0, 255).astype(np.uint8)
         gen_pil = Image.fromarray(gen_np)
 
         # Rescale generated patch to exact original size
         if gen_pil.size != init_pil.size:
             gen_pil = gen_pil.resize(init_pil.size, Image.LANCZOS)
 
-        # Adobe Firefly-Grade Non-Destructive Boundary Blending
-        # Feather the mask edges to create a perfectly seamless soft transition
-        feathered_mask = mask_pil.filter(ImageFilter.GaussianBlur(radius=max(2, feather_radius)))
-        
-        # Composite: 100% original photo pixels outside the mask, seamless AI inside the mask
+        # Multi-band smooth feathered boundary composite
+        feathered_mask = mask_pil.filter(ImageFilter.GaussianBlur(radius=max(4, feather_radius)))
         final_pil = Image.composite(gen_pil, init_pil, feathered_mask)
         final_w, final_h = final_pil.size
+
 
     else:
         # Standard Text-to-Image Generation
@@ -618,8 +667,12 @@ class PlajahSidecarHandler(BaseHTTPRequestHandler):
                 title = payload.get("title", "Untitled Story")
                 style = payload.get("style", "manga")
                 model = payload.get("model", "gemma-2-2b")
+                character_bible = payload.get("characterBible", None)
+                world_lore = payload.get("worldLore", "")
                 if story_intel_engine:
-                    result = story_intel_engine.decompose_prose(prose, title, style, model)
+                    result = story_intel_engine.decompose_prose(
+                        prose, title, style, model, character_bible, world_lore
+                    )
                 else:
                     result = {"success": False, "error": "Story Intelligence engine not available"}
                 self.send_response(200)
@@ -654,6 +707,31 @@ class PlajahSidecarHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(result).encode("utf-8"))
             except Exception as e:
                 print(f"[Sidecar] Error running council critique: {e}")
+                self.send_response(500)
+                self._send_cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode("utf-8"))
+
+        elif self.path in ("/story-intel/continuity", "/api/story-intel/continuity"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length > 0 else b"{}"
+                payload = json.loads(body.decode("utf-8"))
+                manuscript = payload.get("manuscript", "")
+                title = payload.get("title", "Untitled Work")
+                model = payload.get("model", "nemotron-4b")
+                if story_intel_engine:
+                    result = story_intel_engine.check_continuity(manuscript, title, model)
+                else:
+                    result = {"success": False, "error": "Story Intelligence engine not available"}
+                self.send_response(200)
+                self._send_cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode("utf-8"))
+            except Exception as e:
+                print(f"[Sidecar] Error running continuity check: {e}")
                 self.send_response(500)
                 self._send_cors()
                 self.send_header("Content-Type", "application/json")

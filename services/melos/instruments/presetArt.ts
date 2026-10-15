@@ -10,6 +10,21 @@
 const CATEGORY_ACCENT: Record<string, string> = {
   Bass: '#FF2E88', Lead: '#00DAF3', Pad: '#B84DFF', Keys: '#57E389',
   Pluck: '#FFC24B', Atmosphere: '#7C86FF', FX: '#FF8C00', Arp: '#00DAF3',
+  // AURA 1960s & 1970s categories
+  "'60s Modular": '#E07A3C',
+  "'70s Mono Lead": '#E59A38',
+  "'70s Analog Bass": '#D96B43',
+  "'70s Poly & Brass": '#F0B849',
+  'Strings & Tape': '#5CC9A7',
+  'Vintage Keys': '#C89B54',
+  'Cosmic & Seq': '#63B8DE',
+  modular60s: '#E07A3C',
+  lead70s: '#E59A38',
+  bass70s: '#D96B43',
+  poly70s: '#F0B849',
+  strings70s: '#5CC9A7',
+  keys60s70s: '#C89B54',
+  cosmic70s: '#63B8DE',
   // sampler / other
   Sampler: '#00DAF3', Drums: '#FF8C00', Vocal: '#FF6E9E', Default: '#B84DFF',
 };

@@ -20,6 +20,7 @@ const GEO_KEY = 'melos.instrumentWindow.v1';
 
 const DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   onda: { w: 1040, h: 700 },
+  aura: { w: 980, h: 700 },
   kera: { w: 900, h: 660 },
   bajo: { w: 780, h: 640 },
   vela: { w: 720, h: 620 },

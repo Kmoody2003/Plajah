@@ -49,10 +49,10 @@ import { InstrumentPanel } from './instrument/InstrumentPanel';
 import { KeraPanel } from './instrument/KeraPanel';
 import { VelaPanel } from './instrument/VelaPanel';
 import { BajoPanel } from './instrument/BajoPanel';
-import { isSuite } from '../../../services/melos/beats/instrumentFactory';
+import { AuraPanel } from './instrument/AuraPanel';
+import { isSuite, instrumentLabel, instrumentColor, addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
-import { addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstrument } from '../../../services/melos/beats/instrumentFactory';
 import BreakdownImporter from './composer/BreakdownImporter';
 import { breakdownToTracks } from '../../../services/melos/composition/breakdownToTracks';
 import { SELECT, WASH_BG } from './theme';
@@ -773,7 +773,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                   const wasEmpty = pad.empty;
                   pad.source = 'instrument'; pad.instrumentTrackId = newId; pad.empty = false;
                   if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
-                  if (wasEmpty) { pad.name = type === 'kera' ? 'KERA' : 'ONDA'; pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF'; }
+                  if (wasEmpty) { pad.name = instrumentLabel(type); pad.color = instrumentColor(type); }
                 }
               });
               void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
@@ -788,6 +788,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           const close = () => setOpenInstrumentId(null);
           if (t.instrument?.type === 'kera') return <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'bajo') return <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+          if (t.instrument?.type === 'aura') return <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (isSuite(t.instrument?.type as InstrumentType)) return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
         })()}
@@ -1243,7 +1244,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 pad.source = 'instrument'; pad.instrumentTrackId = newId; pad.empty = false;
                 pad.sample = null;
                 if (pad.instrumentNote === undefined) pad.instrumentNote = 60;
-                if (relabel) { pad.name = type === 'kera' ? 'KERA' : 'ONDA'; pad.color = type === 'kera' ? '#00DAF3' : '#B84DFF'; }
+                if (relabel) { pad.name = instrumentLabel(type); pad.color = instrumentColor(type); }
               }
             });
             void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
@@ -1261,6 +1262,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         const close = () => setOpenInstrumentId(null);
         const body = t.instrument?.type === 'kera' ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+          : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : isSuite(t.instrument?.type as InstrumentType) ? <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />;
         return (

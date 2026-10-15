@@ -9,9 +9,30 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const src = join(root, 'rust', 'plajah-audio', 'target', 'wasm32-unknown-unknown', 'release', 'plajah_audio.wasm');
+const workspaceSrc = join(root, 'rust', 'target', 'wasm32-unknown-unknown', 'release', 'plajah_audio.wasm');
+const crateDir = join(root, 'rust', 'plajah-audio', 'target', 'wasm32-unknown-unknown', 'release');
+const crateSrc = join(crateDir, 'plajah_audio.wasm');
 const destDir = join(root, 'services', 'melos', 'beats', 'engine', 'dsp');
 const dest = join(destDir, 'plajah_audio.wasm');
+
+let src = crateSrc;
+try {
+  const wsStat = statSync(workspaceSrc);
+  let useWs = true;
+  try {
+    const crStat = statSync(crateSrc);
+    useWs = wsStat.mtimeMs >= crStat.mtimeMs;
+  } catch {
+    useWs = true;
+  }
+  if (useWs) {
+    mkdirSync(crateDir, { recursive: true });
+    copyFileSync(workspaceSrc, crateSrc);
+    src = workspaceSrc;
+  }
+} catch {
+  // fall back to crateSrc
+}
 
 try {
   statSync(src);

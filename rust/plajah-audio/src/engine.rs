@@ -1,5 +1,6 @@
 //! The instrument engine: voice allocation, parameter store, global modulation, output stage.
 
+use crate::aura::AuraRack;
 use crate::diffuser::{Diffuser, VeilSpec};
 use crate::bajo::BajoRack;
 use crate::lfo::Lfo;
@@ -61,6 +62,10 @@ pub struct Engine {
     /// identically. Bypassed entirely unless a BAJO section is switched on.
     bajo: BajoRack,
 
+    /// AURA's vintage analogue rack: 6-stage analog phaser → 3-phase BBD string ensemble →
+    /// 15 IPS magnetic tape saturation & head bump → 60Hz mains hum & oxide crackle.
+    aura: AuraRack,
+
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
     frame_counter: u64,
@@ -90,11 +95,12 @@ impl Engine {
             tables.push(WaveTable::empty());
         }
         Self {
-            sr: if sample_rate > 1000.0 { sample_rate } else { 48000.0 },
+            sr: sr_real,
             params: Params::new(),
             matrix: ModMatrix::default(),
-            veil: Diffuser::new(if sample_rate > 1000.0 { sample_rate } else { 48000.0 }),
-            bajo: BajoRack::new(if sample_rate > 1000.0 { sample_rate } else { 48000.0 }),
+            veil: Diffuser::new(sr_real),
+            bajo: BajoRack::new(sr_real),
+            aura: AuraRack::new(sr_real),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -416,13 +422,20 @@ impl Engine {
         let wf = self.bajo.wobble_frame(&self.params, beats, frames, bps);
 
         // Split the borrow: voices render into scratch while reading shared state immutably.
-        // `veil` and `bajo` come out in the same destructure because both also need `scratch`
-        // and a second `let Engine { .. } = self` would be a double mutable borrow.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, .. } = self;
+        // `veil`, `bajo` and `aura` come out in the same destructure because all three need
+        // `scratch` and a second `let Engine { .. } = self` would be a double mutable borrow.
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, .. } = self;
+        let mut active_cnt = 0u32;
         for v in voices.iter_mut() {
             if v.active {
+                active_cnt += 1;
                 v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position, &wf);
             }
+        }
+
+        // AURA's vintage rack (Phaser → BBD String Ensemble → 15 IPS Tape & Mains Floor).
+        if AuraRack::active(params) {
+            aura.process(scratch, frames, nch, params, active_cnt);
         }
 
         // BAJO's rack, before the Veil — the Ghost Gate's spill has to exist before the reverb

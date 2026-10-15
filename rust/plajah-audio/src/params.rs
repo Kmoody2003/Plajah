@@ -304,9 +304,43 @@ pub const SP_EC_MIX: u32 = 22;
 /// instrument that disappears on a club system.
 pub const P_MONO_BELOW: u32 = 1650; // 0..1 → 20..320 Hz, 0 = off
 
-/// 1664 rather than 1024: VELA runs to 1207 and BAJO to 1650, and `Params::set` silently drops
-/// any id past the end of the array — a whole instrument that fails without an error.
-pub const MAX_PARAM_ID: usize = 1664;
+// ── AURA (instrument 05): 1960s & 1970s voltage-controlled analogue engine ───
+// Block 1700 upward. Every AURA section defaults to 0 (bypass) so ONDA, KERA, VELA and BAJO
+// patches are bit-identical with these ids present.
+pub const AURA_BASE: u32 = 1700;
+/// Hard oscillator sync (Osc 1 phase-wrap resets Osc 2 phase). 0 = off, 1 = full hard sync.
+pub const A_OSC_SYNC: u32 = 0;
+/// Cross-modulation / Poly-Mod: Osc 2 audio-rate FM onto Osc 1 pitch.
+pub const A_XMOD_PITCH: u32 = 1;
+/// Cross-modulation / Poly-Mod: Osc 2 audio-rate FM onto Filter 1 cutoff.
+pub const A_XMOD_FILTER: u32 = 2;
+/// Balanced ring modulator (Osc 1 × Osc 2).
+pub const A_RING_MOD: u32 = 3;
+/// Vintage circuit age & voice-card component tolerance (per-voice pitch/filter trim + thermal wander).
+pub const A_AURA: u32 = 4;
+/// Discrete transistor & transformer preamp warmth (per-voice asymmetric even/odd harmonic saturation).
+pub const A_WARMTH: u32 = 5;
+
+/// BBD 3-phase String Ensemble / Chorus (Solina / VP-330 / Juno-60 style).
+pub const A_ENS_ON: u32 = 10;
+pub const A_ENS_MODE: u32 = 11; // 0 = Solina 3-phase Ensemble, 1 = Juno I, 2 = Juno II Symphonic
+pub const A_ENS_DEPTH: u32 = 12;
+pub const A_ENS_MIX: u32 = 13;
+
+/// 6-Stage Vintage Analog All-Pass Phaser (Small Stone / Compact Phasing 'A' Krautrock sweep).
+pub const A_PH_ON: u32 = 20;
+pub const A_PH_RATE: u32 = 21;
+pub const A_PH_DEPTH: u32 = 22;
+pub const A_PH_FEEDBACK: u32 = 23;
+pub const A_PH_MIX: u32 = 24;
+
+/// Vintage Master Tape & Mains Character.
+pub const A_TAPE_SAT: u32 = 30; // 15 IPS magnetic tape saturation + 72 Hz head bump
+pub const A_HUM: u32 = 31;      // 60 Hz / 180 Hz tube & transformer hum + warm noise floor
+pub const A_CRACKLE: u32 = 32;  // Subtle oxide/capacitor crackle & dust
+
+/// 1800 rather than 1664: VELA runs to 1207, BAJO to 1650, and AURA to 1732.
+pub const MAX_PARAM_ID: usize = 1800;
 
 /// Flat store. A plain array keeps `set_param` and the mod matrix's destination lookup O(1)
 /// with no hashing on the audio thread.
@@ -507,6 +541,30 @@ impl Params {
         self.set(SPC_BASE + SP_EC_MIX, 0.2);
 
         self.set(P_MONO_BELOW, 0.0);
+
+        // ── AURA ─────────────────────────────────────────────────────────────
+        // All sections default to bypass (0.0) so existing instruments are bit-identical.
+        self.set(AURA_BASE + A_OSC_SYNC, 0.0);
+        self.set(AURA_BASE + A_XMOD_PITCH, 0.0);
+        self.set(AURA_BASE + A_XMOD_FILTER, 0.0);
+        self.set(AURA_BASE + A_RING_MOD, 0.0);
+        self.set(AURA_BASE + A_AURA, 0.0);
+        self.set(AURA_BASE + A_WARMTH, 0.0);
+
+        self.set(AURA_BASE + A_ENS_ON, 0.0);
+        self.set(AURA_BASE + A_ENS_MODE, 0.0);
+        self.set(AURA_BASE + A_ENS_DEPTH, 0.6);
+        self.set(AURA_BASE + A_ENS_MIX, 0.45);
+
+        self.set(AURA_BASE + A_PH_ON, 0.0);
+        self.set(AURA_BASE + A_PH_RATE, 0.22);
+        self.set(AURA_BASE + A_PH_DEPTH, 0.7);
+        self.set(AURA_BASE + A_PH_FEEDBACK, 0.55);
+        self.set(AURA_BASE + A_PH_MIX, 0.4);
+
+        self.set(AURA_BASE + A_TAPE_SAT, 0.0);
+        self.set(AURA_BASE + A_HUM, 0.0);
+        self.set(AURA_BASE + A_CRACKLE, 0.0);
     }
 }
 
