@@ -439,6 +439,462 @@ export const CURATED_KOFA_FILMS: ArchiveVideo[] = [
   },
 ];
 
+// ── Halloween Hero Content: Pumpkin Patch (Plajah Original by Brian James Gage) ──
+export const PUMPKIN_PATCH_HERO_ALBUM: any = {
+  id: 'album_1787881859314_mlt23',
+  ownerId: 'u4XNVf41QeQERFqO0CB8JEhegXz2',
+  title: 'Pumpkin Patch',
+  artist: 'Brian James Gage',
+  director: 'Brian James Gage',
+  year: '2026',
+  runtime: '58 min',
+  type: 'VIDEO',
+  subType: 'MOVIE',
+  genre: 'Action · Horror · Satire',
+  coverImage: 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/albums%2Falbum_1787881859314_mlt23%2Fcover.webp?alt=media&token=efd247d5-2f2f-4cf3-aab6-def0bfbc07e3',
+  headerImage: 'https://image.mux.com/D1A4FF6AJXRbfbPjzvzQCkj5srRk99uXpnDn00gTKDts/thumbnail.webp?width=1600&time=42',
+  thumbnailUrl: 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/albums%2Falbum_1787881859314_mlt23%2Fcover.webp?alt=media&token=efd247d5-2f2f-4cf3-aab6-def0bfbc07e3',
+  description:
+    'When the West Hallow — one of the Four Guardians of Planet Ween — attacks Scare Force One, President Tepes crash-lands inside the dreaded prison colony District 13 carrying a mysterious hexagonal case she’ll kill to reclaim.\n\nWith the President of Halloween trapped and the planet on edge, Commander Ichabod Crane, Special Agent Katrina Van Tassle, and their cybernetic security officer Robo Bones of the Monster Intelligence Agency (MIA) enlist an unlikely ally — a pool-hall-roaming, bar-fighting vigilante with a pumpkin for a head and nothing left to lose.\n\nHis mission: break into District 13, recover the President and the mysterious case, and somehow make it out alive before Halloween is lost.\n\nA deranged mash-up of The Nightmare Before Christmas, Escape from New York, The Warriors, and The Punisher, Pumpkin Patch is a solo-created Halloween opus—equal parts chaos and satire.',
+  worldId: 'world_pumpkin_patch_universe',
+  characterIds: [
+    'char_world_pumpkin_patch_universe_melvin_lester_pumpkin_patch',
+    'char_world_pumpkin_patch_universe_agent_katrina_van_tassel',
+    'char_world_pumpkin_patch_universe_wicked_witch',
+    'char_world_pumpkin_patch_universe_stitch_the_scarecrow',
+    'char_world_pumpkin_patch_universe_commander_crane_robo_bones',
+    'char_world_pumpkin_patch_universe_lil_boo',
+    'char_world_pumpkin_patch_universe_president_tepes',
+  ],
+  isPublic: true,
+  isDraft: false,
+  isPaywalled: false,
+  createdAt: 1788182937250,
+  themeColor: '#F97316',
+  movement: 'Plajah Original · Halloween Feature',
+  dataProvider: 'Plajah Originals · Planet Ween Universe',
+  curatorNote:
+    'A solo-created Halloween action-satire opus by Brian James Gage blending Escape from New York, The Nightmare Before Christmas, The Warriors, and The Punisher across the Planet Ween IP universe.',
+  historicalContext:
+    'Set on Planet Ween inside the maximum-security prison colony District 13, following vigilante Melvin Lester (Pumpkin Patch) and the Monster Intelligence Agency (MIA).',
+  restorationInfo: 'Streaming in high-definition adaptive HLS via Plajah Taleo with connected IP World lore and character dossiers.',
+  filmDistribution: {
+    model: 'FREE_FAST',
+    release: 'NOW',
+    contentRating: 'NR',
+    delivery: 'DOWNLOAD_OPEN',
+    fastChannel: true,
+  },
+  movieMetadata: {
+    releaseYear: 2026,
+    crew: ['Brian James Gage (Director)', 'Brian James Gage (Writer)'],
+    cast: ['Brian James Gage as Voice Cast'],
+    castMembers: [
+      { id: 'yoavl3gg4', actorName: 'Brian James Gage', characterName: 'Voice Cast', role: 'Lead' },
+    ],
+  },
+  tracks: [
+    {
+      id: 'movie',
+      title: 'Pumpkin Patch (Oct 2025)',
+      artist: 'Brian James Gage',
+      url: '',
+      muxPlaybackId: 'D1A4FF6AJXRbfbPjzvzQCkj5srRk99uXpnDn00gTKDts',
+      muxAssetId: '8363uVB9yqvqvCHUpv9Skmlc9vzk016ZlIKfG9C918EM',
+      muxUploadId: 'NCTxWKy01nX2oJ2qlQhsVu7aaBAQW00i8TpNeB7kDHUKg',
+      duration: 3490.709333,
+      mediaKind: 'VIDEO',
+      isGlobalArchive: true,
+      rightsOwnerId: 'u4XNVf41QeQERFqO0CB8JEhegXz2',
+    },
+  ],
+};
+
+// ── Curated Taleo Halloween Cinema Showcase ("31 Nights of Cinema Terror") ──
+// Every Internet Archive identifier and direct .mp4 stream URL below has been
+// HTTP-verified against archive.org/metadata/<id> for instant 0-hop playback.
+export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
+  {
+    identifier: 'Night.Of.The.Living.Dead_1080p',
+    title: 'Night of the Living Dead',
+    description: 'George A. Romero’s revolutionary 1968 survival-horror milestone. Seven strangers barricaded inside an isolated Pennsylvania farmhouse fight through the night against a rising legion of the reanimated dead.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/Night.Of.The.Living.Dead_1080p',
+    year: '1968',
+    runtime: '96 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/Night.Of.The.Living.Dead_1080p/NightOfTheLivingDead.mp4',
+    sourceUrl: 'https://archive.org/details/Night.Of.The.Living.Dead_1080p',
+    dataProvider: 'Internet Archive / Image Ten',
+    rights: 'Public Domain',
+    director: 'George A. Romero',
+    movement: 'New American Independent Horror',
+    curatorNote: 'Single-handedly invented the modern zombie film and shattered classical Hollywood comfort by casting Duane Jones as a decisive, unsentimental lead.',
+    historicalContext: 'Released amid the turbulence of 1968 America, its stark black-and-white newsreel immediacy earned a permanent place in the Library of Congress National Film Registry.',
+    restorationInfo: 'High-definition 1080p digital transfer preserved in the Internet Archive Moving Image Collection.',
+    recommendedPairings: ['CarnivalofSouls', 'house_on_haunted_hill_ipod', 'white_zombie'],
+  },
+  {
+    identifier: 'house_on_haunted_hill_ipod',
+    title: 'House on Haunted Hill',
+    description: 'Eccentric millionaire Frederick Loren (Vincent Price) invites five strangers to lock themselves inside a notoriously haunted mansion overnight for $10,000 each — if they survive until dawn.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/house_on_haunted_hill_ipod',
+    year: '1959',
+    runtime: '75 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/house_on_haunted_hill_ipod/house_on_haunted_hill.mp4',
+    sourceUrl: 'https://archive.org/details/house_on_haunted_hill_ipod',
+    dataProvider: 'Internet Archive / Allied Artists',
+    rights: 'Public Domain',
+    director: 'William Castle',
+    movement: 'Mid-Century Macabre & Showman Horror',
+    curatorNote: 'Vincent Price is at his sardonic, velvety peak. Master showman William Castle originally exhibited the film with "Emergo" — flying a glowing inflatable skeleton above theatre audiences.',
+    historicalContext: 'Exterior shots feature Frank Lloyd Wright’s Mayan-Revival Ennis House in Los Angeles, establishing the definitive haunted-house party archetype.',
+    restorationInfo: 'Clean theatrical release transfer with full original monochrome contrast and mono soundtrack.',
+    recommendedPairings: ['TheTerror1963', 'CarnivalofSouls', 'Night.Of.The.Living.Dead_1080p'],
+  },
+  {
+    identifier: 'CarnivalofSouls',
+    title: 'Carnival of Souls',
+    description: 'After surviving a drag-race plunge off a bridge, a young church organist (Candace Hilligoss) relocates to Utah, where she is inexorably drawn toward a spectral, abandoned lakeside pavilion.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/CarnivalofSouls',
+    year: '1962',
+    runtime: '83 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/CarnivalofSouls/CarnivalOfSouls.mp4',
+    sourceUrl: 'https://archive.org/details/CarnivalofSouls',
+    dataProvider: 'Internet Archive / Harcourt Productions',
+    rights: 'Public Domain',
+    director: 'Herk Harvey',
+    movement: 'American Indie Psychological Gothic',
+    curatorNote: 'Filmed on a $33,000 budget by industrial-film director Herk Harvey, its eerie pipe-organ score by Gene Moore and dreamlike alienation directly inspired David Lynch and George Romero.',
+    historicalContext: 'Shot on location at the real Saltair Pavilion on the Great Salt Lake and in Lawrence, Kansas.',
+    restorationInfo: 'Preserved from theatrical 35mm elements in the Internet Archive Feature Films collection.',
+    recommendedPairings: ['Night.Of.The.Living.Dead_1080p', 'house_on_haunted_hill_ipod', 'europeana-caligari-1920'],
+  },
+  {
+    identifier: 'ThePhantomoftheOpera',
+    title: 'The Phantom of the Opera',
+    description: 'Deep beneath the Paris Opera House, a disfigured musical genius (Lon Chaney, "The Man of a Thousand Faces") haunts the catacombs to propel soprano Christine Daaé to stardom.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/ThePhantomoftheOpera',
+    year: '1925',
+    runtime: '106 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/ThePhantomoftheOpera/Phantom_of_the_Opera_512kb.mp4',
+    sourceUrl: 'https://archive.org/details/ThePhantomoftheOpera',
+    dataProvider: 'Internet Archive / Universal Pictures',
+    rights: 'Public Domain',
+    director: 'Rupert Julian',
+    movement: 'Golden Age Silent Gothic',
+    curatorNote: 'Lon Chaney designed and applied his own skull-like Phantom makeup in total secrecy; the unmasking scene caused 1925 premiere audiences to gasp and faint in the aisles.',
+    historicalContext: 'Universal’s monumental Stage 28 Paris Opera set remained standing for nearly 90 years as the oldest surviving soundstage in Hollywood history.',
+    restorationInfo: 'Archival preservation print featuring synchronized organ accompaniment and original intertitles.',
+    recommendedPairings: ['europeana-nosferatu-1922', 'Haxan_tinted_and_subtitled', 'europeana-caligari-1920'],
+  },
+  {
+    identifier: 'Haxan_tinted_and_subtitled',
+    title: 'Häxan: Witchcraft Through the Ages',
+    description: 'Benjamin Christensen’s audacious 1922 silent visual essay and occult fantasia tracing superstition, medieval demonology, and witch trials from antiquity to modern psychology.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/Haxan_tinted_and_subtitled',
+    year: '1922',
+    runtime: '105 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/Haxan_tinted_and_subtitled/Haxan_512kb.mp4',
+    sourceUrl: 'https://archive.org/details/Haxan_tinted_and_subtitled',
+    dataProvider: 'Internet Archive / Svensk Filmindustri',
+    rights: 'Public Domain',
+    director: 'Benjamin Christensen',
+    movement: 'Scandinavian Silent Occult & Essay Cinema',
+    curatorNote: 'The most expensive Scandinavian silent film ever produced. Blends woodcut illustrations, tabletop stop-motion demons, and Bosch-like nocturnal sabbath tableaux.',
+    historicalContext: 'Based on Christensen’s two-year study of the 1487 inquisitorial handbook Malleus Maleficarum.',
+    restorationInfo: 'Tinted and English-subtitled archival edition preserving the original sepia, amber, and nocturnal blue color baths.',
+    recommendedPairings: ['europeana-nosferatu-1922', 'europeana-caligari-1920', 'ThePhantomoftheOpera'],
+  },
+  {
+    identifier: 'Horror_Express',
+    title: 'Horror Express',
+    description: 'Aboard the Trans-Siberian Express in 1906, rival British anthropologists (Christopher Lee and Peter Cushing) discover that a frozen prehistoric hominid in the baggage car is awake — and absorbing passengers’ minds.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/Horror_Express',
+    year: '1972',
+    runtime: '87 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/Horror_Express/Horror_Express.mp4',
+    sourceUrl: 'https://archive.org/details/Horror_Express',
+    dataProvider: 'Internet Archive / Granada Films',
+    rights: 'Public Domain',
+    director: 'Eugenio Martín',
+    movement: 'Euro-Gothic Sci-Fi Horror',
+    curatorNote: 'Unites horror royalty Christopher Lee and Peter Cushing with a scene-stealing Telly Savalas as a wild Cossack officer in a snowy, claustrophobic predecessor to John Carpenter’s The Thing.',
+    historicalContext: 'Co-produced between Spain and the UK on lush period train sets originally built for Nicholas and Alexandra.',
+    restorationInfo: 'Full widescreen color transfer with English audio track.',
+    recommendedPairings: ['house_on_haunted_hill_ipod', 'TheTerror1963', 'Night.Of.The.Living.Dead_1080p'],
+  },
+  {
+    identifier: 'white_zombie',
+    title: 'White Zombie',
+    description: 'In Haiti, a young couple’s wedding is sabotaged by sinister voodoo master "Murder" Legendre (Bela Lugosi), who commands a sugar mill staffed entirely by the soulless undead.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/white_zombie',
+    year: '1932',
+    runtime: '67 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/white_zombie/white_zombie.mp4',
+    sourceUrl: 'https://archive.org/details/white_zombie',
+    dataProvider: 'Internet Archive / United Artists',
+    rights: 'Public Domain',
+    director: 'Victor Halperin',
+    movement: 'Pre-Code Gothic Horror',
+    curatorNote: 'Cinema’s very first feature-length zombie film. Bela Lugosi’s hypnotic stare and Jack Pierce’s makeup design create an intoxicating Pre-Code fairy-tale nightmare.',
+    historicalContext: 'Shot in eleven days on rented Universal backlots borrowing leftover Gothic arches from Dracula (1931) and Frankenstein (1931).',
+    restorationInfo: 'Archival 35mm transfer preserved in the Internet Archive Feature Films collection.',
+    recommendedPairings: ['TheGhoul', 'Night.Of.The.Living.Dead_1080p', 'ThePhantomoftheOpera'],
+  },
+  {
+    identifier: 'TheTerror1963',
+    title: 'The Terror',
+    description: 'In 1806 Baltic coastal France, a lost Napoleonic cavalry officer (Jack Nicholson) follows a mysterious woman into the sea-battered castle of an grieving Baron (Boris Karloff).',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/TheTerror1963',
+    year: '1963',
+    runtime: '79 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/TheTerror1963/TheTerror_512kb.mp4',
+    sourceUrl: 'https://archive.org/details/TheTerror1963',
+    dataProvider: 'Internet Archive / American International Pictures',
+    rights: 'Public Domain',
+    director: 'Roger Corman',
+    movement: 'Poe-Cycle Technicolor Gothic',
+    curatorNote: 'Legendarily conceived by Roger Corman over a weekend using standing castle sets from The Raven; second-unit sequences were directed by a young Francis Ford Coppola, Monte Hellman, and Jack Nicholson himself.',
+    historicalContext: 'A quintessential artifact of American International Pictures’ lush Pathécolor Gothic boom.',
+    restorationInfo: 'Preserved color feature print in the Internet Archive collection.',
+    recommendedPairings: ['house_on_haunted_hill_ipod', 'TheGhoul', 'Horror_Express'],
+  },
+  {
+    identifier: 'TheGhoul',
+    title: 'The Ghoul',
+    description: 'Egyptologist Professor Morlant (Boris Karloff) is buried with an ancient jewel promised to grant eternal life — only to rise from his tomb when grave robbers steal the stone.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'feature_films'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/TheGhoul',
+    year: '1933',
+    runtime: '68 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/TheGhoul/TheGhoul_1933.mp4',
+    sourceUrl: 'https://archive.org/details/TheGhoul',
+    dataProvider: 'Internet Archive / Gaumont-British',
+    rights: 'Public Domain',
+    director: 'T. Hayes Hunter',
+    movement: 'British Gothic & Egyptomania Horror',
+    curatorNote: 'Boris Karloff’s celebrated return to England after his Hollywood triumph in Frankenstein and The Mummy, photographed by Günther Krampf (cinematographer of Nosferatu).',
+    historicalContext: 'Considered a lost film for decades until a mute nitrate print surfaced in a dilapidated Czech archive in 1969, followed by a complete 35mm negative discovery at Shepperton Studios.',
+    restorationInfo: 'Digitized from surviving 35mm British archival elements.',
+    recommendedPairings: ['white_zombie', 'TheTerror1963', 'europeana-nosferatu-1922'],
+  },
+  {
+    identifier: 'FrankensteinfullMovie',
+    title: 'Frankenstein (1910 Edison Film)',
+    description: 'Cinema’s first-ever adaptation of Mary Shelley’s Frankenstein, produced by Thomas Edison’s studio and featuring Charles Ogle as the Creature.',
+    mediatype: 'movies',
+    collection: ['Taleo Halloween Showcase', 'Silent Cinema'],
+    genre: 'Horror',
+    thumbnailUrl: 'https://archive.org/services/img/FrankensteinfullMovie',
+    year: '1910',
+    runtime: '14 min',
+    source: 'INTERNET_ARCHIVE',
+    videoUrl: 'https://archive.org/download/FrankensteinfullMovie/Frankenstein1910.mp4',
+    sourceUrl: 'https://archive.org/details/FrankensteinfullMovie',
+    dataProvider: 'Internet Archive / Edison Manufacturing Co.',
+    rights: 'Public Domain',
+    director: 'J. Searle Dawley',
+    movement: 'Early Silent Trick Horror',
+    curatorNote: 'The famous cauldron creation scene was achieved by burning a dummy in a furnace and running the film negative in reverse so the Creature materializes out of flames.',
+    historicalContext: 'Filmed in three days at the Edison Studio in the Bronx, New York, and long thought lost until collector Alois F. Dettlaff revealed a surviving tinted nitrate print.',
+    restorationInfo: 'Preserved one-reel silent classic with musical score and original intertitles.',
+    recommendedPairings: ['ThePhantomoftheOpera', 'europeana-nosferatu-1922', 'Haxan_tinted_and_subtitled'],
+  },
+  ...CURATED_KOFA_FILMS.filter(f => f.identifier === 'kofa-the-housemaid-1960'),
+  ...CURATED_EUROPEANA_FILMS.filter(f => f.identifier === 'europeana-nosferatu-1922' || f.identifier === 'europeana-caligari-1920'),
+];
+
+export interface HalloweenCuratedShelf {
+  id: string;
+  title: string;
+  subtitle: string;
+  badge: string;
+  items: ArchiveVideo[];
+}
+
+export const HALLOWEEN_CURATED_SECTIONS: HalloweenCuratedShelf[] = [
+  {
+    id: 'midnight-marquee',
+    title: 'Midnight Marquee: Essential Cult & Classic Terror',
+    subtitle: 'Landmark fright cinema — from Romero’s farmhouse siege to Kim Ki-young’s Seoul gothic and William Castle’s haunted party',
+    badge: '31 NIGHTS ESSENTIALS',
+    items: CURATED_HALLOWEEN_FILMS.filter(f =>
+      ['Night.Of.The.Living.Dead_1080p', 'kofa-the-housemaid-1960', 'house_on_haunted_hill_ipod', 'CarnivalofSouls', 'Horror_Express'].includes(f.identifier)
+    ),
+  },
+  {
+    id: 'psychological-domestic-dread',
+    title: 'Psychological & Domestic Nightmares',
+    subtitle: 'Claustrophobic staircases, spectral alienation, and expressionist madness from Seoul to Weimar',
+    badge: 'PSYCHOLOGICAL DREAD',
+    items: CURATED_HALLOWEEN_FILMS.filter(f =>
+      ['kofa-the-housemaid-1960', 'CarnivalofSouls', 'europeana-caligari-1920', 'TheTerror1963'].includes(f.identifier)
+    ),
+  },
+  {
+    id: 'silent-nightmares',
+    title: 'Shadows & Silent Nightmares (1910–1925)',
+    subtitle: 'Expressionist catacombs, medieval witchcraft, and the birth of screen monsters',
+    badge: 'GOTHIC ARCHIVE',
+    items: CURATED_HALLOWEEN_FILMS.filter(f =>
+      ['europeana-nosferatu-1922', 'europeana-caligari-1920', 'ThePhantomoftheOpera', 'Haxan_tinted_and_subtitled', 'FrankensteinfullMovie'].includes(f.identifier)
+    ),
+  },
+  {
+    id: 'icons-of-macabre',
+    title: 'Icons of the Macabre: Price, Lugosi, Karloff & Lee',
+    subtitle: 'The towering titans of classic horror across four decades of midnight cinema',
+    badge: 'HORROR ROYALTY',
+    items: CURATED_HALLOWEEN_FILMS.filter(f =>
+      ['house_on_haunted_hill_ipod', 'white_zombie', 'TheTerror1963', 'TheGhoul', 'Horror_Express'].includes(f.identifier)
+    ),
+  },
+];
+
+export interface HalloweenDoubleFeature {
+  id: string;
+  title: string;
+  theme: string;
+  curatorPitch: string;
+  films: [ArchiveVideo, ArchiveVideo];
+}
+
+export const HALLOWEEN_DOUBLE_FEATURES: HalloweenDoubleFeature[] = [
+  {
+    id: 'domestic-psychosis',
+    title: 'Psychological & Domestic Nightmares: Seoul to Saltair',
+    theme: 'Korean Gothic Horror & Spectral Alienation',
+    curatorPitch: 'Pair Kim Ki-young’s rain-lashed 1960 Korean domestic horror masterpiece The Housemaid (하녀) — Bong Joon-ho’s blueprint for Parasite — with Herk Harvey’s eerie organ-driven fever dream Carnival of Souls (1962).',
+    films: [
+      CURATED_HALLOWEEN_FILMS.find(f => f.identifier === 'kofa-the-housemaid-1960')!,
+      CURATED_HALLOWEEN_FILMS.find(f => f.identifier === 'CarnivalofSouls')!,
+    ],
+  },
+  {
+    id: 'dawn-of-the-undead',
+    title: 'Dawn of the Undead: 1932 vs. 1968',
+    theme: 'Voodoo Folklore to Modern Apocalypse',
+    curatorPitch: 'Trace the evolution of the screen zombie from Bela Lugosi’s Pre-Code Haitian sugar mill in White Zombie (1932) to George A. Romero’s revolutionary siege in Night of the Living Dead (1968).',
+    films: [
+      CURATED_HALLOWEEN_FILMS.find(f => f.identifier === 'white_zombie')!,
+      CURATED_HALLOWEEN_FILMS.find(f => f.identifier === 'Night.Of.The.Living.Dead_1080p')!,
+    ],
+  },
+  {
+    id: 'architects-of-dread',
+    title: 'Architects of Dread: Haunted Houses & Gothic Castles',
+    theme: 'Mid-Century American Macabre',
+    curatorPitch: 'Start your evening with Vincent Price’s acid-tongued parlor games in House on Haunted Hill (1959), then enter Boris Karloff and Jack Nicholson’s sea-battered fortress in Roger Corman’s The Terror (1963).',
+    films: [
+      CURATED_HALLOWEEN_FILMS.find(f => f.identifier === 'house_on_haunted_hill_ipod')!,
+      CURATED_HALLOWEEN_FILMS.find(f => f.identifier === 'TheTerror1963')!,
+    ],
+  },
+  {
+    id: 'weimar-phantoms',
+    title: 'Weimar Shadows & Paris Catacombs',
+    theme: '1920s Silent Horror Masterworks',
+    curatorPitch: 'Pair F.W. Murnau’s Symphony of Horror in Nosferatu (1922) with Lon Chaney’s legendary unmasking beneath the Paris Opera House in The Phantom of the Opera (1925).',
+    films: [
+      CURATED_HALLOWEEN_FILMS.find(f => f.identifier === 'europeana-nosferatu-1922')!,
+      CURATED_HALLOWEEN_FILMS.find(f => f.identifier === 'ThePhantomoftheOpera')!,
+    ],
+  },
+];
+
+/**
+ * Convert an ArchiveVideo into a rich Album-compatible object for MovieUXView and Taleo rails.
+ * Preserves `identifier`, curator notes, metadata, and resolved stream URLs so deep links,
+ * sharing (`?type=archive&id=...`), Watchlist, and instant playback work seamlessly.
+ */
+export const archiveVideoToAlbum = (item: ArchiveVideo, resolvedVideoUrl?: string): any => {
+  const selfHosted = getSelfHostedFilm(item.identifier);
+  const streamUrl = (selfHosted?.isAvailable && selfHosted.videoUrl)
+    ? selfHosted.videoUrl
+    : (resolvedVideoUrl || item.videoUrl || '');
+  const poster = item.thumbnailUrl || `https://archive.org/services/img/${item.identifier}`;
+  const parsedYear = item.year ? parseInt(String(item.year).slice(0, 4), 10) : undefined;
+  return {
+    id: item.identifier,
+    identifier: item.identifier,
+    title: item.title,
+    artist: item.director || item.dataProvider || 'Public Domain Cinema',
+    director: item.director,
+    description: item.description,
+    coverImage: poster,
+    thumbnailUrl: poster,
+    type: 'MOVIES' as const,
+    isMovie: true,
+    genre: item.genre || 'Classic Cinema',
+    year: item.year,
+    runtime: item.runtime,
+    releaseDate: parsedYear ? `${parsedYear}-01-01` : new Date().toISOString(),
+    ownerId: 'internet-archive',
+    isPublic: true,
+    videoUrl: streamUrl || undefined,
+    customVideoUrl: streamUrl || undefined,
+    source: item.source || 'INTERNET_ARCHIVE',
+    sourceUrl: item.sourceUrl || `https://archive.org/details/${item.identifier}`,
+    dataProvider: item.dataProvider,
+    rights: item.rights || 'Public Domain',
+    movement: item.movement,
+    curatorNote: item.curatorNote,
+    historicalContext: item.historicalContext,
+    restorationInfo: item.restorationInfo,
+    recommendedPairings: item.recommendedPairings,
+    movieMetadata: {
+      director: item.director || 'Archival Preservation',
+      releaseYear: parsedYear && !isNaN(parsedYear) ? parsedYear : undefined,
+      duration: item.runtime,
+      rating: 'NR',
+    },
+    tracks: streamUrl ? [{
+      id: `${item.identifier}-main`,
+      title: item.title,
+      artist: item.director || 'Public Domain',
+      duration: 0,
+      trackNumber: 1,
+      audioUrl: streamUrl,
+      videoUrl: streamUrl,
+    }] : [],
+  };
+};
+
+
 // Curated British Library Sound Archive Recordings
 export const CURATED_BRITISH_LIBRARY_SOUNDS: ArchiveTrack[] = [
   {
@@ -945,21 +1401,26 @@ const viaProxy = (url: string) => `/api/proxy?url=${encodeURIComponent(url)}`;
 /** Fetch a single archive.org item as an ArchiveVideo — for deep-linked film shares. */
 export const fetchArchiveVideoById = async (identifier: string): Promise<ArchiveVideo | null> => {
   const selfHosted = getSelfHostedFilm(identifier);
-  if (identifier.startsWith('europeana-')) {
-    const found = CURATED_EUROPEANA_FILMS.find(f => f.identifier === identifier);
-    if (found) return selfHosted?.isAvailable ? { ...found, videoUrl: selfHosted.videoUrl } : found;
-  }
-  if (identifier.startsWith('kofa-')) {
-    const found = CURATED_KOFA_FILMS.find(f => f.identifier === identifier);
-    if (found) return selfHosted?.isAvailable ? { ...found, videoUrl: selfHosted.videoUrl } : found;
+  const curatedPool = [
+    ...CURATED_HALLOWEEN_FILMS,
+    ...CURATED_EUROPEANA_FILMS,
+    ...CURATED_KOFA_FILMS,
+  ];
+  const curatedMatch = curatedPool.find(f => f.identifier === identifier);
+  if (curatedMatch) {
+    return selfHosted?.isAvailable ? { ...curatedMatch, videoUrl: selfHosted.videoUrl } : curatedMatch;
   }
   try {
-    const res = await fetch(`${INTERNET_ARCHIVE_DETAILS}/${encodeURIComponent(identifier)}`);
+    const res = await fetch(`${INTERNET_ARCHIVE_DETAILS}/${encodeURIComponent(identifier)}`, {
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) return null;
     const data = await res.json();
     const m = data?.metadata;
     if (!m) return null;
     const asStr = (v: any) => (Array.isArray(v) ? v[0] : v);
+    const files = (data.files || []).filter((f: any) => (parseInt(f.size) || 0) > 50000);
+    const bestUrl = getBestVideoUrl(identifier, files);
     return {
       identifier,
       title: asStr(m.title) || identifier,
@@ -969,6 +1430,8 @@ export const fetchArchiveVideoById = async (identifier: string): Promise<Archive
       thumbnailUrl: `https://archive.org/services/img/${identifier}`,
       year: asStr(m.year) || asStr(m.date),
       runtime: asStr(m.runtime),
+      director: asStr(m.director) || asStr(m.creator),
+      videoUrl: bestUrl || undefined,
     };
   } catch { return null; }
 };
@@ -1673,42 +2136,64 @@ function normalizeArchiveGenre(subjects: string[], collections: string[]): strin
   return 'Classic Cinema';
 }
 
+const inFlightArchiveRequests = new Map<string, Promise<any>>();
+
+function dedupedCached<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
+  const existing = inFlightArchiveRequests.get(key);
+  if (existing) return existing as Promise<T>;
+  const promise = cached(key, ttlMs, fetcher).finally(() => {
+    inFlightArchiveRequests.delete(key);
+  });
+  inFlightArchiveRequests.set(key, promise);
+  return promise;
+}
+
 export const fetchArchiveVideos = async (query: string = 'collection:feature_films', limit: number = 30): Promise<ArchiveVideo[]> => {
-  try {
+  const cacheKey = `archive-videos:v2:${query}:${limit}`;
+  return dedupedCached(cacheKey, 1000 * 60 * 60, async () => {
     const params = new URLSearchParams({
       q: `${query} AND mediatype:movies AND format:"512Kb MPEG4"`,
-      fl: 'identifier,title,description,mediatype,collection,subject,year,runtime',
+      fl: 'identifier,title,description,mediatype,collection,subject,year,runtime,creator,director',
       sort: 'downloads desc',
       rows: String(limit),
       output: 'json'
     });
 
     const targetUrl = `${INTERNET_ARCHIVE_BASE}?${params.toString()}`;
-    const response = await fetch(targetUrl);
+    const response = await fetch(targetUrl, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error(`Archive HTTP ${response.status}`);
     const data = await response.json();
-    const docs = data.response.docs;
+    const docs = data?.response?.docs || [];
 
     return docs.map((d: any) => {
       const subjects: string[] = Array.isArray(d.subject) ? d.subject : (d.subject ? [d.subject] : []);
       const collections: string[] = Array.isArray(d.collection) ? d.collection : (d.collection ? [d.collection] : []);
       const normalizeStr = (v: any, fallback = '') =>
         String(Array.isArray(v) ? v[0] : v ?? fallback) || fallback;
+      // Enrich with pre-verified Halloween/curated metadata if matching identifier
+      const curated = CURATED_HALLOWEEN_FILMS.find(c => c.identifier === d.identifier);
       return {
         identifier: d.identifier,
-        title: normalizeStr(d.title, 'Untitled Archive Film'),
-        description: normalizeStr(d.description),
-        mediatype: d.mediatype,
+        title: curated?.title || normalizeStr(d.title, 'Untitled Archive Film'),
+        description: curated?.description || normalizeStr(d.description),
+        mediatype: d.mediatype || 'movies',
         collection: collections,
-        genre: normalizeArchiveGenre(subjects, collections),
-        year: normalizeStr(d.year),
-        runtime: normalizeStr(d.runtime),
-        thumbnailUrl: `https://archive.org/services/img/${d.identifier}`
+        genre: curated?.genre || normalizeArchiveGenre(subjects, collections),
+        year: curated?.year || normalizeStr(d.year),
+        runtime: curated?.runtime || normalizeStr(d.runtime),
+        director: curated?.director || normalizeStr(d.director) || normalizeStr(d.creator) || undefined,
+        videoUrl: curated?.videoUrl,
+        curatorNote: curated?.curatorNote,
+        historicalContext: curated?.historicalContext,
+        restorationInfo: curated?.restorationInfo,
+        thumbnailUrl: curated?.thumbnailUrl || `https://archive.org/services/img/${d.identifier}`
       };
     });
-  } catch (error) {
-    console.error('Error fetching archive videos:', error);
+  }).catch((error) => {
+    console.warn('Error fetching archive videos:', error);
+    if (query.toLowerCase().includes('horror')) return CURATED_HALLOWEEN_FILMS.slice(0, limit);
     return [];
-  }
+  });
 };
 
 export interface GenreCollection { genre: string; items: ArchiveVideo[] }
@@ -1737,35 +2222,59 @@ export const ARCHIVE_GENRE_SOURCES: { genre: string; query: string }[] = [
 ];
 
 export const fetchArchiveByAllGenres = async (limitPerGenre = 12): Promise<GenreCollection[]> => {
-  const [results, europeanaFilms, kofaFilms, europeanaNews] = await Promise.all([
-    Promise.allSettled(
-      ARCHIVE_GENRE_SOURCES.map(async ({ genre, query }) => ({
-        genre,
-        items: await fetchArchiveVideos(query, limitPerGenre)
-      }))
-    ),
-    fetchEuropeanaVideos('cinema OR film', limitPerGenre).catch(() => []),
-    fetchKoreanFilmArchive(limitPerGenre).catch(() => []),
-    fetchEuropeanaVideos('newsreel OR television', limitPerGenre).catch(() => []),
+  return dedupedCached(`archive-all-genres:v2:${limitPerGenre}`, 1000 * 60 * 60, async () => {
+    // Batch the 20 archive.org genre queries in chunks of 5 to prevent HTTP connection stampedes / 429s under heavy traffic
+    const archiveResults: PromiseSettledResult<GenreCollection>[] = [];
+    const batchSize = 5;
+    const runArchiveBatches = async () => {
+      for (let i = 0; i < ARCHIVE_GENRE_SOURCES.length; i += batchSize) {
+        const chunk = ARCHIVE_GENRE_SOURCES.slice(i, i + batchSize);
+        const settled = await Promise.allSettled(
+          chunk.map(async ({ genre, query }) => {
+            const fetched = await fetchArchiveVideos(query, limitPerGenre);
+            if (genre === 'Horror') {
+              const seen = new Set(CURATED_HALLOWEEN_FILMS.map(f => f.identifier));
+              const merged = [...CURATED_HALLOWEEN_FILMS, ...fetched.filter(f => !seen.has(f.identifier))];
+              return { genre, items: merged.slice(0, Math.max(limitPerGenre, CURATED_HALLOWEEN_FILMS.length)) };
+            }
+            return { genre, items: fetched };
+          })
+        );
+        archiveResults.push(...settled);
+      }
+    };
+
+    const [, europeanaFilms, kofaFilms, europeanaNews] = await Promise.all([
+      runArchiveBatches(),
+      fetchEuropeanaVideos('cinema OR film', limitPerGenre).catch(() => []),
+      fetchKoreanFilmArchive(limitPerGenre).catch(() => []),
+      fetchEuropeanaVideos('newsreel OR television', limitPerGenre).catch(() => []),
+    ]);
+
+    const collections: GenreCollection[] = [
+      { genre: '🎃 Halloween Cinema', items: CURATED_HALLOWEEN_FILMS },
+    ];
+
+    if (europeanaFilms.length > 0) {
+      collections.push({ genre: 'European Cinema', items: europeanaFilms });
+    }
+    if (kofaFilms.length > 0) {
+      collections.push({ genre: 'Korean Classic Cinema', items: kofaFilms });
+    }
+    if (europeanaNews.length > 0) {
+      collections.push({ genre: 'European Newsreels & TV', items: europeanaNews });
+    }
+
+    const archiveCollections = archiveResults
+      .filter((r): r is PromiseFulfilledResult<GenreCollection> => r.status === 'fulfilled' && r.value.items.length > 0)
+      .map(r => r.value);
+
+    return [...collections, ...archiveCollections];
+  }).catch(() => [
+    { genre: '🎃 Halloween Cinema', items: CURATED_HALLOWEEN_FILMS },
+    { genre: 'European Cinema', items: CURATED_EUROPEANA_FILMS },
+    { genre: 'Korean Classic Cinema', items: CURATED_KOFA_FILMS },
   ]);
-
-  const collections: GenreCollection[] = [];
-
-  if (europeanaFilms.length > 0) {
-    collections.push({ genre: 'European Cinema', items: europeanaFilms });
-  }
-  if (kofaFilms.length > 0) {
-    collections.push({ genre: 'Korean Classic Cinema', items: kofaFilms });
-  }
-  if (europeanaNews.length > 0) {
-    collections.push({ genre: 'European Newsreels & TV', items: europeanaNews });
-  }
-
-  const archiveCollections = results
-    .filter((r): r is PromiseFulfilledResult<GenreCollection> => r.status === 'fulfilled' && r.value.items.length > 0)
-    .map(r => r.value);
-
-  return [...collections, ...archiveCollections];
 };
 
 export const getVideoMetadata = async (identifier: string) => {

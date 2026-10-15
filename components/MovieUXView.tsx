@@ -9,6 +9,7 @@ import {
   Pause, Volume2, VolumeX, Award, ChevronRight,
   RotateCcw, RotateCw, Gauge, PictureInPicture2, Captions, SkipForward,
   ThumbsUp, ThumbsDown, ScrollText, Milestone, ShieldCheck,
+  Crown, Link2, Radio,
 } from 'lucide-react';
 import CommentSection from './CommentSection';
 import PlatformBumperPlayer from './tv/PlatformBumperPlayer';
@@ -31,9 +32,17 @@ import {
   addToWatchlist, removeFromWatchlist, isInWatchlist,
   fetchUserClubs, createClubEvent,
   fetchDiscussionPostsByContentId,
+  listenToVideoComments, postVideoComment,
   loginWithGoogle,
   updateAlbum, updateVideo,
 } from '../services/backendService';
+import { useParty, type UseParty } from '../hooks/useParty';
+import {
+  createParty, partyShareUrl, planDriftCorrection, fetchActiveClubPartiesForContent,
+  listenPartyChat, sendPartyChat, listenPartyReactions, sendPartyReaction, PARTY_EMOJIS,
+  type Party, type PartyChatMessage, type PartyReaction,
+} from '../services/partyService';
+import { partyToast } from './party/partyToast';
 import The411 from './The411';
 import { shareAsset, shareText } from '../services/deepLinkService';
 import { cleanDescription } from '../utils/description';
@@ -44,7 +53,9 @@ import { getPlatformInfo } from '../hooks/usePlatform';
 import { BuyToOwn, useOwnership } from './BuyToOwn';
 import AriaMark from './aria/AriaMark';
 import { watchAnalysisJob, type TaleoAnalysisJob } from '../services/storyIntelService';
+import { canAccessStoryIntelTools } from '../services/storyIntelBridge';
 import { MoreLikeThis, StoryBreakdown, useRelatedFilms, filmArt } from './taleo/FilmExtras';
+import { getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
 
 // Universal Video Player (Pixels & CrossOver DSP)
 const ReelloUniversalVideoPlayer = React.lazy(() => import('./reello/ReelloUniversalVideoPlayer'));
@@ -60,6 +71,9 @@ interface MovieUXViewProps {
   /** Owner-only: open the authoring tool to edit this film's details. */
   onEditFilm?: (item: Video | Album) => void;
   currentUser: any;
+  /** Active Watch Party ID when opened from a shared party link or Club Watch Party. */
+  partyId?: string;
+  onLeaveParty?: () => void;
 }
 
 const isHLSUrl = (url: string) => url.includes('.m3u8');
@@ -81,9 +95,11 @@ interface CinemaPlayerProps {
   onWhatIfParticipation?: (branchId: string, choiceId: string) => void;
   onEnded?: () => void;
   onBack?: () => void;
+  party?: UseParty;
+  resyncSignal?: number;
 }
 
-type CinemaStrategy = 'mux' | 'hls' | 'direct' | 'embed' | 'processing' | 'error';
+type CinemaStrategy = 'mux' | 'mux-mp4' | 'hls' | 'direct' | 'embed' | 'processing' | 'error';
 
 const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   video: initialVideo,
@@ -94,6 +110,8 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   onWhatIfParticipation,
   onEnded,
   onBack,
+  party,
+  resyncSignal,
 }) => {
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
@@ -112,6 +130,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
+  const [needsUnmuteBanner, setNeedsUnmuteBanner] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [ccOn, setCcOn] = useState(false);
@@ -119,6 +138,8 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   const [activeCcLang, setActiveCcLang] = useState<string | null>(null);
   const [whatIfActive, setWhatIfActive] = useState<WhatIfBranchPoint | null>(null);
   const lastRecordRef = useRef(0);
+  const lastHostBroadcastRef = useRef(0);
+  const applyingRemoteSyncRef = useRef(false);
   const resumeAppliedRef = useRef(false);
   const subtitles = liveVideo.subtitles || [];
 
@@ -173,14 +194,15 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   }, [liveVideo.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rawUrl = liveVideo.url || '';
-  const isEmbed = !!liveVideo.embedUrl ||
+  const rawUrlIsEmbed =
     rawUrl.includes('youtube.com') ||
     rawUrl.includes('youtu.be') ||
     rawUrl.includes('youtube-nocookie.com') ||
     rawUrl.includes('europeana.eu') ||
-    (rawUrl.includes('/embed/') && !rawUrl.includes('archive.org'));
+    rawUrl.includes('/embed/');
+  const isEmbed = !!liveVideo.embedUrl || rawUrlIsEmbed;
   const hasHlsUrl = isHLSUrl(rawUrl);
-  const hasDirectUrl = !isEmbed && !!rawUrl && !hasHlsUrl && !directFailed;
+  const hasDirectUrl = !rawUrlIsEmbed && !!rawUrl && !hasHlsUrl && !directFailed;
   // Mux progressive-MP4 fallback: plays through a plain <video> with NO Media Source
   // Extensions. Android TV System WebViews often can't play Mux HLS via hls.js/MSE (no native
   // HLS either), so when the MSE attempt fails we fall back to this. Requires Mux static
@@ -290,11 +312,25 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
       }).catch(() => {});
     };
 
+    const broadcastHostState = (playingOverride?: boolean) => {
+      if (!party?.isHost || applyingRemoteSyncRef.current) return;
+      party.broadcast({
+        isPlaying: playingOverride !== undefined ? playingOverride : !videoEl.paused,
+        positionSec: Number.isFinite(videoEl.currentTime) ? videoEl.currentTime : 0,
+        rate: videoEl.playbackRate || 1,
+        contentId: liveVideo.id,
+      });
+    };
+
     const onTime = () => {
       setCurrentTime(videoEl.currentTime);
       if (isFinite(videoEl.duration)) setDuration(videoEl.duration);
       const now = Date.now();
       if (now - lastRecordRef.current >= 5000) { lastRecordRef.current = now; record(); }
+      if (party?.isHost && !videoEl.paused && now - lastHostBroadcastRef.current >= 4000) {
+        lastHostBroadcastRef.current = now;
+        broadcastHostState(true);
+      }
       for (const b of branches) {
         if (!triggeredBranchesRef.current.has(b.id) && videoEl.currentTime >= b.timestamp - 0.35) {
           videoEl.pause();
@@ -304,12 +340,27 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         }
       }
     };
-    const onPause = () => { setIsPaused(true); record(); };
-    const onPlay  = () => { setIsPaused(false); scheduleControlHide(); };
-    const onMeta  = () => {
+    const onPause = () => {
+      setIsPaused(true);
+      record();
+      broadcastHostState(false);
+    };
+    const onPlay = () => {
+      setIsPaused(false);
+      scheduleControlHide();
+      broadcastHostState(true);
+    };
+    const onSeeked = () => {
+      if (party?.isHost && !applyingRemoteSyncRef.current) {
+        broadcastHostState();
+      }
+    };
+    const onMeta = () => {
       if (isFinite(videoEl.duration)) setDuration(videoEl.duration);
-      // Resume from last position (skip if near the end), once per video.
-      if (!resumeAppliedRef.current && liveVideo.id) {
+      if (party?.isHost) {
+        broadcastHostState();
+      } else if (!party?.party && !resumeAppliedRef.current && liveVideo.id) {
+        // Resume from last position (skip if near the end), once per video — only when NOT in a Watch Party.
         resumeAppliedRef.current = true;
         const pos = getResumePosition(liveVideo.id);
         if (pos > 5 && isFinite(videoEl.duration) && pos < videoEl.duration - 15) {
@@ -327,6 +378,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     videoEl.addEventListener('timeupdate', onTime);
     videoEl.addEventListener('pause', onPause);
     videoEl.addEventListener('play', onPlay);
+    videoEl.addEventListener('seeked', onSeeked);
     videoEl.addEventListener('loadedmetadata', onMeta);
     videoEl.addEventListener('ended', onEndedEvt);
     return () => {
@@ -334,31 +386,112 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
       videoEl.removeEventListener('timeupdate', onTime);
       videoEl.removeEventListener('pause', onPause);
       videoEl.removeEventListener('play', onPlay);
+      videoEl.removeEventListener('seeked', onSeeked);
       videoEl.removeEventListener('loadedmetadata', onMeta);
       videoEl.removeEventListener('ended', onEndedEvt);
     };
-  }, [videoEl, liveVideo.whatIfBranchPoints, liveVideo.id, poster, scheduleControlHide, onEnded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [videoEl, liveVideo.whatIfBranchPoints, liveVideo.id, poster, scheduleControlHide, onEnded, party?.isHost, party?.party, party?.broadcast]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Follower Watch Party Sync Loop ────────────────────────────────────────
+  const syncFollowerToHost = useCallback((forceSeek = false) => {
+    const el = videoElRef.current;
+    if (!el || !party?.isFollower || !party.party) return;
+    const target = party.getTarget();
+    const corr = planDriftCorrection(
+      Number.isFinite(el.currentTime) ? el.currentTime : 0,
+      target.positionSec,
+      target.shouldPlay,
+      target.rate,
+    );
+    applyingRemoteSyncRef.current = true;
+    try {
+      if (forceSeek || corr.action === 'seek') {
+        const nextSec = Math.max(0, corr.action === 'seek' ? corr.seekTo : target.positionSec);
+        if (Number.isFinite(nextSec) && Math.abs((el.currentTime || 0) - nextSec) > 0.35) {
+          try { el.currentTime = nextSec; setCurrentTime(nextSec); } catch {}
+        }
+      }
+      if (Math.abs((el.playbackRate || 1) - corr.rate) > 0.01) {
+        try { el.playbackRate = corr.rate; setPlaybackRate(corr.rate); } catch {}
+      }
+      if (target.shouldPlay && el.paused) {
+        el.play().catch(() => {
+          // Browser blocked unmuted autoplay on shared link entry — start muted in sync and offer one-tap unmute
+          el.muted = true;
+          setIsMuted(true);
+          setNeedsUnmuteBanner(true);
+          el.play().catch(() => {});
+        });
+      } else if (!target.shouldPlay && !el.paused) {
+        el.pause();
+      }
+    } finally {
+      setTimeout(() => { applyingRemoteSyncRef.current = false; }, 80);
+    }
+  }, [party]);
+
+  useEffect(() => {
+    if (!videoEl || !party?.isFollower || !party.party) return;
+    syncFollowerToHost(true);
+    const onReady = () => syncFollowerToHost(true);
+    videoEl.addEventListener('loadedmetadata', onReady);
+    videoEl.addEventListener('canplay', onReady);
+    const iv = setInterval(() => syncFollowerToHost(false), 600);
+    return () => {
+      clearInterval(iv);
+      videoEl.removeEventListener('loadedmetadata', onReady);
+      videoEl.removeEventListener('canplay', onReady);
+    };
+  }, [videoEl, party?.isFollower, party?.party?.id, party?.playback?.seq, resyncSignal, syncFollowerToHost]);
 
   const togglePlay = () => {
-    if (!videoElRef.current) return;
-    if (videoElRef.current.paused) videoElRef.current.play().catch(() => {});
-    else videoElRef.current.pause();
+    const el = videoElRef.current;
+    if (!el) return;
+    if (party?.isFollower) {
+      if (needsUnmuteBanner || el.muted) {
+        el.muted = false;
+        setIsMuted(false);
+        setNeedsUnmuteBanner(false);
+      }
+      syncFollowerToHost(true);
+      partyToast(`Playback stays synced to ${party.party?.hostName || 'the host'}`, 'info');
+      revealControls();
+      return;
+    }
+    if (el.paused) el.play().catch(() => {});
+    else el.pause();
     revealControls();
   };
 
   const skip = (secs: number) => {
     const el = videoElRef.current;
     if (!el) return;
+    if (party?.isFollower) {
+      syncFollowerToHost(true);
+      partyToast(`Playback is controlled by ${party.party?.hostName || 'the host'}`, 'info');
+      revealControls();
+      return;
+    }
     el.currentTime = Math.max(0, Math.min(el.duration || Infinity, el.currentTime + secs));
+    if (party?.isHost) {
+      party.broadcast({ isPlaying: !el.paused, positionSec: el.currentTime, rate: el.playbackRate || 1, contentId: liveVideo.id });
+    }
     revealControls();
   };
 
   const SPEEDS = [1, 1.25, 1.5, 2, 0.5];
   const cycleSpeed = () => {
+    if (party?.isFollower) {
+      partyToast(`Playback speed is synced to ${party.party?.hostName || 'the host'}`, 'info');
+      return;
+    }
     const el = videoElRef.current;
     setPlaybackRate(prev => {
       const next = SPEEDS[(SPEEDS.indexOf(prev) + 1) % SPEEDS.length];
       if (el) el.playbackRate = next;
+      if (party?.isHost && el) {
+        party.broadcast({ isPlaying: !el.paused, positionSec: el.currentTime, rate: next, contentId: liveVideo.id });
+      }
       return next;
     });
     revealControls();
@@ -386,19 +519,45 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   // Skip-intro / skip-recap surfacing.
   const inIntro = liveVideo.skipIntro && currentTime >= liveVideo.skipIntro.start && currentTime < liveVideo.skipIntro.end;
   const inRecap = liveVideo.skipRecap && currentTime >= liveVideo.skipRecap.start && currentTime < liveVideo.skipRecap.end;
-  const skipTo = (end: number) => { const el = videoElRef.current; if (el) el.currentTime = end + 0.1; revealControls(); };
+  const skipTo = (end: number) => {
+    const el = videoElRef.current;
+    if (!el) return;
+    if (party?.isFollower) {
+      syncFollowerToHost(true);
+      return;
+    }
+    el.currentTime = end + 0.1;
+    if (party?.isHost) {
+      party.broadcast({ isPlaying: !el.paused, positionSec: el.currentTime, rate: el.playbackRate || 1, contentId: liveVideo.id });
+    }
+    revealControls();
+  };
 
   const toggleMute = () => {
     if (!videoElRef.current) return;
     videoElRef.current.muted = !videoElRef.current.muted;
     setIsMuted(videoElRef.current.muted);
+    if (!videoElRef.current.muted) setNeedsUnmuteBanner(false);
   };
 
   const handleSeek = (e: React.MouseEvent) => {
     if (!seekBarRef.current || !videoElRef.current || !duration) return;
+    if (party?.isFollower) {
+      syncFollowerToHost(true);
+      partyToast(`Playback is synced to ${party.party?.hostName || 'the host'}`, 'info');
+      return;
+    }
     const rect = seekBarRef.current.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     videoElRef.current.currentTime = pct * duration;
+    if (party?.isHost) {
+      party.broadcast({
+        isPlaying: !videoElRef.current.paused,
+        positionSec: videoElRef.current.currentTime,
+        rate: videoElRef.current.playbackRate || 1,
+        contentId: liveVideo.id,
+      });
+    }
     revealControls();
   };
 
@@ -434,13 +593,15 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   if (strategy === 'embed') {
     let embedSrc = liveVideo.embedUrl || rawUrl;
     let directWatchUrl = embedSrc;
+    const startSec = party?.isFollower ? Math.max(0, Math.floor(party.getTarget().positionSec || 0)) : 0;
     if (embedSrc.includes('youtube.com/watch') || embedSrc.includes('youtu.be/') || embedSrc.includes('youtube-nocookie.com/embed') || embedSrc.includes('youtube.com/embed')) {
       const match = embedSrc.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*)/);
       const ytId = match && match[1].length === 11 ? match[1] : '';
       if (ytId) {
         directWatchUrl = `https://www.youtube.com/watch?v=${ytId}`;
         const originParam = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
-        embedSrc = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&enablejsapi=1${originParam}`;
+        const startParam = startSec > 2 ? `&start=${startSec}` : '';
+        embedSrc = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&enablejsapi=1${startParam}${originParam}`;
       }
     }
     return (
@@ -468,6 +629,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
           )}
         </div>
         <iframe
+          key={`${embedSrc}-${resyncSignal || 0}`}
           src={embedSrc}
           className="w-full h-full border-none"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -549,6 +711,24 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
           <track key={st.srclang} kind="subtitles" src={st.url} srcLang={st.srclang} label={st.label} default={st.default} />
         ))}
       </video>
+
+      {/* One-tap Unmute pill when browser forced muted autoplay on Watch Party deep-link entry */}
+      {needsUnmuteBanner && isMuted && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (videoElRef.current) {
+              videoElRef.current.muted = false;
+              setIsMuted(false);
+              setNeedsUnmuteBanner(false);
+              videoElRef.current.play().catch(() => {});
+            }
+          }}
+          className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-[#FF6B00] hover:bg-[#FF8533] text-black font-black text-xs uppercase tracking-widest shadow-[0_8px_30px_rgba(255,107,0,0.5)] transition-all animate-bounce"
+        >
+          <Volume2 size={16} /> Tap to Unmute · Synced with {party?.party?.hostName || 'Host'}
+        </button>
+      )}
 
       {/* ── What If overlay ────────────────────────────────────────────────── */}
       <AnimatePresence>
@@ -766,7 +946,17 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 };
 
 // ─── MovieUXView ───────────────────────────────────────────────────────────────
-const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, onNavigateToWorld, onOpenItem, onEditFilm, currentUser }) => {
+const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
+  item,
+  onBack,
+  onVisitUser,
+  onNavigateToWorld,
+  onOpenItem,
+  onEditFilm,
+  currentUser,
+  partyId: propPartyId,
+  onLeaveParty,
+}) => {
   const {
     activateVideoSource,
     setVideoElement,
@@ -796,10 +986,23 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
   const [worldTimeline, setWorldTimeline] = useState<TimelineEvent[]>([]);
   const [openLore, setOpenLore] = useState<LoreEntry | null>(null);
   const [comments, setComments] = useState<any[]>([]);
+  const [localComments, setLocalComments] = useState<any[]>([]);
+  const [partyChatMessages, setPartyChatMessages] = useState<PartyChatMessage[]>([]);
+  const [floatingReactions, setFloatingReactions] = useState<Array<{ id: string; emoji: string; x: number }>>([]);
+  const seenReactionIdsRef = useRef<Set<string>>(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const [hoveredCharId, setHoveredCharId] = useState<string | null>(null);
   const [whatIfAchieved, setWhatIfAchieved] = useState(false);
+
+  // Watch Party & Watch with Club state
+  const [activePartyId, setActivePartyId] = useState<string | null>(propPartyId || null);
+  useEffect(() => {
+    if (propPartyId) setActivePartyId(propPartyId);
+  }, [propPartyId]);
+  const party = useParty(activePartyId);
+  const [resyncSignal, setResyncSignal] = useState(0);
+  const [startingWatchParty, setStartingWatchParty] = useState(false);
 
   // Watchlist
   const [inWatchlist, setInWatchlist] = useState(false);
@@ -807,6 +1010,9 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
 
   // Watch with Club
   const [showWatchWithClub, setShowWatchWithClub] = useState(false);
+  const [clubModalMode, setClubModalMode] = useState<'CHOOSE_ACTIVE_CLUB' | 'START_OR_SCHEDULE'>('START_OR_SCHEDULE');
+  const [activeClubParties, setActiveClubParties] = useState<Party[]>([]);
+  const [checkingClubParties, setCheckingClubParties] = useState(false);
   const [userClubs, setUserClubs] = useState<Club[]>([]);
   const [watchPartyClubId, setWatchPartyClubId] = useState('');
   const [watchPartyDate, setWatchPartyDate] = useState('');
@@ -828,45 +1034,164 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
     return [...vids, ...albs].slice(0, 3);
   }, [hoveredCharId, worldContent]);
 
+  const effectiveItemId = item.id || (item as any).identifier || '';
+
+  // Subscribe to real-time video comments
+  useEffect(() => {
+    if (!effectiveItemId) { setComments([]); return; }
+    const unsub = listenToVideoComments(effectiveItemId, (liveList) => {
+      setComments(Array.isArray(liveList) ? liveList : []);
+    });
+    return () => { try { unsub?.(); } catch {} };
+  }, [effectiveItemId]);
+
+  // Subscribe to live Watch Party chat + emoji reactions when activePartyId is set
+  useEffect(() => {
+    if (!activePartyId) {
+      setPartyChatMessages([]);
+      setFloatingReactions([]);
+      return;
+    }
+    seenReactionIdsRef.current = new Set();
+    let initialReactionsBatch = true;
+    const unsubChat = listenPartyChat(activePartyId, setPartyChatMessages);
+    const unsubReactions = listenPartyReactions(activePartyId, (list: PartyReaction[]) => {
+      if (initialReactionsBatch) {
+        initialReactionsBatch = false;
+        list.forEach(r => seenReactionIdsRef.current.add(r.id));
+        return;
+      }
+      for (const r of list) {
+        if (seenReactionIdsRef.current.has(r.id)) continue;
+        seenReactionIdsRef.current.add(r.id);
+        const key = `${r.id}_${Math.random()}`;
+        const x = 15 + Math.random() * 70;
+        setFloatingReactions(prev => [...prev.slice(-14), { id: key, emoji: r.emoji, x }]);
+        setTimeout(() => setFloatingReactions(prev => prev.filter(f => f.id !== key)), 2400);
+      }
+    });
+    return () => {
+      unsubChat();
+      unsubReactions();
+    };
+  }, [activePartyId]);
+
+  // Combine Watch Party chat messages + persistent film comments for CommentSection beneath the player
+  const combinedComments = useMemo(() => {
+    const partyMapped = partyChatMessages.map((m) => {
+      const ts = typeof m.at?.toMillis === 'function' ? m.at.toMillis() : (typeof m.at === 'number' ? m.at : Date.now());
+      return {
+        id: `party_${m.id}`,
+        userId: m.uid,
+        userName: m.name || 'Watch Party Guest',
+        userPhoto: m.photo || '',
+        rating: 5,
+        text: m.text,
+        comment: m.text,
+        timestamp: ts,
+      };
+    });
+    const byId = new Map<string, any>();
+    for (const c of [...partyMapped, ...localComments, ...comments]) {
+      if (!c?.id) continue;
+      byId.set(String(c.id), c);
+    }
+    return Array.from(byId.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  }, [partyChatMessages, localComments, comments]);
+
   const handlePostComment = async (text: string) => {
-    setComments(prev => [{
-      id: Date.now().toString(),
-      userId: currentUser?.uid || 'anon',
-      userName: currentUser?.displayName || 'Anonymous',
-      userPhoto: currentUser?.photoURL || '',
+    const clean = (text || '').trim();
+    if (!clean) return;
+    const optimistic = {
+      id: `local_${Date.now()}`,
+      userId: currentUser?.uid || auth.currentUser?.uid || 'anon',
+      userName: currentUser?.displayName || auth.currentUser?.displayName || 'Guest Viewer',
+      userPhoto: currentUser?.photoURL || auth.currentUser?.photoURL || '',
       rating: 5,
-      text,
-      comment: text,
+      text: clean,
+      comment: clean,
       timestamp: Date.now(),
-    }, ...prev]);
+    };
+    setLocalComments(prev => [optimistic, ...prev]);
+    if (activePartyId && auth.currentUser) {
+      sendPartyChat(activePartyId, clean).catch(() => {});
+    }
+    if (effectiveItemId && auth.currentUser) {
+      postVideoComment(effectiveItemId, {
+        userId: auth.currentUser.uid,
+        userName: auth.currentUser.displayName || 'Viewer',
+        userPhoto: auth.currentUser.photoURL || '',
+        rating: 5,
+        text: clean,
+        timestamp: Date.now(),
+      } as any).catch(() => {});
+    }
   };
 
-  // Load watchlist status, user clubs, and film discussions when item changes
+  const [resolvedArchiveUrl, setResolvedArchiveUrl] = useState<string>('');
+  const [selectedSeasonNum, setSelectedSeasonNum] = useState<number>(1);
+
+  // Load watchlist status, user clubs, active club parties, film discussions, and resolve missing Archive MP4 URLs when item changes
   useEffect(() => {
     const itemId = item.id || (item as any).identifier;
-    if (auth.currentUser && itemId) {
-      isInWatchlist(itemId).then(setInWatchlist);
-      fetchUserClubs(auth.currentUser.uid).then(setUserClubs);
+    if (itemId) {
+      isInWatchlist(itemId).then(setInWatchlist).catch(() => {});
+      fetchDiscussionPostsByContentId(itemId).then(setFilmDiscussions).catch(() => {});
     }
-    fetchDiscussionPostsByContentId(itemId).then(setFilmDiscussions);
+    if (auth.currentUser && itemId) {
+      fetchUserClubs(auth.currentUser.uid)
+        .then(async (clubs) => {
+          setUserClubs(clubs);
+          if (clubs.length > 0 && !watchPartyClubId) {
+            setWatchPartyClubId(clubs[0].id);
+          }
+          const liveParties = await fetchActiveClubPartiesForContent(itemId, clubs).catch(() => []);
+          setActiveClubParties(liveParties);
+        })
+        .catch(() => {});
+    }
+    setSelectedSeasonNum(((item as Album).seasons?.[0]?.number) ?? 1);
+    setResolvedArchiveUrl('');
+    const archiveId = (item as any).identifier || ((item as any).ownerId === 'internet-archive' ? item.id : '');
+    const existingUrl = (item as any).videoUrl || (item as Album).customVideoUrl || (item as Album).tracks?.[0]?.url || (item as Video).url || '';
+    if (
+      archiveId &&
+      !existingUrl &&
+      (item as any).source !== 'KOFA' &&
+      (item as any).source !== 'EUROPEANA' &&
+      (item as any).source !== 'LIBRARY_OF_CONGRESS'
+    ) {
+      let alive = true;
+      getArchiveItemFiles(archiveId)
+        .then(files => {
+          if (!alive) return;
+          const url = getBestVideoUrl(archiveId, files);
+          if (url) setResolvedArchiveUrl(url);
+        })
+        .catch(() => {});
+      return () => { alive = false; };
+    }
   }, [item.id, (item as any).identifier]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleWatchlistToggle = async () => {
-    if (!auth.currentUser) return;
     setWatchlistLoading(true);
     try {
       const itemId = item.id || (item as any).identifier;
+      if (!itemId) return;
       if (inWatchlist) {
         await removeFromWatchlist(itemId);
         setInWatchlist(false);
       } else {
         await addToWatchlist({
           id: itemId,
+          identifier: (item as any).identifier,
           title: item.title,
           type: (item as any).type === 'VIDEO' || (item as any).subType ? 'VIDEO' : 'ALBUM',
           thumbnailUrl: (item as Album).coverImage || (item as Video).thumbnailUrl || (item as any).coverImageUrl,
           genre: (item as any).genre || (item as any).subType,
-        });
+          year: (item as any).year || (item as Video).movieMetadata?.releaseYear?.toString(),
+          director: (item as any).director || (item as Album).artist,
+        } as any);
         setInWatchlist(true);
       }
     } finally {
@@ -941,10 +1266,12 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    setActiveVideo(null);
-    setIsUIVisible(true);
+    if (!propPartyId) {
+      setActiveVideo(null);
+      setIsUIVisible(true);
+    }
     setActiveCharacter(null);
-  }, [item.id, (item as any).identifier]);
+  }, [item.id, (item as any).identifier, propPartyId]);
 
   const isTV = (item as any).type === 'VIDEO' && (item as any).subType === 'TV_SERIES';
   const isPaywalled = !!(item as Video).isPaywalled;
@@ -955,10 +1282,6 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
   const description = cleanDescription(item.description);
 
   // ── Owner-editable synopsis ────────────────────────────────────────────────
-  // The description here is whatever publishing wrote, and it was not always the creator's own
-  // words. Rather than send them back through the whole publish wizard to fix a paragraph, the
-  // owner edits it in place — write, paste, save. `descOverride` holds the saved text for this
-  // session, since `item` is a prop the parent hydrated before the edit.
   const [descOverride, setDescOverride] = useState<string | null>(null);
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState('');
@@ -968,17 +1291,13 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
   const artist = (item as Album).artist || (item as Video).artist;
   const ownerId = (item as Album).ownerId || (item as Video).ownerId;
   const isOwner = !!(currentUser?.uid && currentUser.uid === ownerId);
+  const canAccessStoryIntel = canAccessStoryIntelTools(ownerId, currentUser as any);
   const castMembers = (item as Video).movieMetadata?.castMembers || [];
   const releaseYear = (item as Video).movieMetadata?.releaseYear;
 
   // Drop a previous title's edit when the page swaps titles.
   useEffect(() => { setDescOverride(null); setEditingDesc(false); }, [item.id]);
 
-  /**
-   * Persist the synopsis. A film published through the creator is an `albums` doc, but a film
-   * can also live in `videos` (Reello-side uploads), so resolve which one actually holds this
-   * id rather than guessing and writing a stray doc.
-   */
   const saveDescription = async () => {
     const next = descDraft.trim();
     if (next === (shownDescription || '').trim()) { setEditingDesc(false); return; }
@@ -997,8 +1316,6 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
   };
 
   // ── Buy-to-own gate (Taleo) ────────────────────────────────────────────────
-  // Paid films carry filmDistribution.{model,purchasePrice,rentalPrice,delivery,...}.
-  // Access = the creator themselves, OR a valid contentLicense (buy/rent) for this uid.
   const filmDist = (item as any).filmDistribution as import('../types').FilmDistribution | undefined;
   const filmBuyPrice = filmDist?.purchasePrice ?? 0;
   const filmRentPrice = (filmDist?.model === 'RENTAL' || filmDist?.model === 'HYBRID') ? (filmDist?.rentalPrice ?? 0) : 0;
@@ -1006,23 +1323,19 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
   const filmOwnership = useOwnership('film', item.id, currentUser?.uid);
   const hasFilmAccess = isOwner || !isPaidFilm || filmOwnership.owned;
 
-  // ── Taleo Story Intelligence (owner-only) ──────────────────────────────────
-  // Watch the analysis job doc; when one exists, surface the Aria review pill.
+  // ── Taleo Story Intelligence (strictly creator-only + platform architect verification) ──
   const [storyIntelJob, setStoryIntelJob] = useState<TaleoAnalysisJob | null>(null);
   const [showStoryIntel, setShowStoryIntel] = useState(false);
   useEffect(() => {
-    if (!isOwner || !item.id) { setStoryIntelJob(null); return; }
+    if (!canAccessStoryIntel || !item.id) { setStoryIntelJob(null); return; }
     return watchAnalysisJob(item.id, setStoryIntelJob);
-  }, [isOwner, item.id]);
+  }, [canAccessStoryIntel, item.id]);
 
   // More-like-this films (shared by the page row and the end-of-film suggestions).
   const relatedFilms = useRelatedFilms(item as any, 12);
 
-  const handlePlay = () => {
-    // Gate paid films: without a license (or being the creator), don't start playback —
-    // the hero shows Buy/Rent instead. Belt-and-suspenders in case the CTA is reached.
-    if (!hasFilmAccess) { setIsUIVisible(true); return; }
-
+  /** Build the playable Video payload for the current item without side effects. */
+  const buildPlaybackPayload = useCallback((): Video | null => {
     const album = item as Album;
     const vid = item as Video;
     let payload: Video | null = null;
@@ -1051,8 +1364,8 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
       const isKofa = (item as any).source === 'KOFA' || (item as any).ownerId === 'korean-film-archive' || (item as any).ownerId === 'kofa';
       const isEuro = (item as any).source === 'EUROPEANA' || (item as any).ownerId === 'europeana';
       const owner = isKofa ? 'korean-film-archive' : isEuro ? 'europeana' : 'library-of-congress';
-      const artist = album.artist || (isKofa ? 'Korean Film Archive (KOFA)' : isEuro ? 'Europeana Film Heritage' : 'Library of Congress');
-      const genre = album.genre || (isKofa ? 'Korean Classic Cinema' : 'European Cinema');
+      const artistName = album.artist || (isKofa ? 'Korean Film Archive (KOFA)' : isEuro ? 'Europeana Film Heritage' : 'Library of Congress');
+      const genreName = album.genre || (isKofa ? 'Korean Classic Cinema' : 'European Cinema');
 
       payload = {
         id: (item as any).identifier || item.id,
@@ -1060,21 +1373,20 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
         title: item.title,
         url: isDirect ? rawStreamUrl : '',
         embedUrl: isDirect ? undefined : embedUrl,
-        artist,
+        artist: artistName,
         timestamp: album.createdAt || Date.now(),
         description: cleanDescription(album.description),
         thumbnailUrl: album.coverImage || (item as any).thumbnailUrl,
-        genre,
+        genre: genreName,
         subType: 'MOVIE',
         sourceUrl: (item as any).sourceUrl,
       } as any;
     } else if (vid.url || vid.embedUrl) {
       payload = vid;
     } else if (vid.id && !(item as any).tracks && (item as any).ownerId !== 'internet-archive') {
-      // Platform video still encoding — CinemaPlayer will wait via Firestore snapshot
       payload = vid;
-    } else if ((item as any).ownerId === 'internet-archive') {
-      const trackUrl = album.tracks?.[0]?.url || '';
+    } else if ((item as any).ownerId === 'internet-archive' || (item as any).identifier) {
+      const trackUrl = resolvedArchiveUrl || (item as any).videoUrl || album.customVideoUrl || album.tracks?.[0]?.url || '';
       const archiveId = trackUrl.includes('/download/')
         ? trackUrl.slice(trackUrl.indexOf('/download/') + 10).split('/')[0]
         : (item as any).identifier || item.id;
@@ -1084,8 +1396,11 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
         title: item.title,
         url: trackUrl,
         embedUrl: `https://archive.org/embed/${archiveId}?autoplay=1`,
-        artist: album.artist || '',
+        artist: album.artist || (item as any).director || (item as any).creator || '',
         timestamp: album.createdAt || Date.now(),
+        description: cleanDescription(album.description),
+        thumbnailUrl: album.coverImage || (item as any).thumbnailUrl,
+        genre: album.genre || (item as any).genre,
         subType: 'MOVIE',
       } as Video;
     } else if (isTV) {
@@ -1104,11 +1419,8 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
         } as Video;
       }
     } else if (album.tracks?.[0]?.muxPlaybackId || album.tracks?.[0]?.muxUploadId || album.tracks?.[0]?.url) {
-      // MOVIE film track. It may stream from Mux (muxPlaybackId) with an empty url, still be
-      // transcoding (muxUploadId only → CinemaPlayer shows "Processing…"), or be a legacy
-      // Firebase/archive url. Carry the mux id into the payload so the player can stream it.
       const t0 = album.tracks[0];
-      const trackUrl = t0.url || '';
+      const trackUrl = t0.url || resolvedArchiveUrl || '';
       const isArchive = trackUrl.includes('archive.org') &&
         album.ownerId !== 'korean-film-archive' &&
         album.ownerId !== 'kofa' &&
@@ -1130,25 +1442,211 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
         url: album.customVideoUrl, artist: album.artist, timestamp: album.createdAt || Date.now(),
       } as Video;
     }
+    return payload;
+  }, [item, resolvedArchiveUrl, isTV]);
 
+  const handlePlay = () => {
+    if (!hasFilmAccess) { setIsUIVisible(true); return; }
+    const payload = buildPlaybackPayload();
     if (payload) {
-      // The studio ident runs HERE, in front of the feature, rather than in front of the title
-      // page. It used to be mounted by App on `view === 'MOVIE_UX'`, so it played the moment
-      // someone opened a poster — and ahead of the licence gate above, meaning a film the
-      // viewer could not watch still got one.
-      setPrerollFor(payload);
+      // Skip studio ident when already inside a Watch Party so viewers sync immediately
+      if (activePartyId) beginPlayback(payload);
+      else setPrerollFor(payload);
     } else {
       setIsUIVisible(true);
     }
   };
 
   /** Start the feature. Called once the ident clears (or immediately if there isn't one). */
-  const beginPlayback = (payload: Video) => {
+  const beginPlayback = useCallback((payload: Video) => {
     primaryPayloadRef.current = payload;
     setActiveVersionId('primary');
     setActiveVideo(payload);
     setIsUIVisible(false);
     activateVideoSource(payload);
+
+    // If playing through Universal Player or an embed iframe (KOFA YouTube / Europeana),
+    // CinemaPlayer's <video> timeupdate won't fire, so seed Continue Watching progress now.
+    const isEmbedOnly = !payload.url && !payload.muxPlaybackId && !!payload.embedUrl;
+    if ((useUniversalPlayer || isEmbedOnly) && payload.id) {
+      const existingPos = getResumePosition(payload.id);
+      if (existingPos <= 5) {
+        recordProgress({
+          id: payload.id,
+          kind: 'TALEO',
+          title: payload.title || item.title,
+          thumbnailUrl: coverImage || payload.thumbnailUrl || undefined,
+          ownerName: payload.artist || artist || undefined,
+          positionSec: 60,
+          durationSec: 5400,
+          genre: payload.genre || (item as any).genre,
+          creatorId: payload.ownerId || ownerId,
+        }).catch(() => {});
+      }
+    }
+  }, [activateVideoSource, useUniversalPlayer, item, coverImage, artist, ownerId]);
+
+  // Auto-pop-up the player whenever a user joins or opens a Watch Party (via shared link or Club auto-sync)
+  useEffect(() => {
+    if (!activePartyId || !hasFilmAccess) return;
+    const payload = buildPlaybackPayload();
+    if (payload && (!activeVideo || ( !activeVideo.url && payload.url ))) {
+      setPrerollFor(null);
+      beginPlayback(payload);
+    }
+  }, [activePartyId, hasFilmAccess, buildPlaybackPayload, activeVideo, beginPlayback]);
+
+  const copyAndSharePartyLink = async (pid: string, clubName?: string) => {
+    const url = partyShareUrl(pid);
+    try { await navigator.clipboard?.writeText(url); } catch {}
+    partyToast(
+      clubName
+        ? `${clubName} Watch Party is live! Share link copied — members can also click "Watch with Club" to auto-sync.`
+        : 'Watch Party live! Share link copied — anyone who opens it will automatically sync with you.',
+      'ok',
+    );
+  };
+
+  const handleStartWatchParty = async () => {
+    if (!auth.currentUser) {
+      partyToast('Sign in to host a Watch Party', 'info');
+      loginWithGoogle();
+      return;
+    }
+    if (!hasFilmAccess) { setIsUIVisible(true); return; }
+    setStartingWatchParty(true);
+    try {
+      const contentId = item.id || (item as any).identifier;
+      const pos = videoRef.current && Number.isFinite(videoRef.current.currentTime) ? videoRef.current.currentTime : 0;
+      const pid = await createParty({
+        kind: 'WATCH',
+        content: {
+          type: 'MOVIE',
+          id: contentId,
+          title: item.title,
+          thumbnail: coverImage || undefined,
+        },
+        initial: {
+          isPlaying: true,
+          positionSec: pos,
+          contentId,
+        },
+        visibility: 'public',
+      });
+      setActivePartyId(pid);
+      const payload = buildPlaybackPayload();
+      if (payload) {
+        setPrerollFor(null);
+        beginPlayback(payload);
+      }
+      await copyAndSharePartyLink(pid);
+    } catch {
+      partyToast('Could not start Watch Party — check your connection and try again', 'warn');
+    } finally {
+      setStartingWatchParty(false);
+    }
+  };
+
+  const handleStartClubWatchPartyNow = async (club: Club) => {
+    if (!auth.currentUser) {
+      loginWithGoogle();
+      return;
+    }
+    if (!hasFilmAccess) { setIsUIVisible(true); return; }
+    setWatchPartySubmitting(true);
+    try {
+      const contentId = item.id || (item as any).identifier;
+      const pos = videoRef.current && Number.isFinite(videoRef.current.currentTime) ? videoRef.current.currentTime : 0;
+      const pid = await createParty({
+        kind: 'WATCH',
+        content: {
+          type: 'MOVIE',
+          id: contentId,
+          title: item.title,
+          thumbnail: coverImage || undefined,
+        },
+        initial: {
+          isPlaying: true,
+          positionSec: pos,
+          contentId,
+        },
+        visibility: 'public',
+        clubId: club.id,
+        clubName: club.name,
+        clubIcon: club.iconImage || undefined,
+      });
+      setShowWatchWithClub(false);
+      setActivePartyId(pid);
+      const payload = buildPlaybackPayload();
+      if (payload) {
+        setPrerollFor(null);
+        beginPlayback(payload);
+      }
+      await copyAndSharePartyLink(pid, club.name);
+    } catch {
+      partyToast('Could not start Club Watch Party — please try again', 'warn');
+    } finally {
+      setWatchPartySubmitting(false);
+    }
+  };
+
+  const handleJoinClubParty = (clubParty: Party) => {
+    setShowWatchWithClub(false);
+    setActivePartyId(clubParty.id);
+    const payload = buildPlaybackPayload();
+    if (payload) {
+      setPrerollFor(null);
+      beginPlayback(payload);
+    }
+    partyToast(
+      `Synced with ${clubParty.clubName || 'Club'} Watch Party · Hosted by ${clubParty.hostName || 'Host'}`,
+      'ok',
+    );
+  };
+
+  /**
+   * Clicking "Watch with Club":
+   * - Checks all clubs the user is a member of to see if any are currently watching this title.
+   * - If 1 club is watching → auto-syncs immediately with that club's Watch Party!
+   * - If >1 clubs are watching → opens the Club chooser modal asking which club they want to join.
+   * - If 0 clubs are watching → opens the modal so they can start a live Club Watch Party now or schedule one.
+   */
+  const handleWatchWithClubClick = async () => {
+    if (!auth.currentUser) {
+      partyToast('Sign in to watch with your club', 'info');
+      loginWithGoogle();
+      return;
+    }
+    const contentId = item.id || (item as any).identifier;
+    setCheckingClubParties(true);
+    try {
+      let clubs = userClubs;
+      if (clubs.length === 0) {
+        clubs = await fetchUserClubs(auth.currentUser.uid).catch(() => []);
+        setUserClubs(clubs);
+        if (clubs.length > 0 && !watchPartyClubId) setWatchPartyClubId(clubs[0].id);
+      }
+      const liveClubParties = await fetchActiveClubPartiesForContent(contentId, clubs).catch(() => []);
+      setActiveClubParties(liveClubParties);
+
+      if (liveClubParties.length === 1) {
+        // Auto-sync immediately with the single club watching this title!
+        handleJoinClubParty(liveClubParties[0]);
+        return;
+      }
+      if (liveClubParties.length > 1) {
+        // More than one club is watching the same thing — ask which club they want to join!
+        setClubModalMode('CHOOSE_ACTIVE_CLUB');
+        setShowWatchWithClub(true);
+        return;
+      }
+      // No club is currently watching — let the user start a live Club Watch Party now or schedule one
+      setClubModalMode('START_OR_SCHEDULE');
+      if (clubs.length > 0 && !watchPartyClubId) setWatchPartyClubId(clubs[0].id);
+      setShowWatchWithClub(true);
+    } finally {
+      setCheckingClubParties(false);
+    }
   };
 
   // Switch the playing cut. 'primary' restores the main film; an alternate swaps to its
@@ -1369,6 +1867,268 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
           player was being contained instead of covering the viewport, leaving the TV top
           tabs and page chrome visible around a playing film. A portal has no such ancestor. */}
       {activeVideo && createPortal(
+        activePartyId ? (
+          <div className="fixed inset-0 z-[200] bg-[#06060C] text-white overflow-y-auto custom-scrollbar" data-tv-no-trap>
+            {/* Top Watch Party Header Bar */}
+            <div className="sticky top-0 z-40 bg-[#06060C]/90 backdrop-blur-xl border-b border-white/10 px-4 sm:px-8 py-3 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  onClick={exitPlayer}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/10 text-xs font-black uppercase tracking-widest text-white transition-all shrink-0"
+                  title="Return to Film Details"
+                >
+                  <ArrowLeft size={15} /> Details
+                </button>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF8C00] text-[10px] font-black uppercase tracking-widest">
+                      <span className="w-2 h-2 rounded-full bg-[#FF6B00] animate-ping" />
+                      {party.party?.clubName ? `Club Watch Party · ${party.party.clubName}` : 'Live Watch Party'}
+                    </span>
+                    <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-white truncate">
+                      {activeVideo.title || title}
+                    </h2>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => copyAndSharePartyLink(activePartyId, party.party?.clubName)}
+                  className="h-9 px-4 rounded-full bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-md"
+                >
+                  <Link2 size={13} /> Share Watch Party Link
+                </button>
+                {party.isHost ? (
+                  <button
+                    onClick={() => {
+                      party.end();
+                      setActivePartyId(null);
+                      onLeaveParty?.();
+                      partyToast('Watch Party ended', 'info');
+                    }}
+                    className="h-9 px-3.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-rose-300 text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    End Party
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setActivePartyId(null);
+                      onLeaveParty?.();
+                      partyToast('Left Watch Party — you now have independent playback control', 'info');
+                    }}
+                    className="h-9 px-3.5 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/10 text-white/75 text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    Leave Party
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Main Theater Column: 1. Popped-Up Player -> 2. Watch Party UI (Watching Count + Joined People) -> 3. Comment Section Beneath */}
+            <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-4 pb-20 space-y-5">
+              {/* 1. Popped-Up Synced Video Player */}
+              <div
+                ref={videoContainerRef}
+                className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.9)] border border-white/15"
+              >
+                <CinemaPlayer
+                  key={activeVideo.id || activeVideo.url}
+                  video={activeVideo}
+                  poster={coverImage || undefined}
+                  onVideoRef={el => { setVideoElement(el); if (el) videoRef.current = el; }}
+                  isFullscreen={isFullscreen}
+                  onToggleFullscreen={getPlatformInfo().isTV ? undefined : toggleFullscreen}
+                  onWhatIfParticipation={handleWhatIfParticipation}
+                  onEnded={handleEpisodeEnded}
+                  onBack={exitPlayer}
+                  party={party}
+                  resyncSignal={resyncSignal}
+                />
+
+                {/* Floating Emoji Reactions */}
+                <div className="pointer-events-none absolute inset-0 overflow-hidden z-30">
+                  {floatingReactions.map(f => (
+                    <div
+                      key={f.id}
+                      style={{ left: `${f.x}%` }}
+                      className="absolute bottom-16 text-3xl animate-bounce drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
+                    >
+                      {f.emoji}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Watch Party UI Directly Below the Player: Amount of People Watching Along + Joined People Below */}
+              <div className="rounded-3xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-2xl border border-white/12 p-5 sm:p-6 space-y-5 shadow-2xl">
+                {/* Top Status Bar: Amount of people watching along + Host sync status + Reactions */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* Amount of people watching along */}
+                    <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <Users size={16} className="text-emerald-300" />
+                      <span className="text-xs font-black uppercase tracking-wider">
+                        {party.viewerCount} {party.viewerCount === 1 ? 'person' : 'people'} watching along
+                      </span>
+                    </div>
+
+                    {/* Host Sync Status Badge */}
+                    {party.isHost ? (
+                      <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-500/15 border border-amber-500/35 text-amber-300 text-xs font-black uppercase tracking-wider">
+                        <Crown size={14} className="text-amber-400" />
+                        Hosting · Everyone stays synced to your playback
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-[#D0BCFF]/15 border border-[#D0BCFF]/35 text-[#D0BCFF] text-xs font-black uppercase tracking-wider">
+                        <Radio size={14} className="text-[#D0BCFF] animate-pulse" />
+                        <span>
+                          Synced to Host: <strong className="text-white">{party.party?.hostName || 'Host'}</strong>
+                        </span>
+                        <button
+                          onClick={() => {
+                            setResyncSignal(s => s + 1);
+                            partyToast(`Resynced playback to ${party.party?.hostName || 'Host'}`, 'ok');
+                          }}
+                          className="ml-1 px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 transition-all"
+                          title="Snap playback to the host's exact timestamp"
+                        >
+                          <RefreshCw size={11} /> Resync
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Club Badge if watching with a club */}
+                    {party.party?.clubName && (
+                      <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/[0.07] border border-white/15 text-white/90 text-xs font-black uppercase tracking-wider">
+                        {party.party.clubIcon ? (
+                          <img src={party.party.clubIcon} alt="" className="w-4 h-4 rounded-full object-cover" />
+                        ) : (
+                          <Users size={13} className="text-[#FFB68D]" />
+                        )}
+                        <span>Club: {party.party.clubName}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick Emoji Reactions */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40 mr-1">React:</span>
+                    {PARTY_EMOJIS.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          if (!auth.currentUser) {
+                            partyToast('Sign in to send reactions', 'info');
+                            return;
+                          }
+                          sendPartyReaction(activePartyId, emoji).catch(() => {});
+                        }}
+                        className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.16] active:scale-125 border border-white/10 flex items-center justify-center text-base transition-all"
+                        title={`Send ${emoji}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Joined People Below */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/50 flex items-center gap-2">
+                      <Users size={13} className="text-[#D0BCFF]" />
+                      Joined People ({party.people.length})
+                    </p>
+                    <p className="text-[10px] text-white/40 font-bold">
+                      {party.playback?.isPlaying ? '▶ Host is playing' : '⏸ Host paused'} · {formatTime(party.playback?.positionSec || 0)}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    {party.people.map(person => {
+                      const isPersonHost = person.uid === party.party?.hostId;
+                      const isMe = person.uid === (currentUser?.uid || auth.currentUser?.uid);
+                      return (
+                        <div
+                          key={person.uid}
+                          onClick={() => person.uid && onVisitUser(person.uid)}
+                          className={`group flex items-center gap-2.5 pl-2 pr-3.5 py-1.5 rounded-full border transition-all cursor-pointer ${
+                            isPersonHost
+                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                              : 'bg-white/[0.05] hover:bg-white/[0.10] border-white/10 text-white/85'
+                          }`}
+                        >
+                          <div className="relative w-7 h-7 rounded-full overflow-hidden bg-white/15 shrink-0 border border-white/20">
+                            {person.photo ? (
+                              <img src={person.photo} alt={person.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-[11px] font-black text-white">
+                                {(person.name || 'G')[0]?.toUpperCase()}
+                              </div>
+                            )}
+                            <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-black" />
+                          </div>
+                          <span className="text-xs font-black tracking-tight truncate max-w-[140px]">
+                            {person.name || 'Viewer'}
+                          </span>
+                          {isPersonHost && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[9px] font-black uppercase tracking-widest">
+                              <Crown size={10} /> Host
+                            </span>
+                          )}
+                          {isMe && !isPersonHost && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest">
+                              You
+                            </span>
+                          )}
+                          {party.isHost && !isPersonHost && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                party.passRemote(person);
+                                partyToast(`Passed host controls to ${person.name}`, 'ok');
+                              }}
+                              className="opacity-0 group-hover:opacity-100 ml-1 px-2 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-[9px] font-black uppercase tracking-widest text-white transition-all"
+                              title={`Pass host remote to ${person.name}`}
+                            >
+                              Make Host
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Comment Section Beneath the Watch Party UI */}
+              <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-5 sm:p-7 space-y-5">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="border-l-2 border-[#D0BCFF] pl-3">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1">
+                      Live Watch Party &amp; Film Discussion
+                    </p>
+                    <h3 className="text-lg sm:text-xl font-black uppercase tracking-[0.12em] text-white">
+                      Comments ({combinedComments.length})
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                    Comments update live for everyone watching
+                  </span>
+                </div>
+                <CommentSection
+                  comments={combinedComments}
+                  onPostComment={handlePostComment}
+                  currentUser={currentUser}
+                  onVisitUser={onVisitUser}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
         <div ref={videoContainerRef} className="fixed inset-0 z-[200] bg-black" data-tv-no-trap>
           {useUniversalPlayer ? (
             <React.Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" /></div>}>
@@ -1432,7 +2192,8 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
             </div>
           )}
 
-        </div>,
+        </div>
+        ),
         document.body,
       )}
 
@@ -1537,9 +2298,6 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
 
                   {/* Meta */}
                   <div className="flex items-center gap-4 text-[10px] font-black tracking-[0.15em] uppercase text-white/40 flex-wrap">
-                    {/* Personal match — only when the taste vector can actually speak to this
-                        title. The tooltip names what drove it, so the number is inspectable
-                        rather than mysterious. */}
                     {match && (
                       <span
                         className="text-[#3FBE85]"
@@ -1548,7 +2306,6 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                         {match.score}% Match
                       </span>
                     )}
-                    {/* Audience score — shown only once real votes exist. No votes, no number. */}
                     {audienceScore !== null && (
                       <span className="flex items-center gap-1.5 text-[#3FBE85]" title={`${publicStats!.up + publicStats!.down} ratings`}>
                         <ThumbsUp fill="currentColor" size={11} /> {audienceScore}% liked
@@ -1643,7 +2400,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                   {/* CTAs */}
                   <div className="flex flex-wrap gap-3 pt-1">
                     {hasFilmAccess ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <motion.button
                           whileHover={{ scale: 1.04 }}
                           whileTap={{ scale: 0.97 }}
@@ -1651,6 +2408,18 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                           className="h-12 px-6 sm:px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-colors shadow-lg"
                         >
                           <Play fill="currentColor" size={18} /> Watch Now
+                        </motion.button>
+
+                        <motion.button
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handleStartWatchParty}
+                          disabled={startingWatchParty}
+                          className="h-12 px-5 sm:px-6 bg-gradient-to-r from-[#FF6B00] to-[#FF8C00] hover:from-[#FF8533] hover:to-[#FFA033] text-black font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all shadow-[0_8px_25px_rgba(255,107,0,0.35)]"
+                          title="Start a synchronized Watch Party and share the link so friends auto-sync with you"
+                        >
+                          <Users size={17} />
+                          <span>{activePartyId ? 'Resume Watch Party' : startingWatchParty ? 'Starting…' : 'Watch Party'}</span>
                         </motion.button>
 
                         <button
@@ -1697,13 +2466,13 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                         <Pencil size={16} /> Edit Film
                       </motion.button>
                     )}
-                    {isOwner && storyIntelJob && (
+                    {canAccessStoryIntel && storyIntelJob && (
                       <motion.button
                         whileHover={{ scale: 1.04 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setShowStoryIntel(true)}
                         className="h-12 px-6 bg-[#8b5cf6]/15 hover:bg-[#8b5cf6]/25 border border-[#8b5cf6]/40 text-[#c4b5fd] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all"
-                        title="Aria's story analysis of this film"
+                        title="Aria's story analysis of this film (Creator / Platform Architect)"
                       >
                         <AriaMark size={18} thinking={storyIntelJob.status !== 'READY' && storyIntelJob.status !== 'PARTIAL' && storyIntelJob.status !== 'FAILED' && storyIntelJob.status !== 'SKIPPED'} />
                         Story Intelligence
@@ -1721,14 +2490,36 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                       {inWatchlist ? <Check size={17} /> : <Bookmark size={17} />}
                       {inWatchlist ? 'Saved' : 'Watchlist'}
                     </button>
-                    {auth.currentUser && (
-                      <button
-                        onClick={() => setShowWatchWithClub(true)}
-                        className="h-12 px-5 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.10] text-white/65 hover:text-white font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all"
-                      >
-                        <Calendar size={16} /> Watch with Club
-                      </button>
-                    )}
+                    <button
+                      onClick={handleWatchWithClubClick}
+                      disabled={checkingClubParties}
+                      className={`h-12 px-5 backdrop-blur-sm border font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all ${
+                        activeClubParties.length > 0
+                          ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/45 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.25)]'
+                          : 'bg-white/[0.07] hover:bg-white/[0.12] border-white/[0.10] text-white/65 hover:text-white'
+                      }`}
+                      title={
+                        activeClubParties.length === 1
+                          ? `${activeClubParties[0].clubName || 'Your club'} is watching right now — click to auto-sync!`
+                          : activeClubParties.length > 1
+                          ? `${activeClubParties.length} of your clubs are watching right now — click to choose which club to join`
+                          : 'Watch synchronously with your club'
+                      }
+                    >
+                      {activeClubParties.length > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      )}
+                      <Users size={16} />
+                      <span>
+                        {checkingClubParties
+                          ? 'Checking Clubs…'
+                          : activeClubParties.length === 1
+                          ? `Watch with ${activeClubParties[0].clubName || 'Club'} (Live)`
+                          : activeClubParties.length > 1
+                          ? `Watch with Club (${activeClubParties.length} Live)`
+                          : 'Watch with Club'}
+                      </span>
+                    </button>
                     <button
                       onClick={() => {
                         const archiveId = (item as any).identifier;
@@ -1756,6 +2547,127 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                   </div>
                 </div>
               </div>
+
+              {/* ── CURATOR & ARCHIVAL NOTES (Halloween / KOFA / Europeana Classics) ── */}
+              {((item as any).curatorNote || (item as any).historicalContext || (item as any).restorationInfo) && (
+                <section className="mt-12 rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-6 sm:p-8 space-y-5">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="border-l-2 border-[#FF8C00] pl-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FF8C00] mb-1">
+                        {(item as any).movement || 'Taleo Film Historian'}
+                      </p>
+                      <h3 className="text-xl font-black uppercase tracking-[0.12em] text-white">
+                        Curator &amp; Preservation Notes
+                      </h3>
+                    </div>
+                    {(item as any).dataProvider && (
+                      <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50">
+                        Source: {(item as any).dataProvider}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {(item as any).curatorNote && (
+                      <div className="space-y-2 p-4 rounded-2xl bg-black/30 border border-white/[0.06]">
+                        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#FFB68D] flex items-center gap-1.5">
+                          <Sparkles size={12} /> Curator's Perspective
+                        </p>
+                        <p className="text-xs text-white/70 leading-relaxed">{(item as any).curatorNote}</p>
+                      </div>
+                    )}
+                    {(item as any).historicalContext && (
+                      <div className="space-y-2 p-4 rounded-2xl bg-black/30 border border-white/[0.06]">
+                        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#D0BCFF] flex items-center gap-1.5">
+                          <ScrollText size={12} /> Historical Context
+                        </p>
+                        <p className="text-xs text-white/70 leading-relaxed">{(item as any).historicalContext}</p>
+                      </div>
+                    )}
+                    {(item as any).restorationInfo && (
+                      <div className="space-y-2 p-4 rounded-2xl bg-black/30 border border-white/[0.06]">
+                        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-emerald-400 flex items-center gap-1.5">
+                          <Award size={12} /> Preservation &amp; Print
+                        </p>
+                        <p className="text-xs text-white/70 leading-relaxed">{(item as any).restorationInfo}</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* ── SEASONS & EPISODES (Series / Episodic Titles) ── */}
+              {((item as Album).seasons || []).length > 0 && (() => {
+                const seasons = (item as Album).seasons || [];
+                const activeSeason = seasons.find(s => s.number === selectedSeasonNum) || seasons[0];
+                const episodes = activeSeason?.episodes || [];
+                return (
+                  <section className="mt-14 space-y-5">
+                    <div className="flex items-end justify-between gap-4 flex-wrap">
+                      <div className="border-l-2 border-[#D0BCFF] pl-3">
+                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1">Episodic Guide</p>
+                        <h3 className="text-xl font-black uppercase tracking-[0.15em] text-white">Seasons &amp; Episodes</h3>
+                      </div>
+                      {seasons.length > 1 && (
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                          {seasons.map(s => (
+                            <button
+                              key={s.number}
+                              onClick={() => setSelectedSeasonNum(s.number)}
+                              className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                                (activeSeason?.number ?? 1) === s.number
+                                  ? 'bg-[#D0BCFF] text-[#1C1B1F]'
+                                  : 'bg-white/5 border border-white/10 text-white/50 hover:text-white'
+                              }`}
+                            >
+                              Season {s.number}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {episodes.map((ep: any, idx: number) => (
+                        <div
+                          key={ep.id || idx}
+                          onClick={() => {
+                            if (!hasFilmAccess) { setIsUIVisible(true); return; }
+                            beginPlayback({
+                              ...ep,
+                              id: ep.id || `${item.id}-s${activeSeason?.number || 1}e${idx + 1}`,
+                              title: ep.title || `${item.title} — Episode ${idx + 1}`,
+                              artist: ep.artist || item.title,
+                              thumbnailUrl: ep.thumbnailUrl || coverImage,
+                            } as Video);
+                          }}
+                          className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-[#D0BCFF]/40 flex items-center gap-4 cursor-pointer group transition-all"
+                        >
+                          <div className="w-28 aspect-video rounded-xl overflow-hidden bg-black/50 relative shrink-0 border border-white/10">
+                            {(ep.thumbnailUrl || coverImage) && (
+                              <img src={ep.thumbnailUrl || coverImage} alt={ep.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            )}
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                <Play size={14} fill="white" className="text-white ml-0.5" />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-[#D0BCFF]">
+                              S{activeSeason?.number || 1} · E{ep.episodeNumber || idx + 1}
+                            </p>
+                            <h4 className="text-sm font-black uppercase tracking-tight text-white truncate mt-0.5 group-hover:text-[#D0BCFF] transition-colors">
+                              {ep.title || `Episode ${idx + 1}`}
+                            </h4>
+                            {ep.description && (
+                              <p className="text-xs text-white/45 line-clamp-2 mt-1 leading-relaxed">{ep.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })()}
 
               {/* ── CHARACTERS ────────────────────────────────────────────────── */}
               {worldCharacters.length > 0 && (
@@ -1886,22 +2798,37 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                         <ScrollText size={12} className="text-[#FFB68D]" /> Lore
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {railLore.map(entry => (
-                          <motion.button
-                            key={entry.id}
-                            whileHover={{ y: -3 }}
-                            onClick={() => setOpenLore(entry)}
-                            className="text-left bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-[#FFB68D]/35 rounded-2xl p-4 transition-colors"
-                          >
-                            <span className="text-[8px] font-black uppercase tracking-widest text-[#FFB68D]/70">
-                              {(entry.type || 'LORE').replace(/_/g, ' ')}
-                            </span>
-                            <p className="text-sm font-black text-white leading-tight mt-1.5 line-clamp-2">{entry.title}</p>
-                            {entry.content && (
-                              <p className="text-[11px] text-white/40 leading-relaxed mt-2 line-clamp-3">{entry.content}</p>
-                            )}
-                          </motion.button>
-                        ))}
+                        {railLore.map(entry => {
+                          const loreImg = entry.gallery?.[0] || (entry as any).imageUrl;
+                          return (
+                            <motion.button
+                              key={entry.id}
+                              whileHover={{ y: -3 }}
+                              onClick={() => setOpenLore(entry)}
+                              className="text-left bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-[#FFB68D]/35 rounded-2xl overflow-hidden transition-colors flex flex-col"
+                            >
+                              {loreImg && (
+                                <div className="w-full aspect-video bg-black/50 overflow-hidden">
+                                  <img
+                                    src={loreImg}
+                                    alt={entry.title}
+                                    loading="lazy"
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              )}
+                              <div className="p-4 flex-1">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-[#FFB68D]/70">
+                                  {(entry.type || 'LORE').replace(/_/g, ' ')}
+                                </span>
+                                <p className="text-sm font-black text-white leading-tight mt-1.5 line-clamp-2">{entry.title}</p>
+                                {entry.content && (
+                                  <p className="text-[11px] text-white/40 leading-relaxed mt-2 line-clamp-3">{entry.content}</p>
+                                )}
+                              </div>
+                            </motion.button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -2028,7 +2955,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                 </div>
                 <div className="bg-white/[0.04] backdrop-blur-xl rounded-2xl p-6 border border-white/[0.07]">
                   <CommentSection
-                    comments={comments}
+                    comments={combinedComments}
                     onPostComment={handlePostComment}
                     currentUser={currentUser}
                     onVisitUser={onVisitUser}
@@ -2107,14 +3034,14 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
           )}
         </AnimatePresence>
 
-        {/* ── Watch with Club Modal ─────────────────────────────────────────── */}
+        {/* ── Watch with Club Modal (Multi-Club Chooser + Start/Schedule) ───── */}
         <AnimatePresence>
           {showWatchWithClub && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[220] bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
+              className="fixed inset-0 z-[220] bg-black/75 backdrop-blur-md flex items-center justify-center p-4"
               onClick={() => setShowWatchWithClub(false)}
             >
               <motion.div
@@ -2127,8 +3054,14 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#D0BCFF] mb-1">Club Event</p>
-                    <h3 className="text-xl font-black uppercase tracking-tight text-white">Watch with Club</h3>
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#D0BCFF] mb-1">
+                      {clubModalMode === 'CHOOSE_ACTIVE_CLUB' ? 'Multiple Clubs Watching Live' : 'Club Watch Party'}
+                    </p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-white">
+                      {clubModalMode === 'CHOOSE_ACTIVE_CLUB'
+                        ? 'Which club do you want to join?'
+                        : 'Watch with Club'}
+                    </h3>
                   </div>
                   <button onClick={() => setShowWatchWithClub(false)} className="p-2 text-white/30 hover:text-white transition-colors">
                     <X size={18} />
@@ -2143,11 +3076,65 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-black text-white truncate">{item.title}</p>
-                    <p className="text-[9px] text-[#D0BCFF] font-black uppercase tracking-widest mt-0.5">Watch Party</p>
+                    <p className="text-[9px] text-[#D0BCFF] font-black uppercase tracking-widest mt-0.5">
+                      {clubModalMode === 'CHOOSE_ACTIVE_CLUB'
+                        ? `${activeClubParties.length} of your clubs are watching this right now`
+                        : 'Live Sync & Scheduled Watch Party'}
+                    </p>
                   </div>
                 </div>
 
-                {watchPartyDone ? (
+                {clubModalMode === 'CHOOSE_ACTIVE_CLUB' ? (
+                  <div className="space-y-4">
+                    <p className="text-xs text-white/65 leading-relaxed">
+                      More than one club you're a member of is currently watching <span className="text-white font-bold">{item.title}</span>. Choose which club's Watch Party you'd like to sync with:
+                    </p>
+                    <div className="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar">
+                      {activeClubParties.map(cp => {
+                        const clubObj = userClubs.find(c => c.id === cp.clubId);
+                        const clubName = cp.clubName || clubObj?.name || 'Club';
+                        const clubIcon = cp.clubIcon || clubObj?.iconImage;
+                        return (
+                          <button
+                            key={cp.id}
+                            onClick={() => handleJoinClubParty(cp)}
+                            className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#D0BCFF]/10 hover:bg-[#D0BCFF]/20 border border-[#D0BCFF]/35 hover:border-[#D0BCFF]/60 transition-all text-left group"
+                          >
+                            <div className="relative w-11 h-11 rounded-xl bg-white/10 overflow-hidden shrink-0 flex items-center justify-center font-black text-sm text-[#D0BCFF]">
+                              {clubIcon ? (
+                                <img src={clubIcon} className="w-full h-full object-cover" alt={clubName} />
+                              ) : (
+                                clubName[0]?.toUpperCase() || 'C'
+                              )}
+                              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0E0E1A] animate-pulse" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-black text-white truncate">{clubName}</p>
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[8px] font-black uppercase tracking-widest shrink-0">
+                                  Live
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-white/55 font-bold truncate mt-0.5">
+                                Hosted by {cp.hostName || 'Club Host'} · {cp.playback?.isPlaying ? 'Playing now' : 'Paused'}
+                              </p>
+                            </div>
+                            <span className="px-3 py-1.5 rounded-full bg-[#D0BCFF] text-[#1C1B1F] text-[10px] font-black uppercase tracking-widest shrink-0 group-hover:scale-105 transition-transform">
+                              Join &amp; Sync
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setClubModalMode('START_OR_SCHEDULE')}
+                      className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest text-white/45 hover:text-white transition-colors"
+                    >
+                      Or start / schedule with another club →
+                    </button>
+                  </div>
+                ) : watchPartyDone ? (
                   <div className="flex flex-col items-center gap-3 py-4">
                     <div className="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
                       <Check size={20} className="text-green-400" />
@@ -2156,38 +3143,95 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                   </div>
                 ) : (
                   <>
+                    {activeClubParties.length > 0 && (
+                      <button
+                        onClick={() => {
+                          if (activeClubParties.length === 1) {
+                            handleJoinClubParty(activeClubParties[0]);
+                          } else {
+                            setClubModalMode('CHOOSE_ACTIVE_CLUB');
+                          }
+                        }}
+                        className="w-full p-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/35 flex items-center justify-between gap-3 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                          <span className="text-[11px] font-black uppercase tracking-wider text-emerald-200 truncate">
+                            {activeClubParties.length === 1
+                              ? `${activeClubParties[0].clubName || 'Your club'} is watching now!`
+                              : `${activeClubParties.length} clubs are watching right now!`}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 shrink-0">
+                          Sync Now →
+                        </span>
+                      </button>
+                    )}
+
                     <div className="space-y-2">
                       <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Select Club</label>
                       {userClubs.length === 0 ? (
                         <p className="text-[10px] text-white/25 font-black uppercase tracking-widest">You haven't joined any clubs yet.</p>
                       ) : (
                         <div className="space-y-2 max-h-44 overflow-y-auto custom-scrollbar">
-                          {userClubs.map(club => (
-                            <button
-                              key={club.id}
-                              onClick={() => setWatchPartyClubId(club.id)}
-                              className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                                watchPartyClubId === club.id
-                                  ? 'bg-[#D0BCFF]/15 border-[#D0BCFF]/40'
-                                  : 'bg-white/[0.03] border-white/[0.07] hover:border-white/20'
-                              }`}
-                            >
-                              <div className="w-8 h-8 rounded-lg bg-white/10 overflow-hidden shrink-0">
-                                {club.iconImage && <img src={club.iconImage} className="w-full h-full object-cover" alt="" />}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-black text-white truncate">{club.name}</p>
-                                <p className="text-[9px] text-white/30 font-black uppercase tracking-widest">{club.memberCount || 0} members</p>
-                              </div>
-                              {watchPartyClubId === club.id && <Check size={14} className="text-[#D0BCFF] ml-auto shrink-0" />}
-                            </button>
-                          ))}
+                          {userClubs.map(club => {
+                            const liveParty = activeClubParties.find(p => p.clubId === club.id);
+                            return (
+                              <button
+                                key={club.id}
+                                onClick={() => setWatchPartyClubId(club.id)}
+                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                                  watchPartyClubId === club.id
+                                    ? 'bg-[#D0BCFF]/15 border-[#D0BCFF]/40'
+                                    : 'bg-white/[0.03] border-white/[0.07] hover:border-white/20'
+                                }`}
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-white/10 overflow-hidden shrink-0 flex items-center justify-center font-black text-xs text-[#D0BCFF]">
+                                  {club.iconImage ? <img src={club.iconImage} className="w-full h-full object-cover" alt="" /> : (club.name?.[0]?.toUpperCase() || 'C')}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-black text-white truncate">{club.name}</p>
+                                    {liveParty && (
+                                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[8px] font-black uppercase tracking-widest">
+                                        Watching Now
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[9px] text-white/30 font-black uppercase tracking-widest">{club.memberCount || 0} members</p>
+                                </div>
+                                {watchPartyClubId === club.id && <Check size={14} className="text-[#D0BCFF] ml-auto shrink-0" />}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Date &amp; Time</label>
+                    {userClubs.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const club = userClubs.find(c => c.id === watchPartyClubId) || userClubs[0];
+                          if (!club) return;
+                          const existingLive = activeClubParties.find(p => p.clubId === club.id);
+                          if (existingLive) {
+                            handleJoinClubParty(existingLive);
+                          } else {
+                            handleStartClubWatchPartyNow(club);
+                          }
+                        }}
+                        disabled={!watchPartyClubId && userClubs.length === 0}
+                        className="w-full h-12 bg-gradient-to-r from-[#6B0099] to-[#D40055] hover:opacity-95 disabled:opacity-40 text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#D40055]/25"
+                      >
+                        <Radio size={15} />
+                        {activeClubParties.some(p => p.clubId === watchPartyClubId)
+                          ? 'Join Live Club Watch Party Now'
+                          : 'Start Live Club Watch Party Now'}
+                      </button>
+                    )}
+
+                    <div className="pt-3 border-t border-white/10 space-y-3">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block">Or Schedule for Later</label>
                       <input
                         type="datetime-local"
                         value={watchPartyDate}
@@ -2195,15 +3239,14 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUse
                         className="w-full bg-white/[0.05] border border-white/[0.10] focus:border-[#D0BCFF]/50 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none transition-all"
                         style={{ colorScheme: 'dark' }}
                       />
+                      <button
+                        onClick={handleScheduleWatchParty}
+                        disabled={!watchPartyClubId || !watchPartyDate || watchPartySubmitting}
+                        className="w-full h-11 bg-white/10 hover:bg-white/15 disabled:opacity-40 text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all border border-white/15"
+                      >
+                        <Calendar size={14} /> {watchPartySubmitting ? 'Scheduling…' : 'Schedule Watch Party'}
+                      </button>
                     </div>
-
-                    <button
-                      onClick={handleScheduleWatchParty}
-                      disabled={!watchPartyClubId || !watchPartyDate || watchPartySubmitting}
-                      className="w-full h-12 bg-[#D0BCFF] hover:bg-[#E8DAFF] disabled:opacity-40 text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all"
-                    >
-                      <Calendar size={16} /> {watchPartySubmitting ? 'Scheduling…' : 'Schedule Watch Party'}
-                    </button>
                   </>
                 )}
               </motion.div>

@@ -7,7 +7,7 @@ import {
   Calendar, Film, Bookmark, Settings, Search, Menu, Globe,
   Monitor, Shield, Bell, CreditCard, Home, Map as ExploreIcon,
   Library, User as PersonIcon, TrendingUp, History, Maximize2,
-  MoreHorizontal, X,
+  MoreHorizontal, X, Check, Flame, Shuffle,
 } from 'lucide-react';
 import { Album, Video, Universe, VideoPlaylist, IPWorld, Character } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
@@ -15,11 +15,14 @@ import {
   fetchAllPublicAlbums, fetchUniverses, syncPublicDomainAsset,
   fetchSystemSettingsConfig, fetchVideoPlaylistsByIds, fetchAllVideos, auth,
   fetchAllPublicWorlds, fetchWorldCharacters,
+  addToWatchlist, removeFromWatchlist, fetchWatchlist, WatchlistItem, fetchProjectFromCloud,
 } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import {
   fetchArchiveVideos, fetchArchiveByAllGenres, GenreCollection, ArchiveVideo,
   getArchiveItemFiles, getBestVideoUrl, CURATED_EUROPEANA_FILMS, CURATED_KOFA_FILMS,
+  CURATED_HALLOWEEN_FILMS, HALLOWEEN_CURATED_SECTIONS, HALLOWEEN_DOUBLE_FEATURES,
+  PUMPKIN_PATCH_HERO_ALBUM, archiveVideoToAlbum, fetchArchiveVideoById,
 } from '../services/archiveContentService';
 import { TelevisionView } from './TelevisionView';
 import { ExploreView } from './ExploreView';
@@ -30,7 +33,8 @@ import ChipRail from './ui/ChipRail';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { fetchPublicClubs, fetchVideoById } from '../services/backendService';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
-import { getContinueWatching, WatchEntry } from '../services/watchHistoryService';
+import { getContinueWatching, removeEntry, WatchEntry } from '../services/watchHistoryService';
+import { shareAsset, buildShareUrl } from '../services/deepLinkService';
 import PersonalVideoLocker from './PersonalVideoLocker';
 import type { Club } from '../types';
 import TaleoFilmMuseum from './TaleoFilmMuseum';
@@ -46,7 +50,7 @@ interface MoviesTVViewProps {
   onNavigate?: (view: 'WORLDS' | 'USER_PROFILE' | 'TALEO_HISTORY' | 'FILM_SCHOOL') => void;
 }
 
-type SubView = 'HOME' | 'MOVIES' | 'TV' | 'CURATOR' | 'MUSEUM' | 'CLUBS' | 'UNIVERSE' | 'LIBRARY' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW';
+type SubView = 'HOME' | 'HALLOWEEN' | 'MOVIES' | 'TV' | 'CURATOR' | 'MUSEUM' | 'CLUBS' | 'UNIVERSE' | 'LIBRARY' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW';
 
 const TaleoTabNav: React.FC<{
   currentSubView: SubView;
@@ -59,16 +63,17 @@ const TaleoTabNav: React.FC<{
   <div className="sticky top-16 z-40 bg-[#131314]/90 backdrop-blur-xl border-b border-white/5 px-2 py-2 flex justify-center">
     <ChipRail
       items={[
-        { id: 'HOME',     icon: <Home size={13} />,        label: 'Home'     },
-        { id: 'MOVIES',   icon: <Film size={13} />,        label: 'Movies'   },
-        { id: 'TV',       icon: <Monitor size={13} />,     label: 'TV'       },
-        { id: 'CURATOR',  icon: <Sparkles size={13} />,    label: 'Curator'  },
-        { id: 'MUSEUM',   icon: <Landmark size={13} />,    label: 'Museum'   },
-        { id: 'CLUBS',    icon: <Users size={13} />,       label: 'Clubs'    },
-        { id: 'UNIVERSE', icon: <Globe size={13} />,       label: 'Universe' },
-        { id: 'EXPLORE',  icon: <ExploreIcon size={13} />, label: 'Explore', door: true },
-        { id: 'LIBRARY',  icon: <Library size={13} />,     label: 'Library'  },
-        { id: 'PROFILE',  icon: <PersonIcon size={13} />,  label: 'Profile', door: true },
+        { id: 'HOME',      icon: <Home size={13} />,        label: 'Home'         },
+        { id: 'HALLOWEEN', icon: <Ghost size={13} className="text-orange-400" />, label: '🎃 Halloween' },
+        { id: 'MOVIES',    icon: <Film size={13} />,        label: 'Movies'       },
+        { id: 'TV',        icon: <Monitor size={13} />,     label: 'TV'           },
+        { id: 'CURATOR',   icon: <Sparkles size={13} />,    label: 'Curator'      },
+        { id: 'MUSEUM',    icon: <Landmark size={13} />,    label: 'Museum'       },
+        { id: 'CLUBS',     icon: <Users size={13} />,       label: 'Clubs'        },
+        { id: 'UNIVERSE',  icon: <Globe size={13} />,       label: 'Universe'     },
+        { id: 'EXPLORE',   icon: <ExploreIcon size={13} />, label: 'Explore', door: true },
+        { id: 'LIBRARY',   icon: <Library size={13} />,     label: 'Library'      },
+        { id: 'PROFILE',   icon: <PersonIcon size={13} />,  label: 'Profile', door: true },
       ]}
       activeId={currentSubView === 'HIVE' ? 'EXPLORE' : currentSubView}
       onSelect={(id) => {
@@ -81,6 +86,7 @@ const TaleoTabNav: React.FC<{
 );
 
 const GENRE_ICONS: Record<string, React.ComponentType<any>> = {
+  '🎃 Halloween Cinema': Ghost,
   'Feature Films': Film,
   'Classic TV': Monitor,
   'Animation': Rocket,
@@ -221,33 +227,47 @@ const HomeView: React.FC<{
   featuredCharacters?: Character[];
   filmClubs?: Club[];
   onNavigate?: (view: string) => void;
+  watchlist?: WatchlistItem[];
+  onToggleWatchlist?: (item: any) => void;
+  onShareToast?: (msg: string) => void;
 }> = ({
   universes, movies, tvSeries, genreCollections, curatedPlaylists,
   featuredItem, onSelectArchiveItem, onSelectMovie, setCurrentSubView,
   setActiveAllyUrl, onSelectCuratedPlaylist, tabNav, onRequestSignIn,
   platformVideos = [], localContent = [], worlds = [], featuredCharacters = [], filmClubs = [],
-  onNavigate,
+  onNavigate, watchlist = [], onToggleWatchlist, onShareToast,
 }) => {
   const [heroIdx, setHeroIdx] = useState(0);
   const [worldBannerIdx, setWorldBannerIdx] = useState(0);
 
-  // Hero carousel: platform content first (latest), then archive classics
-  const heroItems = useMemo(() => [
-    ...platformVideos.slice(0, 6),
-    ...movies.slice(0, 4).map(m => ({ ...m, _isArchive: true })),
-  ], [platformVideos, movies]);
+  const pumpkinPatchHero = useMemo(() => {
+    const found = localContent.find(a => a.id === PUMPKIN_PATCH_HERO_ALBUM.id || /pumpkin\s*patch/i.test(a.title || ''));
+    return found ? { ...PUMPKIN_PATCH_HERO_ALBUM, ...found } : PUMPKIN_PATCH_HERO_ALBUM;
+  }, [localContent]);
+
+  // Hero carousel: Pumpkin Patch Halloween Hero first, platform content, featured Halloween classics, then archive classics
+  const heroItems = useMemo(() => {
+    const restPlatform = platformVideos.filter(v => (v.id || v.identifier) !== pumpkinPatchHero.id).slice(0, 4);
+    return [
+      {
+        ...pumpkinPatchHero,
+        identifier: pumpkinPatchHero.id,
+        thumbnailUrl: pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage,
+        _isPlatform: true,
+        _isHalloween: true,
+        _original: pumpkinPatchHero,
+      },
+      ...restPlatform,
+      ...CURATED_HALLOWEEN_FILMS.slice(0, 3).map(m => ({ ...m, _isArchive: true, _isHalloween: true })),
+      ...movies.slice(0, 3).map(m => ({ ...m, _isArchive: true })),
+    ];
+  }, [platformVideos, movies, pumpkinPatchHero]);
 
   // Auto-advance hero every 6s
   useEffect(() => {
     if (heroItems.length <= 1) return;
-    // A 6s hero rotation is fine with a mouse and hostile with a remote: by the time a viewer
-    // has walked focus to Watch Now the item underneath has changed, so they select something
-    // they weren't looking at. On a TV the carousel slows right down, and stops entirely while
-    // focus is inside it — the viewer is choosing, not browsing.
     const isTv = getPlatformInfo().isTV;
     const t = setInterval(() => {
-      // Any focus at all means the viewer is navigating with the remote. Rotating the hero
-      // under them is how you end up selecting something you weren't looking at.
       if (isTv && document.activeElement && document.activeElement !== document.body) return;
       setHeroIdx(i => (i + 1) % heroItems.length);
     }, isTv ? 15000 : 6000);
@@ -262,6 +282,8 @@ const HomeView: React.FC<{
   }, [worlds.length]);
 
   const hero = heroItems[heroIdx] || featuredItem;
+  const heroId = hero ? ((hero as any).identifier || (hero as any).id || (hero as any)._original?.id || '') : '';
+  const heroInWatchlist = useMemo(() => watchlist.some(w => w.id === heroId), [watchlist, heroId]);
   const heroImage = hero
     ? ((hero as any).thumbnailUrl || (hero as any).coverImage || (hero as any).coverImageUrl || (hero as any).headerImage
         || (hero as any).promoKit?.tvBillboardUrl || (hero as any).promoKit?.keyArtUrl || (hero as any).posterUrl
@@ -272,6 +294,7 @@ const HomeView: React.FC<{
   const heroGenre = (hero as any)?.genre || '';
   const heroIsplatform = !!(hero as any)?._isPlatform;
   const heroIsArchive = !!(hero as any)?._isArchive || !!(hero as any)?.identifier;
+  const heroIsHalloween = !!(hero as any)?._isHalloween;
 
   const handleHeroPlay = () => {
     if (!hero) return;
@@ -280,12 +303,29 @@ const HomeView: React.FC<{
     else onSelectMovie(hero);
   };
 
+  const handleHeroShare = async () => {
+    if (!hero) return;
+    const id = (hero as any).identifier || (hero as any).id || (hero as any)._original?.id;
+    if (!id) return;
+    const isArch = !!(hero as any).identifier && !heroIsplatform;
+    const res = await shareAsset(isArch ? 'archive' : 'movie', id, {
+      title: `${heroTitle} | Plajah Taleo`,
+      text: `Watch "${heroTitle}" on Plajah Taleo`,
+    });
+    if (res === 'copied') onShareToast?.(`Link to "${heroTitle}" copied!`);
+  };
+
+  const handleShareHalloweenCollection = async () => {
+    const res = await shareAsset('taleoCollection', 'halloween', {
+      title: 'Taleo Halloween — 31 Nights of Cinema Terror | Plajah',
+      text: 'Stream 12 restored horror masterpieces — Night of the Living Dead, House on Haunted Hill, Carnival of Souls, Nosferatu & more — free on Plajah Taleo!',
+    });
+    if (res === 'copied') onShareToast?.('Halloween Showcase link copied to clipboard!');
+  };
+
   const currentWorld = worlds[worldBannerIdx];
 
   // Section slices
-  // "New to Taleo" = the most recent Taleo content. A movie/TV upload lives as a VIDEO
-  // album (localContent); its per-track `videos` docs may not pass the cinema filter, so
-  // merge the albums in directly and drop the album's own sys_ video docs to avoid dupes.
   const _taleoAlbumIds = new Set(localContent.map((a: any) => a.id));
   const _standaloneVideos = platformVideos.filter((v: any) => {
     const id = v.id || '';
@@ -310,8 +350,42 @@ const HomeView: React.FC<{
   const [continueWatching, setContinueWatching] = useState<WatchEntry[]>([]);
   useEffect(() => { getContinueWatching('TALEO').then(setContinueWatching).catch(() => {}); }, []);
   const resumeItem = async (entry: WatchEntry) => {
-    const v = await fetchVideoById(entry.id).catch(() => null);
-    if (v) onSelectMovie(v);
+    const cleanId = entry.id.replace(/-main$/, '');
+    // 1. Check in-memory Halloween / Europeana / KOFA / Archive movies first
+    const archMatch = [
+      ...CURATED_HALLOWEEN_FILMS,
+      ...CURATED_EUROPEANA_FILMS,
+      ...CURATED_KOFA_FILMS,
+      ...movies,
+      ...tvSeries,
+    ].find(m => m.identifier === cleanId || m.identifier === entry.id);
+    if (archMatch) {
+      onSelectArchiveItem(archMatch);
+      return;
+    }
+    // 2. Check localContent (creator albums) and platformVideos
+    const localMatch = localContent.find(a => a.id === cleanId || a.id === entry.id);
+    if (localMatch) {
+      onSelectMovie(localMatch);
+      return;
+    }
+    const platMatch = platformVideos.find(v => (v.identifier || v.id) === cleanId || (v.identifier || v.id) === entry.id);
+    if (platMatch) {
+      onSelectMovie(platMatch._original || platMatch);
+      return;
+    }
+    // 3. Remote fallback: videos -> albums -> archive.org
+    const v = await fetchVideoById(cleanId).catch(() => null);
+    if (v) { onSelectMovie(v); return; }
+    const alb = await fetchProjectFromCloud(cleanId).catch(() => null);
+    if (alb) { onSelectMovie(alb); return; }
+    const remoteArch = await fetchArchiveVideoById(cleanId).catch(() => null);
+    if (remoteArch) onSelectArchiveItem(remoteArch);
+  };
+  const handleRemoveContinueWatching = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    removeEntry(id);
+    setContinueWatching(prev => prev.filter(item => item.id !== id));
   };
   const trendingContent = [...platformVideos.slice(0, 8), ...movies.slice(0, 6)];
   const acclaimed       = movies.slice(0, 12);
@@ -352,11 +426,21 @@ const HomeView: React.FC<{
               className="space-y-4"
             >
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="bg-white/10 text-white/70 text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg border border-white/12">
-                  {heroIsplatform ? 'Platform Original' : 'Taleo Cinema'}
+                <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg border ${
+                  heroIsHalloween
+                    ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+                    : 'bg-white/10 text-white/70 border-white/12'
+                }`}>
+                  {heroIsHalloween ? '🎃 Halloween Showcase' : heroIsplatform ? 'Platform Original' : 'Taleo Cinema'}
                 </span>
                 {heroGenre && (
                   <span className="text-[#FFB68D] text-[9px] font-black uppercase tracking-[0.2em]">{heroGenre}</span>
+                )}
+                {(hero as any)?.year && (
+                  <span className="text-white/45 text-[9px] font-black uppercase tracking-[0.2em]">{(hero as any).year}</span>
+                )}
+                {(hero as any)?.runtime && (
+                  <span className="text-white/45 text-[9px] font-black uppercase tracking-[0.2em]">· {(hero as any).runtime}</span>
                 )}
               </div>
 
@@ -371,18 +455,30 @@ const HomeView: React.FC<{
                 <p className="text-white/55 text-sm md:text-base max-w-md leading-relaxed line-clamp-2">{heroDesc}</p>
               )}
 
-              <div className="flex items-center gap-3 pt-1">
+              <div className="flex items-center gap-3 pt-1 flex-wrap">
                 <button
                   onClick={handleHeroPlay}
-                  className="h-12 px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-all hover:scale-105 shadow-lg"
+                  className="h-12 px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-all hover:scale-105 shadow-lg cursor-pointer"
                 >
                   <Play fill="currentColor" size={18} /> Watch Now
                 </button>
                 <button
-                  onClick={() => { if (!auth.currentUser) onRequestSignIn('add to watchlist'); }}
-                  className="h-12 px-6 bg-white/8 hover:bg-white/12 border border-white/15 text-white/70 font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2 transition-all"
+                  onClick={() => hero && onToggleWatchlist?.(hero)}
+                  className={`h-12 px-6 border font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer ${
+                    heroInWatchlist
+                      ? 'bg-[#D0BCFF]/20 border-[#D0BCFF]/50 text-[#D0BCFF]'
+                      : 'bg-white/8 hover:bg-white/12 border-white/15 text-white/70'
+                  }`}
                 >
-                  <Plus size={17} /> Watchlist
+                  {heroInWatchlist ? <Check size={17} /> : <Plus size={17} />}
+                  {heroInWatchlist ? 'In Watchlist' : 'Watchlist'}
+                </button>
+                <button
+                  onClick={handleHeroShare}
+                  title="Share this film"
+                  className="h-12 w-12 bg-white/8 hover:bg-white/15 border border-white/15 text-white/70 hover:text-white rounded-full flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <Share2 size={16} />
                 </button>
               </div>
             </motion.div>
@@ -435,10 +531,31 @@ const HomeView: React.FC<{
         {/* Taleo Discovery Hero Cards */}
         <section className="px-4 lg:px-8 mb-6">
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
+            {/* Halloween Vault hero card */}
+            <button
+              onClick={() => setCurrentSubView('HALLOWEEN')}
+              className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl cursor-pointer text-left"
+              style={{ border: '1px solid rgba(251,146,60,0.45)' }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-[#3B120C] via-[#1E0F29] to-[#131314]" />
+              <div className="absolute right-3 top-3 opacity-25 text-[68px] leading-none select-none">🎃</div>
+              <div className="relative h-full flex flex-col justify-between p-5">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                  <span className="text-[7px] font-black uppercase tracking-[0.35em] text-orange-300">Seasonal Showcase</span>
+                </div>
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-orange-300/80 mb-0.5">31 Nights of Cinema Terror</p>
+                  <h3 className="text-lg font-black text-white leading-tight">Halloween Vault</h3>
+                  <p className="text-[9px] text-white/55 mt-1">12 Classics · Double Features · Share →</p>
+                </div>
+              </div>
+            </button>
+
             {/* Virtual Film Historian hero card */}
             <button
               onClick={() => setCurrentSubView('CURATOR')}
-              className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+              className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl cursor-pointer text-left"
               style={{ border: '1px solid rgba(208,188,255,0.35)' }}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[#2A1B3D] via-[#1F172E] to-[#131314]" />
@@ -460,7 +577,7 @@ const HomeView: React.FC<{
             {onNavigate && (
               <button
                 onClick={() => onNavigate('TALEO_HISTORY')}
-                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl cursor-pointer text-left"
                 style={{ border: '1px solid rgba(203,213,225,0.2)' }}
               >
                 <img
@@ -489,7 +606,7 @@ const HomeView: React.FC<{
             {onNavigate && (
               <button
                 onClick={() => onNavigate('FILM_SCHOOL')}
-                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
+                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl cursor-pointer text-left"
                 style={{ border: '1px solid rgba(245,158,11,0.35)' }}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-950/90 via-orange-900/60 to-red-950/80" />
@@ -518,7 +635,7 @@ const HomeView: React.FC<{
               {continueWatching.map(e => {
                 const pct = e.durationSec > 0 ? Math.min(100, (e.positionSec / e.durationSec) * 100) : 0;
                 return (
-                  <motion.div key={e.id} whileHover={{ y: -5 }} onClick={() => resumeItem(e)} className="w-56 flex-shrink-0 group cursor-pointer">
+                  <motion.div key={e.id} whileHover={{ y: -5 }} onClick={() => resumeItem(e)} className="w-56 flex-shrink-0 group cursor-pointer relative">
                     <div className="aspect-video rounded-xl overflow-hidden bg-white/5 relative border border-white/8 group-hover:border-[#3FBE85]/40 transition-all">
                       {e.thumbnailUrl
                         ? <img src={e.thumbnailUrl} loading="lazy" className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all" alt={e.title || ''} />
@@ -526,6 +643,14 @@ const HomeView: React.FC<{
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <div className="w-11 h-11 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm"><Play fill="white" size={17} className="ml-0.5" /></div>
                       </div>
+                      <button
+                        type="button"
+                        title="Remove from Continue Watching"
+                        onClick={(ev) => handleRemoveContinueWatching(ev, e.id)}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/70 hover:bg-black text-white/60 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      >
+                        <X size={12} />
+                      </button>
                       <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40"><div className="h-full bg-[#3FBE85]" style={{ width: `${pct}%` }} /></div>
                     </div>
                     <h4 className="mt-2 text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{e.title || 'Untitled'}</h4>
@@ -536,6 +661,185 @@ const HomeView: React.FC<{
             </div>
           </section>
         )}
+
+        {/* My Watchlist rail (when non-empty) */}
+        {watchlist.length > 0 && (
+          <section>
+            <SectionHeader
+              label="Saved For Later"
+              title="My Watchlist"
+              accent="#D0BCFF"
+              onSeeAll={() => setCurrentSubView('LIBRARY')}
+            />
+            <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
+              {watchlist.map(w => (
+                <div key={`wl-${w.id}`} className="relative group/wl flex-shrink-0">
+                  <PosterCard
+                    title={w.title}
+                    subtitle={w.genre || 'Saved'}
+                    image={w.thumbnailUrl}
+                    genre={w.genre}
+                    onPlay={() => resumeItem({ id: w.id, title: w.title, thumbnailUrl: w.thumbnailUrl, kind: 'TALEO', positionSec: 0, durationSec: 0, updatedAt: w.addedAt, completed: false })}
+                    accentBorder
+                  />
+                  <button
+                    type="button"
+                    title="Remove from Watchlist"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      onToggleWatchlist?.({ id: w.id, title: w.title });
+                    }}
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/75 hover:bg-rose-600 text-white/70 hover:text-white flex items-center justify-center opacity-0 group-hover/wl:opacity-100 transition-opacity z-10"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── CURATED HALLOWEEN SHOWCASE BANNER & RAIL ───────────────────────── */}
+        <section className="relative rounded-3xl overflow-hidden border border-orange-500/30 bg-gradient-to-br from-[#2B0E0B] via-[#190D24] to-[#131314] p-6 sm:p-10 shadow-[0_25px_70px_rgba(234,88,12,0.14)]">
+          <div className="absolute -right-12 -top-12 w-72 h-72 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+          <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between relative z-10">
+            <div className="space-y-3 max-w-2xl">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 text-[9px] font-black uppercase tracking-[0.25em] border border-orange-500/40 flex items-center gap-1.5">
+                  <Ghost size={12} /> Halloween Hero Feature · Plajah Original
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-white/45">
+                  Directed by Brian James Gage · Planet Ween Universe + 12 Restored Classics
+                </span>
+              </div>
+              <h3 className="text-2xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white leading-[0.95]">
+                <span className="text-orange-400">Pumpkin Patch</span> &amp; The Halloween Vault
+              </h3>
+              <p className="text-xs sm:text-sm text-white/65 leading-relaxed">
+                Headlined by Brian James Gage’s Halloween opus <span className="text-white font-semibold">Pumpkin Patch</span>—where a pumpkin-headed vigilante storms prison colony District 13 to rescue the President of Halloween—alongside 12 restored cinema nightmares (<span className="text-white font-semibold">Night of the Living Dead</span>, <span className="text-white font-semibold">House on Haunted Hill</span>, <span className="text-white font-semibold">Nosferatu</span> &amp; more).
+              </p>
+              <div className="flex items-center gap-3 pt-2 flex-wrap">
+                <button
+                  onClick={() => onSelectMovie(pumpkinPatchHero)}
+                  className="h-11 px-6 bg-orange-500 hover:bg-orange-400 text-[#131314] font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
+                >
+                  <Play size={14} fill="currentColor" /> Watch Pumpkin Patch
+                </button>
+                <button
+                  onClick={() => setCurrentSubView('HALLOWEEN')}
+                  className="h-11 px-5 bg-white/10 hover:bg-white/15 border border-orange-400/35 text-orange-200 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Ghost size={14} /> Explore Halloween Vault
+                </button>
+                <button
+                  onClick={handleShareHalloweenCollection}
+                  className="h-11 px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Share2 size={13} /> Share Halloween Selection
+                </button>
+              </div>
+            </div>
+
+            {/* Highlight poster trio: Pumpkin Patch Hero + 2 Classics */}
+            <div className="flex gap-3 shrink-0 self-center">
+              <div
+                onClick={() => onSelectMovie(pumpkinPatchHero)}
+                className="w-28 sm:w-36 aspect-[2/3] rounded-2xl overflow-hidden border-2 border-orange-400/70 relative group cursor-pointer shadow-2xl hover:scale-105 transition-all"
+              >
+                <img src={pumpkinPatchHero.coverImage} alt={pumpkinPatchHero.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-orange-500 text-black text-[7px] font-black uppercase tracking-widest">
+                  Hero Feature
+                </div>
+                <div className="absolute bottom-2 left-2 right-2">
+                  <p className="text-[7px] font-black uppercase text-orange-300">2026 · 58 min</p>
+                  <p className="text-[9px] font-black text-white truncate">Pumpkin Patch</p>
+                </div>
+              </div>
+              {CURATED_HALLOWEEN_FILMS.slice(0, 2).map(film => (
+                <div
+                  key={`hal-banner-${film.identifier}`}
+                  onClick={() => onSelectArchiveItem(film)}
+                  className="w-28 sm:w-36 aspect-[2/3] rounded-2xl overflow-hidden border border-orange-400/25 relative group cursor-pointer shadow-2xl hover:scale-105 transition-all"
+                >
+                  <img src={film.thumbnailUrl} alt={film.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                  <div className="absolute bottom-2 left-2 right-2">
+                    <p className="text-[7px] font-black uppercase text-orange-300">{film.year} · {film.runtime}</p>
+                    <p className="text-[9px] font-black text-white truncate">{film.title}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Horizontal Shareable Halloween Rail inside the showcase */}
+          <div className="mt-8 pt-6 border-t border-white/10 relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.28em] text-orange-300/90">
+                🎃 Curated Halloween Lineup · Headlined by Pumpkin Patch
+              </p>
+              <button
+                onClick={() => setCurrentSubView('HALLOWEEN')}
+                className="text-[9px] font-black uppercase tracking-widest text-orange-300 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                Double Features &amp; Curator Notes <ChevronRight size={12} />
+              </button>
+            </div>
+            <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
+              <div className="w-36 flex-shrink-0 group/hcard relative">
+                <PosterCard
+                  title="Pumpkin Patch"
+                  subtitle="2026 · Brian James Gage"
+                  image={pumpkinPatchHero.coverImage}
+                  genre="Plajah Original"
+                  onPlay={() => onSelectMovie(pumpkinPatchHero)}
+                />
+                <button
+                  type="button"
+                  title="Share Pumpkin Patch"
+                  onClick={async (ev) => {
+                    ev.stopPropagation();
+                    const res = await shareAsset('movie', pumpkinPatchHero.id, {
+                      title: 'Pumpkin Patch | Taleo Halloween Hero Feature',
+                      text: 'Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Plajah Taleo!',
+                    });
+                    if (res === 'copied') onShareToast?.('Link to "Pumpkin Patch" copied!');
+                  }}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/75 hover:bg-orange-500 text-white hover:text-black border border-white/20 flex items-center justify-center opacity-0 group-hover/hcard:opacity-100 transition-all z-10 cursor-pointer"
+                >
+                  <Share2 size={12} />
+                </button>
+              </div>
+              {CURATED_HALLOWEEN_FILMS.map(film => (
+                <div key={`hal-rail-${film.identifier}`} className="w-36 flex-shrink-0 group/hcard relative">
+                  <PosterCard
+                    title={film.title}
+                    subtitle={`${film.year} · ${film.director || 'Horror'}`}
+                    image={film.thumbnailUrl}
+                    genre={film.runtime || 'Horror'}
+                    onPlay={() => onSelectArchiveItem(film)}
+                  />
+                  <button
+                    type="button"
+                    title={`Share ${film.title}`}
+                    onClick={async (ev) => {
+                      ev.stopPropagation();
+                      const res = await shareAsset('archive', film.identifier, {
+                        title: `${film.title} (${film.year}) | Taleo Halloween`,
+                        text: `Watch "${film.title}" (${film.year}) free on Plajah Taleo!`,
+                      });
+                      if (res === 'copied') onShareToast?.(`Link to "${film.title}" copied!`);
+                    }}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/75 hover:bg-orange-500 text-white hover:text-black border border-white/20 flex items-center justify-center opacity-0 group-hover/hcard:opacity-100 transition-all z-10 cursor-pointer"
+                  >
+                    <Share2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* New This Week — editorial freshness row (2E) */}
         {newThisWeek.length > 0 && (
@@ -733,7 +1037,10 @@ const HomeView: React.FC<{
                     {currentWorld.description && (
                       <p className="text-white/45 text-xs mt-2 line-clamp-2 max-w-sm">{currentWorld.description}</p>
                     )}
-                    <button className="mt-4 w-fit h-9 px-5 bg-[#FFB68D] hover:bg-[#FFC9A0] text-[#1C1B1F] font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105">
+                    <button
+                      onClick={() => onNavigate ? onNavigate('WORLDS') : setCurrentSubView('UNIVERSE')}
+                      className="mt-4 w-fit h-9 px-5 bg-[#FFB68D] hover:bg-[#FFC9A0] text-[#1C1B1F] font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 cursor-pointer"
+                    >
                       <Globe size={13} /> Explore World
                     </button>
                   </div>
@@ -757,7 +1064,7 @@ const HomeView: React.FC<{
         {/* Films & Series by Creators */}
         {creatorFilms.length > 0 && (
           <section>
-            <SectionHeader label="Platform Originals" title="Films & Series by Creators" accent="#D0BCFF" />
+            <SectionHeader label="Platform Originals" title="Films & Series by Creators" accent="#D0BCFF" onSeeAll={() => setCurrentSubView('MOVIES')} />
             <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {creatorFilms.map(v => {
                 const orig = (v as any)._original || v;
@@ -806,7 +1113,7 @@ const HomeView: React.FC<{
         {/* Featured Characters */}
         {featuredCharacters.length > 0 && (
           <section>
-            <SectionHeader label="IP & Worlds" title="Featured Characters" accent="#FFB68D" />
+            <SectionHeader label="IP & Worlds" title="Featured Characters" accent="#FFB68D" onSeeAll={() => setCurrentSubView('UNIVERSE')} />
             <div className="flex gap-5 overflow-x-auto no-scrollbar pb-4">
               {featuredCharacters.map(char => (
                 <div key={char.id} className="w-44 flex-shrink-0">
@@ -842,7 +1149,7 @@ const HomeView: React.FC<{
         {/* Trending Now */}
         {trendingContent.length > 0 && (
           <section>
-            <SectionHeader label="Popular Right Now" title="Trending" accent="#D0BCFF" />
+            <SectionHeader label="Popular Right Now" title="Trending" accent="#D0BCFF" onSeeAll={() => setCurrentSubView('MOVIES')} />
             <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {trendingContent.map((v, i) => (
                 <PosterCard
@@ -865,7 +1172,7 @@ const HomeView: React.FC<{
         {/* Critically Acclaimed */}
         {acclaimed.length > 0 && (
           <section>
-            <SectionHeader label="Must Watch" title="Critically Acclaimed" accent="#FFB68D" />
+            <SectionHeader label="Must Watch" title="Critically Acclaimed" accent="#FFB68D" onSeeAll={() => setCurrentSubView('CURATOR')} />
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {acclaimed.slice(0, 8).map(m => (
                 <motion.div
@@ -899,7 +1206,7 @@ const HomeView: React.FC<{
         {/* Beloved by Users */}
         {belovedByUsers.length > 0 && (
           <section>
-            <SectionHeader label="Highly Rated" title="Beloved by Users" accent="#D0BCFF" />
+            <SectionHeader label="Highly Rated" title="Beloved by Users" accent="#D0BCFF" onSeeAll={() => setCurrentSubView('MOVIES')} />
             <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {belovedByUsers.map(v => (
                 <PosterCard
@@ -919,12 +1226,13 @@ const HomeView: React.FC<{
         {/* Film Clubs */}
         {filmClubs.length > 0 && (
           <section>
-            <SectionHeader label="Fan Communities" title="Film Clubs" accent="#D0BCFF" />
+            <SectionHeader label="Fan Communities" title="Film Clubs" accent="#D0BCFF" onSeeAll={() => setCurrentSubView('CLUBS')} />
             <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {filmClubs.map(club => (
                 <motion.div
                   key={club.id}
                   whileHover={{ y: -4, scale: 1.02 }}
+                  onClick={() => { window.location.href = `/c/${encodeURIComponent(club.id)}`; }}
                   className="w-52 flex-shrink-0 group cursor-pointer"
                 >
                   <div className="aspect-[3/2] rounded-2xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-[#D0BCFF]/40 transition-all relative mb-3">
@@ -990,14 +1298,18 @@ const HomeView: React.FC<{
         {genreCollections.map(({ genre, items }) => {
           const GenreIcon = GENRE_ICONS[genre] ?? Film;
           const firstItem = items[0];
-          const sourceBadge = firstItem?.source === 'EUROPEANA'
+          const sourceBadge = genre.includes('Halloween')
+            ? 'Curated Showcase'
+            : firstItem?.source === 'EUROPEANA'
             ? 'Europeana'
             : firstItem?.source === 'KOFA'
             ? 'Korean Film Archive'
             : firstItem?.source === 'LIBRARY_OF_CONGRESS'
             ? 'Library of Congress'
             : 'Archive.org';
-          const eyebrow = firstItem?.source === 'EUROPEANA'
+          const eyebrow = genre.includes('Halloween')
+            ? '31 Nights of Terror'
+            : firstItem?.source === 'EUROPEANA'
             ? 'European Heritage'
             : firstItem?.source === 'KOFA'
             ? 'Korean Classic Heritage'
@@ -1035,59 +1347,512 @@ const HomeView: React.FC<{
   );
 };
 
-// NOTE: the old `HiveView` (partner-ecosystem list) that used to own the UNIVERSE tab
-// has been folded into `TaleoUniverseBrowser` as its "Streaming partners" section —
-// blueprint 2D turns UNIVERSE into the cross-world browser.
+// ── HalloweenShowcaseView (Dedicated Shareable Halloween Vault) ──────────────
+const HalloweenShowcaseView: React.FC<{
+  onSelectArchiveItem: (item: ArchiveVideo) => void;
+  onSelectMovie: (item: any) => void;
+  localContent?: Album[];
+  watchlist: WatchlistItem[];
+  onToggleWatchlist: (item: any) => void;
+  onShareToast: (msg: string) => void;
+}> = ({ onSelectArchiveItem, onSelectMovie, localContent = [], watchlist, onToggleWatchlist, onShareToast }) => {
+  const pumpkinPatchHero = useMemo(() => {
+    const found = localContent.find(a => a.id === PUMPKIN_PATCH_HERO_ALBUM.id || /pumpkin\s*patch/i.test(a.title || ''));
+    return found ? { ...PUMPKIN_PATCH_HERO_ALBUM, ...found } : PUMPKIN_PATCH_HERO_ALBUM;
+  }, [localContent]);
+
+  const isHeroInWatchlist = watchlist.some(w => w.id === pumpkinPatchHero.id);
+
+  const [selectedShelfId, setSelectedShelfId] = useState<string>(() => {
+    try {
+      const saved = sessionStorage.getItem('plajah:taleo:initialShelf');
+      if (saved) {
+        sessionStorage.removeItem('plajah:taleo:initialShelf');
+        if (HALLOWEEN_CURATED_SECTIONS.some(s => s.id === saved)) return saved;
+      }
+    } catch {}
+    return 'all';
+  });
+
+  const displayedFilms = useMemo(() => {
+    if (selectedShelfId === 'all') return CURATED_HALLOWEEN_FILMS;
+    const found = HALLOWEEN_CURATED_SECTIONS.find(s => s.id === selectedShelfId);
+    return found ? found.items : CURATED_HALLOWEEN_FILMS;
+  }, [selectedShelfId]);
+
+  const handleShareCollection = async (shelf?: string) => {
+    const res = await shareAsset('taleoCollection', 'halloween', {
+      title: 'Pumpkin Patch & 31 Nights of Cinema Terror | Taleo Halloween',
+      text: 'Stream Brian James Gage’s Plajah Original "Pumpkin Patch" plus 12 restored horror masterpieces — Night of the Living Dead, House on Haunted Hill, Carnival of Souls, Nosferatu & more — on Plajah Taleo!',
+      extra: shelf ? { shelf } : undefined,
+    });
+    if (res === 'copied') {
+      onShareToast(shelf ? 'Double Feature share link copied!' : 'Halloween Showcase link copied to clipboard!');
+    }
+  };
+
+  const handleShareHeroFilm = async () => {
+    const res = await shareAsset('movie', pumpkinPatchHero.id, {
+      title: 'Pumpkin Patch · Taleo Halloween Hero Feature | Plajah',
+      text: 'Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Plajah Taleo!',
+    });
+    if (res === 'copied') {
+      onShareToast('Share link for "Pumpkin Patch" copied!');
+    }
+  };
+
+  const handleShareFilm = async (film: ArchiveVideo, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const res = await shareAsset('archive', film.identifier, {
+      title: `${film.title} (${film.year}) · Taleo Halloween`,
+      text: `Watch "${film.title}" (${film.year}, dir. ${film.director || 'Classic'}) free on Plajah Taleo!`,
+    });
+    if (res === 'copied') {
+      onShareToast(`Share link for "${film.title}" copied!`);
+    }
+  };
+
+  const handleRandomFright = () => {
+    const pick = CURATED_HALLOWEEN_FILMS[Math.floor(Math.random() * CURATED_HALLOWEEN_FILMS.length)];
+    if (pick) onSelectArchiveItem(pick);
+  };
+
+  return (
+    <div className="pb-40">
+      {/* Halloween Hero Feature: Pumpkin Patch */}
+      <section className="relative overflow-hidden border-b border-orange-500/25 bg-[#131314] py-14 sm:py-20 px-4 sm:px-8 md:px-14">
+        {/* Cinematic backdrop */}
+        <div className="absolute inset-0 pointer-events-none">
+          <img
+            src={pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage}
+            alt="Pumpkin Patch"
+            className="w-full h-full object-cover opacity-30 scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#131314] via-[#131314]/85 to-[#131314]/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#131314] via-transparent to-[#131314]/60" />
+        </div>
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-orange-500/15 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full bg-purple-600/10 blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto relative z-10 flex flex-col lg:flex-row gap-10 items-start lg:items-center justify-between">
+          <div className="space-y-4 max-w-2xl">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="px-3 py-1 rounded-full bg-orange-500 text-black text-[9px] font-black uppercase tracking-[0.22em] flex items-center gap-1.5 shadow-lg">
+                <Ghost size={12} /> Halloween Hero Feature · Plajah Original
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/10 border border-orange-400/30 text-orange-200 text-[9px] font-black uppercase tracking-widest">
+                Planet Ween Universe · District 13
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                2026 · 58 min · Action / Horror / Satire
+              </span>
+            </div>
+
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight leading-[0.9] text-white">
+              Pumpkin <span className="text-orange-400">Patch</span>
+            </h1>
+
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#FFB68D]">
+              Written &amp; Directed by Brian James Gage
+            </p>
+
+            <p className="text-sm sm:text-base text-white/75 leading-relaxed">
+              When the West Hallow — one of the Four Guardians of Planet Ween — attacks Scare Force One, President Tepes crash-lands inside the dreaded prison colony District 13 carrying a mysterious hexagonal case. Commander Ichabod Crane, Special Agent Katrina Van Tassle, and cybernetic officer Robo Bones of the Monster Intelligence Agency enlist a bar-fighting vigilante with a pumpkin for a head and nothing left to lose to break in and save Halloween.
+            </p>
+
+            <div className="flex items-center gap-3 pt-2 flex-wrap">
+              <button
+                onClick={() => onSelectMovie(pumpkinPatchHero)}
+                className="h-12 px-8 bg-orange-500 hover:bg-orange-400 text-[#131314] font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all hover:scale-105 shadow-[0_0_25px_rgba(249,115,22,0.45)] cursor-pointer"
+              >
+                <Play size={16} fill="currentColor" /> Watch Pumpkin Patch
+              </button>
+              <button
+                onClick={() => onToggleWatchlist(pumpkinPatchHero)}
+                className={`h-12 px-5 rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 border transition-all cursor-pointer ${
+                  isHeroInWatchlist
+                    ? 'bg-[#D0BCFF]/20 border-[#D0BCFF]/50 text-[#D0BCFF]'
+                    : 'bg-white/10 hover:bg-white/15 border-white/20 text-white'
+                }`}
+              >
+                {isHeroInWatchlist ? <Check size={15} /> : <Bookmark size={15} />}
+                {isHeroInWatchlist ? 'In Watchlist' : '+ Watchlist'}
+              </button>
+              <button
+                onClick={handleShareHeroFilm}
+                className="h-12 px-5 bg-white/10 hover:bg-white/15 border border-orange-400/35 text-orange-200 font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <Share2 size={14} /> Share Film
+              </button>
+              <button
+                onClick={handleRandomFright}
+                className="h-12 px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/75 hover:text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <Shuffle size={14} /> Surprise Classic
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Hero Poster + Shareable Halloween Vault Link Card */}
+          <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center gap-6 shrink-0 w-full lg:w-auto">
+            <div
+              onClick={() => onSelectMovie(pumpkinPatchHero)}
+              className="w-48 sm:w-56 aspect-[2/3] rounded-2xl overflow-hidden border-2 border-orange-500/60 shadow-[0_20px_60px_rgba(0,0,0,0.8)] relative group cursor-pointer shrink-0"
+            >
+              <img
+                src={pumpkinPatchHero.coverImage}
+                alt="Pumpkin Patch Poster"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-orange-500 text-black flex items-center justify-center shadow-xl">
+                  <Play size={22} fill="currentColor" className="ml-0.5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full sm:w-72 rounded-2xl bg-black/55 border border-orange-500/30 p-5 backdrop-blur-md space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-300">Shareable Halloween Vault</span>
+                <Flame size={14} className="text-orange-400" />
+              </div>
+              <p className="text-xs text-white/60 leading-relaxed">
+                Share the entire Halloween showcase — featuring <span className="text-white font-semibold">Pumpkin Patch</span> &amp; 12 restored horror classics — with a rich social preview card.
+              </p>
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+                <span className="text-[10px] font-mono text-white/70 truncate flex-1">
+                  {buildShareUrl('taleoCollection', 'halloween')}
+                </span>
+                <button
+                  onClick={() => handleShareCollection()}
+                  className="px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-400 text-black font-black text-[9px] uppercase tracking-widest shrink-0 cursor-pointer"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 pt-10 space-y-16">
+        {/* Curated Double Features */}
+        <section>
+          <div className="flex items-end justify-between mb-6 flex-wrap gap-3">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400 mb-1.5">Curator Pairings</p>
+              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">Halloween Double Features</h2>
+            </div>
+            <p className="text-xs text-white/40">Four themed twin-bills programmed for a full evening of terror</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {HALLOWEEN_DOUBLE_FEATURES.map(df => (
+              <div
+                key={df.id}
+                className="rounded-2xl border border-white/10 hover:border-orange-500/40 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5 flex flex-col justify-between transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[8px] font-black uppercase tracking-widest">
+                      {df.theme}
+                    </span>
+                    <button
+                      onClick={() => handleShareCollection(df.id)}
+                      title="Share this Double Feature"
+                      className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-orange-300 flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Share2 size={11} /> Share Bill
+                    </button>
+                  </div>
+
+                  <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">{df.title}</h3>
+                  <p className="text-xs text-white/55 leading-relaxed mb-4">{df.curatorPitch}</p>
+
+                  {/* Twin posters */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    {df.films.map((f, idx) => (
+                      <div
+                        key={f.identifier}
+                        onClick={() => onSelectArchiveItem(f)}
+                        className="group cursor-pointer rounded-xl overflow-hidden border border-white/10 hover:border-orange-400/50 bg-black/40 relative aspect-[2/3]"
+                      >
+                        <img src={f.thumbnailUrl} alt={f.title} referrerPolicy="no-referrer" className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                        <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[7px] font-black uppercase tracking-widest text-orange-300">
+                          Feature #{idx + 1}
+                        </div>
+                        <div className="absolute bottom-2 left-2 right-2">
+                          <p className="text-[10px] font-black text-white leading-tight truncate">{f.title}</p>
+                          <p className="text-[8px] text-white/50 font-bold uppercase">{f.year} · {f.runtime}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onSelectArchiveItem(df.films[0])}
+                    className="flex-1 h-9 rounded-xl bg-orange-500/20 hover:bg-orange-500 text-orange-200 hover:text-black border border-orange-500/30 font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Play size={11} fill="currentColor" /> Play #{1}
+                  </button>
+                  <button
+                    onClick={() => onSelectArchiveItem(df.films[1])}
+                    className="flex-1 h-9 rounded-xl bg-white/8 hover:bg-white/15 text-white/80 border border-white/10 font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Play size={11} fill="currentColor" /> Play #{2}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Mood / Shelf Filter Pills */}
+        <section>
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1.5">Annotated Filmography</p>
+              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+                All Curated Halloween Classics ({displayedFilms.length})
+              </h2>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setSelectedShelfId('all')}
+                className={`px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                  selectedShelfId === 'all'
+                    ? 'bg-orange-500 text-black border-orange-400'
+                    : 'bg-white/5 text-white/60 border-white/10 hover:text-white'
+                }`}
+              >
+                All {CURATED_HALLOWEEN_FILMS.length} Classics
+              </button>
+              {HALLOWEEN_CURATED_SECTIONS.map(sec => (
+                <button
+                  key={sec.id}
+                  onClick={() => setSelectedShelfId(sec.id)}
+                  className={`px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                    selectedShelfId === sec.id
+                      ? 'bg-orange-500 text-black border-orange-400'
+                      : 'bg-white/5 text-white/60 border-white/10 hover:text-white'
+                  }`}
+                >
+                  {sec.badge}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displayedFilms.map(film => {
+              const inWl = watchlist.some(w => w.id === film.identifier);
+              return (
+                <motion.div
+                  key={film.identifier}
+                  whileHover={{ y: -4 }}
+                  className="rounded-2xl overflow-hidden border border-white/10 hover:border-orange-400/40 bg-white/[0.02] flex flex-col justify-between transition-all group"
+                >
+                  <div>
+                    <div
+                      onClick={() => onSelectArchiveItem(film)}
+                      className="aspect-video relative overflow-hidden bg-black cursor-pointer"
+                    >
+                      <img
+                        src={film.thumbnailUrl}
+                        alt={film.title}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#131314] via-black/30 to-transparent" />
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                        <span className="px-2.5 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-orange-400/30 text-[8px] font-black uppercase tracking-widest text-orange-300">
+                          {film.year} · {film.runtime}
+                        </span>
+                        {film.movement && (
+                          <span className="px-2 py-0.5 rounded-md bg-black/65 text-[7px] font-black uppercase tracking-widest text-white/70 truncate max-w-[160px]">
+                            {film.movement}
+                          </span>
+                        )}
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/35">
+                        <div className="w-12 h-12 rounded-full bg-orange-500 text-black flex items-center justify-center shadow-lg">
+                          <Play size={18} fill="currentColor" className="ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-5 space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3
+                            onClick={() => onSelectArchiveItem(film)}
+                            className="text-base font-black uppercase tracking-tight text-white group-hover:text-orange-300 transition-colors cursor-pointer"
+                          >
+                            {film.title}
+                          </h3>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-[#D0BCFF]/80 mt-0.5">
+                            Directed by {film.director || 'Archival Master'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-white/60 line-clamp-2 leading-relaxed">{film.description}</p>
+
+                      {film.curatorNote && (
+                        <div className="rounded-xl bg-white/[0.03] border border-white/8 p-3">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-orange-300 mb-1">Curator’s Note</p>
+                          <p className="text-[11px] text-white/55 leading-relaxed line-clamp-3">{film.curatorNote}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="px-5 pb-5 pt-2 flex items-center gap-2">
+                    <button
+                      onClick={() => onSelectArchiveItem(film)}
+                      className="flex-1 h-9 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Play size={12} fill="currentColor" /> Watch Now
+                    </button>
+                    <button
+                      onClick={() => onToggleWatchlist(film)}
+                      title={inWl ? 'Remove from Watchlist' : 'Add to Watchlist'}
+                      className={`h-9 px-3 rounded-xl border font-black text-[9px] uppercase tracking-widest flex items-center gap-1 transition-all cursor-pointer ${
+                        inWl
+                          ? 'bg-[#D0BCFF]/20 border-[#D0BCFF]/50 text-[#D0BCFF]'
+                          : 'bg-white/5 hover:bg-white/10 border-white/15 text-white/70'
+                      }`}
+                    >
+                      {inWl ? <Check size={12} /> : <Plus size={12} />}
+                      {inWl ? 'Saved' : 'List'}
+                    </button>
+                    <button
+                      onClick={(e) => handleShareFilm(film, e)}
+                      title={`Share ${film.title}`}
+                      className="h-9 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/15 text-white/70 hover:text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Share2 size={12} /> Share
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+};
 
 // ── LibraryView ────────────────────────────────────────────────────────────────
 const LibraryView: React.FC<{
   movies: ArchiveVideo[];
   localContent: Album[];
+  watchlist: WatchlistItem[];
+  onToggleWatchlist: (item: any) => void;
   onSelectArchiveItem: (item: ArchiveVideo) => void;
   onSelectMovie: (item: any) => void;
-}> = ({ movies, localContent, onSelectArchiveItem, onSelectMovie }) => (
-  <div className="pt-4 pb-40 px-4 sm:px-6 md:px-12 container mx-auto">
-    <div className="mb-10 pt-8">
-      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-3">Your Collection</p>
-      <h2 className="text-5xl md:text-7xl font-black leading-[0.9] uppercase tracking-tight text-white">
-        My <span className="text-[#D0BCFF]">Library</span>
-      </h2>
-      <p className="mt-4 text-white/40 max-w-lg text-sm leading-relaxed">
-        Your private movie & TV locker, plus content you own or purchased on your account.
-      </p>
-    </div>
+}> = ({ movies, localContent, watchlist, onToggleWatchlist, onSelectArchiveItem, onSelectMovie }) => {
+  const handleOpenWatchlistItem = async (w: WatchlistItem) => {
+    const archMatch = [...CURATED_HALLOWEEN_FILMS, ...CURATED_EUROPEANA_FILMS, ...CURATED_KOFA_FILMS, ...movies].find(m => m.identifier === w.id);
+    if (archMatch) { onSelectArchiveItem(archMatch); return; }
+    const localMatch = localContent.find(a => a.id === w.id);
+    if (localMatch) { onSelectMovie(localMatch); return; }
+    const v = await fetchVideoById(w.id).catch(() => null);
+    if (v) { onSelectMovie(v); return; }
+    const alb = await fetchProjectFromCloud(w.id).catch(() => null);
+    if (alb) { onSelectMovie(alb); return; }
+    const remoteArch = await fetchArchiveVideoById(w.id).catch(() => null);
+    if (remoteArch) onSelectArchiveItem(remoteArch);
+  };
 
-    {/* Plex-style private locker — upload & stream your own movie/TV collection */}
-    <PersonalVideoLocker onPlay={onSelectMovie} />
-
-    {localContent.filter(c => c.type === 'VIDEO').length > 0 && (
-      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mt-12 mb-4">On your account</p>
-    )}
-    {localContent.filter(c => c.type === 'VIDEO').length > 0 && (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-        {localContent.filter(c => c.type === 'VIDEO').map(video => (
-          <motion.div
-            key={video.id}
-            whileHover={{ scale: 1.02 }}
-            className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 border border-white/8 hover:border-[#D0BCFF]/30 transition-all cursor-pointer"
-            onClick={() => onSelectMovie(video)}
-          >
-            <img src={thumb(coverGridSrc(video), THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(video.coverImage)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={video.title} />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-            <div className="absolute bottom-0 p-4 w-full">
-              <h4 className="text-sm font-black truncate uppercase tracking-tight">{video.title}</h4>
-              <p className="text-[10px] text-white/50 uppercase tracking-widest mt-1">{video.artist}</p>
-            </div>
-          </motion.div>
-        ))}
+  return (
+    <div className="pt-4 pb-40 px-4 sm:px-6 md:px-12 container mx-auto">
+      <div className="mb-10 pt-8">
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-3">Your Collection</p>
+        <h2 className="text-5xl md:text-7xl font-black leading-[0.9] uppercase tracking-tight text-white">
+          My <span className="text-[#D0BCFF]">Library</span>
+        </h2>
+        <p className="mt-4 text-white/40 max-w-lg text-sm leading-relaxed">
+          Your saved Watchlist, private movie &amp; TV locker, plus content you own or purchased on your account.
+        </p>
       </div>
-    )}
-  </div>
-);
+
+      {/* Saved Watchlist */}
+      <div className="mb-12">
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-4">
+          My Watchlist ({watchlist.length})
+        </p>
+        {watchlist.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center">
+            <Bookmark size={28} className="text-white/15 mx-auto mb-2" />
+            <p className="text-xs font-bold uppercase tracking-widest text-white/35">Your Watchlist is empty</p>
+            <p className="text-[11px] text-white/25 mt-1">Click "+ Watchlist" on any film or series across Taleo to save it here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
+            {watchlist.map(w => (
+              <div key={`lib-wl-${w.id}`} className="relative group">
+                <PosterCard
+                  title={w.title}
+                  subtitle={w.genre || 'Saved'}
+                  image={w.thumbnailUrl}
+                  genre={w.genre}
+                  width="w-full"
+                  onPlay={() => handleOpenWatchlistItem(w)}
+                  accentBorder
+                />
+                <button
+                  type="button"
+                  title="Remove from Watchlist"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleWatchlist({ id: w.id, title: w.title });
+                  }}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/80 hover:bg-rose-600 text-white/70 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Plex-style private locker — upload & stream your own movie/TV collection */}
+      <PersonalVideoLocker onPlay={onSelectMovie} />
+
+      {localContent.filter(c => c.type === 'VIDEO').length > 0 && (
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mt-12 mb-4">On your account</p>
+      )}
+      {localContent.filter(c => c.type === 'VIDEO').length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          {localContent.filter(c => c.type === 'VIDEO').map(video => (
+            <motion.div
+              key={video.id}
+              whileHover={{ scale: 1.02 }}
+              className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-white/5 border border-white/8 hover:border-[#D0BCFF]/30 transition-all cursor-pointer"
+              onClick={() => onSelectMovie(video)}
+            >
+              <img src={thumb(coverGridSrc(video), THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(video.coverImage)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={video.title} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+              <div className="absolute bottom-0 p-4 w-full">
+                <h4 className="text-sm font-black truncate uppercase tracking-tight">{video.title}</h4>
+                <p className="text-[10px] text-white/50 uppercase tracking-widest mt-1">{video.artist}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── FilmClubsView ──────────────────────────────────────────────────────────────
-// A simple browse listing of film clubs. Reuses the clubs fetched by loadContent
-// via fetchPublicClubs('Film') — no new backend imports.
 const FilmClubsView: React.FC<{
   clubs: Club[];
   loading: boolean;
@@ -1121,6 +1886,7 @@ const FilmClubsView: React.FC<{
           <motion.div
             key={club.id}
             whileHover={{ y: -4, scale: 1.01 }}
+            onClick={() => { window.location.href = `/c/${encodeURIComponent(club.id)}`; }}
             className="group cursor-pointer rounded-2xl overflow-hidden bg-white/[0.03] border border-white/8 hover:border-[#D0BCFF]/40 transition-all"
           >
             <div className="aspect-[3/2] relative overflow-hidden">
@@ -1160,28 +1926,99 @@ const FilmClubsView: React.FC<{
   </div>
 );
 
+// ── Stale-While-Revalidate Session Cache (eliminates remount skeleton flash & duplicate traffic) ──
+interface TaleoSessionSnapshot {
+  movies: ArchiveVideo[];
+  tvSeries: ArchiveVideo[];
+  genreCollections: GenreCollection[];
+  curatedPlaylists: VideoPlaylist[];
+  localContent: Album[];
+  platformVideos: Video[];
+  universes: Universe[];
+  worlds: IPWorld[];
+  featuredCharacters: Character[];
+  filmClubs: Club[];
+  featuredItem: ArchiveVideo | Album | null;
+  lastSubView: SubView;
+  updatedAt: number;
+}
+
+let taleoSessionCache: TaleoSessionSnapshot | null = null;
+const TALEO_CACHE_TTL_MS = 5 * 60 * 1000;
+
 // ── MoviesTVView ───────────────────────────────────────────────────────────────
 const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNavigate }) => {
-  const [movies, setMovies] = useState<ArchiveVideo[]>([]);
-  const [tvSeries, setTvSeries] = useState<ArchiveVideo[]>([]);
-  const [genreCollections, setGenreCollections] = useState<GenreCollection[]>([]);
-  const [curatedPlaylists, setCuratedPlaylists] = useState<VideoPlaylist[]>([]);
-  const [localContent, setLocalContent] = useState<Album[]>([]);
-  const [platformVideos, setPlatformVideos] = useState<Video[]>([]);
-  const [universes, setUniverses] = useState<Universe[]>([]);
-  const [worlds, setWorlds] = useState<IPWorld[]>([]);
-  const [featuredCharacters, setFeaturedCharacters] = useState<Character[]>([]);
+  const [movies, setMovies] = useState<ArchiveVideo[]>(() => taleoSessionCache?.movies ?? CURATED_HALLOWEEN_FILMS);
+  const [tvSeries, setTvSeries] = useState<ArchiveVideo[]>(() => taleoSessionCache?.tvSeries ?? []);
+  const [genreCollections, setGenreCollections] = useState<GenreCollection[]>(() => taleoSessionCache?.genreCollections ?? []);
+  const [curatedPlaylists, setCuratedPlaylists] = useState<VideoPlaylist[]>(() => taleoSessionCache?.curatedPlaylists ?? []);
+  const [localContent, setLocalContent] = useState<Album[]>(() => taleoSessionCache?.localContent ?? []);
+  const [platformVideos, setPlatformVideos] = useState<Video[]>(() => taleoSessionCache?.platformVideos ?? []);
+  const [universes, setUniverses] = useState<Universe[]>(() => taleoSessionCache?.universes ?? []);
+  const [worlds, setWorlds] = useState<IPWorld[]>(() => taleoSessionCache?.worlds ?? []);
+  const [featuredCharacters, setFeaturedCharacters] = useState<Character[]>(() => taleoSessionCache?.featuredCharacters ?? []);
   const [activeAllyUrl, setActiveAllyUrl] = useState<string | null>(null);
-  const [featuredItem, setFeaturedItem] = useState<ArchiveVideo | Album | null>(null);
-  const [filmClubs, setFilmClubs] = useState<Club[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [archiveLoading, setArchiveLoading] = useState(true);
-  const [currentSubView, setCurrentSubView] = useState<SubView>('HOME');
+  const [featuredItem, setFeaturedItem] = useState<ArchiveVideo | Album | null>(() => taleoSessionCache?.featuredItem ?? CURATED_HALLOWEEN_FILMS[0]);
+  const [filmClubs, setFilmClubs] = useState<Club[]>(() => taleoSessionCache?.filmClubs ?? []);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !taleoSessionCache);
+  const [archiveLoading, setArchiveLoading] = useState<boolean>(() => !taleoSessionCache || taleoSessionCache.genreCollections.length === 0);
+  const [currentSubView, setCurrentSubView] = useState<SubView>(() => {
+    try {
+      const deepSub = sessionStorage.getItem('plajah:taleo:initialSubView') as SubView | null;
+      if (deepSub) {
+        sessionStorage.removeItem('plajah:taleo:initialSubView');
+        return deepSub;
+      }
+    } catch {}
+    return taleoSessionCache?.lastSubView ?? 'HOME';
+  });
   const [activePlaylistItem, setActivePlaylistItem] = useState<any | null>(null);
   const [signInAction, setSignInAction] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [shareToast, setShareToast] = useState<string | null>(null);
   const { setTheme } = useGlobalPlayerState();
+
+  const triggerShareToast = (msg: string) => {
+    setShareToast(msg);
+    setTimeout(() => setShareToast(prev => (prev === msg ? null : prev)), 3200);
+  };
+
+  // Remember sub-view across detail page visits
+  useEffect(() => {
+    if (taleoSessionCache) taleoSessionCache.lastSubView = currentSubView;
+  }, [currentSubView]);
+
+  // Load Watchlist & listen for changes
+  useEffect(() => {
+    const syncWl = () => { fetchWatchlist().then(setWatchlist).catch(() => {}); };
+    syncWl();
+    window.addEventListener('plajah:watchlist-changed', syncWl);
+    return () => window.removeEventListener('plajah:watchlist-changed', syncWl);
+  }, []);
+
+  const handleToggleWatchlist = async (item: any) => {
+    const id = item?.identifier || item?.id || item?._original?.id;
+    if (!id) return;
+    const exists = watchlist.some(w => w.id === id);
+    if (exists) {
+      await removeFromWatchlist(id);
+      setWatchlist(prev => prev.filter(w => w.id !== id));
+      triggerShareToast(`Removed "${item.title || 'item'}" from Watchlist`);
+    } else {
+      const entry = {
+        id,
+        title: item.title || 'Untitled',
+        type: 'VIDEO' as const,
+        thumbnailUrl: item.thumbnailUrl || item.coverImage || item._original?.thumbnailUrl || `https://archive.org/services/img/${id}`,
+        genre: item.genre || 'Cinema',
+      };
+      await addToWatchlist(entry);
+      setWatchlist(prev => [{ ...entry, addedAt: Date.now() }, ...prev.filter(w => w.id !== id)]);
+      triggerShareToast(`Added "${entry.title}" to Watchlist`);
+    }
+  };
 
   const adaptedPlatformVideos = useMemo(() => platformVideos.map(v => ({
     identifier: v.id,
@@ -1194,7 +2031,6 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
     description: (v as any).description || '',
     year: v.timestamp ? new Date(v.timestamp).getFullYear().toString() : '',
     ownerName: (v as any).ownerName || '',
-    // Streaming polish (2E): carry the content rating through so poster rows can badge it.
     contentRating: (v as any).contentRating || (v as any).filmDistribution?.contentRating || '',
     timestamp: (v as any).timestamp || 0,
     _isPlatform: true as const,
@@ -1203,50 +2039,80 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
 
   const searchResults = useMemo<any[]>(() => {
     if (searchQuery.trim().length < 2) return [];
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
     const archiveItems = [
-      ...movies, ...tvSeries, ...genreCollections.flatMap(g => g.items ?? []),
+      ...CURATED_HALLOWEEN_FILMS,
+      ...CURATED_KOFA_FILMS,
+      ...CURATED_EUROPEANA_FILMS,
+      ...movies,
+      ...tvSeries,
+      ...genreCollections.flatMap(g => g.items ?? []),
     ].filter(Boolean).filter((item, idx, self) => self.findIndex(i => i.identifier === item.identifier) === idx);
     const combined = [...archiveItems, ...adaptedPlatformVideos];
     return combined.filter(item => {
       const title = String(Array.isArray(item.title) ? item.title[0] : item.title || '').toLowerCase();
       const genre = String(Array.isArray(item.genre) ? item.genre[0] : item.genre || '').toLowerCase();
-      return title.includes(q) || genre.includes(q);
-    }).slice(0, 36);
+      const director = String((item as any).director || (item as any).ownerName || '').toLowerCase();
+      const year = String(item.year || '').toLowerCase();
+      const isHalloweenMatch = (q === 'halloween' || q === 'spooky') && CURATED_HALLOWEEN_FILMS.some(h => h.identifier === item.identifier);
+      return isHalloweenMatch || title.includes(q) || genre.includes(q) || director.includes(q) || year.includes(q);
+    }).slice(0, 48);
   }, [searchQuery, movies, tvSeries, genreCollections, adaptedPlatformVideos]);
 
   useEffect(() => {
     setTheme('DARK');
-    loadContent();
+    const isFresh = taleoSessionCache && (Date.now() - taleoSessionCache.updatedAt < TALEO_CACHE_TTL_MS);
+    if (!isFresh) {
+      loadContent(!taleoSessionCache);
+    }
     return () => setTheme('DARK');
   }, []);
 
   const TALEO_GENRES = ['Movie', 'Short Film', 'TV Series', 'Short', 'Teaser', 'Trailer', 'Feature Film'];
 
-  const loadContent = async () => {
+  const loadContent = async (showSpinner = true) => {
+    let nextLocalContent = localContent;
+    let nextPlatformVideos = platformVideos;
+    let nextUniverses = universes;
+    let nextCuratedPlaylists = curatedPlaylists;
+    let nextFilmClubs = filmClubs;
+    let nextFeaturedChars = featuredCharacters;
+
     try {
-      setIsLoading(true);
-      // Phase 1: fast Firestore calls — unblock the page immediately
+      if (showSpinner) setIsLoading(true);
+      // Phase 1: fast Firestore calls — each guarded with .catch() so a single error never blanks Taleo
       const [all, unis, settings, allPlatformVideos] = await Promise.all([
-        fetchAllPublicAlbums(),
-        fetchUniverses(),
-        fetchSystemSettingsConfig(),
-        fetchAllVideos(),
+        fetchAllPublicAlbums().catch(() => [] as Album[]),
+        fetchUniverses().catch(() => [] as Universe[]),
+        fetchSystemSettingsConfig().catch(() => null as any),
+        fetchAllVideos().catch(() => [] as Video[]),
       ]);
 
       const cinemaVideos = allPlatformVideos.filter(v => (v.genre && TALEO_GENRES.includes(v.genre)) || (v as any).subType === 'MOVIE' || (v as any).subType === 'TV_SERIES');
+      nextPlatformVideos = cinemaVideos;
+      nextLocalContent = all.filter(a => a.type === 'VIDEO');
+      nextUniverses = unis;
+
       setPlatformVideos(cinemaVideos);
-      setLocalContent(all.filter(a => a.type === 'VIDEO'));
+      setLocalContent(nextLocalContent);
       setUniverses(unis);
 
       if (settings?.curatedVideoPlaylists?.length > 0) {
         fetchVideoPlaylistsByIds(settings.curatedVideoPlaylists)
-          .then(curPls => setCuratedPlaylists(curPls))
+          .then(curPls => {
+            nextCuratedPlaylists = curPls;
+            setCuratedPlaylists(curPls);
+            if (taleoSessionCache) taleoSessionCache.curatedPlaylists = curPls;
+          })
           .catch(() => {});
       }
 
       fetchPublicClubs('Film')
-        .then(clubs => setFilmClubs(clubs.slice(0, 8)))
+        .then(clubs => {
+          nextFilmClubs = clubs.slice(0, 8);
+          setFilmClubs(nextFilmClubs);
+          if (taleoSessionCache) taleoSessionCache.filmClubs = nextFilmClubs;
+        })
         .catch(() => {});
 
       // Fetch characters — non-blocking
@@ -1254,8 +2120,12 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         cinemaVideos.filter(v => (v as any).worldId).map(v => (v as any).worldId as string)
       )].slice(0, 4);
       if (worldIds.length > 0) {
-        Promise.all(worldIds.map(id => fetchWorldCharacters(id)))
-          .then(charArrays => setFeaturedCharacters(charArrays.flat().filter(c => c.imageUrl).slice(0, 12)))
+        Promise.all(worldIds.map(id => fetchWorldCharacters(id).catch(() => [])))
+          .then(charArrays => {
+            nextFeaturedChars = charArrays.flat().filter(c => c.imageUrl).slice(0, 12);
+            setFeaturedCharacters(nextFeaturedChars);
+            if (taleoSessionCache) taleoSessionCache.featuredCharacters = nextFeaturedChars;
+          })
           .catch(() => {});
       }
     } catch (err) {
@@ -1264,30 +2134,53 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
       setIsLoading(false);
     }
 
-    // Phase 2: slow Archive.org + public worlds — load in background
+    // Phase 2: cached Archive.org + public worlds — load in background
     try {
       const [allGenres, publicWorlds] = await Promise.all([
-        fetchArchiveByAllGenres(15),
-        fetchAllPublicWorlds(),
+        fetchArchiveByAllGenres(15).catch(() => [{ genre: '🎃 Halloween Cinema', items: CURATED_HALLOWEEN_FILMS }]),
+        fetchAllPublicWorlds().catch(() => [] as IPWorld[]),
       ]);
       const featureGenre = allGenres.find(g => g.genre === 'Feature Films');
       const tvGenre = allGenres.find(g => g.genre === 'Classic TV');
       const euroGenre = allGenres.find(g => g.genre === 'European Cinema');
       const kofaGenre = allGenres.find(g => g.genre === 'Korean Classic Cinema');
       const euroTvGenre = allGenres.find(g => g.genre === 'European Newsreels & TV');
-      setGenreCollections(allGenres);
-      setMovies([
+
+      const mergedMovies = [
+        ...CURATED_HALLOWEEN_FILMS,
         ...(featureGenre?.items ?? []),
         ...(euroGenre?.items ?? []),
         ...(kofaGenre?.items ?? []),
-      ]);
-      setTvSeries([
+      ].filter((item, idx, self) => self.findIndex(i => i.identifier === item.identifier) === idx);
+
+      const mergedTv = [
         ...(tvGenre?.items ?? []),
         ...(euroTvGenre?.items ?? []),
-      ]);
+      ];
+
+      const nextFeatured = (featureGenre?.items?.[0]) || CURATED_HALLOWEEN_FILMS[0] || null;
+
+      setGenreCollections(allGenres);
+      setMovies(mergedMovies);
+      setTvSeries(mergedTv);
       setWorlds(publicWorlds);
-      const featureItems = featureGenre?.items ?? [];
-      if (featureItems.length > 0) setFeaturedItem(prev => prev ?? featureItems[0]);
+      if (nextFeatured) setFeaturedItem(prev => prev ?? nextFeatured);
+
+      taleoSessionCache = {
+        movies: mergedMovies,
+        tvSeries: mergedTv,
+        genreCollections: allGenres,
+        curatedPlaylists: nextCuratedPlaylists,
+        localContent: nextLocalContent,
+        platformVideos: nextPlatformVideos,
+        universes: nextUniverses,
+        worlds: publicWorlds,
+        featuredCharacters: nextFeaturedChars,
+        filmClubs: nextFilmClubs,
+        featuredItem: nextFeatured,
+        lastSubView: currentSubView,
+        updatedAt: Date.now(),
+      };
     } catch (err) {
       console.error('[Taleo] Archive fetch failed:', err);
     } finally {
@@ -1311,46 +2204,23 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   const handleSelectArchiveItem = async (item: ArchiveVideo) => {
     let videoUrl = item.videoUrl;
     if (!videoUrl && (!item.source || item.source === 'INTERNET_ARCHIVE')) {
-      const files = await getArchiveItemFiles(item.identifier);
-      videoUrl = getBestVideoUrl(item.identifier, files);
+      try {
+        const files = await getArchiveItemFiles(item.identifier);
+        videoUrl = getBestVideoUrl(item.identifier, files) || undefined;
+      } catch {}
     }
-    if (videoUrl) syncPublicDomainAsset(item, videoUrl, 'VIDEO');
-
-    const ownerId = item.source === 'EUROPEANA'
-      ? 'europeana'
-      : item.source === 'KOFA'
-      ? 'korean-film-archive'
-      : item.source === 'LIBRARY_OF_CONGRESS'
-      ? 'library-of-congress'
-      : 'internet-archive';
-
-    const artist = item.dataProvider || item.genre || 'Classic Cinema';
-
-    const transformed: Album = {
-      id: item.identifier, title: item.title,
-      artist,
-      coverImage: item.thumbnailUrl || '', headerImage: item.thumbnailUrl,
-      description: item.description, type: 'VIDEO', subType: 'MOVIE',
-      ownerId, createdAt: parseInt(item.year || '0'),
-      themeColor: '#000000',
-      tracks: videoUrl ? [{ id: item.identifier, title: item.title, artist, url: videoUrl, albumCover: item.thumbnailUrl || '' }] : [],
-      customVideoUrl: videoUrl || undefined,
-      embedUrl: videoUrl && (videoUrl.includes('/embed/') || videoUrl.includes('youtube') || videoUrl.includes('youtu.be')) ? videoUrl : undefined,
-      source: item.source,
-      sourceUrl: item.sourceUrl,
-      dataProvider: item.dataProvider,
-    } as any;
+    if (videoUrl) {
+      void syncPublicDomainAsset(item, videoUrl, 'VIDEO').catch(() => {});
+    }
+    const transformed = archiveVideoToAlbum(item, videoUrl);
     onSelectMovie(transformed);
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#131314]">
-        {/* Tab nav stays visible so it feels interactive */}
         <TaleoTabNav currentSubView="HOME" setCurrentSubView={() => {}} onNavigate={onNavigate} />
-        {/* Hero skeleton */}
         <div className="h-[80vh] bg-gradient-to-br from-[#1C1B2E] to-[#131314] animate-pulse" />
-        {/* Section skeletons */}
         <div className="px-4 sm:px-6 md:px-12 py-10 space-y-10">
           {[1, 2, 3].map(i => (
             <div key={i} className="space-y-4">
@@ -1378,6 +2248,16 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
     />
   );
 
+  const SEARCH_QUICK_PILLS = [
+    { label: '🎃 Halloween Horror', query: 'Halloween' },
+    { label: 'Film Noir', query: 'Film Noir' },
+    { label: 'Sci-Fi', query: 'Sci-Fi' },
+    { label: 'Silent Cinema', query: 'Silent' },
+    { label: 'Thriller', query: 'Thriller' },
+    { label: 'Comedy', query: 'Comedy' },
+    { label: 'Documentary', query: 'Documentary' },
+  ];
+
   return (
     <div className="min-h-screen bg-[#131314] text-white overflow-x-hidden pb-32">
       {/* Top header */}
@@ -1397,7 +2277,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search movies, shows, genres…"
+                placeholder="Search movies, directors, genres, Halloween classics…"
                 className="flex-1 bg-transparent text-sm text-white outline-none placeholder-white/30 font-bold"
               />
               {searchQuery && (
@@ -1413,12 +2293,33 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               <ChevronLeft size={22} />
             </button>
             <span className="flex-1 text-sm font-black uppercase tracking-[0.3em] text-white/80">Taleo</span>
+            <button
+              onClick={() => setCurrentSubView('HALLOWEEN')}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              <Ghost size={12} /> Halloween Vault
+            </button>
             <button className="text-white/60 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/5" onClick={() => setShowSearch(true)}>
               <Search size={20} />
             </button>
           </>
         )}
       </header>
+
+      {/* Share / Watchlist Toast Notification */}
+      <AnimatePresence>
+        {shareToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-full bg-[#1C1B1F] border border-orange-400/40 text-white text-xs font-black uppercase tracking-widest shadow-2xl flex items-center gap-2.5"
+          >
+            <Check size={14} className="text-orange-400" />
+            <span>{shareToast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Search overlay */}
       <AnimatePresence>
@@ -1429,62 +2330,99 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
             exit={{ opacity: 0 }}
             className="fixed inset-0 top-16 z-40 bg-[#131314] overflow-y-auto pb-40"
           >
-            {searchQuery.trim().length < 2 ? (
-              <div className="flex flex-col items-center justify-center h-64 gap-4">
-                <Search size={40} className="text-white/10" />
-                <p className="text-[11px] font-black uppercase tracking-widest text-white/20">Type to search films, shows, genres</p>
+            <div className="px-4 sm:px-6 md:px-12 pt-6">
+              {/* Instant filter pills */}
+              <div className="flex items-center gap-2 flex-wrap mb-6">
+                {SEARCH_QUICK_PILLS.map(pill => (
+                  <button
+                    key={pill.label}
+                    onClick={() => setSearchQuery(pill.query)}
+                    className={`px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                      searchQuery.toLowerCase() === pill.query.toLowerCase()
+                        ? 'bg-orange-500 text-black border-orange-400'
+                        : 'bg-white/5 hover:bg-white/10 text-white/65 border-white/10'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
               </div>
-            ) : searchResults.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 gap-4">
-                <Film size={40} className="text-white/10" />
-                <p className="text-sm font-black uppercase tracking-widest text-white/20">No results for "{searchQuery}"</p>
-              </div>
-            ) : (
-              <div className="px-4 sm:px-6 md:px-12 pt-8">
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-6">
-                  {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {searchResults.map(item => (
-                    <motion.div
-                      key={item.identifier || (item as any).id}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      whileHover={{ y: -4 }}
-                      className="group cursor-pointer"
-                      onClick={() => {
-                        if ((item as any)._isPlatform) onSelectMovie((item as any)._original);
-                        else handleSelectArchiveItem(item);
-                        setShowSearch(false);
-                        setSearchQuery('');
-                      }}
-                    >
-                      <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-white/20 transition-all relative">
-                        {item.thumbnailUrl ? (
-                          <img src={thumb(item.thumbnailUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(item.thumbnailUrl)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={item.title} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Film size={32} className="text-white/10" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="w-10 h-10 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm">
-                            <Play fill="white" size={16} className="ml-0.5" />
-                          </div>
-                        </div>
-                        {item.genre && (
-                          <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-md">
-                            <span className="text-[7px] font-black uppercase tracking-widest text-white/50">{item.genre}</span>
-                          </div>
-                        )}
-                      </div>
-                      <h4 className="mt-2 text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{item.title}</h4>
-                      <p className="text-[8px] text-white/30 font-bold uppercase tracking-widest mt-0.5">{item.year || 'Classic'}</p>
-                    </motion.div>
-                  ))}
+
+              {searchQuery.trim().length < 2 ? (
+                <div className="space-y-6">
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-300">
+                    🎃 Featured Halloween &amp; Archive Classics
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {CURATED_HALLOWEEN_FILMS.map(item => (
+                      <PosterCard
+                        key={`search-default-${item.identifier}`}
+                        title={item.title}
+                        subtitle={`${item.year} · ${item.director || 'Horror'}`}
+                        image={item.thumbnailUrl}
+                        genre={item.genre}
+                        width="w-full"
+                        onPlay={() => {
+                          handleSelectArchiveItem(item);
+                          setShowSearch(false);
+                          setSearchQuery('');
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : searchResults.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 gap-4">
+                  <Film size={40} className="text-white/10" />
+                  <p className="text-sm font-black uppercase tracking-widest text-white/20">No results for "{searchQuery}"</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-6">
+                    {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {searchResults.map(item => (
+                      <motion.div
+                        key={item.identifier || (item as any).id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        whileHover={{ y: -4 }}
+                        className="group cursor-pointer"
+                        onClick={() => {
+                          if ((item as any)._isPlatform) onSelectMovie((item as any)._original);
+                          else handleSelectArchiveItem(item);
+                          setShowSearch(false);
+                          setSearchQuery('');
+                        }}
+                      >
+                        <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 border border-white/8 group-hover:border-white/20 transition-all relative">
+                          {item.thumbnailUrl ? (
+                            <img src={thumb(item.thumbnailUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(item.thumbnailUrl)} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={item.title} />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Film size={32} className="text-white/10" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm">
+                              <Play fill="white" size={16} className="ml-0.5" />
+                            </div>
+                          </div>
+                          {item.genre && (
+                            <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-md">
+                              <span className="text-[7px] font-black uppercase tracking-widest text-white/50">{item.genre}</span>
+                            </div>
+                          )}
+                        </div>
+                        <h4 className="mt-2 text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{item.title}</h4>
+                        <p className="text-[8px] text-white/30 font-bold uppercase tracking-widest mt-0.5">{item.year || 'Classic'}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1519,6 +2457,9 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
                 featuredCharacters={featuredCharacters}
                 filmClubs={filmClubs}
                 onNavigate={onNavigate}
+                watchlist={watchlist}
+                onToggleWatchlist={handleToggleWatchlist}
+                onShareToast={triggerShareToast}
               />
               {archiveLoading && (
                 <div className="px-4 sm:px-6 md:px-12 py-8 space-y-8">
@@ -1539,13 +2480,32 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               )}
             </>
           )}
+          {currentSubView === 'HALLOWEEN' && (
+            <div className="pt-16">
+              {tabNavEl}
+              <HalloweenShowcaseView
+                onSelectArchiveItem={handleSelectArchiveItem}
+                onSelectMovie={onSelectMovie}
+                localContent={localContent}
+                watchlist={watchlist}
+                onToggleWatchlist={handleToggleWatchlist}
+                onShareToast={triggerShareToast}
+              />
+            </div>
+          )}
           {currentSubView === 'TV' && (
             <div className="pt-16">
               {tabNavEl}
               <TelevisionView
                 series={[...tvSeries, ...localContent.filter(c => c.subType === 'TV_SERIES' || c.tags?.includes('tv'))]}
                 initialSelectedSeries={activePlaylistItem}
-                onSelect={onSelectMovie}
+                onSelect={(item) => {
+                  if (item && ('identifier' in item || item.mediatype === 'movies')) {
+                    handleSelectArchiveItem(item);
+                  } else {
+                    onSelectMovie(item);
+                  }
+                }}
               />
             </div>
           )}
@@ -1578,9 +2538,6 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
           {currentSubView === 'UNIVERSE' && (
             <div className="pt-16">
               {tabNavEl}
-              {/* Blueprint 2D: the UNIVERSE tab is now the cross-world browser (worlds with
-                  linked films + characters across titles). Partner ecosystems, which used to
-                  be the whole tab, are kept as its closing section. */}
               <TaleoUniverseBrowser
                 worlds={worlds}
                 videos={platformVideos}
@@ -1611,7 +2568,14 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
           {currentSubView === 'LIBRARY' && (
             <div className="pt-16">
               {tabNavEl}
-              <LibraryView movies={movies} localContent={localContent} onSelectArchiveItem={handleSelectArchiveItem} onSelectMovie={onSelectMovie} />
+              <LibraryView
+                movies={movies}
+                localContent={localContent}
+                watchlist={watchlist}
+                onToggleWatchlist={handleToggleWatchlist}
+                onSelectArchiveItem={handleSelectArchiveItem}
+                onSelectMovie={onSelectMovie}
+              />
             </div>
           )}
           {currentSubView === 'MUSEUM' && (

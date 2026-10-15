@@ -16,9 +16,17 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { cleanDescription } from '../utils/description';
-import { Upload, Play, Radio, Compass, Rocket, ArrowRight } from 'lucide-react';
+import { Upload, Play, Radio, Compass, Rocket, ArrowRight, Ghost, Share2, Check, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import type { Album, LiveFeed } from '../types';
-import { fetchClassicBooks, type ArchiveBook } from '../services/archiveContentService';
+import {
+  fetchClassicBooks,
+  type ArchiveBook,
+  CURATED_HALLOWEEN_FILMS,
+  PUMPKIN_PATCH_HERO_ALBUM,
+  archiveVideoToAlbum,
+} from '../services/archiveContentService';
+import { shareAsset } from '../services/deepLinkService';
+import { onThumbError } from '../src/lib/imageThumb';
 import { searchArtifacts, type Artifact } from '../services/artifactsService';
 import { EDU_FACTOIDS, factoidAt, type EduFactoid } from '../data/eduFactoids';
 /* Signal ticker sources — all real, all degrade gracefully. */
@@ -754,12 +762,16 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
   );
 };
 
-/* ── Premiere rails — per-service new-release strips ─────────────────────── */
+/* ── Premiere rails — Special Halloween Curation Carousel + per-service new-release strips ── */
 export const ArchiveRails: React.FC<{
   albums: Album[];
   onSelectItem: (album: Album) => void;
   onOpenBooks?: () => void;
-}> = ({ albums, onSelectItem, onOpenBooks }) => {
+  onOpenHalloween?: () => void;
+}> = ({ albums, onSelectItem, onOpenBooks, onOpenHalloween }) => {
+  const halloweenCarouselRef = useRef<HTMLDivElement>(null);
+  const [halloweenCopied, setHalloweenCopied] = useState(false);
+
   // Same cached Gutendex source as the hero + Books page.
   const [classics, setClassics] = useState<ArchiveBook[]>([]);
   useEffect(() => {
@@ -770,6 +782,40 @@ export const ArchiveRails: React.FC<{
     return () => { alive = false; };
   }, []);
 
+  const pumpkinPatchHero = useMemo<Album>(() => {
+    const found = albums.find(a => a.id === PUMPKIN_PATCH_HERO_ALBUM.id || /pumpkin\s*patch/i.test(a.title || ''));
+    return found
+      ? ({ ...PUMPKIN_PATCH_HERO_ALBUM, ...found, subType: found.subType || 'MOVIE', category: 'MOVIE' } as Album)
+      : (PUMPKIN_PATCH_HERO_ALBUM as Album);
+  }, [albums]);
+
+  const scrollHalloweenCarousel = (dir: 'left' | 'right') => {
+    const el = halloweenCarouselRef.current;
+    if (!el) return;
+    const step = Math.max(320, Math.round(el.clientWidth * 0.72));
+    el.scrollBy({ left: dir === 'left' ? -step : step, behavior: 'smooth' });
+  };
+
+  const handleShareHalloweenRow = async () => {
+    const res = await shareAsset({
+      kind: 'taleoCollection',
+      id: 'halloween',
+      title: 'Taleo Halloween Cinema Showcase — Pumpkin Patch & 13 Restored Classics',
+      subtitle: 'Stream Brian James Gage’s Pumpkin Patch alongside 13 restored horror, Korean gothic & silent classics on Plajah Taleo.',
+    });
+    if (res !== 'dismissed') {
+      setHalloweenCopied(true);
+      window.setTimeout(() => setHalloweenCopied(false), 2600);
+    }
+  };
+
+  const handleExploreHalloween = () => {
+    try {
+      sessionStorage.setItem('plajah:taleo:initialSubView', 'HALLOWEEN');
+    } catch {}
+    onOpenHalloween?.();
+  };
+
   const rails = useMemo(() => {
     const byType = (types: string[]) => albums.filter(a => types.includes(a.type || 'MUSIC') && a.coverImage && !a.isDraft).slice(0, 12);
     return [
@@ -779,10 +825,202 @@ export const ArchiveRails: React.FC<{
     ].filter(r => r.items.length > 0);
   }, [albums]);
 
-  if (rails.length === 0 && classics.length === 0) return null;
-
   return (
-    <div className="mb-12 space-y-7">
+    <div className="mb-12 space-y-8">
+      {/* ── Special Halloween Curation Carousel Row (directly underneath the main header images carousel) ── */}
+      <div
+        className="relative rounded-[1.75rem] border border-orange-500/25 p-5 sm:p-6 overflow-hidden shadow-[0_24px_60px_-20px_rgba(255,106,0,0.22)]"
+        style={{
+          background:
+            'radial-gradient(85% 120% at 0% 0%, rgba(255,106,0,0.18) 0%, transparent 55%), radial-gradient(70% 100% at 100% 100%, rgba(147,51,234,0.16) 0%, transparent 55%), rgba(12,7,6,0.88)',
+        }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/35 text-[9px] font-black uppercase tracking-[0.22em] text-orange-300">
+                <Ghost size={11} className="text-orange-400" /> Seasonal Curation · Taleo Cinema
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-white/55">
+                Hero Feature + {CURATED_HALLOWEEN_FILMS.length} Classics
+              </span>
+            </div>
+            <div className="flex flex-wrap items-baseline gap-3">
+              <h3 className="text-xl sm:text-2xl font-black italic uppercase tracking-tight text-white">
+                🎃 Halloween Curation
+              </h3>
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-200/60">
+                Headlined by Pumpkin Patch · Korean Gothic · Midnight Classics
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={handleShareHalloweenRow}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/8 hover:bg-white/15 border border-white/15 text-[9px] font-black uppercase tracking-[0.18em] text-white transition-all"
+              title="Share the Taleo Halloween Curation"
+            >
+              {halloweenCopied ? <Check size={12} className="text-emerald-400" /> : <Share2 size={12} className="text-orange-300" />}
+              {halloweenCopied ? 'Link Copied' : 'Share Selection'}
+            </button>
+            {onOpenHalloween && (
+              <button
+                type="button"
+                onClick={handleExploreHalloween}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-black text-[9px] font-black uppercase tracking-[0.18em] transition-all shadow-md shadow-orange-500/20"
+              >
+                Full Halloween Vault <ArrowRight size={12} />
+              </button>
+            )}
+            <div className="hidden sm:flex items-center gap-1 ml-1">
+              <button
+                type="button"
+                onClick={() => scrollHalloweenCarousel('left')}
+                aria-label="Scroll Halloween carousel left"
+                className="w-8 h-8 rounded-full bg-black/50 hover:bg-white/15 border border-white/15 flex items-center justify-center text-white/75 hover:text-white transition-colors"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollHalloweenCarousel('right')}
+                aria-label="Scroll Halloween carousel right"
+                className="w-8 h-8 rounded-full bg-black/50 hover:bg-white/15 border border-white/15 flex items-center justify-center text-white/75 hover:text-white transition-colors"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          ref={halloweenCarouselRef}
+          className="flex gap-3.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1 snap-x snap-mandatory"
+        >
+          {/* #1 — Featured Hero Spotlight Card: Pumpkin Patch */}
+          <button
+            type="button"
+            onClick={() => onSelectItem(pumpkinPatchHero)}
+            className="group relative shrink-0 w-[275px] sm:w-[320px] snap-start text-left outline-none focus-visible:ring-2 focus-visible:ring-orange-400 rounded-2xl"
+          >
+            <div className="relative w-full h-[210px] rounded-2xl overflow-hidden border-2 border-orange-500/45 group-hover:border-orange-400 transition-all group-hover:-translate-y-1 duration-300 shadow-[0_14px_34px_rgba(255,106,0,0.25)]">
+              <img
+                src={pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage}
+                alt={pumpkinPatchHero.title}
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (pumpkinPatchHero.coverImage && img.src !== pumpkinPatchHero.coverImage) {
+                    img.src = pumpkinPatchHero.coverImage;
+                  }
+                }}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.12) 38%, rgba(12,6,4,0.92) 100%)',
+                }}
+              />
+              <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-black text-[8px] font-black uppercase tracking-[0.18em] shadow">
+                  <Sparkles size={9} /> Hero Content
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-black/65 border border-white/15 text-[8px] font-black uppercase tracking-widest text-orange-200 backdrop-blur-sm">
+                  {(pumpkinPatchHero as any).runtime || '58 min'} · {(pumpkinPatchHero as any).year || '2026'}
+                </span>
+              </div>
+              <div className="absolute bottom-3 left-3 right-3">
+                <p className="text-[8px] font-black uppercase tracking-[0.22em] text-orange-300 mb-0.5">
+                  Plajah Original · Dir. {pumpkinPatchHero.artist}
+                </p>
+                <h4 className="text-lg font-black italic uppercase tracking-tight text-white leading-none">
+                  {pumpkinPatchHero.title}
+                </h4>
+                <p className="text-[10px] text-white/70 line-clamp-2 mt-1 leading-snug">
+                  {cleanDescription(pumpkinPatchHero.description)}
+                </p>
+                <span className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-white text-black group-hover:bg-orange-400 transition-colors text-[8px] font-black uppercase tracking-[0.18em]">
+                  <Play size={9} fill="currentColor" /> Watch Hero Film
+                </span>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] font-black text-orange-300 leading-tight line-clamp-1">
+              🎃 {pumpkinPatchHero.title} — Official Halloween Hero
+            </p>
+            <p className="text-[10px] text-white/50 line-clamp-1">
+              {pumpkinPatchHero.artist} · {(pumpkinPatchHero as any).genre || 'Action · Horror · Satire'}
+            </p>
+          </button>
+
+          {/* #2–#14 — All Curated Halloween Classics (including KOFA's The Housemaid 1960, Weimar & Midnight Horror) */}
+          {CURATED_HALLOWEEN_FILMS.map(film => {
+            const poster = film.posterUrl || film.thumbnailUrl || `https://archive.org/services/img/${film.identifier}`;
+            const sourceBadge =
+              film.source === 'KOFA'
+                ? 'KOFA 4K'
+                : film.source === 'EUROPEANA'
+                  ? 'European Archive'
+                  : film.runtime || 'Classic';
+            return (
+              <button
+                key={film.identifier}
+                type="button"
+                onClick={() => onSelectItem(archiveVideoToAlbum(film))}
+                className="group relative shrink-0 w-[152px] snap-start text-left outline-none focus-visible:ring-2 focus-visible:ring-orange-400 rounded-2xl"
+              >
+                <div className="relative w-[152px] h-[210px] rounded-2xl overflow-hidden border border-white/10 group-hover:border-orange-400/50 transition-all group-hover:-translate-y-1 duration-300 bg-black/50">
+                  <img
+                    src={poster}
+                    alt={film.title}
+                    onError={onThumbError}
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 38%, rgba(0,0,0,0.88) 100%)',
+                    }}
+                  />
+                  <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1">
+                    {film.year && (
+                      <span className="px-2 py-0.5 rounded-md bg-black/65 border border-white/15 text-[8px] font-black uppercase tracking-widest text-orange-300 backdrop-blur-sm">
+                        {film.year}
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 rounded-md bg-black/65 border border-white/10 text-[7px] font-black uppercase tracking-widest text-white/75 backdrop-blur-sm truncate">
+                      {sourceBadge}
+                    </span>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/35">
+                    <span className="w-10 h-10 rounded-full bg-orange-500 text-black flex items-center justify-center shadow-lg shadow-orange-500/40 scale-90 group-hover:scale-100 transition-transform">
+                      <Play size={15} fill="currentColor" className="ml-0.5" />
+                    </span>
+                  </div>
+                  {film.curatorNote && (
+                    <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-[9px] text-orange-100/90 leading-snug line-clamp-2 bg-black/75 backdrop-blur-sm rounded-lg px-2 py-1 border border-orange-400/20">
+                        {film.curatorNote}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-2 text-[11px] font-bold text-white/90 group-hover:text-orange-300 transition-colors leading-tight line-clamp-1">
+                  {film.title}
+                </p>
+                <p className="text-[10px] text-white/45 line-clamp-1">
+                  {film.director ? `${film.director} · ${film.genre}` : film.genre}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {rails.map(rail => (
         <div key={rail.title}>
           <div className="flex items-baseline gap-3 mb-3">

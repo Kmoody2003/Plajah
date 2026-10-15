@@ -739,13 +739,13 @@ const App: React.FC = () => {
   // NOT be bounced to LANDING — the deep-link handler owns the initial view.
   const hasDeepLink = (() => {
     const sp = new URLSearchParams(window.location.search);
-    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g', 'atlas'].some(k => sp.get(k))) return true;
+    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g', 'atlas', 'party', 'collection', 'film'].some(k => sp.get(k))) return true;
     if (/^#g\//.test(window.location.hash)) return true;
     // /link (TV sign-in approval) must not bounce a signed-out visitor to LANDING — they may
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
     // means walking back to the television for a new one.
     if (window.location.pathname.startsWith('/link')) return true;
-    return /^\/(profile|release|event|clubs|athlete|book|artist|reello|video)\//.test(window.location.pathname);
+    return /^\/(profile|release|event|clubs|athlete|book|artist|reello|video|party)\//.test(window.location.pathname);
   })();
 
   // A browser reload resumes the screen the person was on (see launchTarget.readResumeView);
@@ -1198,32 +1198,65 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [countdownAlbumId, setCountdownAlbumId] = useState<string | null>(null);
   const [countdownInitialAlbum, setCountdownInitialAlbum] = useState<Album | null>(null);
   const [selectedMovieItem, setSelectedMovieItem] = useState<any | null>(null);
+  const [partyIdForMovie, setPartyIdForMovie] = useState<string | null>(null);
   const [selectedBook, setSelectedBook] = useState<Album | null>(null);
   const [partyIdForReader, setPartyIdForReader] = useState<string | null>(null);
   const [partyIdForAlbum, setPartyIdForAlbum] = useState<string | null>(null);
   // Join a synchronized watch/read/listen party. ENTITLEMENT: the party doc only holds a content
-  // reference — each guest resolves the playable item through THEIR OWN access (fetchVideoById /
-  // fetchAlbumById honour the normal read rules). Nothing playable is ever built from the party doc.
+  // reference — each guest resolves the playable item through THEIR OWN access (fetchProjectFromCloud /
+  // fetchVideoById / fetchArchiveVideoById / fetchAlbumById honour the normal read rules). Nothing
+  // playable is ever built from the party doc.
   // Used by the ?party= deep link and by in-app opens (openPartyInApp → OPEN_PARTY_EVENT).
   const openPartyByIdRef = useRef<(partyId: string) => Promise<void>>(async () => {});
   openPartyByIdRef.current = async (partyId: string) => {
-    const [ps, m, toast] = await Promise.all([
-      import('./services/partyService'), import('./services/backendService'), import('./components/party/partyToast'),
+    const [ps, m, toast, arch] = await Promise.all([
+      import('./services/partyService'),
+      import('./services/backendService'),
+      import('./components/party/partyToast'),
+      import('./services/archiveContentService').catch(() => null),
     ]);
     const p = await ps.fetchParty(partyId).catch(() => null);
     if (!p) { toast.partyToast('That party link is no longer valid', 'warn'); return; }
     if (p.isActive === false) { toast.partyToast(`${p.hostName || 'The host'} already ended this party`, 'info'); return; }
     const noAccess = () => toast.partyToast(`“${p.content?.title || 'This title'}” isn't available on your account — it may need a purchase or subscription.`, 'warn');
     if (p.kind === 'WATCH') {
-      const vid: any = await m.fetchVideoById(p.content.id).catch(() => null);
-      if (!vid) { noAccess(); return; }
-      setPartyIdForPlayer(partyId);
-      setSelectedVideo(vid);
-      setView('PLAYER');
-      document.title = `Watch Party · ${vid.title} | Plajah`;
+      const contentId = p.content?.id;
+      if (!contentId) { noAccess(); return; }
+      let movieOrAlbum: any = null;
+      if (arch && contentId === arch.PUMPKIN_PATCH_HERO_ALBUM?.id) {
+        const cloudProj = await m.fetchProjectFromCloud(contentId).catch(() => null);
+        movieOrAlbum = cloudProj ? { ...arch.PUMPKIN_PATCH_HERO_ALBUM, ...cloudProj } : arch.PUMPKIN_PATCH_HERO_ALBUM;
+      }
+      if (!movieOrAlbum) {
+        movieOrAlbum = await m.fetchProjectFromCloud(contentId).catch(() => null);
+      }
+      const vid: any = await m.fetchVideoById(contentId).catch(() => null);
+      if (!movieOrAlbum && !vid && arch) {
+        const rawArch = await arch.fetchArchiveVideoById(contentId).catch(() => null);
+        if (rawArch) movieOrAlbum = arch.archiveVideoToAlbum(rawArch);
+      }
+      const resolvedItem = movieOrAlbum || vid;
+      if (!resolvedItem) { noAccess(); return; }
+      setIsPublicView(true);
+      const isMovieParty =
+        p.content?.type === 'MOVIE' ||
+        !!movieOrAlbum ||
+        (vid && (vid.category === 'MOVIE' || ['Movie', 'TV Series', 'Feature Film'].includes(vid.genre)));
+      if (isMovieParty) {
+        setPartyIdForMovie(partyId);
+        setSelectedMovieItem(resolvedItem);
+        setView('MOVIE_UX');
+        document.title = `Watch Party · ${resolvedItem.title || p.content?.title || 'Cinema'} | Taleo`;
+      } else {
+        setPartyIdForPlayer(partyId);
+        setSelectedVideo(vid || resolvedItem);
+        setView('PLAYER');
+        document.title = `Watch Party · ${(vid || resolvedItem).title || p.content?.title || 'Video'} | Plajah`;
+      }
     } else if (p.kind === 'READ') {
       const book = await m.fetchAlbumById(p.content.id).catch(() => null);
       if (!book) { noAccess(); return; }
+      setIsPublicView(true);
       setPartyIdForReader(partyId);
       setSelectedBook(book);
       setView('BOOK_READER');
@@ -1231,6 +1264,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (p.kind === 'LISTEN') {
       const alb = await m.fetchAlbumById(p.content.id).catch(() => null);
       if (!alb) { noAccess(); return; }
+      setIsPublicView(true);
       setPartyIdForAlbum(partyId);
       setSelectedAlbum(alb);
       setView('PLAYER');
@@ -3120,11 +3154,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         return;
       }
 
-      // Deep-link: ?party={id} — join a synchronized watch/read/listen party and follow the host.
-
-      const partyParam = params.get('party');
+      // Deep-link: ?party={id} or /party/{id} — join a synchronized watch/read/listen party and follow the host.
+      const pathPartyId = pathnameSegments[0] === 'party' && pathnameSegments[1] ? decodeURIComponent(pathnameSegments[1]) : null;
+      const partyParam = pathPartyId || params.get('party');
       if (partyParam) {
-        openPartyByIdRef.current(partyParam).catch(() => {}).finally(() => setIsLoading(false));
+        openPartyByIdRef.current(partyParam).catch(() => {}).finally(() => {
+          setIsLoading(false);
+          setShareResolving(false);
+        });
         return;
       }
 
@@ -3149,6 +3186,45 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         return;
       }
 
+      // Deep-link: ?type=taleo&id=halloween or ?view=taleo&collection=halloween
+      const collectionParam = params.get('collection') || (shareType === 'taleo' ? (projectId || params.get('id')) : null);
+      if (collectionParam || shareType === 'taleo') {
+        const colSlug = String(collectionParam || 'halloween').toLowerCase();
+        const shelfParam = params.get('shelf') || '';
+        const filmParam = params.get('film') || '';
+        try {
+          if (colSlug.includes('halloween')) {
+            sessionStorage.setItem('plajah:taleo:initialSubView', 'HALLOWEEN');
+          }
+          if (shelfParam) {
+            sessionStorage.setItem('plajah:taleo:initialShelf', shelfParam);
+          }
+        } catch {}
+        if (filmParam) {
+          import('./services/archiveContentService').then(async (arch) => {
+            try {
+              const item = await arch.fetchArchiveVideoById(filmParam);
+              if (item) {
+                setSelectedMovieItem(arch.archiveVideoToAlbum(item));
+                setIsPublicView(true);
+                setView('MOVIE_UX');
+                document.title = `${item.title} | Taleo Halloween | Plajah`;
+                return;
+              }
+            } catch {}
+            setView('MOVIES_TV');
+          });
+        } else {
+          setIsPublicView(true);
+          setView('MOVIES_TV');
+          document.title = colSlug.includes('halloween')
+            ? 'Taleo Halloween — 31 Nights of Cinema Terror | Plajah'
+            : 'Taleo Cinema | Plajah';
+        }
+        setIsLoading(false);
+        return;
+      }
+
       if (projectId) {
         if (shareType === 'movie') {
           // A shared Taleo film/TV title — always lands on the Taleo movie page
@@ -3158,7 +3234,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             try {
               let it: any = await fetchProjectFromCloud(projectId).catch(() => null);
               if (!it) it = await m.fetchVideoById(projectId).catch(() => null);
-              if (!it) { try { const arch = await import('./services/archiveContentService'); it = await arch.fetchArchiveVideoById(projectId); } catch {} }
+              if (!it) {
+                try {
+                  const arch = await import('./services/archiveContentService');
+                  const rawArch = await arch.fetchArchiveVideoById(projectId);
+                  if (rawArch) it = arch.archiveVideoToAlbum(rawArch);
+                } catch {}
+              }
               if (it) {
                 setSelectedMovieItem(it);
                 setIsPublicView(true);
@@ -3222,9 +3304,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setIsLoading(false);
           return;
         } else if (shareType === 'archive') {
-          // A shared archive film (Taleo) — reconstruct the item from its archive.org id.
+          // A shared archive film (Taleo) — reconstruct the item from its archive.org id and convert to playable Album.
           import('./services/archiveContentService').then(async (m) => {
-            try { const item = await m.fetchArchiveVideoById(projectId); if (item) { setSelectedMovieItem(item); setView('MOVIE_UX'); setIsPublicView(true); document.title = `${item.title} | Plajah`; } } catch {}
+            try {
+              const item = await m.fetchArchiveVideoById(projectId);
+              if (item) {
+                setSelectedMovieItem(m.archiveVideoToAlbum(item));
+                setView('MOVIE_UX');
+                setIsPublicView(true);
+                document.title = `${item.title} | Plajah`;
+              }
+            } catch {}
           });
           setIsLoading(false);
           return;
@@ -3583,6 +3673,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     if (isPublicView) setIsPublicView(false);
     setView('MUSIC', isPublicView ? '/' : undefined);
     loadAlbums();
+  };
+
+  // Back from a Taleo film/series detail view (MOVIE_UX) → return to Taleo (MOVIES_TV)
+  const handleBackToTaleo = () => {
+    setSelectedMovieItem(null);
+    if (isPublicView) setIsPublicView(false);
+    setView('MOVIES_TV', isPublicView ? '/' : undefined);
   };
 
   const [visitedProfile, setVisitedProfile] = useState<UserProfile | null>(null);
@@ -6412,8 +6509,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     onNavigate={(v) => setView(v as any)}
                     isPublicView={isPublicView}
                   />
-                  {/* ── Premiere rails — per-service new releases + Lorea classics ── */}
-                  <ArchiveRails albums={albums} onSelectItem={handleSelectItem} onOpenBooks={() => setView('BOOKS' as any)} />
+                  {/* ── Premiere rails — Special Halloween Curation Carousel + per-service new releases + Lorea classics ── */}
+                  <ArchiveRails
+                    albums={albums}
+                    onSelectItem={handleSelectItem}
+                    onOpenBooks={() => setView('BOOKS' as any)}
+                    onOpenHalloween={() => setView('MOVIES_TV' as any)}
+                  />
                   </Suspense>
                   {/* Floating tab dock — wayfinding once the real tab row scrolls above the viewport */}
                   {showTabDock && (
@@ -7577,15 +7679,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <ErrorBlock componentName="MovieUXView">
                 <MovieUXView
                   item={selectedMovieItem}
-                  onBack={() => {
-                    setSelectedMovieItem(null);
-                    handleBackToDashboard();
-                  }}
+                  onBack={() => { setPartyIdForMovie(null); handleBackToTaleo(); }}
                   onVisitUser={handleVisitUser}
                   onNavigateToWorld={(worldId, characterId) => { setViewedUserId((selectedMovieItem as any).ownerId || user?.uid || ''); setWorldFocus({ worldId, characterId }); setView('WORLDS'); }}
-                  onOpenItem={(it) => { setSelectedMovieItem(it); try { window.scrollTo({ top: 0 }); } catch {} }}
+                  onOpenItem={(it) => { setPartyIdForMovie(null); setSelectedMovieItem(it); try { window.scrollTo({ top: 0 }); } catch {} }}
                   onEditFilm={(it) => { setEditingAlbum(it as Album); setCreatorInitialType(undefined); setShowCreator(true); }}
                   currentUser={user}
+                  partyId={partyIdForMovie || undefined}
+                  onLeaveParty={() => setPartyIdForMovie(null)}
                 />
               </ErrorBlock>
             )}

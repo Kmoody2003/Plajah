@@ -21,7 +21,7 @@
 
 import { db, auth, createNotification, fetchFollowers, fetchFollowing, fetchUserProfiles } from './backendService';
 import {
-  doc, setDoc, updateDoc, getDoc, getDocFromServer, serverTimestamp, Timestamp, collection, addDoc,
+  doc, setDoc, updateDoc, getDoc, getDocs, getDocFromServer, serverTimestamp, Timestamp, collection, addDoc,
   query, where, orderBy, limit, limitToLast, deleteDoc,
 } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
@@ -92,13 +92,25 @@ export interface Party {
   openRemote?: boolean;
   /** 'link' (default: anyone with the link) | 'public' (listed in "Watch with others now"). */
   visibility?: PartyVisibility;
+  /** Optional Club affiliation when hosting a Watch with Club session. */
+  clubId?: string;
+  clubName?: string;
+  clubIcon?: string;
 }
 
 const removeUndefined = <T extends Record<string, any>>(o: T): T =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 
+const sanitizePartySegment = (s: string, maxLen = 36) =>
+  String(s || '').replace(/[^A-Za-z0-9_:-]/g, '_').slice(0, maxLen);
+
 /** Deterministic party id for a host+content so re-opening resumes the same session. */
-export const partyIdFor = (hostId: string, contentId: string) => `party_${hostId}_${contentId}`;
+export const partyIdFor = (hostId: string, contentId: string) =>
+  `party_${sanitizePartySegment(hostId, 36)}_${sanitizePartySegment(contentId, 64)}`.slice(0, 118);
+
+/** Deterministic party id for a Club Watch Party hosted by hostId on contentId. */
+export const clubPartyIdFor = (clubId: string, hostId: string, contentId: string) =>
+  `party_club_${sanitizePartySegment(clubId, 28)}_${sanitizePartySegment(hostId, 28)}_${sanitizePartySegment(contentId, 44)}`.slice(0, 118);
 
 export function partyShareUrl(partyId: string): string {
   const base = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://plajah.com';
@@ -121,6 +133,9 @@ export interface CreatePartyInput {
   initial?: Partial<PartyPlaybackState>;
   visibility?: PartyVisibility;
   openRemote?: boolean;
+  clubId?: string;
+  clubName?: string;
+  clubIcon?: string;
 }
 
 /**
@@ -130,7 +145,7 @@ export interface CreatePartyInput {
 export async function createParty(input: CreatePartyInput): Promise<string> {
   const user = auth.currentUser;
   if (!user) throw new Error('Must be signed in to host a party');
-  const id = input.id || partyIdFor(user.uid, input.content.id);
+  const id = input.id || (input.clubId ? clubPartyIdFor(input.clubId, user.uid, input.content.id) : partyIdFor(user.uid, input.content.id));
   const init = input.initial || {};
   const num = (v: any): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
   const party: any = removeUndefined({
@@ -162,6 +177,9 @@ export async function createParty(input: CreatePartyInput): Promise<string> {
     coHostIds: [],
     openRemote: !!input.openRemote,
     visibility: input.visibility === 'public' ? 'public' : 'link',
+    clubId: input.clubId ? String(input.clubId).slice(0, 120) : undefined,
+    clubName: input.clubName ? String(input.clubName).slice(0, 120) : undefined,
+    clubIcon: input.clubIcon ? String(input.clubIcon).slice(0, 500) : undefined,
   });
   await setDoc(doc(db, 'parties', id), party);
   return id;
@@ -334,6 +352,62 @@ export function listenToPublicParties(cb: (parties: Party[]) => void, max = 12):
     (snap: any) => cb(snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }) as Party)),
     () => cb([]),
   );
+}
+
+/**
+ * Find active Club Watch Parties for a specific contentId across the clubs the user is a member of.
+ * Uses a single-field `where('clubId', 'in', ...)` query so it works immediately without requiring a
+ * composite Firestore index, then filters by `isActive !== false && content.id === contentId` and
+ * deduplicates to the freshest active party per club.
+ */
+export async function fetchActiveClubPartiesForContent(
+  contentId: string,
+  userClubs: { id: string; name?: string; iconImage?: string }[],
+): Promise<Party[]> {
+  if (!contentId || !Array.isArray(userClubs) || userClubs.length === 0) return [];
+  const clubMap = new Map<string, { id: string; name?: string; iconImage?: string }>();
+  for (const c of userClubs) {
+    if (c?.id) clubMap.set(c.id, c);
+  }
+  const clubIds = Array.from(clubMap.keys());
+  if (clubIds.length === 0) return [];
+
+  const found: Party[] = [];
+  for (let i = 0; i < clubIds.length; i += 30) {
+    const chunk = clubIds.slice(i, i + 30);
+    try {
+      const snap = await getDocs(query(collection(db, 'parties'), where('clubId', 'in', chunk)));
+      snap.docs.forEach((d: any) => {
+        const p = { id: d.id, ...(d.data() as any) } as Party;
+        if (p && p.isActive !== false && p.content?.id === contentId && p.clubId) {
+          const meta = clubMap.get(p.clubId);
+          if (meta) {
+            if (!p.clubName && meta.name) p.clubName = meta.name;
+            if (!p.clubIcon && meta.iconImage) p.clubIcon = meta.iconImage;
+          }
+          found.push(p);
+        }
+      });
+    } catch { /* ignore chunk error */ }
+  }
+
+  // Deduplicate to the freshest active party per clubId
+  const byClub = new Map<string, Party>();
+  for (const p of found) {
+    const cid = p.clubId!;
+    const prev = byClub.get(cid);
+    const pTime = tsToMs(p.hostHeartbeat) || tsToMs(p.playback?.updatedAt) || p.createdAt || 0;
+    const prevTime = prev ? (tsToMs(prev.hostHeartbeat) || tsToMs(prev.playback?.updatedAt) || prev.createdAt || 0) : -1;
+    if (!prev || pTime >= prevTime) {
+      byClub.set(cid, p);
+    }
+  }
+
+  return Array.from(byClub.values()).sort((a, b) => {
+    const tA = tsToMs(a.hostHeartbeat) || tsToMs(a.playback?.updatedAt) || a.createdAt || 0;
+    const tB = tsToMs(b.hostHeartbeat) || tsToMs(b.playback?.updatedAt) || b.createdAt || 0;
+    return tB - tA;
+  });
 }
 
 // ── Invites ──────────────────────────────────────────────────────────────────────────────────────

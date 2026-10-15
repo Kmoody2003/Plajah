@@ -299,6 +299,52 @@ export function useParty(partyId: string | null): UseParty {
     return { ...base, shouldPlay: base.shouldPlay && !hold, hold };
   }, []);
 
+  // Merge presence people + party viewers + host + current user so the joined people list and
+  // watching-along count are always complete (even across anonymous + signed-in viewers).
+  const mergedPeople: PresencePerson[] = useMemo(() => {
+    const byId = new Map<string, PresencePerson>();
+    if (party?.hostId) {
+      byId.set(party.hostId, {
+        uid: party.hostId,
+        name: party.hostName || 'Host',
+        photo: party.hostPhoto || '',
+      });
+    }
+    for (const p of people) {
+      if (!p?.uid) continue;
+      const existing = byId.get(p.uid);
+      byId.set(p.uid, {
+        uid: p.uid,
+        name: p.name || existing?.name || 'Viewer',
+        photo: p.photo || existing?.photo || '',
+      });
+    }
+    for (const v of viewers) {
+      if (!v?.uid) continue;
+      const existing = byId.get(v.uid);
+      byId.set(v.uid, {
+        uid: v.uid,
+        name: v.name || existing?.name || 'Viewer',
+        photo: v.photo || existing?.photo || '',
+      });
+    }
+    const me = auth.currentUser;
+    if (partyId && me?.uid && !byId.has(me.uid)) {
+      byId.set(me.uid, {
+        uid: me.uid,
+        name: me.displayName || 'You',
+        photo: me.photoURL || '',
+      });
+    }
+    const list = Array.from(byId.values());
+    if (party?.hostId) {
+      list.sort((a, b) => (a.uid === party.hostId ? -1 : b.uid === party.hostId ? 1 : 0));
+    }
+    return list;
+  }, [party?.hostId, party?.hostName, party?.hostPhoto, people, viewers, partyId]);
+
+  const mergedViewerCount = Math.max(count, mergedPeople.length, partyId ? 1 : 0);
+
   return {
     party,
     loading,
@@ -310,8 +356,8 @@ export function useParty(partyId: string | null): UseParty {
     hostStatus,
     canClaim,
     claim,
-    viewerCount: Math.max(count, people.length),
-    people,
+    viewerCount: mergedViewerCount,
+    people: mergedPeople,
     viewers,
     playback: party?.playback ?? null,
     receiptLocalMs: receiptRef.current,

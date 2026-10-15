@@ -561,13 +561,13 @@ async function transcribeAudioWindow(
   meta: { title?: string; artist?: string; kind?: string; windowSec: number },
 ): Promise<{ time: number; text: string }[]> {
   const isSpeech = meta.kind === 'speech';
-  const secs = Math.round(meta.windowSec);
+  const secs = Math.max(1, Math.round(meta.windowSec));
   const prompt = `You are a precise audio transcription engine. This is a ${secs}-second EXCERPT clipped from "${(meta.title || '').slice(0, 160)}"${meta.artist ? ` by "${(meta.artist || '').slice(0, 160)}"` : ''}.
-Transcribe ${isSpeech ? 'every spoken phrase' : 'every sung or spoken line'} you can clearly hear in THIS excerpt.
+Transcribe ${isSpeech ? 'every spoken phrase (including any Bible book names, chapter numbers, verse numbers, and scripture readings)' : 'every sung or spoken line'} you can clearly hear in THIS excerpt.
 Rules:
 - Timestamps are RELATIVE TO THE START OF THIS EXCERPT: 0.0 is the clip's first sample. Precise to 0.1s.
 - The clip is only ${secs} seconds long, so NO timestamp may be negative or exceed ${secs}.
-- Each "text" entry is one natural ${isSpeech ? 'phrase or sentence clause (~6-15 words)' : 'line (~3-8 words)'}. Do not merge multiple lines.
+- Each "text" entry is one natural ${isSpeech ? 'phrase or sentence clause (~6-15 words). Preserve Bible book names, chapters, and verses accurately (e.g. "Romans chapter 8 verse 28", "1 Corinthians 13:4", "Psalm 23")' : 'line (~3-8 words)'}. Do not merge multiple lines.
 - The clip may begin or end mid-line — still transcribe the partial lines you clearly hear.
 - Do NOT invent, guess, or summarise. Only transcribe clearly audible words. If the clip is purely instrumental or silent, return [].
 - Sort entries by ascending time.`;
@@ -1050,18 +1050,139 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    const { type, id, track } = query;
    if (!type || !id) return html;
 
-   // Archive films (Taleo) are external archive.org items — no Firestore doc. Pull the
+   // Curated Taleo collections (e.g., /share?type=taleo&id=halloween)
+   if (type === 'taleo') {
+     try {
+       const rawId = String(id).toLowerCase();
+       const shelf = String((query as any).shelf || '').trim();
+       const film = String((query as any).film || '').trim();
+       const isHalloween = rawId === 'halloween' || rawId.includes('halloween');
+       const title = isHalloween
+         ? (shelf === 'domestic-psychosis' ? 'The Housemaid (1960) & Carnival of Souls (1962) · Taleo Halloween Double Feature'
+           : shelf === 'dawn-of-the-undead' ? 'Dawn of the Undead (1932 vs. 1968) · Taleo Halloween Double Feature'
+           : shelf === 'architects-of-dread' ? 'Architects of Dread · Taleo Halloween Double Feature'
+           : shelf === 'weimar-phantoms' ? 'Weimar Shadows & Paris Catacombs · Taleo Halloween Double Feature'
+           : 'Pumpkin Patch & 31 Nights of Cinema Terror · Taleo Halloween on Plajah')
+         : 'Taleo Cinema Showcase on Plajah';
+       const desc = isHalloween
+         ? 'Headlined by the Plajah Original Halloween feature "Pumpkin Patch" (dir. Brian James Gage) alongside 12 restored horror classics — Night of the Living Dead, House on Haunted Hill, Carnival of Souls, Nosferatu & more.'
+         : 'Explore curated classic & independent cinema on Plajah Taleo.';
+       const image = film
+         ? `https://archive.org/services/img/${encodeURIComponent(film)}`
+         : 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/albums%2Falbum_1787881859314_mlt23%2Fcover.webp?alt=media&token=efd247d5-2f2f-4cf3-aab6-def0bfbc07e3';
+       const safeT = htmlEscape(title), safeD = htmlEscape(desc);
+       const safeI = htmlEscape(image), safeH = htmlEscape(host), safeId = htmlEscape(String(id));
+       const safeShelf = htmlEscape(shelf);
+       const safeFilm = htmlEscape(film);
+       const tags = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
+       return tags.replace('</head>', `
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@plajah" />
+    <meta name="twitter:title" content="${safeT}" />
+    <meta name="twitter:description" content="${safeD}" />
+    <meta name="twitter:image" content="${safeI}" />
+    <meta property="og:site_name" content="Plajah" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${safeT}" />
+    <meta property="og:description" content="${safeD}" />
+    <meta property="og:image" content="${safeI}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://${safeH}/?type=taleo&amp;id=${safeId}${safeShelf ? `&amp;shelf=${safeShelf}` : ''}${safeFilm ? `&amp;film=${safeFilm}` : ''}" />
+</head>`);
+     } catch { return html; }
+   }
+
+   // Archive films (Taleo) are external archive.org / Europeana / KOFA items — no Firestore doc. Pull the
    // public metadata + thumbnail directly and inject a large-image card.
    if (type === 'archive') {
      try {
-       const r = await fetch(`https://archive.org/metadata/${encodeURIComponent(String(id))}`);
-       const d: any = await r.json();
-       const m = d?.metadata || {};
-       const asStr = (v: any) => (Array.isArray(v) ? v[0] : v);
-       const title = asStr(m.title) || 'Film';
-       const image = `https://archive.org/services/img/${encodeURIComponent(String(id))}`;
-       const safeT = htmlEscape(title), safeD = htmlEscape(`Experience "${title}" now on Plajah`);
-       const safeI = htmlEscape(image), safeH = htmlEscape(host), safeId = htmlEscape(String(id));
+       const rawId = String(id);
+       const CURATED_OG_LOOKUP: Record<string, { title: string; desc: string; image: string }> = {
+         'Night.Of.The.Living.Dead_1080p': {
+           title: 'Night of the Living Dead (1968) · Taleo Halloween',
+           desc: 'Watch George A. Romero’s landmark 1968 survival-horror masterpiece free on Plajah Taleo.',
+           image: 'https://archive.org/services/img/Night.Of.The.Living.Dead_1080p',
+         },
+         'house_on_haunted_hill_ipod': {
+           title: 'House on Haunted Hill (1959) · Taleo Halloween',
+           desc: 'Vincent Price hosts a $10,000 haunted-mansion party in William Castle’s 1959 horror classic on Plajah Taleo.',
+           image: 'https://archive.org/services/img/house_on_haunted_hill_ipod',
+         },
+         'CarnivalofSouls': {
+           title: 'Carnival of Souls (1962) · Taleo Halloween',
+           desc: 'Stream Herk Harvey’s haunting 1962 atmospheric horror classic on Plajah Taleo.',
+           image: 'https://archive.org/services/img/CarnivalofSouls',
+         },
+         'ThePhantomoftheOpera': {
+           title: 'The Phantom of the Opera (1925) · Taleo Halloween',
+           desc: 'Experience Lon Chaney in the 1925 silent Gothic masterpiece on Plajah Taleo.',
+           image: 'https://archive.org/services/img/ThePhantomoftheOpera',
+         },
+         'Haxan_tinted_and_subtitled': {
+           title: 'Häxan: Witchcraft Through the Ages (1922) · Taleo Halloween',
+           desc: 'Stream Benjamin Christensen’s tinted and subtitled 1922 occult masterpiece on Plajah Taleo.',
+           image: 'https://archive.org/services/img/Haxan_tinted_and_subtitled',
+         },
+         'Horror_Express': {
+           title: 'Horror Express (1972) · Taleo Halloween',
+           desc: 'Christopher Lee, Peter Cushing & Telly Savalas star in this Trans-Siberian sci-fi horror classic on Plajah Taleo.',
+           image: 'https://archive.org/services/img/Horror_Express',
+         },
+         'white_zombie': {
+           title: 'White Zombie (1932) · Taleo Halloween',
+           desc: 'Bela Lugosi stars in cinema’s first feature-length zombie horror film (1932) on Plajah Taleo.',
+           image: 'https://archive.org/services/img/white_zombie',
+         },
+         'TheTerror1963': {
+           title: 'The Terror (1963) · Taleo Halloween',
+           desc: 'Boris Karloff & Jack Nicholson star in Roger Corman’s Gothic thriller on Plajah Taleo.',
+           image: 'https://archive.org/services/img/TheTerror1963',
+         },
+         'TheGhoul': {
+           title: 'The Ghoul (1933) · Taleo Halloween',
+           desc: 'Boris Karloff rises from the tomb in this 1933 British Gothic horror classic on Plajah Taleo.',
+           image: 'https://archive.org/services/img/TheGhoul',
+         },
+         'FrankensteinfullMovie': {
+           title: 'Frankenstein (1910 Edison Film) · Taleo Halloween',
+           desc: 'Watch Edison Studios’ pioneering 1910 silent adaptation of Mary Shelley’s Frankenstein on Plajah Taleo.',
+           image: 'https://archive.org/services/img/FrankensteinfullMovie',
+         },
+         'europeana-nosferatu-1922': {
+           title: 'Nosferatu: Eine Symphonie des Grauens (1922) · Plajah Taleo',
+           desc: 'F.W. Murnau’s seminal 1922 silent vampire masterpiece, restored on Plajah Taleo.',
+           image: 'https://img.youtube.com/vi/OJ3BfIdTzPc/hqdefault.jpg',
+         },
+         'europeana-caligari-1920': {
+           title: 'The Cabinet of Dr. Caligari (1920) · Plajah Taleo',
+           desc: 'Robert Wiene’s landmark German Expressionist horror film on Plajah Taleo.',
+           image: 'https://img.youtube.com/vi/iO7k0tn7PQA/hqdefault.jpg',
+         },
+         'kofa-the-housemaid-1960': {
+           title: 'The Housemaid (하녀, 1960) · Plajah Taleo',
+           desc: 'Kim Ki-young’s legendary 1960 Korean domestic psychological thriller on Plajah Taleo.',
+           image: 'https://img.youtube.com/vi/aSKb2XC61_o/hqdefault.jpg',
+         },
+       };
+
+       let title = 'Film';
+       let desc = '';
+       let image = `https://archive.org/services/img/${encodeURIComponent(rawId)}`;
+       if (CURATED_OG_LOOKUP[rawId]) {
+         title = CURATED_OG_LOOKUP[rawId].title;
+         desc = CURATED_OG_LOOKUP[rawId].desc;
+         image = CURATED_OG_LOOKUP[rawId].image;
+       } else {
+         const r = await fetch(`https://archive.org/metadata/${encodeURIComponent(rawId)}`, { signal: AbortSignal.timeout(5000) });
+         const d: any = await r.json();
+         const m = d?.metadata || {};
+         const asStr = (v: any) => (Array.isArray(v) ? v[0] : v);
+         title = asStr(m.title) || 'Film';
+         desc = `Experience "${title}" now on Plajah Taleo`;
+       }
+       const safeT = htmlEscape(title), safeD = htmlEscape(desc || `Experience "${title}" now on Plajah`);
+       const safeI = htmlEscape(image), safeH = htmlEscape(host), safeId = htmlEscape(rawId);
        let tags = html.replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
        return tags.replace('</head>', `
     <meta name="twitter:card" content="summary_large_image" />
@@ -1149,7 +1270,10 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    const collection = collectionFor[String(type)] || '';
    if (!collection) return html;
 
-   const dbData = await fetchFirebaseDoc(collection, id);
+   let dbData = await fetchFirebaseDoc(collection, id);
+   if ((!dbData || !dbData.fields) && String(type) === 'movie') {
+     dbData = await fetchFirebaseDoc('videos', id);
+   }
    if (!dbData || !dbData.fields) return html;
    const f = dbData.fields;
    // An embargoed article must not leak its title/image through a share card before its release time.
@@ -6020,6 +6144,72 @@ async function startServer() {
       if (err instanceof CaptionError) return res.status(err.status).json({ error: err.message });
       console.error('[AI] captions failed:', err?.message || err);
       res.status(502).json({ error: 'caption generation failed' });
+    }
+  });
+
+  // ── Real-time rolling window transcription (Speech Signal Chain & Music Signal Chain) ──
+  let localNodeAsrPromise: Promise<any> | null = null;
+  const getLocalNodeAsr = () => {
+    if (!localNodeAsrPromise) {
+      localNodeAsrPromise = (async () => {
+        const { pipeline, env } = await import('@huggingface/transformers');
+        env.localModelPath = path.join(process.cwd(), 'public', 'models');
+        env.allowLocalModels = true;
+        return pipeline('automatic-speech-recognition', 'onnx-community/whisper-base', {
+          dtype: 'q8',
+        });
+      })().catch(err => {
+        localNodeAsrPromise = null;
+        throw err;
+      });
+    }
+    return localNodeAsrPromise;
+  };
+
+  app.post('/api/ai/captions-window', aiLimiter, express.json({ limit: '10mb' }), async (req: any, res) => {
+    const { audioBase64, mimeType, title, artist, kind, windowSec } = (req.body || {}) as {
+      audioBase64?: string; mimeType?: string; title?: string; artist?: string; kind?: string; windowSec?: number;
+    };
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      return res.status(400).json({ error: 'audioBase64 required' });
+    }
+    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
+    if (geminiKey) {
+      try {
+        const { GoogleGenAI, Type } = await import('@google/genai');
+        const genai = new GoogleGenAI({ apiKey: geminiKey });
+        const captions = await transcribeAudioWindow(
+          genai,
+          Type,
+          audioBase64,
+          mimeType || 'audio/wav',
+          { title: title || (kind === 'speech' ? 'Live Sermon Speech' : 'Live Worship'), artist, kind: kind || 'speech', windowSec: Number(windowSec) || 3 },
+        );
+        if (captions && captions.length > 0) {
+          return res.json({ captions, engine: 'gemini' });
+        }
+      } catch (err: any) {
+        console.warn('[AI] captions-window Gemini fallback to local Node ONNX:', err?.message || err);
+      }
+    }
+
+    // Native C++ ONNX Runtime (Node) fallback using bundled public/models/onnx-community/whisper-base
+    try {
+      const wavBuf = Buffer.from(audioBase64, 'base64');
+      if (wavBuf.byteLength <= 44) return res.json({ captions: [] });
+      const int16 = new Int16Array(wavBuf.buffer, wavBuf.byteOffset + 44, Math.floor((wavBuf.byteLength - 44) / 2));
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+      const asr = await getLocalNodeAsr();
+      const out = await asr(float32, { language: 'en', task: 'transcribe' });
+      const text = String(out?.text || '').trim();
+      return res.json({
+        captions: text ? [{ time: 0, text }] : [],
+        engine: 'node-whisper-onnx',
+      });
+    } catch (err: any) {
+      console.error('[AI] captions-window failed:', err?.message || err);
+      res.status(502).json({ error: 'window caption generation failed' });
     }
   });
 
