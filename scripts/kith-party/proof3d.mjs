@@ -19,6 +19,15 @@ try {
  assert.equal(await page.locator('canvas').getAttribute('data-renderer'),'three-webgl');
  await page.keyboard.down('ArrowUp');await page.waitForFunction(()=>parseFloat(document.querySelector('.kp-timer')?.textContent||'0')>4);await page.keyboard.down('ArrowRight');await page.keyboard.down('Space');await page.waitForFunction(()=>document.body.textContent.includes('DRIFT READY'));await page.keyboard.up('Space');await page.keyboard.up('ArrowRight');await page.waitForFunction(()=>document.body.textContent.includes('TURBO'));
  await page.screenshot({path:`${out}/racer-3d.png`});await page.locator('canvas').screenshot({path:`${out}/racer-field.png`});await page.keyboard.up('ArrowUp');
+ for(const cid of ['abyssal-trench','dune-canyon','polar-vortex','amazon-canopy']){
+  await page.locator('.kp-course-select').selectOption(cid);
+  await page.getByRole('button',{name:'Ready, let’s go',exact:false}).click();
+  await page.waitForFunction((expected)=>document.querySelector('canvas')?.dataset.course===expected&&Number(document.querySelector('canvas')?.dataset.drawCalls)>0,cid,{timeout:60000});
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction(()=>parseFloat(document.querySelector('.kp-timer')?.textContent||'0')>3.8);
+  await page.screenshot({path:`${out}/racer-${cid}.png`});
+  await page.keyboard.up('ArrowUp');
+ }
  await page.getByRole('button',{name:'Pause game',exact:true}).click();const timer=await page.locator('.kp-timer').innerText();await page.waitForTimeout(500);assert.equal(await page.locator('.kp-timer').innerText(),timer);
  await page.getByRole('button',{name:'Leave game',exact:true}).click();
  await page.locator('.kp-game-card').filter({hasText:'Kith Circuit'}).click();await page.getByRole('button',{name:'Two local players',exact:false}).click();

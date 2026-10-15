@@ -356,6 +356,22 @@ export class GameAudio {
     if (!ctx || !sfx) return;
     this.tone({ freq: 520, t: ctx.currentTime, dur: 0.06, type: 'square', vol: 0.14, bus: sfx });
   }
+
+  tennisHit(smash = false): void {
+    const ctx = this.ctx, sfx = this.sfxBus;
+    if (!ctx || !sfx) return;
+    const t = ctx.currentTime;
+    this.tone({ freq: smash ? 540 : 380, t, dur: smash ? 0.12 : 0.08, type: 'triangle', vol: smash ? 0.34 : 0.24, bus: sfx, slideTo: smash ? 180 : 140 });
+    this.noiseHit({ t, dur: smash ? 0.09 : 0.05, vol: smash ? 0.24 : 0.14, filterType: 'bandpass', freq: smash ? 2200 : 1500, Q: 1.8 });
+  }
+
+  tennisPoint(): void {
+    const ctx = this.ctx, sfx = this.sfxBus;
+    if (!ctx || !sfx) return;
+    const t = ctx.currentTime;
+    [659.25, 880, 1174.66].forEach((f, i) =>
+      this.tone({ freq: f, t: t + i * 0.07, dur: 0.16, type: 'triangle', vol: 0.26, bus: sfx, echo: true }));
+  }
 }
 
 /** Shared singleton: one AudioContext for the whole Kith Party experience. */

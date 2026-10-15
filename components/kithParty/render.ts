@@ -7,6 +7,32 @@ function flower(c:CanvasRenderingContext2D,x:number,y:number,r:number,color:stri
 function diamond(c:CanvasRenderingContext2D,x:number,y:number,size:number,color:string){c.fillStyle=color;c.beginPath();c.moveTo(x,y-size);c.lineTo(x+size*.7,y);c.lineTo(x,y+size);c.lineTo(x-size*.7,y);c.fill();c.fillStyle='#ffffff88';c.beginPath();c.moveTo(x,y-size);c.lineTo(x,y);c.lineTo(x-size*.7,y);c.fill();}
 function avatar(c:CanvasRenderingContext2D,images:Map<string,HTMLImageElement>,id:string,x:number,y:number,size:number){const im=images.get(id);if(im?.complete&&im.naturalWidth)c.drawImage(im,x-size/2,y-size*.85,size,size);else circle(c,x,y,size*.3,characterById(id).color);}
 function track(c:CanvasRenderingContext2D,width:number,color:string){c.beginPath();for(let i=0;i<=200;i++){const p=trackPoint(i/200);i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y);}c.closePath();c.lineWidth=width;c.strokeStyle=color;c.stroke();}
+
+function drawRacket(c:CanvasRenderingContext2D,x:number,y:number,angle:number,accent:string,smash:boolean){
+ c.save();
+ c.translate(x,y);
+ c.rotate(angle);
+ // Grip & throat
+ c.strokeStyle='#f5ead8';
+ c.lineWidth=4;
+ c.beginPath();c.moveTo(0,0);c.lineTo(18,-14);c.stroke();
+ // Racket head hoop
+ c.translate(28,-22);
+ c.rotate(-0.6);
+ c.fillStyle=smash?'rgba(255,210,70,0.45)':'rgba(255,255,255,0.22)';
+ c.strokeStyle=smash?'#ffae00':accent;
+ c.lineWidth=3.5;
+ c.beginPath();c.ellipse(0,0,13,17,0,0,TAU);c.fill();c.stroke();
+ // Strings
+ c.strokeStyle='rgba(255,255,255,0.48)';
+ c.lineWidth=1;
+ for(let s=-8;s<=8;s+=4){
+  c.beginPath();c.moveTo(s,-14);c.lineTo(s,14);c.stroke();
+  c.beginPath();c.moveTo(-10,s);c.lineTo(10,s);c.stroke();
+ }
+ c.restore();
+}
+
 export function render(c:CanvasRenderingContext2D,s:State,images:Map<string,HTMLImageElement>,pressed:boolean[][]) {
  c.clearRect(0,0,960,560);
  if(s.game==='circuit') {
@@ -29,6 +55,106 @@ export function render(c:CanvasRenderingContext2D,s:State,images:Map<string,HTML
   s.crystals.filter(x=>x.active).forEach((p,i)=>{circle(c,p.x,p.y+10,12,'#432052');diamond(c,p.x,p.y+Math.sin(s.time*3+i)*3,13,i%3?'#9c7cba':'#e3a644');});
   bumpers(s.time).forEach(b=>{circle(c,b.x,b.y+8,24,'#e3c0a4');circle(c,b.x,b.y,24,'#eaa16d');circle(c,b.x-7,b.y-6,8,'#ffd298');text(c,'×',b.x,b.y+9,28,'#925d4b');});
   [...s.players].sort((a,b)=>a.y-b.y).forEach(p=>{if(p.invincible>0){c.strokeStyle='#b5d783';c.lineWidth=3;c.beginPath();c.arc(p.x,p.y,32,0,TAU);c.stroke();}avatar(c,images,p.character,p.x,p.y+15+Math.sin(s.time*8)*2,65);text(c,p.human?`P${s.players.indexOf(p)+1}`:characterById(p.character).name,p.x,p.y-49,12);if(p.feedbackTime>0)text(c,p.feedback,p.x,p.y-67,19,p.feedback==='+1'?'#438274':'#b45b45');});
+ } else if(s.game==='tennis') {
+  // ==========================================================================
+  // KITH TENNIS — GRAND STADIUM COURT RALLY
+  // ==========================================================================
+  const b=s.tennis;
+  // Stadium surround & royal clay apron
+  c.fillStyle='#14243b';c.fillRect(0,0,960,560);
+  c.fillStyle='#1f5c58';c.beginPath();c.roundRect(36,28,888,504,34);c.fill();
+  c.fillStyle='#297a74';c.beginPath();c.roundRect(52,40,856,480,28);c.fill();
+
+  // Perspective Stadium Court (trapezoid hardcourt with crisp white lines)
+  c.save();
+  c.fillStyle='#1f6eb5';
+  c.beginPath();
+  c.moveTo(205,72);c.lineTo(755,72);c.lineTo(820,508);c.lineTo(140,508);c.closePath();
+  c.fill();
+  // Inner singles/service court
+  c.fillStyle='#2884d4';
+  c.beginPath();
+  c.moveTo(245,72);c.lineTo(715,72);c.lineTo(770,508);c.lineTo(190,508);c.closePath();
+  c.fill();
+
+  // Crisp white court markings
+  c.strokeStyle='#f5fbff';c.lineWidth=3;
+  // Outer doubles boundary
+  c.beginPath();c.moveTo(205,72);c.lineTo(755,72);c.lineTo(820,508);c.lineTo(140,508);c.closePath();c.stroke();
+  // Singles sidelines
+  c.beginPath();c.moveTo(245,72);c.lineTo(190,508);c.moveTo(715,72);c.lineTo(770,508);c.stroke();
+  // Service lines (top & bottom) and center service line
+  c.beginPath();
+  c.moveTo(224,174);c.lineTo(736,174);
+  c.moveTo(208,392);c.lineTo(752,392);
+  c.moveTo(480,174);c.lineTo(480,392);
+  c.stroke();
+  // Center baseline ticks
+  c.beginPath();c.moveTo(480,72);c.lineTo(480,82);c.moveTo(480,498);c.lineTo(480,508);c.stroke();
+  c.restore();
+
+  // Stadium header & live rally counter
+  text(c,'GRAND KITH STADIUM · COURT RALLY',480,58,13,'#b8f2e6');
+  if(b.rally>0){
+   text(c,`RALLY ×${b.rally}`,845,62,18,b.shotType==='smash'?'#ffcf48':'#ffffff');
+  }
+
+  // Bounce ring ripple on court
+  if(b.bounceTime>0){
+   c.strokeStyle=`rgba(255,245,160,${b.bounceTime*2.2})`;
+   c.lineWidth=3;
+   c.beginPath();c.ellipse(b.bounceX,b.bounceY,(0.4-b.bounceTime)*48,(0.4-b.bounceTime)*24,0,0,TAU);c.stroke();
+  }
+
+  // Target Star Zone (shows where power shots are headed)
+  const targetY=b.vy<0?145:425;
+  const targetX=Math.max(210,Math.min(750,b.x+b.vx*0.35));
+  c.strokeStyle=b.shotType==='smash'?'rgba(255,190,40,0.65)':'rgba(180,245,255,0.45)';
+  c.lineWidth=2.5;
+  c.beginPath();c.ellipse(targetX,targetY,24+Math.sin(s.time*10)*4,12+Math.sin(s.time*10)*2,0,0,TAU);c.stroke();
+  text(c,'✦',targetX,targetY+5,14,b.shotType==='smash'?'#ffd24d':'#bef5ff');
+
+  // Render Top-Court Players (behind the net: y < 278)
+  const drawCourtPlayer=(p:typeof s.players[0])=>{
+   const idx=s.players.indexOf(p);
+   const ch=characterById(p.character);
+   circle(c,p.x,p.y+10,22,'rgba(12,26,44,0.38)');
+   if(p.boost>0||p.shotPower>1.1){
+    c.strokeStyle=p.boost>0?'#ffcf48':ch.accent;
+    c.lineWidth=3;
+    c.beginPath();c.ellipse(p.x,p.y+8,30,15,0,0,TAU);c.stroke();
+   }
+   avatar(c,images,p.character,p.x,p.y+14+Math.sin(s.time*9+idx)*2,64);
+   const swingAng=p.swingTimer>0?-1.2+Math.sin((0.32-p.swingTimer)*18)*1.6:Math.sin(s.time*4+idx)*0.18;
+   drawRacket(c,p.x+(idx%2===0?22:-22),p.y-8,swingAng,ch.accent,p.swingTimer>0&&b.shotType==='smash');
+   text(c,p.human?`P${idx+1} · ${ch.name}`:ch.name,p.x,p.y-48,12,'#eff8ff');
+   if(p.feedbackTime>0) text(c,p.feedback,p.x,p.y-66,17,p.feedback.includes('SMASH')||p.feedback.includes('WINNER')?'#ffd24d':'#9ef7d6');
+  };
+
+  s.players.filter(p=>p.y<278).sort((a,b2)=>a.y-b2.y).forEach(drawCourtPlayer);
+
+  // Tennis Net across center court (y = 278)
+  c.fillStyle='#16283d';
+  c.fillRect(156,252,10,32);c.fillRect(794,252,10,32);
+  c.fillStyle='rgba(20,38,62,0.52)';
+  c.fillRect(164,258,632,22);
+  c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=1;
+  for(let nx=172;nx<792;nx+=14){c.beginPath();c.moveTo(nx,258);c.lineTo(nx,280);c.stroke();}
+  c.fillStyle='#ffffff';
+  c.fillRect(160,254,640,5);
+
+  // Render Tennis Ball Shadow & 3D Arcing Ball + Comet Trail
+  circle(c,b.x,b.y,Math.max(4,10-b.z*0.08),'rgba(10,20,35,0.45)');
+  b.trail.forEach((tp,ti)=>{
+   const alpha=(ti+1)/b.trail.length*0.55;
+   circle(c,tp.x,tp.y-tp.z*0.85,3+ti*0.5,b.shotType==='smash'?`rgba(255,165,30,${alpha})`:`rgba(195,255,90,${alpha})`);
+  });
+  const ballScreenY=b.y-b.z*0.85;
+  circle(c,b.x,ballScreenY,b.shotType==='smash'?11:9,b.shotType==='smash'?'#ffae00':'#d8ff3e');
+  circle(c,b.x-2.5,ballScreenY-2.5,3.5,'#ffffff');
+
+  // Render Bottom-Court Players (in front of the net: y >= 278)
+  s.players.filter(p=>p.y>=278).sort((a,b2)=>a.y-b2.y).forEach(drawCourtPlayer);
  } else {
   c.fillStyle='#230e30';c.fillRect(0,0,960,560);
   for(let i=0;i<12;i++)flower(c,25+(i*173)%920,30+(i*131)%510,18,'#662b58');

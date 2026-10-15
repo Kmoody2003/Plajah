@@ -16,9 +16,9 @@ try {
  assert.equal(await page.locator('img').evaluateAll(imgs=>imgs.filter(i=>!i.complete||!i.naturalWidth).length),0);
  await page.screenshot({path:path.join(out,'gallery-desktop.png'),fullPage:true});
  await page.getByRole('button',{name:'Racing',exact:true}).click();assert.equal(await page.locator('.kp-game-card').count(),1);
- await page.getByRole('button',{name:'All games',exact:true}).click();assert.equal(await page.locator('.kp-game-card').count(),3);
+ await page.getByRole('button',{name:'All games',exact:true}).click();assert.equal(await page.locator('.kp-game-card').count(),4);
  await page.getByRole('button',{name:'How to play',exact:true}).click();await page.getByRole('button',{name:'Got it',exact:false}).click();
- for(const [id,name,duration] of [['circuit','Kith Circuit',53000],['crystals','Crystal Scramble',64000],['rhythm','Chora’s Beat Garden',49000]]) {
+ for(const [id,name,duration] of [['circuit','Kith Circuit',53000],['crystals','Crystal Scramble',64000],['rhythm','Chora’s Beat Garden',49000],['tennis','Kith Tennis',64000]]) {
   console.log(`Checking ${name}`);
   await page.locator('.kp-game-card').filter({has:page.getByRole('heading',{name,exact:true})}).click();
   assert.equal(await page.locator('.kp-roster-grid>button').count(),10);

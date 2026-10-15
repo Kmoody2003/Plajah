@@ -3,40 +3,64 @@ import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {characterById} from './catalog';
 import {makeCreature} from './creatures3d';
 import {type State, type Player} from './engine';
-import {worldPoint, trackFrame, trackBanking} from './course3d';
+import {worldPoint, trackFrame, courseById, setActiveCourse, type CourseDef} from './course3d';
 import {makeKart} from './karts3d';
 import {makeGardenWorld} from './gardenWorld3d';
 
 /** ---- Graphics-pass atmosphere helpers: procedural sky, clouds, glow sprites, asphalt ---- */
 
-function makeSkyDome():T.Mesh{
+function makeSkyDome(course:CourseDef):T.Mesh{
  const geo=new T.SphereGeometry(420,32,20);
  const sunDir=new T.Vector3(-30,68,28).normalize();
+ const cZen=new T.Color(course.skyZenith);
+ const cMid=new T.Color(course.skyMid);
+ const cHor=new T.Color(course.skyHorizon);
+ const isPolar=course.id==='polar-vortex'?1.0:0.0;
+ const isAbyss=course.id==='abyssal-trench'?1.0:0.0;
  const material=new T.ShaderMaterial({
   side:T.BackSide,depthWrite:false,fog:false,
-  uniforms:{sunDir:{value:sunDir}},
+  uniforms:{
+   sunDir:{value:sunDir},
+   uZenith:{value:new T.Vector3(cZen.r,cZen.g,cZen.b)},
+   uMid:{value:new T.Vector3(cMid.r,cMid.g,cMid.b)},
+   uHorizon:{value:new T.Vector3(cHor.r,cHor.g,cHor.b)},
+   uPolar:{value:isPolar},
+   uAbyss:{value:isAbyss},
+  },
   vertexShader:`
    varying vec3 vDir;
    void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
   fragmentShader:`
-   varying vec3 vDir;uniform vec3 sunDir;
+   varying vec3 vDir;
+   uniform vec3 sunDir;
+   uniform vec3 uZenith;
+   uniform vec3 uMid;
+   uniform vec3 uHorizon;
+   uniform float uPolar;
+   uniform float uAbyss;
    void main(){
     vec3 d=normalize(vDir);
     float h=d.y;
-    vec3 zenith=vec3(0.16,0.42,0.94);
-    vec3 mid=vec3(0.52,0.72,0.98);
-    vec3 horizon=vec3(1.0,0.85,0.92);
-    vec3 below=vec3(0.96,0.74,0.86);
+    vec3 below=uHorizon*0.85;
     vec3 col=h>0.0
-     ? mix(mix(horizon,mid,smoothstep(0.0,0.32,h)),zenith,smoothstep(0.28,0.85,h))
-     : mix(horizon,below,smoothstep(0.0,-0.35,h));
+     ? mix(mix(uHorizon,uMid,smoothstep(0.0,0.32,h)),uZenith,smoothstep(0.28,0.85,h))
+     : mix(uHorizon,below,smoothstep(0.0,-0.35,h));
     float s=max(dot(d,normalize(sunDir)),0.0);
-    col+=vec3(1.0,0.88,0.66)*pow(s,600.0)*1.6;
+    col+=vec3(1.0,0.88,0.66)*pow(s,600.0)*(1.6*(1.0-uAbyss*0.7));
     col+=vec3(1.0,0.72,0.5)*pow(s,10.0)*0.28;
     float band=smoothstep(0.04,0.14,h)*smoothstep(0.65,0.28,h);
     float n=sin(d.x*8.0+1.7)*sin(d.z*6.0-0.6)*sin((d.x+d.z)*4.5+0.8);
     float clouds=smoothstep(0.15,0.8,n)*band;
-    col=mix(col,vec3(1.0,0.96,0.99),clouds*0.5);
+    col=mix(col,vec3(1.0,0.96,0.99),clouds*0.42*(1.0-uAbyss));
+    if(uPolar>0.5 && h>0.05){
+     float aurora=sin(d.x*14.0+d.z*9.0)*cos(d.x*7.0-d.z*12.0);
+     float rib=smoothstep(0.2,0.85,aurora)*smoothstep(0.08,0.45,h)*smoothstep(0.92,0.35,h);
+     col+=mix(vec3(0.1,0.95,0.65),vec3(0.75,0.25,1.0),0.5+0.5*sin(d.x*5.0))*rib*0.65;
+    }
+    if(uAbyss>0.5 && h>0.0){
+     float rays=pow(max(0.0,sin(d.x*22.0)*cos(d.z*22.0)),4.0)*smoothstep(0.1,0.9,h);
+     col+=vec3(0.0,0.85,1.0)*rays*0.35;
+    }
     gl_FragColor=vec4(col,1.0);
    }`
  });
@@ -64,10 +88,10 @@ function makeGlowTexture():T.CanvasTexture{
  const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;
 }
 
-function makeAsphaltMaps():{map:T.CanvasTexture;rough:T.CanvasTexture}{
+function makeAsphaltMaps(baseColor='#191a2b'):{map:T.CanvasTexture;rough:T.CanvasTexture}{
  const c=document.createElement('canvas');c.width=256;c.height=256;
  const x=c.getContext('2d')!;
- x.fillStyle='#191a2b';x.fillRect(0,0,256,256);
+ x.fillStyle=baseColor;x.fillRect(0,0,256,256);
  for(let i=0;i<2800;i++){
   const v=Math.random();
   x.fillStyle=v>.58?'rgba(255,210,180,0.055)':'rgba(6,8,18,0.28)';
@@ -134,12 +158,12 @@ class KartAudioSynthesizer {
  private curbGain:GainNode|null=null;
  private curbOsc:OscillatorNode|null=null;
  private lastBoost=0;
+ private lastHop=0;
  private enabled=true;
 
  init(ctx:AudioContext){
   this.ctx=ctx;
   try{
-   // Engine dual oscillator
    this.engineFilter=ctx.createBiquadFilter();
    this.engineFilter.type='lowpass';this.engineFilter.frequency.value=400;this.engineFilter.Q.value=3.5;
    this.engineGain=ctx.createGain();this.engineGain.gain.value=0;
@@ -149,7 +173,6 @@ class KartAudioSynthesizer {
    this.engineFilter.connect(this.engineGain);this.engineGain.connect(ctx.destination);
    this.engineOsc.start();this.engineOsc2.start();
 
-   // Drift screech noise buffer
    const bufSize=ctx.sampleRate*2;
    const noiseBuf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
    const out=noiseBuf.getChannelData(0);
@@ -161,7 +184,6 @@ class KartAudioSynthesizer {
    this.driftNoise.connect(driftFilter);driftFilter.connect(this.driftGain);this.driftGain.connect(ctx.destination);
    this.driftNoise.start();
 
-   // Curb rumble oscillator
    this.curbGain=ctx.createGain();this.curbGain.gain.value=0;
    this.curbOsc=ctx.createOscillator();this.curbOsc.type='square';this.curbOsc.frequency.value=48;
    const curbFilter=ctx.createBiquadFilter();curbFilter.type='lowpass';curbFilter.frequency.value=180;
@@ -186,21 +208,34 @@ class KartAudioSynthesizer {
   if(this.engineFilter) this.engineFilter.frequency.setTargetAtTime(320+speedRatio*1900+(p.boost>0?800:0),t,.05);
   if(this.engineGain) this.engineGain.gain.setTargetAtTime(.08+speedRatio*.07,t,.05);
 
-  // Drift screech
   if(this.driftGain){
    const target=p.drift>.15?Math.min(.18,.05+p.drift*.09):0;
    this.driftGain.gain.setTargetAtTime(target,t,.04);
   }
-  // Curb chatter
   if(this.curbGain){
    const target=p.surface==='curb'?.09:0;
    this.curbGain.gain.setTargetAtTime(target,t,.03);
   }
-  // Trigger turbo blast on fresh boost
   if(p.boost>0&&this.lastBoost===0){
    this.playTurboBlast();
   }
+  if(p.hopVy>1.5&&this.lastHop<=0.02){
+   this.playHopBoing();
+  }
   this.lastBoost=p.boost;
+  this.lastHop=p.hopY;
+ }
+
+ playHopBoing(){
+  if(!this.ctx||!this.enabled||this.ctx.state!=='running') return;
+  try{
+   const ctx=this.ctx,t=ctx.currentTime;
+   const osc=ctx.createOscillator();osc.type='sine';
+   osc.frequency.setValueAtTime(190,t);osc.frequency.exponentialRampToValueAtTime(420,t+.11);
+   const gain=ctx.createGain();gain.gain.setValueAtTime(.14,t);gain.gain.exponentialRampToValueAtTime(.001,t+.13);
+   osc.connect(gain);gain.connect(ctx.destination);
+   osc.start(t);osc.stop(t+.14);
+  }catch{}
  }
 
  playTurboBlast(){
@@ -223,26 +258,29 @@ class KartAudioSynthesizer {
 }
 
 export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
+ const courseDef=courseById(initial.course);
+ setActiveCourse(courseDef.id);
+
  const renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));renderer.setSize(960,560,false);
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;
  canvas.dataset.renderer='three-webgl';
 
  const scene=new T.Scene();
- scene.fog=new T.FogExp2('#f4d5e6',.0019);
- scene.add(makeSkyDome());
+ scene.fog=new T.FogExp2(courseDef.fogColor,courseDef.fogDensity);
+ scene.add(makeSkyDome(courseDef));
  const envRT=buildEnvironment(renderer);
  scene.environment=envRT.texture;
  scene.environmentIntensity=.78;
 
- // Sun glow billboard, drifting candy clouds, golden air sparkles (with soft radial glow texture!)
+ // Sun glow billboard, drifting clouds, air sparkles
  const glowTex=makeGlowTexture();
- const sunGlow=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:'#ffdf9e',transparent:true,opacity:.85,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
+ const sunGlow=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:courseDef.id==='abyssal-trench'?'#3df5ff':'#ffdf9e',transparent:true,opacity:.85,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
  sunGlow.position.set(55,64,-10).normalize().multiplyScalar(390);sunGlow.scale.setScalar(165);scene.add(sunGlow);
  const puffTex=makePuffTexture();
  const clouds:{sprite:T.Sprite;speed:number}[]=[];
  for(let i=0;i<14;i++){
-  const sp=new T.Sprite(new T.SpriteMaterial({map:puffTex,transparent:true,opacity:.48+Math.random()*.28,depthWrite:false,fog:false,color:'#fff7fb'}));
+  const sp=new T.Sprite(new T.SpriteMaterial({map:puffTex,transparent:true,opacity:.48+Math.random()*.28,depthWrite:false,fog:false,color:courseDef.id==='abyssal-trench'?'#2088b8':'#fff7fb'}));
   const a=Math.random()*Math.PI*2,r=165+Math.random()*130;
   sp.position.set(Math.cos(a)*r,52+Math.random()*44,Math.sin(a)*r);
   const s=48+Math.random()*54;sp.scale.set(s,s*.52,1);
@@ -253,7 +291,7 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
  for(let i=0;i<moteCount;i++){motePos[i*3]=(Math.random()-.5)*220;motePos[i*3+1]=2+Math.random()*36;motePos[i*3+2]=(Math.random()-.5)*220;}
  const moteGeo=new T.BufferGeometry();
  moteGeo.setAttribute('position',new T.BufferAttribute(motePos,3));
- const moteMat=new T.PointsMaterial({map:glowTex,color:'#ffe7a0',size:.85,transparent:true,opacity:.65,blending:T.AdditiveBlending,depthWrite:false,alphaTest:.02});
+ const moteMat=new T.PointsMaterial({map:glowTex,color:courseDef.accent,size:.85,transparent:true,opacity:.65,blending:T.AdditiveBlending,depthWrite:false,alphaTest:.02});
  const motes=new T.Points(moteGeo,moteMat);scene.add(motes);
 
  const hemi=new T.HemisphereLight('#f6f8ff','#7a5d7e',2.1);scene.add(hemi);
@@ -261,7 +299,7 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
  sun.position.set(42,68,-18);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
  Object.assign(sun.shadow.camera,{left:-95,right:95,top:80,bottom:-80,near:1,far:180});
  sun.shadow.bias=-.0006;scene.add(sun);
- const fill=new T.DirectionalLight('#e38cff',1.35);fill.position.set(-45,26,38);scene.add(fill);
+ const fill=new T.DirectionalLight(courseDef.accent,1.35);fill.position.set(-45,26,38);scene.add(fill);
 
  const mats=new Map<string,T.MeshStandardMaterial>();
  const mat=(color:string,glow=0)=>{
@@ -273,27 +311,28 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
   const m=new T.Mesh(new T.BoxGeometry(sx,sy,sz),mat(color,glow));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;
  };
 
- // High-fidelity Banked Road Ribbons matching Concept Art
- const asphaltMaps=makeAsphaltMaps();
+ // High-fidelity Banked & Loop-Capable Road Ribbons
+ const asphaltMaps=makeAsphaltMaps(courseDef.roadColor);
  const asphaltMat=new T.MeshPhysicalMaterial({
   map:asphaltMaps.map,
   roughnessMap:asphaltMaps.rough,
-  color:'#202236',
-  roughness:.44,
-  metalness:.14,
-  clearcoat:.38,
-  clearcoatRoughness:.26,
-  envMapIntensity:.9
+  color:courseDef.roadColor,
+  roughness:courseDef.id==='polar-vortex'?.18:.44,
+  metalness:courseDef.id==='polar-vortex'?.28:.14,
+  clearcoat:courseDef.id==='polar-vortex'?.85:.38,
+  clearcoatRoughness:.22,
+  envMapIntensity:1.05
  });
+ const stepsCount=courseDef.loops.length>0?640:420;
  function strip(l1:number,l2:number,color:string,offset=0,glow=0,override?:T.Material){
   const positions:number[]=[],uv:number[]=[],idx:number[]=[];
-  for(let i=0;i<=400;i++){
+  for(let i=0;i<=stepsCount;i++){
    for(const lane of [l1,l2]){
-    const p=worldPoint(i/400,lane,offset);
+    const p=worldPoint(i/stepsCount,lane,offset,courseDef.id);
     positions.push(p.x,p.y,p.z);
     uv.push(lane===l1?0:1,i/8);
    }
-   if(i<400){const j=i*2;idx.push(j,j+2,j+1,j+1,j+2,j+3);}
+   if(i<stepsCount){const j=i*2;idx.push(j,j+2,j+1,j+1,j+2,j+3);}
   }
   const geo=new T.BufferGeometry();
   geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
@@ -303,93 +342,102 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
   const mesh=new T.Mesh(geo,material);mesh.receiveShadow=true;scene.add(mesh);return mesh;
  }
 
- // Under-deck carved stone bridge foundation & dark reflective asphalt track surface
- strip(-74,74,'#cbb8cc',-.34); // Warm stone viaduct deck foundation underneath road
- strip(-69,-63,'#ded0be',.01); // Left carved stone curb coping
- strip(63,69,'#ded0be',.01);   // Right carved stone curb coping
- strip(-63,63,'#1c1d30',0,0,asphaltMat); // Dark competition tarmac with clearcoat sheen
+ // Under-deck bridge foundation & competition road surface
+ strip(-74,74,courseDef.deckColor,-.34);
+ strip(-69,-63,courseDef.copingColor,.01);
+ strip(63,69,courseDef.copingColor,.01);
+ strip(-63,63,courseDef.roadColor,0,0,asphaltMat);
 
- // Concept-Art Glowing Orange Edge & Double-Center Striping
- strip(-58.5,-54.5,'#ff7b00',.025,1.25);
- strip(54.5,58.5,'#ff7b00',.025,1.25);
- strip(-2.4,-.7,'#ff9b1f',.03,1.15);
- strip(.7,2.4,'#ff9b1f',.03,1.15);
- // Subtle racing lane guide filaments
- strip(-28.5,-27.5,'#ff8811',.022,.55);
- strip(27.5,28.5,'#ff8811',.022,.55);
+ // Glowing Edge & Double-Center Striping
+ strip(-58.5,-54.5,courseDef.stripeColor,.025,1.25);
+ strip(54.5,58.5,courseDef.stripeColor,.025,1.25);
+ strip(-2.4,-.7,courseDef.stripeColor,.03,1.15);
+ strip(.7,2.4,courseDef.stripeColor,.03,1.15);
+ strip(-28.5,-27.5,courseDef.stripeColor,.022,.55);
+ strip(27.5,28.5,courseDef.stripeColor,.022,.55);
 
- // Alternating Amber & Ivory Corner Apex Curbs
+ // Alternating Corner Apex Curbs (oriented with full 3D basis so they wrap around 360° loops!)
+ const basisHelper=new T.Matrix4();
  for(let i=0;i<140;i++){
   const t=i/140;
+  const f=trackFrame(t,0,courseDef.id);
+  basisHelper.makeBasis(f.right,f.normal,f.tangent);
   for(const side of [-1,1]){
-   const p=worldPoint(t,side*60.2,.03);
-   const q=worldPoint(t+.001,side*60.2,.03);
-   const angle=Math.atan2(q.x-p.x,q.z-p.z);
-   const curbColor=i%2===0?'#ff7300':'#f7ead8';
+   const p=worldPoint(t,side*60.2,.03,courseDef.id);
+   const curbColor=i%2===0?courseDef.curbColorA:courseDef.curbColorB;
    const curb=box(p.x,p.y,p.z,.95,.06,1.35,curbColor,i%2===0?.65:.05);
-   curb.rotation.y=angle;
+   curb.quaternion.setFromRotationMatrix(basisHelper);
   }
  }
 
- // Animated Boost Pads with glowing directional chevrons
+ // Animated Boost Pads with glowing directional chevrons (including mandatory Loop Power Boost pads!)
  const boostPads:{mesh:T.Mesh;padT:number}[]=[];
- for(const t of [.09,.17,.49,.78]){
-  const p=worldPoint(t),q=worldPoint(t+.001),angle=Math.atan2(q.x-p.x,q.z-p.z);
-  const pad=box(p.x,p.y+.06,p.z,6.8,.06,3.4,'#ff7300',1.35);
-  pad.rotation.y=angle;
+ for(const t of courseDef.boostPads){
+  const f=trackFrame(t,0,courseDef.id);
+  basisHelper.makeBasis(f.right,f.normal,f.tangent);
+  const isLoopPad=courseDef.loops.some(l=>Math.abs(l.boostPadT-t)<0.01);
+  const padWidth=isLoopPad?11.5:6.8;
+  const padColor=isLoopPad?'#9dff2e':courseDef.stripeColor;
+  const pad=box(f.position.x,f.position.y,f.position.z,padWidth,.08,3.8,padColor,1.45);
+  pad.position.addScaledVector(f.normal,0.06);
+  pad.quaternion.setFromRotationMatrix(basisHelper);
   boostPads.push({mesh:pad,padT:t});
   for(let i=0;i<3;i++){
-   const v=box(p.x,p.y+.11,p.z,2.4,.03,.18,'#fff4d0',1.6);
-   v.rotation.y=angle+Math.PI/4;
-   v.position.add(new T.Vector3(Math.sin(angle),0,Math.cos(angle)).multiplyScalar(i*.75-.75));
+   const v=box(f.position.x,f.position.y,f.position.z,padWidth*0.36,.04,.22,'#fff4d0',1.7);
+   v.position.addScaledVector(f.normal,0.11).addScaledVector(f.tangent,i*.85-.85);
+   v.quaternion.setFromRotationMatrix(basisHelper);
   }
  }
 
  // Viaduct stone support columns beneath the circuit
  for(let i=0;i<14;i++){
-  const p=worldPoint(i/14);
-  const support=box(p.x,-4,p.z,2.6,Math.max(1,p.y+8),2.6,'#8e7b96');
-  support.position.y=(p.y-8)/2;
+  const p=worldPoint(i/14,0,0,courseDef.id);
+  if(p.y>-6){
+   const support=box(p.x,-4,p.z,2.6,Math.max(1,p.y+8),2.6,courseDef.deckColor);
+   support.position.y=(p.y-8)/2;
+  }
  }
 
- // Start/Finish Ceremonial Arch (placed slightly behind grid at t=0.985 so opening vista is 100% unobstructed)
+ // Start/Finish Ceremonial Arch
  function sign(label:string,width=512,height=128){
   const c=document.createElement('canvas');c.width=width;c.height=height;
   const ctx=c.getContext('2d')!;
   ctx.fillStyle='#2a153d';ctx.fillRect(0,0,width,height);
-  ctx.fillStyle='#ff9419';ctx.fillRect(0,height-12,width,12);
-  ctx.fillStyle='#ff9419';ctx.fillRect(0,0,width,8);
-  ctx.fillStyle='#fff6e8';ctx.font=`900 ${height*.44}px Arial, sans-serif`;ctx.textAlign='center';ctx.fillText(label,width/2,height*.65);
+  ctx.fillStyle=courseDef.accent;ctx.fillRect(0,height-12,width,12);
+  ctx.fillStyle=courseDef.accent;ctx.fillRect(0,0,width,8);
+  ctx.fillStyle='#fff6e8';ctx.font=`900 ${height*.40}px Arial, sans-serif`;ctx.textAlign='center';ctx.fillText(label,width/2,height*.64);
   const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;
   return new T.MeshBasicMaterial({map:tex,side:T.DoubleSide});
  }
  const gantryT=0.982;
- const start=worldPoint(gantryT);
+ const start=worldPoint(gantryT,0,0,courseDef.id);
  for(const lane of [-64,64]){
-  const p=worldPoint(gantryT,lane);
-  box(p.x,p.y+5.8,p.z,1.1,11.6,1.1,'#e6d7c3');
+  const p=worldPoint(gantryT,lane,0,courseDef.id);
+  box(p.x,p.y+5.8,p.z,1.1,11.6,1.1,courseDef.copingColor);
  }
- const banner=new T.Mesh(new T.BoxGeometry(24,2.4,.42),sign('KITH CIRCUIT'));
+ const banner=new T.Mesh(new T.BoxGeometry(24,2.4,.42),sign(courseDef.name.toUpperCase()));
  banner.position.set(start.x,start.y+11.2,start.z);
- const startDir=worldPoint(gantryT+.001).sub(start).normalize();
+ const startDir=worldPoint(gantryT+.001,0,0,courseDef.id).sub(start).normalize();
  banner.rotation.y=Math.atan2(startDir.x,startDir.z);scene.add(banner);
 
  // Start Grid Checkered Line at t=0
  for(let col=0;col<12;col++)for(let row=0;row<2;row++){
-  const p=worldPoint(row*.002,(col-5.5)*8.8,.025);
+  const p=worldPoint(row*.002,(col-5.5)*8.8,.025,courseDef.id);
   box(p.x,p.y,p.z,1.45,.02,.72,(row+col)%2?'#fff8eb':'#181426');
  }
 
- // Glowing Crystal Speed Arches framing the final sector
+ // Glowing Speed Arches framing the final sector
  for(let i=0;i<6;i++){
-  const t=.62+i*.02,p=worldPoint(t),q=worldPoint(t+.001),arch=new T.Mesh(new T.TorusGeometry(11.5,.22,8,32,Math.PI),mat(i%2?'#ff8c00':'#ff2e93',1.35));
+  const t=.62+i*.02,p=worldPoint(t,0,0,courseDef.id),q=worldPoint(t+.001,0,0,courseDef.id);
+  const arch=new T.Mesh(new T.TorusGeometry(11.5,.22,8,32,Math.PI),mat(i%2?courseDef.accent:'#ff2e93',1.35));
   arch.position.copy(p);arch.rotation.y=Math.atan2(q.x-p.x,q.z-p.z);scene.add(arch);
  }
 
- const garden=makeGardenWorld(scene,worldPoint);
- canvas.dataset.course='crestfall-gardens';canvas.dataset.kartDesigns=String(garden.stats.kartDesigns);
+ const garden=makeGardenWorld(scene,(t,lane=0,offset=0)=>worldPoint(t,lane,offset,courseDef.id),courseDef.id);
+ canvas.dataset.course=courseDef.id;
+ canvas.dataset.kartDesigns=String(garden.stats.kartDesigns);
 
- // Wind Rush & Speed Streak Particles (with soft radial glow texture!)
+ // Wind Rush & Speed Streak Particles
  const speedStreakCount=120;
  const streakPositions=new Float32Array(speedStreakCount*3);
  for(let i=0;i<speedStreakCount;i++){
@@ -478,7 +526,6 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
   }
   body.add(sparkGroup);
 
-  // Soft neon underglow pooling beneath the kart (concept-art warm orange/magenta road reflection)
   const glowColor=p.character==='rello'?'#ff7300':p.character==='chora'?'#ff2e93':c.accent;
   const glowMat=new T.MeshBasicMaterial({map:glowTex,color:glowColor,transparent:true,opacity:.48,blending:T.AdditiveBlending,depthWrite:false});
   const underglow=new T.Mesh(new T.PlaneGeometry(3.8,4.8),glowMat);
@@ -490,7 +537,9 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
  const humans=initial.players.filter(p=>p.human);
  const cameras=humans.map(()=>new T.PerspectiveCamera(58,960/560,.1,520));
  const cameraTargets=humans.map(()=>new T.Vector3());
+ const cameraUps=humans.map(()=>new T.Vector3(0,1,0));
  const audioSynthesizer=new KartAudioSynthesizer();
+ const kartBasis=new T.Matrix4();
  let initialized=false;let audioInitialized=false;
 
  return {
@@ -500,16 +549,13 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
    garden.update(dt,Math.max(0,s.time));
    for(const m of mixers)m.update(dt);
 
-   // Update Audio Synthesizer for Player 1
    if(audioCtx&&!audioInitialized){audioSynthesizer.init(audioCtx);audioInitialized=true;}
    if(s.players[0]) audioSynthesizer.update(s.players[0],!!soundEnabled);
 
-   // Update Boost Pad Chevrons Pulse
    boostPads.forEach(bp=>{
     (bp.mesh.material as T.MeshStandardMaterial).emissiveIntensity=0.95+Math.sin(s.time*12)*.4;
    });
 
-   // Drift candy clouds, breathe golden air sparkles
    clouds.forEach(cl=>{cl.sprite.position.x+=cl.speed*dt;if(cl.sprite.position.x>320)cl.sprite.position.x=-320;});
    moteMat.opacity=.45+Math.sin(s.time*2.2)*.15;
    const mAttr=moteGeo.getAttribute('position') as T.BufferAttribute;
@@ -521,30 +567,34 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
    }
    mAttr.needsUpdate=true;
 
-   // Update Karts with authentic banked orientation, chassis physics, and particle FX
+   // Update Karts with full 3D Loop-the-Loop Orthonormal Basis, Hop-Drift, and 4-Wheel Independent Suspension!
    s.players.forEach((p,i)=>{
     const kart=karts[i];
-    const frame=trackFrame(p.progress,p.lane);
-    const ahead=trackFrame(p.progress+.001,p.lane);
-    const direction=ahead.position.clone().sub(frame.position).normalize();
+    const frame=trackFrame(p.progress,p.lane,courseDef.id);
 
-    kart.root.position.copy(frame.position);
-    kart.root.rotation.y=Math.atan2(direction.x,direction.z);
-    kart.root.rotation.x=-Math.asin(direction.y);
-    kart.root.rotation.z=frame.bankAngle;
+    // Position kart on road + vertical hop / jump ramp air height along road normal
+    kart.root.position.copy(frame.position).addScaledVector(frame.normal,p.hopY||0);
 
-    // Chassis Pitch, Roll, and Drift Yaw Slant
-    const driftAngle=p.drift>0?(p.steerAngle<0?-1:1)*(.28+p.drift*.12):p.steerAngle*.18;
+    // Orthonormal 3D basis orientation (handles steep abyssal drops, banked turns, AND 360° vertical loops!)
+    kartBasis.makeBasis(frame.right,frame.normal,frame.tangent);
+    kart.root.quaternion.setFromRotationMatrix(kartBasis);
+
+    // Chassis Jounce, Pitch, Roll, and Mario Kart Counter-Steer Drift Yaw Slant
+    const driftDir=p.driftDir!==0?p.driftDir:(p.steerAngle<0?-1:1);
+    const driftAngle=p.drift>0?driftDir*(.30+p.drift*.12)-p.steerAngle*.08:p.steerAngle*.18;
+    kart.body.position.y=(p.jounce||0)*0.45;
     kart.body.rotation.y=driftAngle;
     kart.body.rotation.z=p.roll;
     kart.body.rotation.x=p.pitch;
 
-    // Front wheels steer cleanly around Y axis (order='YXZ')
-    kart.wheels.slice(2,4).forEach(w=>{
-     w.rotation.y=p.steerAngle*.38;
+    // 4-Wheel Independent Suspension Travel [RL, RR, FL, FR] + Front Wheel Steering + Rolling Spin
+    const wheelTravels=[p.suspensionRL||0, p.suspensionRR||0, p.suspensionFL||0, p.suspensionFR||0];
+    kart.wheels.forEach((w,wIdx)=>{
+     const baseY=typeof w.userData.baseY==='number'?w.userData.baseY:0.46;
+     w.position.y=baseY-wheelTravels[wIdx]*0.55;
+     if(wIdx>=2) w.rotation.y=p.steerAngle*.38;
+     w.rotation.x-=p.speed*dt*140;
     });
-    // Spin all wheels with forward speed
-    kart.wheels.forEach(w=>w.rotation.x-=p.speed*dt*140);
 
     // Dual Rocket Exhaust Flame Plumes
     const isBoost=p.boost>0;
@@ -591,24 +641,21 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
    if(size.x!==w||size.y!==h) renderer.setSize(w,h,false);
    renderer.setScissorTest(true);
 
-   // Heroic Low Rear-3/4 Chase Camera (Faithfully matching Concept Art Perspective & following curved road corridor)
+   // Heroic Low Rear-3/4 Chase Camera (follows curved corridor AND 360° vertical loops!)
    cameras.forEach((camera,i)=>{
     const p=s.players[i];
-    const frame=trackFrame(p.progress,p.lane);
-    const forward=trackFrame(p.progress+.012,p.lane).position.sub(frame.position).normalize();
+    const frame=trackFrame(p.progress,p.lane,courseDef.id);
 
     const isHero=cameraMode==='hero';
     const arcBack=(isHero?.0128:.0185)+(p.boost>0?.003:p.speed*.022);
     const camHeight=(isHero?2.42:4.35)+(p.boost>0?-.22:0);
-    // Subtle rear-3/4 chase offset clamped strictly within [-54, 54] (well inside the ±67 balustrade guardrails!)
     const heroLaneBias=isHero?-2.2:0;
     const driftLaneShift=p.drift>0?(p.steerAngle<0?5.5:-5.5):p.steerAngle*-1.8;
     const camLane=Math.max(-54,Math.min(54,p.lane+heroLaneBias+driftLaneShift));
-    const camTrackFrame=trackFrame(p.progress-arcBack,camLane);
+    const camTrackFrame=trackFrame(p.progress-arcBack,camLane,courseDef.id);
 
-    const desired=camTrackFrame.position.clone().add(new T.Vector3(0,camHeight,0));
+    const desired=camTrackFrame.position.clone().addScaledVector(camTrackFrame.normal,camHeight);
 
-    // Curb vibration and speed rumble shake
     if(p.surface==='curb'||p.boost>0||p.speed>.07){
      const shakeAmp=p.surface==='curb'?.10:p.boost>0?.06:.025;
      desired.x+=Math.sin(s.time*85)*shakeAmp;
@@ -616,26 +663,26 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
     }
 
     const lookLane=Math.max(-54,Math.min(54,p.lane*.92));
-    const lookAheadFrame=trackFrame(p.progress+(isHero?.032:.024),lookLane);
-    const lookTarget=lookAheadFrame.position.clone().add(new T.Vector3(0,isHero?2.65:1.65,0));
+    const lookAheadFrame=trackFrame(p.progress+(isHero?.032:.024),lookLane,courseDef.id);
+    const lookTarget=lookAheadFrame.position.clone().addScaledVector(lookAheadFrame.normal,isHero?2.65:1.65);
 
     if(!initialized){
      camera.position.copy(desired);
      cameraTargets[i].copy(lookTarget);
+     cameraUps[i].copy(frame.normal);
     } else {
      camera.position.lerp(desired,1-Math.exp(-dt*11));
      cameraTargets[i].lerp(lookTarget,1-Math.exp(-dt*14));
+     cameraUps[i].lerp(frame.normal,1-Math.exp(-dt*10)).normalize();
     }
+    camera.up.copy(cameraUps[i]);
     camera.lookAt(cameraTargets[i]);
-
-    // Roll camera slightly into road banking
     camera.rotation.z+=frame.bankAngle*.38;
 
     const vh=humans.length>1?h/2:h;
     const bottom=humans.length>1?(1-i)*vh:0;
     camera.aspect=w/vh;
 
-    // Dynamic FOV warp: 56° at rest (cinematic 35mm lens), expanding on turbo boost!
     const baseFov=isHero?56:62;
     const targetFov=p.boost>0?baseFov+18:baseFov+(p.speed/.070)*10;
     camera.fov+=(targetFov-camera.fov)*Math.min(1,dt*8);

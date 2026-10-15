@@ -52,3 +52,19 @@
 @keyframes kpHudPop{0%{transform:scale(.8)}100%{transform:scale(1)}}
 @keyframes kpDriftPulse{0%{box-shadow:0 0 15px #e040fb}100%{box-shadow:0 0 30px #00e5ff}}
 @keyframes kpVignetteShake{0%{opacity:.85}100%{opacity:1}}
+
+/* 5-Course Selector & Kith Tennis Card Styles */
+.kp-tennis{background:radial-gradient(ellipse at 50% 45%,#1b6ea8,#112640)}.kp-tennis img:first-of-type{height:132px;left:18%;bottom:24px}.kp-tennis img:last-of-type{height:132px;right:16%;bottom:24px}
+.kp-course-selector{margin:0 0 22px;padding:16px 18px;border:1px solid var(--line);border-radius:var(--pj-radius-lg,24px);background:var(--kp-surface)}
+.kp-course-selector>.kp-eyebrow{display:block;font-size:8px;letter-spacing:1.6px;color:var(--pj-orange);margin-bottom:10px}
+.kp-course-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.kp-course-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:11px 12px;border-radius:16px;border:1px solid var(--line);background:rgba(20,10,36,0.55);color:var(--ink);cursor:pointer;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+.kp-course-card:hover{transform:translateY(-2px);border-color:var(--course-accent,var(--pj-orange))}
+.kp-course-card.selected{background:var(--pj-purple-soft);border-color:var(--course-accent,var(--pj-orange));box-shadow:0 0 16px rgba(255,140,0,0.22)}
+.kp-course-card small{font-size:7px;letter-spacing:1.2px;color:var(--course-accent,var(--pj-orange));font-weight:800}
+.kp-course-card b{font-size:12px;margin:4px 0 3px;line-height:1.2}
+.kp-course-card span{font-size:8px;color:var(--muted);line-height:1.35}
+.kp-course-select{border:1px solid var(--line);border-radius:var(--pj-radius-full);padding:7px 12px;font-size:10px;font-weight:700;background:var(--kp-surface);color:var(--ink);cursor:pointer}
+@media(max-width:1100px){.kp-course-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.kp-course-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.kp-course-card{padding:9px 10px}.kp-course-card b{font-size:11px}.kp-course-card span{display:none}.kp-course-select{display:none}}
+

@@ -1,5 +1,5 @@
 import {speciesSvg} from './species';
-export type GameId = 'circuit' | 'crystals' | 'rhythm';
+export type GameId = 'circuit' | 'crystals' | 'rhythm' | 'tennis';
 export interface Character { id: string; name: string; title: string; bio: string; color: string; accent: string; fin: string; mark: string; shape: number; }
 export const CHARACTERS: Character[] = [
   { id:'rello', name:'Rello', title:'The scene stealer', bio:'Camera ready. Corner hungry. Every finish deserves a close-up.', color:'#263c73', accent:'#f28a36', fin:'#d7378a', mark:'✦', shape:0 },
@@ -14,9 +14,10 @@ export const CHARACTERS: Character[] = [
   { id:'fenn', name:'Fenn', title:'The snow day', bio:'Fluffy cheeks and icy crown fins. Brings cool composure to absolute chaos.', color:'#80a7b0', accent:'#eef1da', fin:'#7792cc', mark:'❄', shape:9 },
 ];
 export const GAMES: {id:GameId; name:string; category:string; description:string; duration:string; color:string; instructions:string; goal:string}[] = [
-  {id:'circuit', name:'Kith Circuit', category:'3D KART RACING', description:'Chase the neon. Drift through Prism Parkway in full 3D.', duration:'3 laps', color:'#dbe9b8', instructions:'Auto-acceleration is on for every kart. Steer with ← → and brake with ↓. Turn auto-accelerate off for manual ↑ throttle. Hold Space through a turn, then release for a drift boost. Drive over golden pads for turbo.', goal:'Finish three laps ahead of the pack. Stay on the track to keep your speed.'},
+  {id:'circuit', name:'Kith Circuit', category:'3D KART RACING', description:'Hop-drift across 5 wild 3D courses: underwater glass tunnels, desert sandworms, polar vortex storms, and 360° jungle loops.', duration:'3 laps', color:'#dbe9b8', instructions:'Auto-acceleration is on for every kart. Steer with ← → and brake with ↓. Press Space + steer to hop into a Mario Kart drift and release for Blue, Orange, or Ultra Purple Mini-Turbo! Hit Power Boost pads before vertical loops.', goal:'Finish three laps ahead of the pack across all 5 Kith Circuit courses.'},
   {id:'crystals', name:'Crystal Scramble', category:'PARTY ARENA', description:'A pocketful of sparkle. A field full of friendly chaos.', duration:'60 seconds', color:'#e6d9ed', instructions:'Move with the arrow keys. Press Space to dash. Collect glowing crystals and dodge the roaming orange bumpers.', goal:'Collect the most crystals in 60 seconds. Bumpers cost two crystals; a dash protects you.'},
   {id:'rhythm', name:'Chora’s Beat Garden', category:'RHYTHM PARTY', description:'Follow the flowers. Find your groove. Make a little noise.', duration:'45 seconds', color:'#f6d3bd', instructions:'Press the top-row number keys 1 2 3 4 when a flower reaches its matching ring. Player 2 uses 7 8 9 0. Arrow keys / A S W D also work.', goal:'Hit the beat accurately to build a combo. Perfect timing earns the most points.'},
+  {id:'tennis', name:'Kith Tennis', category:'COURT RALLY', description:'High-energy court rallies, diving saves, and golden star smashes at the Grand Kith Stadium.', duration:'60 seconds', color:'#cce8f4', instructions:'Move across the court with ← → ↑ ↓ (Player 2: W A S D). Position your Kith to return shots automatically, or press Space / F as the ball arrives for a blazing Power Smash or Diving Save! Steer left/right during a swing to aim cross-court.', goal:'Win rallies and land Power Smashes to rack up the highest stadium score in 60 seconds.'},
 ];
 export const characterById = (id:string) => CHARACTERS.find(c=>c.id===id) || CHARACTERS[0];
 

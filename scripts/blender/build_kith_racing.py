@@ -876,6 +876,170 @@ def build_monuments(mat_stone, mat_crystal):
     rock_ob.parent = f_root
     roots.append(f_root)
 
+    # 5. AbyssalLeviathan: Bioluminescent Deep-Sea Whale-Dragon for Abyssal Glass Trench
+    lev_root = link(bpy.data.objects.new("AbyssalLeviathan", None))
+    lev_body = []
+    lev_glow = []
+    bm = bmesh.new()
+    bmesh.ops.create_icosphere(bm, subdivisions=4, radius=1.0)
+    for v in bm.verts:
+        x, y, z = v.co.x, v.co.y, v.co.z
+        # Streamlined undulating leviathan body along Y axis
+        taper = max(0.12, 1.0 - 0.55 * max(0.0, y))
+        wave = 0.25 * math.sin(y * 3.5)
+        v.co = Vector((x * 4.5 * taper + wave, y * 16.0, z * 3.2 * taper))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    me = bpy.data.meshes.new("Leviathan_Body")
+    bm.to_mesh(me)
+    bm.free()
+    lev_ob = link(bpy.data.objects.new("Leviathan_Body", me))
+    set_smooth(lev_ob, True)
+    V = verts_np(lev_ob)
+    belly = sstep(0.8, -1.5, V[:, 2])
+    stripes = 0.5 + 0.5 * np.sin(V[:, 1] * 1.4 + np.abs(V[:, 0]) * 0.8)
+    c_deep = hexc('#091c3a')
+    c_cyan = hexc('#00f0ff')
+    c_mag = hexc('#ff2a9d')
+    cols = mix(c_deep[:, None], c_cyan[:, None], (belly * 0.7 + stripes * 0.35)).T
+    paint_np(lev_ob, cols)
+    lev_body.append(lev_ob)
+    for side in (-1.0, 1.0):
+        # Sweeping pectoral wing-fins & tail flukes + glowing eyes
+        lev_glow.append(make_crystal_blade(
+            f"lev_pec_{side}", base=(side * 3.2, -3.5, -0.4), direction=(side * 0.88, 0.38, -0.22),
+            length=11.5, width=4.6, thick=0.8, col_base='#0b2b5c', col_mid='#00e5ff', col_tip='#ff38a8', sweep=side * 0.28
+        ))
+        lev_glow.append(make_crystal_blade(
+            f"lev_fluke_{side}", base=(side * 0.6, 14.2, 0.0), direction=(side * 0.76, 0.62, 0.15),
+            length=7.2, width=3.2, thick=0.6, col_base='#0b2b5c', col_mid='#00f2ff', col_tip='#9dffea'
+        ))
+        lev_glow.append(make_crystal_blade(
+            f"lev_eye_{side}", base=(side * 3.4, -10.5, 0.6), direction=(side * 0.85, -0.45, 0.25),
+            length=1.8, width=1.1, thick=0.7, col_base='#00ffff', col_mid='#80ffff', col_tip='#ffffff'
+        ))
+    for d_idx in range(4):
+        lev_glow.append(make_crystal_blade(
+            f"lev_dorsal_{d_idx}", base=(0.0, -5.0 + d_idx * 4.5, 2.5 - d_idx * 0.35),
+            direction=(0.0, 0.55, 0.83), length=5.2 - d_idx * 0.7, width=2.2, thick=0.6,
+            col_base='#142864', col_mid='#ff2e93', col_tip='#00f2ff'
+        ))
+    lb_mesh = join_objects(lev_body, "AbyssalLeviathan_Stone")
+    assign_mat(lb_mesh, mat_stone)
+    lb_mesh.parent = lev_root
+    lg_mesh = join_objects(lev_glow, "AbyssalLeviathan_Crystal")
+    assign_mat(lg_mesh, mat_crystal)
+    lg_mesh.parent = lev_root
+    roots.append(lev_root)
+
+    # 6. BiolumManta: Neon-Cyan & Violet Glowing Sea Manta Ray
+    manta_root = link(bpy.data.objects.new("BiolumManta", None))
+    manta_parts = []
+    manta_parts.append(make_rounded_box("manta_core", (3.2, 5.4, 0.9), loc=(0, 0, 0), bevel_width=0.4, col='#102a52', smooth=True))
+    for side in (-1.0, 1.0):
+        manta_parts.append(make_crystal_blade(
+            f"manta_wing_{side}", base=(side * 1.1, -0.5, 0.0), direction=(side * 0.92, 0.35, 0.12),
+            length=7.5, width=4.2, thick=0.45, col_base='#12285e', col_mid='#00e5ff', col_tip='#ff42b0', sweep=side * 0.25
+        ))
+        manta_parts.append(make_crystal_blade(
+            f"manta_horn_{side}", base=(side * 0.9, -2.5, 0.0), direction=(side * 0.2, -0.96, 0.1),
+            length=2.2, width=0.8, thick=0.4, col_base='#00d0ff', col_mid='#70ffff', col_tip='#ffffff'
+        ))
+    manta_parts.append(make_crystal_blade(
+        "manta_tail", base=(0, 2.5, 0), direction=(0, 0.99, 0.08),
+        length=6.8, width=0.6, thick=0.35, col_base='#00e5ff', col_mid='#b34dff', col_tip='#ff66cc'
+    ))
+    manta_mesh = join_objects(manta_parts, "BiolumManta_Crystal")
+    assign_mat(manta_mesh, mat_crystal)
+    manta_mesh.parent = manta_root
+    roots.append(manta_root)
+
+    # 7. ColossalSandworm: Armored Desert Sandworm Maw with Ringed Crystalline Teeth
+    worm_root = link(bpy.data.objects.new("ColossalSandworm", None))
+    w_stone = []
+    w_crys = []
+    for seg in range(5):
+        r_seg = 6.8 - seg * 0.55
+        y_seg = seg * 4.2
+        w_stone.append(make_torus(
+            f"worm_ring_{seg}", r_seg, 1.65, maj_seg=22, min_seg=10,
+            loc=(0, y_seg, 0), rot=(math.pi / 2, 0, 0),
+            col='#c97a3e' if seg % 2 == 0 else '#9e5627'
+        ))
+        for side in (-1.0, 1.0):
+            w_crys.append(make_crystal_blade(
+                f"worm_spine_{seg}_{side}", base=(side * (r_seg + 0.5), y_seg, 1.2),
+                direction=(side * 0.65, 0.35, 0.65), length=3.6, width=1.6, thick=0.8,
+                col_base='#592812', col_mid='#ff6a00', col_tip='#ffd24d'
+            ))
+    # Dark interior gullet + 12 ringed crystalline teeth inside open mouth
+    w_stone.append(make_cylinder("worm_gullet", 5.6, 3.2, 6.0, segs=20, loc=(0, 2.2, 0), rot=(math.pi / 2, 0, 0), col='#2b0e11'))
+    for t_i in range(12):
+        ang = t_i * math.pi * 2.0 / 12.0
+        tx, tz = math.cos(ang) * 5.8, math.sin(ang) * 5.8
+        w_crys.append(make_crystal_blade(
+            f"worm_tooth_{t_i}", base=(tx, -0.6, tz),
+            direction=(-math.cos(ang) * 0.45, -0.88, -math.sin(ang) * 0.45),
+            length=3.4, width=1.1, thick=0.65, col_base='#d4a373', col_mid='#fff1d6', col_tip='#ff9d00'
+        ))
+    ws_mesh = join_objects(w_stone, "ColossalSandworm_Stone")
+    assign_mat(ws_mesh, mat_stone)
+    ws_mesh.parent = worm_root
+    wc_mesh = join_objects(w_crys, "ColossalSandworm_Crystal")
+    assign_mat(wc_mesh, mat_crystal)
+    wc_mesh.parent = worm_root
+    roots.append(worm_root)
+
+    # 8. PolarIceCitadel: Towering North Pole Crystalline Vortex Spire & Glacier Arch
+    ice_root = link(bpy.data.objects.new("PolarIceCitadel", None))
+    ice_stone = []
+    ice_crys = []
+    ice_stone.append(make_torus("ice_arch", 9.5, 2.2, maj_seg=22, min_seg=10, loc=(0, 0, 0), rot=(math.pi / 2, 0, 0), col='#b8e2f8', arc=math.pi))
+    ice_crys.append(make_crystal_blade(
+        "ice_central_spire", base=(0, 0, 6.5), direction=(0, 0, 1),
+        length=28.0, width=7.5, thick=5.5, col_base='#164c82', col_mid='#00e1ff', col_tip='#ffffff', facet_boost=0.32, speckle=True
+    ))
+    for i in range(6):
+        ang = i * math.pi / 3.0
+        bx, by = math.cos(ang) * 7.2, math.sin(ang) * 4.5
+        ice_crys.append(make_crystal_blade(
+            f"ice_crown_shard_{i}", base=(bx, by, 3.5),
+            direction=(math.cos(ang) * 0.38, math.sin(ang) * 0.38, 0.90),
+            length=18.5 + (i % 2) * 4.5, width=4.8, thick=3.2,
+            col_base='#1b5896', col_mid='#3df5ff', col_tip='#f2ffff', facet_boost=0.28
+        ))
+    is_mesh = join_objects(ice_stone, "PolarIceCitadel_Stone")
+    assign_mat(is_mesh, mat_stone)
+    is_mesh.parent = ice_root
+    ic_mesh = join_objects(ice_crys, "PolarIceCitadel_Crystal")
+    assign_mat(ic_mesh, mat_crystal)
+    ic_mesh.parent = ice_root
+    roots.append(ice_root)
+
+    # 9. AmazonTempleGate: Overgrown Jungle Stone Temple Tunnel Arch with Carved Totems & Sun Gems
+    amz_root = link(bpy.data.objects.new("AmazonTempleGate", None))
+    amz_stone = []
+    amz_crys = []
+    for side in (-1.0, 1.0):
+        amz_stone.append(make_rounded_box(f"amz_pillar_{side}", (3.4, 5.2, 12.5), loc=(side * 9.2, 0, 6.0), bevel_width=0.35, col='#6e7858'))
+        amz_stone.append(make_rounded_box(f"amz_moss_cap_{side}", (3.8, 5.6, 2.2), loc=(side * 9.2, 0, 11.8), bevel_width=0.45, col='#3f8a42'))
+        amz_crys.append(make_crystal_blade(
+            f"amz_torch_gem_{side}", base=(side * 9.2, -2.6, 7.5), direction=(0, -0.85, 0.52),
+            length=3.2, width=1.8, thick=1.2, col_base='#2b7a38', col_mid='#a8ff3e', col_tip='#ffe84d'
+        ))
+    amz_stone.append(make_rounded_box("amz_lintel", (23.5, 5.8, 3.4), loc=(0, 0, 13.5), bevel_width=0.45, col='#7d8562'))
+    amz_stone.append(make_rounded_box("amz_step_top", (17.5, 5.2, 2.4), loc=(0, 0, 16.0), bevel_width=0.35, col='#489446'))
+    amz_crys.append(make_crystal_blade(
+        "amz_sun_crest", base=(0, -2.5, 14.5), direction=(0, -0.15, 0.98),
+        length=6.5, width=4.8, thick=1.6, col_base='#d45b12', col_mid='#ffae00', col_tip='#fff799'
+    ))
+    as_mesh = join_objects(amz_stone, "AmazonTempleGate_Stone")
+    assign_mat(as_mesh, mat_stone)
+    as_mesh.parent = amz_root
+    ac_mesh = join_objects(amz_crys, "AmazonTempleGate_Crystal")
+    assign_mat(ac_mesh, mat_crystal)
+    ac_mesh.parent = amz_root
+    roots.append(amz_root)
+
     return roots
 
 # ---------------------------------------------------------------------------

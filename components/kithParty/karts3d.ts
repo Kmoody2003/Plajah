@@ -199,6 +199,7 @@ export function makeKart(c:Character){
   const wheel=new T.Group();
   wheel.rotation.order='YXZ';
   wheel.position.set(wheelX,radius,z);
+  wheel.userData.baseY=radius;
   body.add(wheel);wheels.push(wheel);
 
   const tire=add(new T.CylinderGeometry(radius,radius,width,24),rubber,0,0,0,wheel);
@@ -326,6 +327,7 @@ export function makeKart(c:Character){
     const wBox=new T.Box3().setFromObject(clonedWheel);
     const wCenter=wBox.getCenter(new T.Vector3());
     targetWheel.position.copy(wCenter);
+    targetWheel.userData.baseY=wCenter.y;
     clonedWheel.position.sub(wCenter);
     while(targetWheel.children.length>0) targetWheel.remove(targetWheel.children[0]);
     applyBlenderKartMaterial(clonedWheel);
