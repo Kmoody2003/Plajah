@@ -25,7 +25,18 @@ import {
   comicToShowcaseStudioBook,
   studioPageToComicMangaPage,
   showcaseComicToComicMangaPages,
+  canAccessPumpkinPatchProject,
+  createEmptyBaseTemplateStudioPage,
+  createEmptyBaseTemplateStudioBook,
+  createEmptyBaseTemplateComicMangaPage,
 } from './comicStudioBridge';
+
+export {
+  canAccessPumpkinPatchProject,
+  createEmptyBaseTemplateStudioPage,
+  createEmptyBaseTemplateStudioBook,
+  createEmptyBaseTemplateComicMangaPage,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. PROSE / STORY ──▶ AUTOMATIC SEQUENTIAL COMIC BREAKDOWN
@@ -943,7 +954,10 @@ export function getPlatformShowcaseBooks(): ShowcaseBook[] {
 }
 
 export function getPlatformShowcaseComics(): ShowcaseComicBook[] {
-  return SHOWCASE_COMICS;
+  if (canAccessPumpkinPatchProject()) {
+    return SHOWCASE_COMICS;
+  }
+  return SHOWCASE_COMICS.filter((c) => !c.id.startsWith('pumpkin-patch'));
 }
 
 /**

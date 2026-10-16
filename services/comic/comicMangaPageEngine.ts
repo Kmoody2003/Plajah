@@ -50,11 +50,16 @@ export interface ComicVectorBalloon {
   id: string;
   type: BalloonType;
   text: string;
+  originalScriptText?: string;
+  altText?: string;
+  useAltTextLayer?: boolean;
   speakerCharacterId?: string;
   speakerName?: string;
   xPct: number; // 0..100 relative to panel
   yPct: number; // 0..100 relative to panel
   widthPx?: number;
+  widthPct?: number;
+  scale?: number;
   tailDirection?: 'bottom_left' | 'bottom_right' | 'top_left' | 'top_right' | 'none';
   sfxColor?: string;
   sfxScale?: number;
@@ -64,12 +69,46 @@ export interface ComicVectorBalloon {
 export interface ComicEnginePanel {
   id: string;
   panelIndex: number;
+  globalPanelNumber?: number;
   box: PanelGeometryBox;
   cameraShot: 'establishing' | 'full_shot' | 'medium' | 'close_up' | 'extreme_close_up' | 'low_angle_hero';
+  framingCode?: string;
+  geometry?: string;
   characterId?: string;
   actionPrompt: string;
   environmentPrompt?: string;
+  editorialRationale?: string;
   renderedImageUrl?: string;
+  caption?: string;
+  captionHeader?: string;
+  originalScriptCaption?: string;
+  altCaption?: string;
+  useAltCaptionLayer?: boolean;
+  captionX?: number;
+  captionY?: number;
+  sfxText?: string;
+  originalScriptSfx?: string;
+  altSfx?: string;
+  useAltSfxLayer?: boolean;
+  sfxX?: number;
+  sfxY?: number;
+  sfxColor?: string;
+  textLayerMode?: 'alt' | 'script';
+  timecodeSeconds?: number;
+  anchorTimecodeSeconds?: number;
+  endTimecodeSeconds?: number;
+  muxPlaybackId?: string;
+  sourceVideoUrl?: string;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  imageScale?: number;
+  isVideoLoop?: boolean;
+  loopInSeconds?: number;
+  loopOutSeconds?: number;
+  cinemagraphMode?: 'loop' | 'ping-pong' | 'subtle';
+  samLayerEnabled?: boolean;
+  borderStyle?: 'solid' | 'thick' | 'double' | 'none' | 'gold' | 'neon';
+  shape?: 'rect' | 'diag-left' | 'diag-right' | 'rounded' | 'circle-inset';
   screentone: {
     enabled: boolean;
     pattern: ScreentonePattern;
@@ -122,6 +161,7 @@ export interface PanelAnimationLayer {
 
 export interface NestedPanelDocument {
   id: string;                  // e.g. "doc_panel_1_silas_alley"
+  docId: string;               // Canonical Tela linked document ID
   panelIndex: number;
   pageId: string;              // parent comic page id
   title: string;               // e.g. "Panel 1: Flooded Alleyway"
@@ -131,11 +171,82 @@ export interface NestedPanelDocument {
   timelineDurationSec: number; // e.g. 4.0s
   currentTimeSec: number;
   isPlaying: boolean;
-  inkDataUrl?: string;         // Drawn canvas dataURL
+  inkDataUrl?: string;         // Drawn canvas dataURL (persisted across views)
+  inkUndoStack?: string[];     // Per-panel Undo history of inkDataUrl snapshots
+  inkRedoStack?: string[];     // Per-panel Redo history of inkDataUrl snapshots
   cameraShot: ComicEnginePanel['cameraShot'];
   prompt: string;
   updatedAt: number;
 }
+
+export interface LayerAnimationPreset {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  keyframes: PanelKeyframe[];
+}
+
+export const LAYER_ANIMATION_PRESETS: LayerAnimationPreset[] = [
+  {
+    id: 'manga_impact_punch',
+    name: 'Manga Impact Punch',
+    emoji: '💥',
+    description: 'Fast snap zoom-in with camera recoil shake',
+    keyframes: [
+      { id: 'kf_imp_0', timeSec: 0.0, properties: { scale: 1.0, x: 0, y: 0, opacity: 1, shakeIntensity: 0 }, easing: 'ease_in' },
+      { id: 'kf_imp_1', timeSec: 0.4, properties: { scale: 1.28, x: -4, y: -4, opacity: 1, shakeIntensity: 0.85 }, easing: 'spring' },
+      { id: 'kf_imp_2', timeSec: 1.2, properties: { scale: 1.18, x: 0, y: 0, opacity: 1, shakeIntensity: 0.2 }, easing: 'ease_out' },
+      { id: 'kf_imp_3', timeSec: 4.0, properties: { scale: 1.18, x: 0, y: 0, opacity: 1, shakeIntensity: 0 }, easing: 'linear' },
+    ],
+  },
+  {
+    id: 'noir_slow_push',
+    name: 'Noir Slow Push-In',
+    emoji: '🎬',
+    description: 'Atmospheric cinematic push-in across 4 seconds',
+    keyframes: [
+      { id: 'kf_noir_0', timeSec: 0.0, properties: { scale: 1.0, x: 0, y: 0, opacity: 0.9, shakeIntensity: 0 }, easing: 'ease_in_out' },
+      { id: 'kf_noir_1', timeSec: 4.0, properties: { scale: 1.22, x: -10, y: -6, opacity: 1, shakeIntensity: 0 }, easing: 'ease_out' },
+    ],
+  },
+  {
+    id: 'parallax_float_25d',
+    name: '2.5D Parallax Float',
+    emoji: '🌊',
+    description: 'Gentle horizontal & vertical camera drift for depth layers',
+    keyframes: [
+      { id: 'kf_par_0', timeSec: 0.0, properties: { scale: 1.08, x: -8, y: -3, opacity: 1, shakeIntensity: 0 }, easing: 'ease_in_out' },
+      { id: 'kf_par_1', timeSec: 2.0, properties: { scale: 1.10, x: 8, y: 3, opacity: 1, shakeIntensity: 0 }, easing: 'ease_in_out' },
+      { id: 'kf_par_2', timeSec: 4.0, properties: { scale: 1.08, x: -8, y: -3, opacity: 1, shakeIntensity: 0 }, easing: 'ease_in_out' },
+    ],
+  },
+  {
+    id: 'spring_pop_in',
+    name: 'Spring Bubble / SFX Pop',
+    emoji: '💬',
+    description: 'Elastic pop-in ideal for speech balloons & action words',
+    keyframes: [
+      { id: 'kf_pop_0', timeSec: 0.0, properties: { scale: 0.3, x: 0, y: 12, opacity: 0, shakeIntensity: 0 }, easing: 'spring' },
+      { id: 'kf_pop_1', timeSec: 0.4, properties: { scale: 1.14, x: 0, y: -3, opacity: 1, shakeIntensity: 0.25 }, easing: 'spring' },
+      { id: 'kf_pop_2', timeSec: 0.8, properties: { scale: 1.0, x: 0, y: 0, opacity: 1, shakeIntensity: 0 }, easing: 'ease_out' },
+      { id: 'kf_pop_3', timeSec: 4.0, properties: { scale: 1.0, x: 0, y: 0, opacity: 1, shakeIntensity: 0 }, easing: 'linear' },
+    ],
+  },
+  {
+    id: 'heartbeat_pulse',
+    name: 'Suspense Heartbeat',
+    emoji: '💓',
+    description: 'Rhythmic double-pulse zoom with subtle tension tremor',
+    keyframes: [
+      { id: 'kf_hb_0', timeSec: 0.0, properties: { scale: 1.0, x: 0, y: 0, opacity: 1, shakeIntensity: 0 } },
+      { id: 'kf_hb_1', timeSec: 0.8, properties: { scale: 1.12, x: 0, y: 0, opacity: 1, shakeIntensity: 0.35 }, easing: 'spring' },
+      { id: 'kf_hb_2', timeSec: 1.3, properties: { scale: 1.02, x: 0, y: 0, opacity: 1, shakeIntensity: 0 } },
+      { id: 'kf_hb_3', timeSec: 1.8, properties: { scale: 1.15, x: 0, y: 0, opacity: 1, shakeIntensity: 0.45 }, easing: 'spring' },
+      { id: 'kf_hb_4', timeSec: 4.0, properties: { scale: 1.0, x: 0, y: 0, opacity: 1, shakeIntensity: 0 } },
+    ],
+  },
+];
 
 /**
  * Creates a default Nested Tela Document for a comic panel.
@@ -275,6 +386,7 @@ export function createDefaultNestedPanelDoc(
 
   return {
     id: panelDocId,
+    docId: panelDocId,
     panelIndex,
     pageId,
     title: `Panel ${panelIndex + 1}: ${panel.actionPrompt ? panel.actionPrompt.slice(0, 36) : 'Scene View'}...`,
@@ -284,6 +396,8 @@ export function createDefaultNestedPanelDoc(
     timelineDurationSec: 4.0,
     currentTimeSec: 0,
     isPlaying: false,
+    inkUndoStack: [],
+    inkRedoStack: [],
     cameraShot: panel.cameraShot,
     prompt: panel.actionPrompt || 'Sequential Art Scene',
     updatedAt: Date.now(),
@@ -294,6 +408,13 @@ export interface ComicMangaPage {
   id: string;
   title: string;
   pageNumber: number;
+  actNumber?: number;
+  slugline?: string;
+  layoutGrammar?: string;
+  activeLensName?: string;
+  activeLensDesc?: string;
+  timeRangeLabel?: string;
+  summary?: string;
   layoutId: PageLayoutId;
   readingDirection: 'ltr' | 'rtl'; // ltr: Western Comic, rtl: Japanese Manga
   dimensions: { width: number; height: number }; // Default: 1200 x 1600 (A4 / Comic standard)
@@ -579,15 +700,15 @@ export class ComicMangaPageEngine {
 
     if (page.stylePreset === 'manga') {
       loraId = 'flux_lora_manga_screentone';
-      modelId = 'flux2_klein_4b';
+      modelId = 'flux3_klein';
       lightingCue = 'authentic high contrast manga inking with screentone textures';
     } else if (page.stylePreset === 'storybook_watercolor') {
       loraId = 'flux_lora_storybook_cartoon';
-      modelId = 'flux2_klein_4b';
+      modelId = 'flux3_klein';
       lightingCue = 'whimsical watercolor wash and delicate storybook ink lines';
     } else if (page.stylePreset === 'graphic_novel_noir') {
       loraId = 'flux_lora_cinematic_35mm';
-      modelId = 'flux2_klein_4b';
+      modelId = 'flux3_klein';
       lightingCue = 'bold graphic novel chiaroscuro, heavy black shadows, sharp rim light';
     }
 
@@ -988,3 +1109,302 @@ function computeStarburstPoints(w: number, h: number): string {
 }
 
 export const comicMangaPageEngine = ComicMangaPageEngine.getInstance();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NON-DESTRUCTIVE PANEL SPLIT, MERGE, DIAGONAL SLASH & PROCEDURAL ART GENERATOR
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DIAGONAL_CLIP_PRESETS = [
+  undefined,
+  'polygon(0% 0%, 100% 0%, 100% 88%, 0% 100%)',
+  'polygon(0% 8%, 100% 0%, 100% 100%, 0% 92%)',
+  'polygon(4% 0%, 100% 0%, 96% 100%, 0% 100%)',
+  'polygon(0% 0%, 95% 4%, 100% 96%, 5% 100%)',
+];
+
+/**
+ * Splits a specific panel horizontally (top / bottom) without losing any existing panels or art.
+ */
+export function splitPanelHorizontally(page: ComicMangaPage, panelIndex: number, gutterPct = 1.2): ComicMangaPage {
+  const target = page.panels[panelIndex];
+  if (!target || target.box.heightPct < 14) return page;
+
+  const halfH = Number(((target.box.heightPct - gutterPct) / 2).toFixed(2));
+  const topBox: PanelGeometryBox = {
+    ...target.box,
+    heightPct: halfH,
+  };
+  const bottomBox: PanelGeometryBox = {
+    id: `box_split_h_${Date.now()}`,
+    panelIndex: panelIndex + 1,
+    xPct: target.box.xPct,
+    yPct: Number((target.box.yPct + halfH + gutterPct).toFixed(2)),
+    widthPct: target.box.widthPct,
+    heightPct: halfH,
+  };
+
+  const newBottomPanel: ComicEnginePanel = {
+    id: `panel_${Date.now()}_${panelIndex + 1}`,
+    panelIndex: panelIndex + 1,
+    box: bottomBox,
+    cameraShot: 'close_up',
+    characterId: target.characterId,
+    actionPrompt: `${target.actionPrompt || 'Action beat'} (Reaction Close-Up)`,
+    renderedImageUrl: target.renderedImageUrl,
+    screentone: { ...target.screentone },
+    balloons: [],
+    linkedDocId: `doc_${page.id}_p${page.panels.length + 1}_${Date.now().toString().slice(-3)}`,
+  };
+
+  const nextPanels = [...page.panels];
+  nextPanels.splice(
+    panelIndex,
+    1,
+    { ...target, box: topBox },
+    newBottomPanel
+  );
+
+  return {
+    ...page,
+    panels: nextPanels.map((p, idx) => ({
+      ...p,
+      panelIndex: idx,
+      box: { ...p.box, panelIndex: idx },
+    })),
+  };
+}
+
+/**
+ * Splits a specific panel vertically (left / right) without losing any existing panels or art.
+ */
+export function splitPanelVertically(page: ComicMangaPage, panelIndex: number, gutterPct = 1.2): ComicMangaPage {
+  const target = page.panels[panelIndex];
+  if (!target || target.box.widthPct < 18) return page;
+
+  const halfW = Number(((target.box.widthPct - gutterPct) / 2).toFixed(2));
+  const leftBox: PanelGeometryBox = {
+    ...target.box,
+    widthPct: halfW,
+  };
+  const rightBox: PanelGeometryBox = {
+    id: `box_split_v_${Date.now()}`,
+    panelIndex: panelIndex + 1,
+    xPct: Number((target.box.xPct + halfW + gutterPct).toFixed(2)),
+    yPct: target.box.yPct,
+    widthPct: halfW,
+    heightPct: target.box.heightPct,
+  };
+
+  const newRightPanel: ComicEnginePanel = {
+    id: `panel_${Date.now()}_${panelIndex + 1}`,
+    panelIndex: panelIndex + 1,
+    box: rightBox,
+    cameraShot: 'medium',
+    characterId: target.characterId,
+    actionPrompt: `${target.actionPrompt || 'Action beat'} (Counter-Shot)`,
+    renderedImageUrl: target.renderedImageUrl,
+    screentone: { ...target.screentone },
+    balloons: [],
+    linkedDocId: `doc_${page.id}_p${page.panels.length + 1}_${Date.now().toString().slice(-3)}`,
+  };
+
+  const nextPanels = [...page.panels];
+  nextPanels.splice(
+    panelIndex,
+    1,
+    { ...target, box: leftBox },
+    newRightPanel
+  );
+
+  return {
+    ...page,
+    panels: nextPanels.map((p, idx) => ({
+      ...p,
+      panelIndex: idx,
+      box: { ...p.box, panelIndex: idx },
+    })),
+  };
+}
+
+/**
+ * Cycles dynamic shonen/comic diagonal slash polygon cuts on the selected panel.
+ */
+export function togglePanelDiagonalSlant(page: ComicMangaPage, panelIndex: number): ComicMangaPage {
+  const target = page.panels[panelIndex];
+  if (!target) return page;
+
+  const currentIdx = DIAGONAL_CLIP_PRESETS.indexOf(target.box.clipPolygon);
+  const nextClip = DIAGONAL_CLIP_PRESETS[(currentIdx + 1) % DIAGONAL_CLIP_PRESETS.length];
+
+  const nextPanels = page.panels.map((p, idx) =>
+    idx === panelIndex ? { ...p, box: { ...p.box, clipPolygon: nextClip } } : p
+  );
+
+  return { ...page, panels: nextPanels };
+}
+
+/**
+ * Deletes a panel (if > 1 panel remains) and expands an adjacent panel to fill its space when aligned.
+ */
+export function deleteAndMergePanel(page: ComicMangaPage, panelIndex: number): ComicMangaPage {
+  if (page.panels.length <= 1) return page;
+  const removed = page.panels[panelIndex];
+  const remaining = page.panels.filter((_, idx) => idx !== panelIndex);
+
+  // Try to expand neighbor sharing same row or column
+  const neighborIdx = Math.max(0, panelIndex - 1);
+  if (remaining[neighborIdx] && removed) {
+    const nb = remaining[neighborIdx].box;
+    if (Math.abs(nb.yPct - removed.box.yPct) < 2) {
+      const minX = Math.min(nb.xPct, removed.box.xPct);
+      const maxX = Math.max(nb.xPct + nb.widthPct, removed.box.xPct + removed.box.widthPct);
+      remaining[neighborIdx] = {
+        ...remaining[neighborIdx],
+        box: { ...nb, xPct: minX, widthPct: Number((maxX - minX).toFixed(2)) },
+      };
+    } else if (Math.abs(nb.xPct - removed.box.xPct) < 2) {
+      const minY = Math.min(nb.yPct, removed.box.yPct);
+      const maxY = Math.max(nb.yPct + nb.heightPct, removed.box.yPct + removed.box.heightPct);
+      remaining[neighborIdx] = {
+        ...remaining[neighborIdx],
+        box: { ...nb, yPct: minY, heightPct: Number((maxY - minY).toFixed(2)) },
+      };
+    }
+  }
+
+  return {
+    ...page,
+    panels: remaining.map((p, idx) => ({
+      ...p,
+      panelIndex: idx,
+      box: { ...p.box, panelIndex: idx },
+    })),
+  };
+}
+
+/**
+ * Generates an instant, stylized comic/manga SVG artwork plate dataURL from the panel's prompt,
+ * character cast lock, and camera shot so creators can see immediate visual feedback.
+ */
+export function generateProceduralPanelPlateSvg(params: {
+  prompt: string;
+  characterName?: string;
+  cameraShot: string;
+  stylePreset: string;
+  seed?: number;
+}): string {
+  const { prompt, characterName = 'Hero', cameraShot, stylePreset, seed = Date.now() } = params;
+  const palettes: Record<string, [string, string, string, string]> = {
+    graphic_novel_noir: ['#080b14', '#1e1b4b', '#00daf3', '#d40055'],
+    manga: ['#111115', '#27272a', '#f4f4f5', '#ec4899'],
+    american_superhero: ['#0f172a', '#1d4ed8', '#f59e0b', '#ef4444'],
+    storybook_watercolor: ['#1e1b2e', '#4c1d95', '#fbbf24', '#34d399'],
+  };
+  const [bg1, bg2, accent1, accent2] = palettes[stylePreset] || palettes.graphic_novel_noir;
+  const safePrompt = escapeXml(prompt.slice(0, 64));
+  const safeChar = escapeXml(characterName);
+  const safeShot = escapeXml(cameraShot.replace(/_/g, ' ').toUpperCase());
+
+  // Dynamic speed lines / dramatic lighting rays
+  const rays: string[] = [];
+  for (let i = 0; i < 18; i++) {
+    const angle = (i * 20 + (seed % 17)) * (Math.PI / 180);
+    const x2 = 400 + Math.cos(angle) * 600;
+    const y2 = 360 + Math.sin(angle) * 600;
+    rays.push(`<line x1="400" y1="360" x2="${x2.toFixed(0)}" y2="${y2.toFixed(0)}" stroke="${i % 2 === 0 ? accent1 : accent2}" stroke-opacity="0.18" stroke-width="${(i % 3) + 1.5}" />`);
+  }
+
+  const silhouetteScale =
+    cameraShot === 'extreme_close_up' ? 1.65 :
+    cameraShot === 'close_up' ? 1.3 :
+    cameraShot === 'low_angle_hero' ? 1.2 : 0.9;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${bg1}"/>
+        <stop offset="60%" stop-color="${bg2}"/>
+        <stop offset="100%" stop-color="#05050a"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="50%" cy="45%" r="50%">
+        <stop offset="0%" stop-color="${accent1}" stop-opacity="0.45"/>
+        <stop offset="65%" stop-color="${accent2}" stop-opacity="0.15"/>
+        <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="800" height="800" fill="url(#bg)"/>
+    <circle cx="400" cy="360" r="360" fill="url(#glow)"/>
+    <g>${rays.join('')}</g>
+    <!-- Dramatic Horizon & Cityscape Geometry -->
+    <polygon points="0,800 0,520 120,460 220,540 340,420 480,510 620,440 740,500 800,470 800,800" fill="#060810" fill-opacity="0.75" stroke="${accent1}" stroke-opacity="0.35" stroke-width="2"/>
+    <!-- Character Heroic Silhouette & Rim Light -->
+    <g transform="translate(400, 450) scale(${silhouetteScale}) translate(-400, -450)">
+      <path d="M310,800 L335,510 Q315,430 355,390 L445,390 Q485,430 465,510 L490,800 Z" fill="#0b0e17" stroke="${accent1}" stroke-width="3.5"/>
+      <circle cx="400" cy="325" r="54" fill="#0b0e17" stroke="${accent1}" stroke-width="3.5"/>
+      <!-- Glowing Ocular / Visor Accent -->
+      <ellipse cx="382" cy="320" rx="11" ry="5" fill="${accent1}"/>
+      <ellipse cx="418" cy="320" rx="11" ry="5" fill="${accent1}"/>
+      <path d="M340,420 Q260,520 220,660" fill="none" stroke="${accent2}" stroke-width="5" stroke-opacity="0.65"/>
+    </g>
+    <!-- Camera HUD Stamp -->
+    <rect x="28" y="28" width="240" height="34" rx="6" fill="#05070d" fill-opacity="0.78" stroke="${accent1}" stroke-opacity="0.5"/>
+    <text x="42" y="50" fill="${accent1}" font-family="system-ui, sans-serif" font-size="14" font-weight="800">${safeChar} • ${safeShot}</text>
+    <rect x="28" y="730" width="744" height="44" rx="8" fill="#05070d" fill-opacity="0.82" stroke="#ffffff" stroke-opacity="0.15"/>
+    <text x="44" y="757" fill="#e2e8f0" font-family="system-ui, sans-serif" font-size="15" font-weight="600">${safePrompt}</text>
+  </svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * Computes safe perimeter balloon coordinates enforcing the 5 Non-Negotiable Lettering Rules:
+ * 1. No Face Occlusion (x: 26%-74%, y: 12%-56%)
+ * 2. No Key-Action Corridor Occlusion (x: 22%-78%, y: 18%-78%)
+ * 3. Negative-Space & Gutter Docking (top-left, top-right, bottom-left, bottom-right, top-gutter-flush, bottom-gutter-flush)
+ * 4. Close-Up Chin / Gutter Rail Docking (CU/ECU: y >= 72% or y <= 4%, width <= 44%)
+ * 5. Directional Tail Vectoring toward speaker mouth without balloon body intruding on face
+ */
+export function computeSafeBalloonPlacement(
+  cameraShot: ComicEnginePanel['cameraShot'],
+  balloonIndex = 0,
+  existingBalloons: ComicVectorBalloon[] = []
+): {
+  xPct: number;
+  yPct: number;
+  widthPct: number;
+  tailDirection: NonNullable<ComicVectorBalloon['tailDirection']>;
+} {
+  const isCloseUp = cameraShot === 'close_up' || cameraShot === 'extreme_close_up';
+  const idx = (balloonIndex + existingBalloons.length) % 4;
+
+  if (isCloseUp) {
+    // Rule 4: Extreme top border strip (y <= 4%) or bottom gutter rail (y >= 72%), compact width <= 44%
+    const cuSlots: Array<{
+      xPct: number;
+      yPct: number;
+      widthPct: number;
+      tailDirection: NonNullable<ComicVectorBalloon['tailDirection']>;
+    }> = [
+      { xPct: 4, yPct: 3, widthPct: 42, tailDirection: 'bottom_right' },
+      { xPct: 54, yPct: 74, widthPct: 42, tailDirection: 'top_left' },
+      { xPct: 54, yPct: 3, widthPct: 42, tailDirection: 'bottom_left' },
+      { xPct: 4, yPct: 74, widthPct: 42, tailDirection: 'top_right' },
+    ];
+    return cuSlots[idx];
+  }
+
+  // Rules 1, 2, 3, 5: Perimeter negative-space docking outside face & center action corridor
+  const standardSlots: Array<{
+    xPct: number;
+    yPct: number;
+    widthPct: number;
+    tailDirection: NonNullable<ComicVectorBalloon['tailDirection']>;
+  }> = [
+    { xPct: 4, yPct: 4, widthPct: 42, tailDirection: 'bottom_right' },
+    { xPct: 54, yPct: 4, widthPct: 42, tailDirection: 'bottom_left' },
+    { xPct: 4, yPct: 74, widthPct: 42, tailDirection: 'top_right' },
+    { xPct: 54, yPct: 74, widthPct: 42, tailDirection: 'top_left' },
+  ];
+  return standardSlots[idx];
+}
+

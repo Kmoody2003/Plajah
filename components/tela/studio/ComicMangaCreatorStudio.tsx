@@ -100,6 +100,12 @@ import {
   PanelAnimationLayer,
   PanelKeyframe,
   createDefaultNestedPanelDoc,
+  LAYER_ANIMATION_PRESETS,
+  splitPanelHorizontally,
+  splitPanelVertically,
+  togglePanelDiagonalSlant,
+  deleteAndMergePanel,
+  generateProceduralPanelPlateSvg,
 } from '../../../services/comic/comicMangaPageEngine';
 import {
   PANEL_LAYOUT_TEMPLATES,
@@ -133,9 +139,19 @@ import {
   getPlatformShowcaseComics,
   convertShowcaseBookToStorybookContext,
   convertShowcaseComicToStudioPage,
+  convertShowcaseComicToAllStudioPages,
+  canAccessPumpkinPatchProject,
+  createEmptyBaseTemplateComicMangaPage,
   type StorybookContextAnalysis,
   type StorybookPageSpread,
 } from '../../../services/comic/storyIntelligenceBridge';
+import {
+  comicMangaPageToStudioPage,
+  studioPageToComicMangaPage,
+} from '../../../services/comic/comicStudioBridge';
+import { auth } from '../../../services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { CouncilV4GraphicNovelStudioView } from '../../comic/CouncilV4GraphicNovelStudioView';
 import {
   CINEMAGRAPH_PRESETS,
   ACTION_MOTION_PRESETS,
@@ -165,7 +181,8 @@ interface ComicMangaCreatorStudioProps {
 }
 
 export type PrimaryStudioMode = 'MASTER_SEQUENTIAL' | 'STORY_FOLIO';
-export type SequentialViewMode = 'PAGE_GRID' | 'WEBTOON_STREAM';
+export type SequentialViewMode = 'COUNCIL_V4_GRAPHIC_NOVEL' | 'PAGE_GRID' | 'WEBTOON_STREAM';
+export type WorkflowComplexityMode = 'GUIDED' | 'PRO';
 type StudioTab = 'TEMPLATES' | 'MOTION_CINEMAGRAPH' | 'PANEL_TIMELINE' | 'LOREA_SCRIPT' | 'BUBBLES' | 'SFX' | 'BRUSHES' | 'WORLD_CAST' | 'PAI_GALLERY' | 'STORY_MAGIC' | 'COUNCIL';
 
 // Japanese Manga Onomatopoeia SFX Stamps
@@ -228,14 +245,21 @@ function getInterpolatedKeyframe(keyframes: PanelKeyframe[], timeSec: number) {
 
 export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = ({
   initialProseStory = '',
-  initialTitle = 'The Pumpkin Patch: Sector Zero Chrono-Tale',
+  initialTitle,
   onClose,
   onInsertIntoTelaDoc,
   onExportToFabulaVideo,
 }) => {
+  const [canSeePumpkinPatch, setCanSeePumpkinPatch] = useState<boolean>(() => canAccessPumpkinPatchProject());
+  const resolvedInitialTitle =
+    initialTitle ||
+    (canSeePumpkinPatch ? 'PUMPKIN PATCH (OCT 2025) — LIVING GRAPHIC NOVEL' : 'Untitled Graphic Novel');
+
   // ── 1. PRIMARY STUDIO MODES & VIEW MODES ──
   const [studioMode, setStudioMode] = useState<PrimaryStudioMode>('MASTER_SEQUENTIAL');
-  const [sequentialView, setSequentialView] = useState<SequentialViewMode>('PAGE_GRID');
+  const [sequentialView, setSequentialView] = useState<SequentialViewMode>('COUNCIL_V4_GRAPHIC_NOVEL');
+  const [workflowComplexity, setWorkflowComplexity] = useState<WorkflowComplexityMode>('PRO');
+  const [guidedStep, setGuidedStep] = useState<1 | 2 | 3>(1);
   const [isBlackAndWhite, setIsBlackAndWhite] = useState<boolean>(false);
   const [isScreentoneEnabled, setIsScreentoneEnabled] = useState<boolean>(false);
   const [screentonePattern, setScreentonePattern] = useState<'dots_fine' | 'speed_lines' | 'radial'>('dots_fine');
@@ -243,23 +267,30 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
   const [showCouncilDrawer, setShowCouncilDrawer] = useState<boolean>(false);
 
   // ── 2. AUDIENCE & COUNCIL STATE ──
-  const audienceTier: AudienceTier = studioMode === 'STORY_FOLIO' ? 'JUNIOR_SCHOOL' : 'PRO_STUDIO';
+  const audienceTier: AudienceTier = studioMode === 'STORY_FOLIO' || workflowComplexity === 'GUIDED' ? 'JUNIOR_SCHOOL' : 'PRO_STUDIO';
   const [selectedArtLensId, setSelectedArtLensId] = useState<string>('DARK_NOIR');
   const [councilAdvice, setCouncilAdvice] = useState<CouncilSynthesisVerdict | null>(null);
   const [activeTab, setActiveTab] = useState<StudioTab>('MOTION_CINEMAGRAPH');
 
-  // ── 3. PAGE & PANELS STATE ──
+  // ── 3. PAGE & MULTI-PAGE ISSUE STATE (Pumpkin Patch V4 only for Kenneth & Brian; Empty Base Template Layout for everyone else) ──
   const [activeLayoutId, setActiveLayoutId] = useState<string>('shonen_dynamic_5');
-  const [page, setPage] = useState<ComicMangaPage>(() => {
-    const p = comicMangaPageEngine.createPage({
-      title: initialTitle,
-      layoutId: 'dynamic_manga_5',
-      stylePreset: 'graphic_novel_noir',
-    });
-    return p;
+  const [pages, setPages] = useState<ComicMangaPage[]>(() => {
+    if (canAccessPumpkinPatchProject()) {
+      try {
+        const v4Pages = convertShowcaseComicToAllStudioPages('pumpkin-patch-v4');
+        if (v4Pages && v4Pages.length > 0) return v4Pages;
+      } catch {}
+    }
+    return [createEmptyBaseTemplateComicMangaPage(1, false)];
   });
+  const [page, setPage] = useState<ComicMangaPage>(() => pages[0]);
+  const [activePageIdx, setActivePageIdx] = useState<number>(0);
   const [activePanelIdx, setActivePanelIdx] = useState<number>(0);
+
   const [selectedBubbleId, setSelectedBubbleId] = useState<string | null>(null);
+  const [editingBalloonId, setEditingBalloonId] = useState<string | null>(null);
+  const [draggingBalloon, setDraggingBalloon] = useState<{ panelIdx: number; balloonId: string } | null>(null);
+  const [draggingStickerId, setDraggingStickerId] = useState<string | null>(null);
 
   // In-panel image transforms (zoom, pan, rotation, flip)
   const [panelTransforms, setPanelTransforms] = useState<Record<number, PanelImageTransform>>({});
@@ -276,6 +307,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
   const [activeLayerId, setActiveLayerId] = useState<string | null>('layer_0_bg');
   const [panelTimelineTime, setPanelTimelineTime] = useState<number>(0);
   const [isPanelTimelinePlaying, setIsPanelTimelinePlaying] = useState<boolean>(false);
+  const [autoKeyframe, setAutoKeyframe] = useState<boolean>(true);
 
   // ── 4. MOTION, CINEMAGRAPH & VIDEO PANEL STATE ──
   const [panelMotions, setPanelMotions] = useState<Record<number, PanelMotionConfig>>({
@@ -332,7 +364,51 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
   const platformStorybooks = getPlatformShowcaseBooks();
   const platformComics = getPlatformShowcaseComics();
   const [selectedStorybookTemplateId, setSelectedStorybookTemplateId] = useState<string>('moon-blanket');
-  const [selectedComicTemplateId, setSelectedComicTemplateId] = useState<string>('chrome-apostle');
+  const [selectedComicTemplateId, setSelectedComicTemplateId] = useState<string>(() =>
+    canAccessPumpkinPatchProject() ? 'pumpkin-patch-v4' : 'obsidian-shroud'
+  );
+
+  // Sync Pumpkin Patch access when Firebase Auth finishes hydrating or changes user
+  useEffect(() => {
+    if (!auth) return;
+    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      const allowed = canAccessPumpkinPatchProject(firebaseUser);
+      setCanSeePumpkinPatch(allowed);
+      if (allowed) {
+        setPages((prev) => {
+          // If still on unmodified empty base template page 1, auto-load Pumpkin Patch V4 for Kenneth or Brian
+          const isUnmodifiedBase =
+            prev.length === 1 &&
+            prev[0].id === 'base_page_1' &&
+            prev[0].panels.every((p) => !p.renderedImageUrl && p.balloons.length === 0);
+          if (isUnmodifiedBase) {
+            const v4Pages = convertShowcaseComicToAllStudioPages('pumpkin-patch-v4');
+            if (v4Pages && v4Pages.length > 0) {
+              setPage(v4Pages[0]);
+              setActivePageIdx(0);
+              setSelectedComicTemplateId('pumpkin-patch-v4');
+              return v4Pages;
+            }
+          }
+          return prev;
+        });
+      } else {
+        // If user signed out or is not Kenneth/Brian and Pumpkin Patch is currently loaded, reset to empty base template
+        setPages((prev) => {
+          const isPumpkinLoaded = prev.some((pg) => pg.id?.startsWith('pp_v4_') || pg.title?.toLowerCase().includes('pumpkin patch'));
+          if (isPumpkinLoaded) {
+            const emptyBase = createEmptyBaseTemplateComicMangaPage(1, false);
+            setPage(emptyBase);
+            setActivePageIdx(0);
+            setSelectedComicTemplateId('obsidian-shroud');
+            return [emptyBase];
+          }
+          return prev;
+        });
+      }
+    });
+    return () => unsubAuth();
+  }, []);
 
   const [storyInputText, setStoryInputText] = useState(() => {
     if (initialProseStory) return initialProseStory;
@@ -341,10 +417,10 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
   });
   const [storybookContext, setStorybookContext] = useState<StorybookContextAnalysis>(() => {
     if (initialProseStory) {
-      return analyzeStorybookDocumentContext(initialProseStory, initialTitle);
+      return analyzeStorybookDocumentContext(initialProseStory, resolvedInitialTitle);
     }
     const defaultBook = platformStorybooks[0];
-    return defaultBook ? convertShowcaseBookToStorybookContext(defaultBook) : analyzeStorybookDocumentContext(storyInputText, initialTitle);
+    return defaultBook ? convertShowcaseBookToStorybookContext(defaultBook) : analyzeStorybookDocumentContext(storyInputText, resolvedInitialTitle);
   });
   const [activeSpreadIndex, setActiveSpreadIndex] = useState<number>(0);
   const [isNarratingStory, setIsNarratingStory] = useState<boolean>(false);
@@ -425,7 +501,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     return () => clearInterval(interval);
   }, [isTimelinePlaying, timelineDuration, page.panels.length, activePanelIdx]);
 
-  // ── Sync Nested Panel Documents when Page Panels change ──
+  // ── Sync Nested Panel Documents & Multi-Page Issue Array when Page changes ──
   useEffect(() => {
     setNestedPanelDocs((prev) => {
       const next: Record<number, NestedPanelDocument> = { ...prev };
@@ -436,7 +512,32 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
       });
       return next;
     });
-  }, [page]);
+    setPages((prev) => prev.map((pg, i) => (i === activePageIdx ? page : pg)));
+  }, [page, activePageIdx]);
+
+  // ── True Two-Way Ink Persistence: Restore Saved Ink Bitmap when View or Deep Edit Changes ──
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      page.panels.forEach((_, idx) => {
+        const doc = nestedPanelDocs[idx];
+        const canvas = canvasRefs.current[idx];
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (doc?.inkDataUrl) {
+          const img = new Image();
+          img.onload = () => {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          };
+          img.src = doc.inkDataUrl;
+        }
+      });
+    }, 25);
+    return () => clearTimeout(timer);
+  }, [deepEditPanelIdx, activePageIdx, sequentialView, page.panels.length]);
 
   // ── Panel Layer Animation Timeline Playback Loop ──
   useEffect(() => {
@@ -457,16 +558,34 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     return () => clearInterval(interval);
   }, [isPanelTimelinePlaying, deepEditPanelIdx, activePanelIdx, nestedPanelDocs]);
 
-  // ── Escape Key to Exit Deep Edit Mode ──
+  // ── Escape Key to Exit Deep Edit Mode + Ctrl+Z / Ctrl+Y Ink Undo/Redo ──
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && deepEditPanelIdx !== null) {
-        setDeepEditPanelIdx(null);
+      if (e.key === 'Escape') {
+        if (editingBalloonId) {
+          setEditingBalloonId(null);
+        } else if (deepEditPanelIdx !== null) {
+          setDeepEditPanelIdx(null);
+        }
+      }
+      const targetPanel = deepEditPanelIdx !== null ? deepEditPanelIdx : activePanelIdx;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        const activeTag = document.activeElement?.tagName.toLowerCase();
+        if (activeTag !== 'input' && activeTag !== 'textarea') {
+          e.preventDefault();
+          handleUndoInk(targetPanel);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+        const activeTag = document.activeElement?.tagName.toLowerCase();
+        if (activeTag !== 'input' && activeTag !== 'textarea') {
+          e.preventDefault();
+          handleRedoInk(targetPanel);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [deepEditPanelIdx]);
+  }, [deepEditPanelIdx, activePanelIdx, editingBalloonId, nestedPanelDocs]);
 
   // ── Cinemagraph Animation Loop ──
   useEffect(() => {
@@ -511,6 +630,54 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     return () => cancelAnimationFrame(animId);
   }, [page.panels, panelMotions]);
 
+  // ── Multi-Page Comic Issue Manager Handlers ──
+  const handleSelectPage = (idx: number) => {
+    if (idx < 0 || idx >= pages.length) return;
+    setActivePageIdx(idx);
+    setPage(pages[idx]);
+    setActivePanelIdx(0);
+    setDeepEditPanelIdx(null);
+  };
+
+  const handleAddPage = () => {
+    const basePage = createEmptyBaseTemplateComicMangaPage(pages.length + 1, page.readingDirection === 'rtl');
+    const newPage: ComicMangaPage = {
+      ...basePage,
+      title: `${page.title || resolvedInitialTitle} — Page ${pages.length + 1}`,
+      stylePreset: page.stylePreset,
+      pageNumber: pages.length + 1,
+    };
+    const nextPages = [...pages, newPage];
+    setPages(nextPages);
+    setActivePageIdx(nextPages.length - 1);
+    setPage(newPage);
+    setActivePanelIdx(0);
+    setDeepEditPanelIdx(null);
+  };
+
+  const handleDuplicatePage = () => {
+    const cloned: ComicMangaPage = {
+      ...JSON.parse(JSON.stringify(page)),
+      id: `page_${Date.now()}`,
+      pageNumber: pages.length + 1,
+    };
+    const nextPages = [...pages, cloned];
+    setPages(nextPages);
+    setActivePageIdx(nextPages.length - 1);
+    setPage(cloned);
+    setActivePanelIdx(0);
+  };
+
+  const handleDeletePage = (idx: number) => {
+    if (pages.length <= 1) return;
+    const nextPages = pages.filter((_, i) => i !== idx).map((pg, i) => ({ ...pg, pageNumber: i + 1 }));
+    const nextIdx = Math.max(0, Math.min(activePageIdx, nextPages.length - 1));
+    setPages(nextPages);
+    setActivePageIdx(nextIdx);
+    setPage(nextPages[nextIdx]);
+    setActivePanelIdx(0);
+  };
+
   // ── Layout Selection ──
   const handleSelectLayout = (layoutId: string) => {
     setActiveLayoutId(layoutId);
@@ -541,6 +708,49 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     setActivePanelIdx(0);
   };
 
+  // ── Non-Destructive Panel Split, Merge, Diagonal Slash & Procedural Art Render ──
+  const handleSplitHorizontal = (panelIdx: number) => {
+    const updated = splitPanelHorizontally(page, panelIdx);
+    setPage(updated);
+    setActivePanelIdx(panelIdx);
+  };
+
+  const handleSplitVertical = (panelIdx: number) => {
+    const updated = splitPanelVertically(page, panelIdx);
+    setPage(updated);
+    setActivePanelIdx(panelIdx);
+  };
+
+  const handleApplyDiagonalSlash = (panelIdx: number) => {
+    const updated = togglePanelDiagonalSlant(page, panelIdx);
+    setPage(updated);
+  };
+
+  const handleDeleteMergePanel = (panelIdx: number) => {
+    if (page.panels.length <= 1) return;
+    const updated = deleteAndMergePanel(page, panelIdx);
+    setPage(updated);
+    setActivePanelIdx(Math.max(0, panelIdx - 1));
+  };
+
+  const handleRenderProceduralPlate = (panelIdx: number) => {
+    const target = page.panels[panelIdx];
+    if (!target) return;
+    const svgDataUrl = generateProceduralPanelPlateSvg({
+      prompt: target.actionPrompt || `Panel ${panelIdx + 1} Climax`,
+      characterName: selectedCharacterName,
+      cameraShot: target.cameraShot,
+      stylePreset: page.stylePreset,
+      seed: panelIdx + Math.floor(Math.random() * 100),
+    });
+    const updatedPanels = [...page.panels];
+    updatedPanels[panelIdx] = {
+      ...target,
+      renderedImageUrl: svgDataUrl,
+    };
+    setPage({ ...page, panels: updatedPanels });
+  };
+
   // ── Lorea Script & Handoff Actions ──
   const handleImportLoreaHandoff = () => {
     const handoff = consumeLoreaHandoff() || loreaHandoffFound;
@@ -557,19 +767,6 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
   const handleFlowLoreaScript = () => {
     const updated = flowLoreaScriptToPage(page, loreaScriptText, worldCast);
     setPage(updated);
-  };
-
-  // ── Diagonal Slash Tool ──
-  const handleApplyDiagonalSlash = (panelIdx: number) => {
-    const updatedPanels = [...page.panels];
-    const target = updatedPanels[panelIdx];
-    if (!target) return;
-    const isSlashed = Boolean(target.box.clipPolygon);
-    target.box = {
-      ...target.box,
-      clipPolygon: isSlashed ? undefined : 'polygon(0 0, 100% 12%, 100% 100%, 0 88%)',
-    };
-    setPage({ ...page, panels: updatedPanels });
   };
 
   // ── Motion Config Updater ──
@@ -638,10 +835,10 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
   };
 
   // ── Synthesize Character Voice Take ──
-  const handleSynthesizeVoiceForPanel = async (panelIdx: number) => {
+  const handleSynthesizeVoiceForPanel = async (panelIdx: number, customText?: string) => {
     const panel = page.panels[panelIdx];
     if (!panel) return;
-    const textToSpeak = panel.balloons[0]?.text || panel.actionPrompt || 'We have to move now!';
+    const textToSpeak = customText || panel.balloons[0]?.text || panel.actionPrompt || 'We have to move now!';
 
     setVoiceSynthesizing(true);
     try {
@@ -673,21 +870,22 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
   const handleAddBubble = (presetId: string) => {
     const preset = SPEECH_BUBBLE_PRESETS[presetId];
     if (!preset) return;
+    const targetIdx = deepEditPanelIdx !== null ? deepEditPanelIdx : activePanelIdx;
 
     const newBubble: ComicVectorBalloon = {
       id: `bubble_${Date.now()}`,
       type: preset.type,
       text: audienceTier === 'JUNIOR_SCHOOL' ? 'Look at that!' : 'The orbital ciphers were compromised three minutes ago...',
       speakerName: selectedCharacterName,
-      xPct: 25,
-      yPct: 20,
+      xPct: 35,
+      yPct: 28,
       tailDirection: 'bottom_left',
     };
 
     const updated = { ...page, panels: [...page.panels] };
-    if (updated.panels[activePanelIdx]) {
-      updated.panels[activePanelIdx].balloons = [
-        ...updated.panels[activePanelIdx].balloons,
+    if (updated.panels[targetIdx]) {
+      updated.panels[targetIdx].balloons = [
+        ...updated.panels[targetIdx].balloons,
         newBubble,
       ];
       setPage(updated);
@@ -700,21 +898,22 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     const word = 'word' in sfx ? sfx.word : sfx.kanji;
     const color = 'defaultColor' in sfx ? sfx.defaultColor : sfx.color;
     const scale = 'defaultScale' in sfx ? sfx.defaultScale : 1.35;
+    const targetIdx = deepEditPanelIdx !== null ? deepEditPanelIdx : activePanelIdx;
 
     const newSfx: ComicVectorBalloon = {
       id: `sfx_${Date.now()}`,
       type: 'sfx',
       text: word,
       xPct: 50,
-      yPct: 35,
+      yPct: 38,
       sfxColor: color,
       sfxScale: scale,
     };
 
     const updated = { ...page, panels: [...page.panels] };
-    if (updated.panels[activePanelIdx]) {
-      updated.panels[activePanelIdx].balloons = [
-        ...updated.panels[activePanelIdx].balloons,
+    if (updated.panels[targetIdx]) {
+      updated.panels[targetIdx].balloons = [
+        ...updated.panels[targetIdx].balloons,
         newSfx,
       ];
       setPage(updated);
@@ -722,16 +921,59 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     }
   };
 
+  // ── Direct Balloon / SFX Update, Tail Flip, Delete & Pointer Dragging ──
+  const handleUpdateBalloon = (panelIdx: number, balloonId: string, updates: Partial<ComicVectorBalloon>) => {
+    const updatedPanels = [...page.panels];
+    const panel = updatedPanels[panelIdx];
+    if (!panel) return;
+    updatedPanels[panelIdx] = {
+      ...panel,
+      balloons: panel.balloons.map((b) => (b.id === balloonId ? { ...b, ...updates } : b)),
+    };
+    setPage({ ...page, panels: updatedPanels });
+  };
+
+  const handleFlipBalloonTail = (panelIdx: number, balloonId: string) => {
+    const panel = page.panels[panelIdx];
+    const b = panel?.balloons.find((item) => item.id === balloonId);
+    if (!b) return;
+    const order: Array<ComicVectorBalloon['tailDirection']> = ['bottom_left', 'bottom_right', 'top_left', 'top_right', 'none'];
+    const nextDir = order[(order.indexOf(b.tailDirection || 'bottom_left') + 1) % order.length];
+    handleUpdateBalloon(panelIdx, balloonId, { tailDirection: nextDir });
+  };
+
+  const handleDeleteBalloon = (panelIdx: number, balloonId: string) => {
+    const updatedPanels = [...page.panels];
+    const panel = updatedPanels[panelIdx];
+    if (!panel) return;
+    updatedPanels[panelIdx] = {
+      ...panel,
+      balloons: panel.balloons.filter((b) => b.id !== balloonId),
+    };
+    setPage({ ...page, panels: updatedPanels });
+    if (selectedBubbleId === balloonId) setSelectedBubbleId(null);
+    if (editingBalloonId === balloonId) setEditingBalloonId(null);
+  };
+
+  const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>, panelIdx: number) => {
+    if (!draggingBalloon || draggingBalloon.panelIdx !== panelIdx) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xPct = Math.max(8, Math.min(92, Math.round(((e.clientX - rect.left) / rect.width) * 100)));
+    const yPct = Math.max(8, Math.min(92, Math.round(((e.clientY - rect.top) / rect.height) * 100)));
+    handleUpdateBalloon(panelIdx, draggingBalloon.balloonId, { xPct, yPct });
+  };
+
   // ── PAI Gallery Injection ──
   const handleInsertPaiToPanel = (paiItem: PaiGenerationItem) => {
+    const targetIdx = deepEditPanelIdx !== null ? deepEditPanelIdx : activePanelIdx;
     const updated = { ...page, panels: [...page.panels] };
-    if (updated.panels[activePanelIdx]) {
-      updated.panels[activePanelIdx].renderedImageUrl = paiItem.mediaUrl;
-      updated.panels[activePanelIdx].actionPrompt = paiItem.prompt;
+    if (updated.panels[targetIdx]) {
+      updated.panels[targetIdx].renderedImageUrl = paiItem.mediaUrl;
+      updated.panels[targetIdx].actionPrompt = paiItem.prompt;
       setPage(updated);
       setPanelTransforms((prev) => ({
         ...prev,
-        [activePanelIdx]: { ...DEFAULT_PANEL_IMAGE_TRANSFORM },
+        [targetIdx]: { ...DEFAULT_PANEL_IMAGE_TRANSFORM },
       }));
     }
   };
@@ -753,7 +995,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
       scale: 1.0,
       rotation: 0,
       keyframes: [
-        { id: `kf_${Date.now()}_0`, timeSec: 0.0, properties: { opacity: 1, scale: 1.0 } },
+        { id: `kf_${Date.now()}_0`, timeSec: 0.0, properties: { opacity: 1, scale: 1.0, x: 0, y: 0, shakeIntensity: 0 } },
       ],
     };
     setNestedPanelDocs((prev) => ({
@@ -795,16 +1037,18 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     if (!doc) return;
     const targetLayerId = layerId || doc.layers[0]?.id;
     if (!targetLayerId) return;
+    const targetLayer = doc.layers.find((l) => l.id === targetLayerId);
+    const currentProps = targetLayer ? getInterpolatedKeyframe(targetLayer.keyframes, timeSec) : {};
 
     const newKeyframe: PanelKeyframe = {
       id: `kf_${Date.now()}`,
       timeSec: Math.round(timeSec * 10) / 10,
       properties: {
-        scale: 1.05,
-        opacity: 1.0,
-        x: 0,
-        y: 0,
-        shakeIntensity: 0,
+        scale: currentProps.scale ?? 1.05,
+        opacity: currentProps.opacity ?? 1.0,
+        x: currentProps.x ?? 0,
+        y: currentProps.y ?? 0,
+        shakeIntensity: currentProps.shakeIntensity ?? 0,
       },
       easing: 'ease_out',
     };
@@ -820,6 +1064,78 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                 keyframes: [...l.keyframes.filter((k) => Math.abs(k.timeSec - timeSec) > 0.1), newKeyframe].sort(
                   (a, b) => a.timeSec - b.timeSec
                 ),
+              }
+            : l
+        ),
+      },
+    }));
+  };
+
+  // ── Live Auto-Keyframing Property Slider Updater & 1-Click Animation Presets ──
+  const handleUpdateLayerKeyframeProperty = (
+    panelIdx: number,
+    layerId: string | null,
+    prop: keyof PanelKeyframe['properties'],
+    value: number
+  ) => {
+    const doc = nestedPanelDocs[panelIdx];
+    if (!doc) return;
+    const targetLayerId = layerId || doc.layers[0]?.id;
+    if (!targetLayerId) return;
+    const targetLayer = doc.layers.find((l) => l.id === targetLayerId);
+    if (!targetLayer) return;
+
+    const scrubTime = Math.round(panelTimelineTime * 10) / 10;
+    const currentProps = getInterpolatedKeyframe(targetLayer.keyframes, scrubTime);
+
+    const updatedKf: PanelKeyframe = {
+      id: `kf_${Date.now()}`,
+      timeSec: scrubTime,
+      properties: {
+        scale: currentProps.scale ?? 1.0,
+        opacity: currentProps.opacity ?? 1.0,
+        x: currentProps.x ?? 0,
+        y: currentProps.y ?? 0,
+        shakeIntensity: currentProps.shakeIntensity ?? 0,
+        [prop]: value,
+      },
+      easing: 'ease_out',
+    };
+
+    setNestedPanelDocs((prev) => ({
+      ...prev,
+      [panelIdx]: {
+        ...doc,
+        layers: doc.layers.map((l) =>
+          l.id === targetLayerId
+            ? {
+                ...l,
+                keyframes: [...l.keyframes.filter((k) => Math.abs(k.timeSec - scrubTime) > 0.1), updatedKf].sort(
+                  (a, b) => a.timeSec - b.timeSec
+                ),
+              }
+            : l
+        ),
+      },
+    }));
+  };
+
+  const handleApplyLayerAnimationPreset = (panelIdx: number, layerId: string | null, presetId: string) => {
+    const doc = nestedPanelDocs[panelIdx];
+    if (!doc) return;
+    const targetLayerId = layerId || doc.layers[0]?.id;
+    const preset = LAYER_ANIMATION_PRESETS.find((p) => p.id === presetId);
+    if (!targetLayerId || !preset) return;
+
+    setNestedPanelDocs((prev) => ({
+      ...prev,
+      [panelIdx]: {
+        ...doc,
+        layers: doc.layers.map((l) =>
+          l.id === targetLayerId
+            ? {
+                ...l,
+                keyframes: preset.createKeyframes(doc.timelineDurationSec || 4.0),
               }
             : l
         ),
@@ -853,10 +1169,20 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     const comic = platformComics.find((c) => c.id === comicId);
     if (!comic) return;
     setSelectedComicTemplateId(comicId);
-    const newPage = convertShowcaseComicToStudioPage(comic, 0);
-    setPage(newPage);
+    const allLoadedPages = convertShowcaseComicToAllStudioPages(comic);
+    if (allLoadedPages && allLoadedPages.length > 0) {
+      setPages(allLoadedPages);
+      setPage(allLoadedPages[0]);
+      setActivePageIdx(0);
+    } else {
+      const newPage = convertShowcaseComicToStudioPage(comic, 0);
+      setPages([newPage]);
+      setPage(newPage);
+      setActivePageIdx(0);
+    }
     setActivePanelIdx(0);
   };
+
 
   const handleSpreadChange = (newIdx: number) => {
     if (newIdx < 0 || newIdx >= storybookContext.spreads.length) return;
@@ -932,7 +1258,98 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     });
   };
 
-  // ── Drawing Events (Autodesk Sketchbook Parity + Symmetry Mirroring) ──
+  // ── Drawing Events (Autodesk Sketchbook Parity + Two-Way Ink Persistence + Undo/Redo) ──
+  const saveCanvasInkSnapshot = (pIdx: number) => {
+    const canvas = canvasRefs.current[pIdx];
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    setNestedPanelDocs((prev) => {
+      const currentDoc = prev[pIdx] || createDefaultNestedPanelDoc(page.panels[pIdx], pIdx, page.id);
+      const prevStack = currentDoc.inkUndoStack || [];
+      const nextUndo = currentDoc.inkDataUrl ? [...prevStack.slice(-19), currentDoc.inkDataUrl] : prevStack;
+      return {
+        ...prev,
+        [pIdx]: {
+          ...currentDoc,
+          inkDataUrl: dataUrl,
+          inkUndoStack: nextUndo,
+          inkRedoStack: [],
+        },
+      };
+    });
+  };
+
+  const handleUndoInk = (pIdx: number) => {
+    const doc = nestedPanelDocs[pIdx];
+    const canvas = canvasRefs.current[pIdx];
+    if (!doc || !canvas) return;
+    const undoStack = doc.inkUndoStack || [];
+    const redoStack = doc.inkRedoStack || [];
+    if (undoStack.length === 0 && !doc.inkDataUrl) return;
+
+    const previousDataUrl = undoStack.length > 0 ? undoStack[undoStack.length - 1] : undefined;
+    const nextUndo = undoStack.slice(0, -1);
+    const nextRedo = doc.inkDataUrl ? [...redoStack, doc.inkDataUrl] : redoStack;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (previousDataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1.0;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+        img.src = previousDataUrl;
+      }
+    }
+
+    setNestedPanelDocs((prev) => ({
+      ...prev,
+      [pIdx]: {
+        ...doc,
+        inkDataUrl: previousDataUrl,
+        inkUndoStack: nextUndo,
+        inkRedoStack: nextRedo,
+      },
+    }));
+  };
+
+  const handleRedoInk = (pIdx: number) => {
+    const doc = nestedPanelDocs[pIdx];
+    const canvas = canvasRefs.current[pIdx];
+    if (!doc || !canvas) return;
+    const redoStack = doc.inkRedoStack || [];
+    if (redoStack.length === 0) return;
+
+    const restoredDataUrl = redoStack[redoStack.length - 1];
+    const nextRedo = redoStack.slice(0, -1);
+    const nextUndo = doc.inkDataUrl ? [...(doc.inkUndoStack || []), doc.inkDataUrl] : doc.inkUndoStack || [];
+
+    const ctx = canvas.getContext('2d');
+    if (ctx && restoredDataUrl) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+      img.src = restoredDataUrl;
+    }
+
+    setNestedPanelDocs((prev) => ({
+      ...prev,
+      [pIdx]: {
+        ...doc,
+        inkDataUrl: restoredDataUrl,
+        inkUndoStack: nextUndo,
+        inkRedoStack: nextRedo,
+      },
+    }));
+  };
+
   const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>, pIdx: number) => {
     if (activeTool !== 'BRUSH' && activeTool !== 'ERASER') return;
     const canvas = canvasRefs.current[pIdx];
@@ -998,7 +1415,10 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     }
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (pIdx?: number) => {
+    if (isDrawingRef.current && pIdx !== undefined) {
+      saveCanvasInkSnapshot(pIdx);
+    }
     isDrawingRef.current = false;
     currentStrokePoints.current = [];
   };
@@ -1008,11 +1428,26 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    saveCanvasInkSnapshot(pIdx);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setNestedPanelDocs((prev) => {
+      const doc = prev[pIdx];
+      if (!doc) return prev;
+      return {
+        ...prev,
+        [pIdx]: {
+          ...doc,
+          inkDataUrl: undefined,
+        },
+      };
+    });
   };
 
   const activeMotion = panelMotions[activePanelIdx] || DEFAULT_PANEL_MOTION_CONFIG;
   const currentSpread = storybookContext.spreads[activeSpreadIndex] || storybookContext.spreads[0];
+  const focusedPanelIdx = deepEditPanelIdx !== null ? deepEditPanelIdx : activePanelIdx;
+  const focusedPanel = page.panels[focusedPanelIdx] || page.panels[0];
+  const selectedBalloonObj = focusedPanel?.balloons.find((b) => b.id === selectedBubbleId) || null;
 
   return (
     <div
@@ -1074,7 +1509,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                   fontWeight: 600,
                 }}
               >
-                🎃 Pumpkin Patch v4 Parity
+                {canSeePumpkinPatch ? '🎃 Pumpkin Patch v4 Parity' : '✨ Council V4 Base Template'}
               </span>
             </div>
           </div>
@@ -1141,6 +1576,49 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
             >
               <Smile size={13} />
               <span>🌟 Story Magic Folio</span>
+            </button>
+          </div>
+
+          {/* Beginner Guided 1-2-3 vs Pro Studio Complexity Toggle */}
+          <div
+            style={{
+              display: 'flex',
+              backgroundColor: '#07080d',
+              padding: '3px',
+              borderRadius: '20px',
+              border: '1px solid #232838',
+            }}
+            title="Switch between Kid/Beginner Guided 1-2-3 Wizard and Full Pro Studio Dock"
+          >
+            <button
+              onClick={() => setWorkflowComplexity('GUIDED')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '16px',
+                fontSize: '10px',
+                fontWeight: 800,
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: workflowComplexity === 'GUIDED' ? '#22c55e' : 'transparent',
+                color: workflowComplexity === 'GUIDED' ? '#000' : '#94a3b8',
+              }}
+            >
+              🌱 Guided 1-2-3
+            </button>
+            <button
+              onClick={() => setWorkflowComplexity('PRO')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '16px',
+                fontSize: '10px',
+                fontWeight: 800,
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: workflowComplexity === 'PRO' ? '#2563eb' : 'transparent',
+                color: workflowComplexity === 'PRO' ? '#fff' : '#94a3b8',
+              }}
+            >
+              🎛️ Pro Studio
             </button>
           </div>
 
@@ -1307,9 +1785,11 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
           borderBottom: '1px solid #1c202d',
           fontSize: '11px',
           zIndex: 20,
+          flexWrap: 'wrap',
+          gap: '6px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           {/* Tool Mode Buttons */}
           <button
             onClick={() => setActiveTool('SELECT')}
@@ -1326,7 +1806,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
             }}
           >
             <Move size={13} />
-            <span>Select / Pan</span>
+            <span>Select / Drag</span>
           </button>
 
           <button
@@ -1365,9 +1845,43 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
             <span>Eraser</span>
           </button>
 
+          {/* Two-Way Ink Undo / Redo Buttons */}
+          <button
+            onClick={() => handleUndoInk(focusedPanelIdx)}
+            title="Undo Ink Stroke (Ctrl+Z)"
+            style={{
+              padding: '4px 8px',
+              borderRadius: '4px',
+              backgroundColor: '#161922',
+              color: (nestedPanelDocs[focusedPanelIdx]?.inkUndoStack?.length || nestedPanelDocs[focusedPanelIdx]?.inkDataUrl) ? 'var(--pj-cyan)' : '#64748b',
+              border: '1px solid #272d3e',
+              cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 700,
+            }}
+          >
+            ↩ Undo
+          </button>
+          <button
+            onClick={() => handleRedoInk(focusedPanelIdx)}
+            title="Redo Ink Stroke (Ctrl+Y)"
+            style={{
+              padding: '4px 8px',
+              borderRadius: '4px',
+              backgroundColor: '#161922',
+              color: (nestedPanelDocs[focusedPanelIdx]?.inkRedoStack?.length || 0) > 0 ? 'var(--pj-cyan)' : '#64748b',
+              border: '1px solid #272d3e',
+              cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 700,
+            }}
+          >
+            ↪ Redo
+          </button>
+
           {/* Inking Controls Bar */}
           {activeTool === 'BRUSH' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '4px' }}>
               <select
                 value={selectedBrushId}
                 onChange={(e) => setSelectedBrushId(e.target.value)}
@@ -1435,7 +1949,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
               </select>
 
               <button
-                onClick={() => handleClearDrawing(activePanelIdx)}
+                onClick={() => handleClearDrawing(focusedPanelIdx)}
                 style={{
                   padding: '3px 6px',
                   borderRadius: '3px',
@@ -1451,9 +1965,24 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
             </div>
           )}
 
-          {/* Master Sequential Sub-Switches */}
+          {/* Master Sequential Sub-Switches + Multi-Page Sorter */}
           {studioMode === 'MASTER_SEQUENTIAL' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px', borderLeft: '1px solid #272d3e', paddingLeft: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '8px', borderLeft: '1px solid #272d3e', paddingLeft: '10px' }}>
+              <button
+                onClick={() => setSequentialView('COUNCIL_V4_GRAPHIC_NOVEL')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  background: sequentialView === 'COUNCIL_V4_GRAPHIC_NOVEL' ? 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)' : 'rgba(245, 158, 11, 0.12)',
+                  color: sequentialView === 'COUNCIL_V4_GRAPHIC_NOVEL' ? '#000' : '#fbbf24',
+                  border: sequentialView === 'COUNCIL_V4_GRAPHIC_NOVEL' ? '1px solid #fbbf24' : '1px solid rgba(245, 158, 11, 0.35)',
+                  cursor: 'pointer',
+                  fontWeight: 800,
+                }}
+                title="Council V4 Living Graphic Novel Studio (Multi-Tier Choreography, Double-Click Hand Reframe, Non-Destructive Alt Text Layer, ±60s Frame Scrubber & Video Loops)"
+              >
+                🎃 Council V4 Living Graphic Novel
+              </button>
               <button
                 onClick={() => setSequentialView('PAGE_GRID')}
                 style={{
@@ -1482,6 +2011,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
               >
                 📜 Webtoon Stream
               </button>
+
               <button
                 onClick={() => setIsBlackAndWhite(!isBlackAndWhite)}
                 style={{
@@ -1493,7 +2023,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                   cursor: 'pointer',
                 }}
               >
-                {isBlackAndWhite ? '🏁 B/W Manga' : '🌈 Color Comic'}
+                {isBlackAndWhite ? '🏁 B/W Manga' : '🌈 Color'}
               </button>
               <button
                 onClick={() => setIsScreentoneEnabled(!isScreentoneEnabled)}
@@ -1506,17 +2036,102 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                   cursor: 'pointer',
                 }}
               >
-                60 LPI Screentone
+                60 LPI Tone
               </button>
+
+              {/* Multi-Page Comic Issue Sorter Pills */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px', borderLeft: '1px solid #272d3e', paddingLeft: '8px' }}>
+                {pages.map((pg, pIdx) => (
+                  <button
+                    key={pg.id}
+                    onClick={() => handleSelectPage(pIdx)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: activePageIdx === pIdx ? 'var(--pj-cyan)' : '#161922',
+                      color: activePageIdx === pIdx ? '#000' : '#cbd5e1',
+                      border: '1px solid #272d3e',
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Pg {pIdx + 1}
+                  </button>
+                ))}
+                <button
+                  onClick={handleAddPage}
+                  title="Add New Comic Page to Issue"
+                  style={{
+                    padding: '3px 7px',
+                    borderRadius: '4px',
+                    backgroundColor: '#1b2234',
+                    color: '#4ade80',
+                    border: '1px solid rgba(74, 222, 128, 0.35)',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Page
+                </button>
+                <button
+                  onClick={handleDuplicatePage}
+                  title="Duplicate Current Page"
+                  style={{
+                    padding: '3px 7px',
+                    borderRadius: '4px',
+                    backgroundColor: '#161922',
+                    color: '#94a3b8',
+                    border: '1px solid #272d3e',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Clone
+                </button>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Right Action Quick Triggers */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Right Action Quick Triggers: Non-Destructive Panel Split, Merge, Diagonal Slash & Render */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <button
-            onClick={() => handleApplyDiagonalSlash(activePanelIdx)}
-            title="Cut Panel with Dynamic Manga Diagonal Slash"
+            onClick={() => handleSplitHorizontal(focusedPanelIdx)}
+            title="Split Active Panel Horizontally (Non-Destructive)"
+            style={{
+              padding: '4px 8px',
+              borderRadius: '4px',
+              backgroundColor: '#1e2230',
+              color: '#cbd5e1',
+              border: '1px solid #2d3448',
+              cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 700,
+            }}
+          >
+            ➗ Split H
+          </button>
+          <button
+            onClick={() => handleSplitVertical(focusedPanelIdx)}
+            title="Split Active Panel Vertically (Non-Destructive)"
+            style={{
+              padding: '4px 8px',
+              borderRadius: '4px',
+              backgroundColor: '#1e2230',
+              color: '#cbd5e1',
+              border: '1px solid #2d3448',
+              cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 700,
+            }}
+          >
+            ⏸ Split V
+          </button>
+          <button
+            onClick={() => handleApplyDiagonalSlash(focusedPanelIdx)}
+            title="Cycle Dynamic Manga Diagonal Action Slash"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1527,14 +2142,54 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
               color: '#38bdf8',
               border: '1px solid #2d3448',
               cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 700,
             }}
           >
-            <Scissors size={12} />
-            <span>Slash Panel {activePanelIdx + 1}</span>
+            <Scissors size={11} />
+            <span>Slash /</span>
+          </button>
+          {page.panels.length > 1 && (
+            <button
+              onClick={() => handleDeleteMergePanel(focusedPanelIdx)}
+              title="Delete & Merge Panel Space into Neighbor"
+              style={{
+                padding: '4px 7px',
+                borderRadius: '4px',
+                backgroundColor: '#1e2230',
+                color: '#f87171',
+                border: '1px solid #2d3448',
+                cursor: 'pointer',
+                fontSize: '10px',
+              }}
+            >
+              Merge
+            </button>
+          )}
+
+          <button
+            onClick={() => handleRenderProceduralPlate(focusedPanelIdx)}
+            title="Generate Procedural Stylized Art Plate for Active Panel"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 10px',
+              borderRadius: '4px',
+              background: 'linear-gradient(135deg, #00daf3 0%, #6b0099 100%)',
+              color: '#fff',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '10px',
+            }}
+          >
+            <Sparkles size={12} />
+            <span>Render Art (P{focusedPanelIdx + 1})</span>
           </button>
 
           <button
-            onClick={() => handleTriggerActionPanel(activePanelIdx)}
+            onClick={() => handleTriggerActionPanel(focusedPanelIdx)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1546,17 +2201,18 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
               fontWeight: 700,
               border: 'none',
               cursor: 'pointer',
+              fontSize: '10px',
             }}
           >
-            <Zap size={13} />
-            <span>Test Motion (P{activePanelIdx + 1})</span>
+            <Zap size={12} />
+            <span>Test Motion (P{focusedPanelIdx + 1})</span>
           </button>
         </div>
       </div>
 
       {/* ── MAIN STUDIO BODY: 3 COLUMNS ── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {/* LEFT COLUMN: ASSET, SCRIPT & MOTION DRAWER */}
+        {/* LEFT COLUMN: GUIDED 1-2-3 WIZARD OR PRO STUDIO DOCK */}
         <div
           style={{
             width: '340px',
@@ -1566,735 +2222,1004 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
             flexDirection: 'column',
           }}
         >
-          {/* Tab Navigation Rail */}
-          <div
-            style={{
-              display: 'flex',
-              overflowX: 'auto',
-              borderBottom: '1px solid #1f2330',
-              backgroundColor: '#0a0b10',
-              padding: '4px',
-              gap: '4px',
-            }}
-          >
-            <button
-              onClick={() => setActiveTab('MOTION_CINEMAGRAPH')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '11px',
-                fontWeight: 700,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: activeTab === 'MOTION_CINEMAGRAPH' ? '#212638' : 'transparent',
-                color: activeTab === 'MOTION_CINEMAGRAPH' ? 'var(--pj-magenta)' : '#94a3b8',
-                cursor: 'pointer',
-              }}
-            >
-              Motion FX
-            </button>
-            <button
-              onClick={() => setActiveTab('PANEL_TIMELINE')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '11px',
-                fontWeight: 700,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: activeTab === 'PANEL_TIMELINE' ? '#212638' : 'transparent',
-                color: activeTab === 'PANEL_TIMELINE' ? 'var(--pj-cyan)' : '#94a3b8',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <FolderPlus size={11} />
-              <span>Layers & TL</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('LOREA_SCRIPT')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '11px',
-                fontWeight: 700,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: activeTab === 'LOREA_SCRIPT' ? '#212638' : 'transparent',
-                color: activeTab === 'LOREA_SCRIPT' ? 'var(--pj-cyan)' : '#94a3b8',
-                cursor: 'pointer',
-              }}
-            >
-              Lorea Script
-            </button>
-            <button
-              onClick={() => setActiveTab('TEMPLATES')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '11px',
-                fontWeight: 600,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: activeTab === 'TEMPLATES' ? '#212638' : 'transparent',
-                color: activeTab === 'TEMPLATES' ? '#38bdf8' : '#94a3b8',
-                cursor: 'pointer',
-              }}
-            >
-              Layouts
-            </button>
-            <button
-              onClick={() => setActiveTab('BUBBLES')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '11px',
-                fontWeight: 600,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: activeTab === 'BUBBLES' ? '#212638' : 'transparent',
-                color: activeTab === 'BUBBLES' ? '#38bdf8' : '#94a3b8',
-                cursor: 'pointer',
-              }}
-            >
-              Bubbles
-            </button>
-            <button
-              onClick={() => setActiveTab('SFX')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '11px',
-                fontWeight: 600,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: activeTab === 'SFX' ? '#212638' : 'transparent',
-                color: activeTab === 'SFX' ? '#ec4899' : '#94a3b8',
-                cursor: 'pointer',
-              }}
-            >
-              SFX
-            </button>
-            <button
-              onClick={() => setActiveTab('PAI_GALLERY')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '11px',
-                fontWeight: 600,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: activeTab === 'PAI_GALLERY' ? '#212638' : 'transparent',
-                color: activeTab === 'PAI_GALLERY' ? '#10b981' : '#94a3b8',
-                cursor: 'pointer',
-              }}
-            >
-              PAI
-            </button>
-          </div>
-
-          {/* Drawer Content */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
-            {/* 1. MOTION, CINEMAGRAPHS & VIDEO PANELS (Pumpkin Patch v4 Parity) */}
-            {activeTab === 'MOTION_CINEMAGRAPH' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Clapperboard size={16} color="var(--pj-magenta)" />
-                  <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--pj-magenta)' }}>
-                    Panel {activePanelIdx + 1} Motion & Cinemagraph
-                  </span>
+          {workflowComplexity === 'GUIDED' ? (
+            /* ── BEGINNER / CLASSROOM GUIDED 1-2-3 WIZARD ── */
+            <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.16), rgba(0, 218, 243, 0.12))', border: '1px solid rgba(34, 197, 94, 0.35)' }}>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: '#4ade80' }}>🌱 Guided 1-2-3 Creator Wizard</div>
+                <div style={{ fontSize: '10px', color: '#cbd5e1', marginTop: '2px' }}>
+                  Make a comic or picture book in 3 easy steps! Switch to <b>Pro Studio</b> anytime for full multi-track controls.
                 </div>
+              </div>
 
-                {/* Enable Motion Toggle */}
-                <div
+              {/* Step Switcher Pills */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                {[
+                  { step: 1 as const, label: '1. Story & Cast' },
+                  { step: 2 as const, label: '2. Draw & Talk' },
+                  { step: 3 as const, label: '3. Animate!' },
+                ].map((s) => (
+                  <button
+                    key={s.step}
+                    onClick={() => setGuidedStep(s.step)}
+                    style={{
+                      padding: '8px 6px',
+                      borderRadius: '6px',
+                      backgroundColor: guidedStep === s.step ? '#22c55e' : '#161924',
+                      color: guidedStep === s.step ? '#000' : '#cbd5e1',
+                      border: '1px solid #272d3e',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              {guidedStep === 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Step 1: Choose a Living Template or Layout</div>
+                  <select
+                    value={selectedComicTemplateId}
+                    onChange={(e) => handleLoadComicTemplate(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: '6px', backgroundColor: '#151824', color: '#fff', border: '1px solid #272d3e', fontSize: '12px' }}
+                  >
+                    {platformComics.map((c) => (
+                      <option key={c.id} value={c.id}>{c.title} ({c.genre})</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleRenderProceduralPlate(focusedPanelIdx)}
+                    style={{ padding: '10px', borderRadius: '8px', background: 'var(--pj-grad-brand)', color: '#fff', border: 'none', fontWeight: 800, fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    ✨ Generate Artwork for Panel {focusedPanelIdx + 1}
+                  </button>
+                  <button
+                    onClick={() => setGuidedStep(2)}
+                    style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                  >
+                    Next: Add Speech Bubbles & Draw ▶
+                  </button>
+                </div>
+              )}
+
+              {guidedStep === 2 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Step 2: Add Speech Bubbles, SFX & Ink</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    <button
+                      onClick={() => handleAddBubble('speech_classic')}
+                      style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#151824', color: '#fff', border: '1px solid #272d3e', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      💬 Add Speech Bubble
+                    </button>
+                    <button
+                      onClick={() => handleAddSfx(JAPANESE_SFX_STAMPS[0])}
+                      style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#151824', color: '#ff3366', border: '1px solid #272d3e', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}
+                    >
+                      💥 Stamp ドーン SFX
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    <button
+                      onClick={() => handleSplitHorizontal(focusedPanelIdx)}
+                      style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#151824', color: '#cbd5e1', border: '1px solid #272d3e', fontSize: '11px', cursor: 'pointer' }}
+                    >
+                      ➗ Split Panel H
+                    </button>
+                    <button
+                      onClick={() => handleSplitVertical(focusedPanelIdx)}
+                      style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#151824', color: '#cbd5e1', border: '1px solid #272d3e', fontSize: '11px', cursor: 'pointer' }}
+                    >
+                      ⏸ Split Panel V
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setDeepEditPanelIdx(focusedPanelIdx)}
+                    style={{ padding: '10px', borderRadius: '8px', backgroundColor: 'rgba(0, 218, 243, 0.15)', color: 'var(--pj-cyan)', border: '1px solid var(--pj-cyan)', fontWeight: 800, fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    🔍 Open Panel {focusedPanelIdx + 1} in Full-Page Deep Edit
+                  </button>
+                  <button
+                    onClick={() => setGuidedStep(3)}
+                    style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                  >
+                    Next: Bring Panel to Life with Animation & Voice ▶
+                  </button>
+                </div>
+              )}
+
+              {guidedStep === 3 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Step 3: 1-Click Animation & Voice Acting</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {LAYER_ANIMATION_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        onClick={() => {
+                          handleApplyLayerAnimationPreset(focusedPanelIdx, activeLayerId, preset.id);
+                          setIsPanelTimelinePlaying(true);
+                        }}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          backgroundColor: '#151824',
+                          border: '1px solid #272d3e',
+                          color: '#fff',
+                          fontSize: '11px',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span>{preset.emoji} <b>{preset.name}</b></span>
+                        <span style={{ fontSize: '9px', color: 'var(--pj-cyan)' }}>Apply ▶</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => handleSynthesizeVoiceForPanel(focusedPanelIdx)}
+                    style={{ padding: '10px', borderRadius: '8px', backgroundColor: '#16a34a', color: '#fff', border: 'none', fontWeight: 800, fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    🎙️ Speak Panel {focusedPanelIdx + 1} Aloud
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Tab Navigation Rail */}
+              <div
+                style={{
+                  display: 'flex',
+                  overflowX: 'auto',
+                  borderBottom: '1px solid #1f2330',
+                  backgroundColor: '#0a0b10',
+                  padding: '4px',
+                  gap: '4px',
+                }}
+              >
+                <button
+                  onClick={() => setActiveTab('MOTION_CINEMAGRAPH')}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px',
-                    borderRadius: '6px',
-                    backgroundColor: '#151824',
-                    border: '1px solid #272d3e',
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: activeTab === 'MOTION_CINEMAGRAPH' ? '#212638' : 'transparent',
+                    color: activeTab === 'MOTION_CINEMAGRAPH' ? 'var(--pj-magenta)' : '#94a3b8',
+                    cursor: 'pointer',
                   }}
                 >
-                  <span style={{ fontSize: '12px', fontWeight: 600 }}>Enable Panel Motion</span>
-                  <input
-                    type="checkbox"
-                    checked={activeMotion.enabled}
-                    onChange={(e) => updatePanelMotion(activePanelIdx, { enabled: e.target.checked })}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                </div>
+                  Motion FX
+                </button>
+                <button
+                  onClick={() => setActiveTab('PANEL_TIMELINE')}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: activeTab === 'PANEL_TIMELINE' ? '#212638' : 'transparent',
+                    color: activeTab === 'PANEL_TIMELINE' ? 'var(--pj-cyan)' : '#94a3b8',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <FolderPlus size={11} />
+                  <span>Layers & TL</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('LOREA_SCRIPT')}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: activeTab === 'LOREA_SCRIPT' ? '#212638' : 'transparent',
+                    color: activeTab === 'LOREA_SCRIPT' ? 'var(--pj-cyan)' : '#94a3b8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Lorea Script
+                </button>
+                <button
+                  onClick={() => setActiveTab('TEMPLATES')}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: activeTab === 'TEMPLATES' ? '#212638' : 'transparent',
+                    color: activeTab === 'TEMPLATES' ? '#38bdf8' : '#94a3b8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Layouts
+                </button>
+                <button
+                  onClick={() => setActiveTab('BUBBLES')}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: activeTab === 'BUBBLES' ? '#212638' : 'transparent',
+                    color: activeTab === 'BUBBLES' ? '#38bdf8' : '#94a3b8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Bubbles
+                </button>
+                <button
+                  onClick={() => setActiveTab('SFX')}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: activeTab === 'SFX' ? '#212638' : 'transparent',
+                    color: activeTab === 'SFX' ? '#ec4899' : '#94a3b8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  SFX
+                </button>
+                <button
+                  onClick={() => setActiveTab('PAI_GALLERY')}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    backgroundColor: activeTab === 'PAI_GALLERY' ? '#212638' : 'transparent',
+                    color: activeTab === 'PAI_GALLERY' ? '#10b981' : '#94a3b8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  PAI
+                </button>
+              </div>
 
-                {/* Media Type Selector (Image vs Looping Video Clip) */}
-                <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-                    Media Source:
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                    <button
-                      onClick={() => updatePanelMotion(activePanelIdx, { mediaType: 'image' })}
+              {/* Drawer Content */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
+                {/* 1. MOTION, CINEMAGRAPHS & VIDEO PANELS (Pumpkin Patch v4 Parity) */}
+                {activeTab === 'MOTION_CINEMAGRAPH' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clapperboard size={16} color="var(--pj-magenta)" />
+                      <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--pj-magenta)' }}>
+                        Panel {focusedPanelIdx + 1} Motion & Cinemagraph
+                      </span>
+                    </div>
+
+                    {/* Enable Motion Toggle */}
+                    <div
                       style={{
-                        padding: '6px',
-                        borderRadius: '4px',
-                        backgroundColor: activeMotion.mediaType === 'image' ? '#2e3549' : '#151824',
-                        color: '#fff',
-                        border: '1px solid #272d3e',
-                        fontSize: '11px',
-                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <ImageIcon size={13} />
-                      <span>Still Image</span>
-                    </button>
-                    <button
-                      onClick={() =>
-                        updatePanelMotion(activePanelIdx, {
-                          mediaType: 'video',
-                          videoUrl: activeMotion.videoUrl || DEMO_VIDEO_LOOPS[0].url,
-                          enabled: true,
-                        })
-                      }
-                      style={{
-                        padding: '6px',
-                        borderRadius: '4px',
-                        backgroundColor: activeMotion.mediaType === 'video' ? '#2e3549' : '#151824',
-                        color: activeMotion.mediaType === 'video' ? '#38bdf8' : '#fff',
-                        border: '1px solid #272d3e',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Video size={13} />
-                      <span>Looping Video</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Video Preset Clip Selector */}
-                {activeMotion.mediaType === 'video' && (
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-                      Looping Video Preset:
-                    </label>
-                    <select
-                      value={activeMotion.videoUrl || DEMO_VIDEO_LOOPS[0].url}
-                      onChange={(e) => updatePanelMotion(activePanelIdx, { videoUrl: e.target.value, enabled: true })}
-                      style={{
-                        width: '100%',
+                        justifyContent: 'space-between',
+                        padding: '8px',
+                        borderRadius: '6px',
                         backgroundColor: '#151824',
-                        color: '#fff',
                         border: '1px solid #272d3e',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        fontSize: '11px',
                       }}
                     >
-                      {DEMO_VIDEO_LOOPS.map((v) => (
-                        <option key={v.id} value={v.url}>
-                          {v.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                      <span style={{ fontSize: '12px', fontWeight: 600 }}>Enable Panel Motion</span>
+                      <input
+                        type="checkbox"
+                        checked={activeMotion.enabled}
+                        onChange={(e) => updatePanelMotion(focusedPanelIdx, { enabled: e.target.checked })}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                    </div>
 
-                {/* Cinemagraph Particle Overlay Preset */}
-                <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
-                    Cinemagraph Particle Weather:
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                    {CINEMAGRAPH_PRESETS.map((cg) => {
-                      const isActive = activeMotion.cinemagraphEffect === cg.id;
-                      return (
+                    {/* Media Type Selector (Image vs Looping Video Clip) */}
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                        Media Source:
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                         <button
-                          key={cg.id}
+                          onClick={() => updatePanelMotion(focusedPanelIdx, { mediaType: 'image' })}
+                          style={{
+                            padding: '6px',
+                            borderRadius: '4px',
+                            backgroundColor: activeMotion.mediaType === 'image' ? '#2e3549' : '#151824',
+                            color: '#fff',
+                            border: '1px solid #272d3e',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <ImageIcon size={13} />
+                          <span>Still Image</span>
+                        </button>
+                        <button
                           onClick={() =>
-                            updatePanelMotion(activePanelIdx, {
-                              cinemagraphEffect: cg.id,
-                              cinemagraphIntensity: cg.defaultIntensity,
+                            updatePanelMotion(focusedPanelIdx, {
+                              mediaType: 'video',
+                              videoUrl: activeMotion.videoUrl || DEMO_VIDEO_LOOPS[0].url,
                               enabled: true,
                             })
                           }
                           style={{
-                            padding: '8px 6px',
-                            borderRadius: '6px',
-                            backgroundColor: isActive ? 'rgba(212, 0, 85, 0.2)' : '#151824',
-                            border: isActive ? '1.5px solid var(--pj-magenta)' : '1px solid #272d3e',
-                            color: '#fff',
+                            padding: '6px',
+                            borderRadius: '4px',
+                            backgroundColor: activeMotion.mediaType === 'video' ? '#2e3549' : '#151824',
+                            color: activeMotion.mediaType === 'video' ? '#38bdf8' : '#fff',
+                            border: '1px solid #272d3e',
                             fontSize: '11px',
                             cursor: 'pointer',
-                            textAlign: 'left',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
+                            justifyContent: 'center',
+                            gap: '4px',
                           }}
                         >
-                          <span style={{ fontSize: '14px' }}>{cg.emoji}</span>
-                          <span style={{ fontWeight: 600 }}>{cg.name}</span>
+                          <Video size={13} />
+                          <span>Looping Video</span>
                         </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Action Motion Camera Choreography */}
-                <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-                    Action Camera Motion:
-                  </label>
-                  <select
-                    value={activeMotion.actionMotion}
-                    onChange={(e) => updatePanelMotion(activePanelIdx, { actionMotion: e.target.value as any, enabled: true })}
-                    style={{
-                      width: '100%',
-                      backgroundColor: '#151824',
-                      color: '#fff',
-                      border: '1px solid #272d3e',
-                      borderRadius: '4px',
-                      padding: '6px',
-                      fontSize: '11px',
-                    }}
-                  >
-                    <option value="none">No Camera Motion</option>
-                    {ACTION_MOTION_PRESETS.map((am) => (
-                      <option key={am.id} value={am.id}>
-                        {am.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Voice Acting Take Synthesis */}
-                <div
-                  style={{
-                    backgroundColor: '#151824',
-                    border: '1px solid #272d3e',
-                    borderRadius: '6px',
-                    padding: '10px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#22c55e' }}>Voice Acting Take</span>
-                    <Mic size={13} color="#22c55e" />
-                  </div>
-                  <button
-                    onClick={() => handleSynthesizeVoiceForPanel(activePanelIdx)}
-                    disabled={voiceVoiceSynthesizing}
-                    style={{
-                      padding: '8px',
-                      borderRadius: '4px',
-                      backgroundColor: '#16a34a',
-                      color: '#fff',
-                      fontWeight: 600,
-                      fontSize: '11px',
-                      border: 'none',
-                      cursor: voiceVoiceSynthesizing ? 'default' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <Volume2 size={14} />
-                    <span>{voiceVoiceSynthesizing ? 'Synthesizing Voice...' : 'Generate Voice Take'}</span>
-                  </button>
-                  {activeMotion.voiceActingTake?.audioUrl && (
-                    <div style={{ fontSize: '10px', color: '#86efac', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Check size={12} />
-                      <span>Voice Take Attached ({activeMotion.voiceActingTake.duration}s)</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
 
-            {/* 1B. PANEL TIMELINE & NESTED LAYERS INSPECTOR */}
-            {activeTab === 'PANEL_TIMELINE' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FolderPlus size={15} color="var(--pj-cyan)" />
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#fff' }}>
-                      Panel {activePanelIdx + 1} Nested Tela Doc
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setDeepEditPanelIdx(activePanelIdx)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: 'rgba(0, 218, 243, 0.15)',
-                      border: '1px solid var(--pj-cyan)',
-                      color: 'var(--pj-cyan)',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Maximize2 size={11} />
-                    <span>Deep Edit Canvas</span>
-                  </button>
-                </div>
+                    {/* Video Preset Clip Selector */}
+                    {activeMotion.mediaType === 'video' && (
+                      <div>
+                        <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                          Looping Video Preset:
+                        </label>
+                        <select
+                          value={activeMotion.videoUrl || DEMO_VIDEO_LOOPS[0].url}
+                          onChange={(e) => updatePanelMotion(focusedPanelIdx, { videoUrl: e.target.value, enabled: true })}
+                          style={{
+                            width: '100%',
+                            backgroundColor: '#151824',
+                            color: '#fff',
+                            border: '1px solid #272d3e',
+                            borderRadius: '4px',
+                            padding: '6px',
+                            fontSize: '11px',
+                          }}
+                        >
+                          {DEMO_VIDEO_LOOPS.map((v) => (
+                            <option key={v.id} value={v.url}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
-                <div style={{ padding: '6px 8px', borderRadius: '4px', backgroundColor: '#141724', border: '1px solid #232838', fontSize: '10px' }}>
-                  <div style={{ color: '#94a3b8' }}>
-                    Nested Doc ID: <span style={{ color: 'var(--pj-cyan)', fontWeight: 600 }}>{nestedPanelDocs[activePanelIdx]?.docId || `doc_p${activePanelIdx + 1}`}</span>
-                  </div>
-                  <div style={{ color: '#64748b', fontSize: '9px', marginTop: '2px' }}>
-                    Functions like a Smart Object / Nested Page in Tela scene graph.
-                  </div>
-                </div>
+                    {/* Cinemagraph Particle Overlay Preset */}
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+                        Cinemagraph Particle Weather:
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                        {CINEMAGRAPH_PRESETS.map((cg) => {
+                          const isActive = activeMotion.cinemagraphEffect === cg.id;
+                          return (
+                            <button
+                              key={cg.id}
+                              onClick={() =>
+                                updatePanelMotion(focusedPanelIdx, {
+                                  cinemagraphEffect: cg.id,
+                                  cinemagraphIntensity: cg.defaultIntensity,
+                                  enabled: true,
+                                })
+                              }
+                              style={{
+                                padding: '8px 6px',
+                                borderRadius: '6px',
+                                backgroundColor: isActive ? 'rgba(212, 0, 85, 0.2)' : '#151824',
+                                border: isActive ? '1.5px solid var(--pj-magenta)' : '1px solid #272d3e',
+                                color: '#fff',
+                                fontSize: '11px',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                              }}
+                            >
+                              <span style={{ fontSize: '14px' }}>{cg.emoji}</span>
+                              <span style={{ fontWeight: 600 }}>{cg.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                {/* Layer Stacks */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                      Multi-Track Layers ({nestedPanelDocs[activePanelIdx]?.layers.length || 0}):
-                    </span>
-                    <button
-                      onClick={() => handleAddPanelLayer(activePanelIdx)}
+                    {/* Action Motion Camera Choreography */}
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                        Action Camera Motion:
+                      </label>
+                      <select
+                        value={activeMotion.actionMotion}
+                        onChange={(e) => updatePanelMotion(focusedPanelIdx, { actionMotion: e.target.value as any, enabled: true })}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#151824',
+                          color: '#fff',
+                          border: '1px solid #272d3e',
+                          borderRadius: '4px',
+                          padding: '6px',
+                          fontSize: '11px',
+                        }}
+                      >
+                        <option value="none">No Camera Motion</option>
+                        {ACTION_MOTION_PRESETS.map((am) => (
+                          <option key={am.id} value={am.id}>
+                            {am.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Voice Acting Take Synthesis */}
+                    <div
                       style={{
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        backgroundColor: '#1b2030',
-                        border: '1px solid #2e364e',
-                        color: 'var(--pj-cyan)',
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
+                        backgroundColor: '#151824',
+                        border: '1px solid #272d3e',
+                        borderRadius: '6px',
+                        padding: '10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
                       }}
                     >
-                      + Add Layer
-                    </button>
-                  </div>
-
-                  {(nestedPanelDocs[activePanelIdx]?.layers || []).map((layer) => {
-                    const isSelected = activeLayerId === layer.id;
-                    return (
-                      <div
-                        key={layer.id}
-                        onClick={() => setActiveLayerId(layer.id)}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#22c55e' }}>Voice Acting Take</span>
+                        <Mic size={13} color="#22c55e" />
+                      </div>
+                      <button
+                        onClick={() => handleSynthesizeVoiceForPanel(focusedPanelIdx)}
+                        disabled={voiceVoiceSynthesizing}
                         style={{
-                          padding: '6px 8px',
-                          borderRadius: '6px',
-                          backgroundColor: isSelected ? 'rgba(0, 218, 243, 0.12)' : '#141724',
-                          border: isSelected ? '1.5px solid var(--pj-cyan)' : '1px solid #232838',
+                          padding: '8px',
+                          borderRadius: '4px',
+                          backgroundColor: '#16a34a',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: '11px',
+                          border: 'none',
+                          cursor: voiceVoiceSynthesizing ? 'default' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'space-between',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          justifyContent: 'center',
+                          gap: '6px',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleLayerVisibility(activePanelIdx, layer.id);
-                            }}
-                            style={{ background: 'none', border: 'none', color: layer.visible ? '#38bdf8' : '#64748b', cursor: 'pointer', padding: 0 }}
-                          >
-                            {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleLayerLock(activePanelIdx, layer.id);
-                            }}
-                            style={{ background: 'none', border: 'none', color: layer.locked ? '#f59e0b' : '#64748b', cursor: 'pointer', padding: 0 }}
-                          >
-                            <Lock size={12} />
-                          </button>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: layer.visible ? '#fff' : '#64748b' }}>
-                            {layer.name}
-                          </span>
+                        <Volume2 size={14} />
+                        <span>{voiceVoiceSynthesizing ? 'Synthesizing Voice...' : 'Generate Voice Take'}</span>
+                      </button>
+                      {activeMotion.voiceActingTake?.audioUrl && (
+                        <div style={{ fontSize: '10px', color: '#86efac', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Check size={12} />
+                          <span>Voice Take Attached ({activeMotion.voiceActingTake.duration}s)</span>
                         </div>
-                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', backgroundColor: '#0d1017', color: 'var(--pj-cyan)' }}>
-                          {layer.keyframes.length} kf
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 1B. PANEL TIMELINE, LIVE KEYFRAME SLIDERS & 1-CLICK ANIMATION PRESETS */}
+                {activeTab === 'PANEL_TIMELINE' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FolderPlus size={15} color="var(--pj-cyan)" />
+                        <span style={{ fontWeight: 700, fontSize: '13px', color: '#fff' }}>
+                          Panel {focusedPanelIdx + 1} Nested Tela Doc
                         </span>
                       </div>
-                    );
-                  })}
-                </div>
-
-                {/* Timeline Transport for Selected Panel */}
-                <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#141724', border: '1px solid #232838', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px' }}>
-                    <span style={{ color: '#94a3b8' }}>Scrub Time:</span>
-                    <span style={{ color: 'var(--pj-cyan)', fontWeight: 700 }}>
-                      {panelTimelineTime.toFixed(1)}s / {(nestedPanelDocs[activePanelIdx]?.timelineDurationSec || 4.0).toFixed(1)}s
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      onClick={() => setIsPanelTimelinePlaying(!isPanelTimelinePlaying)}
-                      style={{
-                        flex: 1,
-                        padding: '6px',
-                        borderRadius: '4px',
-                        backgroundColor: isPanelTimelinePlaying ? '#d40055' : '#22c55e',
-                        border: 'none',
-                        color: '#fff',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      {isPanelTimelinePlaying ? <Pause size={12} /> : <Play size={12} />}
-                      <span>{isPanelTimelinePlaying ? 'Pause' : 'Play Timeline'}</span>
-                    </button>
-                    <button
-                      onClick={() => handleAddKeyframe(activePanelIdx, activeLayerId, panelTimelineTime)}
-                      style={{
-                        flex: 1,
-                        padding: '6px',
-                        borderRadius: '4px',
-                        backgroundColor: 'rgba(0, 218, 243, 0.15)',
-                        border: '1px solid var(--pj-cyan)',
-                        color: 'var(--pj-cyan)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Key size={12} />
-                      <span>+ Keyframe</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. LOREA SCRIPT & COMIC AUTHORING INTEGRATION */}
-            {activeTab === 'LOREA_SCRIPT' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--pj-cyan)' }}>
-                    Lorea Script & Lore Bridge
-                  </span>
-                  {loreaHandoffFound && (
-                    <button
-                      onClick={handleImportLoreaHandoff}
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        backgroundColor: '#00daf3',
-                        color: '#000',
-                        fontWeight: 700,
-                        fontSize: '10px',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Load Handoff
-                    </button>
-                  )}
-                </div>
-                <p style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.4 }}>
-                  Parse character scripts from Lorea book excerpts or Fabula scene exports. Auto-flows dialogue,
-                  captions, and SFX directly onto panels.
-                </p>
-                <textarea
-                  rows={9}
-                  value={loreaScriptText}
-                  onChange={(e) => setLoreaScriptText(e.target.value)}
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#151824',
-                    color: '#e2e8f0',
-                    border: '1px solid #272d3e',
-                    borderRadius: '6px',
-                    padding: '8px',
-                    fontSize: '11px',
-                    fontFamily: 'monospace',
-                  }}
-                />
-                <button
-                  onClick={handleFlowLoreaScript}
-                  style={{
-                    padding: '10px',
-                    borderRadius: '6px',
-                    background: 'var(--pj-grad-spatial)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '12px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <Sparkles size={14} />
-                  <span>Flow Script to Comic Panels</span>
-                </button>
-              </div>
-            )}
-
-            {/* 3. LAYOUT TEMPLATES */}
-            {activeTab === 'TEMPLATES' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>
-                  Panel Layout Templates (20+)
-                </span>
-                {LAYOUT_TEMPLATE_LIST.map((tmpl) => (
-                  <div
-                    key={tmpl.id}
-                    onClick={() => handleSelectLayout(tmpl.id)}
-                    style={{
-                      padding: '10px',
-                      borderRadius: '8px',
-                      border: activeLayoutId === tmpl.id ? '2px solid #38bdf8' : '1px solid #232838',
-                      backgroundColor: activeLayoutId === tmpl.id ? '#1a2233' : '#151824',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: '13px', color: '#fff', marginBottom: '2px' }}>
-                      {tmpl.name}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{tmpl.description}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 4. SPEECH BUBBLES */}
-            {activeTab === 'BUBBLES' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                  Add Bubble to Panel {activePanelIdx + 1}:
-                </span>
-                {SPEECH_BUBBLE_LIST.map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => handleAddBubble(b.id)}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      backgroundColor: '#151824',
-                      border: '1px solid #272d3e',
-                      color: '#e2e8f0',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ fontWeight: 600 }}>{b.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* 5. ACTION WORDS & SFX (Western & Japanese Manga Kanji) */}
-            {activeTab === 'SFX' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--pj-cyan)', fontWeight: 700 }}>
-                  Japanese Manga Kanji Onomatopoeia:
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  {JAPANESE_SFX_STAMPS.map((sfx) => (
-                    <button
-                      key={sfx.kanji}
-                      onClick={() => handleAddSfx(sfx)}
-                      style={{
-                        padding: '8px 6px',
-                        borderRadius: '6px',
-                        backgroundColor: '#161924',
-                        border: '1px solid #272d3e',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                      }}
-                    >
-                      <div
+                      <button
+                        onClick={() => setDeepEditPanelIdx(focusedPanelIdx)}
                         style={{
-                          fontWeight: 900,
-                          fontSize: '18px',
-                          color: sfx.color,
-                          textShadow: `2px 2px 0px ${sfx.extrusion}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(0, 218, 243, 0.15)',
+                          border: '1px solid var(--pj-cyan)',
+                          color: 'var(--pj-cyan)',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
                         }}
                       >
-                        {sfx.kanji}
+                        <Maximize2 size={11} />
+                        <span>Deep Edit Canvas</span>
+                      </button>
+                    </div>
+
+                    {/* Layer Stacks */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                          Multi-Track Layers ({nestedPanelDocs[focusedPanelIdx]?.layers.length || 0}):
+                        </span>
+                        <button
+                          onClick={() => handleAddPanelLayer(focusedPanelIdx)}
+                          style={{
+                            padding: '2px 6px',
+                            borderRadius: '3px',
+                            backgroundColor: '#1b2030',
+                            border: '1px solid #2e364e',
+                            color: 'var(--pj-cyan)',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          + Add Layer
+                        </button>
                       </div>
-                      <div style={{ fontSize: '9px', color: '#94a3b8' }}>{sfx.label}</div>
-                    </button>
-                  ))}
-                </div>
 
-                <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginTop: '8px' }}>
-                  Western Comic SFX Words:
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  {SFX_PRESETS.slice(0, 8).map((sfx) => (
-                    <button
-                      key={sfx.id}
-                      onClick={() => handleAddSfx(sfx)}
-                      style={{
-                        padding: '8px 6px',
-                        borderRadius: '6px',
-                        backgroundColor: '#161924',
-                        border: '1px solid #272d3e',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                      }}
-                    >
-                      <div style={{ fontWeight: 900, fontSize: '14px', color: sfx.defaultColor }}>{sfx.word}</div>
-                      <div style={{ fontSize: '9px', color: '#94a3b8' }}>{sfx.meaning}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                      {(nestedPanelDocs[focusedPanelIdx]?.layers || []).map((layer) => {
+                        const isSelected = activeLayerId === layer.id;
+                        return (
+                          <div
+                            key={layer.id}
+                            onClick={() => setActiveLayerId(layer.id)}
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              backgroundColor: isSelected ? 'rgba(0, 218, 243, 0.12)' : '#141724',
+                              border: isSelected ? '1.5px solid var(--pj-cyan)' : '1px solid #232838',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleLayerVisibility(focusedPanelIdx, layer.id);
+                                }}
+                                style={{ background: 'none', border: 'none', color: layer.visible ? '#38bdf8' : '#64748b', cursor: 'pointer', padding: 0 }}
+                              >
+                                {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleLayerLock(focusedPanelIdx, layer.id);
+                                }}
+                                style={{ background: 'none', border: 'none', color: layer.locked ? '#f59e0b' : '#64748b', cursor: 'pointer', padding: 0 }}
+                              >
+                                <Lock size={12} />
+                              </button>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: layer.visible ? '#fff' : '#64748b' }}>
+                                {layer.name}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', backgroundColor: '#0d1017', color: 'var(--pj-cyan)' }}>
+                              {layer.keyframes.length} kf
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-            {/* 6. PAI GALLERY */}
-            {activeTab === 'PAI_GALLERY' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                  Past PAI Generations (Click to Send to Panel {activePanelIdx + 1})
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  {paiItems.map((item) => (
-                    <div
-                      key={item.id}
-                      onClick={() => handleInsertPaiToPanel(item)}
-                      style={{
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        border: '1px solid #272d3e',
-                        cursor: 'pointer',
-                        backgroundColor: '#161924',
-                      }}
-                    >
-                      <img src={item.mediaUrl} alt={item.prompt} style={{ width: '100%', height: '80px', objectFit: 'cover' }} />
-                      <div style={{ padding: '4px', fontSize: '9px', color: '#cbd5e1', maxHeight: '28px', overflow: 'hidden' }}>
-                        {item.prompt}
+                    {/* 1-Click Layer Animation Presets */}
+                    <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#141724', border: '1px solid #232838', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--pj-magenta)' }}>
+                        ⚡ 1-Click Layer Animation Presets:
+                      </span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                        {LAYER_ANIMATION_PRESETS.map((preset) => (
+                          <button
+                            key={preset.id}
+                            onClick={() => handleApplyLayerAnimationPreset(focusedPanelIdx, activeLayerId, preset.id)}
+                            title={preset.description}
+                            style={{
+                              padding: '5px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: '#1b2030',
+                              border: '1px solid #2e364e',
+                              color: '#e2e8f0',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {preset.emoji} {preset.name}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Live Auto-Keyframe Property Sliders */}
+                    {(() => {
+                      const doc = nestedPanelDocs[focusedPanelIdx];
+                      const activeLayer = doc?.layers.find((l) => l.id === activeLayerId) || doc?.layers[0];
+                      const interp = activeLayer ? getInterpolatedKeyframe(activeLayer.keyframes, panelTimelineTime) : { scale: 1, x: 0, y: 0, opacity: 1, shakeIntensity: 0 };
+                      return (
+                        <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#141724', border: '1px solid #232838', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--pj-cyan)' }}>
+                              🔴 Live Keyframe Properties (@ {panelTimelineTime.toFixed(1)}s)
+                            </span>
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8' }}>
+                              <span>Scale</span>
+                              <span>{(interp.scale ?? 1).toFixed(2)}x</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0.5"
+                              max="2.0"
+                              step="0.05"
+                              value={interp.scale ?? 1}
+                              onChange={(e) => handleUpdateLayerKeyframeProperty(focusedPanelIdx, activeLayer?.id || null, 'scale', Number(e.target.value))}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8' }}>
+                                <span>Offset X</span>
+                                <span>{Math.round(interp.x ?? 0)}px</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="-60"
+                                max="60"
+                                step="2"
+                                value={interp.x ?? 0}
+                                onChange={(e) => handleUpdateLayerKeyframeProperty(focusedPanelIdx, activeLayer?.id || null, 'x', Number(e.target.value))}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8' }}>
+                                <span>Offset Y</span>
+                                <span>{Math.round(interp.y ?? 0)}px</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="-60"
+                                max="60"
+                                step="2"
+                                value={interp.y ?? 0}
+                                onChange={(e) => handleUpdateLayerKeyframeProperty(focusedPanelIdx, activeLayer?.id || null, 'y', Number(e.target.value))}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8' }}>
+                                <span>Opacity</span>
+                                <span>{Math.round((interp.opacity ?? 1) * 100)}%</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value={interp.opacity ?? 1}
+                                onChange={(e) => handleUpdateLayerKeyframeProperty(focusedPanelIdx, activeLayer?.id || null, 'opacity', Number(e.target.value))}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8' }}>
+                                <span>Impact Shake</span>
+                                <span>{(interp.shakeIntensity ?? 0).toFixed(1)}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={interp.shakeIntensity ?? 0}
+                                onChange={(e) => handleUpdateLayerKeyframeProperty(focusedPanelIdx, activeLayer?.id || null, 'shakeIntensity', Number(e.target.value))}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Timeline Transport for Selected Panel */}
+                    <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: '#141724', border: '1px solid #232838', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px' }}>
+                        <span style={{ color: '#94a3b8' }}>Scrub Time:</span>
+                        <span style={{ color: 'var(--pj-cyan)', fontWeight: 700 }}>
+                          {panelTimelineTime.toFixed(1)}s / {(nestedPanelDocs[focusedPanelIdx]?.timelineDurationSec || 4.0).toFixed(1)}s
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          onClick={() => setIsPanelTimelinePlaying(!isPanelTimelinePlaying)}
+                          style={{
+                            flex: 1,
+                            padding: '6px',
+                            borderRadius: '4px',
+                            backgroundColor: isPanelTimelinePlaying ? '#d40055' : '#22c55e',
+                            border: 'none',
+                            color: '#fff',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          {isPanelTimelinePlaying ? <Pause size={12} /> : <Play size={12} />}
+                          <span>{isPanelTimelinePlaying ? 'Pause' : 'Play Timeline'}</span>
+                        </button>
+                        <button
+                          onClick={() => handleAddKeyframe(focusedPanelIdx, activeLayerId, panelTimelineTime)}
+                          style={{
+                            flex: 1,
+                            padding: '6px',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(0, 218, 243, 0.15)',
+                            border: '1px solid var(--pj-cyan)',
+                            color: 'var(--pj-cyan)',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Key size={12} />
+                          <span>+ Keyframe</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. LOREA SCRIPT & COMIC AUTHORING INTEGRATION */}
+                {activeTab === 'LOREA_SCRIPT' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--pj-cyan)' }}>
+                        Lorea Script & Lore Bridge
+                      </span>
+                      {loreaHandoffFound && (
+                        <button
+                          onClick={handleImportLoreaHandoff}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: '#00daf3',
+                            color: '#000',
+                            fontWeight: 700,
+                            fontSize: '10px',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Load Handoff
+                        </button>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.4 }}>
+                      Parse character scripts from Lorea book excerpts or Fabula scene exports. Auto-flows dialogue,
+                      captions, and SFX directly onto panels.
+                    </p>
+                    <textarea
+                      rows={9}
+                      value={loreaScriptText}
+                      onChange={(e) => setLoreaScriptText(e.target.value)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#151824',
+                        color: '#e2e8f0',
+                        border: '1px solid #272d3e',
+                        borderRadius: '6px',
+                        padding: '8px',
+                        fontSize: '11px',
+                        fontFamily: 'monospace',
+                      }}
+                    />
+                    <button
+                      onClick={handleFlowLoreaScript}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '6px',
+                        background: 'var(--pj-grad-spatial)',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '12px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <Sparkles size={14} />
+                      <span>Flow Script to Comic Panels</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* 3. LAYOUT TEMPLATES */}
+                {activeTab === 'TEMPLATES' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>
+                      Panel Layout Templates (20+)
+                    </span>
+                    {LAYOUT_TEMPLATE_LIST.map((tmpl) => (
+                      <div
+                        key={tmpl.id}
+                        onClick={() => handleSelectLayout(tmpl.id)}
+                        style={{
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: activeLayoutId === tmpl.id ? '2px solid #38bdf8' : '1px solid #232838',
+                          backgroundColor: activeLayoutId === tmpl.id ? '#1a2233' : '#151824',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, fontSize: '13px', color: '#fff', marginBottom: '2px' }}>
+                          {tmpl.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>{tmpl.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 4. SPEECH BUBBLES */}
+                {activeTab === 'BUBBLES' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                      Add Bubble to Panel {focusedPanelIdx + 1}:
+                    </span>
+                    {SPEECH_BUBBLE_LIST.map((b) => (
+                      <button
+                        key={b.id}
+                        onClick={() => handleAddBubble(b.id)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: '#151824',
+                          border: '1px solid #272d3e',
+                          color: '#e2e8f0',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>{b.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* 5. ACTION WORDS & SFX (Western & Japanese Manga Kanji) */}
+                {activeTab === 'SFX' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--pj-cyan)', fontWeight: 700 }}>
+                      Japanese Manga Kanji Onomatopoeia:
+                    </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      {JAPANESE_SFX_STAMPS.map((sfx) => (
+                        <button
+                          key={sfx.kanji}
+                          onClick={() => handleAddSfx(sfx)}
+                          style={{
+                            padding: '8px 6px',
+                            borderRadius: '6px',
+                            backgroundColor: '#161924',
+                            border: '1px solid #272d3e',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 900,
+                              fontSize: '18px',
+                              color: sfx.color,
+                              textShadow: `2px 2px 0px ${sfx.extrusion}`,
+                            }}
+                          >
+                            {sfx.kanji}
+                          </div>
+                          <div style={{ fontSize: '9px', color: '#94a3b8' }}>{sfx.label}</div>
+                        </button>
+                      ))}
+                    </div>
+
+                    <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginTop: '8px' }}>
+                      Western Comic SFX Words:
+                    </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      {SFX_PRESETS.slice(0, 8).map((sfx) => (
+                        <button
+                          key={sfx.id}
+                          onClick={() => handleAddSfx(sfx)}
+                          style={{
+                            padding: '8px 6px',
+                            borderRadius: '6px',
+                            backgroundColor: '#161924',
+                            border: '1px solid #272d3e',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <div style={{ fontWeight: 900, fontSize: '14px', color: sfx.defaultColor }}>{sfx.word}</div>
+                          <div style={{ fontSize: '9px', color: '#94a3b8' }}>{sfx.meaning}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. PAI GALLERY */}
+                {activeTab === 'PAI_GALLERY' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                      Past PAI Generations (Click to Send to Panel {focusedPanelIdx + 1})
+                    </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      {paiItems.map((item) => (
+                        <div
+                          key={item.id}
+                          onClick={() => handleInsertPaiToPanel(item)}
+                          style={{
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            border: '1px solid #272d3e',
+                            cursor: 'pointer',
+                            backgroundColor: '#161924',
+                          }}
+                        >
+                          <img src={item.mediaUrl} alt={item.prompt} style={{ width: '100%', height: '80px', objectFit: 'cover' }} />
+                          <div style={{ padding: '4px', fontSize: '9px', color: '#cbd5e1', maxHeight: '28px', overflow: 'hidden' }}>
+                            {item.prompt}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
         {/* ── CENTER WORKSPACE: DUAL PARADIGM CANVAS ── */}
@@ -2406,22 +3331,79 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                               </span>
                             </div>
 
+                            {/* In-Deep-Edit Panel Filmstrip Switcher (Prev / P1 • P2 • P3 / Next) */}
                             <div
                               style={{
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                backgroundColor: 'rgba(0, 218, 243, 0.1)',
-                                border: '1px solid rgba(0, 218, 243, 0.3)',
-                                color: 'var(--pj-cyan)',
-                                fontSize: '10px',
-                                fontWeight: 600,
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '4px',
+                                backgroundColor: '#131726',
+                                padding: '3px 6px',
+                                borderRadius: '6px',
+                                border: '1px solid #262e48',
                               }}
                             >
-                              <FolderPlus size={11} />
-                              <span>Nested Doc: {deepDoc.docId}</span>
+                              <button
+                                onClick={() => {
+                                  const prevIdx = Math.max(0, deepEditPanelIdx - 1);
+                                  setDeepEditPanelIdx(prevIdx);
+                                  setActivePanelIdx(prevIdx);
+                                }}
+                                disabled={deepEditPanelIdx === 0}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: deepEditPanelIdx === 0 ? '#475569' : '#cbd5e1',
+                                  cursor: deepEditPanelIdx === 0 ? 'default' : 'pointer',
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  padding: '2px 4px',
+                                }}
+                                title="Previous Panel in Deep Edit"
+                              >
+                                ◀
+                              </button>
+                              {page.panels.map((_, pIdx) => (
+                                <button
+                                  key={pIdx}
+                                  onClick={() => {
+                                    setDeepEditPanelIdx(pIdx);
+                                    setActivePanelIdx(pIdx);
+                                  }}
+                                  style={{
+                                    padding: '2px 7px',
+                                    borderRadius: '4px',
+                                    backgroundColor: deepEditPanelIdx === pIdx ? 'var(--pj-cyan)' : 'transparent',
+                                    color: deepEditPanelIdx === pIdx ? '#000' : '#94a3b8',
+                                    border: 'none',
+                                    fontSize: '10px',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  P{pIdx + 1}
+                                </button>
+                              ))}
+                              <button
+                                onClick={() => {
+                                  const nextIdx = Math.min(page.panels.length - 1, deepEditPanelIdx + 1);
+                                  setDeepEditPanelIdx(nextIdx);
+                                  setActivePanelIdx(nextIdx);
+                                }}
+                                disabled={deepEditPanelIdx >= page.panels.length - 1}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: deepEditPanelIdx >= page.panels.length - 1 ? '#475569' : '#cbd5e1',
+                                  cursor: deepEditPanelIdx >= page.panels.length - 1 ? 'default' : 'pointer',
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  padding: '2px 4px',
+                                }}
+                                title="Next Panel in Deep Edit"
+                              >
+                                ▶
+                              </button>
                             </div>
 
                             <div
@@ -2527,6 +3509,8 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                         <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: '16px', alignItems: 'center', justifyContent: 'center' }}>
                           {/* Central High-Res Deep Edit Canvas */}
                           <div
+                            onPointerMove={(e) => handleContainerPointerMove(e, deepEditPanelIdx)}
+                            onPointerUp={() => setDraggingBalloon(null)}
                             style={{
                               width: '540px',
                               height: '540px',
@@ -2545,7 +3529,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                                   position: 'absolute',
                                   inset: 0,
                                   opacity: bgKf.opacity ?? 1,
-                                  transform: `${shakeTransform} translate(${(deepTransform.xOffsetPct + bgKf.x)}%, ${(deepTransform.yOffsetPct + bgKf.y)}%) scale(${deepTransform.scale * bgKf.scale}) rotate(${deepTransform.rotationDeg}deg) scaleX(${deepTransform.flipX ? -1 : 1})`,
+                                  transform: `${shakeTransform} translate(${(deepTransform.xOffsetPct + (bgKf.x || 0))}%, ${(deepTransform.yOffsetPct + (bgKf.y || 0))}%) scale(${deepTransform.scale * (bgKf.scale || 1)}) rotate(${deepTransform.rotationDeg}deg) scaleX(${deepTransform.flipX ? -1 : 1})`,
                                   transition: isPanelTimelinePlaying ? 'none' : 'transform 0.2s ease',
                                   overflow: 'hidden',
                                 }}
@@ -2566,9 +3550,24 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                   />
                                 ) : (
-                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b', gap: '8px' }}>
                                     <ImageIcon size={24} />
-                                    <span style={{ marginLeft: '8px' }}>{deepPanel.actionPrompt || `Panel ${deepEditPanelIdx + 1} Artwork Plate`}</span>
+                                    <span>{deepPanel.actionPrompt || `Panel ${deepEditPanelIdx + 1} Artwork Plate`}</span>
+                                    <button
+                                      onClick={() => handleRenderProceduralPlate(deepEditPanelIdx)}
+                                      style={{
+                                        padding: '6px 12px',
+                                        borderRadius: '6px',
+                                        background: 'var(--pj-grad-brand)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      ✨ Render Stylized Art Plate
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -2642,7 +3641,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                               />
                             )}
 
-                            {/* Layer 5: Autodesk Sketchbook Inking Canvas */}
+                            {/* Layer 5: Autodesk Sketchbook Inking Canvas (Two-Way Persisted) */}
                             {inkLayer?.visible && (
                               <canvas
                                 ref={(el) => (canvasRefs.current[deepEditPanelIdx] = el)}
@@ -2650,8 +3649,8 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                                 height={540}
                                 onPointerDown={(e) => startDrawing(e, deepEditPanelIdx)}
                                 onPointerMove={(e) => drawMove(e, deepEditPanelIdx)}
-                                onPointerUp={stopDrawing}
-                                onPointerLeave={stopDrawing}
+                                onPointerUp={() => stopDrawing(deepEditPanelIdx)}
+                                onPointerLeave={() => stopDrawing(deepEditPanelIdx)}
                                 style={{
                                   position: 'absolute',
                                   inset: 0,
@@ -2660,14 +3659,16 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                                   pointerEvents: activeTool === 'BRUSH' || activeTool === 'ERASER' ? 'auto' : 'none',
                                   zIndex: 8,
                                   opacity: inkKf.opacity ?? 1,
-                                  transform: `translate(${inkKf.x}px, ${inkKf.y}px) scale(${inkKf.scale})`,
+                                  transform: `translate(${inkKf.x || 0}px, ${inkKf.y || 0}px) scale(${inkKf.scale || 1})`,
                                 }}
                               />
                             )}
 
-                            {/* Layer 6: Speech Balloons and Sound Effects */}
+                            {/* Layer 6: Speech Balloons and Sound Effects (Pointer Draggable + Inline Editable) */}
                             {deepPanel.balloons.map((balloon) => {
                               const isBubbleActive = audioSpeechActiveId === balloon.id;
+                              const isSelectedBalloon = selectedBubbleId === balloon.id;
+                              const isEditing = editingBalloonId === balloon.id;
                               const isSfx = balloon.type === 'sfx';
                               const isVisible = isSfx ? sfxLayer?.visible !== false : balloonLayer?.visible !== false;
                               if (!isVisible) return null;
@@ -2677,17 +3678,51 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                               return (
                                 <div
                                   key={balloon.id}
+                                  onPointerDown={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBubbleId(balloon.id);
+                                    if (!isEditing) {
+                                      setDraggingBalloon({ panelIdx: deepEditPanelIdx, balloonId: balloon.id });
+                                    }
+                                  }}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingBalloonId(balloon.id);
+                                  }}
                                   style={{
                                     position: 'absolute',
                                     left: `${balloon.xPct}%`,
                                     top: `${balloon.yPct}%`,
-                                    transform: `translate(-50%, -50%) translate(${layerKf.x}px, ${layerKf.y}px) scale(${layerKf.scale})`,
+                                    transform: `translate(-50%, -50%) translate(${layerKf.x || 0}px, ${layerKf.y || 0}px) scale(${layerKf.scale || 1})`,
                                     opacity: layerKf.opacity ?? 1,
-                                    zIndex: 10,
-                                    cursor: 'move',
+                                    zIndex: isSelectedBalloon ? 22 : 10,
+                                    cursor: 'grab',
+                                    outline: isSelectedBalloon ? '2px dashed var(--pj-cyan)' : 'none',
+                                    outlineOffset: '4px',
                                   }}
+                                  title="Drag to move • Double-click to edit text inline"
                                 >
-                                  {isSfx ? (
+                                  {isEditing ? (
+                                    <input
+                                      autoFocus
+                                      value={balloon.text}
+                                      onChange={(e) => handleUpdateBalloon(deepEditPanelIdx, balloon.id, { text: e.target.value })}
+                                      onBlur={() => setEditingBalloonId(null)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') setEditingBalloonId(null);
+                                      }}
+                                      style={{
+                                        padding: '6px 10px',
+                                        borderRadius: '8px',
+                                        border: '2px solid var(--pj-cyan)',
+                                        backgroundColor: '#0f172a',
+                                        color: '#fff',
+                                        fontSize: '12px',
+                                        fontWeight: 700,
+                                        minWidth: '140px',
+                                      }}
+                                    />
+                                  ) : isSfx ? (
                                     <div
                                       style={{
                                         fontFamily: 'Impact, sans-serif',
@@ -2765,8 +3800,27 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                               </button>
                             </div>
 
-                            <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                              Panel {deepEditPanelIdx + 1} functions as an isolated Tela sub-document page with individual multi-track keyframes.
+                            {/* 1-Click Animation Presets inside Deep Edit Inspector */}
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              {LAYER_ANIMATION_PRESETS.map((preset) => (
+                                <button
+                                  key={preset.id}
+                                  onClick={() => handleApplyLayerAnimationPreset(deepEditPanelIdx, activeLayerId, preset.id)}
+                                  title={preset.description}
+                                  style={{
+                                    padding: '3px 6px',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#161b2c',
+                                    border: '1px solid #28324e',
+                                    color: '#cbd5e1',
+                                    fontSize: '9px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  {preset.emoji} {preset.name.split(' ')[0]}
+                                </button>
+                              ))}
                             </div>
 
                             {/* Layer Stack Items */}
@@ -2878,6 +3932,40 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                       </div>
                     );
                   })()
+                ) : sequentialView === 'COUNCIL_V4_GRAPHIC_NOVEL' ? (
+                  <div style={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <CouncilV4GraphicNovelStudioView
+                      pages={pages.map((pg) => comicMangaPageToStudioPage(pg))}
+                      activePageIndex={activePageIdx}
+                      onSelectPageIndex={(idx) => handleSelectPage(idx)}
+                      onUpdatePage={(updatedStudioPage, idx) => {
+                        const targetIdx = idx ?? activePageIdx;
+                        const converted = studioPageToComicMangaPage(
+                          updatedStudioPage,
+                          updatedStudioPage.chapterTitle || page.title
+                        );
+                        setPages((prev) => prev.map((p, i) => (i === targetIdx ? converted : p)));
+                        if (targetIdx === activePageIdx) {
+                          setPage(converted);
+                        }
+                      }}
+                      selectedPanelId={page.panels[activePanelIdx]?.id || null}
+                      onSelectPanel={(_panelId, panelIdx, pageIdx) => {
+                        if (pageIdx !== activePageIdx) {
+                          handleSelectPage(pageIdx);
+                        }
+                        setActivePanelIdx(panelIdx);
+                      }}
+                      onOpenDeepEditOrInker={(panelIdx, pageIdx) => {
+                        if (pageIdx !== activePageIdx) {
+                          handleSelectPage(pageIdx);
+                        }
+                        setActivePanelIdx(panelIdx);
+                        setDeepEditPanelIdx(panelIdx);
+                      }}
+                      bookTitle={page.title || resolvedInitialTitle}
+                    />
+                  </div>
                 ) : sequentialView === 'PAGE_GRID' ? (
                   <div
                     style={{
@@ -2888,6 +3976,7 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                       boxShadow: '0 25px 70px rgba(0,0,0,0.9)',
                       position: 'relative',
                       overflow: 'hidden',
+
                     }}
                   >
                     {page.panels.map((panel, idx) => {
@@ -2913,6 +4002,8 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                           key={panel.id}
                           onClick={() => setActivePanelIdx(idx)}
                           onDoubleClick={() => setDeepEditPanelIdx(idx)}
+                          onPointerMove={(e) => handleContainerPointerMove(e, idx)}
+                          onPointerUp={() => setDraggingBalloon(null)}
                           style={{
                             position: 'absolute',
                             left: `${box.xPct}%`,
@@ -3099,15 +4190,15 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                             />
                           )}
 
-                          {/* Autodesk Sketchbook Inking Canvas Layer */}
+                          {/* Autodesk Sketchbook Inking Canvas Layer (Two-Way Persisted) */}
                           <canvas
                             ref={(el) => (canvasRefs.current[idx] = el)}
                             width={400}
                             height={400}
                             onPointerDown={(e) => startDrawing(e, idx)}
                             onPointerMove={(e) => drawMove(e, idx)}
-                            onPointerUp={stopDrawing}
-                            onPointerLeave={stopDrawing}
+                            onPointerUp={() => stopDrawing(idx)}
+                            onPointerLeave={() => stopDrawing(idx)}
                             style={{
                               position: 'absolute',
                               inset: 0,
@@ -3118,23 +4209,60 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                             }}
                           />
 
-                          {/* Speech Bubbles and Sound Effects */}
+                          {/* Speech Bubbles and Sound Effects (Pointer Draggable + Inline Editable) */}
                           {panel.balloons.map((balloon) => {
                             const isBubbleActive = audioSpeechActiveId === balloon.id;
+                            const isSelectedBalloon = selectedBubbleId === balloon.id;
+                            const isEditing = editingBalloonId === balloon.id;
                             const isSfx = balloon.type === 'sfx';
                             return (
                               <div
                                 key={balloon.id}
+                                onPointerDown={(e) => {
+                                  e.stopPropagation();
+                                  setActivePanelIdx(idx);
+                                  setSelectedBubbleId(balloon.id);
+                                  if (!isEditing) {
+                                    setDraggingBalloon({ panelIdx: idx, balloonId: balloon.id });
+                                  }
+                                }}
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingBalloonId(balloon.id);
+                                }}
                                 style={{
                                   position: 'absolute',
                                   left: `${balloon.xPct}%`,
                                   top: `${balloon.yPct}%`,
                                   transform: 'translate(-50%, -50%)',
-                                  zIndex: 10,
-                                  cursor: 'move',
+                                  zIndex: isSelectedBalloon ? 22 : 10,
+                                  cursor: 'grab',
+                                  outline: isSelectedBalloon ? '2px dashed var(--pj-cyan)' : 'none',
+                                  outlineOffset: '3px',
                                 }}
+                                title="Drag to move • Double-click to edit text inline"
                               >
-                                {isSfx ? (
+                                {isEditing ? (
+                                  <input
+                                    autoFocus
+                                    value={balloon.text}
+                                    onChange={(e) => handleUpdateBalloon(idx, balloon.id, { text: e.target.value })}
+                                    onBlur={() => setEditingBalloonId(null)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') setEditingBalloonId(null);
+                                    }}
+                                    style={{
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      border: '2px solid var(--pj-cyan)',
+                                      backgroundColor: '#0f172a',
+                                      color: '#fff',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      minWidth: '120px',
+                                    }}
+                                  />
+                                ) : isSfx ? (
                                   <div
                                     style={{
                                       fontFamily: 'Impact, sans-serif',
@@ -3260,12 +4388,190 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                 )}
               </div>
 
+              {/* Contextual Floating Bubble / SFX HUD when a Balloon is Selected */}
+              {selectedBalloonObj && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 14px',
+                    backgroundColor: '#111524',
+                    borderTop: '1px solid rgba(0, 218, 243, 0.35)',
+                    fontSize: '11px',
+                    gap: '8px',
+                    zIndex: 35,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: 'var(--pj-cyan)', fontWeight: 800 }}>
+                      {selectedBalloonObj.type === 'sfx' ? '💥 SFX Stamp HUD:' : '💬 Bubble HUD:'}
+                    </span>
+                    <input
+                      type="text"
+                      value={selectedBalloonObj.text}
+                      onChange={(e) => handleUpdateBalloon(focusedPanelIdx, selectedBalloonObj.id, { text: e.target.value })}
+                      style={{
+                        backgroundColor: '#090b12',
+                        color: '#fff',
+                        border: '1px solid #28324e',
+                        borderRadius: '4px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        width: '210px',
+                      }}
+                    />
+                    {selectedBalloonObj.type !== 'sfx' ? (
+                      <>
+                        <select
+                          value={selectedBalloonObj.type}
+                          onChange={(e) => handleUpdateBalloon(focusedPanelIdx, selectedBalloonObj.id, { type: e.target.value as any })}
+                          style={{ backgroundColor: '#090b12', color: '#fff', border: '1px solid #28324e', borderRadius: '4px', padding: '3px 6px', fontSize: '10px' }}
+                        >
+                          <option value="speech">Speech</option>
+                          <option value="thought">Thought Cloud</option>
+                          <option value="shout">Spiky Shout</option>
+                          <option value="whisper">Whisper Dashed</option>
+                          <option value="caption">Caption Box</option>
+                        </select>
+                        <button
+                          onClick={() => handleFlipBalloonTail(focusedPanelIdx, selectedBalloonObj.id)}
+                          style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#1b2236', color: '#cbd5e1', border: '1px solid #2d3754', fontSize: '10px', cursor: 'pointer' }}
+                        >
+                          🔄 Tail ({selectedBalloonObj.tailDirection || 'bottom_left'})
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="color"
+                          value={selectedBalloonObj.sfxColor || '#ff0055'}
+                          onChange={(e) => handleUpdateBalloon(focusedPanelIdx, selectedBalloonObj.id, { sfxColor: e.target.value })}
+                          style={{ width: '22px', height: '22px', border: 'none', background: 'none', cursor: 'pointer' }}
+                        />
+                        <input
+                          type="range"
+                          min="0.6"
+                          max="2.4"
+                          step="0.1"
+                          value={selectedBalloonObj.sfxScale || 1.2}
+                          onChange={(e) => handleUpdateBalloon(focusedPanelIdx, selectedBalloonObj.id, { sfxScale: Number(e.target.value) })}
+                          style={{ width: '65px' }}
+                        />
+                      </>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      onClick={() => handleSynthesizeVoiceForPanel(focusedPanelIdx, selectedBalloonObj.text)}
+                      style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#16a34a', color: '#fff', border: 'none', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      🎙️ Speak Bubble
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBalloon(focusedPanelIdx, selectedBalloonObj.id)}
+                      style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#7f1d1d', color: '#fecaca', border: 'none', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Contextual On-Canvas Panel Director Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 14px',
+                  backgroundColor: '#0c0e17',
+                  borderTop: '1px solid #1b2030',
+                  fontSize: '11px',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                  <span style={{ fontWeight: 800, color: 'var(--pj-magenta)', whiteSpace: 'nowrap' }}>
+                    🎬 P{focusedPanelIdx + 1} Director:
+                  </span>
+                  <select
+                    value={selectedCharacterName}
+                    onChange={(e) => setSelectedCharacterName(e.target.value)}
+                    style={{ backgroundColor: '#141826', color: '#fff', border: '1px solid #262e45', borderRadius: '4px', padding: '3px 6px', fontSize: '10px', fontWeight: 700 }}
+                    title="Character Cast Lock"
+                  >
+                    <option value="Detective Silas Vane">🔒 Silas Vane</option>
+                    <option value="Kaelen Voss">🔒 Kaelen Voss</option>
+                    <option value="Bramble Bear">🔒 Bramble Bear</option>
+                    {worldCast.map((c, ci) => (
+                      <option key={ci} value={c.name}>🔒 {c.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={focusedPanel?.cameraShot || 'medium'}
+                    onChange={(e) => {
+                      const updated = { ...page, panels: [...page.panels] };
+                      if (updated.panels[focusedPanelIdx]) {
+                        updated.panels[focusedPanelIdx].cameraShot = e.target.value as any;
+                        setPage(updated);
+                      }
+                    }}
+                    style={{ backgroundColor: '#141826', color: 'var(--pj-cyan)', border: '1px solid #262e45', borderRadius: '4px', padding: '3px 6px', fontSize: '10px', fontWeight: 700 }}
+                  >
+                    <option value="establishing">Wide Vista</option>
+                    <option value="full_shot">Full Shot</option>
+                    <option value="medium">Medium Shot</option>
+                    <option value="close_up">Close-Up</option>
+                    <option value="extreme_close_up">Extreme Close-Up</option>
+                    <option value="low_angle_hero">Heroic Low Angle</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Type panel action prompt & click Render Plate..."
+                    value={focusedPanel?.actionPrompt || ''}
+                    onChange={(e) => {
+                      const updated = { ...page, panels: [...page.panels] };
+                      if (updated.panels[focusedPanelIdx]) {
+                        updated.panels[focusedPanelIdx].actionPrompt = e.target.value;
+                        setPage(updated);
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#141826',
+                      color: '#fff',
+                      border: '1px solid #262e45',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={() => handleRenderProceduralPlate(focusedPanelIdx)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '4px',
+                    background: 'var(--pj-grad-brand)',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ✨ Render Art Plate
+                </button>
+              </div>
+
               {/* Floating Radial Brush Puck (Clip Studio & Sketchbook Parity) */}
               <div
                 onClick={() => setRadialPuckOpen(!radialPuckOpen)}
                 style={{
                   position: 'absolute',
-                  bottom: '86px',
+                  bottom: '120px',
                   right: '24px',
                   width: '64px',
                   height: '64px',
@@ -3696,8 +5002,18 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                     border: '8px solid #3d2b1f',
                   }}
                 >
-                  {/* Left Page: Illustration Spread */}
+                  {/* Left Page: Illustration Spread (Draggable Character Stickers) */}
                   <div
+                    onPointerMove={(e) => {
+                      if (!draggingStickerId) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const xPct = Math.max(10, Math.min(90, Math.round(((e.clientX - rect.left) / rect.width) * 100)));
+                      const yPct = Math.max(10, Math.min(85, Math.round(((e.clientY - rect.top) / rect.height) * 100)));
+                      setDroppedStickers((prev) =>
+                        prev.map((stk) => (stk.id === draggingStickerId ? { ...stk, xPct, yPct } : stk))
+                      );
+                    }}
+                    onPointerUp={() => setDraggingStickerId(null)}
                     style={{
                       flex: 1,
                       backgroundColor: '#12141f',
@@ -3725,20 +5041,24 @@ export const ComicMangaCreatorStudio: React.FC<ComicMangaCreatorStudioProps> = (
                       }}
                     />
 
-                    {/* Dropped Character Stickers */}
+                    {/* Dropped Character Stickers (Pointer Draggable) */}
                     {droppedStickers.map((stk) => (
                       <div
                         key={stk.id}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          setDraggingStickerId(stk.id);
+                        }}
                         style={{
                           position: 'absolute',
                           left: `${stk.xPct}%`,
                           top: `${stk.yPct}%`,
                           transform: 'translate(-50%, -50%)',
                           fontSize: '36px',
-                          cursor: 'pointer',
+                          cursor: 'grab',
                           filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.6))',
                         }}
-                        title={stk.quote}
+                        title={`${stk.name}: "${stk.quote}" (Drag to move)`}
                       >
                         {stk.emoji}
                       </div>

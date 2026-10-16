@@ -12,7 +12,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import type { TelaVectorObject } from '../../../types';
 import type { CompoundPath, Matrix, LinearPaint, RadialPaint } from '../../../services/tela/geometry/model';
 import type { Rect, Vec } from '../../../services/tela/geometry/vec';
-import { ObjectEl } from '../TelaVector';
+import { ObjectEl, TelaTypographyToolbar } from '../TelaVector';
 import { useStudio, type StudioTool } from './studioContext';
 import { boundsOf, pathOf, isPathish, isEngineText, transformObject, translateObject, objectMatrix, unionBounds, withPath } from '../../../services/tela/studio/objectGeom';
 import { selectionUnit, expandUnits, groupChain, groupsOf, duplicateObjects } from '../../../services/tela/studio/structure';
@@ -36,12 +36,90 @@ import { storyText } from '../../../services/text/model';
 
 // ── Object layer (memoised) ─────────────────────────────────────────────────────────
 
-const ObjectNode = memo(function ObjectNode({ o, writerTexts, dim, locked }: { o: TelaVectorObject; writerTexts?: Record<string, string>; dim: boolean; locked: boolean }) {
-  return <g data-oid={o.id} style={{ opacity: dim ? .32 : undefined, pointerEvents: locked ? 'none' : undefined }}><ObjectEl o={o} writerTexts={writerTexts} interactive={false} /></g>;
+const ObjectNode = memo(function ObjectNode({
+  o,
+  writerTexts,
+  dim,
+  locked,
+  isSelected,
+  isEditing,
+  activeBlockIdx,
+  onFocusBlock,
+  onUpdateObject,
+  onExitEdit,
+}: {
+  o: TelaVectorObject;
+  writerTexts?: Record<string, string>;
+  dim: boolean;
+  locked: boolean;
+  isSelected?: boolean;
+  isEditing?: boolean;
+  activeBlockIdx?: number;
+  onFocusBlock?: (idx: number) => void;
+  onUpdateObject?: (id: string, patch: Partial<TelaVectorObject>) => void;
+  onExitEdit?: () => void;
+}) {
+  return (
+    <g data-oid={o.id} style={{ opacity: dim ? .32 : undefined, pointerEvents: locked ? 'none' : undefined }}>
+      <ObjectEl
+        o={o}
+        writerTexts={writerTexts}
+        interactive={false}
+        isSelected={isSelected}
+        isEditing={isEditing}
+        activeBlockIdx={activeBlockIdx}
+        onFocusBlock={onFocusBlock}
+        onUpdateObject={onUpdateObject ? patch => onUpdateObject(o.id, patch) : undefined}
+        onExitEdit={onExitEdit}
+      />
+    </g>
+  );
 });
 
-const ObjectLayer = memo(function ObjectLayer({ objects, overrides, hidden, writerTexts, isoMembers }: { objects: TelaVectorObject[]; overrides: Record<string, TelaVectorObject> | null; hidden: Set<string>; writerTexts?: Record<string, string>; isoMembers: Set<string> | null }) {
-  return <g data-layer="objects">{objects.map(o => (o.hidden || hidden.has(o.id)) ? null : <ObjectNode key={o.id} o={overrides?.[o.id] ?? o} writerTexts={writerTexts} dim={!!isoMembers && !isoMembers.has(o.id)} locked={!!o.locked || (!!isoMembers && !isoMembers.has(o.id))} />)}</g>;
+const ObjectLayer = memo(function ObjectLayer({
+  objects,
+  overrides,
+  hidden,
+  writerTexts,
+  isoMembers,
+  selectedId,
+  editingId,
+  activeBlockIdx,
+  onFocusBlock,
+  onUpdateObject,
+  onExitEdit,
+}: {
+  objects: TelaVectorObject[];
+  overrides: Record<string, TelaVectorObject> | null;
+  hidden: Set<string>;
+  writerTexts?: Record<string, string>;
+  isoMembers: Set<string> | null;
+  selectedId?: string | null;
+  editingId?: string | null;
+  activeBlockIdx?: number;
+  onFocusBlock?: (idx: number) => void;
+  onUpdateObject?: (id: string, patch: Partial<TelaVectorObject>) => void;
+  onExitEdit?: () => void;
+}) {
+  return (
+    <g data-layer="objects">
+      {objects.map(o => (o.hidden || hidden.has(o.id)) ? null : (
+        <ObjectNode
+          key={o.id}
+          o={overrides?.[o.id] ?? o}
+          writerTexts={writerTexts}
+          dim={!!isoMembers && !isoMembers.has(o.id)}
+          locked={!!o.locked || (!!isoMembers && !isoMembers.has(o.id))}
+          isSelected={selectedId === o.id}
+          isEditing={editingId === o.id}
+          activeBlockIdx={activeBlockIdx}
+          onFocusBlock={onFocusBlock}
+          onUpdateObject={onUpdateObject}
+          onExitEdit={onExitEdit}
+        />
+      ))}
+    </g>
+  );
 });
 
 // ── Gestures ────────────────────────────────────────────────────────────────────────
@@ -762,6 +840,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
   }
   const insideRuler = (e: React.PointerEvent) => { const vp = viewportRef.current?.getBoundingClientRect(); return !!vp && (e.clientY - vp.top < 20 || e.clientX - vp.left < 20); };
 
+  const [activeBlockIdx, setActiveBlockIdx] = useState(0);
+  const handleRichTextUpdate = useCallback((id: string, patch: Partial<TelaVectorObject>) => {
+    const objs = api.latest().objects;
+    api.commit(objs.map(o => o.id === id ? { ...o, ...patch } : o), { label: 'Edit text box', coalesce: `text:${id}` });
+  }, [api]);
+
   // ── Double click ───────────────────────────────────────────────────────────────────
   const onDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const p = toArt(e);
@@ -771,7 +855,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
     if (!hit) { if (api.isolation) { const gs = groups[api.isolation]; api.setIsolation(gs?.parent ?? null); } return; }
     if (hit.kind === 'TEXT') {
       if (hit.boundWriterDeviceId) { api.status('Bound to a Writer — edit the text there.'); return; }
-      if (!hit.studio?.type) { const m = migrateLegacyText(hit); if (m) api.commit(api.latest().objects.map(o => o.id === m.id ? m : o), { label: 'Edit type' }); api.rebakeType(hit.id); }
+      if (!hit.studio?.type) {
+        api.setSelection([hit.id]);
+        setActiveBlockIdx(0);
+        api.setEditingText(hit.id);
+        return;
+      }
       const head = threadHead(api.latest().objects, hit.id); api.setSelection([head]); api.setEditingText(head); return;
     }
     const chain = groupChain(hit, groups);
@@ -943,9 +1032,10 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
 
   // ── Text editing overlay ───────────────────────────────────────────────────────────
   const editing = api.editingText ? byId.get(api.editingText) : null;
-  const editChain = editing ? threadChain(objects, editing.id) : [];
+  const isEngineEditing = !!(editing && editing.studio?.type?.story);
+  const editChain = isEngineEditing && editing ? threadChain(objects, editing.id) : [];
   const hiddenIds = useMemo(() => new Set(editChain.map(o => o.id)), [editChain.map(o => o.id).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
-  const textOverlay = editing && textSys && editing.studio?.type?.story ? (() => {
+  const textOverlay = isEngineEditing && editing && textSys ? (() => {
     const t = editing.studio!.type!;
     const frames = t.mode === 'area' ? editFrames(editChain) : t.mode === 'point' ? [pointEditFrame(editing)] : [{ id: editing.id, x: editing.x, y: editing.y - 10, width: Math.max(320, editing.w), height: 60 }];
     const vx = Math.min(...frames.map(f => f.x)), vy = Math.min(...frames.map(f => f.y));
@@ -962,10 +1052,10 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
   })() : null;
 
   useEffect(() => {
-    if (!api.editingText) return;
+    if (!api.editingText || !isEngineEditing) return;
     const id = setTimeout(() => { const ta = document.querySelector<HTMLTextAreaElement>('[data-studio-text] textarea'); ta?.focus(); }, 30);
     return () => clearTimeout(id);
-  }, [api.editingText, textSys]);
+  }, [api.editingText, isEngineEditing, textSys]);
 
   // ── Render ─────────────────────────────────────────────────────────────────────────
   const cursorCss = mods.space || gesture.current?.kind === 'pan' ? 'grabbing' : tool === 'zoom' && mods.alt ? 'zoom-out' : TOOL_CURSOR[tool] ?? 'default';
@@ -985,7 +1075,19 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
         </defs>
         <rect x={-PAD} y={-PAD} width={W + PAD * 2} height={H + PAD * 2} fill="#1d1c24" />
         <rect x={0} y={0} width={W} height={H} fill="#fff" filter="url(#studio-board-shadow)" />
-        <ObjectLayer objects={objects} overrides={overrides} hidden={hiddenIds} writerTexts={api.writerTexts} isoMembers={isoMembers} />
+        <ObjectLayer
+          objects={objects}
+          overrides={overrides}
+          hidden={hiddenIds}
+          writerTexts={api.writerTexts}
+          isoMembers={isoMembers}
+          selectedId={singleSel?.id ?? null}
+          editingId={!isEngineEditing ? api.editingText : null}
+          activeBlockIdx={activeBlockIdx}
+          onFocusBlock={setActiveBlockIdx}
+          onUpdateObject={handleRichTextUpdate}
+          onExitEdit={() => api.setEditingText(null)}
+        />
         {grid && <rect x={0} y={0} width={W} height={H} fill="url(#studio-grid)" pointerEvents="none" />}
         <rect x={0} y={0} width={W} height={H} fill="none" stroke="rgba(0,0,0,.25)" strokeWidth={sw} pointerEvents="none" />
         {api.isolation && <rect x={-PAD} y={-PAD} width={W + PAD * 2} height={20 / zoom} fill="rgba(46,139,255,.85)" pointerEvents="none" />}
@@ -993,6 +1095,43 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
         {handles}
       </svg>
       {textOverlay}
+      {!readOnly && singleSel && singleSel.kind === 'TEXT' && !isEngineEditing && selBox && (
+        <TelaTypographyToolbar
+          object={singleSel}
+          bounds={{
+            x: (selBox.x + PAD) * zoom,
+            y: (selBox.y + PAD) * zoom,
+            w: selBox.w * zoom,
+            h: selBox.h * zoom,
+          }}
+          isEditing={api.editingText === singleSel.id}
+          activeBlockIdx={activeBlockIdx}
+          onToggleEdit={() => {
+            if (api.editingText === singleSel.id) {
+              api.setEditingText(null);
+            } else {
+              setActiveBlockIdx(0);
+              api.setEditingText(singleSel.id);
+            }
+          }}
+          onUpdate={patch => handleRichTextUpdate(singleSel.id, patch)}
+          onDelete={() => {
+            const objs = api.latest().objects;
+            api.setEditingText(null);
+            api.commit(objs.filter(o => o.id !== singleSel.id), { label: 'Delete text box', select: [] });
+          }}
+          onDuplicate={() => {
+            const objs = api.latest().objects;
+            const copy: TelaVectorObject = {
+              ...structuredClone(singleSel),
+              id: studioId('obj'),
+              x: singleSel.x + 24,
+              y: singleSel.y + 24,
+            };
+            api.commit([...objs, copy], { label: 'Duplicate text box', select: [copy.id] });
+          }}
+        />
+      )}
       {api.isolation && <div style={{ position: 'sticky', left: 8, top: 0, zIndex: 6, display: 'inline-flex', gap: 8, alignItems: 'center', marginTop: -SH, padding: '3px 10px', fontSize: 11, fontWeight: 700, color: '#fff', background: SEL, borderRadius: '0 0 8px 8px' }}>
         {byId.get(selection[0] ?? '')?.studio?.symbol ? 'Editing symbol' : 'Isolation'} · {groups[api.isolation]?.name ?? 'Group'} <button onClick={() => api.setIsolation(null)} style={{ fontSize: 10, padding: '1px 7px', borderRadius: 5, background: 'rgba(255,255,255,.2)', color: '#fff', border: 0, cursor: 'pointer' }}>Exit (Esc)</button>
       </div>}
