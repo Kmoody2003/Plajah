@@ -139,7 +139,21 @@ Bucket fill uses the wand region (tolerance, contiguous, anti-alias, optional sa
   - Multi-scale Wexler-style EM with a Barnes PatchMatch NNF: propagation plus a shrinking random search.
   - Source-area exclusion mask.
   - "Majority" coarse holes and best-match ring initialisation (see the learnings below).
-  - Votes sharpen toward winner-takes-all at full resolution.
+  - Votes sharpen toward winner-takes-all at full resolution; the final pass IS winner-takes-all where the surround is
+    textured and a sharp weighted average where it is smooth (gated per pixel by the expected texture energy).
+  - **Colour adaptation** (Photoshop's dial): each vote carries the per-patch colour offset estimated on the known
+    overlap, so a source from a brighter part of a gradient lands at the local brightness.
+  - **Texture-energy matching:** the detail level expected inside the hole is interpolated (membrane) from the surround
+    and sources whose detail differs are penalised — otherwise PatchMatch drifts to smooth, hazy regions because they
+    minimise squared error. `textureMatch` (default 3).
+  - **Locality prior**, scaled by expected texture energy: water is filled from the water beside it, while clear sky is
+    not dragged towards a nearby cloud. `locality` (default 0.04).
+  - **Gradient-domain seam blend:** the votes extrapolate the texture a few pixels past the hole, the membrane
+    `∇²h = 0`, `h = original − texture` on that ring is solved (clamped ±40) and added with a falloff of a quarter of
+    the hole's narrow dimension, so the fill meets its surround in value and gradient without washing a tint over it.
+  - Measured with `scripts/tela/fillBench.ts` (holes cut from intact photos, scored against the hidden original:
+    PSNR, seam, gradient seam, crispness vs. surround, contact sheets) and `fillBenchZoom.ts`. Against the previous
+    engine: sky-gradient seam 3.8 → 2.1, still-life seam 26 → 17, foliage crispness 0.45 → 0.77 of the surround.
   - The old fake `telaInpaintService` keeps its API but now runs this in the worker. It also has a `setGenerativeFillProvider()` hook, used only when a provider is registered and a prompt is given.
 - **Other tools:** red eye; dodge and burn by tonal range; sponge; blur, sharpen and smudge.
 

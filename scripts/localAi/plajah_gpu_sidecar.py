@@ -179,6 +179,12 @@ def get_installed_models_inventory():
                 break
         inventory[model_id] = found
 
+    # the two real inpainting engines for Tela generative fill (see lama_inpaint / load_sdxl_inpaint_unet)
+    try:
+        inventory["big_lama"] = bool(find_lama_model())
+        inventory["sdxl_inpaint"] = bool(find_sdxl_inpaint_unet())
+    except Exception:
+        inventory["big_lama"] = inventory["sdxl_inpaint"] = False
     return inventory
 
 def get_gpu_profile():
@@ -246,6 +252,89 @@ def load_model_if_needed(ckpt_name):
     LOADED_CHECKPOINT_NAME = ckpt_name
     print(f"[Sidecar] Checkpoint {ckpt_name} ready in VRAM.")
     return CACHED_MODEL, CACHED_CLIP, CACHED_VAE
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# Real inpainting models for Tela generative fill (measured with scripts/tela/fillBench.ts):
+#   • Big-LaMa (Apache-2.0, 206 MB TorchScript): prompt-less removal / scene completion — what Adobe's Remove tool
+#     does. Runs in well under a second and beats a latent-noise-mask diffusion pass on every bench hole.
+#   • SDXL inpainting 0.1 (OpenRAIL++, 5.1 GB fp16 UNet): purpose-trained 9-channel inpainting for GUIDED fills, with
+#     the SDXL CLIP + VAE taken from the resident SDXL checkpoint.
+# Neither "FLUX.3 [klein]" file on disk is a real checkpoint (0-byte stubs), so a klein request used to fall through to
+# SDXL Turbo with a latent noise mask. With these present the request routes to the right model and `modelUsed`
+# says which one actually ran.
+LAMA_PATHS = [
+    r"D:\Plajah Models\inpaint\big-lama.pt",
+    r"D:\Plajah Models\inpaint\big-lama.safetensors.pt",
+    os.path.join(COMFY_ROOT, "models", "inpaint", "big-lama.pt"),
+]
+SDXL_INPAINT_UNET_NAMES = ["sd_xl_inpainting_0.1_fp16.safetensors", "sd_xl_inpainting_0.1.safetensors", "sdxl_inpainting_0.1_fp16.safetensors"]
+_LAMA_MODEL = None
+_SDXL_INPAINT = {"name": None, "model": None}
+
+
+def find_lama_model():
+    for p in LAMA_PATHS:
+        if os.path.exists(p) and os.path.getsize(p) > 50 * 1024 * 1024:
+            return p
+    return None
+
+
+def find_sdxl_inpaint_unet():
+    """The SDXL inpainting UNet as ComfyUI lists it (unet/ or diffusion_models/ under D:\\Plajah Models)."""
+    for folder in ("diffusion_models", "unet"):
+        try:
+            for c in folder_paths.get_filename_list(folder):
+                if os.path.basename(c).lower() in [n.lower() for n in SDXL_INPAINT_UNET_NAMES]:
+                    full = folder_paths.get_full_path(folder, c)
+                    if full and os.path.getsize(full) > 500 * 1024 * 1024:
+                        return folder, c
+        except Exception:
+            continue
+    return None
+
+
+def lama_inpaint(init_pil, mask_pil):
+    """Big-LaMa fill of the white mask area; returns a PIL image the size of init_pil, or None when LaMa is absent."""
+    global _LAMA_MODEL
+    path = find_lama_model()
+    if not path:
+        return None
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if _LAMA_MODEL is None:
+        print(f"[Sidecar] Loading Big-LaMa from {path}", flush=True)
+        _LAMA_MODEL = torch.jit.load(path, map_location=device).eval()
+    img = np.array(init_pil.convert("RGB")).astype(np.float32) / 255.0
+    msk = (np.array(mask_pil.convert("L")).astype(np.float32) > 127).astype(np.float32)
+    h, w = msk.shape
+    # LaMa wants multiples of 8; reflect-pad so the border stays natural
+    ph, pw = (8 - h % 8) % 8, (8 - w % 8) % 8
+    img_p = np.pad(img, ((0, ph), (0, pw), (0, 0)), mode="reflect")
+    msk_p = np.pad(msk, ((0, ph), (0, pw)), mode="reflect")
+    with torch.no_grad():
+        it = torch.from_numpy(img_p).permute(2, 0, 1)[None].to(device)
+        mt = torch.from_numpy(msk_p)[None, None].to(device)
+        out = _LAMA_MODEL(it, mt)[0].permute(1, 2, 0).clamp(0, 1).cpu().numpy()
+    out = out[:h, :w]
+    # keep every unmasked pixel bit-exact
+    out = out * msk[..., None] + img * (1.0 - msk[..., None])
+    return Image.fromarray((out * 255.0).round().astype(np.uint8))
+
+
+def load_sdxl_inpaint_unet():
+    """The SDXL inpainting UNet via ComfyUI's UNETLoader (diffusers-format single file), cached."""
+    found = find_sdxl_inpaint_unet()
+    if not found:
+        return None
+    folder, name = found
+    if _SDXL_INPAINT["model"] is not None and _SDXL_INPAINT["name"] == name:
+        return _SDXL_INPAINT["model"]
+    import nodes
+    print(f"[Sidecar] Loading SDXL inpainting UNet {name} ({folder})", flush=True)
+    # UNETLoader lists diffusion_models; a file under unet/ is reachable through the same folder registry
+    model = nodes.UNETLoader().load_unet(name, "default")[0]
+    _SDXL_INPAINT["model"], _SDXL_INPAINT["name"] = model, name
+    return model
+
 
 def decode_data_url(data_url):
     """Parses data URL into a PIL Image."""
@@ -386,12 +475,17 @@ def analyze_canvas_and_selection_semantics(init_pil, mask_pil, raw_prompt="", cl
         )
     )
 
+    # The material words come from colour thresholds (a warm dawn lake once read as "portrait skin texture"), so a
+    # prompt-less fill never names a material — it asks for the surround continued exactly as it is — and a guided
+    # fill only uses the material when it is not the fragile portrait guess.
+    material_for_prompt = surrounding_material if scene_category != "portrait_subject" else "the surrounding scene"
+
     if is_explicit_remove:
         inpaint_mode = "explicit_remove"
         enriched_prompt = (
-            f"Seamless background continuation of {surrounding_material}, "
+            f"Seamless continuation of the surrounding background exactly as it is, same surface and texture, "
             f"{structure_desc}, {lighting_desc}, {palette_desc}, "
-            f"photorealistic natural texture, clean unobstructed background, 8k detail"
+            f"photorealistic natural texture, clean unobstructed background, no new objects"
         )
         neg_prompt = (
             "foreground object, person, figure, text, watermark, logo, blemish, "
@@ -402,9 +496,9 @@ def analyze_canvas_and_selection_semantics(init_pil, mask_pil, raw_prompt="", cl
         # Decide between removing an occluding object vs completing scene structure
         inpaint_mode = "autonomous_remove" if color_divergence > 14.0 else "autonomous_complete"
         enriched_prompt = (
-            f"Logically completed {surrounding_material}, seamless continuation of scene, "
+            f"Seamless continuation of the surrounding scene exactly as it is, same surface, same texture, same colours, "
             f"{structure_desc}, {lighting_desc}, {palette_desc}, "
-            f"coherent perspective and depth of field, photorealistic masterpiece, 8k"
+            f"no new objects, coherent perspective and depth of field, photorealistic"
         )
         neg_prompt = (
             "cutout seam, gray patch, blurry clone, floating artifact, watermark, text, "
@@ -416,7 +510,7 @@ def analyze_canvas_and_selection_semantics(init_pil, mask_pil, raw_prompt="", cl
         # Strip any pre-appended generic suffixes if client already enriched it so we don't duplicate
         core_user_prompt = clean_prompt.split(", integrated seamlessly into scene")[0].strip()
         enriched_prompt = (
-            f"{core_user_prompt}, physically integrated into {surrounding_material}, "
+            f"{core_user_prompt}, physically integrated into {material_for_prompt}, "
             f"matching {lighting_desc}, {palette_desc}, {structure_desc}, "
             f"realistic contact shadows and ambient light bounce, photorealistic, high detail"
         )
@@ -470,7 +564,36 @@ def generate_image_diffusion(params):
     is_turbo = "turbo" in ckpt_name.lower()
     is_lightning = "lightning" in ckpt_name.lower()
 
-    model, clip, vae = load_model_if_needed(ckpt_name)
+    # ── Engine choice for a plain masked inpaint (no outpaint margins), before any 7 GB checkpoint is touched ──
+    #   prompt-less (autonomous / explicit remove) → Big-LaMa when present
+    #   guided                                      → SDXL inpainting UNet when present
+    #   otherwise                                   → the legacy latent-noise-mask pass on the resident checkpoint
+    early_init_pil = early_mask_pil = early_scene = None
+    lama_pil = None
+    inpaint_unet = None
+    model_used = ckpt_name
+    plain_inpaint = source_img_raw is not None and mask_img_raw is not None and not any([outpaint_left, outpaint_top, outpaint_right, outpaint_bottom])
+    wants_real_inpaint = str(req_model or "auto").lower() in ("auto", "lama", "sdxl_inpaint", "flux3_klein", "flux2_klein_4b")
+    if plain_inpaint and wants_real_inpaint:
+        early_init_pil = decode_data_url(source_img_raw).convert("RGB")
+        early_mask_pil = decode_data_url(mask_img_raw).convert("L")
+        if early_mask_pil.size != early_init_pil.size:
+            early_mask_pil = early_mask_pil.resize(early_init_pil.size, Image.BILINEAR)
+        early_scene = analyze_canvas_and_selection_semantics(early_init_pil, early_mask_pil, raw_prompt=raw_prompt, client_scene_ctx=params.get("sceneContext"))
+        early_mode = explicit_inpaint_mode or early_scene["inpaintMode"]
+        if early_mode != "guided" and str(req_model or "").lower() != "sdxl_inpaint":
+            lama_pil = lama_inpaint(early_init_pil, early_mask_pil)
+            if lama_pil is not None:
+                model_used = "big-lama"
+        if lama_pil is None and str(req_model or "").lower() != "lama":
+            inpaint_unet = load_sdxl_inpaint_unet()
+            if inpaint_unet is not None:
+                model_used = "sdxl-inpainting-0.1"
+
+    if lama_pil is not None:
+        model = clip = vae = None  # LaMa is the whole job; the checkpoint stays on disk
+    else:
+        model, clip, vae = load_model_if_needed(ckpt_name)
     clip_encoder = nodes.CLIPTextEncode()
     sampler = nodes.KSampler()
     decoder = nodes.VAEDecode()
@@ -479,9 +602,18 @@ def generate_image_diffusion(params):
     is_inpaint_or_outpaint = source_img_raw is not None and (mask_img_raw is not None or any([outpaint_left, outpaint_top, outpaint_right, outpaint_bottom]))
     scene_analysis = None
 
-    if is_inpaint_or_outpaint:
+    if lama_pil is not None:
+        # Big-LaMa already produced the fill at native resolution; unmasked pixels are bit-exact.
+        init_pil = early_init_pil
+        mask_pil = early_mask_pil
+        scene_analysis = early_scene
+        steps = 0
+        final_pil = lama_pil
+        final_w, final_h = final_pil.size
+
+    elif is_inpaint_or_outpaint:
         # Load source image
-        init_pil = decode_data_url(source_img_raw).convert("RGB")
+        init_pil = early_init_pil if early_init_pil is not None else decode_data_url(source_img_raw).convert("RGB")
         orig_w, orig_h = init_pil.size
 
         # Outpainting: expand canvas dimensions with Reflective + Harmonic Extrapolation (never flat gray!)
@@ -517,12 +649,12 @@ def generate_image_diffusion(params):
             mask_pil = outpaint_mask
         else:
             # Standard Inpainting with provided mask
-            mask_pil = decode_data_url(mask_img_raw).convert("L")
+            mask_pil = early_mask_pil if early_mask_pil is not None else decode_data_url(mask_img_raw).convert("L")
             if mask_pil.size != init_pil.size:
                 mask_pil = mask_pil.resize(init_pil.size, Image.BILINEAR)
 
         # Deep Canvas & Selection Semantic Reasoning (works for blank prompt AND guided prompt!)
-        scene_analysis = analyze_canvas_and_selection_semantics(
+        scene_analysis = early_scene if early_scene is not None else analyze_canvas_and_selection_semantics(
             init_pil,
             mask_pil,
             raw_prompt=raw_prompt,
@@ -535,15 +667,18 @@ def generate_image_diffusion(params):
         pos_cond = clip_encoder.encode(clip, effective_prompt)[0]
         neg_cond = clip_encoder.encode(clip, effective_neg_prompt)[0]
 
-        # Scale down if resolution exceeds 1024 for speed & VRAM safety
+        # Working resolution: the model's native size, never a downscale of a small crop. A 429 px context crop used
+        # to be rounded DOWN to 384 and stretched back (soft, detail lost); now small crops are rendered at the native
+        # long edge (768 for SDXL Turbo, 1024 for SDXL inpainting / base) and LANCZOS-fitted back to their exact size.
         work_w, work_h = init_pil.size
-        max_dim = 1024
-        if max(work_w, work_h) > max_dim:
-            scale_fac = max_dim / max(work_w, work_h)
-            work_w = int(work_w * scale_fac)
-            work_h = int(work_h * scale_fac)
-        work_w = max(384, (work_w // 64) * 64)
-        work_h = max(384, (work_h // 64) * 64)
+        long_edge = max(work_w, work_h)
+        native_long = 1024 if (inpaint_unet is not None or not is_turbo) else 768
+        target_long = min(1024, max(native_long, long_edge)) if long_edge < native_long else min(1024, long_edge)
+        scale_fac = target_long / float(long_edge)
+        work_w = min(1024, max(512, ((int(round(work_w * scale_fac)) + 63) // 64) * 64))
+        work_h = min(1024, max(512, ((int(round(work_h * scale_fac)) + 63) // 64) * 64))
+
+
 
         init_scaled = init_pil.resize((work_w, work_h), Image.LANCZOS)
         mask_scaled = mask_pil.resize((work_w, work_h), Image.BILINEAR)
@@ -600,25 +735,54 @@ def generate_image_diffusion(params):
         img_tensor = torch.from_numpy(precond_np)[None, ...]
         mask_tensor = torch.from_numpy(mask_np)[None, ...]
 
-        vae_encoder = nodes.VAEEncode()
-        encoded_latent = vae_encoder.encode(vae, img_tensor)[0]
-        noise_masker = nodes.SetLatentNoiseMask()
-        latent = noise_masker.set_mask(encoded_latent, mask_tensor)[0]
+        mm.unload_all_models()
+        mm.soft_empty_cache()
+        if inpaint_unet is not None:
+            # SDXL inpainting UNet: 9-channel conditioning on the ORIGINAL pixels with the hole zeroed (the model was
+            # trained for that), full denoise inside the mask, a proper step count. Context and conditioning come from
+            # the resident SDXL checkpoint's CLIP + VAE.
+            pixels_tensor = torch.from_numpy(np.array(init_scaled).astype(np.float32) / 255.0)[None, ...]
+            hard_mask = torch.from_numpy((np.array(mask_scaled.filter(ImageFilter.MaxFilter(5))).astype(np.float32) / 255.0))[None, ...]
+            pos_i, neg_i, latent = nodes.InpaintModelConditioning().encode(pos_cond, neg_cond, pixels_tensor, vae, hard_mask)
+            steps = int(params.get("steps", 0)) or 24
+            cfg = float(params.get("cfgScale", 0)) or 6.0
+            mm.unload_all_models()
+            mm.soft_empty_cache()
+            sampled_latent = sampler.sample(
+                model=inpaint_unet,
+                seed=seed,
+                steps=steps,
+                cfg=cfg,
+                sampler_name="dpmpp_2m",
+                scheduler="karras",
+                positive=pos_i,
+                negative=neg_i,
+                latent_image=latent,
+                denoise=1.0,
+            )[0]
+        else:
+            encoded_latent = encoder_tiled.encode(vae, img_tensor, 512)[0]
+            noise_masker = nodes.SetLatentNoiseMask()
+            latent = noise_masker.set_mask(encoded_latent, mask_tensor)[0]
 
-        sampler_name = "euler_ancestral" if is_turbo else "euler"
+            sampler_name = "euler_ancestral" if is_turbo else "euler"
 
-        sampled_latent = sampler.sample(
-            model=model,
-            seed=seed,
-            steps=steps,
-            cfg=cfg,
-            sampler_name=sampler_name,
-            scheduler="karras",
-            positive=pos_cond,
-            negative=neg_cond,
-            latent_image=latent,
-            denoise=inpaint_denoise
-        )[0]
+            mm.unload_all_models()
+            mm.soft_empty_cache()
+            sampled_latent = sampler.sample(
+                model=model,
+                seed=seed,
+                steps=steps,
+                cfg=cfg,
+                sampler_name=sampler_name,
+                scheduler="normal" if is_turbo else "karras",
+                positive=pos_cond,
+                negative=neg_cond,
+                latent_image=latent,
+                denoise=inpaint_denoise
+            )[0]
+
+
 
         mm.unload_all_models()
         decoded = decoder.decode(vae, sampled_latent)[0]
@@ -758,7 +922,7 @@ def generate_image_diffusion(params):
         "height": final_h,
         "seed": seed,
         "steps": steps,
-        "modelUsed": "flux3-image-klein-5.6b" if req_model == "flux3_klein" else ckpt_name,
+        "modelUsed": model_used,
         "referenceImagesUsed": ref_count_used,
         "executionTimeMs": duration_ms,
         "hardwareBackend": "NVIDIA_CUDA_RTX",
@@ -1008,6 +1172,8 @@ class PlajahSidecarHandler(BaseHTTPRequestHandler):
                     "gemma2_2b": inventory["gemma2_2b"],
                     "nemotron4b": inventory["nvidia_nemotron"],
                     "museSpark": inventory["meta_muse_spark"],
+                    "bigLama": inventory.get("big_lama", False),
+                    "sdxlInpaint": inventory.get("sdxl_inpaint", False),
                     "segmentAnything": True,
                     "whisper": True,
                     "kokoro": True,

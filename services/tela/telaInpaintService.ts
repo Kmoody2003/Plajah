@@ -23,7 +23,20 @@ import type { TelaImageLayer } from '../../types';
 import type { Bitmap8, Mask8 } from './raster/buffer';
 import { computeEuclideanDistanceTransform } from '../matting/alphaMattingEngine';
 
-export type GenerativeFillModelId = 'flux3_klein' | 'flux2_klein_4b' | 'sdxl_turbo' | 'patchmatch';
+/**
+ * 'auto' lets the on-device sidecar route: prompt-less fills to Big-LaMa, guided fills to the SDXL inpainting UNet,
+ * and only when neither is installed the legacy latent-noise-mask pass on the resident checkpoint (which is SDXL
+ * Turbo — the "FLUX.3 [klein]" files on disk are stubs). 'patchmatch' never leaves the CPU.
+ */
+export type GenerativeFillModelId = 'auto' | 'lama' | 'sdxl_inpaint' | 'flux3_klein' | 'flux2_klein_4b' | 'sdxl_turbo' | 'patchmatch';
+/** Models whose prompt-less result is trusted over the PatchMatch pre-fill (measured with scripts/tela/fillBench.ts). */
+export const TRUSTED_AUTONOMOUS_MODELS = ['big-lama', 'sdxl-inpainting-0.1'];
+export function describeFillModel(modelUsed: string | undefined, engine: string): string {
+  if (!modelUsed) return engine === 'patchmatch' ? 'Content-Aware Fill' : engine;
+  if (modelUsed === 'big-lama') return 'Big-LaMa';
+  if (modelUsed === 'sdxl-inpainting-0.1') return 'SDXL Inpainting 0.1';
+  return modelUsed.replace(/\.safetensors$/i, '');
+}
 export type GenerativeInpaintIntent = 'autonomous_remove' | 'autonomous_complete' | 'explicit_remove' | 'guided';
 
 export interface InpaintParams {
@@ -98,7 +111,7 @@ export type GenerativeFillProvider = {
     strength?: number;
     modelId?: GenerativeFillModelId;
     inpaintMode?: GenerativeInpaintIntent;
-  }): Promise<string>;
+  }): Promise<string | { url: string; modelUsed?: string }>;
 };
 
 let provider: GenerativeFillProvider | null = null;
@@ -135,31 +148,12 @@ provider = {
         const resp = await fetch(ep, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            outputFormat: 'png',
-            clientSupportsJxlDecode: false,
-            inpaintMode: inpaintMode || 'guided',
-            task: {
-              taskType: 'cinema_generate',
-              modelId: activeModel,
-              prompt,
-              inpaintMode: inpaintMode || 'guided',
-              outputFormat: 'png',
-              clientSupportsJxlDecode: false,
-              dimensions: { width: Math.round(width), height: Math.round(height) },
-              seed,
-              strength: strength ?? 0.88,
-              denoise: strength ?? 0.88,
-              sourceImage: imgDataUrl,
-              maskImage: maskDataUrl,
-              referenceImages: referenceImageUrl ? [referenceImageUrl] : undefined,
-            },
-          }),
+          body: JSON.stringify(sidecarInpaintBody(imgDataUrl, maskDataUrl, { prompt, seed, strength, width, height, modelId: activeModel, inpaintMode, referenceImageUrl })),
         });
         if (resp.ok) {
           const data = await resp.json();
           if (data && data.mediaUrl) {
-            return data.mediaUrl;
+            return { url: data.mediaUrl, modelUsed: typeof data.modelUsed === 'string' ? data.modelUsed : undefined };
           }
         }
       } catch {
@@ -534,7 +528,7 @@ function harmonizeSynthesizedBoundaryColors(
  * Generates a smooth distance-feathered transition mask so the synthesized layer
  * blends over the base image with zero hard boundary step.
  */
-function createDistanceFeatheredMaskBitmap(hole: Mask8, featherPx: number): Bitmap8 {
+export function createDistanceFeatheredMaskBitmap(hole: Mask8, featherPx: number): Bitmap8 {
   const W = hole.width;
   const H = hole.height;
   const N = W * H;
@@ -671,37 +665,99 @@ function cropMask(src: Mask8, x0: number, y0: number, w: number, h: number): Mas
   return { width: w, height: h, data: out };
 }
 
+/** What the generative-fill core needs from its host: content-aware fill (a worker in the browser, inline in Node) and the GPU inpaint of a context crop. */
+export interface GenerativeFillIO {
+  contentAwareFill(image: Bitmap8, hole: Mask8, opts: { seed: number; sourceMask?: Mask8 }): Promise<Bitmap8>;
+  /**
+   * Inpaint a context crop on the GPU; returns a bitmap of the same size plus the model that actually ran (the
+   * sidecar's `modelUsed`). Throw to leave the PatchMatch result standing.
+   */
+  gpuFill?(crop: Bitmap8, mask: Mask8, args: { prompt: string; seed: number; strength: number; modelId: GenerativeFillModelId; inpaintMode: GenerativeInpaintIntent; referenceImageUrl?: string }): Promise<{ bitmap: Bitmap8; modelUsed?: string }>;
+}
+
+export interface GenerativeFillCoreResult {
+  /** The full-canvas synthesis: original outside the hole, fill inside (before the feathered layer mask). */
+  bitmap: Bitmap8;
+  /** The hole actually filled: the soft mask thresholded and dilated by 3 px. */
+  binary: Mask8;
+  engine: string;
+  /** The sidecar model that produced the GPU crop, when one was kept. */
+  modelUsed?: string;
+  intent: GenerativeInpaintIntent;
+  sceneReasoning: SceneReasoningSummary;
+  /** The context crop sent to the GPU, when one was. */
+  crop?: { x0: number; y0: number; w: number; h: number };
+  seed: number;
+}
+
+/** The body the on-device sidecar expects for a Tela inpaint; shared by the browser provider and the Node bench. */
+export function sidecarInpaintBody(imgDataUrl: string, maskDataUrl: string, args: { prompt: string; seed: number; strength?: number; width: number; height: number; modelId?: GenerativeFillModelId; inpaintMode?: GenerativeInpaintIntent; referenceImageUrl?: string }) {
+  const activeModel = args.modelId && args.modelId !== 'patchmatch' ? args.modelId : 'auto';
+  return {
+    outputFormat: 'png',
+    clientSupportsJxlDecode: false,
+    inpaintMode: args.inpaintMode || 'guided',
+    task: {
+      taskType: 'cinema_generate',
+      modelId: activeModel,
+      prompt: args.prompt,
+      inpaintMode: args.inpaintMode || 'guided',
+      outputFormat: 'png',
+      clientSupportsJxlDecode: false,
+      dimensions: { width: Math.round(args.width), height: Math.round(args.height) },
+      seed: args.seed,
+      strength: args.strength ?? 0.88,
+      denoise: args.strength ?? 0.88,
+      sourceImage: imgDataUrl,
+      maskImage: maskDataUrl,
+      referenceImages: args.referenceImageUrl ? [args.referenceImageUrl] : undefined,
+    },
+  };
+}
+
+/** The context crop around a hole: generous padding, at least 512 px where the canvas allows. */
+export function contextCropBox(W: number, H: number, minX: number, minY: number, maxX: number, maxY: number) {
+  const maskW = Math.max(16, maxX - minX + 1);
+  const maskH = Math.max(16, maxY - minY + 1);
+  const pad = Math.max(128, Math.round(Math.max(maskW, maskH) * 0.45));
+  let cropX0 = Math.max(0, minX - pad);
+  let cropY0 = Math.max(0, minY - pad);
+  let cropX1 = Math.min(W, maxX + pad);
+  let cropY1 = Math.min(H, maxY + pad);
+  const minCropDim = Math.min(512, W, H);
+  if (cropX1 - cropX0 < minCropDim) {
+    const cx = (cropX0 + cropX1) >> 1;
+    cropX0 = Math.max(0, cx - (minCropDim >> 1));
+    cropX1 = Math.min(W, cropX0 + minCropDim);
+    cropX0 = Math.max(0, cropX1 - minCropDim);
+  }
+  if (cropY1 - cropY0 < minCropDim) {
+    const cy = (cropY0 + cropY1) >> 1;
+    cropY0 = Math.max(0, cy - (minCropDim >> 1));
+    cropY1 = Math.min(H, cropY0 + minCropDim);
+    cropY0 = Math.max(0, cropY1 - minCropDim);
+  }
+  return { x0: cropX0, y0: cropY0, w: cropX1 - cropX0, h: cropY1 - cropY0 };
+}
+
 /**
- * Executes a Non-Destructive Generative Fill / Inpaint request.
- * Combines:
- *  1. Contextual Scene Reasoning (lighting, palette, perspective, micro-texture)
- *  2. Multi-Scale PatchMatch structural pre-conditioning (eliminates gray latent holes)
- *  3. Native-resolution context crop-and-stitch for local GPU synthesis
- *  4. CIE L*a*b* boundary color transfer & distance-feathered pyramid blending
+ * The generative fill itself, independent of the browser: hole dilation, scene reasoning, PatchMatch
+ * pre-fill, native-resolution context crop → GPU inpaint → stitch, boundary colour harmonisation.
+ * executeGenerativeInpaint() wraps it for Tela layers; scripts/tela/fillBench.ts drives it from Node.
  */
-export async function executeGenerativeInpaint(
-  params: InpaintParams,
-  canvasDims: { width: number; height: number }
-): Promise<InpaintResult> {
+export async function synthesizeGenerativeFill(
+  source: Bitmap8,
+  hole: Mask8,
+  params: { prompt?: string; seed?: number; strength?: number; modelId?: GenerativeFillModelId; local?: boolean; referenceImageUrl?: string; sourceMask?: Mask8 },
+  io: GenerativeFillIO
+): Promise<GenerativeFillCoreResult> {
+  const W = source.width, H = source.height;
   const seed = params.seed ?? Math.floor(Math.random() * 1000000);
   const rawPrompt = params.prompt?.trim() || '';
-  const W = Math.max(1, Math.round(canvasDims.width));
-  const H = Math.max(1, Math.round(canvasDims.height));
-  const t0 = performance.now();
-
-  const rect = params.maskRect || { x: Math.round(0.1 * W), y: Math.round(0.1 * H), width: Math.round(0.8 * W), height: Math.round(0.8 * H) };
-  const maskUrl = params.maskDataUrl || generateFeatheredMask(W, H, rect, params.featherRadius || 10);
-
-  const source = await loadBitmap(params.sourceImageUrl, W, H);
-  const hole = maskFromBitmap(await loadBitmap(maskUrl, W, H));
 
   // Dilate binary hole slightly (4px) so object edges/shadows are completely covered
   const distOut = computeEuclideanDistanceTransform(hole.data, W, H, 1);
-  const binary: Mask8 = {
-    width: W,
-    height: H,
-    data: new Uint8Array(W * H),
-  };
+  const binary: Mask8 = { width: W, height: H, data: new Uint8Array(W * H) };
   let minX = W, minY = H, maxX = 0, maxY = 0;
   for (let y = 0; y < H; y++) {
     const row = y * W;
@@ -717,108 +773,56 @@ export async function executeGenerativeInpaint(
     }
   }
 
-  // 1. Run Deep Canvas & Selection Semantic Reasoning (works with blank prompt AND guided prompt!)
+  // 1. Deep Canvas & Selection Semantic Reasoning (works with blank prompt AND guided prompt!)
   const sceneReasoning = analyzeSceneContextForGenerativeFill(source, binary, rawPrompt);
   const intent = sceneReasoning.inferredIntent;
-  const selectedModel: GenerativeFillModelId = params.local ? 'patchmatch' : (params.modelId || 'flux3_klein');
+  const selectedModel: GenerativeFillModelId = params.local ? 'patchmatch' : (params.modelId || 'auto');
 
   // 2. Always run Multi-Scale PatchMatch first to create a structurally & chromatically
   //    continuous pre-filled base (eliminates gray-hole artifacts and serves as exact fallback!)
-  const sourceMask = params.sourceAreaDataUrl
-    ? maskFromBitmap(await loadBitmap(params.sourceAreaDataUrl, W, H))
-    : undefined;
-  const { rasterWorker } = await import('./raster/workerClient');
-  const patchMatchFilled = await rasterWorker().run('contentAwareFill', {
-    image: source,
-    hole: binary,
-    opts: { seed, sourceMask },
-  });
+  const patchMatchFilled = await io.contentAwareFill(source, binary, { seed, sourceMask: params.sourceMask });
 
   let finalBitmap: Bitmap8 = patchMatchFilled;
   let engine = 'patchmatch';
+  let modelUsed: string | undefined;
+  let crop: GenerativeFillCoreResult['crop'];
 
-  // 3. Always run Native-Resolution Context Crop-and-Stitch via FLUX.3 [klein] by default
-  //    (both when there is NO instruction and when there IS an instruction!)
-  if (provider && selectedModel !== 'patchmatch') {
+  // 3. Native-Resolution Context Crop-and-Stitch on the GPU (with and without an instruction)
+  if (io.gpuFill && selectedModel !== 'patchmatch' && maxX >= minX) {
     try {
-      // Compute context crop box around the mask with generous context padding (min 512x512)
-      const maskW = Math.max(16, maxX - minX + 1);
-      const maskH = Math.max(16, maxY - minY + 1);
-      const pad = Math.max(128, Math.round(Math.max(maskW, maskH) * 0.45));
-
-      let cropX0 = Math.max(0, minX - pad);
-      let cropY0 = Math.max(0, minY - pad);
-      let cropX1 = Math.min(W, maxX + pad);
-      let cropY1 = Math.min(H, maxY + pad);
-
-      // Ensure crop window is at least 512px where canvas permits
-      const minCropDim = Math.min(512, W, H);
-      if (cropX1 - cropX0 < minCropDim) {
-        const cx = (cropX0 + cropX1) >> 1;
-        cropX0 = Math.max(0, cx - (minCropDim >> 1));
-        cropX1 = Math.min(W, cropX0 + minCropDim);
-        cropX0 = Math.max(0, cropX1 - minCropDim);
-      }
-      if (cropY1 - cropY0 < minCropDim) {
-        const cy = (cropY0 + cropY1) >> 1;
-        cropY0 = Math.max(0, cy - (minCropDim >> 1));
-        cropY1 = Math.min(H, cropY0 + minCropDim);
-        cropY0 = Math.max(0, cropY1 - minCropDim);
-      }
-
-      const cropW = cropX1 - cropX0;
-      const cropH = cropY1 - cropY0;
-
+      const box = contextCropBox(W, H, minX, minY, maxX, maxY);
       // Feed the PatchMatch pre-conditioned crop (NOT raw object or gray hole!) into the GPU sidecar
-      const croppedPreFilled = cropBitmap(patchMatchFilled, cropX0, cropY0, cropW, cropH);
-      const croppedMask = cropMask(binary, cropX0, cropY0, cropW, cropH);
-
-      const maskRgba = new Uint8ClampedArray(cropW * cropH * 4);
-      for (let i = 0; i < croppedMask.data.length; i++) {
-        const v = croppedMask.data[i];
-        const p4 = i * 4;
-        maskRgba[p4] = v;
-        maskRgba[p4 + 1] = v;
-        maskRgba[p4 + 2] = v;
-        maskRgba[p4 + 3] = 255;
-      }
-
+      const croppedPreFilled = cropBitmap(patchMatchFilled, box.x0, box.y0, box.w, box.h);
+      const croppedMask = cropMask(binary, box.x0, box.y0, box.w, box.h);
       const optimalStrength =
         intent === 'guided'
           ? (params.strength ?? 0.96)
           : intent === 'autonomous_complete'
             ? (params.strength ?? 0.76)
             : (params.strength ?? 0.68);
-
-      const gpuCropDataUrl = await provider.fill({
-        image: await toBlob(croppedPreFilled),
-        mask: await toBlob({ width: cropW, height: cropH, data: maskRgba }),
+      const gpu = await io.gpuFill(croppedPreFilled, croppedMask, {
         prompt: sceneReasoning.enrichedPrompt,
         referenceImageUrl: params.referenceImageUrl,
-        width: cropW,
-        height: cropH,
         seed,
         strength: optimalStrength,
         modelId: selectedModel,
         inpaintMode: intent,
       });
-
-      const gpuCropBitmap = await loadBitmap(gpuCropDataUrl, cropW, cropH);
-
+      // A prompt-less fill is only taken from a model trained to inpaint; a latent-noise-mask pass on a text-to-image
+      // checkpoint measured worse than the PatchMatch pre-fill on every bench hole, so that result is discarded.
+      const trusted = intent === 'guided' || !gpu.modelUsed || TRUSTED_AUTONOMOUS_MODELS.includes(gpu.modelUsed);
+      if (!trusted) throw new Error(`untrusted autonomous fill from ${gpu.modelUsed}`);
       // Stitch GPU crop back into full-resolution canvas
-      const stitched: Bitmap8 = {
-        width: W,
-        height: H,
-        data: new Uint8ClampedArray(patchMatchFilled.data),
-      };
-      for (let y = 0; y < cropH; y++) {
-        const dstRow = ((cropY0 + y) * W + cropX0) * 4;
-        const srcRow = y * cropW * 4;
-        stitched.data.set(gpuCropBitmap.data.subarray(srcRow, srcRow + cropW * 4), dstRow);
+      const stitched: Bitmap8 = { width: W, height: H, data: new Uint8ClampedArray(patchMatchFilled.data) };
+      for (let y = 0; y < box.h; y++) {
+        const dstRow = ((box.y0 + y) * W + box.x0) * 4;
+        const srcRow = y * box.w * 4;
+        stitched.data.set(gpu.bitmap.data.subarray(srcRow, srcRow + box.w * 4), dstRow);
       }
-
       finalBitmap = stitched;
-      engine = selectedModel;
+      engine = gpu.modelUsed || selectedModel;
+      modelUsed = gpu.modelUsed;
+      crop = box;
     } catch {
       // PatchMatch pre-filled bitmap is already computed and ready!
       finalBitmap = patchMatchFilled;
@@ -829,12 +833,63 @@ export async function executeGenerativeInpaint(
   // 4. Dual-Mode Boundary & Interior Color Harmonization
   harmonizeSynthesizedBoundaryColors(source, finalBitmap, binary, intent);
 
+  return { bitmap: finalBitmap, binary, engine, modelUsed, intent, sceneReasoning, crop, seed };
+}
+
+/**
+ * Executes a Non-Destructive Generative Fill / Inpaint request (browser entry point).
+ * Loads the layer and mask, runs synthesizeGenerativeFill() with the raster worker and the registered GPU provider,
+ * and wraps the result as a Tela layer with a distance-feathered alpha mask.
+ */
+export async function executeGenerativeInpaint(
+  params: InpaintParams,
+  canvasDims: { width: number; height: number }
+): Promise<InpaintResult> {
+  const W = Math.max(1, Math.round(canvasDims.width));
+  const H = Math.max(1, Math.round(canvasDims.height));
+  const t0 = performance.now();
+
+  const rect = params.maskRect || { x: Math.round(0.1 * W), y: Math.round(0.1 * H), width: Math.round(0.8 * W), height: Math.round(0.8 * H) };
+  const maskUrl = params.maskDataUrl || generateFeatheredMask(W, H, rect, params.featherRadius || 10);
+
+  const source = await loadBitmap(params.sourceImageUrl, W, H);
+  const hole = maskFromBitmap(await loadBitmap(maskUrl, W, H));
+  const sourceMask = params.sourceAreaDataUrl ? maskFromBitmap(await loadBitmap(params.sourceAreaDataUrl, W, H)) : undefined;
+  const { rasterWorker } = await import('./raster/workerClient');
+
+  const io: GenerativeFillIO = {
+    contentAwareFill: (image, h, opts) => rasterWorker().run('contentAwareFill', { image, hole: h, opts }),
+    gpuFill: provider
+      ? async (crop, mask, args) => {
+          const maskRgba = new Uint8ClampedArray(crop.width * crop.height * 4);
+          for (let i = 0; i < mask.data.length; i++) { const v = mask.data[i], p4 = i * 4; maskRgba[p4] = v; maskRgba[p4 + 1] = v; maskRgba[p4 + 2] = v; maskRgba[p4 + 3] = 255; }
+          const res = await provider!.fill({
+            image: await toBlob(crop),
+            mask: await toBlob({ width: crop.width, height: crop.height, data: maskRgba }),
+            prompt: args.prompt,
+            referenceImageUrl: args.referenceImageUrl,
+            width: crop.width,
+            height: crop.height,
+            seed: args.seed,
+            strength: args.strength,
+            modelId: args.modelId,
+            inpaintMode: args.inpaintMode,
+          });
+          const url = typeof res === 'string' ? res : res.url;
+          return { bitmap: await loadBitmap(url, crop.width, crop.height), modelUsed: typeof res === 'string' ? undefined : res.modelUsed };
+        }
+      : undefined,
+  };
+
+  const core = await synthesizeGenerativeFill(source, hole, { ...params, sourceMask }, io);
+  const { bitmap: finalBitmap, binary, engine, modelUsed, sceneReasoning, seed } = core;
+
   // 5. Generate smooth distance-feathered alpha mask so the non-destructive layer blends seamlessly
   const featheredMaskBm = createDistanceFeatheredMaskBitmap(binary, params.featherRadius ?? 12);
   const featheredMaskUrl = bitmapToDataUrl(featheredMaskBm);
   const synthesizedDataUrl = bitmapToDataUrl(finalBitmap);
 
-  const promptApplied = rawPrompt || sceneReasoning.intentLabel;
+  const promptApplied = (params.prompt?.trim() || '') || sceneReasoning.intentLabel;
 
   const newLayer: TelaImageLayer = {
     id: `lyr_inpaint_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -859,7 +914,7 @@ export async function executeGenerativeInpaint(
     promptApplied,
     sceneReasoning,
     engine,
-    modelUsed: engine === 'flux3_klein' ? 'FLUX.3 [klein] 5.6B' : engine,
+    modelUsed: describeFillModel(modelUsed, engine),
     ms: Math.round(performance.now() - t0),
   };
 }

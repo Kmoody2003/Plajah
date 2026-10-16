@@ -116,7 +116,7 @@ export const TelaImageLayerControls: React.FC<{
   const [isSegmenting, setIsSegmenting] = useState(false);
   const [segmentFeedback, setSegmentFeedback] = useState<string | null>(null);
   const [inpaintPrompt, setInpaintPrompt] = useState('');
-  const [inpaintModel, setInpaintModel] = useState<GenerativeFillModelId>('flux3_klein');
+  const [inpaintModel, setInpaintModel] = useState<GenerativeFillModelId>('auto');
   const [isInpainting, setIsInpainting] = useState(false);
   const [inpaintFeedback, setInpaintFeedback] = useState<string | null>(null);
   const [lookGalleryOpen, setLookGalleryOpen] = useState(false);
@@ -124,7 +124,7 @@ export const TelaImageLayerControls: React.FC<{
   const handleGenerativeInpaint = async () => {
     if (!layer.src) return;
     setIsInpainting(true);
-    setInpaintFeedback('FLUX.3 [klein] reasoning canvas context & synthesizing…');
+    setInpaintFeedback('Reasoning canvas context & synthesizing on-device…');
     try {
       const W = canvasDims?.width || layer.intrinsicWidth || 1024;
       const H = canvasDims?.height || layer.intrinsicHeight || 1024;
@@ -147,7 +147,7 @@ export const TelaImageLayerControls: React.FC<{
         const sr = res.sceneReasoning;
         setInpaintFeedback(
           sr
-            ? `✨ ${res.modelUsed || 'FLUX.3 [klein]'} · ${sr.intentLabel} (${res.ms || 0}ms)`
+            ? `✨ ${res.modelUsed || 'On-device fill'} · ${sr.intentLabel} (${res.ms || 0}ms)`
             : `Synthesized ${res.modelUsed || res.engine || 'fill'} in ${res.ms || 0}ms`
         );
         setTimeout(() => setInpaintFeedback(null), 4000);
@@ -269,7 +269,7 @@ export const TelaImageLayerControls: React.FC<{
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
             <div style={lbl}>Generative Fill & Inpaint</div>
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#38bdf8' }}>⚡ FLUX.3 [klein] Default</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#38bdf8' }}>⚡ On-device · Auto</span>
           </div>
 
           <select
@@ -289,10 +289,11 @@ export const TelaImageLayerControls: React.FC<{
               marginBottom: 5,
             }}
           >
-            <option value="flux3_klein">⚡ FLUX.3 [klein] 5.6B (Default — Scene-Reasoned)</option>
-            <option value="flux2_klein_4b">FLUX.2 [klein] 4B (Fast Distilled)</option>
-            <option value="sdxl_turbo">SDXL Turbo (1-Step Real-Time)</option>
-            <option value="patchmatch">PatchMatch Content-Aware (CPU Only)</option>
+            <option value="auto">⚡ Auto (Big-LaMa remove · SDXL Inpainting guided)</option>
+            <option value="lama">Big-LaMa (remove / complete)</option>
+            <option value="sdxl_inpaint">SDXL Inpainting 0.1 (guided)</option>
+            <option value="sdxl_turbo">SDXL Turbo (legacy latent mask)</option>
+            <option value="patchmatch">Content-Aware Fill (CPU only)</option>
           </select>
 
           <input

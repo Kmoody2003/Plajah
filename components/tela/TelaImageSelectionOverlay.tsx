@@ -107,7 +107,9 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
   const [modifyType, setModifyType] = useState<'feather' | 'expand' | 'contract' | 'smooth' | 'border' | null>(null);
   const [modifyValue, setModifyValue] = useState(10);
   const [inpaintPrompt, setInpaintPrompt] = useState('');
-  const [genFillModel, setGenFillModel] = useState<GenerativeFillModelId>('flux3_klein');
+  // 'auto': the sidecar routes prompt-less fills to Big-LaMa and guided fills to the SDXL inpainting UNet when they are
+  // installed; without them the content-aware fill stands for prompt-less work (measured better than the legacy pass).
+  const [genFillModel, setGenFillModel] = useState<GenerativeFillModelId>('auto');
   const [inpaintBusy, setInpaintBusy] = useState(false);
   const [inpaintMsg, setInpaintMsg] = useState<string | null>(null);
   const [wandTolerance, setWandTolerance] = useState(32);
@@ -298,13 +300,19 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     setInpaintBusy(true);
     const promptToUse = (typeof customPrompt === 'string' ? customPrompt : inpaintPrompt).trim();
     const modelLabel =
-      genFillModel === 'flux3_klein'
-        ? 'FLUX.3 [klein]'
-        : genFillModel === 'flux2_klein_4b'
-          ? 'FLUX.2 [klein]'
-          : genFillModel === 'sdxl_turbo'
-            ? 'SDXL Turbo'
-            : 'PatchMatch';
+      genFillModel === 'auto'
+        ? 'On-device fill'
+        : genFillModel === 'lama'
+          ? 'Big-LaMa'
+          : genFillModel === 'sdxl_inpaint'
+            ? 'SDXL Inpainting'
+            : genFillModel === 'flux3_klein'
+              ? 'FLUX.3 [klein]'
+              : genFillModel === 'flux2_klein_4b'
+                ? 'FLUX.2 [klein]'
+                : genFillModel === 'sdxl_turbo'
+                  ? 'SDXL Turbo'
+                  : 'Content-Aware Fill';
     setInpaintMsg(
       promptToUse
         ? `${modelLabel}: Reasoning scene & synthesizing "${promptToUse.slice(0, 28)}"…`
@@ -1059,7 +1067,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
             <select
               value={genFillModel}
               onChange={(e) => setGenFillModel(e.target.value as GenerativeFillModelId)}
-              title="Generative Fill Model (Defaults to Black Forest Labs FLUX.3 [klein] 5.6B)"
+              title="Generative Fill model — Auto routes prompt-less fills to Big-LaMa and guided fills to SDXL Inpainting when installed"
               style={{
                 height: 26,
                 padding: '0 6px',
@@ -1073,10 +1081,11 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
                 cursor: 'pointer',
               }}
             >
-              <option value="flux3_klein" style={{ background: '#14111d', color: '#fff' }}>⚡ FLUX.3 [klein]</option>
-              <option value="flux2_klein_4b" style={{ background: '#14111d', color: '#fff' }}>FLUX.2 [klein] 4B</option>
-              <option value="sdxl_turbo" style={{ background: '#14111d', color: '#fff' }}>SDXL Turbo</option>
-              <option value="patchmatch" style={{ background: '#14111d', color: '#fff' }}>PatchMatch (CPU)</option>
+              <option value="auto" style={{ background: '#14111d', color: '#fff' }}>⚡ Auto (LaMa remove · SDXL Inpainting guided)</option>
+              <option value="lama" style={{ background: '#14111d', color: '#fff' }}>Big-LaMa (remove / complete)</option>
+              <option value="sdxl_inpaint" style={{ background: '#14111d', color: '#fff' }}>SDXL Inpainting 0.1 (guided)</option>
+              <option value="sdxl_turbo" style={{ background: '#14111d', color: '#fff' }}>SDXL Turbo (legacy latent mask)</option>
+              <option value="patchmatch" style={{ background: '#14111d', color: '#fff' }}>Content-Aware Fill (CPU)</option>
             </select>
 
             <input
