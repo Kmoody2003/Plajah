@@ -20,6 +20,7 @@ export interface LocalDeviceStats {
 
 export interface LocalModelInventory {
   flux: boolean;          // FLUX.1 schnell or dev (Cinema Stills)
+  flux3Klein: boolean;    // FLUX.3 [klein] 5.6B (Native 4K, Pixel-Precise Editing & 10-Ref)
   sdxl: boolean;          // SDXL / Animagine (Comics & 2D Vector)
   wanVideo: boolean;      // Wan 2.1 Video (Cinema Motion)
   ltxVideo: boolean;      // LTX-Video
@@ -28,6 +29,7 @@ export interface LocalModelInventory {
   ipAdapter: boolean;     // IP-Adapter & FaceID Character Bible locks
   gemma2_2b: boolean;     // Gemma 2 2B (Ultra-fast Story Intelligence & beat splitting)
   nemotron4b: boolean;    // Nemotron-Mini-4B (Deep reasoning & Writers Council)
+  museSpark: boolean;     // Meta Muse Spark Open / Muse Glimmer (Multimodal Contemplating Engine)
   segmentAnything: boolean; // SAM / SlimSAM
   whisper: boolean;       // Voice transcription
   kokoro: boolean;        // High-quality local voice synthesis
@@ -46,6 +48,7 @@ export interface LocalEngineStatus {
 
 const DEFAULT_MODELS: LocalModelInventory = {
   flux: false,
+  flux3Klein: false,
   sdxl: false,
   wanVideo: false,
   ltxVideo: false,
@@ -54,6 +57,7 @@ const DEFAULT_MODELS: LocalModelInventory = {
   ipAdapter: false,
   gemma2_2b: false,
   nemotron4b: false,
+  museSpark: false,
   segmentAnything: false,
   whisper: false,
   kokoro: false,
@@ -179,6 +183,7 @@ export async function getLocalEngineStatus(forceRefresh = false): Promise<LocalE
       models: {
         ...DEFAULT_MODELS,
         flux: !!sModels.flux,
+        flux3Klein: !!(sModels.flux3Klein ?? sModels.flux),
         sdxl: !!sModels.sdxl,
         wanVideo: !!sModels.wanVideo,
         icLight: !!sModels.icLight,
@@ -186,6 +191,7 @@ export async function getLocalEngineStatus(forceRefresh = false): Promise<LocalE
         ipAdapter: !!sModels.ipAdapter,
         gemma2_2b: !!sModels.gemma2_2b,
         nemotron4b: !!sModels.nemotron4b,
+        museSpark: !!(sModels.museSpark ?? sModels.nemotron4b),
         segmentAnything: true,
         whisper: true,
         kokoro: true,
@@ -207,6 +213,7 @@ export async function getLocalEngineStatus(forceRefresh = false): Promise<LocalE
         models: {
           ...DEFAULT_MODELS,
           flux: true,
+          flux3Klein: true,
           sdxl: true,
           icLight: true,
           supirDetail: true,
@@ -214,6 +221,7 @@ export async function getLocalEngineStatus(forceRefresh = false): Promise<LocalE
           ipAdapter: true,
           gemma2_2b: true,
           nemotron4b: true,
+          museSpark: true,
           segmentAnything: true,
           whisper: true,
           kokoro: true,

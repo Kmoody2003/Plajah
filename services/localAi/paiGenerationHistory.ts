@@ -8,10 +8,15 @@ import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { auth, db, uploadPhoto, createPhotoAlbum } from '../backendService';
 import { collection, query, where, getDocs, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import type { PhotoAlbum } from '../../types';
+import { createJxlCopyAfterGeneration } from './plajahNativeRunner';
 
 export interface PaiGenerationItem {
   id: string;
-  url: string; // Base64 data URL or media URI
+  url: string; // Primary displayable Base64 data URL (PNG/WebP) or media URI
+  /** Post-generation native ISO/IEC 18181 JPEG XL copy (`data:image/jxl;base64,...`). */
+  jxlUrl?: string;
+  /** Post-generation 320px JPEG XL thumbnail (`data:image/jxl;base64,...`). */
+  thumbUrl?: string;
   prompt: string;
   modelId: string;
   modelName?: string;
@@ -82,6 +87,25 @@ export async function savePaiGeneration(
     notifyHistoryChange(updated);
   } catch (err) {
     console.error('[PaiHistory] Failed to save generation locally:', err);
+  }
+
+  // Non-blocking post-generation JPEG XL copy conversion (if not already attached by GPU sidecar)
+  if (!item.jxlUrl && item.url && item.url.startsWith('data:image/') && !item.url.startsWith('data:image/jxl')) {
+    void createJxlCopyAfterGeneration(item.url, 0.88).then(async (jxlBundle) => {
+      if (!jxlBundle?.jxlUrl) return;
+      try {
+        const list = await getPaiGenerations();
+        const patched = list.map((x) =>
+          x.id === item.id
+            ? { ...x, jxlUrl: jxlBundle.jxlUrl, thumbUrl: jxlBundle.thumbUrl || x.thumbUrl }
+            : x
+        );
+        await idbSet(STORAGE_KEY, patched);
+        notifyHistoryChange(patched);
+      } catch {
+        // Non-fatal
+      }
+    });
   }
 
   // Non-blocking background sync to the user's Photos account

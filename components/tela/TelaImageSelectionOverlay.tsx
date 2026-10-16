@@ -52,7 +52,11 @@ import {
   refineSelectionHairAndFringes,
   selectSubjectWithHairMatting,
 } from '../../services/tela/raster/selectionWorkflow';
-import { executeGenerativeInpaint, executeGenerativeOutpaint } from '../../services/tela/telaInpaintService';
+import {
+  executeGenerativeInpaint,
+  executeGenerativeOutpaint,
+  type GenerativeFillModelId,
+} from '../../services/tela/telaInpaintService';
 import { samSegmentationService, type PromptPoint } from '../../services/samSegmentationService';
 import type { TelaImageLayer } from '../../types';
 
@@ -103,9 +107,16 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
   const [modifyType, setModifyType] = useState<'feather' | 'expand' | 'contract' | 'smooth' | 'border' | null>(null);
   const [modifyValue, setModifyValue] = useState(10);
   const [inpaintPrompt, setInpaintPrompt] = useState('');
+  const [genFillModel, setGenFillModel] = useState<GenerativeFillModelId>('flux3_klein');
   const [inpaintBusy, setInpaintBusy] = useState(false);
   const [inpaintMsg, setInpaintMsg] = useState<string | null>(null);
   const [wandTolerance, setWandTolerance] = useState(32);
+  const [genVariations, setGenVariations] = useState<{
+    layerId: string;
+    baseSourceUrl: string;
+    items: Array<{ src: string; maskSrc?: string; name: string; seed: number; summary: string }>;
+    activeIndex: number;
+  } | null>(null);
 
   // Animated marching ants ticker
   useEffect(() => {
@@ -282,30 +293,78 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     });
   }, [selection, activeLayer, onUpdateLayer]);
 
-  const handleGenerativeFill = useCallback(async (customPrompt?: string) => {
+  const handleGenerativeFill = useCallback(async (customPrompt?: string, asVariation = false) => {
     if (!selection || !activeLayer?.src) return;
     setInpaintBusy(true);
-    setInpaintMsg('Synthesizing with NVIDIA RTX GPU Sidecar…');
+    const promptToUse = (typeof customPrompt === 'string' ? customPrompt : inpaintPrompt).trim();
+    const modelLabel =
+      genFillModel === 'flux3_klein'
+        ? 'FLUX.3 [klein]'
+        : genFillModel === 'flux2_klein_4b'
+          ? 'FLUX.2 [klein]'
+          : genFillModel === 'sdxl_turbo'
+            ? 'SDXL Turbo'
+            : 'PatchMatch';
+    setInpaintMsg(
+      promptToUse
+        ? `${modelLabel}: Reasoning scene & synthesizing "${promptToUse.slice(0, 28)}"…`
+        : `${modelLabel}: Analyzing canvas context & autonomously filling selection…`
+    );
     try {
-      const promptToUse = (typeof customPrompt === 'string' ? customPrompt : inpaintPrompt).trim();
+      const baseSourceUrl = asVariation && genVariations?.baseSourceUrl ? genVariations.baseSourceUrl : activeLayer.src;
       const maskDataUrl = selectionToDataUrl(selection, 'black-white');
       const res = await executeGenerativeInpaint(
         {
-          sourceImageUrl: activeLayer.src,
+          sourceImageUrl: baseSourceUrl,
           maskDataUrl,
-          prompt: promptToUse || 'Seamless natural texture and environment, harmonious lighting',
-          featherRadius: 8,
+          prompt: promptToUse,
+          modelId: genFillModel,
+          featherRadius: 10,
         },
         { width, height }
       );
       if (res?.newLayer) {
-        if (onAddLayer) {
-          onAddLayer(res.newLayer);
-        } else if (onUpdateLayer) {
-          onUpdateLayer(activeLayer.id, { ...res.newLayer });
+        const sr = res.sceneReasoning;
+        const summary = sr
+          ? `${res.modelUsed || modelLabel} · ${sr.intentLabel} · ${sr.lightingDescriptor} (${res.ms || 0}ms)`
+          : `${res.modelUsed || modelLabel} fill in ${res.ms || 0}ms`;
+
+        const varEntry = {
+          src: res.newLayer.src,
+          maskSrc: res.newLayer.mask?.src,
+          name: res.newLayer.name,
+          seed: res.seed,
+          summary,
+        };
+
+        if (asVariation && genVariations && onUpdateLayer) {
+          onUpdateLayer(genVariations.layerId, {
+            src: res.newLayer.src,
+            name: `${res.newLayer.name} (Var ${genVariations.items.length + 1})`,
+            mask: res.newLayer.mask,
+          });
+          setGenVariations({
+            layerId: genVariations.layerId,
+            baseSourceUrl: genVariations.baseSourceUrl,
+            items: [...genVariations.items, varEntry],
+            activeIndex: genVariations.items.length,
+          });
+        } else {
+          if (onAddLayer) {
+            onAddLayer(res.newLayer);
+          } else if (onUpdateLayer) {
+            onUpdateLayer(activeLayer.id, { ...res.newLayer });
+          }
+          setGenVariations({
+            layerId: onAddLayer ? res.newLayer.id : activeLayer.id,
+            baseSourceUrl,
+            items: [varEntry],
+            activeIndex: 0,
+          });
         }
-        setInpaintMsg(`Fill complete (${res.engine || 'local GPU'}) in ${res.ms || 0}ms`);
-        setTimeout(() => setInpaintMsg(null), 3000);
+
+        setInpaintMsg(`✨ ${summary}`);
+        setTimeout(() => setInpaintMsg(null), 4200);
       }
     } catch (err: any) {
       setInpaintMsg(`Fill failed: ${err.message || 'error'}`);
@@ -313,7 +372,27 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     } finally {
       setInpaintBusy(false);
     }
-  }, [selection, activeLayer, inpaintPrompt, width, height, onAddLayer, onUpdateLayer]);
+  }, [selection, activeLayer, inpaintPrompt, genFillModel, genVariations, width, height, onAddLayer, onUpdateLayer]);
+
+  const handleCycleVariation = useCallback((delta: number) => {
+    if (!genVariations || genVariations.items.length < 2 || !onUpdateLayer) return;
+    const count = genVariations.items.length;
+    const nextIdx = (genVariations.activeIndex + delta + count) % count;
+    const chosen = genVariations.items[nextIdx];
+    onUpdateLayer(genVariations.layerId, {
+      src: chosen.src,
+      name: `${chosen.name} (Var ${nextIdx + 1}/${count})`,
+      mask: chosen.maskSrc
+        ? { kind: 'ALPHA_IMAGE', enabled: true, src: chosen.maskSrc, invert: false }
+        : undefined,
+    });
+    setGenVariations({
+      ...genVariations,
+      activeIndex: nextIdx,
+    });
+    setInpaintMsg(`Variation ${nextIdx + 1}/${count} · Seed #${chosen.seed}`);
+    setTimeout(() => setInpaintMsg(null), 2200);
+  }, [genVariations, onUpdateLayer]);
 
   const samPointsRef = useRef<PromptPoint[]>([]);
 
@@ -321,14 +400,15 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     if (!activeLayer?.src) return;
     setInpaintBusy(true);
     setOutpaintMenuOpen(false);
-    setInpaintMsg('Scene-reasoning & outpainting canvas…');
+    setInpaintMsg('FLUX.3 [klein]: Scene-reasoning & outpainting canvas…');
     try {
-      const prompt = inpaintPrompt.trim() || 'Extended panoramic scenery, continuous environment, seamless background, highly detailed';
+      const prompt = inpaintPrompt.trim();
       const res = await executeGenerativeOutpaint(
         {
           sourceImageUrl: activeLayer.src,
           outpaint,
           prompt,
+          modelId: genFillModel,
         },
         { width, height }
       );
@@ -339,8 +419,11 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
         } else if (onUpdateLayer) {
           onUpdateLayer(activeLayer.id, { ...res.newLayer });
         }
-        setInpaintMsg(`Outpaint complete (${res.engine || 'scene-reasoned'}) in ${res.ms || 0}ms`);
-        setTimeout(() => setInpaintMsg(null), 3000);
+        const sr = res.sceneReasoning;
+        setInpaintMsg(
+          `✨ Outpaint complete (${res.engine || 'FLUX.3 [klein]'} · ${sr?.sceneCategory || 'Seamless'}) in ${res.ms || 0}ms`
+        );
+        setTimeout(() => setInpaintMsg(null), 3800);
       }
     } catch (err: any) {
       setInpaintMsg(`Outpaint failed: ${err.message || 'error'}`);
@@ -348,7 +431,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
     } finally {
       setInpaintBusy(false);
     }
-  }, [activeLayer, inpaintPrompt, width, height, onAddLayer, onUpdateLayer]);
+  }, [activeLayer, inpaintPrompt, genFillModel, width, height, onAddLayer, onUpdateLayer]);
 
   const handleSelectSubject = useCallback(async (
     points?: PromptPoint[],
@@ -971,23 +1054,46 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
             </div>
           )}
 
-          {/* Generative Fill Prompt & Action */}
+          {/* Generative Fill Model Selector, Prompt, Action & Adobe-Style Variation Switcher */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <select
+              value={genFillModel}
+              onChange={(e) => setGenFillModel(e.target.value as GenerativeFillModelId)}
+              title="Generative Fill Model (Defaults to Black Forest Labs FLUX.3 [klein] 5.6B)"
+              style={{
+                height: 26,
+                padding: '0 6px',
+                borderRadius: 6,
+                background: 'rgba(0, 218, 243, 0.12)',
+                border: '1px solid rgba(0, 218, 243, 0.35)',
+                color: '#8ff5ff',
+                fontSize: 10,
+                fontWeight: 700,
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="flux3_klein" style={{ background: '#14111d', color: '#fff' }}>⚡ FLUX.3 [klein]</option>
+              <option value="flux2_klein_4b" style={{ background: '#14111d', color: '#fff' }}>FLUX.2 [klein] 4B</option>
+              <option value="sdxl_turbo" style={{ background: '#14111d', color: '#fff' }}>SDXL Turbo</option>
+              <option value="patchmatch" style={{ background: '#14111d', color: '#fff' }}>PatchMatch (CPU)</option>
+            </select>
+
             <input
               type="text"
               value={inpaintPrompt}
               onChange={(e) => setInpaintPrompt(e.target.value)}
-              placeholder="Generative Fill prompt…"
+              placeholder="What to generate? (Blank = AI Scene Fill)…"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void handleGenerativeFill();
               }}
               style={{
-                width: 150,
+                width: 195,
                 height: 26,
                 padding: '0 8px',
                 borderRadius: 6,
                 background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.18)',
                 color: '#fff',
                 fontSize: 10,
                 outline: 'none',
@@ -996,9 +1102,9 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
 
             {/* Quick 1-Click Remove Object */}
             <button
-              onClick={() => void handleGenerativeFill('Clean empty background texture, remove object, seamless natural continuity')}
+              onClick={() => void handleGenerativeFill('Remove object, seamless background continuation')}
               disabled={inpaintBusy}
-              title="1-Click Remove / Erase Object"
+              title="1-Click Remove / Erase Object & Reconstruct Scene"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1021,7 +1127,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
             <button
               onClick={() => void handleGenerativeFill()}
               disabled={inpaintBusy}
-              title="Generative Fill selection using NVIDIA RTX GPU"
+              title="Generative Fill selection with FLUX.3 [klein] & Deep Canvas Scene Reasoning (works with or without prompt)"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1039,6 +1145,79 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
               {inpaintBusy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
               <span>{inpaintBusy ? 'Filling…' : 'Generate'}</span>
             </button>
+
+            {/* Adobe-Style Multi-Variation Switcher & Generator */}
+            {genVariations && genVariations.items.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: '2px 5px',
+                  borderRadius: 7,
+                  background: 'rgba(181, 108, 255, 0.14)',
+                  border: '1px solid rgba(181, 108, 255, 0.38)',
+                }}
+              >
+                {genVariations.items.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleCycleVariation(-1)}
+                    title="Previous Variation"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#e9d5ff',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      padding: '0 3px',
+                    }}
+                  >
+                    ◀
+                  </button>
+                )}
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#f3e8ff' }}>
+                  Var {genVariations.activeIndex + 1}/{genVariations.items.length}
+                </span>
+                {genVariations.items.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleCycleVariation(1)}
+                    title="Next Variation"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#e9d5ff',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      padding: '0 3px',
+                    }}
+                  >
+                    ▶
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={inpaintBusy}
+                  onClick={() => void handleGenerativeFill(undefined, true)}
+                  title="Generate New Variation in-place (Adobe Generative Fill Variations)"
+                  style={{
+                    border: 'none',
+                    borderRadius: 5,
+                    background: 'rgba(181, 108, 255, 0.32)',
+                    color: '#fff',
+                    fontSize: 9.5,
+                    fontWeight: 800,
+                    padding: '2px 6px',
+                    cursor: inpaintBusy ? 'wait' : 'pointer',
+                  }}
+                >
+                  + Var
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Outpaint Dropdown */}

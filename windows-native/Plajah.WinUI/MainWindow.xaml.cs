@@ -232,8 +232,8 @@ public sealed partial class MainWindow : Window
         core.Settings.AreDefaultContextMenusEnabled = true;
         core.Settings.IsGeneralAutofillEnabled = true;
 
-        // Purge stale service worker, cache storage, and disk cache on boot so packaged assets always load directly
-        try { await core.Profile.ClearBrowsingDataAsync(Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.ServiceWorkers | Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.CacheStorage | Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.DiskCache); } catch { }
+        // Purge stale service worker on boot; disk and cache storage are version-gated in ClearStaleWebViewCacheAsync so local AI models persist across launches
+        try { await core.Profile.ClearBrowsingDataAsync(Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.ServiceWorkers); } catch { }
 
         // High-performance local media streaming handler with Range seeking and CORS support
         try
@@ -1741,15 +1741,20 @@ public sealed partial class MainWindow : Window
                         modelsPath = modelsRoot,
                         installed = new Dictionary<string, bool>
                         {
-                            // Group A: NVIDIA-Specific
+                            // Group A: NVIDIA & Meta Open-Weights LLM & Reasoning
+                            ["meta_muse_spark"] = HasFile("llm", "Muse-Spark-Glimmer-Local-Q4_K_M.gguf", "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf", "Muse-Glimmer-30B-UD-Q2_K_XL.gguf"),
                             ["nvidia_nemotron"] = HasFile("llm", "Nemotron-Mini-4B-Instruct-Q4_K_M.gguf", "nemotron-mini-4b-instruct.gguf")
                                                || HasFile("checkpoints", "Nemotron-Mini-4B-Instruct-Q4_K_M.gguf", "nemotron-mini-4b-instruct.gguf"),
                             ["nvidia_mistral_nemo"] = HasFile("llm", "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf")
                                                    || HasFile("checkpoints", "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"),
                             ["nvidia_cosmos"] = HasFile("llm", "cosmos-prompt-upscaler.gguf")
                                              || HasFile("checkpoints", "cosmos-prompt-upscaler.gguf"),
+                            ["gemma2_2b"] = HasFile("llm", "gemma-2-2b-it-Q4_K_M.gguf", "gemma-2-2b-it-IQ4_XS.gguf"),
 
                             // Group B: Free Diffusion, Creative & Video
+                            ["flux3_klein"] = HasFile("diffusion_models", "flux3-image-klein-fp8.safetensors", "flux3_image_klein_sd_int8_convrot.safetensors", "flux3_image_klein_sd_Q4_K_M.gguf")
+                                           || HasFile("unet", "flux3-image-klein-fp8.safetensors"),
+                            ["flux2_klein_4b"] = HasFile("diffusion_models", "flux2-klein-4b-fp8.safetensors", "flux-2-klein-base-4b-fp8.safetensors"),
                             ["flux_schnell"] = HasFile("unet", "flux1-schnell.safetensors", "flux1-schnell.sft", "flux1-schnell-fp8.safetensors", "flux1-schnell-Q4_0.gguf"),
                             ["sdxl_turbo"] = HasFile("checkpoints", "sd_xl_turbo_1.0_fp16.safetensors", "sd_xl_turbo_1.0.safetensors"),
                             ["sdxl_lightning"] = HasFile("checkpoints", "sdxl_lightning_4step.safetensors", "sdxl_lightning_8step.safetensors"),
@@ -1761,6 +1766,7 @@ public sealed partial class MainWindow : Window
                             ["qwen25_7b"] = HasFile("llm", "qwen2.5-7b-instruct-q4_k_m.gguf")
                                          || HasFile("checkpoints", "qwen2.5-7b-instruct-q4_k_m.gguf"),
                             ["wan_video_14b"] = HasFile("diffusion_models", "Wan2.1-I2V-14B-480P.safetensors", "Wan2.1_I2V_14B_480P_fp8.safetensors"),
+                            ["wan_video_fl"] = HasFile("diffusion_models", "Wan2.1_FL_I2V_14B_480P_fp8.safetensors"),
                             ["supir_detail"] = HasFile("checkpoints", "SUPIR_v0Q.ckpt")
                         }
                     };

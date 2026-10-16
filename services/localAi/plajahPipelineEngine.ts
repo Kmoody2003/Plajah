@@ -78,6 +78,8 @@ export interface CinemaStillIntent {
   cameraAngle?: DirectorialCameraAngle;
   steps?: number;
   seed?: number;
+  referenceImages?: string[]; // Up to 10 reference images for FLUX.3 [klein]
+  resolutionTier?: '1k' | '2k' | '4k';
 }
 
 export interface DetailEnhanceIntent {
@@ -126,10 +128,14 @@ export interface VectorArtIntent {
 export interface ComicPanelIntent {
   characterPrompt: string;
   faceEmbeddingRef?: string; // Character Bible likeness anchor
+  referenceImages?: string[]; // Up to 10 reference images (FLUX.3 [klein])
   sceneActionPrompt: string;
   cameraShot: 'establishing' | 'full_shot' | 'medium' | 'over_the_shoulder' | 'close_up' | 'extreme_close_up' | 'low_angle_hero';
   moodLighting?: string;
   aspect?: '1:1' | '16:9' | '4:5' | '2:3';
+  modelId?: string;
+  loraId?: string;
+  loraWeight?: number;
 }
 
 /** Compute optimal pixel dimensions matching aspect ratio (multiples of 64) */
@@ -163,6 +169,10 @@ export interface PlajahNativeTask {
   cfgScale: number;
   seed: number;
   sourceImage?: string;
+  referenceImages?: string[];
+  resolutionTier?: '1k' | '2k' | '4k';
+  /** Preferred image output format from model inference (defaults to 'jxl'). */
+  outputFormat?: 'jxl' | 'webp' | 'png';
   enhancement?: {
     hallucinationLevel: number;
     resemblance: number;
@@ -381,7 +391,7 @@ export function compileCinemaStillTask(intent: CinemaStillIntent): PlajahNativeT
 
   const negPrompt = intent.negativePrompt || 'cgi, 3d render, blurry, distorted, plastic skin, oversaturated, amateur, watermark, bad anatomy';
 
-  const targetModel = intent.modelId || (intent.loraId?.includes('flux') ? 'flux2_klein_4b' : 'sdxl_turbo');
+  const targetModel = intent.modelId || (intent.loraId?.includes('flux') ? 'flux3_klein' : 'flux3_klein');
 
   return {
     id: `plajah_task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -390,9 +400,11 @@ export function compileCinemaStillTask(intent: CinemaStillIntent): PlajahNativeT
     prompt: fullPrompt,
     negativePrompt: negPrompt,
     dimensions: { width, height },
-    steps: intent.steps || (targetModel === 'flux2_klein_4b' ? 12 : targetModel === 'sdxl_lightning' ? 4 : 1),
-    cfgScale: targetModel === 'flux2_klein_4b' ? 3.5 : 1.0,
+    steps: intent.steps || (targetModel === 'flux3_klein' ? 4 : targetModel === 'flux2_klein_4b' ? 8 : targetModel === 'sdxl_lightning' ? 4 : 1),
+    cfgScale: targetModel === 'flux3_klein' ? 1.0 : targetModel === 'flux2_klein_4b' ? 3.5 : 1.0,
     seed: intent.seed ?? Math.floor(Math.random() * 2147483647),
+    referenceImages: intent.referenceImages?.slice(0, 10),
+    resolutionTier: intent.resolutionTier,
     lora: activeLora,
   };
 }
@@ -576,8 +588,8 @@ export function compileComicPanelTask(intent: ComicPanelIntent): PlajahNativeTas
   }
 
   const loraDef = intent.loraId ? plajahLoraRegistry.getLoraById(intent.loraId) : undefined;
-  const isFlux = intent.loraId?.includes('flux') || loraDef?.baseModel === 'FLUX.2-Klein-4B' || loraDef?.baseModel === 'FLUX.1-Schnell';
-  const targetModel = intent.modelId || (isFlux ? 'flux2_klein_4b' : 'animagine_xl');
+  const isFlux = intent.loraId?.includes('flux') || loraDef?.baseModel === 'FLUX.2-Klein-4B' || loraDef?.baseModel === 'FLUX.1-Schnell' || intent.modelId === 'flux3_klein' || intent.modelId === 'flux2_klein_4b';
+  const targetModel = intent.modelId || (isFlux ? 'flux3_klein' : 'animagine_xl');
 
   return {
     id: `plajah_comic_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -586,9 +598,10 @@ export function compileComicPanelTask(intent: ComicPanelIntent): PlajahNativeTas
     prompt,
     negativePrompt: 'photorealistic, messy sketch, blurry lines, flat colors, bad hands, mutated fingers',
     dimensions: { width, height },
-    steps: isFlux ? 12 : 28,
-    cfgScale: isFlux ? 3.5 : 7.5,
+    steps: targetModel === 'flux3_klein' ? 4 : isFlux ? 8 : 28,
+    cfgScale: targetModel === 'flux3_klein' ? 1.0 : isFlux ? 3.5 : 7.5,
     seed: Math.floor(Math.random() * 2147483647),
+    referenceImages: intent.referenceImages?.slice(0, 10) || (intent.faceEmbeddingRef ? [intent.faceEmbeddingRef] : undefined),
     identity: {
       characterRef: intent.faceEmbeddingRef,
       likenessStrength: 0.85,

@@ -48,6 +48,10 @@ export interface LocalCreativeStudioOptions {
 export interface CreativeStudioExecutionResult {
   source: 'local_gpu' | 'webgpu' | 'fallback';
   outputUrls: string[];
+  /** Post-generation native ISO/IEC 18181 JPEG XL copy (`data:image/jxl;base64,...`). */
+  jxlUrl?: string;
+  /** Post-generation 320px JPEG XL thumbnail (`data:image/jxl;base64,...`). */
+  thumbUrl?: string;
   durationMs: number;
   costCredits: number;
   note?: string;
@@ -119,6 +123,8 @@ export async function executeCreativeStudioTask(
     return {
       source: isDirectGpu ? 'local_gpu' : 'webgpu',
       outputUrls: [result.mediaUrl],
+      jxlUrl: result.jxlUrl,
+      thumbUrl: result.thumbUrl,
       durationMs: result.executionTimeMs,
       costCredits: 0,
       note: `Generated on Plajah Native Engine (${result.hardwareBackend}) - 0 credits used (100% free)`,

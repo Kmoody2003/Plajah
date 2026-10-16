@@ -102,19 +102,51 @@ localAiRouter.get('/models', async (_req: Request, res: Response) => {
   });
 });
 
+async function waitForSidecarReady(maxWaitMs = 8000): Promise<boolean> {
+  ensureSidecarRunning();
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 800);
+      const r = await fetch(`${SIDECAR_URL}/health`, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (r.ok) return true;
+    } catch {
+      // Still booting
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return false;
+}
+
 localAiRouter.post('/generate', async (req: Request, res: Response) => {
   ensureSidecarRunning();
-  try {
+  const forwardGenerate = async () => {
     const ctrl = new AbortController();
     // Allow up to 90 seconds for heavy generation
     const t = setTimeout(() => ctrl.abort(), 90000);
-    const r = await fetch(`${SIDECAR_URL}/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body),
-      signal: ctrl.signal,
-    });
-    clearTimeout(t);
+    try {
+      return await fetch(`${SIDECAR_URL}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(t);
+    }
+  };
+
+  try {
+    let r: globalThis.Response;
+    try {
+      r = await forwardGenerate();
+    } catch {
+      // Sidecar may still be booting after ensureSidecarRunning(); wait up to 8s and retry once
+      await waitForSidecarReady(8000);
+      r = await forwardGenerate();
+    }
 
     if (r.ok) {
       const data = await r.json();
@@ -127,3 +159,46 @@ localAiRouter.post('/generate', async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: err.message || 'Generation request failed' });
   }
 });
+
+localAiRouter.post('/encode-jxl', async (req: Request, res: Response) => {
+  ensureSidecarRunning();
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const r = await fetch(`${SIDECAR_URL}/encode_jxl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (r.ok) {
+      return res.json(await r.json());
+    }
+    return res.status(r.status).json({ success: false, error: await r.text() });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || 'JXL encode failed' });
+  }
+});
+
+localAiRouter.post('/decode-jxl', async (req: Request, res: Response) => {
+  ensureSidecarRunning();
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const r = await fetch(`${SIDECAR_URL}/decode_jxl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (r.ok) {
+      return res.json(await r.json());
+    }
+    return res.status(r.status).json({ success: false, error: await r.text() });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || 'JXL decode failed' });
+  }
+});
+

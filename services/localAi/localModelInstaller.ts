@@ -93,16 +93,28 @@ export const RECOMMENDED_MODELS: ModelPackage[] = [
     downloadUrl: 'https://huggingface.co/city96/FLUX.1-schnell-gguf/resolve/main/flux1-schnell-Q4_0.gguf',
   },
   {
+    id: 'flux3_klein',
+    name: 'FLUX.3 [klein] 5.6B (Native 4K & 10-Ref Editing)',
+    category: 'cinema_stills',
+    vramRequiredGb: 6.0,
+    sizeGb: 5.4,
+    description: 'Black Forest Labs FLUX.3 Image Klein 5.6B open-weights model. Native 4K generation, pixel-precise editing/inpainting/outpainting, and multi-reference conditioning for up to 10 images on 8GB VRAM.',
+    recommendedRole: 'Flagship 4K Cinema Still, Pixel-Precise Editing & 10-Reference Engine',
+    fileName: 'flux3-image-klein-fp8.safetensors',
+    destinationSubfolder: 'diffusion_models',
+    downloadUrl: 'https://huggingface.co/ml-resources/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3_image_klein_sd_int8_convrot.safetensors',
+  },
+  {
     id: 'flux2_klein_4b',
     name: 'FLUX.2 Klein 4B (Apache-2.0 Open Weights)',
     category: 'cinema_stills',
     vramRequiredGb: 6.5,
     sizeGb: 4.2,
     description: 'Apache 2.0 licensed 4B distillation of FLUX. Perfect for 8GB VRAM RTX 4070. High prompt fidelity, text rendering, and commercial redistribution rights.',
-    recommendedRole: 'Primary Commercial On-Device Visual Forge & LoRA Host',
+    recommendedRole: 'Commercial On-Device Visual Forge & LoRA Host',
     fileName: 'flux2-klein-4b-fp8.safetensors',
     destinationSubfolder: 'diffusion_models',
-    downloadUrl: 'https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/flux1-schnell.safetensors',
+    downloadUrl: 'https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4b-fp8/resolve/main/flux-2-klein-base-4b-fp8.safetensors',
   },
   {
     id: 'qwen_image_7b',
@@ -153,7 +165,19 @@ export const RECOMMENDED_MODELS: ModelPackage[] = [
     downloadUrl: 'https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt/resolve/main/svd_xt.safetensors',
   },
 
-  // ── GROUP B: NVIDIA AI ENHANCERS & LLM MODELS ───────────────────────────
+  // ── GROUP B: NVIDIA & META OPEN-WEIGHTS AI ENHANCERS & LLM MODELS ────────
+  {
+    id: 'meta_muse_spark',
+    name: 'Meta Muse Spark Open / Glimmer (Multimodal On-Device)',
+    category: 'ai_intelligence',
+    vramRequiredGb: 6.0,
+    sizeGb: 11.5,
+    description: 'Meta Superintelligence Labs open-weights Muse Spark / Muse Glimmer multimodal reasoning model with Contemplating Mode, DFlash speculative decoding, and 1M context window architecture.',
+    recommendedRole: 'Multimodal Scene Reasoning, Contemplating Council & Visual Continuity',
+    fileName: 'Muse-Spark-Glimmer-Local-Q4_K_M.gguf',
+    destinationSubfolder: 'llm',
+    downloadUrl: 'https://huggingface.co/meta-models/Muse-Glimmer-30B-GGUF/resolve/main/Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf',
+  },
   {
     id: 'nvidia_nemotron',
     name: 'NVIDIA Nemotron-Mini 4B (RTX Instruct)',
@@ -310,6 +334,7 @@ export async function auditInstalledModels(): Promise<Record<string, boolean>> {
   const status = await getLocalEngineStatus();
   if (status.online) {
     installed.flux_schnell = !!status.models.flux;
+    installed.flux3_klein = !!(status.models.flux3Klein ?? status.models.flux);
     installed.flux2_klein_4b = !!status.models.flux;
     installed.qwen_image_7b = !!status.models.flux;
     installed.sdxl_turbo = !!status.models.sdxl;
@@ -322,6 +347,7 @@ export async function auditInstalledModels(): Promise<Record<string, boolean>> {
     installed.wan_video_14b = !!status.models.wanVideo;
     installed.wan_video_fl = !!status.models.wanVideo;
     installed.ipadapter_faceid = !!status.models.ipAdapter;
+    installed.meta_muse_spark = !!(status.models.museSpark ?? status.models.nemotron4b);
     installed.nvidia_nemotron = true;
     installed.nvidia_cosmos = true;
     installed.kokoro_82m = true;

@@ -23,6 +23,9 @@ import type { TelaImageLayer } from '../../types';
 import type { Bitmap8, Mask8 } from './raster/buffer';
 import { computeEuclideanDistanceTransform } from '../matting/alphaMattingEngine';
 
+export type GenerativeFillModelId = 'flux3_klein' | 'flux2_klein_4b' | 'sdxl_turbo' | 'patchmatch';
+export type GenerativeInpaintIntent = 'autonomous_remove' | 'autonomous_complete' | 'explicit_remove' | 'guided';
+
 export interface InpaintParams {
   sourceImageUrl: string;
   maskDataUrl?: string; // Black & white or alpha mask
@@ -31,6 +34,8 @@ export interface InpaintParams {
   referenceImageUrl?: string;
   featherRadius?: number;
   strength?: number;
+  /** Default model is 'flux3_klein' (Black Forest Labs FLUX.3 [klein] 5.6B). */
+  modelId?: GenerativeFillModelId;
   /** Force the local content-aware algorithm even when a generative provider exists. */
   local?: boolean;
   /** Optional "sampling area": white = may be copied from. */
@@ -49,10 +54,16 @@ export interface OutpaintParams {
   sourceImageUrl: string;
   outpaint: OutpaintMargins;
   prompt?: string;
+  modelId?: GenerativeFillModelId;
   seed?: number;
 }
 
 export interface SceneReasoningSummary {
+  sceneCategory: string;
+  surroundingMaterial: string;
+  inferredIntent: GenerativeInpaintIntent;
+  intentLabel: string;
+  colorDivergence: number;
   lightingDescriptor: string;
   paletteDescriptor: string;
   textureDescriptor: string;
@@ -67,8 +78,9 @@ export interface InpaintResult {
   seed: number;
   promptApplied: string;
   sceneReasoning?: SceneReasoningSummary;
-  /** 'local_gpu_nvidia', 'hybrid_gpu_patchmatch', or 'patchmatch'. */
+  /** 'flux3_klein', 'local_gpu_nvidia', or 'patchmatch'. */
   engine?: string;
+  modelUsed?: string;
   ms?: number;
 }
 
@@ -84,6 +96,8 @@ export type GenerativeFillProvider = {
     height: number;
     seed: number;
     strength?: number;
+    modelId?: GenerativeFillModelId;
+    inpaintMode?: GenerativeInpaintIntent;
   }): Promise<string>;
 };
 
@@ -104,27 +118,41 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-// Auto-register Plajah on-device discrete GPU generative fill provider
+// Auto-register Plajah on-device discrete GPU generative fill provider (defaults to FLUX.3 [klein])
 provider = {
-  id: 'local_gpu_nvidia',
-  async fill({ image, mask, prompt, width, height, seed, strength }) {
+  id: 'flux3_klein',
+  async fill({ image, mask, prompt, referenceImageUrl, width, height, seed, strength, modelId, inpaintMode }) {
     const imgDataUrl = await blobToDataUrl(image);
     const maskDataUrl = await blobToDataUrl(mask);
-    const eps = ['http://127.0.0.1:51122/generate', 'http://localhost:51122/generate'];
+    const activeModel = modelId && modelId !== 'patchmatch' ? modelId : 'flux3_klein';
+    const eps = [
+      'http://127.0.0.1:51122/tela/inpaint',
+      'http://127.0.0.1:51122/generate',
+      'http://localhost:51122/generate',
+    ];
     for (const ep of eps) {
       try {
         const resp = await fetch(ep, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            outputFormat: 'png',
+            clientSupportsJxlDecode: false,
+            inpaintMode: inpaintMode || 'guided',
             task: {
               taskType: 'cinema_generate',
+              modelId: activeModel,
               prompt,
+              inpaintMode: inpaintMode || 'guided',
+              outputFormat: 'png',
+              clientSupportsJxlDecode: false,
               dimensions: { width: Math.round(width), height: Math.round(height) },
               seed,
-              strength: strength ?? 0.86,
+              strength: strength ?? 0.88,
+              denoise: strength ?? 0.88,
               sourceImage: imgDataUrl,
               maskImage: maskDataUrl,
+              referenceImages: referenceImageUrl ? [referenceImageUrl] : undefined,
             },
           }),
         });
@@ -143,10 +171,11 @@ provider = {
 };
 
 /**
- * Contextual Scene Reasoning Analyzer:
- * Inspects the unmasked context surrounding the selection/outpaint zone to infer
- * lighting direction, color temperature, chromatic palette, structural orientation,
- * and surface texture/depth-of-field characteristics.
+ * Deep Canvas & Selection Semantic Reasoning Analyzer (Adobe-Surpassing Intelligence):
+ * Inspects both the global canvas and the unmasked context ring vs. interior of the selection
+ * to deduce scene category, surrounding material, foreground occlusion vs. scene completion intent,
+ * lighting vector, color temperature, structural orientation, and depth-of-field profile.
+ * Works both when userPrompt is blank (Autonomous Fill) and when userPrompt has instructions.
  */
 export function analyzeSceneContextForGenerativeFill(
   source: Bitmap8,
@@ -157,12 +186,16 @@ export function analyzeSceneContextForGenerativeFill(
   const H = source.height;
   const N = W * H;
 
-  // Compute distance outside the hole to isolate the immediate context ring (4px..48px outside mask)
+  // Compute distance outside the hole to isolate the immediate context ring (2px..48px outside mask)
   const distOut = computeEuclideanDistanceTransform(hole.data, W, H, 1);
 
   let sumR = 0, sumG = 0, sumB = 0;
   let sumSqR = 0, sumSqG = 0, sumSqB = 0;
   let ringCount = 0;
+
+  let intSumR = 0, intSumG = 0, intSumB = 0;
+  let intCount = 0;
+  let maskCenterY = 0;
 
   let topLuma = 0, topCnt = 0;
   let botLuma = 0, botCnt = 0;
@@ -185,8 +218,15 @@ export function analyzeSceneContextForGenerativeFill(
       const b = source.data[p4 + 2];
       const luma = 0.299 * r + 0.587 * g + 0.114 * b;
 
-      // Global unmasked lighting quadrants
-      if (hole.data[idx] < 16) {
+      // Selection interior statistics (to detect if an object/occlusion is inside the selection)
+      if (hole.data[idx] >= 128) {
+        intSumR += r;
+        intSumG += g;
+        intSumB += b;
+        maskCenterY += y;
+        intCount++;
+      } else if (hole.data[idx] < 16) {
+        // Global unmasked lighting quadrants
         if (y < H * 0.5) { topLuma += luma; topCnt++; } else { botLuma += luma; botCnt++; }
         if (x < W * 0.5) { leftLuma += luma; leftCnt++; } else { rightLuma += luma; rightCnt++; }
       }
@@ -247,6 +287,18 @@ export function analyzeSceneContextForGenerativeFill(
   const stdG = ringCount > 0 ? Math.sqrt(Math.max(1, sumSqG * invCount - meanG * meanG)) : 32;
   const stdB = ringCount > 0 ? Math.sqrt(Math.max(1, sumSqB * invCount - meanB * meanB)) : 32;
 
+  const intMeanR = intCount > 0 ? intSumR / intCount : meanR;
+  const intMeanG = intCount > 0 ? intSumG / intCount : meanG;
+  const intMeanB = intCount > 0 ? intSumB / intCount : meanB;
+  const normCy = intCount > 0 ? (maskCenterY / intCount) / Math.max(1, H) : 0.5;
+
+  // Color divergence between interior of selection and surrounding perimeter ring
+  const colorDivergence = Math.sqrt(
+    (meanR - intMeanR) * (meanR - intMeanR) +
+    (meanG - intMeanG) * (meanG - intMeanG) +
+    (meanB - intMeanB) * (meanB - intMeanB)
+  );
+
   const avgLuma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB;
   const avgTop = topCnt > 0 ? topLuma / topCnt : avgLuma;
   const avgBot = botCnt > 0 ? botLuma / botCnt : avgLuma;
@@ -269,9 +321,13 @@ export function analyzeSceneContextForGenerativeFill(
     lightingDescriptor = horizLightDiff > 0 ? 'soft side lighting from left' : 'soft side lighting from right';
   }
 
-  // 2. Color temperature & chromatic palette reasoning
+  // 2. Color temperature, chromatic palette & surrounding material deduction
   const warmth = meanR - meanB;
   const greenMagenta = meanG - 0.5 * (meanR + meanB);
+  const skyIndex = meanB - 0.5 * (meanR + meanG);
+  const isSkinTone =
+    meanR > 95 && meanG > 40 && meanB > 20 && meanR > meanG && meanG > meanB && (meanR - meanG) > 12 && warmth < 95;
+
   let paletteDescriptor = 'neutral true-to-life color balance';
   if (warmth > 32) {
     paletteDescriptor = 'warm golden-amber color temperature';
@@ -298,6 +354,7 @@ export function analyzeSceneContextForGenerativeFill(
   // 4. Structural orientation reasoning
   const avgGx = gradSamples > 0 ? horizGradSum / gradSamples : 10;
   const avgGy = gradSamples > 0 ? vertGradSum / gradSamples : 10;
+  const edgeEnergy = avgGx + avgGy;
   let structureDescriptor = 'seamless structural continuity';
   if (avgGy > avgGx * 1.45) {
     structureDescriptor = 'continuous horizontal horizon and perspective lines';
@@ -305,16 +362,69 @@ export function analyzeSceneContextForGenerativeFill(
     structureDescriptor = 'continuous vertical architectural/structural alignment';
   }
 
-  const cleanUserPrompt = userPrompt.trim();
-  const isRemovalIntent =
-    !cleanUserPrompt ||
-    /^(remove|delete|erase|clean|clear|empty|fill|seamless|background)/i.test(cleanUserPrompt);
+  // 5. Deduce canvas scene category & surrounding material around the selection
+  let sceneCategory = 'Photographic Scene';
+  let surroundingMaterial = 'natural photographic environment and continuous surface material';
+  if (skyIndex > 18 && normCy < 0.58) {
+    sceneCategory = 'Outdoor Sky & Horizon';
+    surroundingMaterial = 'atmospheric sky, cloud formations, and natural horizon gradient';
+  } else if (greenMagenta > 14) {
+    sceneCategory = 'Botanical & Natural Landscape';
+    surroundingMaterial = 'organic natural foliage, leaves, and terrain texture';
+  } else if (isSkinTone && warmth > 18) {
+    sceneCategory = 'Portrait & Character Subject';
+    surroundingMaterial = 'natural portrait skin texture, organic tonal transitions, and garment detail';
+  } else if (skyIndex > 14 && normCy >= 0.58) {
+    sceneCategory = 'Coastal & Water Surface';
+    surroundingMaterial = 'water surface, natural ripples, and environmental reflections';
+  } else if (edgeEnergy > 20 && Math.abs(warmth) < 26) {
+    sceneCategory = 'Architectural & Perspective Scene';
+    surroundingMaterial = 'architectural surfaces, perspective geometry, and realistic structural material';
+  } else if (avgLuma < 65) {
+    sceneCategory = 'Cinematic Low-Key Scene';
+    surroundingMaterial = 'low-key cinematic environment, atmospheric shadows, and ambient lighting';
+  }
 
-  const enrichedPrompt = isRemovalIntent
-    ? `Seamless background continuation, ${structureDescriptor}, ${lightingDescriptor}, ${paletteDescriptor}, ${textureDescriptor}, photorealistic, zero artifacts`
-    : `${cleanUserPrompt}, integrated seamlessly into scene with ${lightingDescriptor}, ${paletteDescriptor}, ${textureDescriptor}, ${structureDescriptor}, photorealistic`;
+  // 6. Classify User Intent (Blank Autonomous vs. Explicit Remove vs. Guided Creative Prompt)
+  const cleanUserPrompt = userPrompt.trim();
+  const isBlankPrompt =
+    cleanUserPrompt.length === 0 ||
+    /^seamless\s+natural\s+texture/i.test(cleanUserPrompt) ||
+    /^scene-aware\s+fill/i.test(cleanUserPrompt);
+
+  const isExplicitRemove =
+    !isBlankPrompt &&
+    /^(remove|delete|erase|clean|clear|empty|seamless\s+background)/i.test(cleanUserPrompt);
+
+  let inferredIntent: GenerativeInpaintIntent;
+  let intentLabel: string;
+  let enrichedPrompt: string;
+
+  if (isExplicitRemove) {
+    inferredIntent = 'explicit_remove';
+    intentLabel = `Remove Object · Reconstruct ${sceneCategory}`;
+    enrichedPrompt = `Seamless background continuation of ${surroundingMaterial}, ${structureDescriptor}, ${lightingDescriptor}, ${paletteDescriptor}, ${textureDescriptor}, photorealistic, clean unobstructed background, zero artifacts`;
+  } else if (isBlankPrompt) {
+    if (colorDivergence > 14.0) {
+      inferredIntent = 'autonomous_remove';
+      intentLabel = `Auto-Remove Occlusion · Complete ${sceneCategory}`;
+    } else {
+      inferredIntent = 'autonomous_complete';
+      intentLabel = `Auto-Complete ${sceneCategory}`;
+    }
+    enrichedPrompt = `Logically completed ${surroundingMaterial}, seamless continuation of scene, ${structureDescriptor}, ${lightingDescriptor}, ${paletteDescriptor}, ${textureDescriptor}, coherent perspective, photorealistic, 8k`;
+  } else {
+    inferredIntent = 'guided';
+    intentLabel = `Guided Fill · Integrated into ${sceneCategory}`;
+    enrichedPrompt = `${cleanUserPrompt}, physically integrated into ${surroundingMaterial} with ${lightingDescriptor}, ${paletteDescriptor}, ${textureDescriptor}, ${structureDescriptor}, realistic contact shadows and ambient light bounce, photorealistic`;
+  }
 
   return {
+    sceneCategory,
+    surroundingMaterial,
+    inferredIntent,
+    intentLabel,
+    colorDivergence: Math.round(colorDivergence * 10) / 10,
     lightingDescriptor,
     paletteDescriptor,
     textureDescriptor,
@@ -326,13 +436,18 @@ export function analyzeSceneContextForGenerativeFill(
 }
 
 /**
- * Matches the local color mean and standard deviation of the synthesized region's transition
- * boundary to the surrounding unmasked source photograph, eliminating lighting/color seams.
+ * Dual-Mode Boundary & Interior Color Harmonization:
+ * - For Autonomous Fill / Removal / Outpainting ('autonomous_remove' | 'autonomous_complete' | 'explicit_remove'):
+ *   Matches mean and std of RGB across both boundary and interior so the patched area vanishes into the photo.
+ * - For Guided Object Synthesis ('guided'):
+ *   Preserves 100% of the generated object's interior chrominance & contrast while harmonizing ONLY the outer
+ *   14px transition seam so the object sits naturally in the ambient illumination of the canvas.
  */
 function harmonizeSynthesizedBoundaryColors(
   source: Bitmap8,
   synthesized: Bitmap8,
-  hole: Mask8
+  hole: Mask8,
+  intent: GenerativeInpaintIntent = 'autonomous_complete'
 ): void {
   const W = source.width;
   const H = source.height;
@@ -381,18 +496,25 @@ function harmonizeSynthesizedBoundaryColors(
   const sSynG = Math.sqrt(Math.max(4, synSqG / synCnt - mSynG * mSynG));
   const sSynB = Math.sqrt(Math.max(4, synSqB / synCnt - mSynB * mSynB));
 
-  // Clamp gain to [0.65, 1.45] so intentional new objects keep their internal contrast while matching ambient exposure
   const gainR = Math.max(0.65, Math.min(1.45, sRefR / sSynR));
   const gainG = Math.max(0.65, Math.min(1.45, sRefG / sSynG));
   const gainB = Math.max(0.65, Math.min(1.45, sRefB / sSynB));
 
-  // Apply distance-weighted color harmonization across the synthesized region
-  // (100% harmonization at the seam edge, tapering smoothly toward the interior)
+  const isGuidedObject = intent === 'guided';
+
   for (let i = 0; i < N; i++) {
     if (hole.data[i] === 0 && distOut[i] > 16) continue;
     const dIn = distIn[i];
-    // Seam weight is 0.85 near boundary, 0.45 deep inside so new objects still match ambient lighting
-    const seamWeight = dIn <= 28 ? 0.85 - (dIn / 28) * 0.40 : 0.45;
+
+    // For guided objects, only harmonize the 14px perimeter transition ring so the object keeps its true color!
+    if (isGuidedObject && dIn > 14) continue;
+
+    const seamWeight = isGuidedObject
+      ? Math.max(0, 0.65 * (1 - dIn / 14))
+      : dIn <= 28
+        ? 0.85 - (dIn / 28) * 0.40
+        : 0.45;
+
     const p4 = i * 4;
     const r = synthesized.data[p4];
     const g = synthesized.data[p4 + 1];
@@ -595,11 +717,10 @@ export async function executeGenerativeInpaint(
     }
   }
 
-  // 1. Run Contextual Scene Reasoning
+  // 1. Run Deep Canvas & Selection Semantic Reasoning (works with blank prompt AND guided prompt!)
   const sceneReasoning = analyzeSceneContextForGenerativeFill(source, binary, rawPrompt);
-  const isRemovalOrSeamless =
-    !rawPrompt ||
-    /^(remove|delete|erase|clean|clear|empty|seamless\s+natural\s+texture|clean\s+empty\s+background)/i.test(rawPrompt);
+  const intent = sceneReasoning.inferredIntent;
+  const selectedModel: GenerativeFillModelId = params.local ? 'patchmatch' : (params.modelId || 'flux3_klein');
 
   // 2. Always run Multi-Scale PatchMatch first to create a structurally & chromatically
   //    continuous pre-filled base (eliminates gray-hole artifacts and serves as exact fallback!)
@@ -616,9 +737,9 @@ export async function executeGenerativeInpaint(
   let finalBitmap: Bitmap8 = patchMatchFilled;
   let engine = 'patchmatch';
 
-  // 3. If user provided a creative prompt (or GPU sidecar is available for semantic synthesis),
-  //    run native-resolution Context Crop-and-Stitch on the pre-conditioned bitmap!
-  if (provider && !params.local && (!isRemovalOrSeamless || rawPrompt.length > 0)) {
+  // 3. Always run Native-Resolution Context Crop-and-Stitch via FLUX.3 [klein] by default
+  //    (both when there is NO instruction and when there IS an instruction!)
+  if (provider && selectedModel !== 'patchmatch') {
     try {
       // Compute context crop box around the mask with generous context padding (min 512x512)
       const maskW = Math.max(16, maxX - minX + 1);
@@ -662,6 +783,13 @@ export async function executeGenerativeInpaint(
         maskRgba[p4 + 3] = 255;
       }
 
+      const optimalStrength =
+        intent === 'guided'
+          ? (params.strength ?? 0.96)
+          : intent === 'autonomous_complete'
+            ? (params.strength ?? 0.76)
+            : (params.strength ?? 0.68);
+
       const gpuCropDataUrl = await provider.fill({
         image: await toBlob(croppedPreFilled),
         mask: await toBlob({ width: cropW, height: cropH, data: maskRgba }),
@@ -670,7 +798,9 @@ export async function executeGenerativeInpaint(
         width: cropW,
         height: cropH,
         seed,
-        strength: isRemovalOrSeamless ? 0.62 : (params.strength ?? 0.88),
+        strength: optimalStrength,
+        modelId: selectedModel,
+        inpaintMode: intent,
       });
 
       const gpuCropBitmap = await loadBitmap(gpuCropDataUrl, cropW, cropH);
@@ -688,7 +818,7 @@ export async function executeGenerativeInpaint(
       }
 
       finalBitmap = stitched;
-      engine = provider.id;
+      engine = selectedModel;
     } catch {
       // PatchMatch pre-filled bitmap is already computed and ready!
       finalBitmap = patchMatchFilled;
@@ -696,19 +826,19 @@ export async function executeGenerativeInpaint(
     }
   }
 
-  // 4. Harmonize boundary luminance & chrominance with surrounding unmasked pixels
-  harmonizeSynthesizedBoundaryColors(source, finalBitmap, binary);
+  // 4. Dual-Mode Boundary & Interior Color Harmonization
+  harmonizeSynthesizedBoundaryColors(source, finalBitmap, binary, intent);
 
   // 5. Generate smooth distance-feathered alpha mask so the non-destructive layer blends seamlessly
   const featheredMaskBm = createDistanceFeatheredMaskBitmap(binary, params.featherRadius ?? 12);
   const featheredMaskUrl = bitmapToDataUrl(featheredMaskBm);
   const synthesizedDataUrl = bitmapToDataUrl(finalBitmap);
 
-  const promptApplied = rawPrompt || `Scene-Aware Fill (${sceneReasoning.lightingDescriptor})`;
+  const promptApplied = rawPrompt || sceneReasoning.intentLabel;
 
   const newLayer: TelaImageLayer = {
     id: `lyr_inpaint_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    name: `${engine === 'patchmatch' ? 'Scene Fill' : 'Gen Fill'}: ${promptApplied.slice(0, 26)}…`,
+    name: `${engine === 'patchmatch' ? 'Scene Fill' : 'Gen Fill'}: ${promptApplied.slice(0, 28)}`,
     src: synthesizedDataUrl,
     visible: true,
     opacity: 1,
@@ -729,6 +859,7 @@ export async function executeGenerativeInpaint(
     promptApplied,
     sceneReasoning,
     engine,
+    modelUsed: engine === 'flux3_klein' ? 'FLUX.3 [klein] 5.6B' : engine,
     ms: Math.round(performance.now() - t0),
   };
 }
@@ -736,7 +867,7 @@ export async function executeGenerativeInpaint(
 /**
  * Executes Contextual Scene-Reasoned Canvas Outpainting (expanding canvas left/top/right/bottom).
  * Pre-fills expanded borders using Reflective Harmonic Extrapolation + Multi-Scale PatchMatch,
- * then refines via the local NVIDIA RTX GPU sidecar (if running) with a 32px feathered overlap seam.
+ * then refines via the local NVIDIA RTX GPU sidecar using FLUX.3 [klein] with a 24px feathered overlap seam.
  */
 export async function executeGenerativeOutpaint(
   params: OutpaintParams,
@@ -746,6 +877,7 @@ export async function executeGenerativeOutpaint(
   const seed = params.seed ?? Math.floor(Math.random() * 1000000);
   const srcW = Math.max(1, Math.round(canvasDims.width));
   const srcH = Math.max(1, Math.round(canvasDims.height));
+  const selectedModel: GenerativeFillModelId = params.modelId || 'flux3_klein';
 
   const padL = Math.max(0, Math.round(params.outpaint.left || 0));
   const padT = Math.max(0, Math.round(params.outpaint.top || 0));
@@ -768,7 +900,6 @@ export async function executeGenerativeOutpaint(
   const overlapPx = 16;
 
   for (let y = 0; y < newH; y++) {
-    // Mirror coordinate into [0, srcH - 1]
     let sy = y - padT;
     if (sy < 0) sy = Math.min(srcH - 1, -sy);
     else if (sy >= srcH) sy = Math.max(0, 2 * srcH - 2 - sy);
@@ -801,7 +932,7 @@ export async function executeGenerativeOutpaint(
   const sceneReasoning = analyzeSceneContextForGenerativeFill(
     expandedBm,
     outpaintHole,
-    params.prompt || 'Extended panoramic scenery, continuous horizon and environment'
+    params.prompt || ''
   );
 
   // Run Multi-Scale PatchMatch across the expanded borders so texture & perspective lines extrapolate cleanly
@@ -813,8 +944,12 @@ export async function executeGenerativeOutpaint(
   });
   let engine = 'patchmatch_outpaint';
 
-  // If Local GPU sidecar is online, refine the PatchMatch-seeded outpaint canvas with SDXL
-  const eps = ['http://127.0.0.1:51122/generate', 'http://localhost:51122/generate'];
+  // Refine the PatchMatch-seeded outpaint canvas with FLUX.3 [klein] on the local GPU sidecar
+  const eps = [
+    'http://127.0.0.1:51122/tela/inpaint',
+    'http://127.0.0.1:51122/generate',
+    'http://localhost:51122/generate',
+  ];
   const preFilledUrl = bitmapToDataUrl(synthesizedBm);
   const maskRgba = new Uint8ClampedArray(newW * newH * 4);
   for (let i = 0; i < outpaintHole.data.length; i++) {
@@ -827,38 +962,48 @@ export async function executeGenerativeOutpaint(
   }
   const maskUrl = bitmapToDataUrl({ width: newW, height: newH, data: maskRgba });
 
-  for (const ep of eps) {
-    try {
-      const resp = await fetch(ep, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          task: {
-            taskType: 'cinema_generate',
-            prompt: sceneReasoning.enrichedPrompt,
-            dimensions: { width: newW, height: newH },
-            seed,
-            strength: 0.78,
-            sourceImage: preFilledUrl,
-            maskImage: maskUrl,
-          },
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data?.mediaUrl) {
-          synthesizedBm = await loadBitmap(data.mediaUrl, newW, newH);
-          engine = 'local_gpu_nvidia_outpaint';
-          break;
+  if (selectedModel !== 'patchmatch') {
+    for (const ep of eps) {
+      try {
+        const resp = await fetch(ep, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            outputFormat: 'png',
+            clientSupportsJxlDecode: false,
+            inpaintMode: params.prompt?.trim() ? 'guided' : 'autonomous_complete',
+            task: {
+              taskType: 'cinema_generate',
+              modelId: selectedModel,
+              prompt: sceneReasoning.enrichedPrompt,
+              inpaintMode: params.prompt?.trim() ? 'guided' : 'autonomous_complete',
+              outputFormat: 'png',
+              clientSupportsJxlDecode: false,
+              dimensions: { width: newW, height: newH },
+              seed,
+              strength: params.prompt?.trim() ? 0.86 : 0.76,
+              denoise: params.prompt?.trim() ? 0.86 : 0.76,
+              sourceImage: preFilledUrl,
+              maskImage: maskUrl,
+            },
+          }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data?.mediaUrl) {
+            synthesizedBm = await loadBitmap(data.mediaUrl, newW, newH);
+            engine = selectedModel;
+            break;
+          }
         }
+      } catch {
+        // Keep PatchMatch outpaint result
       }
-    } catch {
-      // Keep PatchMatch outpaint result
     }
   }
 
   // Harmonize boundary colors and blend original interior core with a 24px cosine ramp
-  harmonizeSynthesizedBoundaryColors(expandedBm, synthesizedBm, outpaintHole);
+  harmonizeSynthesizedBoundaryColors(expandedBm, synthesizedBm, outpaintHole, 'autonomous_complete');
   const distIn = computeEuclideanDistanceTransform(outpaintHole.data, newW, newH, 0);
 
   for (let y = 0; y < newH; y++) {

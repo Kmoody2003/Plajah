@@ -14,7 +14,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ImagePlus, Link as LinkIcon, Eye, EyeOff, ChevronUp, ChevronDown, Trash2, Loader2, Wand2, Sparkles, Square, Circle, Lasso, FlipHorizontal, Paintbrush, Eraser, Palette, Pipette, SlidersHorizontal, Printer, X, Film } from 'lucide-react';
 import type { TelaImageDevice, TelaImageLayer, TelaImageAdjust, TelaBlendMode, TelaLayerMask } from '../../types';
 import { uploadTelaImage } from '../../services/telaAssets';
-import { executeGenerativeInpaint } from '../../services/tela/telaInpaintService';
+import { executeGenerativeInpaint, type GenerativeFillModelId } from '../../services/tela/telaInpaintService';
 import { classifyTelaAsset } from '../../services/telaCreativeEngine';
 import { samSegmentationService } from '../../services/samSegmentationService';
 import TelaImageSelectionOverlay from './TelaImageSelectionOverlay';
@@ -116,6 +116,7 @@ export const TelaImageLayerControls: React.FC<{
   const [isSegmenting, setIsSegmenting] = useState(false);
   const [segmentFeedback, setSegmentFeedback] = useState<string | null>(null);
   const [inpaintPrompt, setInpaintPrompt] = useState('');
+  const [inpaintModel, setInpaintModel] = useState<GenerativeFillModelId>('flux3_klein');
   const [isInpainting, setIsInpainting] = useState(false);
   const [inpaintFeedback, setInpaintFeedback] = useState<string | null>(null);
   const [lookGalleryOpen, setLookGalleryOpen] = useState(false);
@@ -123,7 +124,7 @@ export const TelaImageLayerControls: React.FC<{
   const handleGenerativeInpaint = async () => {
     if (!layer.src) return;
     setIsInpainting(true);
-    setInpaintFeedback('Synthesizing with discrete GPU / PatchMatch…');
+    setInpaintFeedback('FLUX.3 [klein] reasoning canvas context & synthesizing…');
     try {
       const W = canvasDims?.width || layer.intrinsicWidth || 1024;
       const H = canvasDims?.height || layer.intrinsicHeight || 1024;
@@ -133,6 +134,7 @@ export const TelaImageLayerControls: React.FC<{
           sourceImageUrl: layer.src,
           maskDataUrl,
           prompt: inpaintPrompt.trim(),
+          modelId: inpaintModel,
         },
         { width: W, height: H }
       );
@@ -142,8 +144,13 @@ export const TelaImageLayerControls: React.FC<{
         } else {
           onUpdate({ ...res.newLayer });
         }
-        setInpaintFeedback(`Synthesized ${res.engine || 'fill'} in ${res.ms || 0}ms`);
-        setTimeout(() => setInpaintFeedback(null), 3000);
+        const sr = res.sceneReasoning;
+        setInpaintFeedback(
+          sr
+            ? `✨ ${res.modelUsed || 'FLUX.3 [klein]'} · ${sr.intentLabel} (${res.ms || 0}ms)`
+            : `Synthesized ${res.modelUsed || res.engine || 'fill'} in ${res.ms || 0}ms`
+        );
+        setTimeout(() => setInpaintFeedback(null), 4000);
       }
     } catch (err: any) {
       setInpaintFeedback(`Inpaint error: ${err.message || 'failed'}`);
@@ -260,16 +267,39 @@ export const TelaImageLayerControls: React.FC<{
 
         {/* Generative Fill & Inpaint Section */}
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
             <div style={lbl}>Generative Fill & Inpaint</div>
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#38bdf8' }}>Non-Destructive</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#38bdf8' }}>⚡ FLUX.3 [klein] Default</span>
           </div>
+
+          <select
+            value={inpaintModel}
+            onChange={(e) => setInpaintModel(e.target.value as GenerativeFillModelId)}
+            style={{
+              width: '100%',
+              height: 26,
+              borderRadius: 6,
+              background: '#14121a',
+              border: '1px solid rgba(0,218,243,.32)',
+              color: '#8ff5ff',
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '0 6px',
+              outline: 'none',
+              marginBottom: 5,
+            }}
+          >
+            <option value="flux3_klein">⚡ FLUX.3 [klein] 5.6B (Default — Scene-Reasoned)</option>
+            <option value="flux2_klein_4b">FLUX.2 [klein] 4B (Fast Distilled)</option>
+            <option value="sdxl_turbo">SDXL Turbo (1-Step Real-Time)</option>
+            <option value="patchmatch">PatchMatch Content-Aware (CPU Only)</option>
+          </select>
 
           <input
             type="text"
             value={inpaintPrompt}
             onChange={(e) => setInpaintPrompt(e.target.value)}
-            placeholder="Prompt (or blank for Content-Aware Fill)…"
+            placeholder="Describe what to generate (or blank for AI Scene Fill)…"
             style={{
               width: '100%',
               height: 28,

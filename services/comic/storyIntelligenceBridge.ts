@@ -21,6 +21,11 @@ import { parseScript, ScriptBeat, ScriptCharacter } from '../comicScript';
 import { SHOWCASE_BOOKS, showcaseById, ShowcaseBook } from '../../data/showcase';
 import { SHOWCASE_COMICS, getShowcaseComic } from '../../data/showcase/comics';
 import type { ShowcaseComicBook } from '../../data/showcase/comicTypes';
+import {
+  comicToShowcaseStudioBook,
+  studioPageToComicMangaPage,
+  showcaseComicToComicMangaPages,
+} from './comicStudioBridge';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. PROSE / STORY ──▶ AUTOMATIC SEQUENTIAL COMIC BREAKDOWN
@@ -40,6 +45,9 @@ export interface ParsedStoryBeat {
   }>;
   suggestedSfx?: string;
   screentonePattern?: ComicEnginePanel['screentone']['pattern'];
+  lightingCue?: string;
+  diffusionPrompt?: string;
+  continuityNote?: string;
 }
 
 export interface StoryBreakdownResult {
@@ -49,12 +57,38 @@ export interface StoryBreakdownResult {
   beats: ParsedStoryBeat[];
   discoveredCharacters: string[];
   discoveredLocations: string[];
+  inferenceModel?: string;
+  latencyMs?: number;
+}
+
+function getActiveCharacterBibleMap(): Map<string, { name: string; look: string; role: string }> {
+  const map = new Map<string, { name: string; look: string; role: string }>();
+  try {
+    const saved = listSavedCharacters();
+    for (const c of saved) {
+      if (c?.name) {
+        const look = [c.appearance, c.outfit, c.visualPrompt].filter(Boolean).join(', ');
+        map.set(c.name.toUpperCase(), { name: c.name, look: look || c.role || 'distinctive protagonist', role: c.role || 'Hero' });
+      }
+    }
+  } catch {}
+  try {
+    const handoff = peekComicHandoff();
+    if (handoff?.characters) {
+      for (const c of handoff.characters) {
+        if (c?.name && !map.has(c.name.toUpperCase())) {
+          map.set(c.name.toUpperCase(), { name: c.name, look: c.look || c.role || 'distinctive character', role: c.role || 'Cast' });
+        }
+      }
+    }
+  } catch {}
+  return map;
 }
 
 /**
  * Intelligent Story Parser:
  * Analyzes natural prose, fairy tales, or movie scripts and decomposes them into
- * camera-aware sequential panels with extracted dialogue and sound effects.
+ * camera-aware sequential panels with extracted dialogue, sound effects, and Character Bible continuity prompts.
  */
 export function decomposeProseToComicBeats(proseText: string, title = 'Untitled Story'): StoryBreakdownResult {
   const paragraphs = proseText
@@ -66,6 +100,7 @@ export function decomposeProseToComicBeats(proseText: string, title = 'Untitled 
   const discoveredCharacters = new Set<string>();
   const discoveredLocations = new Set<string>();
   const beats: ParsedStoryBeat[] = [];
+  const bibleMap = getActiveCharacterBibleMap();
 
   const cameraSequence: ComicEnginePanel['cameraShot'][] = [
     'establishing',
@@ -74,6 +109,8 @@ export function decomposeProseToComicBeats(proseText: string, title = 'Untitled 
     'low_angle_hero',
     'extreme_close_up',
   ];
+
+  let prevEnvironment = '';
 
   rawLines.forEach((para, idx) => {
     // Regex to detect spoken dialogue: "...", '...', or CHARACTER: ...
@@ -98,47 +135,128 @@ export function decomposeProseToComicBeats(proseText: string, title = 'Untitled 
       });
     }
 
+    // Also scan for known Character Bible names in prose
+    bibleMap.forEach((entry) => {
+      if (para.toLowerCase().includes(entry.name.toLowerCase())) {
+        discoveredCharacters.add(entry.name);
+      }
+    });
+
     // Strip quotes to get clean narrative action
     const actionText = para.replace(/["“][^"”]+["”]/g, '').trim() || para;
 
     // Detect environment hints
-    let environment = 'Scenic setting';
+    let environment = prevEnvironment || 'Atmospheric Scene';
     const lower = para.toLowerCase();
-    if (lower.includes('rain') || lower.includes('alley') || lower.includes('street')) environment = 'Rainy City Alley';
-    else if (lower.includes('forest') || lower.includes('wood') || lower.includes('tree')) environment = 'Enchanted Forest';
-    else if (lower.includes('castle') || lower.includes('room') || lower.includes('palace')) environment = 'Castle Interior';
-    else if (lower.includes('space') || lower.includes('ship') || lower.includes('star')) environment = 'Starship Bridge';
-    else if (lower.includes('school') || lower.includes('class')) environment = 'School Courtyard';
+    if (lower.includes('rain') || lower.includes('alley') || lower.includes('street') || lower.includes('neon')) environment = 'Rain-slicked Neon Alleyway';
+    else if (lower.includes('forest') || lower.includes('wood') || lower.includes('tree')) environment = 'Enchanted Bioluminescent Forest';
+    else if (lower.includes('castle') || lower.includes('room') || lower.includes('palace') || lower.includes('cathedral')) environment = 'Vaulted Gothic Interior';
+    else if (lower.includes('space') || lower.includes('ship') || lower.includes('star') || lower.includes('orbit')) environment = 'Orbital Starship Bridge';
+    else if (lower.includes('school') || lower.includes('class')) environment = 'Sunlit Academy Courtyard';
     discoveredLocations.add(environment);
 
     // Detect potential SFX words
     let suggestedSfx: string | undefined;
-    if (lower.includes('crash') || lower.includes('bang')) suggestedSfx = 'CRASH!';
+    if (lower.includes('crash') || lower.includes('bang') || lower.includes('shatter')) suggestedSfx = 'KRA-KOOM!';
     else if (lower.includes('boom') || lower.includes('blast') || lower.includes('explod')) suggestedSfx = 'BOOM!';
-    else if (lower.includes('shing') || lower.includes('sword') || lower.includes('blade')) suggestedSfx = 'SHING!';
-    else if (lower.includes('whoosh') || lower.includes('flew') || lower.includes('ran')) suggestedSfx = 'WHOOSH!';
-    else if (lower.includes('sparks') || lower.includes('electric')) suggestedSfx = 'CRACKLE!';
+    else if (lower.includes('shing') || lower.includes('sword') || lower.includes('blade') || lower.includes('draw')) suggestedSfx = 'SHING!';
+    else if (lower.includes('whoosh') || lower.includes('flew') || lower.includes('ran') || lower.includes('dash')) suggestedSfx = 'FWOOSH!';
+    else if (lower.includes('sparks') || lower.includes('electric') || lower.includes('neon')) suggestedSfx = 'BZZT-SNAP!';
 
-    beats.push({
-      panelIndex: idx,
-      cameraShot: cameraSequence[idx % cameraSequence.length],
-      environment,
-      actionSummary: actionText.slice(0, 160),
-      charactersPresent: Array.from(discoveredCharacters).slice(0, 2),
-      dialogueLines: dialogues,
-      suggestedSfx,
-      screentonePattern: idx === 0 ? 'dots_fine' : idx === rawLines.length - 1 ? 'speed_lines' : 'dots_coarse',
-    });
+    const shot = cameraSequence[idx % cameraSequence.length];
+    const charsPresent = Array.from(discoveredCharacters).slice(0, 3);
+    const visualAnchors = charsPresent
+      .map((c) => {
+        const entry = bibleMap.get(c.toUpperCase());
+        return entry ? `${entry.name} (${entry.look})` : c;
+      })
+      .join(', ');
+
+    const lightingCue = lower.includes('neon') || lower.includes('rain')
+      ? 'High-contrast cyberpunk neon rim-lighting with wet reflections'
+      : 'Dramatic chiaroscuro key lighting with deep ink shadows';
+
+    const continuityNote = prevEnvironment === environment
+      ? `Maintains spatial & costume lock in ${environment} from Panel ${idx}`
+      : `Establishes ${environment} spatial axis & locks character attire`;
+    prevEnvironment = environment;
+
+    const diffusionPrompt = [
+      `${shot.replace(/_/g, ' ')} camera shot`,
+      actionText.slice(0, 140),
+      visualAnchors ? `featuring ${visualAnchors}` : '',
+      `setting: ${environment}`,
+      `lighting: ${lightingCue}`,
+      'masterpiece sequential comic book art, crisp ink lineart, dramatic framing',
+    ].filter(Boolean).join(', ');
+
+    // Strip pure camera jargon so script direction never enters comic frame captions
+    const cleanVisualSummary = actionText
+      .replace(
+        /^(?:PANEL\s+\d+\s*:?\s*)?(?:extreme\s+wide\s+shot|wide\s+shot|medium\s+wide\s+shot|medium\s+shot|medium\s+close[- ]?up|close[- ]?up|extreme\s+close[- ]?up|two[- ]?shot|over[- ]?the[- ]?shoulder\s+shot|pov\s+shot|establishing\s+shot|ews|ws|mws|ms|mcu|cu|ecu|ots|pov)\b\s*(?:of|on|showing|framing|:|-|—)?\s*/gi,
+        ''
+      )
+      .replace(/\bthe\s+camera\s+(?:pans|tilts|tracks|dollies|zooms|pulls\s+back|pushes\s+in|follows|holds)[^.;,]*[.,;]?/gi, '')
+      .trim();
+
+    // Break long strings of dialogue into breath-sized clauses (<= 100 chars) and max 2 per panel
+    const splitDialogues: ParsedStoryBeat['dialogueLines'] = [];
+    for (const d of dialogues) {
+      const clauses = d.text.length <= 100
+        ? [d.text]
+        : d.text.split(/(?<=[.!?—;])\s+/).filter(Boolean);
+      clauses.forEach((cl, cIdx) => {
+        splitDialogues.push({
+          speaker: d.speaker,
+          text: cl.trim(),
+          type: d.type,
+          tailDirection: (splitDialogues.length + cIdx) % 2 === 0 ? 'bottom_left' : 'bottom_right',
+        });
+      });
+    }
+
+    if (splitDialogues.length <= 2) {
+      beats.push({
+        panelIndex: beats.length + 1,
+        cameraShot: shot,
+        environment,
+        actionSummary: cleanVisualSummary.slice(0, 140),
+        charactersPresent: charsPresent,
+        dialogueLines: splitDialogues,
+        suggestedSfx,
+        screentonePattern: idx === 0 ? 'dots_fine' : idx === rawLines.length - 1 ? 'speed_lines' : 'dots_coarse',
+        lightingCue,
+        diffusionPrompt,
+        continuityNote,
+      });
+    } else {
+      for (let s = 0; s < splitDialogues.length; s += 2) {
+        const subSlice = splitDialogues.slice(s, s + 2);
+        const subShot = cameraSequence[(idx + Math.floor(s / 2)) % cameraSequence.length];
+        beats.push({
+          panelIndex: beats.length + 1,
+          cameraShot: subShot,
+          environment,
+          actionSummary: s === 0 ? cleanVisualSummary.slice(0, 140) : '',
+          charactersPresent: charsPresent,
+          dialogueLines: subSlice,
+          suggestedSfx: s === 0 ? suggestedSfx : undefined,
+          screentonePattern: s === 0 ? 'dots_fine' : 'speed_lines',
+          lightingCue,
+          diffusionPrompt,
+          continuityNote,
+        });
+      }
+    }
   });
 
-  // Pick optimal layout template based on count
-  let recommendedLayoutId = 'grid_6_classic';
-  if (beats.length <= 1) recommendedLayoutId = 'picture_book_top_bottom';
-  else if (beats.length === 2) recommendedLayoutId = 'bedtime_split_2';
-  else if (beats.length === 3) recommendedLayoutId = 'sunday_funnies_3';
-  else if (beats.length === 4) recommendedLayoutId = 'storybook_grid_4';
-  else if (beats.length === 5) recommendedLayoutId = 'shonen_dynamic_5';
-  else recommendedLayoutId = 'grid_6_classic';
+  // Pick dynamic, non-boring editorial layout template based on beat count
+  let recommendedLayoutId = 'shonen_dynamic_5';
+  if (beats.length <= 2) recommendedLayoutId = 'bedtime_split_2';
+  else if (beats.length === 3) recommendedLayoutId = 'inset-reveal';
+  else if (beats.length === 4) recommendedLayoutId = 'hero-strip';
+  else if (beats.length === 5) recommendedLayoutId = 'action-diagonal';
+  else recommendedLayoutId = 'cinematic-5';
 
   return {
     title,
@@ -147,13 +265,17 @@ export function decomposeProseToComicBeats(proseText: string, title = 'Untitled 
     beats,
     discoveredCharacters: Array.from(discoveredCharacters),
     discoveredLocations: Array.from(discoveredLocations),
+    inferenceModel: 'deterministic-continuity-heuristic',
+    latencyMs: 2,
   };
 }
 
 export interface StoryIntelligenceOptions {
   title?: string;
   style?: ComicMangaPage['stylePreset'];
-  modelPreference?: 'gemma-2-2b' | 'nemotron-4b';
+  modelPreference?: 'gemma-2-2b' | 'nemotron-4b' | 'muse-spark' | 'cascade';
+  characterBible?: Array<{ name: string; look?: string; visualAnchor?: string; role?: string }>;
+  worldLore?: Array<{ title: string; summary: string }>;
   timeoutMs?: number;
 }
 
@@ -175,10 +297,9 @@ export interface StoryCouncilCritiqueResult {
 }
 
 /**
- * Platform-wide On-Device Story Intelligence Deconstructor:
- * Uses Google Gemma 2 2B for ultra-fast beat splitting, speech-to-comic breakdown,
- * and camera angle choreography on discrete NVIDIA RTX GPU (~120-140 t/s).
- * Falls back to synchronous deterministic heuristic if sidecar is unavailable.
+ * Platform-wide On-Device Story Intelligence Deconstructor v2.0:
+ * Supports Dual-Resident GPU Pool ('gemma-2-2b', 'nemotron-4b', or 'cascade' Dual-Engine Speculative Cascade)
+ * with automatic Character Bible visual anchor injection and grammar-constrained JSON output.
  */
 export async function decomposeProseToComicBeatsAsync(
   proseText: string,
@@ -186,18 +307,36 @@ export async function decomposeProseToComicBeatsAsync(
 ): Promise<StoryBreakdownResult> {
   const title = options?.title || 'Untitled Story';
   const style = options?.style || (proseText.toLowerCase().includes('kid') || proseText.toLowerCase().includes('once upon') ? 'storybook_watercolor' : 'manga');
-  const model = options?.modelPreference || 'gemma-2-2b';
+  const model = options?.modelPreference || 'cascade';
+
+  // Auto-gather Character Bible entries so visual consistency is enforced across panels
+  let characterBible = options?.characterBible;
+  if (!characterBible || characterBible.length === 0) {
+    const bibleMap = getActiveCharacterBibleMap();
+    characterBible = Array.from(bibleMap.values()).map((c) => ({
+      name: c.name,
+      look: c.look,
+      role: c.role,
+    }));
+  }
 
   const endpoints = ['http://127.0.0.1:51122/story-intel/decompose', 'http://localhost:51122/story-intel/decompose'];
 
   for (const ep of endpoints) {
     try {
       const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort(), options?.timeoutMs || 5000);
+      const timeout = setTimeout(() => ctrl.abort(), options?.timeoutMs || 9000);
       const res = await fetch(ep, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prose: proseText, title, style, model }),
+        body: JSON.stringify({
+          prose: proseText,
+          title,
+          style,
+          model,
+          characterBible,
+          worldLore: options?.worldLore || [],
+        }),
         signal: ctrl.signal,
       });
       clearTimeout(timeout);
@@ -211,6 +350,8 @@ export async function decomposeProseToComicBeatsAsync(
             beats: data.beats,
             discoveredCharacters: data.discoveredCharacters || [],
             discoveredLocations: data.discoveredLocations || [],
+            inferenceModel: data.inferenceModel,
+            latencyMs: data.latencyMs,
           };
         }
       }
@@ -219,7 +360,7 @@ export async function decomposeProseToComicBeatsAsync(
     }
   }
 
-  // Fallback to instant local heuristic
+  // Fallback to instant local heuristic with Character Bible injection
   return decomposeProseToComicBeats(proseText, title);
 }
 
@@ -230,7 +371,7 @@ export async function decomposeProseToComicBeatsAsync(
 export async function requestStoryCouncilCritique(
   manuscript: string,
   councilMembers?: string[],
-  modelPreference: 'nemotron-4b' | 'gemma-2-2b' = 'nemotron-4b'
+  modelPreference: 'nemotron-4b' | 'gemma-2-2b' | 'muse-spark' = 'muse-spark'
 ): Promise<StoryCouncilCritiqueResult> {
   const members = councilMembers || ['Cinematographer', 'Dialogue Coach', 'Pacing Editor', 'Lore Architect'];
   const endpoints = ['http://127.0.0.1:51122/story-intel/council', 'http://localhost:51122/story-intel/council'];
@@ -894,111 +1035,24 @@ export function convertShowcaseBookToStorybookContext(
 
 /**
  * Converts a canonical ShowcaseComicBook into a live ComicMangaPage
- * for Mode A (Master Sequential Studio).
+ * for Mode A (Master Sequential Studio), preserving all Council V4 metadata.
  */
 export function convertShowcaseComicToStudioPage(
   comic: ShowcaseComicBook,
   pageIndex = 0
 ): ComicMangaPage {
-  const page = comic.pages[pageIndex] || comic.pages[0];
-  const isManga = comic.genre === 'seinen-kinetic' || comic.genre === 'shojo-gothic';
-
-  // Pick layout template matching panel count
-  const panelCount = page.panels.length;
-  let layoutId = 'grid_6_classic';
-  if (panelCount === 1) layoutId = 'picture_book_top_bottom';
-  else if (panelCount === 2) layoutId = 'bedtime_split_2';
-  else if (panelCount === 3) layoutId = 'sunday_funnies_3';
-  else if (panelCount === 4) layoutId = 'storybook_grid_4';
-  else if (panelCount === 5) layoutId = 'shonen_dynamic_5';
-  else layoutId = 'grid_6_classic';
-
-  const template = PANEL_LAYOUT_TEMPLATES[layoutId] || PANEL_LAYOUT_TEMPLATES.grid_6_classic;
-  const boxes = template.createBoxes(1.2);
-
-  const panels: ComicEnginePanel[] = page.panels.map((p, idx) => {
-    const box = boxes[idx % boxes.length] || { x: 5, y: 5 + idx * 30, width: 90, height: 28 };
-
-    // Map dialogue balloons
-    const balloons: ComicVectorBalloon[] = p.balloons.map((b, bIdx) => ({
-      id: `balloon_${pageIndex}_${idx}_${bIdx}`,
-      speaker: b.speaker,
-      text: b.text,
-      x: box.x + 8 + bIdx * 20,
-      y: box.y + 6 + bIdx * 15,
-      width: Math.min(220, Math.max(120, b.text.length * 5)),
-      height: Math.min(100, Math.max(50, Math.ceil(b.text.length / 25) * 22)),
-      balloonType: b.balloonType === 'shout' ? 'shout' : b.balloonType === 'thought' ? 'thought' : b.balloonType === 'whisper' ? 'whisper' : 'speech',
-      tailDirection: bIdx % 2 === 0 ? 'bottom_left' : 'bottom_right',
-      tailTipX: box.x + 12 + bIdx * 20,
-      tailTipY: box.y + 24 + bIdx * 15,
-      fontSize: 13,
-      fontFamily: isManga ? 'Manga Temple, CC Wild Words, sans-serif' : 'Comic Craft, Anime Ace, sans-serif',
-      fillColor: '#FFFFFF',
-      strokeColor: '#000000',
-      strokeWidth: 2,
-    }));
-
-    // Motion effects (cinemagraph, video loop)
-    let motionClip: ComicEnginePanel['motionClip'] = undefined;
-    if (idx === 0 || p.actionDescription.toLowerCase().includes('rain') || p.actionDescription.toLowerCase().includes('glow')) {
-      motionClip = {
-        cinemagraphEffect: p.actionDescription.toLowerCase().includes('rain') ? 'rain' : 'embers',
-        isLooping: true,
-        playbackSpeed: 1.0,
-      };
-    }
-
-    return {
-      id: `p_${pageIndex}_${idx}`,
-      x: box.x,
-      y: box.y,
-      width: box.width,
-      height: box.height,
-      borderStyle: isManga ? 'manga_ink' : 'heavy_american',
-      borderThickness: isManga ? 2.5 : 3.5,
-      borderColor: '#0f172a',
-      backgroundFill: '#FFFFFF',
-      prompt: `${comic.genre} style: ${p.actionDescription}. Lighting: ${p.lightingEnvironment}`,
-      imageState: 'placeholder',
-      cameraShot: (p.cameraShot as any) || 'medium',
-      motionClip,
-      screentone: {
-        pattern: isManga ? (idx % 2 === 0 ? 'dots_fine' : 'dots_coarse') : 'none',
-        densityPercent: isManga ? 25 : 0,
-        angleDegrees: 45,
-      },
-      balloons,
-      foleyTakes: p.kineticSfx ? [{
-        id: `foley_${idx}`,
-        word: p.kineticSfx.soundWord,
-        category: 'impact',
-        sfxIntensity: 'heavy',
-        audioVolume: 0.8,
-        playbackOffsetMs: 0,
-        waveform: 'sawtooth',
-      }] : [],
-    };
-  });
-
-  return {
-    id: `comic_${comic.id}_page_${pageIndex + 1}`,
-    pageNumber: pageIndex + 1,
-    title: `${comic.title} — Page ${pageIndex + 1}`,
-    layoutTemplateId: layoutId,
-    stylePreset: isManga ? 'manga' : 'american_heroic',
-    gutterWidthPx: 12,
-    aspectRatio: 'standard_comic',
-    backgroundColor: '#FFFFFF',
-    panels,
-    globalPerspectiveGuides: {
-      type: 'two_point',
-      horizonY: 50,
-      vanishingPoint1X: 10,
-      vanishingPoint2X: 90,
-      enabled: false,
-    },
-    readingDirection: isManga ? 'right_to_left' : 'left_to_right',
-  };
+  const allPages = showcaseComicToComicMangaPages(comic);
+  return allPages[pageIndex] || allPages[0];
 }
+
+/**
+ * Converts all pages of a ShowcaseComicBook into ComicMangaPage[]
+ * with full Council V4 Living Graphic Novel fidelity (all 26 pages / 294 panels for Pumpkin Patch V4).
+ */
+export function convertShowcaseComicToAllStudioPages(
+  comic: ShowcaseComicBook | string
+): ComicMangaPage[] {
+  return showcaseComicToComicMangaPages(comic);
+}
+
 

@@ -199,7 +199,7 @@ export function contentAwareFill(image: Bitmap8, hole: Mask8, o: ContentAwareOpt
   return out;
 }
 
-/** SSD between the target window at t and the (fully valid) source window at s, early exit at `best`. */
+/** SSD + Isophote Gradient Continuity between target window at t and valid source window at s, early exit at `best`. */
 function patchDist(l: Level, t: number, s: number, r: number, best: number): number {
   const { W, H, img } = l, tx = t % W, ty = (t / W) | 0, sx = s % W, sy = (s / W) | 0; let sum = 0;
   for (let j = -r; j <= r; j++) {
@@ -209,6 +209,20 @@ function patchDist(l: Level, t: number, s: number, r: number, best: number): num
       const a = (trow + xx) * 3, b = (srow + sx + i) * 3;
       const d0 = img[a] - img[b], d1 = img[a + 1] - img[b + 1], d2 = img[a + 2] - img[b + 2];
       sum += d0 * d0 + d1 * d1 + d2 * d2;
+      // Isophote structural edge continuity along horizontal & vertical neighbours inside the patch
+      if (i < r && xx + 1 < W && sx + i + 1 < W) {
+        const gxT = (img[a + 3] - img[a]) + (img[a + 4] - img[a + 1]);
+        const gxS = (img[b + 3] - img[b]) + (img[b + 4] - img[b + 1]);
+        const dgx = gxT - gxS;
+        sum += 0.35 * dgx * dgx;
+      }
+      if (j < r && yy + 1 < H && sy + j + 1 < H) {
+        const aD = a + W * 3, bD = b + W * 3;
+        const gyT = (img[aD] - img[a]) + (img[aD + 1] - img[a + 1]);
+        const gyS = (img[bD] - img[b]) + (img[bD + 1] - img[b + 1]);
+        const dgy = gyT - gyS;
+        sum += 0.35 * dgy * dgy;
+      }
     }
     if (sum >= best) return sum;
   }

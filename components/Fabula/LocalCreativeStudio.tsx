@@ -220,7 +220,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
     getLocalEngineStatus().then(setStatus);
     auditInstalledModels().then((map) => {
       setInstalledMap(map);
-      if (map['sdxl_turbo']) {
+      if (map['flux3_klein']) {
+        setSelectedModelId('flux3_klein');
+      } else if (map['sdxl_turbo']) {
         setSelectedModelId('sdxl_turbo');
       } else if (map['animagine_xl']) {
         setSelectedModelId('animagine_xl');
@@ -312,6 +314,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
         // Automatically save to Chronological PAI History & User Photos Account
         await savePaiGeneration({
           url: res.outputUrls[0],
+          jxlUrl: res.jxlUrl,
+          thumbUrl: res.thumbUrl,
           prompt: effectivePrompt,
           modelId: selectedModelId,
           aspect,
@@ -584,6 +588,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       fontSize: '12px',
                     }}
                   >
+                    <option value="flux3_klein">FLUX.3 [klein] 5.6B (Native 4K, Pixel-Precise Edit & 10-Ref {installedMap['flux3_klein'] ? '· Ready' : ''})</option>
+                    <option value="flux2_klein_4b">FLUX.2 [klein] 4B (Apache-2.0 Fast Forge {installedMap['flux2_klein_4b'] ? '· Ready' : ''})</option>
                     <option value="sdxl_turbo">SDXL-Turbo 1.0 (Real-Time 1-Step {installedMap['sdxl_turbo'] ? '· Ready' : ''})</option>
                     <option value="sdxl_lightning">SDXL-Lightning (4-Step 1024px {installedMap['sdxl_lightning'] ? '· Ready' : ''})</option>
                     <option value="animagine_xl">Animagine XL 3.1 (Comics, Manga & Vector Art {installedMap['animagine_xl'] ? '· Ready' : ''})</option>

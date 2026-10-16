@@ -153,15 +153,15 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
 
         if (stylePreset === 'manga') {
           activeLoraId = 'flux_lora_manga_screentone';
-          activeModelId = 'flux2_klein_4b';
+          activeModelId = 'flux3_klein';
           lightingClause = 'authentic manga screentone and high contrast ink';
         } else if (stylePreset === 'storybook_watercolor') {
           activeLoraId = 'flux_lora_storybook_cartoon';
-          activeModelId = 'flux2_klein_4b';
+          activeModelId = 'flux3_klein';
           lightingClause = 'soft watercolor wash and delicate pencil outlines';
         } else if (stylePreset === 'graphic_novel_noir') {
           activeLoraId = 'flux_lora_cinematic_35mm';
-          activeModelId = 'flux2_klein_4b';
+          activeModelId = 'flux3_klein';
           lightingClause = 'high contrast black ink and dramatic chiaroscuro shadows';
         }
 
