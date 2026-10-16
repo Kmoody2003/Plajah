@@ -1,0 +1,24 @@
+{
+  "visualizer": "calm-11-harvest-wheat-sunset",
+  "director": "BAROQUE",
+  "model": "nemotron-4b",
+  "ms": 6761,
+  "tokens": 322,
+  "proposal": {
+    "directorId": "BAROQUE",
+    "title": "Wheatfield Resonance",
+    "idea": "A multi-plane wheat field swaying beneath a warm sunset, with the golden wheat stalks responding to the acoustic guitars and vocals.",
+    "geometry": "A 16:9 aspect ratio with two depth planes, one for the backlit wheat stalks and another for the foreground wheat stalks.",
+    "typography": "The worship lyric band will be displayed in the Noto Serif typeface, with each line taking up to five seconds to ensure legibility.",
+    "imageLogic": "The wheat fields will be procedurally generated, with the wheat stalks swaying in response to the audio cues.",
+    "texture": "The wheat stalks will have a subtle grain texture to give them a tactile feel.",
+    "motion": "The wheat stalks will sway in response to the acoustic guitars and vocals, with smooth motion to match the slow pace of the scene.",
+    "productionMethod": "This direction will be made using a real-time Canvas 2D audio-reactive renderer.",
+    "humanTrace": "The wheat stalks will be simulated using paper tooth and ink bleed, giving them a physical appearance.",
+    "risk": "The risk is the potential for the wheat stalks to become too distracting or overwhelming.",
+    "arguesWith": {
+      "directorId": "CLASSICAL",
+      "why": "The Classical Mind may argue that a quieter reveal is preferred, but this direction aims to create a spectacle of motion and contrast."
+    }
+  }
+}

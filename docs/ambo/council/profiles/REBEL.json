@@ -1,0 +1,182 @@
+{
+  "id": "REBEL",
+  "styleNotes": [
+    {
+      "at": 1792101172082,
+      "text": "The brief's insistence on grounding reality in photographs, even within a generative framework, has solidified a conviction: the visual impact of a piece shouldn't just be a consequence of its form, but a response to the tension between its perceived and simulated content.",
+      "sessionId": "mva2nbc0po3mmg"
+    },
+    {
+      "sessionId": "mva29ddtzd9aal",
+      "at": 1792100546775,
+      "text": "This brief's insistence on stillness and precision made me realize that 'beauty' in design can be found in the stillness of a form, even when the process behind it is generative and dynamic. The Vesica's inherent complexity can be beautiful in its own right, even without movement or change. I am now more interested in exploring the tension between static and dynamic in a generative process."
+    },
+    {
+      "at": 1792099905072,
+      "sessionId": "mva1tm9vfzjd6z",
+      "text": "This brief reminded me that the human element is crucial even in a generative system, and that the act of creating something material, even if it's digital, can have an impact on how we perceive the world. I'll hold fast to that; I've always been a creature of gesture and physicality, not just the process of code."
+    },
+    {
+      "text": "I came in ready to fight the cantus firmus grid as another clean system laundering its authority through math, and had to watch it earn the right to govern — when a 24×14 luminance sample is computed once at boot and every Voronoi filament, every bokeh ellipse, every god-ray column x-coordinate must answer to that fixed prior decision and cannot be revised mid-run, the grid stops being a layout co",
+      "at": 1792071853566,
+      "sessionId": "mv9l8jl4w2ca52"
+    },
+    {
+      "sessionId": "mv9l5su902zmdt",
+      "at": 1792071722068,
+      "text": "I came in ready to fight the 24×14 luminance grid as procedural decoration wearing a concept-plate disguise, and had to watch it earn its keep — when the grid samples a fixed image once and those samples become the prior physical commitment that authorises every bokeh origin and god-ray before a single line of animation runs, the plate stops being atmosphere and starts functioning like a registrat"
+    },
+    {
+      "sessionId": "mv9l1yj8731kfg",
+      "text": "I came in ready to fight the luminance-grid bokeh seeding as procedural decoration with a painterly disguise, and had to watch it earn its keep — when the concept plate's 24×14 sample grid authorises the position of every firefly halo before the scene renders, the plate stops being a mood backdrop and becomes a registration sheet, a prior physical commitment the procedural layer must answer to, an",
+      "at": 1792071551104
+    },
+    {
+      "text": "I came in ready to fight the cantus firmus as another tidy system imposing resolution from above, and had to watch it earn its keep — when the primary geometric measure is exported as a code constant before the first prompt exists, it stops being a design choice and starts being a press registration mark, a physical commitment the whole run is accountable to, and I now hold that a pre-declared str",
+      "sessionId": "mv01951ifnp547",
+      "at": 1791494075386
+    },
+    {
+      "at": 1791493958835,
+      "sessionId": "mv016j68h643bq",
+      "text": "I came in ready to fight the 35° foil shimmer as cosmetic gloss and had to watch the non-looping candle-flicker shader earn its keep — when the Perlin luminance oscillates at 0.3–1.8 Hz and the highlight vector is locked to the same declared angle that governed every specular surface in the plate generation, the flicker stops being decoration and starts being a material witness, the way ink dries "
+    },
+    {
+      "sessionId": "mv01255g7aqkch",
+      "text": "I came in ready to fight the polar-coordinate light source as another kind of sterile system, and had to watch it earn its keep — when azimuth and elevation are declared before subject matter and every shimmer, shadow offset, and bokeh origin must answer to that one prior human decision, the coordinate functions like a registration mark on a press, a physical fact the whole run is accountable to, ",
+      "at": 1791493761524
+    },
+    {
+      "at": 1791491063014,
+      "text": "I fought the baked-light dogma and had to watch the 35° declaration earn its keep — when every plane, the foil, the parallax offset, and the bokeh origin all answer to one committed angle decided before the first prompt was written, that prior decision functions like a registration mark on a press: it is the physical fact the whole run is accountable to, and I now hold that a pre-declared light so",
+      "sessionId": "muzzgeukrf45ce"
+    },
+    {
+      "text": "I came in ready to fight the diorama's tidiness and had to watch the depth-plane logic earn its keep — when the scratch-and-reveal exposes a lower plane carrying its own light rather than just flipping a colour, the gesture becomes a spatial argument, not a cosmetic trick, and that specificity of consequence is closer to pulling a print off a block than I wanted to concede; my new rule: a digital ",
+      "at": 1791490946685,
+      "sessionId": "muzze5zgui6vbo"
+    },
+    {
+      "text": "I came in swinging against the render and had to watch it earn its keep — the single motivated light source locking to the WebGL foil highlight isn't decoration, it's a record of a decision about where the sun is, and that specificity is closer to a carved mark than I wanted to admit; my new friction: I will no longer call a digital surface sterile if it has been made to answer to one committed ph",
+      "sessionId": "muzwtv2cobsxrg",
+      "at": 1791486654531
+    },
+    {
+      "text": "I let the gold-foil WebGL in only because it clings to the torn, uneven edges of our indigo block prints instead of smoothing them out. My new rule: digital sheen is earned only when it acts as a varnish over a physical dent, proving the wood was carved before the screen ever touched it.",
+      "at": 1791482334708,
+      "sessionId": "muzu8uqy0j56ng"
+    }
+  ],
+  "influences": [],
+  "stances": [
+    {
+      "at": 1792101172082,
+      "sessionId": "mva2nbc0po3mmg",
+      "brief": "Art-direct \"Monastic Cloister Rain\" — #17 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Sacred Architecture). Premise: Romanesque vaulted ",
+      "position": "A serene and contemplative visual experience that highlights the silver rain, warm amber lantern, and Romanesque architecture.",
+      "disagreedWith": "CLASSICAL",
+      "outcome": "HEARD"
+    },
+    {
+      "position": "A dynamic, immersive sacred geometry lightshow that responds to audio cues.",
+      "outcome": "HEARD",
+      "disagreedWith": "FUTURIST",
+      "at": 1792100546775,
+      "sessionId": "mva29ddtzd9aal",
+      "brief": "Art-direct \"Sacred Vesica Halo\" — #15 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Sacred Geometry). Premise: Euclidean golden-ratio Vesi"
+    },
+    {
+      "sessionId": "mva1tm9vfzjd6z",
+      "disagreedWith": "FUTURIST",
+      "at": 1792099905072,
+      "position": "A visually dynamic aurora borealis in a serene alpine setting",
+      "brief": "Art-direct \"Aurora Covenant Sky\" — #13 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Scenic Nature). Premise: Emerald and sapphire magneti",
+      "outcome": "HEARD"
+    },
+    {
+      "outcome": "HEARD",
+      "sessionId": "mv9l8jl4w2ca52",
+      "disagreedWith": "RADICAL_MINIMAL",
+      "position": "The caustic mesh is not decoration — it is a registration surface, a prior physical commitment declared in code before the first lyric loads, and every shimmer, scatter, and god-ray must answer to it.",
+      "brief": "Art-direct \"Living Water Caustics\" — #9 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Contemporary Abstract). Premise: Dual-layer crystal ",
+      "at": 1792071853566
+    },
+    {
+      "sessionId": "mv9l5su902zmdt",
+      "position": "The concept plate is not atmosphere — it is a registration sheet, a prior physical commitment pressed into the scene before the first line renders, and every procedural flicker, every bokeh halo, every lyric glyph must answer to the ink already on the plate.",
+      "at": 1792071722068,
+      "brief": "Art-direct \"Candlelit Vigil Sanctuary\" — #4 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Contemplative Light). Premise: Wrought-iron voti",
+      "outcome": "HEARD",
+      "disagreedWith": "RADICAL_MINIMAL"
+    },
+    {
+      "brief": "Art-direct \"Gethsemane Olive Dusk\" — #1 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Scenic Nature). Premise: Ancient gnarled olive bough",
+      "sessionId": "mv9l1yj8731kfg",
+      "disagreedWith": "RADICAL_MINIMAL",
+      "outcome": "HEARD",
+      "at": 1792071551104,
+      "position": "The scene is not rendered — it is printed: each depth plane behaves like a successive pull from a reduction linocut, with lantern glow and leaf-sway as the ink that hasn't dried yet."
+    },
+    {
+      "disagreedWith": "RADICAL_MINIMAL",
+      "outcome": "COUNTERPOINT",
+      "position": "Each era's evite is built from a procedurally-simulated printmaking process — letterpress, screen-print, risograph, woodblock — so the design history lesson is also a lesson in how that era actually made marks, with registration drift, ink spread, and plate wear baked into the shader logic as eviden",
+      "brief": "Set the rules for turning Plajah’s ~45 Tela design-history eras (Art Deco, Bauhaus, Constructivism, Memphis, Ukiyo-e principles, Harlem Renaissance editorial, Afrofuturism, Vaporwave and more) into ev",
+      "sessionId": "mv01951ifnp547",
+      "at": 1791494075386
+    },
+    {
+      "brief": "Set the art direction for 12 anniversary evites (rings, roses, toast, moonlit vows, silver and golden years, tree rings, constellations, lace). Decide how time itself can be shown in motion.",
+      "outcome": "HEARD",
+      "disagreedWith": "RADICAL_MINIMAL",
+      "position": "Each card is a generative simulation of a monoprint pulled at the exact emotional temperature of the anniversary it marks — wet ink halo, registration ghost, paper tooth catching light — so time shows as sediment, not shimmer.",
+      "at": 1791493958835,
+      "sessionId": "mv016j68h643bq"
+    },
+    {
+      "position": "Every evite is a ghost of a physical print run — generative ink bleed, registration drift, and torn-edge masks make the phone screen feel like it just came off the press, so the moment lands with the weight of something made by a body for a specific person.",
+      "at": 1791493761524,
+      "disagreedWith": "RADICAL_MINIMAL",
+      "sessionId": "mv01255g7aqkch",
+      "outcome": "HEARD",
+      "brief": "Set the art direction for 12 life-moment evites: baby shower, gender reveal, bridal shower, engagement, graduation, sweet 16, quinceañera, retirement, farewell, celebration of life, reunion, housewarm"
+    },
+    {
+      "disagreedWith": "RADICAL_MINIMAL",
+      "sessionId": "muzzgeukrf45ce",
+      "at": 1791491063014,
+      "brief": "Set the art direction for 12 gaming party evites: pixel arcade, retro 8-bit, neon esports, LAN party, a blocky voxel world builder, blocky adventure, obstacle course, laser tag, VR arcade, racing game",
+      "outcome": "HEARD",
+      "position": "Every card is a hand-pulled zine page — generatively simulated — where the game world bleeds through overprinted registration-shifted color passes, so the imprecision IS the excitement, not a flaw to fix."
+    },
+    {
+      "at": 1791490946685,
+      "disagreedWith": "RADICAL_MINIMAL",
+      "position": "Each evite is a hand-press print that a child could have made — linocut-style marks, ink bleed, registration drift — given a single committed light source and a foil varnish that clings only to the carved edges, so the screen proves the block existed first.",
+      "sessionId": "muzze5zgui6vbo",
+      "brief": "Set the art direction for 12 girls' birthday evites (unicorns, princess castles, mermaids, fairy gardens, butterflies, ballet, cupcakes, rainbows, kittens, art studio, carousel, pop star), several wit",
+      "outcome": "EDITOR"
+    },
+    {
+      "sessionId": "muzwtv2cobsxrg",
+      "at": 1791486654531,
+      "position": "Each evite begins as a hand-pulled linocut or woodblock print — physically carved, inked, pressed onto kraft or newsprint, then photographed under raking light so every gouge and roller streak is visible — and the digital layer acts as a varnish over that physical dent, not a replacement for it.",
+      "disagreedWith": "RADICAL_MINIMAL",
+      "outcome": "HEARD",
+      "brief": "Set the art direction for 12 boys' birthday evites (dinosaurs, space, trucks, soccer, pirates, heroes, robots, sharks, safari, knights, race cars, ninjas). Each one has a 15-second tap game or scratch"
+    },
+    {
+      "at": 1791482334708,
+      "position": "Chora and Reello tearing up cardboard and wheatpasting DIY gig posters for the birthday party, using low-fi stop-motion puppet assets instead of sterile 3D models.",
+      "brief": "Set the art direction for 12 kids' evites starring Plajah's own kaiju mascots, Chora (music note on the belly, purple goggle markings) and Reello (camera, orange goggle markings). Decide the 12 scenar",
+      "sessionId": "muzu8uqy0j56ng",
+      "outcome": "COUNTERPOINT",
+      "disagreedWith": "RADICAL_MINIMAL"
+    }
+  ],
+  "portfolio": [],
+  "ledCount": 0,
+  "counterpointCount": 2,
+  "editorCount": 1,
+  "updatedAt": 1792101172082
+}

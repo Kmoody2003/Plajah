@@ -63,7 +63,8 @@ const fromValue = (v: any): any => {
 };
 const fromFields = (f: Record<string, any>) => Object.fromEntries(Object.entries(f || {}).map(([k, v]) => [k, fromValue(v)]));
 
-function makeStore(headers: () => Promise<Record<string, string>>): CouncilStore {
+/** The app's Firestore-backed store; exported so council runner scripts (scripts/council) can persist exactly as the app does. */
+export function makeStore(headers: () => Promise<Record<string, string>>): CouncilStore {
   const get = async (path: string) => { const r = await fetch(`${FS}/${path}`, { headers: await headers() }); if (!r.ok) return null; return fromFields((await r.json()).fields || {}); };
   const set = async (path: string, obj: Record<string, any>) => { const r = await fetch(`${FS}/${path}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(await headers()) }, body: JSON.stringify({ fields: toFields(obj) }) }); return r.ok; };
   const list = async (collection: string, limit = 20) => { const r = await fetch(`${FS}/${collection}?pageSize=${limit}&orderBy=createdAt%20desc`, { headers: await headers() }); if (!r.ok) return []; const j = await r.json(); return (j.documents || []).map((d: any) => fromFields(d.fields || {})); };

@@ -1,0 +1,20 @@
+{
+  "visualizer": "calm-18-cedar-lebanon-canopy",
+  "director": "BAROQUE",
+  "model": "nemotron-4b",
+  "ms": 6811,
+  "tokens": 308,
+  "proposal": {
+    "directorId": "BAROQUE",
+    "title": "Cedar Canopy Forest",
+    "idea": "A sun-dappled forest canopy filtered through horizontal cedar branches, creating a warm and ethereal visual experience.",
+    "geometry": "A grid of tiered horizontal cedar branches, with a subtle gradient in their width and depth.",
+    "typography": "The worship lyric band is set against a subtle gradient of warm and cool colors, with larger characters for emphasis.",
+    "imageLogic": "Photographs of the cedar branches and forest floor are used as textures, with subtle lighting and shadows to create depth.",
+    "texture": "The surface of the forest floor is textured with subtle light leaks and film grain, while the cedar branches have a subtle metallic sheen.",
+    "motion": "The sun-dappled forest light shafts sway gently with the singer's voice, creating a sense of movement and emotion.",
+    "productionMethod": "The forest canopy is rendered using generative image/video models with procedural code, with subtle lighting and shadows added to create depth.",
+    "humanTrace": "The perceptible sign of making is the subtle textures and light leaks in the forest floor and cedar branches.",
+    "risk": "The risk is that the visual may become too cluttered or busy, overwhelming the worship leader or volunteer running Ambo live."
+  }
+}

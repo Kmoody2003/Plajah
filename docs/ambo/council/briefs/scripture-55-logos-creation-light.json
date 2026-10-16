@@ -1,0 +1,20 @@
+{
+  "ask": "Art-direct \"Logos Creation Light (John 1)\" — #55 of the 72 Ambo church visualizers (Scripture Reading visualizer, Collection III of 72; subgenre Sacred Geometry). Premise: \"The light shines in the darkness\": a sovereign golden-white Genesis eclipse corona. Built for Genesis 1 and John 1: a pure, unshakeable eclipse corona of warm golden-white light and radial filaments expands gently against deep cosmic velvet. Lighting today: Key: Central Logos corona at 4500K over deep cosmic indigo. Service use: John 1, Genesis 1, Christmas Prologue, Easter Vigil. Audio mapping today: Vocal → Expands the golden-white Logos corona with every spoken phrase; Swell → Rotates delicate cosmic ring filaments. Palette: #05060D #121629 #E8B854 #FFFFFF. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the scripture tablet (reference line, translation, the passage set in a measure with each spoken word highlighted as it is read), image logic (how the procedural scene (no concept plate: the plate is generative, in code) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+  "surface": "Plajah Ambo church presenter",
+  "domain": "worship visualizer",
+  "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+  "feeling": "The word is the picture — attentive, legible, unhurried; the scene serves the reading and the reader.",
+  "constraints": [
+    "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+    "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+    "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+    "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+    "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+    "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+    "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+  ],
+  "references": [
+    "No concept plate: the scene is built entirely in code from the premise.",
+    "Sample passage on the tablet: PSALM 23 : 1–4 (ESV) — \"The Lord is my shepherd; I shall not want. He makes me lie down in green pastures. He leads me beside still waters. He r…\"."
+  ]
+}

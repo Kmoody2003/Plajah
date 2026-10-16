@@ -1,0 +1,50 @@
+{
+  "batch": [
+    "calm-11-harvest-wheat-sunset",
+    "calm-18-cedar-lebanon-canopy",
+    "calm-19-anointing-oil-amber"
+  ],
+  "stats": [
+    {
+      "stage": "A",
+      "model": "gemma-2-2b",
+      "items": 2,
+      "loadMs": 3481,
+      "genMs": 17215,
+      "tokens": 999,
+      "peakTemp": 87,
+      "tempBefore": 81,
+      "tempAfter": 85,
+      "vramMb": 2659,
+      "waitedMs": 20224
+    },
+    {
+      "stage": "B",
+      "model": "nemotron-4b",
+      "items": 3,
+      "loadMs": 5617,
+      "genMs": 20484,
+      "tokens": 898,
+      "peakTemp": 87,
+      "tempBefore": 82,
+      "tempAfter": 84,
+      "vramMb": 3170,
+      "waitedMs": 102159
+    },
+    {
+      "stage": "C",
+      "model": "pokee-7b",
+      "items": 3,
+      "loadMs": 9805,
+      "genMs": 65082,
+      "tokens": 1667,
+      "peakTemp": 89,
+      "tempBefore": 80,
+      "tempAfter": 84,
+      "vramMb": 4698,
+      "waitedMs": 91846
+    }
+  ],
+  "totalMs": 352060,
+  "peakTemp": 89
+}

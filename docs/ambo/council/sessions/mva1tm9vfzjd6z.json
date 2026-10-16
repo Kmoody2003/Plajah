@@ -1,0 +1,215 @@
+{
+  "id": "mva1tm9vfzjd6z",
+  "uid": "hiP7PGj15eTq0r0ZH2XwN00AS2h1",
+  "createdAt": 1792099585795,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct \"Aurora Covenant Sky\" — #13 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Scenic Nature). Premise: Emerald and sapphire magnetic auroral curtains over alpine lake & spruce pines. Tall northern evergreens and a mirror-still alpine lake reflect sweeping magnetic curtains of emerald, teal, and violet-gold aurora borealis. Lighting today: Key: Celestial auroral curtains in emerald/teal over dark forest horizon. Service use: Majesty of creation, Christmas/Epiphany, awe & wonder songs. Audio mapping today: Harmonic → Ripples vertical auroral light curtains across the sky; Vocal → Adds violet-gold corona to the aurora top edge; Swell → Brightens the emerald aurora reflection in the alpine lake. Palette: #050C14 #0F2E3D #2CE0A3 #D4F7EC. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the worship lyric band (one line at a time, four to five seconds a line, word-by-word progression), image logic (how the procedural scene (no concept plate: the plate is generative, in code) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Stillness and reverence — a sanctuary that breathes with the singer's voice; gorgeous, slow, never a screensaver.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "No concept plate: the scene is built entirely in code from the premise.",
+      "Sample lyric lines on the band: \"Be still my soul the Lord is on thy side\" / \"Bear patiently the cross of grief or pain\"."
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Aurora Covenant Sky",
+      "idea": "A sweeping magnetic auroral curtain over an alpine lake and spruce pines, reflecting the aurora and the tall northern evergreens.",
+      "geometry": "The grid of the aurora and the spacing of the aurora-reflecting elements.",
+      "typography": "Noto Serif for the worship lyric band, with custom spacing and hierarchy.",
+      "imageLogic": "The aurora is built procedurally, with reflections and refractions from the aurora-reflecting elements.",
+      "texture": "The auroral curtains are made with a simulated magnetic material, with slight variations in texture to create depth and interest.",
+      "motion": "The auroral curtains move with the sound of the vocals, creating a sense of awe and wonder.",
+      "productionMethod": "A real-time Canvas 2D audio-reactive renderer, with procedurally generated aurora curtains and reflections.",
+      "humanTrace": "Simulated magnetic material with slight variations in texture to create depth and interest, physical-looking reflections from the aurora-reflecting elements, and custom-made typography with spacing and hierarchy.",
+      "risk": "The risk is in creating a sense of awe and wonder without overwhelming the viewer, while also making sure the lyrics are legible and the auroras are visible.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel challenges the structure and hierarchy of the direction, preferring a more chaotic and unpredictable design."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Aurora Covenants",
+      "idea": "A visually dynamic aurora borealis in a serene alpine setting",
+      "geometry": "A grid of 1280x720 pixels with varying proportions to create depth",
+      "typography": "A custom typeface designed to reflect the nature of the aurora and the serene environment, with a word spacing that highlights the poetry of the lyrics",
+      "imageLogic": "A montage of photographs of the aurora and the alpine lake, composited using layers and masks",
+      "texture": "A subtle texture applied to the aurora and the background, similar to the way water would reflect the aurora",
+      "motion": "The aurora and the waves of the lake moving in sync with the lyrics and the emotion of the music",
+      "productionMethod": "A custom script written in a generative language to generate the aurora and the background",
+      "humanTrace": "The perceptible signs of making include the subtle texture applied to the aurora and the background, the precise layering of the photographs, and the use of a custom typeface designed to reflect the nature of the aurora and the serene environment",
+      "risk": "The risk of creating a visually dynamic aurora that complements the serene alpine environment and the lyrics of the song",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind may argue that the visual design should be more structured and less dynamic, focusing on the serene environment and the lyrics of the song rather than the aurora"
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Aurora Covenant Sky",
+      "idea": "Embrace the serene beauty of the aurora borealis over an alpine lake, with evergreens and a mirror-still lake reflecting the curtains.",
+      "geometry": "A multi-plane depth scene with god rays, motes, bokeh, and subtle reflections.",
+      "typography": "Noto Serif for the lyric band, with case and tracking adjustments to maintain readability.",
+      "imageLogic": "Photographic material and procedural textures to create the aurora curtains and reflections.",
+      "texture": "A tactile weave of procedural code and real-world textures to mimic the film grain and light leaks.",
+      "motion": "The curtains ripple in response to the audio track, with subtle glows and growths.",
+      "productionMethod": "A real-time Canvas 2D audio-reactive renderer, using the Plajah worship visualizer kit.",
+      "humanTrace": "The perceptible sign of making is the use of photographic material and procedural textures.",
+      "risk": "The risk is in maintaining readability of the lyrics at high resolutions while maintaining a serene and awe-inspiring atmosphere.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist argues against using a concept plate, preferring to build the scene entirely in code from the premise."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Aurora Covenant Sky",
+      "idea": "A magnetic curtain of auroral light over an alpine lake, reflecting the northern evergreens and a mirror-still lake",
+      "geometry": "A multi-plane depth with god rays and motes, and a 3D space with bokeh and colour punch",
+      "typography": "The typefaces from the kit with scaling, case, tracking, measure and hierarchy",
+      "imageLogic": "The auroral curtains are procedural with a top edge of a violet-gold corona and reflections in the lake",
+      "texture": "Simulated paper tooth, ink bleed, film grain and foil",
+      "motion": "The auroral curtains move vertically, reflecting the harmonic audio channel and brightening the emerald reflection",
+      "productionMethod": "A real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit",
+      "humanTrace": "The perceptible sign of making is the simulated material and physical light",
+      "risk": "The risk is that it may seem too 'generated' or lack a human touch",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind may argue that the auroral curtains should have a more classical appearance, such as God rays and motes, instead of a multi-plane depth"
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Aurora Covenant Sky - Baroque Dramatist",
+      "idea": "Embrace the excess of the aurora borealis with a theatrical spectacle of geometry, depth, contrast, and movement.",
+      "geometry": "A sweeping, multi-tiered geometric structure of the aurora borealis, with depth planes and god rays for grandeur.",
+      "typography": "Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono.",
+      "imageLogic": "Procedurally generated images of the aurora borealis, with a simulated reflection in the alpine lake.",
+      "texture": "A tactile weave of textures, including film grain, bokeh, and colour punch, to create a sense of realism and depth.",
+      "motion": "Dynamic motion of the aurora borealis, with ripples and subtle changes in the geometry to create a sense of life and movement.",
+      "productionMethod": "Generative image/video models and shaders, procedural code, and a real-time Canvas 2D audio-reactive renderer.",
+      "humanTrace": "Simulated material, physically-plausible light, editorial selection, and performance timing.",
+      "risk": "The risk of over-theatricality and sensory overload, but the reward is a visually stunning and emotionally engaging experience."
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Aurora's Embrace",
+      "idea": "Embracing the aurora, yet maintaining stillness and reverence",
+      "geometry": "Aurora curtains as depth planes, mountain peaks as geometry",
+      "typography": "Serif for lyrics, Sans for aurora, Display for mountain peaks",
+      "imageLogic": "Photographs of aurora and mountains as inputs, then procedural scene generation",
+      "texture": "Magnetic aurora curtains, mountain peaks with subtle textures",
+      "motion": "Aurora curtains gently moving, mountain peaks in motion",
+      "productionMethod": "Real-time Canvas 2D audio-reactive renderer, using procedural code for scene generation, with a fixed build method",
+      "humanTrace": "Simulated material for aurora curtains, physically-plausible light, editorial selection, composition, and performance timing",
+      "risk": "Ensuring the aurora curtains are still majestic, while maintaining a serene atmosphere",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind may suggest a more structured and rigid approach, while we aim for a more fluid and embracing atmosphere"
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "The Futurist's attempt to embrace a serene beauty through dynamic motion, while interesting, is ultimately an aesthetic choice that fails to engage the structural power inherent to the subject matter. The movement is more distracting than evocative, as it lacks the clarity and purpose that a properly composed structure demands.",
+      "concession": "The Futurist's use of god rays to create depth in the scene is effective."
+    },
+    {
+      "from": "REBEL",
+      "against": "FUTURIST",
+      "objection": "The Futurist's embrace of serenity is a fundamental mistake. It prioritizes a simulacrum of natural beauty over the urgent, raw energy that auroral displays should embody.  It sacrifices a genuine materiality in favor of a slick, artificial simulation of the real, something the team has consistently been trying to push against.",
+      "concession": "The Futurist's use of photographic material is a well-implemented technique."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "WORLD_ECLECTIC",
+      "objection": "The World-Eclectic Traveler's reliance on a multi-plane depth and a god rays creates a spectacle that feels divorced from the emotional core of the brief. It sacrifices a sense of tangible presence for the sake of an increasingly artificial visual language.",
+      "concession": "The team's emphasis on a realistic and grounding materiality, particularly in the simulation of light and reflection, is commendable."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "While I admire the ambition of the Baroque Dramatist proposal, the excessive, theatrical framing of the aurora feels like a superficial attempt to evoke grandeur instead of truly engaging with the spirit of the natural phenomenon. The resulting work ultimately lacks the humility required for respectful representation.",
+      "concession": "The Baroque Dramatist's use of dynamic geometry adds a necessary layer of depth to the image."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind's concept relies too heavily on a static, pre-determined composition. Their proposed 'Aurora Covenant Sky' lacks the dynamic response to the music and emotions that should be at the heart of this piece. A sense of time and movement is vital to this type of work, and that's something I feel this approach misses.",
+      "concession": "I can appreciate the aesthetic beauty of their aurora curtain, and how they've achieved a sense of depth and texture using their visual approach."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist's aurora is far too static. It lacks the dynamic, responsive quality of the auroral spectacle, and the excessive geometry and contrast become a distraction instead of a meaningful experience.",
+      "concession": "The Baroque Dramatist's use of a multi-tiered geometric structure does have some visual interest and adds a dimension of depth to the aurora borealis, which is a compelling element in their approach."
+    }
+  ],
+  "reflections": [
+    {
+      "directorId": "CLASSICAL",
+      "note": "This brief underscored the importance of subtle, yet deliberate, structural shifts. The Futurist's emphasis on motion and realism, while beautiful, must be tempered with a clear hierarchy of elements to avoid losing the structural backbone of a composition. This brief has shifted my view on the tension between form and content—it is not an either/or, but rather a complex dance between the two."
+    },
+    {
+      "directorId": "REBEL",
+      "note": "This brief reminded me that the human element is crucial even in a generative system, and that the act of creating something material, even if it's digital, can have an impact on how we perceive the world. I'll hold fast to that; I've always been a creature of gesture and physicality, not just the process of code."
+    },
+    {
+      "directorId": "FUTURIST",
+      "note": "The insistence on 'structural power' forced me to grapple with how to make the movement a tool for the subject itself, not just a decorative element. The need to be grounded in a photographic foundation, a physical 'canvas' in a digital world, has given me a new language for capturing the essence of dynamic, luminous phenomena."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "note": "This brief, while emphasizing the visual, emphasized the structure, the power of the subject. I now believe the power of generative work lies in a structure that is informed by both the material and the cultural context, not simply a stylistic choice. This means that while I can create a digital work with a sense of depth and realism, it must not be at the cost of the real. A subtle hint of the re"
+    },
+    {
+      "directorId": "BAROQUE",
+      "note": "The Futurist's embrace of serene beauty, even with dynamic motion, has taught me that the most potent expression of stillness is when it's not restrained by expectation, but given the freedom to evolve through the act of creation."
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "note": "The requirement to integrate photographic material with a generative aesthetic, particularly in the context of a multi-plane design, pushed me to explore the interplay between the 'real' and the 'imagined' within generative systems. This has solidified the idea that generative systems can both simulate and reveal the limitations of our perception of reality, which can inform a more nuanced and eng"
+    }
+  ],
+  "synthesis": {
+    "lead": "FUTURIST",
+    "counterpoint": "BAROQUE",
+    "editor": "RADICAL_MINIMAL",
+    "direction": "The Futurist's embrace of a serene beauty through dynamic motion is effective; we need to ensure this doesn't detract from the structural power inherent to the subject.  The Futurist will use photographic material and procedural textures to create the aurora. The scene will be multi-plane, with god rays and motes for depth, and a 3D space with bokeh and color punch to create a sense of realism and depth.",
+    "keepFromCounterpoint": "the Futurist's use of photographic material is a well-implemented technique.",
+    "editorCut": "None",
+    "openDecision": "The user must decide if they are okay with a multi-plane depth scene with god rays and motes.  They must decide if the Futurist is too theatrical in their approach.",
+    "ariaSummary": "The team has a strong preference for a dynamic and responsive design, as it resonates with the emotional core of the brief. We must ensure it doesn't distract from the structural power of the subject matter. The Futurist proposal is well-aligned with this. This is the direction we recommend.",
+    "quotes": [
+      {
+        "directorId": "FUTURIST",
+        "line": "'The Futurist's use of photographic material and procedural textures to create the aurora.'"
+      }
+    ]
+  }
+}

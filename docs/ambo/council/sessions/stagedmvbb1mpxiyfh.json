@@ -1,0 +1,78 @@
+{
+  "id": "stagedmvbb1mpxiyfh",
+  "uid": "local-staged",
+  "createdAt": 1792175542341,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct \"Cedar of Lebanon Canopy\" — #18 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Scenic Nature). Premise: Sun-dappled forest light filtering through horizontal ancient cedar boughs. Warm emerald and gold sunbeams filter down through tiered horizontal Cedar of Lebanon boughs, casting dancing dappled forest bokeh. Lighting today: Key: 4800K forest canopy sunlight with emerald leaf translucency. Service use: Psalms, strength & rootedness in Christ, creation worship. Audio mapping today: Swell → Widens sun-dappled forest light shafts; Vocal → Gently sways horizontal cedar boughs and emerald bokeh; Shimmer → Sparkles golden pollen motes in the sunbeams. Palette: #07120E #183629 #C9A24D #F4F7EC. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the worship lyric band (one line at a time, four to five seconds a line, word-by-word progression), image logic (how the procedural scene (no concept plate: the plate is generative, in code) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Stillness and reverence — a sanctuary that breathes with the singer's voice; gorgeous, slow, never a screensaver.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "No concept plate: the scene is built entirely in code from the premise.",
+      "Sample lyric lines on the band: \"Be still my soul the Lord is on thy side\" / \"Bear patiently the cross of grief or pain\"."
+    ]
+  },
+  "directors": [
+    "WORLD_ECLECTIC",
+    "BAROQUE"
+  ],
+  "proposals": [
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Cedar of Lebanon Canopy",
+      "idea": "A sun-dappled forest canopy, with a slow, rhythmic, and textural glow, that evokes quiet reverence.",
+      "geometry": "Layered, concentric circles that grow progressively smaller from a central point, mirroring the tiers of the cedar boughs.",
+      "typography": "Noto Serif for the scripture, a sans serif for the lyric, with a simple, legible scale.",
+      "imageLogic": "A continuous procedural scene with soft, dappled light and shimmering particles, gradually modulated by the audio.",
+      "texture": "A textured, yet still, material weave that evokes a sense of depth and realism, achieved with procedural shaders.",
+      "motion": "Soft, fluid movement of light and particles, responding to the audio cues, with a subtle emphasis on growth and glow.",
+      "productionMethod": "Generative, procedural visual scene rendered with a focus on layering and texture to create the desired mood.",
+      "humanTrace": "Simulated, textured, organic materials mimicking wood grain, with subtle light leaks and anamorphic flare mimicking real-world film stock.",
+      "risk": "The risk is that the visual could feel too abstract or overly generic, leading to a lack of specificity and emotional connection.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist may overemphasize a dramatic effect with a focus on color and light, potentially losing the subtle, textured aesthetic."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Cedar Canopy Forest",
+      "idea": "A sun-dappled forest canopy filtered through horizontal cedar branches, creating a warm and ethereal visual experience.",
+      "geometry": "A grid of tiered horizontal cedar branches, with a subtle gradient in their width and depth.",
+      "typography": "The worship lyric band is set against a subtle gradient of warm and cool colors, with larger characters for emphasis.",
+      "imageLogic": "Photographs of the cedar branches and forest floor are used as textures, with subtle lighting and shadows to create depth.",
+      "texture": "The surface of the forest floor is textured with subtle light leaks and film grain, while the cedar branches have a subtle metallic sheen.",
+      "motion": "The sun-dappled forest light shafts sway gently with the singer's voice, creating a sense of movement and emotion.",
+      "productionMethod": "The forest canopy is rendered using generative image/video models with procedural code, with subtle lighting and shadows added to create depth.",
+      "humanTrace": "The perceptible sign of making is the subtle textures and light leaks in the forest floor and cedar branches.",
+      "risk": "The risk is that the visual may become too cluttered or busy, overwhelming the worship leader or volunteer running Ambo live."
+    }
+  ],
+  "disputes": [],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "BAROQUE",
+    "editor": "FUTURIST",
+    "direction": "Geometry: Layered, concentric circles for the cedar boughs, evoking depth and realism. Typography: Use Noto Serif for scripture and Inter for lyrics, with a legible, elegant scale. Image: A continuous procedural scene with soft, dappled light and shimmering particles, gradually modulated by audio. Texture: A textured, yet still, material weave that mimics wood grain with subtle light leaks. Motion: Soft, fluid movement of light and particles, with a subtle emphasis on growth and glow, driven by audio cues.",
+    "keepFromCounterpoint": "The sun-dappled forest light shafts sway gently with the singer's voice, creating a sense of movement and emotion.",
+    "editorCut": "Integrating a dynamic, organic material weave that combines the layered gradients and textures from both proposals, ensuring the visualizer remains smooth and responsive. Adding a dynamic glow pass that modulates the color and intensity of the bokeh based on the singer's voice, enhancing the emotional impact.",
+    "openDecision": "Decide whether the dynamic light shafts and gentle sway of the cedar boughs should be driven by the audio or a combination of audio and visual cues to enhance the worship experience.",
+    "ariaSummary": "The council debated between a more abstract, rhythmic and textural approach and a more cluttered, ethereal one. WORLD_ECLECTIC won on geometry and texture, while BAROQUE impressed with its motion and emotional depth. I recommend a balanced approach, combining the best of both with a dynamic glow pass and a nuanced material weave.",
+    "quotes": []
+  },
+  "reflections": [],
+  "comparison": "They agree on using a sun-dappled forest canopy and procedural generation. They differ on the complexity of the geometry and the texture. WORLD_ECLECTIC is stronger on geometry and texture, while BAROQUE has a better sense of motion.",
+  "lane": "local-staged"
+}

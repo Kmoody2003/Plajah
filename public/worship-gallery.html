@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sanctuary &amp; Praise — 72 Cinema-Grade Worship, Hymnal &amp; Scripture Visualizers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #05050a;
+      --panel: rgba(14, 14, 24, 0.78);
+      --panel-elev: rgba(24, 23, 38, 0.88);
+      --border: rgba(235, 186, 86, 0.26);
+      --border-subtle: rgba(255, 255, 255, 0.09);
+      --gold: #f0be59;
+      --gold-bright: #ffe299;
+      --gold-soft: rgba(240, 190, 89, 0.16);
+      --coral: #ff6b8b;
+      --prism: #4de8ff;
+      --text: #faf6ee;
+      --muted: #a6a1b5;
+      --calm: #52ffe0;
+      --praise: #ffae38;
+      --scripture: #c49bff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80% 50% at 15% -5%, rgba(255, 120, 75, 0.16) 0%, transparent 60%),
+        radial-gradient(ellipse 75% 55% at 88% 8%, rgba(77, 232, 255, 0.13) 0%, transparent 62%),
+        radial-gradient(ellipse 90% 60% at 50% 42%, rgba(240, 190, 89, 0.09) 0%, transparent 70%),
+        radial-gradient(circle at 50% 100%, #141024 0%, #05050a 70%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Top Light-Leak Ribbon */
+    .top-leak-bar {
+      height: 3px;
+      width: 100%;
+      background: linear-gradient(90deg, #ff5e7e 0%, #ffb84d 32%, #fff2cc 50%, #4de8ff 74%, #a78bfa 100%);
+      box-shadow: 0 2px 24px rgba(255, 184, 77, 0.55);
+    }
+
+    header {
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8, 8, 15, 0.82);
+      backdrop-filter: blur(24px) saturate(165%);
+      -webkit-backdrop-filter: blur(24px) saturate(165%);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .brand-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, #ffe299 0%, #f0a838 48%, #d9594c 100%);
+      display: grid;
+      place-items: center;
+      color: #08070c;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      font-size: 22px;
+      box-shadow: 0 0 30px rgba(240, 190, 89, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.65);
+    }
+    .brand-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--prism);
+      margin-bottom: 2px;
+    }
+    .brand h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 20.5px;
+      letter-spacing: 0.05em;
+      background: linear-gradient(90deg, #ffffff 0%, #ffe6a3 55%, #ffb870 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand p {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.045);
+      color: var(--text);
+      border: 1px solid var(--border-subtle);
+      padding: 8px 15px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .tab-btn:hover {
+      border-color: var(--gold);
+      background: rgba(240, 190, 89, 0.12);
+      transform: translateY(-1px);
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(240, 190, 89, 0.28), rgba(255, 107, 139, 0.14));
+      border-color: var(--gold);
+      color: #fff8e6;
+      box-shadow: 0 0 22px rgba(240, 190, 89, 0.25);
+    }
+    .count-pill {
+      background: rgba(255, 255, 255, 0.12);
+      padding: 1px 7px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Hero Stage Area */
+    .stage-wrapper {
+      max-width: 1680px;
+      margin: 24px auto;
+      padding: 0 28px;
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      gap: 22px;
+    }
+    @media (max-width: 1180px) {
+      .stage-wrapper { grid-template-columns: 1fr; }
+    }
+    .stage-box {
+      background: var(--panel);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.78),
+        0 0 50px rgba(240, 190, 89, 0.08);
+      display: flex;
+      flex-direction: column;
+    }
+    .stage-canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #040408;
+    }
+    #heroCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #conceptCompareOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: none;
+      border-right: 2px solid var(--gold);
+      overflow: hidden;
+      box-shadow: 6px 0 24px rgba(0,0,0,0.6);
+    }
+    #conceptCompareOverlay img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .concept-badge {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(10, 9, 16, 0.88);
+      border: 1px solid var(--gold);
+      color: var(--gold-bright);
+      padding: 6px 12px;
+      border-radius: 9px;
+      font-size: 11.5px;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Cinema Optical Preset Bar */
+    .optical-preset-bar {
+      padding: 11px 22px;
+      background: linear-gradient(90deg, rgba(20, 18, 34, 0.95), rgba(14, 14, 25, 0.95));
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .preset-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold-bright);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preset-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+    .preset-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e4dff0;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+    .preset-pill:hover {
+      border-color: var(--prism);
+      color: #ffffff;
+      background: rgba(77, 232, 255, 0.12);
+    }
+    .preset-pill.active {
+      background: linear-gradient(135deg, rgba(240, 190, 89, 0.3), rgba(77, 232, 255, 0.18));
+      border-color: var(--gold);
+      color: #fff8e7;
+      box-shadow: 0 0 14px rgba(240, 190, 89, 0.25);
+    }
+
+    .stage-hud {
+      padding: 18px 22px;
+      background: rgba(12, 12, 20, 0.92);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .stage-meta h2 {
+      font-size: 19px;
+      font-weight: 600;
+      color: #fff9ed;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .stage-meta p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 5px;
+      line-height: 1.42;
+    }
+    .stage-nav-btns {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn {
+      background: var(--panel-elev);
+      color: var(--text);
+      border: 1px solid var(--border-subtle);
+      padding: 8px 13px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+    .btn:hover {
+      border-color: var(--gold);
+      color: #fff6db;
+      transform: translateY(-1px);
+    }
+    .btn.primary {
+      background: linear-gradient(135deg, #f0be59 0%, #c87d20 100%);
+      color: #09080c;
+      border-color: #ffe299;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(240, 190, 89, 0.28);
+    }
+    .btn.active-toggle {
+      background: linear-gradient(135deg, rgba(240, 190, 89, 0.26), rgba(255, 107, 139, 0.14));
+      border-color: var(--gold);
+      color: var(--gold-bright);
+    }
+
+    /* Controls Sidebar */
+    .controls-panel {
+      background: var(--panel);
+      backdrop-filter: blur(22px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
+    }
+    .control-section {
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 14px;
+    }
+    .control-section:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .section-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--gold);
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .audio-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .meter-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .meter-box {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 6px;
+      text-align: center;
+    }
+    .meter-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .meter-bar-bg {
+      height: 5px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .meter-bar-fill {
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, #52ffe0, #f0be59, #ff6b8b);
+      transition: width 0.06s linear;
+    }
+    .sliders-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 14px;
+    }
+    .slider-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11.5px;
+    }
+    .slider-item label {
+      color: #dfdbe8;
+      display: flex;
+      justify-content: space-between;
+      font-weight: 500;
+    }
+    .slider-item input[type="range"] {
+      width: 100%;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+    .text-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.42);
+      border: 1px solid var(--border-subtle);
+      color: var(--text);
+      padding: 9px 11px;
+      border-radius: 9px;
+      font-size: 12.5px;
+      font-family: inherit;
+      margin-top: 4px;
+    }
+    .text-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 14px rgba(240, 190, 89, 0.22);
+    }
+    .mappings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .mapping-item {
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.035);
+      border-left: 2.5px solid var(--gold);
+      padding: 6px 10px;
+      border-radius: 0 7px 7px 0;
+    }
+    .mapping-item strong { color: var(--gold-bright); margin-right: 6px; }
+
+    /* Gemini Reference Plates Strip */
+    .gemini-strip {
+      max-width: 1680px;
+      margin: 0 auto 24px;
+      padding: 0 28px;
+    }
+    .gemini-strip-inner {
+      background: linear-gradient(135deg, rgba(240, 190, 89, 0.11), rgba(77, 232, 255, 0.06), rgba(14, 14, 24, 0.92));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 22px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    }
+    .gemini-strip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .gemini-plates-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+      gap: 12px;
+    }
+    .gemini-card {
+      background: #080810;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+    .gemini-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-4px) scale(1.01);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.6), 0 0 20px rgba(240, 190, 89, 0.22);
+    }
+    .gemini-card img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      display: block;
+    }
+    .gemini-card-caption {
+      padding: 8px 11px;
+      font-size: 11.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(12, 12, 20, 0.92);
+    }
+
+    /* 72-Visualizer Grid */
+    .gallery-section {
+      max-width: 1680px;
+      margin: 0 auto 70px;
+      padding: 0 28px;
+    }
+    .council-banner {
+      background: linear-gradient(135deg, rgba(20, 19, 34, 0.9), rgba(12, 12, 22, 0.92));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    }
+    .gallery-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .search-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 12px;
+      width: 340px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .search-box:focus {
+      outline: none;
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 18px rgba(240, 190, 89, 0.25);
+    }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+    }
+    .vis-card {
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+    .vis-card:hover {
+      border-color: rgba(240, 190, 89, 0.65);
+      transform: translateY(-4px);
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.65), 0 0 24px rgba(240, 190, 89, 0.14);
+    }
+    .vis-card.selected {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px rgba(240, 190, 89, 0.42), 0 18px 42px rgba(0, 0, 0, 0.72);
+    }
+    .card-canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #05050a;
+    }
+    .card-canvas-wrap canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .card-top-badges {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .badge {
+      padding: 3.5px 9px;
+      border-radius: 7px;
+      font-size: 10.5px;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
+      background: rgba(8, 8, 15, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    .badge.calm-lyric { color: var(--calm); border-color: rgba(82, 255, 224, 0.38); }
+    .badge.uptempo-lyric { color: var(--praise); border-color: rgba(255, 174, 56, 0.42); }
+    .badge.scripture-reading { color: var(--scripture); border-color: rgba(196, 155, 255, 0.42); }
+    .card-body {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff9ed;
+    }
+    .swatches {
+      display: flex;
+      gap: 4px;
+    }
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 6px rgba(0,0,0,0.4);
+    }
+    .card-sub {
+      font-size: 12px;
+      color: #cfcadd;
+      line-height: 1.4;
+    }
+    .card-use {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: auto;
+      padding-top: 7px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+  </style>
+</head>
+<body>
+  <div class="top-leak-bar"></div>
+  <header>
+    <div class="brand">
+      <div class="brand-icon">✦</div>
+      <div>
+        <div class="brand-eyebrow">6-Voice Art Director Council · Optical &amp; Vocal-Isolated Cinema Engine</div>
+        <h1>SANCTUARY &amp; PRAISE VISUALIZER STUDIO</h1>
+        <p>72 Contemporary Worship, Praise, Hymnal &amp; Scripture Works · 35mm Light Leaks, Anamorphic Flares, Polygonal Bokeh &amp; Live Vocal AI</p>
+      </div>
+    </div>
+    <div class="tabs" id="categoryTabs">
+      <button class="tab-btn active" data-cat="all">All Works <span class="count-pill">72</span></button>
+      <button class="tab-btn" data-cat="calm-lyric">I · Calm &amp; Contemporary Worship <span class="count-pill">24</span></button>
+      <button class="tab-btn" data-cat="uptempo-lyric">II · Uptempo Praise &amp; Hymnal <span class="count-pill">24</span></button>
+      <button class="tab-btn" data-cat="scripture-reading">III · Scripture Reading <span class="count-pill">24</span></button>
+      <button class="tab-btn" data-cat="gemini-twins">✦ Gemini Optical Twins <span class="count-pill">10</span></button>
+    </div>
+  </header>
+
+  <section class="stage-wrapper">
+    <div class="stage-box">
+      <div class="stage-canvas-wrap" id="stageContainer">
+        <canvas id="heroCanvas" width="1280" height="720"></canvas>
+        <div id="conceptCompareOverlay">
+          <img id="conceptCompareImg" src="/sanctuary-plates/calm-olive-gethsemane.jpg" alt="Gemini Concept Reference" />
+          <div class="concept-badge">✦ Gemini Generated Art Plate (Left 50% Split)</div>
+        </div>
+      </div>
+
+      <!-- One-Click Cinema Optical Look Presets -->
+      <div class="optical-preset-bar">
+        <div class="preset-label">🎞️ Council Optical Grade:</div>
+        <div class="preset-pills" id="opticalPresets">
+          <button class="preset-pill active" data-preset="anamorphic">✦ Cinema Anamorphic</button>
+          <button class="preset-pill" data-preset="kodak35">🎞️ Kodak 35mm Light Leak</button>
+          <button class="preset-pill" data-preset="prism">💎 Spectral Prism &amp; Bokeh</button>
+          <button class="preset-pill" data-preset="cathedral">🏛️ Cathedral Gold &amp; Chiaroscuro</button>
+          <button class="preset-pill" data-preset="concert">🔥 Contemporary Concert Praise</button>
+        </div>
+      </div>
+
+      <div class="stage-hud">
+        <div class="stage-meta">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <h2 id="stageTitle">#01 · Gethsemane Olive Dusk</h2>
+            <span id="stageDirectorBadge" class="badge" style="border-color:var(--gold); color:#ffe399;">🌿 World-Eclectic Traveller</span>
+          </div>
+          <p id="stageSubtitle">Ancient olive boughs in indigo twilight with vocal-reactive lantern fireflies</p>
+          <p id="stageCouncilCritique" style="font-size:12px; color:#f0be59; margin-top:5px;"></p>
+        </div>
+        <div class="stage-nav-btns">
+          <button class="btn" id="prevBtn">◀ Prev</button>
+          <button class="btn" id="nextBtn">Next ▶</button>
+          <button class="btn" id="compareConceptBtn">✦ Split Compare Plate</button>
+          <button class="btn active-toggle" id="blendConceptBtn">✦ Blend Optical Plate</button>
+          <button class="btn" id="fullscreenBtn">⛶ Fullscreen</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="controls-panel">
+      <div class="control-section">
+        <div class="section-title">
+          <span>Audio Source &amp; Vocal AI Sync</span>
+          <span style="color:var(--prism); font-size:10px;">16kHz Vocal Isolation</span>
+        </div>
+        <div class="audio-btns">
+          <button class="btn primary" id="synthAudioBtn">▶ Play Worship Synth</button>
+          <button class="btn" id="micAudioBtn">🎙 Mic + Live Lyrics</button>
+          <label class="btn" style="text-align:center; display:flex; align-items:center; justify-content:center;">
+            🎵 Load Audio + Transcribe
+            <input type="file" id="audioFileInput" accept="audio/*" style="display:none;" />
+          </label>
+          <button class="btn" id="sysAudioBtn" title="Capture & auto-transcribe audio playing in another tab or app">🖥 System / Tab Audio</button>
+        </div>
+
+        <!-- Audio file player bar (shown when an MP3/WAV is loaded) -->
+        <div id="filePlayerWrap" style="display:none; margin-top:10px; background:rgba(0,0,0,0.42); border:1px solid var(--border); border-radius:10px; padding:8px 10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; margin-bottom:5px;">
+            <span id="fileTrackName" style="color:#ffe399; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px;">Track.mp3</span>
+            <button class="btn" id="filePlayPauseBtn" style="padding:3px 9px; font-size:11px;">⏸ Pause</button>
+          </div>
+          <input type="range" id="fileSeekInput" min="0" max="100" step="0.1" value="0" style="width:100%; accent-color:var(--gold);" />
+        </div>
+
+        <!-- Live Auto-Transcription Toggle & Status -->
+        <div style="margin-top:10px; background:linear-gradient(135deg, rgba(240,190,89,0.09), rgba(77,232,255,0.05)); border:1px solid var(--border); border-radius:11px; padding:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="font-size:11.5px; font-weight:600; color:#ffe399;">✦ Vocal-Isolated Live Lyrics</span>
+            <div style="display:flex; gap:5px;">
+              <button class="btn active-toggle" id="autoTranscribeBtn" style="padding:4px 9px; font-size:11px;" title="Automatically isolate vocals & transcribe playing audio or mic into live on-screen lyrics">Auto-Transcribe: ON</button>
+              <button class="btn active-toggle" id="toggleTextBtn" style="padding:4px 9px; font-size:11px;">Aa Text: ON</button>
+            </div>
+          </div>
+          <div id="asrStatusRow" style="font-size:11px; color:var(--muted); margin-top:6px; display:flex; align-items:center; justify-content:space-between;">
+            <span id="asrStatusText">Ready — load an MP3/WAV, share tab audio, or enable mic</span>
+            <span id="asrEngineBadge" style="color:var(--calm); font-weight:600;"></span>
+          </div>
+          <div id="asrProgressWrap" style="display:none; height:4px; background:rgba(255,255,255,0.08); border-radius:99px; margin-top:6px; overflow:hidden;">
+            <div id="asrProgressBar" style="height:100%; width:15%; background:linear-gradient(90deg, #52ffe0, #f0be59, #ff6b8b); transition:width 0.15s;"></div>
+          </div>
+          <div id="liveTranscriptReadout" style="margin-top:7px; font-size:11.5px; color:#fff8e7; background:rgba(0,0,0,0.46); border-radius:7px; padding:7px 9px; min-height:38px; line-height:1.38; font-style:italic; border:1px solid rgba(255,255,255,0.06);">
+            Waiting for live audio words… (Load any worship MP3/WAV for center-channel vocal isolation + Whisper/LRCLIB sync)
+          </div>
+        </div>
+
+        <div class="meter-strip">
+          <div class="meter-box"><div class="meter-label">Swell</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="mSwell"></div></div></div>
+          <div class="meter-box"><div class="meter-label">Vocal</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="mVocal"></div></div></div>
+          <div class="meter-box"><div class="meter-label">Pulse</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="mPulse"></div></div></div>
+          <div class="meter-box"><div class="meter-label">Chord</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="mHarmonic"></div></div></div>
+          <div class="meter-box"><div class="meter-label">Shimmer</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="mShimmer"></div></div></div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <div class="section-title">
+          <span>Cinema Optical &amp; Council FX</span>
+          <span style="color:var(--coral); font-size:10px;">Live Shader Pass</span>
+        </div>
+        <div class="sliders-grid">
+          <div class="slider-item">
+            <label><span>35mm Light Leaks</span></label>
+            <input type="range" id="paramLightLeaks" min="0" max="1" step="0.02" value="0.76" />
+          </div>
+          <div class="slider-item">
+            <label><span>Bokeh &amp; Lens Flare</span></label>
+            <input type="range" id="paramBokehFlare" min="0" max="1" step="0.02" value="0.80" />
+          </div>
+          <div class="slider-item">
+            <label><span>Color Punch (HDR)</span></label>
+            <input type="range" id="paramColorPunch" min="0" max="1" step="0.02" value="0.82" />
+          </div>
+          <div class="slider-item">
+            <label><span>Film &amp; Linen Grain</span></label>
+            <input type="range" id="paramTextureGrain" min="0" max="1" step="0.02" value="0.58" />
+          </div>
+          <div class="slider-item">
+            <label><span>Audio Reactivity</span></label>
+            <input type="range" id="paramReactivity" min="0" max="1" step="0.02" value="0.78" />
+          </div>
+          <div class="slider-item">
+            <label><span>Color Temp (K)</span></label>
+            <input type="range" id="paramWarmth" min="0" max="1" step="0.02" value="0.52" />
+          </div>
+          <div class="slider-item">
+            <label><span>Motion Speed</span></label>
+            <input type="range" id="paramMotion" min="0" max="1" step="0.02" value="0.52" />
+          </div>
+          <div class="slider-item">
+            <label><span>Text-Safe Band</span></label>
+            <input type="range" id="paramTextSafe" min="0" max="1" step="0.02" value="0.44" />
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <div class="section-title">Lyric / Scripture Feed &amp; Override</div>
+        <input type="text" class="text-input" id="customTextInput" placeholder="Type custom worship lyric or scripture verse..." />
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button class="btn" id="stepLyricBtn" style="flex:1;">⏭ Step Next Line / Verse</button>
+          <button class="btn" id="clearTranscriptBtn" title="Clear live transcribed lines">Clear Heard</button>
+          <button class="btn" id="resetTextBtn">Reset</button>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <div class="section-title">Art Council &amp; Lighting Director Notes</div>
+        <div class="mappings-list" id="stageMappings"></div>
+        <p id="stageLightingNote" style="font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.42;"></p>
+      </div>
+    </aside>
+  </section>
+
+  <!-- Gemini Concept Art & Optical Reference Strip -->
+  <section class="gemini-strip">
+    <div class="gemini-strip-inner">
+      <div class="gemini-strip-header">
+        <div>
+          <span style="color:var(--gold-bright); font-weight:600; font-size:13.5px; letter-spacing:0.03em;">✦ 10 GEMINI CINEMA PLATES, 35MM LIGHT LEAKS &amp; INTERACTIVE CODE TWINS</span>
+          <span style="color:var(--muted); font-size:12.5px; margin-left:10px;">Every visualizer composites live procedural optical shaders with Gemini fine-art &amp; 35mm light-leak plates. Click any plate to load its twin on stage.</span>
+        </div>
+      </div>
+      <div class="gemini-plates-grid" id="geminiStripGrid"></div>
+    </div>
+  </section>
+
+  <!-- 6-Voice Art Director Council Filter Strip & 72 Visualizers Grid -->
+  <section class="gallery-section">
+    <div class="council-banner">
+      <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:11px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:600; color:var(--gold-bright); letter-spacing:0.08em; text-transform:uppercase;">🏛️ 6-Voice Art Director Council Curation &amp; Optical Direction</span>
+        <span id="councilEthosReadout" style="font-size:12.5px; color:var(--muted);">Filter the 72 works by the Art Director Council voice that directed their geometry, optical FX, palette, and typography.</span>
+      </div>
+      <div class="tabs" id="directorTabs">
+        <button class="tab-btn active" data-dir="all">All 6 Council Voices <span class="count-pill">72</span></button>
+        <button class="tab-btn" data-dir="Classical Mind">🏛️ Classical Mind</button>
+        <button class="tab-btn" data-dir="Baroque Dramatist">🕯️ Baroque Dramatist</button>
+        <button class="tab-btn" data-dir="Radical Minimalist">◯ Radical Minimalist</button>
+        <button class="tab-btn" data-dir="Futurist">✦ Futurist</button>
+        <button class="tab-btn" data-dir="World-Eclectic Traveller">🌿 World-Eclectic Traveller</button>
+        <button class="tab-btn" data-dir="Rebellious Hand">✒️ Rebellious Hand</button>
+      </div>
+    </div>
+
+    <div class="gallery-toolbar">
+      <div style="font-size:14px; color:var(--muted); font-weight:500;" id="gridStatusLabel">Showing all 72 Church, Praise, Hymnal &amp; Scripture Visualizers</div>
+      <input type="search" class="search-box" id="searchInput" placeholder="Search by name, Council director, optical style, hymn, scripture..." />
+    </div>
+    <div class="cards-grid" id="cardsGrid"></div>
+  </section>
+
+  <script src="/sanctuary-plates/worshipGallery.bundle.js?v=cinema-council-v4" onerror="var s=document.createElement('script');s.src='./public/sanctuary-plates/worshipGallery.bundle.js?v=cinema-council-v4';document.body.appendChild(s);"></script>
+</body>
+</html>

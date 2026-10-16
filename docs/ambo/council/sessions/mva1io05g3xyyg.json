@@ -1,0 +1,179 @@
+{
+  "id": "mva1io05g3xyyg",
+  "uid": "hiP7PGj15eTq0r0ZH2XwN00AS2h1",
+  "createdAt": 1792099074821,
+  "depth": "FULL",
+  "status": "FAILED",
+  "brief": {
+    "ask": "Art-direct \"Harvest Wheatfield Sunset\" — #11 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Scenic Nature). Premise: Multi-plane bearded golden wheat stalks swaying beneath a warm amber-rose sun. Backlit bearded wheat stalks with delicate awns sway in two depth planes against a glowing harvest sunset, responding smoothly to acoustic guitars and vocals. Lighting today: Key: Golden hour 3300K sunset low on the horizon; warm rim light on grain. Service use: Thanksgiving, stewardship, communion (Bread of Life), acoustic sets. Audio mapping today: Swell → Sways backlit golden wheat stalks in unison; Vocal → Blooms warm sunset rim-light across the horizon; Shimmer → Releases floating golden pollen motes. Palette: #1C1018 #5E2B38 #E08E45 #FFEAB3. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the worship lyric band (one line at a time, four to five seconds a line, word-by-word progression), image logic (how the procedural scene (no concept plate: the plate is generative, in code) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Stillness and reverence — a sanctuary that breathes with the singer's voice; gorgeous, slow, never a screensaver.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "No concept plate: the scene is built entirely in code from the premise.",
+      "Sample lyric lines on the band: \"Be still my soul the Lord is on thy side\" / \"Bear patiently the cross of grief or pain\"."
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Harvest Wheatfield Sunset",
+      "idea": "Warm sunset and swaying wheat stalks with acoustic guitars and vocals.",
+      "geometry": "Depth planes and golden wheat stalks swaying.",
+      "typography": "Sacred font, large scale, simple design.",
+      "imageLogic": "Photographs of wheat stalks and sunset.",
+      "texture": "Real wheat stalks.",
+      "motion": "Wheat stalks swaying in depth planes.",
+      "productionMethod": "Real wheat stalks and photographs.",
+      "humanTrace": "Pressure from real wheat stalks and photographs.",
+      "risk": "May not be legible, especially at 4K.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "Rebel calls my hierarchy a cage."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Warm Sunset Grain",
+      "idea": "A multi-plane sunset with golden wheat fields, responding to audio with subtle grain and texture",
+      "geometry": "Proportions of wheat fields, grid of sunset, depth planes",
+      "typography": "Noto Serif for lyrics, Cinzel for wheat fields, custom fonts for grain and sunset",
+      "imageLogic": "Golden wheat fields photographed with long exposure, sunset captured with camera settings simulating warm ambient light",
+      "texture": "Grain added digitally, subtle textures in wheat fields and sunset",
+      "motion": "Golden wheat fields sway gently, sunset arcs across the horizon, subtle motion in audio and audio channels",
+      "productionMethod": "Procedural code generates wheat fields, grain, sunset and audio",
+      "humanTrace": "Photographed long exposure, custom fonts, subtle grain added digitally",
+      "risk": "Generating procedural code for complex visual elements",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "Classical Mind wants everything to resolve, procedural code may not achieve a fully resolved visual element"
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Wheatfield Sunset",
+      "idea": "Multi-plane bearded golden wheat stalks swaying beneath a warm amber-rose sun with backlit golden wheat stalks and a glowing harvest sunset, responding smoothly to acoustic guitars and vocals.",
+      "geometry": "Grid, proportion, and structure of depth planes.",
+      "typography": "Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono.",
+      "imageLogic": "Photographs and footage of golden wheat stalks and a glowing sunset.",
+      "texture": "A tactile material weave keyed to the lead director's lens and a text-safe dimming band.",
+      "motion": "Wheat stalks swaying in two depth planes, sunset glow, and audio-reactive rendering.",
+      "productionMethod": "Real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit.",
+      "humanTrace": "Simulated material, physically-plausible light, editorial selection, composition, and performance timing.",
+      "risk": "Risking sterility and losing the human touch in the generative process.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind builds monuments; I build instruments. A frame that cannot respond is a photograph of design."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Golden Harvest Sunset",
+      "idea": "Warm amber-rose sun rises above a field of swaying golden wheat, backlit by a harvest sunset.",
+      "geometry": "Two depth planes: backlit golden wheat stalks in the foreground and silhouetted wheat stalks in the background.",
+      "typography": "Noto Serif for the wheat stalks, with a larger display font for the lyric progression.",
+      "imageLogic": "Photographed wheat stalks in the foreground, with procedurally generated wheat stalks in the background.",
+      "texture": "A tactile material weave with film grain, anamorphic flare, and a 35mm light leak.",
+      "motion": "The wheat stalks sway in response to the audio, with subtle motion and depth of field.",
+      "productionMethod": "Procedurally generated wheat stalks in the background, with photographs of wheat stalks in the foreground.",
+      "humanTrace": "The wheat stalks are made by photographing real wheat stalks, with procedural generation of wheat stalks in the background.",
+      "risk": "Risking sterility while maintaining a human touch.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The director disagrees with the Classical Mind's approach to texture, preferring a more generative solution."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "The Baroque Dramatist's Vision for 'Harvest Wheatfield Sunset'",
+      "idea": "To create an emotional spectacle that stands out against the calm and contemplative nature of the song and the background, while also respecting the constraints and the four-color palette.",
+      "geometry": "A multi-plane arrangement of golden wheat stalks, with subtle depth planes and a warm sunset backdrop.",
+      "typography": "Using the available open-licensed typefaces for the worship lyric band, with custom spacing, case, and tracking to ensure legibility and contrast.",
+      "imageLogic": "Treating the procedural scene as a generative image, with simulated material and physically-plausible light to give it a lived-in look.",
+      "texture": "Using a tactile material weave keyed to the lead director's lens to enhance the scene's depth and richness.",
+      "motion": "Responding smoothly to acoustic guitars and vocals with swaying golden wheat stalks and releasing pollen motes.",
+      "productionMethod": "Creating the scene using generative image/video models, shaders, procedural code, or renders of assets Plajah already owns, with no commissioned painting, photo shoot, physical build, or scan.",
+      "humanTrace": "Simulated material, physically-plausible light, editorial selection, composition, and performance timing.",
+      "risk": "The risk of creating an over-the-top and overwhelming spectacle that may distract from the song and the message.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind calls for restraint and quiet reveals, while I believe that drama and timing are essential to creating a memorable visual experience."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Grain of Light",
+      "idea": "Warm, earthy texture inspired by the harvest sunset and golden wheat stalks.",
+      "geometry": "Multi-plane depth planes and a subtle, organic grid.",
+      "typography": "Noto Serif for the worship lyric band, with subtle variations to match the texture.",
+      "imageLogic": "Photographed wheat stalks and a glowing sunset, with procedural grain added for a tactile effect.",
+      "texture": "Procedural grain and subtle, earthy textures inspired by the harvest scene.",
+      "motion": "Wheat stalks sway gently in response to the acoustic guitars and vocals, with subtle, organic motion.",
+      "productionMethod": "Real-time canvas 2D audio-reactive renderer with procedural code and images.",
+      "humanTrace": "Photographed wheat stalks, procedural grain, and subtle, earthy textures inspired by the harvest scene.",
+      "risk": "The risk of overcomplicating the texture and motion, which may detract from the simplicity of the harvest scene.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind may argue that the texture is too earthy and may distract from the serene, peaceful mood of the harvest scene."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "The Futurist's reliance on smooth transitions and dynamic motion feels overly busy, lacking the weight and consequence of a structured composition. It seeks to push beyond a static structure but neglects the fundamental clarity and legibility that give a composition its power.",
+      "concession": "The concept of a grid underlying the wheatfield is a valid starting point."
+    },
+    {
+      "from": "REBEL",
+      "against": "FUTURIST",
+      "objection": "The Futurist's approach feels too sterile, overly focused on the mechanics of the composition at the expense of the human experience. It's trying to be too clever, too perfect. They're trying to make this wheat field sing, but instead it's a bunch of code-generated notes. They're afraid to let the material evidence in, even if it's just a simulation.",
+      "concession": "The Futurist's attention to detail is admirable in how they've implemented depth and texture, but ultimately, there's a level of abstraction here that might not resonate with human emotion."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "CLASSICAL",
+      "objection": "The proposed concept is fundamentally unoriginal. It relies on tired tropes of light and grain, mimicking existing artistic movements instead of exploring new possibilities through generative techniques.",
+      "concession": "There is a certain elegance to the use of depth planes in the composition."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "REBEL",
+      "objection": "The combination of a gridded sunset with a custom font for wheat fields feels like a forced fusion of aesthetics that sacrifices the purity of the source materials. It also unnecessarily leans on digital textures for something that could be achieved with just photographic references, a technique that's already in place in the other directions.",
+      "concession": "The team's focus on accessibility in the choice of open-licensed typefaces is commendable, and a valuable consideration for this project."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "REBEL",
+      "objection": "The Rebellious Hand's over-reliance on physically-plausible light and photographic sources feels like a cheap trick in service of a more traditional approach. The focus on texture feels like it's trying to be something it's not.",
+      "concession": "The hand-drawn grain in the Rebellious Hand is an effective way to add tactile detail and depth."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "WORLD_ECLECTIC",
+      "objection": "The proposed texture feels overly technical and academic, prioritizing the illusion of authenticity over its contribution to meaning.  The film grain, anamorphic flare, and 35mm light leak seem like stylistic flourishes rather than meaningful additions to the visual narrative.",
+      "concession": "Their use of a tactile material weave can add a subtle depth to the experience."
+    }
+  ],
+  "reflections": [],
+  "error": "Aria could not reach a synthesis"
+}

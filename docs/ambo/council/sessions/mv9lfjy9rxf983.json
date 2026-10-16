@@ -1,0 +1,74 @@
+{
+  "id": "mv9lfjy9rxf983",
+  "uid": "hiP7PGj15eTq0r0ZH2XwN00AS2h1",
+  "createdAt": 1792072055745,
+  "depth": "FULL",
+  "status": "FAILED",
+  "brief": {
+    "ask": "Art-direct \"Alabaster & Gold Kintsugi\" — #12 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Contemporary Abstract). Premise: Dark charcoal-alabaster stone slabs repaired with molten 24k gold-leaf veins. Inspired by Japanese Kintsugi (\"golden repair\") and brokenness made whole: tectonic dark stone slabs glow with branching molten gold seams and lacquer nodes. Lighting today: Key: Grazing side light across matte stone + emissive 3500K gold veins. Service use: Grace, redemption, healing, confession & assurance of pardon. Audio mapping today: Vocal → Pulses liquid 24k gold luminescence along the Kintsugi fracture network; Swell → Spreads warm golden halation out from the branching stone seams; Harmonic → Illuminates golden lacquer repair nodes. Palette: #0E0E12 #232229 #D4AF37 #FFF5D6. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the worship lyric band (one line at a time, four to five seconds a line, word-by-word progression), image logic (how the Gemini concept plate it twins (/sanctuary-plates/scripture-kintsugi-mineral-gold.jpg, blended in at plateBlend) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Stillness and reverence — a sanctuary that breathes with the singer's voice; gorgeous, slow, never a screensaver.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "Concept plate: /sanctuary-plates/scripture-kintsugi-mineral-gold.jpg — a Gemini art plate this visualizer was built as the interactive code twin of.",
+      "Sample lyric lines on the band: \"Be still my soul the Lord is on thy side\" / \"Bear patiently the cross of grief or pain\"."
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "FUTURIST",
+      "title": "Procedural Seam Topology and Radiance Fields",
+      "idea": "Kintsugi expressed not as static painted cracks with bloom, but as a multi-plane vector distance-field where dark stone slabs shift in subtle parallax while audio drives real-time light transport along computed fracture network paths.",
+      "geometry": "A tessellated 3×2 tectonic plate matrix built from procedural Voronoi seed points, bisected by high-frequency vector fracture lines (0.8px to 4px). The lyric reading band occupies an isolated 38vh vertical corridor, aligned to an 8px spatial grid with zero overlap into primary seam intersections.",
+      "typography": "Active lyric word in Noto Serif Regular (uppercase, 3.4vw, tracking 0.14em, #FFF5D6) with glowing gold underline vector; unread words in Inter Regular (uppercase, 2.2vw, tracking 0.20em, opacity 0.35, #232229). Sequence timing anchored by a small JetBrains Mono line counter in the lower margin.",
+      "imageLogic": "The concept plate (/sanctuary-plates/scripture-kintsugi-mineral-gold.jpg) is sampled into a 24×14 luminance grid at initialization. This plate grid acts as an absolute coordinate authority for procedural emission: gold vectors only ignite where the plate's raster energy exceeds a declared brightness threshold.",
+      "texture": "Matte slate roughness map (#0E0E12 to #232229) interrupted by specular 24k gold veins (#D4AF37). The Council optical pass applies a calculated micro-etched substrate mesh and anamorphic horizontal flare vectors centered strictly on active gold nodes.",
+      "motion": "Vocal channel drives a 1D path-travel parameter pushing #FFF5D6 light pulses through the vector fracture tree (300ms attack, spring-damped decay). Swell expands the radial bloom radius from 4px to 38px. Harmonic input shifts the 35° grazing light angle across the stone normal planes.",
+      "productionMethod": "Canvas 2D multi-pass renderer utilizing a procedural distance-field cache, composite math blending for the Gemini concept plate at 0.40 opacity, and realtime array iterations for light-node energy propagation.",
+      "humanTrace": "Vector seed coordinates for the main fracture branches were mapped directly from physical field measurements of an authentic broken slate plate repaired with Urushi lacquer.",
+      "risk": "Treating sacred repair as a computational lighting system risks feeling overly technical if audio smoothing is miscalibrated; the payoff is a visually coherent, living instrument that breathes with the sanctuary instead of looping like a screensaver.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist demands stage-managed theatrical reveals and cinematic bloom overlays; I build a continuous, rule-based system where light transport is an exact function of audio inputs and spatial geometry."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Opera of the Broken Stone",
+      "idea": "Transform the frame into a deep stage cavern of chiaroscuro alabaster slabs where vocal presence acts as stage light, striking liquid gold veins to reveal dramatic spatial depth frame by frame.",
+      "geometry": "A monumental proscenium arch formed by heavy, staggered charcoal slabs flanking a central fault; a low golden-ratio horizon line at Y=0.68 anchoring the lyric stage.",
+      "typography": "Cinzel (Display, uppercase, 500 tracking) for liturgical header accents; Noto Serif (Text serif, sentence case, 1.4 line height) for the main lyric line, opening like a theatrical curtain word-by-word with 24k gold opacity blooms.",
+      "imageLogic": "The Gemini concept plate acts as a backlit backdrop cyclorama, projected through masked fracture voids in the procedural stone, cross-fading into volumetric side-lit depth on audio swells.",
+      "texture": "Chiselled matte alabaster stone grain (#232229) with deep shadow traps (#0E0E12), contrasted against wet, impasto-thick gold-leaf veins (#D4AF37) that reflect 3500K specular highlights (#FFF5D6).",
+      "motion": "Slow, theatrical grazing-light key sweeps (0.02 Hz); vocal pulses propel liquid gold luminescence outward along branching seams; swells bloom a warm stage halation behind the text-safe floor.",
+      "productionMethod": "Canvas 2D procedural signed-distance field (SDF) fracture masks layered over multi-plane radial depth gradients, composited with real-time raking specular light calculations and the concept plate blend.",
+      "humanTrace": "Scattered micro-fissures with physical surface tension modeling in the molten gold pools, simulating hand-applied Japanese Urushi lacquer and gilding knife strokes.",
+      "risk": "Extreme chiaroscuro contrast risks heavy dark voids on ambient sanctuary screens, but the dramatic contrast makes the luminous lyric band completely unmissable from forty metres.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist calls restraint a virtue here, but hiding the stone's tactile drama beneath flat dimming turns a living sanctuary into a sterile screensaver."
+      }
+    }
+  ],
+  "disputes": [],
+  "reflections": [],
+  "error": "{\"error\":{\"code\":429,\"message\":\"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash\\nPlease retry in 9h49m41.178554683s.\",\"status\":\"RESOURCE_EXHAUSTED\",\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://ai.google.dev/gemini-api/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-3.6-flash\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"35381s\"}]}}"
+}

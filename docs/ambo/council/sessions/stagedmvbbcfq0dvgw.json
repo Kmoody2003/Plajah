@@ -1,0 +1,82 @@
+{
+  "id": "stagedmvbbcfq0dvgw",
+  "uid": "local-staged",
+  "createdAt": 1792176046488,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct \"Anointing Oil Amber Flow\" — #19 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Contemporary Abstract). Premise: Topographic laminar streams of liquid gold, myrrh bronze, and honey amber. Smooth laminar fluid currents of warm amber, myrrh bronze, and liquid gold glide across the canvas with rich specular contour ridges. Lighting today: Key: Warm 3200K specular sheen over viscous amber fluid contours. Service use: Holy Spirit anointing, consecration, prayer & healing ministry. Audio mapping today: Vocal → Smooths and illuminates golden fluid contour ridges; Swell → Expands warm honey-amber subsurface glow; Bass → Drives slow viscous wave advection. Palette: #120A05 #3D220E #D98A2B #FFF0C2. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the worship lyric band (one line at a time, four to five seconds a line, word-by-word progression), image logic (how the procedural scene (no concept plate: the plate is generative, in code) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Stillness and reverence — a sanctuary that breathes with the singer's voice; gorgeous, slow, never a screensaver.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "No concept plate: the scene is built entirely in code from the premise.",
+      "Sample lyric lines on the band: \"Be still my soul the Lord is on thy side\" / \"Bear patiently the cross of grief or pain\"."
+    ]
+  },
+  "directors": [
+    "REBEL",
+    "CLASSICAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "REBEL",
+      "title": "Laminar Flow",
+      "idea": "A fluid, organic visualizer that evokes a sacred anointing using laminar flows and rich textures to create a feeling of reverence.",
+      "geometry": "Layered planes, organic curves, and fluid, flowing forms, guided by a grid-less approach to generate depth and movement.",
+      "typography": "Noto Serif, Outfit, Cinzel, JetBrains Mono. A gradual progression of font size and weight used for the lyrics, leading the eye through the text.",
+      "imageLogic": "The scene is rendered as a series of fluid, moving shapes, driven by a procedural generative model with a focus on smooth gradients and organic growth.",
+      "texture": "Real-time, simulated, film grain, subtle color bleeding, and a tactile, layered material weave inspired by the visual properties of amber, myrrh bronze, and liquid gold.",
+      "motion": "A slow, fluid movement of gradients and shapes, with a focus on the interaction between the liquid gold, myrrh bronze, and honey amber with the light source and the human eye.",
+      "productionMethod": "Generative image/video models with shaders, procedural code, and renders of assets Plajah already owns.  An integrated GPU laptop drives the visualizer, running at 60fps for a seamless experience.",
+      "humanTrace": "The visualizer features subtle traces of movement and light created by the generative model and rendered in a manner that mimics the process of creating the imagery.",
+      "risk": "The risk is in the unconventional use of generative art, a focus on fluid, organic shapes, and a slow, contemplative movement that deviates from the typical visualizer aesthetic.  This risk is worth it for the unique and evocative experience it creates for the viewer.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind might argue for a more static composition, a reliance on a rigid grid, and a lack of generative processes. This would result in a sterile and predictable visualizer.  I will disagree by prioritizing a fluid and organic approach that emphasizes movement, depth, and a more human-centric approach to design."
+      }
+    },
+    {
+      "directorId": "CLASSICAL",
+      "title": "Amber's Embrace",
+      "idea": "Warm amber fluid contours flow gracefully across the canvas, symbolizing the Holy Spirit's anointing and consecration.",
+      "geometry": "Layered fluid currents with rich specular contour ridges, creating a sense of depth and movement.",
+      "typography": "Serif-style fonts for the worship lyric band, ensuring readability and legibility.",
+      "imageLogic": "Procedural fluid simulation and procedural scene generation, meeting and interacting to create the flowing amber texture.",
+      "texture": "Amber fluid with visible specular contour ridges, symbolizing the richness and depth of the anointing.",
+      "motion": "Gradual and smooth laminar fluid currents, evoking a sense of reverence and stillness.",
+      "productionMethod": "Real-time Canvas 2D audio-reactive renderer, using generative image models and procedural code.",
+      "humanTrace": "Simulated paper tooth, ink bleed, and film grain, giving the scene a physical and tactile presence.",
+      "risk": "Balancing the smooth laminar fluid currents with the need for legibility, ensuring the scene remains gorgeous and slow.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The specific disagreement is on the reveal: whether to announce it or not."
+      }
+    }
+  ],
+  "disputes": [],
+  "synthesis": {
+    "lead": "REBEL",
+    "counterpoint": "CLASSICAL",
+    "editor": "FUTURIST",
+    "direction": "The direction combines the organic fluidity of The Rebellious Hand with the structured depth of Amber's Embrace. The geometry features layered planes and fluid, flowing forms to create a sense of depth. For typography, Noto Serif, Outfit, Cinzel, and JetBrains Mono are used, with a gradual progression in size and weight. The texture incorporates real-time, simulated film grain and subtle color bleeding to mimic the visual properties of amber, myrrh bronze, and liquid gold. Motion is slow and fluid, with gradients and shapes interacting with the light source.",
+    "keepFromCounterpoint": "Rich specular contour ridges to symbolize the richness and depth of the anointing.",
+    "editorCut": "I introduce anamorphic flare to enhance the 3D depth and create a sense of movement, aligning with the futuristic style.",
+    "openDecision": "Decide if the anamorphic flare should be integrated to enhance the 3D depth and movement in the scene.",
+    "ariaSummary": "The Rebellious Hand and Amber's Embrace both aimed for a fluid, organic visualizer. However, they disagreed on the geometry and texture. The Rebellious Hand favored organic, flowing forms, while Amber's Embrace emphasized structured fluid currents. I chose The Rebellious Hand as the lead to bring in the organic, fluid motion, but kept the rich, specular contour ridges from the counterpoint for the worship lyric band. To add a futuristic touch, I've included anamorphic flare to enhance depth and movement. The final decision is yours.",
+    "quotes": []
+  },
+  "reflections": [],
+  "comparison": "They both agree on using generative models and a slow, fluid motion. However, they differ in their approach to geometry, typography, and texture. The Rebellious Hand focuses on organic, fluid forms, while Amber's Embrace emphasizes structured fluid currents.",
+  "lane": "local-staged"
+}

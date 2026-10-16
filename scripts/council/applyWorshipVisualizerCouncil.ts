@@ -1,0 +1,131 @@
+// applyWorshipVisualizerCouncil — turn the Council of Art Directors' deliberations on the 72 Ambo church visualizers
+// (docs/ambo/council, written by runWorshipVisualizerCouncil.ts) into the registry the kit renders from:
+//   services/ambo/worshipVisualizers/councilBuilds.ts   WORSHIP_COUNCIL_BUILDS: id -> the council's build
+//   docs/ambo/WORSHIP_VISUALIZER_COUNCIL.md             the roster: lead / counterpoint / editor per visualizer
+// and strips the hand-assigned `director:` / `councilNote:` stand-ins from the three collection files for every
+// visualizer the council has built, so the lead's lens (material weave + optical pass) and the critique come
+// from the real session and nowhere else.
+//
+// Run: npx tsx scripts/council/applyWorshipVisualizerCouncil.ts
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { ALL_WORSHIP_VISUALIZERS, type CouncilDirector } from '../../services/ambo/worshipVisualizers';
+import type { CouncilDirectorId, Deliberation } from '../../services/council/councilTypes';
+
+const OUT = path.join('docs', 'ambo', 'council');
+const MANIFEST = path.join(OUT, 'manifest.json');
+const SESSIONS = path.join(OUT, 'sessions');
+const TARGET = path.join('services', 'ambo', 'worshipVisualizers', 'councilBuilds.ts');
+const ROSTER = path.join('docs', 'ambo', 'WORSHIP_VISUALIZER_COUNCIL.md');
+const COLLECTIONS = ['calmWorshipVisualizers.ts', 'uptempoPraiseVisualizers.ts', 'scriptureReadingVisualizers.ts'].map(f => path.join('services', 'ambo', 'worshipVisualizers', f));
+
+/** Council director ids (services/council) -> the kit's director voices (services/ambo/worshipVisualizers/types). */
+const VOICE: Record<CouncilDirectorId, CouncilDirector> = {
+  CLASSICAL: 'Classical Mind',
+  BAROQUE: 'Baroque Dramatist',
+  RADICAL_MINIMAL: 'Radical Minimalist',
+  FUTURIST: 'Futurist',
+  WORLD_ECLECTIC: 'World-Eclectic Traveller',
+  REBEL: 'Rebellious Hand',
+};
+
+type ManifestEntry = { sessionId?: string; lane?: string; status: 'DONE' | 'FAILED'; error?: string };
+const manifest: { sessions: Record<string, ManifestEntry> } = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { sessions: {} };
+
+const q = (s: string) => JSON.stringify(String(s ?? ''));
+/** The model-lane failures read as one line each rather than a provider's JSON blob. */
+function shortError(e?: string): string {
+  const s = String(e || '');
+  if (/credit balance/i.test(s)) return 'Anthropic credit balance exhausted';
+  if (/quota|RESOURCE_EXHAUSTED/i.test(s)) return 'Gemini free-tier daily quota exhausted';
+  if (/Fewer than two directors/i.test(s)) return 'fewer than two directors answered (model lane exhausted)';
+  return s.slice(0, 120) || 'unknown';
+}
+const built: string[] = [];
+const missing: Array<{ id: string; why: string }> = [];
+const entries: string[] = [];
+const rows: string[] = [];
+const leadCount: Record<string, number> = {};
+const laneCount: Record<string, number> = {};
+
+for (const vis of ALL_WORSHIP_VISUALIZERS) {
+  const m = manifest.sessions[vis.id];
+  if (!m || m.status !== 'DONE' || !m.sessionId) { missing.push({ id: vis.id, why: m ? `session ${m.status}: ${shortError(m.error)}` : 'never taken to the council' }); continue; }
+  const file = path.join(SESSIONS, `${m.sessionId}.json`);
+  if (!existsSync(file)) { missing.push({ id: vis.id, why: `session ${m.sessionId} not mirrored locally` }); continue; }
+  const d: Deliberation = JSON.parse(readFileSync(file, 'utf8'));
+  const s = d.synthesis;
+  const lead = s && d.proposals.find(p => p.directorId === s.lead);
+  if (d.status !== 'DONE' || !s || !lead) { missing.push({ id: vis.id, why: `session ${m.sessionId} has no synthesis` }); continue; }
+  built.push(vis.id);
+  leadCount[VOICE[s.lead]] = (leadCount[VOICE[s.lead]] || 0) + 1;
+  const lane = m.lane || 'claude';
+  laneCount[lane] = (laneCount[lane] || 0) + 1;
+  entries.push(`  ${q(vis.id)}: {
+    id: ${q(vis.id)}, number: ${vis.number}, sessionId: ${q(d.id)}, builtAt: ${d.createdAt},
+    director: ${q(VOICE[s.lead])}, counterpoint: ${q(VOICE[s.counterpoint])}, editor: ${q(VOICE[s.editor])},
+    title: ${q(lead.title)},
+    idea: ${q(lead.idea)},
+    geometry: ${q(lead.geometry)},
+    typography: ${q(lead.typography)},
+    imageLogic: ${q(lead.imageLogic)},
+    texture: ${q(lead.texture)},
+    motion: ${q(lead.motion)},
+    direction: ${q(s.direction)},
+    keepFromCounterpoint: ${q(s.keepFromCounterpoint)},
+    editorCut: ${q(s.editorCut)},
+    openDecision: ${q(s.openDecision)},
+    quotes: [${s.quotes.map(x => `{ director: ${q(VOICE[x.directorId])}, line: ${q(x.line)} }`).join(', ')}],
+  },`);
+  rows.push(`| ${vis.number} | ${vis.name} (\`${vis.id}\`) | ${vis.category} | ${VOICE[s.lead]} | ${VOICE[s.counterpoint]} | ${VOICE[s.editor]} | ${lead.title.replace(/\|/g, '/')} | ${d.proposals.length}/${d.disputes.length}/${d.reflections?.length ?? 0} | ${lane} |`);
+}
+
+const header = `// services/ambo/worshipVisualizers/councilBuilds.ts
+// GENERATED by scripts/council/applyWorshipVisualizerCouncil.ts from the Council of Art Directors' deliberations
+// (docs/ambo/council: one real council session per visualizer — PROPOSE, DISPUTE, SYNTHESISE, REFLECT).
+// Do not edit by hand: take the visualizer back to the council (runWorshipVisualizerCouncil.ts) and re-apply.
+//
+// \`director\` is the lead voice Aria cast; the kit keys its material weave and optical pass off it
+// (resolveDirector / renderCouncilOpticalPass), and \`direction\` is the critique the gallery and Ambo show.
+import type { WorshipCouncilBuild } from './types';
+
+/** ${built.length} of 72 visualizers built by the council. */
+export const WORSHIP_COUNCIL_BUILDS: Record<string, WorshipCouncilBuild> = {
+${entries.join('\n')}
+};
+`;
+writeFileSync(TARGET, header);
+
+// Strip the hand-assigned stand-ins from the collections for every visualizer the council built.
+let stripped = 0;
+for (const file of COLLECTIONS) {
+  const src = readFileSync(file, 'utf8');
+  const lines = src.split('\n');
+  const out: string[] = [];
+  let currentId = '';
+  for (const line of lines) {
+    const idm = /^    id: '([^']+)',\s*$/.exec(line);
+    if (idm) currentId = idm[1];
+    if (built.includes(currentId) && /^    (director|councilNote): /.test(line)) { stripped++; continue; }
+    out.push(line);
+  }
+  if (out.length !== lines.length) writeFileSync(file, out.join('\n'));
+}
+
+const leads = Object.entries(leadCount).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' · ');
+writeFileSync(ROSTER, `# Art Council — the 72 Ambo church visualizers
+
+Generated by \`scripts/council/applyWorshipVisualizerCouncil.ts\` from \`docs/ambo/council\` (runWorshipVisualizerCouncil.ts: one real
+Council of Art Directors session per visualizer — six directors PROPOSE, DISPUTE, Aria SYNTHESISES without averaging, each REFLECTS
+into their profile). The lead voice drives the kit's material weave and Council optical pass for that visualizer; the critique shown in the
+gallery and in Ambo is Aria's direction. Registry: \`services/ambo/worshipVisualizers/councilBuilds.ts\`.
+
+**Built:** ${built.length} / 72 · **Leads:** ${leads || '—'} · **Model lane:** ${Object.entries(laneCount).map(([k, v]) => `${k} ${v}`).join(' · ') || '—'}
+${missing.length ? `\n**Not built:** ${missing.map(m => `\`${m.id}\` (${m.why})`).join(', ')}\n` : ''}
+| # | Visualizer | Collection | Lead | Counterpoint | Editor | Lead's proposal | proposals/disputes/reflections | lane |
+|---|---|---|---|---|---|---|---|---|
+${rows.join('\n')}
+`);
+
+console.log(`built ${built.length}/72 · stripped ${stripped} hand-assigned director/councilNote lines · wrote ${TARGET} and ${ROSTER}`);
+if (missing.length) console.log(`missing ${missing.length}: ${missing.map(m => `${m.id} (${m.why})`).join('; ')}`);

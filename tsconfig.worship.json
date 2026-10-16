@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "services/ambo/worshipVisualizers/**/*.ts",
+    "scripts/council/applyWorshipVisualizerCouncil.ts",
+    "scripts/council/runWorshipCouncilStaged.ts",
+    "components/plajahPixels/dev/worshipGallery.ts"
+  ]
+}

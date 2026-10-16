@@ -1,0 +1,219 @@
+{
+  "id": "mva1pn2dklb0tg",
+  "uid": "hiP7PGj15eTq0r0ZH2XwN00AS2h1",
+  "createdAt": 1792099400197,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct \"Alabaster & Gold Kintsugi\" — #12 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Contemporary Abstract). Premise: Dark charcoal-alabaster stone slabs repaired with molten 24k gold-leaf veins. Inspired by Japanese Kintsugi (\"golden repair\") and brokenness made whole: tectonic dark stone slabs glow with branching molten gold seams and lacquer nodes. Lighting today: Key: Grazing side light across matte stone + emissive 3500K gold veins. Service use: Grace, redemption, healing, confession & assurance of pardon. Audio mapping today: Vocal → Pulses liquid 24k gold luminescence along the Kintsugi fracture network; Swell → Spreads warm golden halation out from the branching stone seams; Harmonic → Illuminates golden lacquer repair nodes. Palette: #0E0E12 #232229 #D4AF37 #FFF5D6. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the worship lyric band (one line at a time, four to five seconds a line, word-by-word progression), image logic (how the Gemini concept plate it twins (/sanctuary-plates/scripture-kintsugi-mineral-gold.jpg, blended in at plateBlend) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Stillness and reverence — a sanctuary that breathes with the singer's voice; gorgeous, slow, never a screensaver.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "Concept plate: /sanctuary-plates/scripture-kintsugi-mineral-gold.jpg — a Gemini art plate this visualizer was built as the interactive code twin of.",
+      "Sample lyric lines on the band: \"Be still my soul the Lord is on thy side\" / \"Bear patiently the cross of grief or pain\"."
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Kintsugi: A Fractured Light",
+      "idea": "To create a visually striking worship visualization that showcases the beauty of brokenness and redemption through the use of dark charcoal-alabaster stone slabs repaired with molten gold veins.",
+      "geometry": "The grid, proportion, and structure will be used to create a sense of balance and harmony in the composition.",
+      "typography": "The typography will be designed to ensure that the lyrics and scripture stay legible, even when viewed from the back pew, during the busiest moment of the scene.",
+      "imageLogic": "Photographs or footage of the dark charcoal-alabaster stone slabs and molten gold veins will be used to create a sense of reality and depth.",
+      "texture": "The texture of the molten gold veins and lacquer repair nodes will be created using procedural code and shaders.",
+      "motion": "The motion will be used to create a sense of dynamic and evolving light as the molten gold veins and lacquer repair nodes change and shift.",
+      "productionMethod": "The visualization will be created using generative models and procedural code, ensuring a high-end result at a fraction of the cost.",
+      "humanTrace": "The perceptible sign of making will be achieved through the use of simulated material, physically plausible light, editorial selection, composition, and performance timing.",
+      "risk": "The risk of relying too heavily on generative models and procedural code may lead to a lack of creativity and originality.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebellious Hand may argue that the rigid grid and structure may limit the flexibility and creativity of the visualization."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Alabaster & Gold: The Healing Fractures",
+      "idea": "A visually striking portrayal of Kintsugi, a Japanese art of repairing broken pottery with gold, to represent the healing of brokenness and the restoration of unity.",
+      "geometry": "A rectangular grid structure with adjustable proportions to create depth and a sense of spatiality.",
+      "typography": "The use of the Noto Serif, Outfit/Inter, and Cinzel fonts to ensure readability and consistency across different lines and sizes.",
+      "imageLogic": "The use of Kintsugi-inspired textures, such as gold veins and lacquer nodes, to create a sense of unity and coherence.",
+      "texture": "The use of real materials, such as matte stone and liquid gold, to provide a tactile and authentic feel.",
+      "motion": "The use of controlled motion and animation to create a sense of fluidity and change.",
+      "productionMethod": "The use of generative models, procedural code, and real-time rendering to create the desired visual effects.",
+      "humanTrace": "The use of subtle visual cues, such as subtle film grain and liquid gold, to create a sense of making and authenticity.",
+      "risk": "The risk of creating a visually striking and meaningful representation of Kintsugi, while also ensuring accessibility and readability.",
+      "arguesWith": {
+        "directorId": "WORLD_ECLECTIC",
+        "why": "The specific disagreement is regarding the World-Eclectic Traveler's desire to incorporate specific cultural references and attributions, which may not align with the intended sacred imagery and respectful portrayal of Kintsugi."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Kintsugi's Embrace",
+      "idea": "A healing narrative of brokenness mended with gold.",
+      "geometry": "A 4:3 grid, with a subtle perspective shift to simulate depth.",
+      "typography": "Cinzel for the worship lyrics, Outfit for the scripture.",
+      "imageLogic": "Photographed and composited dark stone slabs with liquid 24k gold seams and lacquer nodes.",
+      "texture": "Dark charcoal-alabaster stone slabs with a subtle haze.",
+      "motion": "The molten gold veins animate and spread across the scene.",
+      "productionMethod": "Using generative image/video models and procedural shaders.",
+      "humanTrace": "Simulated material, physically-plausible light, editorial selection, composition, and performance timing.",
+      "risk": "The risk of relying too heavily on the liquid gold effect, which might distract from the narrative.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind would likely emphasize the geometric structure and proportion, which is a strength in the current proposal."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "A Celestial Dance",
+      "idea": "The fractured alabaster stone slabs of the Kintsugi style are illuminated by a celestial dance of glowing veins and lacquer nodes, symbolizing the healing and redemption found in brokenness.",
+      "geometry": "A layered grid of tessellated shapes, each containing a molten gold vein and a lacquer node, will form the dancing patterns.",
+      "typography": "The worship lyric band will be displayed using the Noto Serif typeface, with a custom-made ligature to represent the dance of gold veins and lacquer nodes.",
+      "imageLogic": "Photographs of real gold veins and lacquer nodes will be used as textures and as a source of motion, as the gold veins ripple and dance in response to the audio.",
+      "texture": "The surface of the alabaster stone slabs will be rendered using a simulated gold patina, giving the appearance of the stone being worn down and resurfaced.",
+      "motion": "The motion of the gold veins and nodes will be driven by the audio, with the veins rippling in response to the swells and pulses, and the nodes dancing in response to the harmonic frequencies.",
+      "productionMethod": "The direction will be built using generative image/video models, shaders, and procedural code, with a fixed Canvas 2D audio-reactive renderer.",
+      "humanTrace": "The human trace of making will be evident in the simulated gold patina, the texture of the alabaster stone slabs, and the motion of the gold veins and nodes.",
+      "risk": "The risk of this direction is that the celestial dance might become overwhelming or distracting, taking away from the focus on the worship lyric band and the sacred imagery.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind might argue that the layered tessellated shapes lack the organic, hand-crafted feel that the Kintsugi style is known for."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "The Kintsugi of Alabaster and Gold",
+      "idea": "To create a visual representation of the Kintsugi technique through the use of dark charcoal alabaster stone slabs with molten 24k gold veins, symbolizing redemption, healing, confession, and assurance of pardon.",
+      "geometry": "A multi-layered grid structure with varying depth planes to create a sense of depth and space.",
+      "typography": "Use the Noto Serif (text serif) and JetBrains Mono (display) fonts, maintaining a consistent scale, case, tracking, measure, and hierarchy.",
+      "imageLogic": "Photographs and footage of the Kintsugi repair technique, including the use of gold veins and lacquer nodes, will be used to create the visual representation.",
+      "texture": "Use simulated material such as paper tooth, ink bleed, film grain, and foil to create a tactile and textured appearance.",
+      "motion": "The gold veins will move and branch dynamically, creating a sense of healing and redemption.",
+      "productionMethod": "The visual representation will be created using generative image/video models, shaders, procedural code, and renders of assets Plajah already owns.",
+      "humanTrace": "The perceptible sign of making will be evident through the use of simulated material, physically plausible light, editorial selection, composition, and performance timing.",
+      "risk": "The risk of creating a visually overwhelming and distracting scene that may overshadow the worship and lyrics.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind may argue that the reveal should be quiet and a delay, which may contradict the idea of redemption and healing through the Kintsugi technique."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Glowing Alabaster",
+      "idea": "Emphasize the dark, molten gold veins and the textural contrast between the stone and gold.",
+      "geometry": "Proportional grid, emphasizing the depth planes and the branching veins.",
+      "typography": "Noto Serif for the lyric band, with custom spacing, case, and hierarchy.",
+      "imageLogic": "Blend the concept plate with the procedural scene, using the Gemini art plate as a guide.",
+      "texture": "Use a combination of matte stone and emissive gold veins to create contrast.",
+      "motion": "The veins and nodes should be animated, with a focus on the liquid 24k gold luminescence.",
+      "productionMethod": "Use generative image models and shaders to create the gold veins and nodes.",
+      "humanTrace": "Use simulated material, physically-plausible light, and editorial selection to create the visual.",
+      "risk": "The risk is in creating a visual that may not resonate with the target audience.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind may argue that the grid and proportion should be more rigid, emphasizing the structural integrity of the piece."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "WORLD_ECLECTIC",
+      "objection": "The layered grid of tessellated shapes, while potentially visually interesting, sacrifices legibility for novelty. This is a false trade-off that doesn't engage the viewer's capacity to follow a narrative in a structured way.",
+      "concession": "There is an elegance in the visual language of the dance."
+    },
+    {
+      "from": "REBEL",
+      "against": "FUTURIST",
+      "objection": "This attempt to stitch together a healing narrative with a dynamic, fluid narrative feels like a slapdash attempt at an emotional story. It forgets that the most important thing about Kintsugi is its materiality. The attempt to make it about an emotion feels like a mistake.",
+      "concession": "The use of simulated material and physically plausible light are a good start for a generative process, and the integration of the concept plate with the scene is a clever idea"
+    },
+    {
+      "from": "FUTURIST",
+      "against": "WORLD_ECLECTIC",
+      "objection": "The attempt to weave a celestial dance with grid geometry feels forced, like a misplaced attempt to elevate a concept too simple to be elevated. The layers of tessellation lack the organic flow necessary to communicate the nuance of Kintsugi, instead, it comes across as a busy, visually overstimulating abstraction.",
+      "concession": "While the use of photographs of gold veins and lacquer nodes for the image is a valid approach, the choice to solely rely on them for animation feels somewhat limiting."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "While the Baroque Dramatist's approach to Kintsugi is certainly evocative, the attempt to weave in confessions and assurance of pardon feels misplaced. It dilutes the core principle of Kintsugi: the beauty of a healed crack in the material.  The visual language leans too heavily on sentimentality, distracting from the tangible act of repair and the inherent poetry of the technique.",
+      "concession": "The use of Noto Serif for the lyrics is a well-considered choice and adds an elegance that the scene needs."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind's focus on restraint and stillness, while well-intentioned, feels too timid.  Their attempt at a 'fractured light' feels overly reliant on static shapes and predictable geometry. It lacks the visceral impact and dynamic energy I crave for this project.",
+      "concession": "The use of a grid structure can provide a strong framework for organizing the content and contributing to the composition's visual language, albeit in a more subtle way than the Futurist approach."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "WORLD_ECLECTIC",
+      "objection": "The layered grid structure is overly abstract and relies on overly specific and uninspired imagery. While I appreciate the use of digital textures, the movement and composition don’t have the emotional weight of the other proposals.",
+      "concession": "The use of a celestial dance is an interesting metaphor, and I appreciate how it attempts to bridge the gap between spiritual and visual elements."
+    }
+  ],
+  "reflections": [
+    {
+      "directorId": "CLASSICAL",
+      "note": "The insistence on the dynamic, organic movement of the gold veins, while grounded in a grid structure, revealed a new layer of how a generative model can both encode structure and capture the illusion of growth. This insight will inform my approach to building a hierarchy not as a static cage, but a responsive organism."
+    },
+    {
+      "directorId": "REBEL",
+      "note": "The requirement to layer a grid of tessellated shapes, even with gold veins, forced me to consider the grid as a system of emergent, dynamic interaction. This isn't about resolving the grid, but rather making it the source of its own visual force."
+    },
+    {
+      "directorId": "FUTURIST",
+      "note": "This brief forced me to reconsider the dynamic between static and animated elements, realizing that the visual growth of a fluid system can be compelling without relying on constant movement, and that the interplay between the static grid and the dynamic veins can create a sense of depth and tension."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "note": "The emphasis on the liquid gold veins in motion, while beautiful, feels like a generic visual trope for wealth and luxury.  I worry that this direction could easily fall into the trap of simply mimicking a material, without the deep human trace of fabrication and intention."
+    },
+    {
+      "directorId": "BAROQUE",
+      "note": "The grid's animation, with its focus on the flow and growth of the veins, pushed me to think less about rigid structures and more about the dynamism of form and light.  This has shifted my approach towards generative models that prioritize movement over static forms."
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "note": "This brief pushed me to confront the idea of generative processes as tools for both structuring form and sculpting meaning. I realized that even in the most abstract of geometries, the human trace – the deliberate control over movement and direction – can be a vital aspect of a piece's expression."
+    }
+  ],
+  "synthesis": {
+    "lead": "RADICAL_MINIMAL",
+    "counterpoint": "WORLD_ECLECTIC",
+    "editor": "CLASSICAL",
+    "direction": "The direction is a layered grid of tessellated shapes that will form the base of the visual. These shapes will be rendered in a combination of matte stone and emissive gold veins, and the movement of the gold veins will be animated, with a focus on the liquid 24k gold luminescence.  The grid will be dynamic, not static, and the movement will emphasize the growth of the veins.  The production will be done in a generative image model.",
+    "keepFromCounterpoint": "The use of a grid structure, even in its most subtle form, is essential to a stable, understandable structure.",
+    "editorCut": "The World-Eclectic Traveler's use of specific cultural references and attributions, which may not align with the intended sacred imagery and respectful portrayal of Kintsugi.",
+    "openDecision": "the user must choose to use the grid structure or not.",
+    "ariaSummary": "The Radical Minimalist, while acknowledging the beauty of the other proposals, believes in the power of minimalism. They argue that the layered grid structure will create a dynamic and engaging visual, but not at the expense of legibility. The grid, in their view, provides a strong foundation, but the animation of the gold veins will create the impact the user is seeking. The visual will be grounded in a minimal aesthetic, not in an overly-complicated one, with the grid serving as the base, but not the whole story.  They recognize the need to create a visual that resonates with the audience.",
+    "quotes": [
+      {
+        "directorId": "RADICAL_MINIMAL",
+        "line": "While I appreciate the use of digital textures, the movement and composition don’t have the emotional weight of the other proposals."
+      }
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "id": "stagedmvbaz0mlzu6h",
+  "uid": "local-staged",
+  "createdAt": 1792175420397,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct \"Harvest Wheatfield Sunset\" — #11 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Scenic Nature). Premise: Multi-plane bearded golden wheat stalks swaying beneath a warm amber-rose sun. Backlit bearded wheat stalks with delicate awns sway in two depth planes against a glowing harvest sunset, responding smoothly to acoustic guitars and vocals. Lighting today: Key: Golden hour 3300K sunset low on the horizon; warm rim light on grain. Service use: Thanksgiving, stewardship, communion (Bread of Life), acoustic sets. Audio mapping today: Swell → Sways backlit golden wheat stalks in unison; Vocal → Blooms warm sunset rim-light across the horizon; Shimmer → Releases floating golden pollen motes. Palette: #1C1018 #5E2B38 #E08E45 #FFEAB3. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the worship lyric band (one line at a time, four to five seconds a line, word-by-word progression), image logic (how the procedural scene (no concept plate: the plate is generative, in code) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Stillness and reverence — a sanctuary that breathes with the singer's voice; gorgeous, slow, never a screensaver.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "No concept plate: the scene is built entirely in code from the premise.",
+      "Sample lyric lines on the band: \"Be still my soul the Lord is on thy side\" / \"Bear patiently the cross of grief or pain\"."
+    ]
+  },
+  "directors": [
+    "WORLD_ECLECTIC",
+    "BAROQUE"
+  ],
+  "proposals": [
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Golden Harvest Reverie",
+      "idea": "A generative wheatfield sunset responds to acoustic guitar and vocal melodies, evoking a sanctuary of peace and reverence.",
+      "geometry": "Layered, overlapping planes of golden wheat stalks create a sense of depth and movement, responding to audio cues.",
+      "typography": "Noto Serif for the lyric text, Outfit for a second line, and Cinzel for a final flourish.",
+      "imageLogic": "The wheat stalks respond to audio, with intensity and form evolving as the music swells or slows.",
+      "texture": "Simulated wheat grain texture with soft gradients and subtle bokeh, mimicking real-world textures with a cinematic edge.",
+      "motion": "A subtle, graceful wave-like movement in the wheat stalks, with gentle sway responding to the audio.",
+      "productionMethod": "Generative image and video models create the scene, controlled by audio parameters.",
+      "humanTrace": "Simulated light, subtle grain, and a tactile material weave reflect the gentle flow of light on a golden wheat field.",
+      "risk": "The potential for a generic visual may be minimized by the emphasis on specific textures and unique grain patterns that are rooted in a detailed simulation.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist may desire a more dramatic approach to the visuals.  This approach prioritizes subtle movement and visual calm over a grander, more theatrical effect."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Wheatfield Resonance",
+      "idea": "A multi-plane wheat field swaying beneath a warm sunset, with the golden wheat stalks responding to the acoustic guitars and vocals.",
+      "geometry": "A 16:9 aspect ratio with two depth planes, one for the backlit wheat stalks and another for the foreground wheat stalks.",
+      "typography": "The worship lyric band will be displayed in the Noto Serif typeface, with each line taking up to five seconds to ensure legibility.",
+      "imageLogic": "The wheat fields will be procedurally generated, with the wheat stalks swaying in response to the audio cues.",
+      "texture": "The wheat stalks will have a subtle grain texture to give them a tactile feel.",
+      "motion": "The wheat stalks will sway in response to the acoustic guitars and vocals, with smooth motion to match the slow pace of the scene.",
+      "productionMethod": "This direction will be made using a real-time Canvas 2D audio-reactive renderer.",
+      "humanTrace": "The wheat stalks will be simulated using paper tooth and ink bleed, giving them a physical appearance.",
+      "risk": "The risk is the potential for the wheat stalks to become too distracting or overwhelming.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind may argue that a quieter reveal is preferred, but this direction aims to create a spectacle of motion and contrast."
+      }
+    }
+  ],
+  "disputes": [],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "BAROQUE",
+    "editor": "CLASSICAL",
+    "direction": "Choose a layered, overlapping geometry for the wheat stalks, with both backlit and front planes. Use Noto Serif for the text, with Cinzel for a final flourish. Generate the wheat stalks to sway gracefully in response to the acoustic guitars and vocals. Apply subtle, varied textures and smooth motion to create a sense of depth and stillness. The production will be real-time Canvas 2D audio-reactive, ensuring a seamless, high-quality experience.",
+    "keepFromCounterpoint": "The multi-plane geometry, with two depth planes, must survive. This will provide the depth and层次感 needed for the scene.",
+    "editorCut": "Add a subtle, linear motion to the background wheat stalks, enhancing the sense of movement and depth. This will complement the more subtle sway of the front plane and maintain the intended stillness and reverence.",
+    "openDecision": "Decide on the depth planes and how they interact with the audio. Should the background wheat stalks move linearly or sway with the music?",
+    "ariaSummary": "The team debated between the World-Eclectic Traveler's rich, varied textures and the Baroque Dramatist's simpler, more direct approach. We chose the World-Eclectic Traveler for its layered geometry and varied textures. The Baroque Dramatist's multi-plane concept was integral to the final design, ensuring the depth and层次感 required. Your decision will shape the depth planes and motion, balancing stillness and movement in the visualizer.",
+    "quotes": []
+  },
+  "reflections": [],
+  "comparison": "Both proposals agree on the use of procedurally generated wheat stalks and a slow, responsive motion. They split on texture and geometry, with WORLD_ECLECTIC preferring a more cinematic and varied texture, while BAROQUE emphasizes a simpler, more direct procedural approach. WORLD_ECLECTIC is stronger on geometry and texture, with a richer, more varied wheat field.",
+  "lane": "local-staged"
+}

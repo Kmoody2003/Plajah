@@ -1,0 +1,24 @@
+{
+  "visualizer": "calm-19-anointing-oil-amber",
+  "director": "CLASSICAL",
+  "model": "nemotron-4b",
+  "ms": 6912,
+  "tokens": 268,
+  "proposal": {
+    "directorId": "CLASSICAL",
+    "title": "Amber's Embrace",
+    "idea": "Warm amber fluid contours flow gracefully across the canvas, symbolizing the Holy Spirit's anointing and consecration.",
+    "geometry": "Layered fluid currents with rich specular contour ridges, creating a sense of depth and movement.",
+    "typography": "Serif-style fonts for the worship lyric band, ensuring readability and legibility.",
+    "imageLogic": "Procedural fluid simulation and procedural scene generation, meeting and interacting to create the flowing amber texture.",
+    "texture": "Amber fluid with visible specular contour ridges, symbolizing the richness and depth of the anointing.",
+    "motion": "Gradual and smooth laminar fluid currents, evoking a sense of reverence and stillness.",
+    "productionMethod": "Real-time Canvas 2D audio-reactive renderer, using generative image models and procedural code.",
+    "humanTrace": "Simulated paper tooth, ink bleed, and film grain, giving the scene a physical and tactile presence.",
+    "risk": "Balancing the smooth laminar fluid currents with the need for legibility, ensuring the scene remains gorgeous and slow.",
+    "arguesWith": {
+      "directorId": "BAROQUE",
+      "why": "The specific disagreement is on the reveal: whether to announce it or not."
+    }
+  }
+}

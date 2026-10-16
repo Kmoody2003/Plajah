@@ -1,0 +1,19 @@
+{
+  "directorId": "WORLD_ECLECTIC",
+  "topic": "Byzantine gold leaf illumination in manuscripts",
+  "influences": [
+    {
+      "at": 1792110778972,
+      "topic": "Multilingual typography and script pairing",
+      "finding": "In the evidence item [1], there are search queries for multilingual typography and script pairing. Including this topic in The World-Eclectic Traveler's search lens would help the team consider how different scripts and languages are used together in manuscript illuminations.",
+      "source": {
+        "title": "Google",
+        "url": "https://www.google.com/xhtml/search"
+      },
+      "note": "The research reminds me that multilingual illumination is a rich visual language, not just a decorative choice, and that's something worth considering in a design context.  It also opens the door to exploring the interplay of script and visual systems, something I hadn't considered before."
+    }
+  ],
+  "note": "The research reminds me that multilingual illumination is a rich visual language, not just a decorative choice, and that's something worth considering in a design context.  It also opens the door to exploring the interplay of script and visual systems, something I hadn't considered before.",
+  "lane": "local",
+  "seconds": 215
+}

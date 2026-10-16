@@ -1,0 +1,24 @@
+{
+  "visualizer": "calm-11-harvest-wheat-sunset",
+  "director": "WORLD_ECLECTIC",
+  "model": "gemma-2-2b",
+  "ms": 5653,
+  "tokens": 300,
+  "proposal": {
+    "directorId": "WORLD_ECLECTIC",
+    "title": "Golden Harvest Reverie",
+    "idea": "A generative wheatfield sunset responds to acoustic guitar and vocal melodies, evoking a sanctuary of peace and reverence.",
+    "geometry": "Layered, overlapping planes of golden wheat stalks create a sense of depth and movement, responding to audio cues.",
+    "typography": "Noto Serif for the lyric text, Outfit for a second line, and Cinzel for a final flourish.",
+    "imageLogic": "The wheat stalks respond to audio, with intensity and form evolving as the music swells or slows.",
+    "texture": "Simulated wheat grain texture with soft gradients and subtle bokeh, mimicking real-world textures with a cinematic edge.",
+    "motion": "A subtle, graceful wave-like movement in the wheat stalks, with gentle sway responding to the audio.",
+    "productionMethod": "Generative image and video models create the scene, controlled by audio parameters.",
+    "humanTrace": "Simulated light, subtle grain, and a tactile material weave reflect the gentle flow of light on a golden wheat field.",
+    "risk": "The potential for a generic visual may be minimized by the emphasis on specific textures and unique grain patterns that are rooted in a detailed simulation.",
+    "arguesWith": {
+      "directorId": "BAROQUE",
+      "why": "The Baroque Dramatist may desire a more dramatic approach to the visuals.  This approach prioritizes subtle movement and visual calm over a grander, more theatrical effect."
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "mv9m92o8j21ece",
+  "uid": "hiP7PGj15eTq0r0ZH2XwN00AS2h1",
+  "createdAt": 1792073433032,
+  "depth": "FULL",
+  "status": "FAILED",
+  "brief": {
+    "ask": "Art-direct \"Psalm 150 Jubilee Strings\" — #38 of the 72 Ambo church visualizers (Uptempo Praise & Hymnal lyric visualizer, Collection II of 72; subgenre Joyful Praise). Premise: Vibrating golden Davidic harp strings and radial bronze cymbal blooms. \"Praise Him with stringed instruments and organs\": taut golden harp strings vibrate across the canvas while bronze acoustic blooms respond to percussion. Lighting today: Key: Burnished bronze and gold harmonic strings over deep slate. Service use: Psalm 150, orchestral praise, celebratory worship sets. Audio mapping today: Vocal → Plucks and vibrates the golden harmonic strings; Clap → Blooms radial bronze cymbal shimmer discs; Pulse → Modulates string tension and golden glow. Palette: #0A0E17 #1E2A3D #E09F3E #FFF6DC. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the praise lyric band (faster lines, beat-locked emphasis, a hymnal four-part feel where the subgenre asks for it), image logic (how the procedural scene (no concept plate: the plate is generative, in code) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Joy and momentum — a congregation on its feet; bright and celebratory, the beat felt in light and growth, never in a strobe.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "No concept plate: the scene is built entirely in code from the premise.",
+      "Sample lyric lines on the band: \"Praise God from whom all blessings flow\" / \"Lift every voice with joyful sound and sing\"."
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [],
+  "disputes": [],
+  "reflections": [],
+  "error": "Fewer than two directors answered"
+}

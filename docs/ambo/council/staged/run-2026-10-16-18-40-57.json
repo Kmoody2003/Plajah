@@ -1,0 +1,48 @@
+{
+  "batch": [
+    "calm-19-anointing-oil-amber"
+  ],
+  "stats": [
+    {
+      "stage": "A",
+      "model": "gemma-2-2b",
+      "items": 1,
+      "loadMs": 2936,
+      "genMs": 19794,
+      "tokens": 1140,
+      "peakTemp": 86,
+      "tempBefore": 78,
+      "tempAfter": 83,
+      "vramMb": 2546,
+      "waitedMs": 51199
+    },
+    {
+      "stage": "B",
+      "model": "nemotron-4b",
+      "items": 0,
+      "loadMs": 0,
+      "genMs": 0,
+      "tokens": 0,
+      "peakTemp": 0,
+      "tempBefore": 81,
+      "tempAfter": 0,
+      "vramMb": 0,
+      "waitedMs": 0
+    },
+    {
+      "stage": "C",
+      "model": "pokee-7b",
+      "items": 1,
+      "loadMs": 9183,
+      "genMs": 43521,
+      "tokens": 932,
+      "peakTemp": 86,
+      "tempBefore": 80,
+      "tempAfter": 83,
+      "vramMb": 4698,
+      "waitedMs": 0
+    }
+  ],
+  "totalMs": 145495,
+  "peakTemp": 86
+}

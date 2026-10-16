@@ -1,0 +1,167 @@
+{
+  "id": "mv9xg4c5j8wvvu",
+  "uid": "hiP7PGj15eTq0r0ZH2XwN00AS2h1",
+  "createdAt": 1792092237557,
+  "depth": "FULL",
+  "status": "FAILED",
+  "brief": {
+    "ask": "Art-direct \"Frankincense & Gold Dust\" — #10 of the 72 Ambo church visualizers (Calm Contemporary Worship lyric visualizer, Collection I of 72; subgenre Contemplative Light). Premise: Swinging brass thurible censer, aromatic smoke plumes, and diagonal altar beam. An ornate brass thurible censer swings gently in the upper sanctuary while silky curls of liturgical incense rise through a diagonal shaft of warm amber altar light. Lighting today: Key: Single diagonal 3400K altar spot cutting through dark nave. Service use: Prayer, intercession, Sanctus, contemplative worship. Audio mapping today: Swell → Widens the ascending incense smoke curl & altar beam; Vocal → Brightens the swinging brass thurible censer & smoke scattering; Shimmer → Drifts fine suspended gold dust motes. Palette: #09080C #241B18 #D49448 #FFF2DC. Keep the id, name, premise and palette; rebuild the direction: the geometry and depth planes, typography for the worship lyric band (one line at a time, four to five seconds a line, word-by-word progression), image logic (how the procedural scene (no concept plate: the plate is generative, in code) and the procedural scene meet), texture, motion, and which audio channel drives what. Decide it — the lead's lens will drive the kit's material weave and optical pass for this one.",
+    "surface": "Plajah Ambo church presenter",
+    "domain": "worship visualizer",
+    "audience": "Congregations watching a projector or LED wall from the pews, five to forty metres away, eyes on the words; and the worship leader or volunteer running Ambo live from a laptop.",
+    "feeling": "Stillness and reverence — a sanctuary that breathes with the singer's voice; gorgeous, slow, never a screensaver.",
+    "constraints": [
+      "Build method (fixed): a real-time Canvas 2D audio-reactive renderer in Plajah's worship visualizer kit — sanctuary background, multi-plane depth (god rays, motes, bokeh), the kit's Council optical pass (35mm light leaks, anamorphic flare, film grain, colour punch, and a tactile material weave keyed to the LEAD director's lens) and the kit's lyric / scripture typography engine. No video playback, no WebGL, no assets beyond the one concept plate.",
+      "Audio drives amplitude, colour, light, growth and glow only — never the position of the words. Envelopes are smoothed; nothing strobes or flashes (photosensitive-safe); uptempo pulses are spring-damped.",
+      "The reading band is sacred: lyrics or scripture must stay legible at 1920×1080 and 4K from the back pew, over the busiest moment of the scene. A text-safe dimming band is part of the kit; direct how the scene yields to it.",
+      "Typefaces are fixed to the kit's open-licensed set: Noto Serif (text serif), Outfit / Inter (sans), Cinzel (display), JetBrains Mono. Direct scale, case, tracking, measure and hierarchy, not new families.",
+      "Sacred imagery is used correctly and respectfully: biblical places and objects are specific and attributable, never costume; nothing denominational or branded; nothing that reads as a music video or a screensaver.",
+      "Runs at 60 fps on an integrated-GPU laptop driving a projector: favour layered gradients, cached textures and a few large shapes over particle storms.",
+      "Keep this visualizer's id, name, premise and four-colour palette. The council owns the direction, not the catalogue entry."
+    ],
+    "references": [
+      "No concept plate: the scene is built entirely in code from the premise.",
+      "Sample lyric lines on the band: \"Be still my soul the Lord is on thy side\" / \"Bear patiently the cross of grief or pain\"."
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Symphony of Smoke",
+      "idea": "A swirling, emotive incense cloud with a warm, golden halo.",
+      "geometry": "The incense cloud is treated as a procedural scene, with a grid and proportion. The grid is used to guide the smoke's motion and shape.",
+      "typography": "The worship lyric band is presented in a simple, sans-serif typeface, with a subtle, controlled motion.",
+      "imageLogic": "The procedural smoke scene meets the worship lyric band through a dynamic composition, with the smoke's motion choreographed to the band's progression.",
+      "texture": "The smoke cloud is treated as a tactile material, with subtle imperfections and a subtle grain to simulate real incense.",
+      "motion": "The smoke cloud is animated and moves in a slow, emotive spiral, with a subtle, rhythmic motion.",
+      "productionMethod": "The smoke cloud is generated through procedural code, with a carefully crafted, layered texture. The worship lyric band is presented in real-time, with a fixed, controlled motion.",
+      "humanTrace": "The perceptible sign of making is the subtle, controlled motion of the smoke cloud, and the controlled, real-time rendering of the worship lyric band.",
+      "risk": "The risk is in maintaining the emotive, controlled motion of the smoke cloud throughout the entire service, without becoming overwhelming.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist argues that the smoke cloud should be more dramatic and visually striking, rather than simply swirling."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Swirling Incense and Liturgical Light",
+      "idea": "To create a visual that represents the swinging thurible censer, swirling incense smoke, and the warm amber altar light.",
+      "geometry": "A grid of 1280x720, with the altar spot at the center and a diagonal section for the incense smoke.",
+      "typography": "Serif for the main body text, sans-serif for the lyric band and scripture, using real-world fonts.",
+      "imageLogic": "The incense smoke would be generated procedurally, using particle systems, and would swirl around the altar spot.",
+      "texture": "A textured background with subtle film grain and an anamorphic flare effect.",
+      "motion": "The incense smoke would move upwards and outwards, creating a sense of movement and depth.",
+      "productionMethod": "Using real-time rendering techniques and procedural code to create the visual, without relying on physical models or assets.",
+      "humanTrace": "The perceptible sign of making would be the use of subtle film grain and the anamorphic flare effect, which would add a sense of realism and making to the visual.",
+      "risk": "The risk is to create a visual that is both visually striking and meaningful, while also being technically challenging to render in real-time.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants everything to resolve, but I believe that the swirling incense smoke and the warm amber light create a sense of movement and depth that is unresolved, adding a sense of spirituality and reverence to the visual."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "The Swinging Thurible",
+      "idea": "A dynamic and emotive visual representation of the swinging brass thurible and the curling incense smoke.",
+      "geometry": "A grid of depth planes to create a sense of depth and movement.",
+      "typography": "Noto Serif for the worship lyric band, and a custom font for the scrolling text.",
+      "imageLogic": "Use footage of the swinging thurible and the curling incense smoke as a base for procedural generation of the depth planes.",
+      "texture": "Use a simulated brass surface for the thurible and a simulated smoke plume for the incense smoke.",
+      "motion": "The thurible will swing gently, and the incense smoke will curl diagonally.",
+      "productionMethod": "Generate the visuals procedurally using the depth planes and the input from the footage.",
+      "humanTrace": "Use the footage of the actual thurible and the incense smoke to guide the procedural generation.",
+      "risk": "The risk of relying too heavily on procedural generation and losing the sense of reality.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind argues that a frame that cannot respond is a photograph of design. Procedural generation may not provide the same level of responsiveness as a more traditional approach."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Glistening Censer",
+      "idea": "A swirling incense plume meets an amber altar light",
+      "geometry": "A 2D grid with diagonal elements",
+      "typography": "Noto Serif, Outfit, Cinzel, JetBrains Mono",
+      "imageLogic": "A procedurally generated incense plume meets an illuminated altar with a subtle texture.",
+      "texture": "An oily sheen on the altar light and a wispy, glowing plume.",
+      "motion": "The incense plume rises and flows gently, while the altar light remains static.",
+      "productionMethod": "A real-time canvas 2D audio-reactive renderer.",
+      "humanTrace": "A perceptible sense of motion and a subtle texture.",
+      "risk": "The risk of overcomplicating the scene or losing clarity in the imagery.",
+      "arguesWith": {
+        "directorId": "FUTURIST",
+        "why": "The Futurist may argue that the new should erase the need for human making, while this proposal emphasizes the importance of human making and the specific source."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Swirling Incense",
+      "idea": "To create a visually dynamic and emotive scene that represents the swinging thurible censer and the ascending incense smoke curls.",
+      "geometry": "A 16x9 aspect ratio canvas, with the altar spot at the center, creating a sense of depth and perspective.",
+      "typography": "The worship lyric band is presented in a word-by-word progression, allowing the viewer to follow the singer's voice.",
+      "imageLogic": "The procedural scene and the thurible censer are animated in a way that complements each other, creating a harmonious and visually appealing composition.",
+      "texture": "Silky curls of incense smoke, swirling with a sense of motion and depth.",
+      "motion": "The incense smoke curls are animated to ascend in a diagonal shaft of warm amber altar light, creating a sense of movement and visual interest.",
+      "productionMethod": "The scene is constructed using generative image/video models and shaders, ensuring a high-quality and visually appealing result.",
+      "humanTrace": "The perceptible sign of making is the simulated material of the incense smoke, which adds a sense of realism and touch to the scene.",
+      "risk": "The risk is that the scene may become too cluttered or overwhelming, with too many visual elements competing for attention.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind may argue that the scene is too dynamic and visually overwhelming, with too much motion and visual interest."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Breath of the Cantus Firmus",
+      "idea": "Swirling brass and incense smoke, a hypnotic dance",
+      "geometry": "Voronoi cell, bokeh node, god-ray column",
+      "typography": "Noto Serif, Outfit / Inter, Cinzel, JetBrains Mono",
+      "imageLogic": "Photographs of incense smoke and metal components",
+      "texture": "Silk, brass, amber light",
+      "motion": "Slow, swirling motion of the brass, subtle motion of the smoke",
+      "productionMethod": "Generative code, layered gradients, large shapes",
+      "humanTrace": "The perceptible sign of making is the code",
+      "risk": "Generating the code might take time, but the result is unique and captivating",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind might argue that the geometric structure lacks the complexity and depth required."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "The Futurist's dynamic and emotive approach, while visually stimulating, fails to engage the core structure of the project. The constant shifting and swirling movement overwhelms the attempt to create a meaningful space and loses the sense of hierarchy that is so crucial to the message of the work.",
+      "concession": "The Futurist's approach to movement does have a strong sense of momentum that is captivating to the user."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "This grid-driven approach to smoke is predictable, unimaginative, and ultimately boring. The attempt to generate a 'swirling' effect is weak and doesn't capture the organic quality of real incense. I think their smoke will look like a simulation of smoke that was not meant to be beautiful, but merely to convey data and information.",
+      "concession": "Their use of a grid to create depth and motion does offer a certain level of structural control."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "WORLD_ECLECTIC",
+      "objection": "The concept of a 'glowing' altar and a 'wishing' lyric band is an overly simplistic and emotionally-driven choice. It reads more like a 'mood board' than a carefully considered visual system, and the grid aesthetic is a lazy application of the 'new' to the 'old' that betrays a lack of a more complex, and honestly, more honest relationship with the source material.",
+      "concession": "The procedural generation of smoke is an interesting application of generative imagery, and the use of the Voronoi cell adds a subtle, spatial depth to the scene."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "While I admire the attempt to capture movement and harmony through swirling smoke, I find the concept of a 'word-by-word progression' limiting and overly reliant on a simplistic narrative that feels more like a summary than an exploration of the actual sonic experience. The music itself should be a driving force in the visual, not a passive narrative companion.",
+      "concession": "The incense smoke's simulated texture, while not entirely realistic, does create a palpable, almost tactile experience."
+    }
+  ],
+  "reflections": [],
+  "error": "local council lane did not come up (see scripts/localAi/council_local_lane.py output above)"
+}
