@@ -19,7 +19,7 @@ import {
   normalizeSpoken,
   type ScriptureRef,
 } from '../services/scriptureRef';
-import { ScriptureReadingTracker, createScriptureListener } from '../services/ambo/scriptureListener';
+import { ScriptureReadingTracker, createScriptureListener, detectSpoken } from '../services/ambo/scriptureListener';
 
 const d = (s: string) => formatRef(parseRef(s)!, 'display');
 
@@ -315,6 +315,17 @@ describe('normalizeSpoken — ASR chunks', () => {
     assert.deepEqual(spoken('I saw 40 cars'), []);
     // an alias never matches inside a word ("page 3" is not "ge 3", Genesis 3)
     assert.deepEqual(spoken('take 5 minutes and look at page 3'), []);
+    // ordinary sermon words that merely sound like a book stay words
+    assert.deepEqual(spoken('salvation 3 16'), []);
+    assert.deepEqual(spoken('this generation 4 verse 2'), []);
+    assert.deepEqual(spoken('revelations 21 4'), ['Revelation 21:4']);
+  });
+
+  test('spoken text never reads a typed abbreviation as a book', () => {
+    assert.deepEqual(detectSpoken('there is 3 people in the room', 0.6, false).map(d => formatRef(d.ref)), []);
+    assert.deepEqual(detectSpoken('I am 3 years into this', 0.6, false).map(d => formatRef(d.ref)), []);
+    assert.deepEqual(detectSpoken('the book of job 3 verse 1', 0.6, false).map(d => formatRef(d.ref)), ['Job 3:1']);
+    assert.deepEqual(detectSpoken('turn to acts 2 38', 0.6, false).map(d => formatRef(d.ref)), ['Acts 2:38']);
   });
 });
 

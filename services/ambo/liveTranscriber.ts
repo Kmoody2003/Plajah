@@ -1125,7 +1125,9 @@ class AmboWindowsSpeechRecognizer {
         this.ev.onWords(delta, false);
       }
     } else if (m.type === 'SPEECH_FINAL') {
-      const delta = this.assembler.final(m.text || '');
+      // The host's final often re-spells what its partials already said ("eight" → "8"):
+      // only words beyond the ones on screen go out, never the sentence a second time.
+      const delta = this.assembler.finalTail(m.text || '');
       if (delta) {
         this.ev.onWords(delta, true);
       } else {
@@ -1356,9 +1358,13 @@ async function startSpeechTranscriptionRaw(source: TranscribeSource, ev: Transcr
   ): Promise<TranscriberHandle> => {
     const hw = await probeHardware();
     const localPrimary = hw.gpu && hw.gpuF16;
-    let closed = false, released = false;
+    let closed = false, released = false, quickDead = false;
     let lastQuickWordAt = 0, lastEmittedNorm = '', lastEmittedAt = 0;
     let whisper: TranscriberHandle | null = null;
+    // While the quick recogniser is the one on screen, Whisper is a BACKSTOP: it may only speak
+    // when the quick engine has said nothing for this long (its own passes land seconds late,
+    // so a shorter window let every sentence arrive twice — the second one a delayed ghost).
+    const BACKSTOP_QUIET_MS = 8000;
 
     const releaseQuick = () => {
       if (released) return;
@@ -1367,14 +1373,18 @@ async function startSpeechTranscriptionRaw(source: TranscribeSource, ev: Transcr
     };
     const emit = (text: string, final: boolean, fromQuick: boolean) => {
       if (closed) return;
+      if (fromQuick && released) return;                                          // handed over: one engine only
       if (fromQuick && localPrimary && getLiveAsr()) { releaseQuick(); return; }   // Whisper is up: single engine from here
       const cleaned = text.trim();
       if (!cleaned) { if (final) ev.onWords('', true); return; }
       const now = performance.now();
       if (fromQuick) lastQuickWordAt = now;
-      else if (!released && now - lastQuickWordAt < 2200) return;                 // bridging: quick words are already on screen
+      else if (!released && !quickDead) {
+        if (!final) return;                                                        // backstop: whole utterances only
+        if (now - lastQuickWordAt < BACKSTOP_QUIET_MS) return;                     // the quick engine already put this up
+      }
       const norm = cleaned.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-      if (norm && norm === lastEmittedNorm && now - lastEmittedAt < 2500) return;
+      if (norm && norm === lastEmittedNorm && now - lastEmittedAt < 8000) return;
       if (norm) { lastEmittedNorm = norm; lastEmittedAt = now; }
       ev.onWords(cleaned, final);
     };
@@ -1382,7 +1392,11 @@ async function startSpeechTranscriptionRaw(source: TranscribeSource, ev: Transcr
     wire(
       (t, f) => emit(t, f, true),
       s => { if (!closed && !released) ev.onStatus?.(s); },
-      m => { if (!whisper) ev.onError?.(m); else console.warn('[liveTranscriber:speech] quick recogniser:', m); },
+      m => {
+        // The quick recogniser is gone (Windows speech privacy setting, network…): Whisper takes over outright.
+        quickDead = true; lastQuickWordAt = 0;
+        if (!whisper) ev.onError?.(m); else console.warn('[liveTranscriber:speech] quick recogniser stopped, Whisper takes over:', m);
+      },
     );
     await quick.start();
 

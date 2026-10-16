@@ -424,7 +424,9 @@ export async function startAutoScripture(customSource?: TranscribeSource): Promi
   setState({ starting: true, error: '', status: 'Starting…', heard: '', hearing: null, hearingGiving: null, operator: OPERATOR_OFF });
   // Pre-warm bundled KJV in memory so verse lookup is 0ms
   void getChapter(DEFAULT_TRANSLATION, 43, 3);
-  const listener = createScriptureListener({ minConfidence: Math.min(prefs.minConfidence, 0.6), requireCue: false, settleMs: 520, cooldownMs: 18_000 });
+  // 45 s cooldown: a reference that just went up must not come back as a ghost when a late
+  // transcript of the same sentence arrives; the preacher saying it again a minute later still works.
+  const listener = createScriptureListener({ minConfidence: Math.min(prefs.minConfidence, 0.6), requireCue: false, settleMs: 520, cooldownMs: 45_000 });
   activeListener = listener;
   // One giving listener hears both channels: the operator saying "offering" counts too.
   const giving = createGivingListener();

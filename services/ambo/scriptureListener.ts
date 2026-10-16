@@ -73,6 +73,10 @@ export function detectSpoken(text: string, minConfidence = 0.7, requireCue = tru
   for (const d of findRefs(spoken, { minConfidence })) {
     const { raw, start, end, confidence, ...ref } = d;
     const hasVerse = ref.verse !== undefined;
+    // Nobody SAYS "is 3" or "am 40": two/three-letter aliases are for typed input only
+    // ("there is 3 of them" must not become Isaiah 3). "Job" is a full name and stays.
+    const bookToken = raw.replace(/\d.*$/, '').trim().split(/\s+/).pop() || '';
+    if (bookToken.length <= 3 && bookToken.toLowerCase() !== 'job') continue;
     const capital = /^[A-Z0-9]/.test(raw) && /[A-Z]/.test(raw.replace(/^\d+\s*/, '').charAt(0));
     const before = spoken.slice(Math.max(0, start - 60), start);
     const cued = CUE_BEFORE.test(before);

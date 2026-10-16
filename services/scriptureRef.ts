@@ -700,6 +700,30 @@ const NOT_A_BOOK = new Set(('the an and or of to in on at by for from with are w
 const ORDINAL_TOKEN = /^(?:1|2|3|1st|2nd|3rd|first|second|third)$/i;
 const ALIAS_SET = new Set(Object.keys(BASE_ALIASES));
 
+/**
+ * Ordinary sermon words that SOUND like a book (mostly like Revelation, Lamentations and the
+ * "-ians" epistles). A loose match must never turn these into a book: "salvation 3 16" is not
+ * Revelation 3:16.
+ */
+const SERMON_WORDS_NOT_BOOKS = new Set((
+  'salvation generation generations creation temptation temptations foundation foundations nation nations ' +
+  'revolution relation relations relationship elevation celebration declaration education situation information ' +
+  'invitation condemnation justification sanctification redemption resurrection expectation expectations obligation ' +
+  'congregation meditation dedication application population location vacation station operation preparation ' +
+  'presentation limitation limitations persecution tribulation visitation hesitation reservation separation ' +
+  'examination imagination demonstration inspiration illustration translation translations devotion devotions ' +
+  'emotion emotions commotion motion notion decision decisions division divisions provision provisions vision visions ' +
+  'television illusion illusions conclusion conclusions companion companions opinion opinions million millions ' +
+  'billion billions reunion champion champions question questions suggestion suggestions direction directions ' +
+  'connection connections correction corrections collection collections election elections selection reflection ' +
+  'reflections section sections objection intention intentions invention conventions mention attention tension ' +
+  'extension pension dimension dimensions confession confessions possession possessions profession session sessions ' +
+  'impression impressions expression expressions mission missions permission admission submission commission ' +
+  'passion compassion fashion occasion occasions position positions condition conditions tradition traditions ' +
+  'addition edition ambition definition competition composition transition petition petitions proposition ' +
+  'revelations lamentation'
+).split(' ').filter(w => w !== 'revelations' && w !== 'lamentation'));
+
 export interface SoundMatchOptions {
   /**
    * The words sit right in front of a chapter[:verse] number, so they are almost certainly a
@@ -716,6 +740,7 @@ export function closestBookBySound(words: string, opts: SoundMatchOptions = {}):
   if (SPOKEN_BOOK_HOMOPHONES[flat]) {
     return { name: SPOKEN_BOOK_HOMOPHONES[flat], score: 0.94 };
   }
+  if (opts.loose && SERMON_WORDS_NOT_BOOKS.has(flat)) return null;
   const key = phoneticKey(flat);
   let best: { name: string; score: number } | null = null;
   let second = 0;
@@ -737,7 +762,11 @@ export function closestBookBySound(words: string, opts: SoundMatchOptions = {}):
   if (best.score >= 0.58 && best.score - second >= 0.1) return best;
   // Right before chapter:verse the finite set decides it: the likeliest book wins as long as it
   // sounds at all like one and nothing else sounds as close.
-  if (opts.loose && best.score >= 0.45 && (best.score - second >= 0.04 || best.score >= 0.55)) return best;
+  if (opts.loose && best.score >= 0.45 && (best.score - second >= 0.04 || best.score >= 0.55)) {
+    // A real English "-tion/-sion" word that is only vaguely like a book stays a word.
+    if (/(?:tion|sion)s?$/.test(flat) && sim(flat, best.name.toLowerCase().replace(/[^a-z]/g, '')) < 0.8) return null;
+    return best;
+  }
   return null;
 }
 
