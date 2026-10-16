@@ -60,11 +60,23 @@ import type { DirectorialLens, DirectorialLighting, DirectorialCameraAngle } fro
 import { TelaLookGallery } from '../tela/color/TelaLookGallery';
 import { getLutById } from '../../services/color/cinematicLutLibrary';
 
+/** What the host can show while the studio is minimised (a progress rail, a toolbar chip). */
+export interface LocalCreativeStudioProgress { loading: boolean; pct: number; msg: string }
+
 interface LocalCreativeStudioProps {
   initialImage?: string;
   onSendToTimeline?: (url: string) => void;
   onSendToTela?: (url: string) => void;
   onClose?: () => void;
+  /**
+   * 'modal' (default): the two-column 1150×840 workspace. 'panel': a docked side panel — controls stack above the
+   * preview so it reads at 440–620 px wide, and the host keeps working while a render runs.
+   */
+  variant?: 'modal' | 'panel';
+  /** Collapse the panel without unmounting it, so a running generation carries on. */
+  onMinimize?: () => void;
+  /** Progress of the current generation, for the host's minimised rail. */
+  onProgress?: (p: LocalCreativeStudioProgress) => void;
 }
 
 export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
@@ -72,7 +84,11 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   onSendToTimeline,
   onSendToTela,
   onClose,
+  variant = 'modal',
+  onMinimize,
+  onProgress,
 }) => {
+  const panel = variant === 'panel';
   const [activeTab, setActiveTab] = useState<'cinema' | 'enhance' | 'relight' | 'video' | 'comic' | 'history' | 'models'>('cinema');
   const [elapsedSec, setElapsedSec] = useState(0);
   const [historyItems, setHistoryItems] = useState<PaiGenerationItem[]>([]);
@@ -83,6 +99,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   const [loading, setLoading] = useState(false);
   const [progressMsg, setProgressMsg] = useState('');
   const [progressPct, setProgressPct] = useState(0);
+  // Let the host (Tela's docked panel) mirror the generation while this panel is minimised.
+  useEffect(() => { onProgress?.({ loading, pct: progressPct, msg: progressMsg }); }, [loading, progressPct, progressMsg, onProgress]);
   const [installedMap, setInstalledMap] = useState<Record<string, boolean>>({});
   const [installingId, setInstallingId] = useState<string | null>(null);
 
@@ -109,7 +127,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   // Relight Dials
   const [azimuth, setAzimuth] = useState(45);
   const [elevation, setElevation] = useState(30);
-  const [lightColor, setLightColor] = useState('#fff2df');
+  const [lightColor, setLightColor] = useState('#FAF5FF');
   const [intensity, setIntensity] = useState(1.0);
 
   // Output
@@ -350,10 +368,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
       flexDirection: 'column',
       width: '100%',
       height: '100%',
-      backgroundColor: '#121316',
-      color: '#e2e8f0',
+      backgroundColor: '#100B17',
+      color: '#EFE6F6',
       fontFamily: 'Inter, system-ui, sans-serif',
-      borderRadius: '8px',
+      borderRadius: panel ? 0 : '8px',
       overflow: 'hidden',
     }}>
       {/* Top Header & Engine Status */}
@@ -362,23 +380,25 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '12px 18px',
-        backgroundColor: '#181a1f',
-        borderBottom: '1px solid #282b33',
+        backgroundColor: '#160D20',
+        borderBottom: '1px solid #3A2250',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Wand2 size={20} color="#f59e0b" />
+          <Wand2 size={20} color="#D40055" />
           <span style={{ fontWeight: 600, fontSize: '15px', letterSpacing: '-0.2px' }}>
             Plajah Local Creative Studio
           </span>
-          <span style={{
-            fontSize: '11px',
-            backgroundColor: '#232730',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            color: '#94a3b8',
-          }}>
-            Plajah Native Harness · Directorial Intent
-          </span>
+          {!panel && (
+            <span style={{
+              fontSize: '11px',
+              backgroundColor: '#241636',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              color: '#B8A7C9',
+            }}>
+              Plajah Native Harness · Directorial Intent
+            </span>
+          )}
         </div>
 
         {/* Local Hardware Badge */}
@@ -390,8 +410,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
             fontSize: '12px',
             padding: '4px 10px',
             borderRadius: '6px',
-            backgroundColor: status?.online ? '#064e3b' : '#334155',
-            color: status?.online ? '#6ee7b7' : '#94a3b8',
+            backgroundColor: status?.online ? '#064e3b' : '#3A2250',
+            color: status?.online ? '#6ee7b7' : '#B8A7C9',
           }}>
             <Cpu size={14} />
             <span>{status?.device?.name || 'Probing Local Hardware…'}</span>
@@ -411,13 +431,24 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
             </span>
           </div>
 
+          {onMinimize && (
+            <button
+              onClick={onMinimize}
+              title="Minimise — keeps rendering in the background"
+              style={{ background: 'transparent', border: '1px solid #3A2250', borderRadius: '6px', color: '#B8A7C9', cursor: 'pointer', padding: '2px 8px', fontSize: '12px', fontWeight: 700 }}
+            >
+              ›
+            </button>
+          )}
           {onClose && (
             <button
-              onClick={onClose}
+              // Closing mid-render would lose the run with the component; minimise instead when the host allows it.
+              onClick={loading && onMinimize ? onMinimize : onClose}
+              title={loading && onMinimize ? 'Rendering — minimise instead of closing' : 'Close'}
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#94a3b8',
+                color: '#B8A7C9',
                 cursor: 'pointer',
                 padding: '4px',
               }}
@@ -428,15 +459,19 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
         </div>
       </div>
 
-      {/* Main Workspace Layout */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      {/* Main Workspace Layout — two columns as a modal; controls stacked above the preview as a docked panel */}
+      <div style={{ display: 'flex', flexDirection: panel ? 'column' : 'row', flex: 1, minHeight: 0 }}>
         {/* Left Control Column */}
         <div style={{
-          width: '380px',
-          borderRight: '1px solid #282b33',
+          width: panel ? '100%' : '380px',
+          flex: panel ? '0 0 auto' : undefined,
+          maxHeight: panel ? '58%' : undefined,
+          minHeight: 0,
+          borderRight: panel ? 'none' : '1px solid #3A2250',
+          borderBottom: panel ? '1px solid #3A2250' : 'none',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#14161a',
+          backgroundColor: '#130A1C',
         }}>
           {/* Mode Switcher */}
           <div style={{
@@ -444,8 +479,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
             gridTemplateColumns: 'repeat(7, 1fr)',
             gap: '2px',
             padding: '8px',
-            backgroundColor: '#1b1d22',
-            borderBottom: '1px solid #282b33',
+            backgroundColor: '#160D20',
+            borderBottom: '1px solid #3A2250',
           }}>
             {[
               { id: 'cinema', label: 'Cinema Stills', icon: Film },
@@ -471,8 +506,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     fontWeight: 500,
                     borderRadius: '4px',
                     border: 'none',
-                    backgroundColor: isActive ? '#f59e0b' : 'transparent',
-                    color: isActive ? '#000' : '#94a3b8',
+                    backgroundColor: isActive ? '#D40055' : 'transparent',
+                    color: isActive ? '#000' : '#B8A7C9',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     textAlign: 'center',
@@ -490,7 +525,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
             {activeTab !== 'models' && (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#E3D8EE' }}>
                     Creative Prompt
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -509,15 +544,15 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                         fontSize: '10px',
                         fontWeight: 600,
                         borderRadius: '12px',
-                        border: promptEnhanceEnabled ? '1px solid #10b981' : '1px solid #475569',
-                        backgroundColor: promptEnhanceEnabled ? 'rgba(16, 185, 129, 0.15)' : '#1e293b',
-                        color: promptEnhanceEnabled ? '#34d399' : '#94a3b8',
+                        border: promptEnhanceEnabled ? '1px solid #10b981' : '1px solid #5B4272',
+                        backgroundColor: promptEnhanceEnabled ? 'rgba(16, 185, 129, 0.15)' : '#1D1229',
+                        color: promptEnhanceEnabled ? '#34d399' : '#B8A7C9',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
                       title="Toggle AI prompt enhancement to automatically inject camera lenses, lighting, and textures"
                     >
-                      <Sparkles size={11} color={promptEnhanceEnabled ? '#34d399' : '#94a3b8'} />
+                      <Sparkles size={11} color={promptEnhanceEnabled ? '#34d399' : '#B8A7C9'} />
                       <span>AI Enhancer: {promptEnhanceEnabled ? 'ON' : 'OFF'}</span>
                     </button>
 
@@ -533,9 +568,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                         fontSize: '10px',
                         fontWeight: 600,
                         borderRadius: '6px',
-                        border: '1px solid #3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                        color: '#60a5fa',
+                        border: '1px solid #6B0099',
+                        backgroundColor: 'rgba(107,0,153, 0.15)',
+                        color: '#FF8C00',
                         cursor: isEnhancing ? 'wait' : 'pointer',
                       }}
                       title="Enrich current prompt with directorial cinematic optics and lighting"
@@ -557,8 +592,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                   style={{
                     width: '100%',
                     height: '74px',
-                    backgroundColor: '#0f1013',
-                    border: '1px solid #2d3139',
+                    backgroundColor: '#0A0610',
+                    border: '1px solid #3A2250',
                     borderRadius: '6px',
                     padding: '8px',
                     color: '#fff',
@@ -574,15 +609,15 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
             {activeTab === 'cinema' && (
               <>
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Active Diffusion Model</label>
+                  <label style={{ fontSize: '11px', color: '#B8A7C9', display: 'block', marginBottom: '4px' }}>Active Diffusion Model</label>
                   <select
                     value={selectedModelId}
                     onChange={(e) => setSelectedModelId(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '8px',
-                      backgroundColor: '#1a1c22',
-                      border: '1px solid #282b33',
+                      backgroundColor: '#160D20',
+                      border: '1px solid #3A2250',
                       borderRadius: '4px',
                       color: '#fff',
                       fontSize: '12px',
@@ -601,9 +636,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 {/* LoRA Style & Speed Distillation Adapter */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '11px', color: '#94a3b8' }}>Production LoRA Adapter</label>
+                    <label style={{ fontSize: '11px', color: '#B8A7C9' }}>Production LoRA Adapter</label>
                     {selectedLoraId !== 'none' && (
-                      <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 600 }}>
+                      <span style={{ fontSize: '10px', color: '#D40055', fontWeight: 600 }}>
                         Strength: {Math.round(selectedLoraWeight * 100)}%
                       </span>
                     )}
@@ -621,8 +656,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     style={{
                       width: '100%',
                       padding: '8px',
-                      backgroundColor: '#1a1c22',
-                      border: '1px solid #282b33',
+                      backgroundColor: '#160D20',
+                      border: '1px solid #3A2250',
                       borderRadius: '4px',
                       color: '#fff',
                       fontSize: '12px',
@@ -641,10 +676,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     if (!activeL) return null;
                     const isInst = loraInstallState[activeL.id] === 'installed';
                     return (
-                      <div style={{ marginTop: '6px', padding: '8px', backgroundColor: '#181b22', borderRadius: '4px', border: '1px solid #282d38' }}>
+                      <div style={{ marginTop: '6px', padding: '8px', backgroundColor: '#160D20', borderRadius: '4px', border: '1px solid #241636' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
-                            Triggers: <span style={{ color: '#38bdf8' }}>{activeL.triggerWords.slice(0, 3).join(', ')}</span>
+                          <span style={{ fontSize: '10px', color: '#B8A7C9' }}>
+                            Triggers: <span style={{ color: '#FF8C00' }}>{activeL.triggerWords.slice(0, 3).join(', ')}</span>
                           </span>
                           {!isInst && (
                             <button
@@ -653,7 +688,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                               style={{
                                 fontSize: '10px',
                                 padding: '2px 8px',
-                                backgroundColor: '#2563eb',
+                                backgroundColor: '#6B0099',
                                 color: '#fff',
                                 borderRadius: '4px',
                                 border: 'none',
@@ -670,7 +705,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                           max="150"
                           value={Math.round(selectedLoraWeight * 100)}
                           onChange={(e) => setSelectedLoraWeight(Number(e.target.value) / 100)}
-                          style={{ width: '100%', accentColor: '#f59e0b' }}
+                          style={{ width: '100%', accentColor: '#D40055' }}
                         />
                       </div>
                     );
@@ -678,7 +713,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Frame Aspect</label>
+                  <label style={{ fontSize: '11px', color: '#B8A7C9', display: 'block', marginBottom: '4px' }}>Frame Aspect</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                     {(['16:9', '2.39:1', '1:1', '9:16'] as const).map((a) => (
                       <button
@@ -688,9 +723,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                           padding: '6px',
                           fontSize: '11px',
                           borderRadius: '4px',
-                          border: aspect === a ? '1px solid #f59e0b' : '1px solid #282b33',
-                          backgroundColor: aspect === a ? '#261f10' : '#1a1c22',
-                          color: aspect === a ? '#f59e0b' : '#94a3b8',
+                          border: aspect === a ? '1px solid #D40055' : '1px solid #3A2250',
+                          backgroundColor: aspect === a ? '#2A0A1C' : '#160D20',
+                          color: aspect === a ? '#D40055' : '#B8A7C9',
                           cursor: 'pointer',
                         }}
                       >
@@ -701,7 +736,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                  <label style={{ fontSize: '11px', color: '#B8A7C9', display: 'block', marginBottom: '4px' }}>
                     Optical Cinema Lens (16 Presets)
                   </label>
                   <select
@@ -710,8 +745,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     style={{
                       width: '100%',
                       padding: '8px',
-                      backgroundColor: '#1a1c22',
-                      border: '1px solid #282b33',
+                      backgroundColor: '#160D20',
+                      border: '1px solid #3A2250',
                       borderRadius: '4px',
                       color: '#fff',
                       fontSize: '12px',
@@ -737,7 +772,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                  <label style={{ fontSize: '11px', color: '#B8A7C9', display: 'block', marginBottom: '4px' }}>
                     Directorial Lighting Setup (16 Presets)
                   </label>
                   <select
@@ -746,8 +781,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     style={{
                       width: '100%',
                       padding: '8px',
-                      backgroundColor: '#1a1c22',
-                      border: '1px solid #282b33',
+                      backgroundColor: '#160D20',
+                      border: '1px solid #3A2250',
                       borderRadius: '4px',
                       color: '#fff',
                       fontSize: '12px',
@@ -774,11 +809,11 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    <label style={{ fontSize: '11px', color: '#B8A7C9' }}>
                       Camera Angle & Consistency (12 Angles)
                     </label>
                     {cameraAngle === 'full_body_turnaround' && (
-                      <span style={{ fontSize: '9px', color: '#38bdf8', fontWeight: 700 }}>
+                      <span style={{ fontSize: '9px', color: '#FF8C00', fontWeight: 700 }}>
                         Turnaround Active
                       </span>
                     )}
@@ -789,8 +824,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     style={{
                       width: '100%',
                       padding: '8px',
-                      backgroundColor: '#1a1c22',
-                      border: '1px solid #282b33',
+                      backgroundColor: '#160D20',
+                      border: '1px solid #3A2250',
                       borderRadius: '4px',
                       color: '#fff',
                       fontSize: '12px',
@@ -811,8 +846,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                   </select>
 
                   {cameraAngle === 'full_body_turnaround' && (
-                    <div style={{ marginTop: '6px', padding: '6px 8px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '10px', color: '#38bdf8' }}>
+                    <div style={{ marginTop: '6px', padding: '6px 8px', borderRadius: '4px', background: 'rgba(107,0,153, 0.1)', border: '1px solid rgba(107,0,153, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '10px', color: '#FF8C00' }}>
                         Turnaround Sheet: locks front, 3/4, profile & rear views
                       </span>
                       {selectedLoraId !== 'flux_lora_multiview_consistency' && (
@@ -822,7 +857,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                             setSelectedLoraId('flux_lora_multiview_consistency');
                             setSelectedLoraWeight(0.9);
                           }}
-                          style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#0284c7', color: '#fff', border: 'none', cursor: 'pointer' }}
+                          style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#CC7000', color: '#fff', border: 'none', cursor: 'pointer' }}
                         >
                           Lock with LoRA
                         </button>
@@ -834,11 +869,11 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 {/* Master 3D LUT & Film Look Gallery Trigger */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    <label style={{ fontSize: '11px', color: '#B8A7C9' }}>
                       Cinematic 3D LUT & Film Stock
                     </label>
                     {activeLookId && (
-                      <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 700 }}>
+                      <span style={{ fontSize: '10px', color: '#D40055', fontWeight: 700 }}>
                         {getLutById(activeLookId)?.name || activeLookId}
                       </span>
                     )}
@@ -849,8 +884,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     style={{
                       width: '100%',
                       padding: '8px',
-                      backgroundColor: activeLookId ? 'rgba(212,0,85,0.2)' : '#1a1c22',
-                      border: activeLookId ? '1px solid rgba(212,0,85,0.45)' : '1px solid #282b33',
+                      backgroundColor: activeLookId ? 'rgba(212,0,85,0.2)' : '#160D20',
+                      border: activeLookId ? '1px solid rgba(212,0,85,0.45)' : '1px solid #3A2250',
                       borderRadius: '4px',
                       color: '#fff',
                       fontSize: '12px',
@@ -861,7 +896,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    <Film size={13} style={{ color: activeLookId ? '#D40055' : '#94a3b8' }} />
+                    <Film size={13} style={{ color: activeLookId ? '#D40055' : '#B8A7C9' }} />
                     <span>{activeLookId ? `Look: ${getLutById(activeLookId)?.name}` : 'Browse 3D Camera & Film LUTs (24+ Looks)'}</span>
                   </button>
                 </div>
@@ -873,8 +908,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               <>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                    <span style={{ color: '#94a3b8' }}>Detail Injection & Hallucination</span>
-                    <span style={{ color: '#f59e0b', fontWeight: 600 }}>{hallucination}%</span>
+                    <span style={{ color: '#B8A7C9' }}>Detail Injection & Hallucination</span>
+                    <span style={{ color: '#D40055', fontWeight: 600 }}>{hallucination}%</span>
                   </div>
                   <input
                     type="range"
@@ -882,17 +917,17 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     max="100"
                     value={hallucination}
                     onChange={(e) => setHallucination(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#f59e0b' }}
+                    style={{ width: '100%', accentColor: '#D40055' }}
                   />
-                  <span style={{ fontSize: '10px', color: '#64748b' }}>
+                  <span style={{ fontSize: '10px', color: '#8F7AA3' }}>
                     Low = faithful cleanup  ·  High = generates pores, weave, micro-textures
                   </span>
                 </div>
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                    <span style={{ color: '#94a3b8' }}>Resemblance (Fidelity to Original)</span>
-                    <span style={{ color: '#f59e0b', fontWeight: 600 }}>{resemblance}%</span>
+                    <span style={{ color: '#B8A7C9' }}>Resemblance (Fidelity to Original)</span>
+                    <span style={{ color: '#D40055', fontWeight: 600 }}>{resemblance}%</span>
                   </div>
                   <input
                     type="range"
@@ -900,20 +935,20 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     max="100"
                     value={resemblance}
                     onChange={(e) => setResemblance(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#f59e0b' }}
+                    style={{ width: '100%', accentColor: '#D40055' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Style Engine</label>
+                  <label style={{ fontSize: '11px', color: '#B8A7C9', display: 'block', marginBottom: '4px' }}>Style Engine</label>
                   <select
                     value={enginePreset}
                     onChange={(e) => setEnginePreset(e.target.value as any)}
                     style={{
                       width: '100%',
                       padding: '8px',
-                      backgroundColor: '#1a1c22',
-                      border: '1px solid #282b33',
+                      backgroundColor: '#160D20',
+                      border: '1px solid #3A2250',
                       borderRadius: '4px',
                       color: '#fff',
                       fontSize: '12px',
@@ -933,12 +968,12 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               <>
                 <div style={{
                   padding: '12px',
-                  backgroundColor: '#1b1d22',
+                  backgroundColor: '#160D20',
                   borderRadius: '6px',
-                  border: '1px solid #282b33',
+                  border: '1px solid #3A2250',
                   textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '11px', color: '#B8A7C9', marginBottom: '8px' }}>
                     3D Spherical Light Position
                   </div>
                   {/* Virtual Light Angle Controller */}
@@ -946,10 +981,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     width: '100px',
                     height: '100px',
                     borderRadius: '50%',
-                    background: 'radial-gradient(circle at 50% 50%, #2a2e39 0%, #101216 100%)',
+                    background: 'radial-gradient(circle at 50% 50%, #241636 0%, #0A0610 100%)',
                     margin: '0 auto',
                     position: 'relative',
-                    border: '1px solid #3d4352',
+                    border: '1px solid #4B2F62',
                   }}>
                     {/* The light bead */}
                     <div style={{
@@ -964,15 +999,15 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       transform: 'translate(-50%, -50%)',
                     }} />
                   </div>
-                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '8px' }}>
+                  <div style={{ fontSize: '10px', color: '#8F7AA3', marginTop: '8px' }}>
                     Azimuth: {azimuth}° · Elevation: {elevation}°
                   </div>
                 </div>
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                    <span style={{ color: '#94a3b8' }}>Horizontal Angle (Azimuth)</span>
-                    <span style={{ color: '#f59e0b' }}>{azimuth}°</span>
+                    <span style={{ color: '#B8A7C9' }}>Horizontal Angle (Azimuth)</span>
+                    <span style={{ color: '#D40055' }}>{azimuth}°</span>
                   </div>
                   <input
                     type="range"
@@ -980,14 +1015,14 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     max="180"
                     value={azimuth}
                     onChange={(e) => setAzimuth(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#f59e0b' }}
+                    style={{ width: '100%', accentColor: '#D40055' }}
                   />
                 </div>
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                    <span style={{ color: '#94a3b8' }}>Vertical Angle (Elevation)</span>
-                    <span style={{ color: '#f59e0b' }}>{elevation}°</span>
+                    <span style={{ color: '#B8A7C9' }}>Vertical Angle (Elevation)</span>
+                    <span style={{ color: '#D40055' }}>{elevation}°</span>
                   </div>
                   <input
                     type="range"
@@ -995,7 +1030,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     max="90"
                     value={elevation}
                     onChange={(e) => setElevation(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#f59e0b' }}
+                    style={{ width: '100%', accentColor: '#D40055' }}
                   />
                 </div>
               </>
@@ -1003,7 +1038,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
 
             {/* TAB: Models Info in Left Rail */}
             {activeTab === 'models' && (
-              <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '12px', color: '#B8A7C9', lineHeight: 1.5 }}>
                 <p style={{ margin: '0 0 10px 0' }}>
                   Manage the open-source neural weights installed on your computer.
                 </p>
@@ -1016,7 +1051,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
 
           {/* Bottom Execution Action */}
           {activeTab !== 'models' && (
-            <div style={{ padding: '14px', backgroundColor: '#181a1f', borderTop: '1px solid #282b33' }}>
+            <div style={{ padding: '14px', backgroundColor: '#160D20', borderTop: '1px solid #3A2250' }}>
               <button
                 onClick={handleGenerate}
                 disabled={loading}
@@ -1025,7 +1060,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                   padding: '11px',
                   borderRadius: '6px',
                   border: 'none',
-                  backgroundColor: loading ? '#475569' : '#f59e0b',
+                  backgroundColor: loading ? '#5B4272' : '#D40055',
                   color: '#000',
                   fontWeight: 600,
                   fontSize: '13px',
@@ -1055,9 +1090,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
         {/* Right Preview & Canvas Column */}
         <div style={{
           flex: 1,
+          minHeight: panel ? 240 : 0,
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#0a0b0d',
+          backgroundColor: '#0A0610',
           position: 'relative',
         }}>
           {/* PAI History & Gallery View */}
@@ -1066,22 +1102,22 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               {/* Header Bar */}
               <div style={{
                 padding: '16px 20px',
-                borderBottom: '1px solid #282b33',
-                backgroundColor: '#14161a',
+                borderBottom: '1px solid #3A2250',
+                backgroundColor: '#130A1C',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: '16px',
               }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <History size={18} color="#f59e0b" />
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#FAF5FF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <History size={18} color="#D40055" />
                     <span>PAI Generations Gallery</span>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', backgroundColor: '#232730', padding: '2px 8px', borderRadius: '12px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#B8A7C9', backgroundColor: '#241636', padding: '2px 8px', borderRadius: '12px' }}>
                       {historyItems.length} creations
                     </span>
                   </h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#8F7AA3' }}>
                     Chronological history of all local AI generations. Automatically saved to your Photos account under "PAI Generations".
                   </p>
                 </div>
@@ -1089,7 +1125,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 {/* Filters */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ position: 'relative' }}>
-                    <Search size={13} color="#64748b" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <Search size={13} color="#8F7AA3" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                     <input
                       type="text"
                       placeholder="Search prompts…"
@@ -1097,8 +1133,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       onChange={(e) => setHistorySearch(e.target.value)}
                       style={{
                         padding: '6px 12px 6px 30px',
-                        backgroundColor: '#1b1d22',
-                        border: '1px solid #282b33',
+                        backgroundColor: '#160D20',
+                        border: '1px solid #3A2250',
                         borderRadius: '6px',
                         color: '#fff',
                         fontSize: '12px',
@@ -1107,7 +1143,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     />
                   </div>
 
-                  <div style={{ display: 'flex', backgroundColor: '#1b1d22', borderRadius: '6px', padding: '2px', border: '1px solid #282b33' }}>
+                  <div style={{ display: 'flex', backgroundColor: '#160D20', borderRadius: '6px', padding: '2px', border: '1px solid #3A2250' }}>
                     <button
                       onClick={() => setHistoryFilter('all')}
                       style={{
@@ -1116,8 +1152,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                         border: 'none',
                         fontSize: '11px',
                         fontWeight: 600,
-                        backgroundColor: historyFilter === 'all' ? '#f59e0b' : 'transparent',
-                        color: historyFilter === 'all' ? '#000' : '#94a3b8',
+                        backgroundColor: historyFilter === 'all' ? '#D40055' : 'transparent',
+                        color: historyFilter === 'all' ? '#000' : '#B8A7C9',
                         cursor: 'pointer',
                       }}
                     >
@@ -1131,8 +1167,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                         border: 'none',
                         fontSize: '11px',
                         fontWeight: 600,
-                        backgroundColor: historyFilter === 'favorites' ? '#f59e0b' : 'transparent',
-                        color: historyFilter === 'favorites' ? '#000' : '#94a3b8',
+                        backgroundColor: historyFilter === 'favorites' ? '#D40055' : 'transparent',
+                        color: historyFilter === 'favorites' ? '#000' : '#B8A7C9',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -1157,9 +1193,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
 
                   if (filtered.length === 0) {
                     return (
-                      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
+                      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#8F7AA3' }}>
                         <History size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#B8A7C9' }}>
                           {historyItems.length === 0 ? 'No generations yet' : 'No matching creations found'}
                         </div>
                         <div style={{ fontSize: '12px', maxWidth: '320px', margin: '6px auto 0' }}>
@@ -1189,9 +1225,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                           <div
                             key={item.id}
                             style={{
-                              backgroundColor: '#14161a',
+                              backgroundColor: '#130A1C',
                               borderRadius: '8px',
-                              border: '1px solid #282b33',
+                              border: '1px solid #3A2250',
                               overflow: 'hidden',
                               display: 'flex',
                               flexDirection: 'column',
@@ -1203,7 +1239,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                               position: 'relative',
                               width: '100%',
                               paddingTop: '65%',
-                              backgroundColor: '#0a0b0d',
+                              backgroundColor: '#0A0610',
                               cursor: 'pointer',
                               overflow: 'hidden',
                             }}
@@ -1238,7 +1274,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                                   fontSize: '10px',
                                   fontWeight: 700,
                                   backgroundColor: 'rgba(0,0,0,0.75)',
-                                  color: '#38bdf8',
+                                  color: '#FF8C00',
                                   padding: '2px 7px',
                                   borderRadius: '4px',
                                   backdropFilter: 'blur(4px)',
@@ -1267,7 +1303,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                                 >
                                   <Heart
                                     size={13}
-                                    color={item.favorite ? '#ef4444' : '#cbd5e1'}
+                                    color={item.favorite ? '#ef4444' : '#E3D8EE'}
                                     fill={item.favorite ? '#ef4444' : 'none'}
                                   />
                                 </button>
@@ -1280,7 +1316,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                                 right: '8px',
                                 fontSize: '10px',
                                 backgroundColor: 'rgba(0,0,0,0.75)',
-                                color: '#94a3b8',
+                                color: '#B8A7C9',
                                 padding: '1px 6px',
                                 borderRadius: '4px',
                                 backdropFilter: 'blur(4px)',
@@ -1291,7 +1327,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
 
                             {/* Details & Actions Footer */}
                             <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#64748b' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#8F7AA3' }}>
                                 <span>{dateStr}</span>
                                 {item.syncedToPhotos && (
                                   <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -1303,7 +1339,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                               <p style={{
                                 margin: 0,
                                 fontSize: '11px',
-                                color: '#cbd5e1',
+                                color: '#E3D8EE',
                                 lineHeight: '1.4',
                                 display: '-webkit-box',
                                 WebkitLineClamp: 2,
@@ -1314,7 +1350,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                               </p>
 
                               {/* Card Action Buttons */}
-                              <div style={{ display: 'flex', gap: '6px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid #1f232b' }}>
+                              <div style={{ display: 'flex', gap: '6px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid #1D1229' }}>
                                 {onSendToTela && (
                                   <button
                                     onClick={() => onSendToTela(item.url)}
@@ -1322,7 +1358,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                                     style={{
                                       flex: 1,
                                       padding: '6px 8px',
-                                      backgroundColor: '#7c3aed',
+                                      backgroundColor: '#6B0099',
                                       border: 'none',
                                       borderRadius: '4px',
                                       color: '#fff',
@@ -1353,10 +1389,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                                   title="Load this prompt and directorial settings"
                                   style={{
                                     padding: '6px 8px',
-                                    backgroundColor: '#262930',
-                                    border: '1px solid #3b3f4a',
+                                    backgroundColor: '#241636',
+                                    border: '1px solid #4B2F62',
                                     borderRadius: '4px',
-                                    color: '#cbd5e1',
+                                    color: '#E3D8EE',
                                     fontSize: '11px',
                                     cursor: 'pointer',
                                   }}
@@ -1372,10 +1408,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                                   title="Send to 3D Relight studio"
                                   style={{
                                     padding: '6px 8px',
-                                    backgroundColor: '#262930',
-                                    border: '1px solid #3b3f4a',
+                                    backgroundColor: '#241636',
+                                    border: '1px solid #4B2F62',
                                     borderRadius: '4px',
-                                    color: '#cbd5e1',
+                                    color: '#E3D8EE',
                                     fontSize: '11px',
                                     cursor: 'pointer',
                                   }}
@@ -1393,10 +1429,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                                   title="Download PNG to device"
                                   style={{
                                     padding: '6px 8px',
-                                    backgroundColor: '#262930',
-                                    border: '1px solid #3b3f4a',
+                                    backgroundColor: '#241636',
+                                    border: '1px solid #4B2F62',
                                     borderRadius: '4px',
-                                    color: '#cbd5e1',
+                                    color: '#E3D8EE',
                                     fontSize: '11px',
                                     cursor: 'pointer',
                                   }}
@@ -1432,10 +1468,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           ) : activeTab === 'models' ? (
             <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
               <div style={{ marginBottom: '20px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#f8fafc', margin: '0 0 6px 0' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#FAF5FF', margin: '0 0 6px 0' }}>
                   Local Open-Source Model Weights
                 </h3>
-                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                <p style={{ fontSize: '12px', color: '#B8A7C9', margin: 0 }}>
                   Quantized weights running 100% locally on your discrete GPU. Zero cloud bills, complete privacy, unlimited runs.
                 </p>
               </div>
@@ -1443,9 +1479,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               {/* Hardware Profile Card */}
               <div style={{
                 padding: '14px 18px',
-                backgroundColor: '#16181d',
+                backgroundColor: '#130A1C',
                 borderRadius: '8px',
-                border: '1px solid #282b33',
+                border: '1px solid #3A2250',
                 marginBottom: '20px',
                 display: 'flex',
                 alignItems: 'center',
@@ -1457,7 +1493,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     <div style={{ fontWeight: 600, fontSize: '14px', color: '#fff' }}>
                       {status?.device?.name || 'Local Discrete GPU'}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '11px', color: '#B8A7C9' }}>
                       Backend: {status?.backend || 'offline'} · Available VRAM: {status?.device?.vramTotalMb ? `${Math.round(status.device.vramTotalMb / 1024)}GB` : 'Probing…'}
                     </div>
                   </div>
@@ -1466,8 +1502,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 <div style={{
                   padding: '6px 12px',
                   borderRadius: '6px',
-                  backgroundColor: status?.online ? '#064e3b' : '#334155',
-                  color: status?.online ? '#6ee7b7' : '#94a3b8',
+                  backgroundColor: status?.online ? '#064e3b' : '#3A2250',
+                  color: status?.online ? '#6ee7b7' : '#B8A7C9',
                   fontSize: '11px',
                   fontWeight: 600,
                 }}>
@@ -1478,24 +1514,24 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               {/* Dedicated Drive & Storage Location Card */}
               <div style={{
                 padding: '16px 18px',
-                backgroundColor: '#16181d',
+                backgroundColor: '#130A1C',
                 borderRadius: '8px',
-                border: '1px solid #282b33',
+                border: '1px solid #3A2250',
                 marginBottom: '20px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <HardDrive size={26} color={storageInfo?.isCustomDrive ? '#38bdf8' : '#a855f7'} />
+                    <HardDrive size={26} color={storageInfo?.isCustomDrive ? '#FF8C00' : '#a855f7'} />
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>Model Storage Drive</span>
                         {storageInfo?.isCustomDrive && (
-                          <span style={{ fontSize: '10px', backgroundColor: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 6px', borderRadius: '4px' }}>
+                          <span style={{ fontSize: '10px', backgroundColor: 'rgba(107,0,153, 0.2)', color: '#FF8C00', padding: '1px 6px', borderRadius: '4px' }}>
                             Dedicated Drive
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: '#B8A7C9', marginTop: '2px' }}>
                         Store models on secondary NVMe/SSD drives to avoid filling your system drive.
                       </div>
                     </div>
@@ -1506,7 +1542,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       onClick={handlePickStorageFolder}
                       style={{
                         padding: '6px 12px',
-                        backgroundColor: '#2563eb',
+                        backgroundColor: '#6B0099',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '6px',
@@ -1526,9 +1562,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       onClick={() => setIsEditingPath(!isEditingPath)}
                       style={{
                         padding: '6px 10px',
-                        backgroundColor: '#262930',
-                        color: '#cbd5e1',
-                        border: '1px solid #3b3f4a',
+                        backgroundColor: '#241636',
+                        color: '#E3D8EE',
+                        border: '1px solid #4B2F62',
                         borderRadius: '6px',
                         fontSize: '11px',
                         cursor: 'pointer',
@@ -1550,8 +1586,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       style={{
                         flex: 1,
                         padding: '8px 12px',
-                        backgroundColor: '#0f1115',
-                        border: '1px solid #38bdf8',
+                        backgroundColor: '#0A0610',
+                        border: '1px solid #FF8C00',
                         borderRadius: '6px',
                         color: '#fff',
                         fontSize: '12px',
@@ -1577,18 +1613,18 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 ) : (
                   <div style={{
                     padding: '8px 12px',
-                    backgroundColor: '#0e1014',
+                    backgroundColor: '#0A0610',
                     borderRadius: '6px',
                     fontFamily: 'monospace',
                     fontSize: '11px',
-                    color: '#cbd5e1',
+                    color: '#E3D8EE',
                     marginBottom: '10px',
                     wordBreak: 'break-all',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
                   }}>
-                    <Folder size={14} color="#64748b" />
+                    <Folder size={14} color="#8F7AA3" />
                     <span>{storageInfo?.path || 'Detecting storage path…'}</span>
                   </div>
                 )}
@@ -1596,18 +1632,18 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                 {/* Storage space bar */}
                 {storageInfo && (
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#B8A7C9', marginBottom: '4px' }}>
                       <span>Drive Space ({storageInfo.driveName})</span>
                       <span style={{ color: storageInfo.freeSpaceGb < 25 ? '#ef4444' : '#10b981', fontWeight: 600 }}>
                         {storageInfo.freeSpaceGb} GB free of {storageInfo.totalSpaceGb} GB
                       </span>
                     </div>
-                    <div style={{ height: '6px', backgroundColor: '#262930', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ height: '6px', backgroundColor: '#241636', borderRadius: '3px', overflow: 'hidden' }}>
                       <div
                         style={{
                           height: '100%',
                           width: `${Math.min(100, Math.max(5, Math.round(((storageInfo.totalSpaceGb - storageInfo.freeSpaceGb) / storageInfo.totalSpaceGb) * 100)))}%`,
-                          backgroundColor: storageInfo.freeSpaceGb < 25 ? '#ef4444' : storageInfo.freeSpaceGb < 50 ? '#f59e0b' : '#10b981',
+                          backgroundColor: storageInfo.freeSpaceGb < 25 ? '#ef4444' : storageInfo.freeSpaceGb < 50 ? '#D40055' : '#10b981',
                           borderRadius: '3px',
                         }}
                       />
@@ -1645,9 +1681,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       key={pkg.id}
                       style={{
                         padding: '14px',
-                        backgroundColor: '#14161a',
+                        backgroundColor: '#130A1C',
                         borderRadius: '8px',
-                        border: isInstalled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #282b33',
+                        border: isInstalled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #3A2250',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
@@ -1655,30 +1691,30 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     >
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9' }}>{pkg.name}</span>
+                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#FAF5FF' }}>{pkg.name}</span>
                           <span style={{
                             fontSize: '10px',
                             fontWeight: 600,
                             padding: '2px 6px',
                             borderRadius: '4px',
-                            backgroundColor: isInstalled ? '#064e3b' : '#262930',
-                            color: isInstalled ? '#6ee7b7' : '#94a3b8',
+                            backgroundColor: isInstalled ? '#064e3b' : '#241636',
+                            color: isInstalled ? '#6ee7b7' : '#B8A7C9',
                           }}>
                             {isInstalled ? 'Installed' : `${pkg.sizeGb} GB`}
                           </span>
                         </div>
 
-                        <div style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 500, marginBottom: '6px' }}>
+                        <div style={{ fontSize: '10px', color: '#D40055', fontWeight: 500, marginBottom: '6px' }}>
                           {pkg.recommendedRole}
                         </div>
 
-                        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                        <p style={{ fontSize: '11px', color: '#B8A7C9', margin: '0 0 10px 0', lineHeight: 1.4 }}>
                           {pkg.description}
                         </p>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #22262e' }}>
-                        <span style={{ fontSize: '10px', color: '#64748b' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #1D1229' }}>
+                        <span style={{ fontSize: '10px', color: '#8F7AA3' }}>
                           Req: {pkg.vramRequiredGb}GB VRAM
                         </span>
 
@@ -1697,8 +1733,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                             fontWeight: 600,
                             borderRadius: '4px',
                             border: 'none',
-                            backgroundColor: isInstalled ? '#1e293b' : isInstalling ? '#475569' : '#2563eb',
-                            color: isInstalled ? '#64748b' : '#fff',
+                            backgroundColor: isInstalled ? '#1D1229' : isInstalling ? '#5B4272' : '#6B0099',
+                            color: isInstalled ? '#8F7AA3' : '#fff',
                             cursor: isInstalled || isInstalling ? 'default' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -1731,21 +1767,21 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               {/* CURATED PRODUCTION LORA LIBRARY SECTION */}
               <div style={{ marginTop: '24px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sparkles size={16} color="#f59e0b" />
-                  <span style={{ fontWeight: 600, fontSize: '14px', color: '#f1f5f9' }}>
+                  <Sparkles size={16} color="#D40055" />
+                  <span style={{ fontWeight: 600, fontSize: '14px', color: '#FAF5FF' }}>
                     Curated Production LoRA Adapters (100% Free / On-Device)
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                  <span style={{ fontSize: '11px', color: '#8F7AA3' }}>
                     Speed, Skin Texture, Hands, Lighting & Styles
                   </span>
                 </div>
                 <span style={{
                   fontSize: '11px',
-                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                  color: '#f59e0b',
+                  backgroundColor: 'rgba(212,0,85, 0.1)',
+                  color: '#D40055',
                   padding: '2px 8px',
                   borderRadius: '12px',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  border: '1px solid rgba(212,0,85, 0.25)',
                   fontWeight: 600,
                 }}>
                   {loras.length} LoRAs Available
@@ -1761,9 +1797,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       key={loraItem.id}
                       style={{
                         padding: '14px',
-                        backgroundColor: '#14161a',
+                        backgroundColor: '#130A1C',
                         borderRadius: '8px',
-                        border: isInstalled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #282b33',
+                        border: isInstalled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #3A2250',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
@@ -1771,7 +1807,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     >
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#f1f5f9' }}>
+                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#FAF5FF' }}>
                             {loraItem.name}
                           </span>
                           <span style={{
@@ -1779,18 +1815,18 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                             fontWeight: 600,
                             padding: '2px 6px',
                             borderRadius: '4px',
-                            backgroundColor: isInstalled ? '#064e3b' : '#262930',
-                            color: isInstalled ? '#6ee7b7' : '#94a3b8',
+                            backgroundColor: isInstalled ? '#064e3b' : '#241636',
+                            color: isInstalled ? '#6ee7b7' : '#B8A7C9',
                           }}>
                             {isInstalled ? 'Installed' : '~' + loraItem.vramOverheadMb + ' MB'}
                           </span>
                         </div>
 
-                        <div style={{ fontSize: '10px', color: '#38bdf8', fontWeight: 500, marginBottom: '6px' }}>
+                        <div style={{ fontSize: '10px', color: '#FF8C00', fontWeight: 500, marginBottom: '6px' }}>
                           Category: {loraItem.category.replace('_', ' ').toUpperCase()} · License: {loraItem.license}
                         </div>
 
-                        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px 0', lineHeight: 1.4 }}>
+                        <p style={{ fontSize: '11px', color: '#B8A7C9', margin: '0 0 8px 0', lineHeight: 1.4 }}>
                           {loraItem.description}
                         </p>
 
@@ -1800,11 +1836,11 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                               key={idx}
                               style={{
                                 fontSize: '10px',
-                                backgroundColor: '#1c1f26',
-                                color: '#cbd5e1',
+                                backgroundColor: '#160D20',
+                                color: '#E3D8EE',
                                 padding: '1px 6px',
                                 borderRadius: '4px',
-                                border: '1px solid #2a2f3a',
+                                border: '1px solid #241636',
                               }}
                             >
                               {tw}
@@ -1813,7 +1849,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #22262e' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #1D1229' }}>
                         <button
                           type="button"
                           onClick={() => {
@@ -1829,9 +1865,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                             fontSize: '11px',
                             fontWeight: 600,
                             borderRadius: '4px',
-                            border: '1px solid #334155',
-                            backgroundColor: '#1e293b',
-                            color: '#94a3b8',
+                            border: '1px solid #3A2250',
+                            backgroundColor: '#1D1229',
+                            color: '#B8A7C9',
                             cursor: 'pointer',
                           }}
                         >
@@ -1847,8 +1883,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                             fontWeight: 600,
                             borderRadius: '4px',
                             border: 'none',
-                            backgroundColor: isInstalled ? '#1e293b' : isDownloading ? '#475569' : '#2563eb',
-                            color: isInstalled ? '#64748b' : '#fff',
+                            backgroundColor: isInstalled ? '#1D1229' : isDownloading ? '#5B4272' : '#6B0099',
+                            color: isInstalled ? '#8F7AA3' : '#fff',
                             cursor: isInstalled || isDownloading ? 'default' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -1896,10 +1932,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                   padding: '36px 32px',
                   maxWidth: '500px',
                   width: '90%',
-                  background: 'linear-gradient(180deg, #181b22 0%, #111317 100%)',
+                  background: 'linear-gradient(180deg, #160D20 0%, #100B17 100%)',
                   borderRadius: '16px',
-                  border: '1px solid #2d3340',
-                  boxShadow: '0 25px 70px rgba(0,0,0,0.85), 0 0 40px rgba(245,158,11,0.06)',
+                  border: '1px solid #3A2250',
+                  boxShadow: '0 25px 70px rgba(0,0,0,0.85), 0 0 40px rgba(212,0,85,0.06)',
                   textAlign: 'center',
                   position: 'relative',
                   overflow: 'hidden',
@@ -1909,19 +1945,19 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     width: '64px',
                     height: '64px',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(56,189,248,0.2))',
-                    border: '2px solid rgba(245,158,11,0.6)',
+                    background: 'linear-gradient(135deg, rgba(212,0,85,0.2), rgba(107,0,153,0.2))',
+                    border: '2px solid rgba(212,0,85,0.6)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginBottom: '18px',
-                    boxShadow: '0 0 30px rgba(245,158,11,0.3)',
+                    boxShadow: '0 0 30px rgba(212,0,85,0.3)',
                   }}>
-                    <RotateCw size={28} className="animate-spin" color="#f59e0b" />
+                    <RotateCw size={28} className="animate-spin" color="#D40055" />
                   </div>
 
                   {/* Stage Headline */}
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#FAF5FF', marginBottom: '6px' }}>
                     {progressPct < 25 ? 'Preparing Neural Tensors…'
                       : progressPct < 60 ? 'Sampling on NVIDIA RTX 4070…'
                       : progressPct < 90 ? 'Decoding VAE Latent Tensor…'
@@ -1929,7 +1965,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                   </div>
 
                   {/* Real-time Stage Description */}
-                  <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '22px', minHeight: '18px' }}>
+                  <div style={{ fontSize: '12px', color: '#B8A7C9', marginBottom: '22px', minHeight: '18px' }}>
                     {progressMsg || 'Running on-device discrete GPU diffusion…'}
                   </div>
 
@@ -1937,7 +1973,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                   <div style={{
                     width: '100%',
                     height: '8px',
-                    backgroundColor: '#232730',
+                    backgroundColor: '#241636',
                     borderRadius: '4px',
                     overflow: 'hidden',
                     marginBottom: '14px',
@@ -1947,10 +1983,10 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                       style={{
                         height: '100%',
                         width: `${Math.max(8, progressPct)}%`,
-                        background: 'linear-gradient(90deg, #f59e0b 0%, #38bdf8 100%)',
+                        background: 'linear-gradient(90deg, #D40055 0%, #FF8C00 100%)',
                         borderRadius: '4px',
                         transition: 'width 0.3s ease-out',
-                        boxShadow: '0 0 12px rgba(56,189,248,0.5)',
+                        boxShadow: '0 0 12px rgba(107,0,153,0.5)',
                       }}
                     />
                   </div>
@@ -1962,14 +1998,14 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: '#8F7AA3',
                     padding: '0 4px',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Clock size={12} color="#94a3b8" />
-                      <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{elapsedSec.toFixed(1)}s elapsed</span>
+                      <Clock size={12} color="#B8A7C9" />
+                      <span style={{ color: '#E3D8EE', fontWeight: 600 }}>{elapsedSec.toFixed(1)}s elapsed</span>
                     </div>
-                    <div style={{ color: '#f59e0b', fontWeight: 700 }}>
+                    <div style={{ color: '#D40055', fontWeight: 700 }}>
                       {progressPct}% Completed
                     </div>
                   </div>
@@ -2030,9 +2066,9 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', color: '#475569' }}>
+                <div style={{ textAlign: 'center', color: '#5B4272' }}>
                   <ImageIcon size={48} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
-                  <div style={{ fontSize: '14px', fontWeight: 500, color: '#94a3b8' }}>No Active Render</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: '#B8A7C9' }}>No Active Render</div>
                   <div style={{ fontSize: '12px', maxWidth: '300px', margin: '4px auto 0' }}>
                     Choose your directorial settings on the left and hit Generate to render on your local discrete GPU.
                   </div>
@@ -2045,8 +2081,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           {outputUrl && activeTab !== 'models' && (
             <div style={{
               padding: '12px 18px',
-              backgroundColor: '#14161a',
-              borderTop: '1px solid #282b33',
+              backgroundColor: '#130A1C',
+              borderTop: '1px solid #3A2250',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -2062,7 +2098,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     onClick={() => onSendToTimeline(outputUrl)}
                     style={{
                       padding: '7px 12px',
-                      backgroundColor: '#2563eb',
+                      backgroundColor: '#6B0099',
                       border: 'none',
                       borderRadius: '4px',
                       color: '#fff',
@@ -2084,7 +2120,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
                     onClick={() => onSendToTela(outputUrl)}
                     style={{
                       padding: '7px 12px',
-                      backgroundColor: '#7c3aed',
+                      backgroundColor: '#6B0099',
                       border: 'none',
                       borderRadius: '4px',
                       color: '#fff',
@@ -2131,7 +2167,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               borderRadius: 16,
               boxShadow: '0 25px 60px rgba(0,0,0,0.9)',
               border: '1px solid rgba(255,255,255,0.15)',
-              background: '#0d0b14',
+              background: '#0A0610',
             }}
             onClick={(e) => e.stopPropagation()}
           >
