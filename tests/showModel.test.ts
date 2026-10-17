@@ -6,6 +6,8 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { VisualizerMode } from '../components/plajahPixels/types';
+import { hasGenerator } from '../components/plajahPixels/engine/core/generators';
 
 import {
   LAYER_ORDER, applySlide, clearLayer, clearAll, compositeOrder, enginesInUse,
@@ -288,14 +290,15 @@ import {
 
 describe('media library', () => {
   test('every catalogued generator is a mode Pixels actually has', () => {
-    const REAL = ['WAVEFORM','SPECTRUM','TUNNEL','VORTEX','NEBULA','COSMIC','RETROGRID','KALEIDOSCOPE',
-      'STAGE','LIQUID','PARTICLES','STORM','LUMINANCE','STUDIO_AURORA','STUDIO_CHROME','STUDIO_BAUHAUS',
-      'STUDIO_NEBULA','STUDIO_GRAVITY','STUDIO_KINETIC','STUDIO_RIPPLE'];
-    for (const g of GENERATOR_ITEMS) {
-      const mode = (g.content as any).mode;
-      assert.ok(REAL.includes(mode), `${mode} is not a real generator`);
-    }
-    assert.equal(GENERATOR_ITEMS.length, 20, 'all 20 modes are catalogued');
+    // The source of truth is the Pixels VisualizerMode enum — the catalogue grows as generators are added
+    // (fluid sims, optics, planes, concert stage rigs…), so check against it rather than a frozen list.
+    // Canvas visualizers live in the VisualizerMode enum; shader generators (Cosmos, Fluid, Planes, Optics,
+    // Stage rigs and their _DIRECTOR variants) are registered in the GEN_GLSL table behind hasGenerator().
+    const ENUM = new Set<string>(Object.values(VisualizerMode));
+    const modes = GENERATOR_ITEMS.map(g => (g.content as any).mode as string);
+    for (const mode of modes) assert.ok(ENUM.has(mode) || hasGenerator(mode), `${mode} is not a real generator`);
+    assert.equal(new Set(modes).size, modes.length, 'no generator is catalogued twice');
+    assert.ok(GENERATOR_ITEMS.length >= 20, 'at least the original 20 modes are catalogued');
   });
 
   test('generators land on the background layer', () => {
@@ -348,7 +351,7 @@ describe('media library', () => {
   });
 
   test('categories are stable groupings', () => {
-    assert.deepEqual(categoriesOf(GENERATOR_ITEMS).sort(), ['Atmosphere', 'Energy', 'Graphic', 'Reactive']);
+    assert.deepEqual(categoriesOf(GENERATOR_ITEMS).sort(), ['Atmosphere', 'Concert Stage', 'Cosmos', 'Energy', 'Fluid', 'Graphic', 'Optics', 'Planes', 'Reactive']);
   });
 });
 
