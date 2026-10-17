@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Upload, FileText, Check, AlertTriangle, Loader2, Download, RotateCcw, BookOpen, History, ShieldCheck, ChevronRight } from 'lucide-react';
 import type { Organization, OrgMembership, ChmsImport } from '../../../types';
+import { fetchPeople } from '../../../services/chmsPeople';
+import { provisionAccountsBulk, importRoleToKey } from '../../../services/elevateAccounts';
 import { elevateCan } from '../../../services/elevateRoles';
 import { auth } from '../../../services/backendService';
 import {
@@ -82,6 +84,9 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ org, myMembership, onClose,
   const inputRef = useRef<HTMLInputElement>(null);
 
   const ctx = useMemo(() => ({ org, uid }), [org, uid]);
+  // Pre-provision a Plajah account for every imported person (org default: on). They claim it with member ID / email.
+  const [provision, setProvision] = useState(org.accountProvisioning?.onImport !== false);
+  const [provisioned, setProvisioned] = useState<{ count: number; skipped: number; busy: boolean; error?: string } | null>(null);
 
   const loadHistory = useCallback(() => {
     setHistBusy(true);
@@ -146,6 +151,15 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ org, myMembership, onClose,
       const r = await commitPlan(plan, ctx, setProgress);
       setResult(r); setStep('done');
       if (r.completed) onDone?.();
+      if (r.completed && provision && canPeople && plan.ops.some(o => o.kind === 'people')) {
+        setProvisioned({ count: 0, skipped: 0, busy: true });
+        try {
+          const people = (await fetchPeople(org.id)).filter(p => !p.linkedUid && !p.provisionedUid);
+          const res = await provisionAccountsBulk(org, people, p => ({ roleKey: importRoleToKey(p.custom?.Role), ministryIds: p.ministryIds }), pr => setProvisioned({ count: pr.done, skipped: pr.skipped, busy: true }));
+          setProvisioned({ count: res.provisioned.length, skipped: res.skipped, busy: false });
+          onDone?.();
+        } catch (e: any) { setProvisioned({ count: 0, skipped: 0, busy: false, error: e?.message || 'Could not provision accounts.' }); }
+      }
     } catch (e: any) {
       setCommitErr(e?.message || 'Import was interrupted. Nothing is lost - you can resume.');
     }
@@ -398,6 +412,12 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ org, myMembership, onClose,
                     </div>
                   )}
 
+                  {canPeople && plan.ops.some(o => o.kind === 'people') && (
+                    <label className={`${card} flex items-start gap-3 cursor-pointer`}>
+                      <input type="checkbox" className="mt-0.5" checked={provision} onChange={e => setProvision(e.target.checked)} />
+                      <span className="text-xs text-white/70"><span className="font-bold text-white">Pre-provision a Plajah account for every imported person.</span> Each gets a seat with their role (from a Role / Title column, else Member) and departments (from a Department column). They claim it with their member ID + last name, or by signing in with the email on file — via an invite, your join link, or the QR code.</span>
+                    </label>
+                  )}
                   <div className="flex justify-between">
                     <button onClick={() => setStep(reviewFiles.length ? 'mapping' : 'files')} className={btnGhost}>Back</button>
                     <button disabled={!plan.ops.length} onClick={doCommit} className={btnPrimary}>Import {plan.ops.length.toLocaleString()} records <ChevronRight size={12} /></button>
@@ -425,6 +445,14 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ org, myMembership, onClose,
                   <tbody>{countRows(adjustedCounts(plan)).map(([k, v]) => <tr key={k} className="border-t border-white/5"><td className="py-1 capitalize">{k}</td><td className="text-green-400">{v.created}</td><td>{v.updated}</td><td className="text-white/40">{v.skipped}</td><td className={v.failed ? 'text-red-400' : 'text-white/30'}>{v.failed}</td></tr>)}</tbody>
                 </table>
                 {plan.totals.gifts > 0 && <p className="text-[11px] text-white/50 mt-2">Gifts imported: {money(plan.totals.amount)} (compare with your Servant Keeper report).</p>}
+                {provisioned && (
+                  <p className="text-[11px] mt-2 flex items-center gap-1.5">
+                    {provisioned.busy ? <Loader2 size={12} className="animate-spin text-sky-300" /> : <Check size={12} className="text-sky-300" />}
+                    <span className={provisioned.error ? 'text-red-400' : 'text-sky-300'}>
+                      {provisioned.error || (provisioned.busy ? `Provisioning Plajah accounts… ${provisioned.count}` : `${provisioned.count} Plajah account${provisioned.count === 1 ? '' : 's'} pre-provisioned${provisioned.skipped ? ` (${provisioned.skipped} already had one)` : ''}. Share your join link or QR from Accounts & Access so people can claim them.`)}
+                    </span>
+                  </p>
+                )}
                 {plan.warnings.map((w, i) => <p key={i} className="text-[11px] text-amber-300 mt-1">{w}</p>)}
               </div>
               <div className="flex gap-2 flex-wrap">

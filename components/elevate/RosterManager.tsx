@@ -6,6 +6,8 @@ import { ELEVATE_ROLES, canAssignRole, elevateCan, getElevateRole } from '../../
 import { assignRole, updateRosterEntry, rosterFor, recomputeOrgRoleIndex } from '../../services/elevateService';
 import { fetchOrgMembers, acceptOrgMember, declineOrgMember, addOrgMember, removeOrgMember } from '../../services/organizationService';
 import { searchUserProfiles, uploadFile } from '../../services/backendService';
+import { provisionAccount } from '../../services/elevateAccounts';
+import { savePerson } from '../../services/chmsPeople';
 
 export interface RosterManagerProps {
   org: Organization;
@@ -34,6 +36,10 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
   const [results, setResults] = useState<UserProfile[]>([]);
   const [addRole, setAddRole] = useState('VOLUNTEER');
   const [addMinistry, setAddMinistry] = useState('');
+  // "Pre-provision": no Plajah user yet — create the congregation record + a claimable seat in one go.
+  const [addMode, setAddMode] = useState<'search' | 'provision'>('search');
+  const [pre, setPre] = useState({ first: '', last: '', email: '', memberNumber: '' });
+  const [preMsg, setPreMsg] = useState('');
 
   const canManage = elevateCan(myMembership, org, 'MANAGE_ROSTER') || elevateCan(myMembership, org, 'ASSIGN_ROLES');
   const assignable = useMemo(() => ELEVATE_ROLES.filter(r => canAssignRole(myMembership, org, r.key)), [myMembership, org]);
@@ -107,6 +113,14 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
     setQ(''); setResults([]);
   });
 
+  const preProvision = () => run('add', async () => {
+    if (!pre.first.trim() || !pre.last.trim()) throw new Error('First and last name are required.');
+    const person = await savePerson(org.id, { firstName: pre.first.trim(), lastName: pre.last.trim(), email: pre.email.trim() || undefined, memberNumber: pre.memberNumber.trim().toUpperCase() || undefined, status: 'MEMBER', ministryIds: addMinistry ? [addMinistry] : undefined });
+    const r = await provisionAccount(org, person, { roleKey: addRole, ministryIds: addMinistry ? [addMinistry] : undefined });
+    setPreMsg(r ? `${person.firstName} ${person.lastName} is on the roster as ${getElevateRole(addRole)?.label}. Member ID ${r.membership.memberNumber} — they claim the account with it (+ last name) or by signing in with ${pre.email.trim() || 'their email'}.` : 'Already provisioned.');
+    setPre({ first: '', last: '', email: '', memberNumber: '' });
+  });
+
   const remove = (m: OrgMembership) => {
     if (!window.confirm(`Remove ${m.displayName} from ${org.name}?`)) return;
     run(m.id, async () => { await removeOrgMember(m.id); await recomputeOrgRoleIndex(org.id); });
@@ -148,11 +162,29 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
               </select>
             )}
           </div>
-          <div className="relative">
+          <div className="flex gap-1.5">
+            {([['search', 'Existing Plajah user'], ['provision', 'Pre-provision an account']] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setAddMode(k)} className={`${pill} ${addMode === k ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/50'}`}>{l}</button>
+            ))}
+          </div>
+          {addMode === 'provision' && (
+            <div className="space-y-2">
+              <div className="grid sm:grid-cols-2 gap-2">
+                <input className={field} placeholder="First name" value={pre.first} onChange={e => setPre(p => ({ ...p, first: e.target.value }))} />
+                <input className={field} placeholder="Last name" value={pre.last} onChange={e => setPre(p => ({ ...p, last: e.target.value }))} />
+                <input className={field} type="email" placeholder="Email on file (lets them claim by signing in)" value={pre.email} onChange={e => setPre(p => ({ ...p, email: e.target.value }))} />
+                <input className={field} placeholder="Member ID (optional — generated if blank)" value={pre.memberNumber} onChange={e => setPre(p => ({ ...p, memberNumber: e.target.value }))} />
+              </div>
+              <p className="text-[11px] text-white/40">Creates their Plajah account and seat now with the role and ministry above. They claim it from an invite, your join link or QR code.</p>
+              <button onClick={preProvision} disabled={busy === 'add'} className={`${pill} bg-small-orange text-black border-small-orange flex items-center gap-1.5`}>{busy === 'add' ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Provision account</button>
+              {preMsg && <p className="text-[11px] text-sky-300">{preMsg}</p>}
+            </div>
+          )}
+          {addMode === 'search' && <div className="relative">
             <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
             <input className={field + ' pl-10'} placeholder="Search Plajah users…" value={q} onChange={e => setQ(e.target.value)} />
-          </div>
-          {results.map(u => (
+          </div>}
+          {addMode === 'search' && results.map(u => (
             <button key={u.uid} onClick={() => addPerson(u)} disabled={busy === 'add'} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-white/10">
               <span className="w-7 h-7 rounded-full overflow-hidden bg-white/10 shrink-0">{u.photoURL && <img src={u.photoURL} alt="" className="w-full h-full object-cover" />}</span>
               <span className="text-sm text-white flex-1">{u.displayName}</span>
@@ -177,7 +209,9 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                       {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : m.displayName.charAt(0)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">{m.displayName}{m.isSenior && <Star size={12} className="text-amber-300" fill="currentColor" />}</p>
+                      <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">{m.displayName}{m.isSenior && <Star size={12} className="text-amber-300" fill="currentColor" />}
+                        {m.isProvisioned && <span title={`Pre-provisioned — claim with member ID ${m.memberNumber || ''}`} className="px-1.5 py-0.5 rounded-full bg-sky-400/15 border border-sky-300/30 text-sky-200 text-[8px] font-black uppercase tracking-widest">Ready to claim{m.memberNumber ? ` · ${m.memberNumber}` : ''}</span>}
+                      </p>
                       <p className="text-[11px] text-white/45 truncate">{m.title || def?.label || 'Member'}</p>
                     </div>
                     {tab === 'PENDING' ? (

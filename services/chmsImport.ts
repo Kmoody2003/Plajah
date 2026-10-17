@@ -8,6 +8,7 @@ import { db } from './firebase';
 import { collection, doc, getDocs, query, where, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { elevateCan } from './elevateRoles';
 import { updateOrganization } from './organizationService';
+import { matchMinistry } from './elevateAccounts';
 import type {
   Organization, OrgMembership, ChmsPerson, ChmsHousehold, ChmsContribution, ChmsBatch, ChmsPledge, ChmsAttendance, ChmsImport, GivingFund,
 } from '../types';
@@ -429,6 +430,10 @@ export async function buildPlan(
       const address = addrOf(a, cells);
       const tags = a.get(cells, 'tags').split(/[;|,]+/).map(s => s.trim()).filter(Boolean);
       const skills = a.get(cells, 'skills').split(/[;|,]+/).map(s => s.trim()).filter(Boolean);
+      // Role + department feed account provisioning (services/elevateAccounts): "Youth Pastor" -> PASTOR, "Media" -> the Media dept.
+      const roleRaw = a.get(cells, 'role'); if (roleRaw) custom['Role'] = roleRaw;
+      const deptRaw = a.get(cells, 'department'); if (deptRaw) custom['Department'] = deptRaw;
+      const deptIds = deptRaw ? deptRaw.split(/[;|,/]+/).map(x => matchMinistry(ctx.org.ministries, x)?.id).filter((x): x is string => !!x) : [];
 
       // household
       let hh: HDraft | undefined;
@@ -468,6 +473,7 @@ export async function buildPlan(
         }
         if (tags.length) { const t = Array.from(new Set([...(ex.tags || []), ...tags])); if (!same(t, ex.tags)) patch.tags = t; }
         if (skills.length) { const t = Array.from(new Set([...(ex.skills || []), ...skills])); if (!same(t, ex.skills)) patch.skills = t; }
+        if (deptIds.length) { const t = Array.from(new Set([...(ex.ministryIds || []), ...deptIds])); if (!same(t, ex.ministryIds)) patch.ministryIds = t; }
         const cm = { ...(ex.custom || {}) }; let cchg = false;
         for (const [k, v] of Object.entries(custom)) if (cm[k] !== v) { cm[k] = v; cchg = true; }
         if (cchg) patch.custom = cm;
@@ -489,7 +495,7 @@ export async function buildPlan(
         const data: ChmsPerson = clean({
           id, orgId, ...(incoming as any),
           status: (incoming.status as any) || 'REGULAR',
-          ...(tags.length ? { tags } : {}), ...(skills.length ? { skills } : {}),
+          ...(tags.length ? { tags } : {}), ...(skills.length ? { skills } : {}), ...(deptIds.length ? { ministryIds: deptIds } : {}),
           ...(Object.keys(custom).length ? { custom } : {}),
           source: { system: sys, id: sid, importId }, createdAt: now, updatedAt: now,
         });

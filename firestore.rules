@@ -3628,15 +3628,24 @@ service cloud.firestore {
       );
     }
 
+    // A PRE-PROVISIONED seat (services/elevateAccounts): a managed users/prov_… identity that a real person later
+    // claims on the server (routes/elevateAccounts.ts). Roster staff (pastors, admins, department heads) may mint
+    // and edit them, but never with elevated base roles or permission overrides — those stay owner/pastor only.
+    function provisionedSeatOk(data) {
+      return data.get('isProvisioned', false) == true && data.userId.matches('prov_.*') &&
+        data.role in ['MEMBER', 'STAFF', 'MODERATOR'] && !('permissions' in data) && !('isSenior' in data);
+    }
     match /orgMemberships/{membershipId} {
       allow read: if isAuthenticated();
-      // Join yourself as a plain member (PENDING/ACTIVE), via a valid role-setup invite, OR an org admin/pastor adds a member.
+      // Join yourself as a plain member (PENDING/ACTIVE), via a valid role-setup invite, OR an org admin/pastor adds a member,
+      // OR roster staff pre-provision a claimable seat.
       allow create: if isAuthenticated() && (
         (request.resource.data.userId == request.auth.uid && (
           (request.resource.data.role == 'MEMBER' && (request.resource.data.status == 'PENDING' || !('roleKey' in request.resource.data)) && !('permissions' in request.resource.data) && !('isSenior' in request.resource.data)) ||
           ('inviteToken' in request.resource.data && inviteOk(request.resource.data))
         )) ||
         orgPastorOrAdmin(request.resource.data.orgId) ||
+        (provisionedSeatOk(request.resource.data) && chmsPeopleStaff(request.resource.data.orgId)) ||
         isAdmin()
       );
       // Members may edit ONLY their own presentation fields — never role/status/permissions (closes self-promotion).
@@ -3644,6 +3653,9 @@ service cloud.firestore {
         (resource.data.userId == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoUrl', 'aboutInOrg', 'orgPhotoUrl', 'syncToProfile'])) ||
         orgPastorOrAdmin(resource.data.orgId) ||
+        // Roster staff may re-point an UNCLAIMED seat (role / title / departments) — never claim it or lift its base role.
+        (resource.data.get('isProvisioned', false) == true && provisionedSeatOk(request.resource.data) &&
+          request.resource.data.userId == resource.data.userId && chmsPeopleStaff(resource.data.orgId)) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (

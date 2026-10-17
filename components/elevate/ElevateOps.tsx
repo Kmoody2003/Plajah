@@ -7,7 +7,7 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
-  Briefcase, Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet,
+  Briefcase, Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound,
 } from 'lucide-react';
 import { spendingPerms } from '../../services/acctSpending';
 import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
@@ -27,6 +27,7 @@ import OrgStoreSection from './OrgStoreSection';
 const RosterManager = lazy(() => import('./RosterManager'));
 const MinistryManager = lazy(() => import('./MinistryManager'));
 const InvitesPanel = lazy(() => import('./InvitesPanel'));
+const AccountsPanel = lazy(() => import('./AccountsPanel'));
 const SermonStudio = lazy(() => import('../SermonStudio'));
 const ChurchMasterControl = lazy(() => import('../ChurchMasterControl'));
 const ChurchConsole = lazy(() => import('../ChurchConsole'));
@@ -42,7 +43,7 @@ const SpendingDesk = lazy(() => import('./chms/finance/SpendingDesk'));
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-type SectionKey = 'overview' | 'people' | 'ministries' | 'invites' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing';
+type SectionKey = 'overview' | 'people' | 'ministries' | 'invites' | 'accounts' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing';
 type Tool = null | 'sermons' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
 
 interface Props {
@@ -95,6 +96,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     { key: 'people' as const, label: 'People & Roster', icon: Users, show: can('MANAGE_ROSTER') || can('ASSIGN_ROLES') || (!!uid && (org.ministries || []).some(m => m.headUids?.includes(uid))) },
     { key: 'ministries' as const, label: 'Ministries', icon: Church, show: can('MANAGE_MINISTRIES') },
     { key: 'invites' as const, label: 'Invites', icon: Link2, show: can('MANAGE_INVITES') },
+    { key: 'accounts' as const, label: 'Accounts & Access', icon: KeyRound, show: can('MANAGE_ROSTER') },
     { key: 'giving' as const, label: 'Giving', icon: Gift, show: can('MANAGE_GIVING') || can('VIEW_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING') },
     { key: 'money' as const, label: 'Money', icon: Wallet, show: showMoney, badge: moneyInbox.count },
     { key: 'prayer' as const, label: 'Prayer', icon: HandHeart, show: faith && can('VIEW_PRAYER') },
@@ -220,6 +222,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               )}
               {section === 'ministries' && <MinistryManager org={org} myMembership={myMembership} onClose={() => setSection('overview')} onChanged={() => { fetchOrganization(org.id).then(o => { if (o) setOrg(o); }).catch(() => {}); reload(); }} />}
               {section === 'invites' && <InvitesPanel org={org} myMembership={myMembership} />}
+              {section === 'accounts' && <AccountsPanel org={org} myMembership={myMembership} onOrgChange={setOrg} />}
 
               {section === 'giving' && billingOpen && (can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING')) && (
                 <div className="space-y-4">

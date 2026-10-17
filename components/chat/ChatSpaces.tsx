@@ -11,7 +11,7 @@ import { searchUserProfilesSafe as searchUserProfiles } from '../../services/sea
 import { useCall } from '../../contexts/CallContext';
 import type { IntimateProfile } from '../../services/intimateGating';
 import { fetchOrgMembers, fetchUserOrganizations } from '../../services/organizationService';
-import { canManageOrgChat, provisionOrgChat } from '../../services/orgChatService';
+import { canManageOrgChat, provisionOrgChat, groupOrgRooms } from '../../services/orgChatService';
 import { createRoom, openRoom } from '../../services/roomService';
 import ChatWindow from '../ChatWindow';
 import PostmanSystem from '../PostmanSystem';
@@ -423,13 +423,11 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
 
   // ── Org channel grouping: Announcements / Channels / Teams (+ Direct below) ─
   const orgGroups = useMemo(() => {
-    const src = activeOrg?.rooms || [];
-    return {
-      ANNOUNCEMENTS: src.filter(r => r.orgChannelKind === 'ANNOUNCEMENTS'),
-      CHANNELS: src.filter(r => r.orgChannelKind === 'GENERAL' || !r.orgChannelKind),
-      TEAMS: src.filter(r => r.orgChannelKind === 'TEAM'),
-    };
+    const g = groupOrgRooms(activeOrg?.rooms || []);
+    return { ANNOUNCEMENTS: g.announcements, CHANNELS: g.channels };
   }, [activeOrg]);
+  // Departments: each department's main channel with its rooms (sub-chats) nested beneath it.
+  const orgDepartments = useMemo(() => groupOrgRooms(activeOrg?.rooms || []).departments, [activeOrg]);
 
   const memberProfiles = useMemo(() => {
     if (!activeRoom) return [] as UserProfile[];
@@ -484,6 +482,29 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
                   </div>
                 </section>
               ))}
+              {orgDepartments.length > 0 && (
+                <section>
+                  <GroupLabel>DEPARTMENTS</GroupLabel>
+                  <div className="space-y-1">
+                    {orgDepartments.map(d => (
+                      <div key={d.id}>
+                        {d.main && (
+                          <ChannelRow room={d.main} profiles={profiles} active={activeRoom?.id === d.main.id} compact
+                            glyph={<Hash size={14} />} onSelect={() => setActiveRoom(d.main!)} />
+                        )}
+                        {d.rooms.length > 0 && (
+                          <div className="ml-4 pl-2 border-l border-white/10 space-y-0.5">
+                            {d.rooms.map(r => (
+                              <ChannelRow key={r.id} room={r} profiles={profiles} active={activeRoom?.id === r.id} compact
+                                glyph={<Hash size={12} className={r.orgRoomAudience === 'LEADERS' ? 'text-amber-300/80' : undefined} />} onSelect={() => setActiveRoom(r)} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           )}
           {homeDMs.length > 0 && (

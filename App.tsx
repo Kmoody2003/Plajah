@@ -373,6 +373,7 @@ const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
 const InviteRedeemView = retryLazy(() => import('./components/elevate/InviteRedeemView'));
+const ElevateGateway = retryLazy(() => import('./components/elevate/ElevateGateway'));
 const EstimatePublicView = retryLazy(() => import('./components/billing/EstimatePublicView'));
 const ChmsClaimCard = retryLazy(() => import('./components/elevate/chms/PeopleMyProfileCard').then(m => ({ default: m.ClaimRecordCard })));
 const ChmsCheckinCard = retryLazy(() => import('./components/elevate/chms/PeopleMyProfileCard').then(m => ({ default: m.MyProfileCard })));
@@ -1758,6 +1759,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     return m ? m[1] : null;
   });
   const [elevateInviteToken, setElevateInviteToken] = useState<string | null>(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('elevateInvite') : null));
+  // Org join link / QR (?elevateJoin=<org>[&claim=1&member=GC-48213]) → the Elevate gateway: claim a pre-provisioned account or join.
+  const [elevateGateway, setElevateGateway] = useState<{ orgKey?: string; mode?: 'home' | 'claim' | 'join' | 'create'; memberNumber?: string } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const q = new URLSearchParams(window.location.search);
+    const key = q.get('elevateJoin');
+    return key ? { orgKey: key, mode: q.get('claim') ? 'claim' : 'join', memberNumber: q.get('member') || undefined } : null;
+  });
+  useEffect(() => { const h = () => setElevateGateway(null); window.addEventListener('plajah:elevate-gateway-handled', h); return () => window.removeEventListener('plajah:elevate-gateway-handled', h); }, []);
+  const closeElevateGateway = () => { setElevateGateway(null); try { const u = new URL(window.location.href); ['elevateJoin', 'claim', 'member'].forEach(k => u.searchParams.delete(k)); window.history.replaceState({}, '', u.toString()); } catch {} };
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
@@ -2703,6 +2713,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'BRAND_DASHBOARD') {
       setView('BRAND_DASHBOARD');
     } else if (target === 'ORG_HUB') {
+      if (params?.orgId || params?.create) setOrgHubInitial({ orgId: params.orgId, create: !!params.create, fromElevate: !!params.fromElevate });
       setView('ORG_HUB');
     } else if (target === 'CREATOR_PAYMENTS') {
       if (!user) { loginWithGoogle(); return; }
@@ -6233,6 +6244,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onSignIn={() => loginWithGoogle()}
                   onClose={() => { setElevateInviteToken(null); try { const u = new URL(window.location.href); u.searchParams.delete('elevateInvite'); window.history.replaceState({}, '', u.toString()); } catch {} }}
                   onOpenOrg={(orgId) => { setElevateInviteToken(null); setOrgHubInitial({ orgId }); setView('ORG_HUB'); }}
+                />
+              </Suspense>
+            )}
+            {elevateGateway && (
+              <Suspense fallback={null}>
+                <ElevateGateway
+                  orgKey={elevateGateway.orgKey}
+                  initialMode={elevateGateway.mode}
+                  initialMemberNumber={elevateGateway.memberNumber}
+                  signedIn={!!user}
+                  onClose={closeElevateGateway}
+                  onOpenOrg={(orgId) => { closeElevateGateway(); setOrgHubInitial({ orgId, fromElevate: true }); setView('ORG_HUB'); }}
+                  onCreate={() => { closeElevateGateway(); setOrgHubInitial({ create: true, fromElevate: true }); setView('ORG_HUB'); }}
                 />
               </Suspense>
             )}

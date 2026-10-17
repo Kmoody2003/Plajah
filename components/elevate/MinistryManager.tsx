@@ -5,6 +5,8 @@ import type { Organization, OrgMembership, Ministry, UserProfile } from '../../t
 import { saveMinistries, newMinistry, assignRole } from '../../services/elevateService';
 import { elevateCan } from '../../services/elevateRoles';
 import { fetchOrgMembers } from '../../services/organizationService';
+import { defaultRoomsFor, addRoomToMinistry } from '../../services/orgChatService';
+import { Hash } from 'lucide-react';
 import { searchUserProfiles } from '../../services/backendService';
 
 export interface MinistryManagerProps {
@@ -56,6 +58,7 @@ const MinistryManager: React.FC<MinistryManagerProps> = ({ org, myMembership, on
   const add = (parentId?: string) => {
     const name = (parentId ? 'New sub-ministry' : newName.trim()) || 'New ministry';
     const m = newMinistry(name, parentId ? 'MINISTRY' : newKind, { parentId, order: items.length });
+    m.rooms = defaultRoomsFor(m);
     setItems(xs => [...xs, m]); setNewName(''); setOpenId(m.id); setDirty(true);
   };
 
@@ -115,7 +118,7 @@ const MinistryManager: React.FC<MinistryManagerProps> = ({ org, myMembership, on
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-lg font-black text-white">Ministries &amp; departments</h3>
-          <p className="text-xs text-white/40">Name them anything. Ministries are member-facing; departments are operational.</p>
+          <p className="text-xs text-white/40">Name them anything. Ministries are member-facing; departments are operational. Each one gets its own chat space (with rooms) and social feed automatically.</p>
         </div>
         <div className="flex gap-2">
           {onClose && <button onClick={onClose} className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-white/60 hover:bg-white/10">Close</button>}
@@ -197,6 +200,21 @@ const MinistryManager: React.FC<MinistryManagerProps> = ({ org, myMembership, on
                         <button key={v} onClick={() => patch(m.id, { threadAudience: v })} className={`${chip} ${(m.threadAudience || 'ORG') === v ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/50'}`}>{l}</button>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5 flex items-center gap-1.5"><Hash size={11} /> Chat rooms (sub-chats inside #{m.name.toLowerCase().replace(/\s+/g, '-')})</p>
+                    <div className="space-y-1.5 mb-2">
+                      {(m.rooms || []).map(r => (
+                        <div key={r.id} className="flex items-center gap-2">
+                          <input value={r.name} onChange={e => patch(m.id, { rooms: (m.rooms || []).map(x => x.id === r.id ? { ...x, name: e.target.value } : x) })} className={field + ' flex-1'} placeholder="Room name" />
+                          <button onClick={() => patch(m.id, { rooms: (m.rooms || []).map(x => x.id === r.id ? { ...x, audience: x.audience === 'LEADERS' ? 'DEPARTMENT' : 'LEADERS' } : x) })}
+                            className={`${chip} whitespace-nowrap ${r.audience === 'LEADERS' ? 'bg-amber-400/15 border-amber-300/30 text-amber-200' : 'bg-white/5 border-white/10 text-white/50'}`} title="Who can see this room">{r.audience === 'LEADERS' ? 'Leaders only' : 'Whole dept'}</button>
+                          <button onClick={() => patch(m.id, { rooms: (m.rooms || []).filter(x => x.id !== r.id) })} className="p-1.5 text-white/30 hover:text-red-400" aria-label="Remove room"><X size={13} /></button>
+                        </div>
+                      ))}
+                      {!(m.rooms || []).length && <p className="text-xs text-white/30">Only the main room. Add rooms for sub-teams (e.g. Sunday production, Graphics).</p>}
+                    </div>
+                    <button onClick={() => { setItems(xs => addRoomToMinistry(xs, m.id, { name: 'New room', audience: 'DEPARTMENT' })); setDirty(true); }} className={`${chip} bg-white/5 border-white/10 text-white/60 flex items-center gap-1`}><Plus size={10} /> Add room</button>
                   </div>
                   <label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={!!m.allowFollowers} onChange={e => patch(m.id, { allowFollowers: e.target.checked })} /> Allow people to follow this ministry</label>
                   <label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={!!m.isInternal} onChange={e => patch(m.id, { isInternal: e.target.checked })} /> Internal only (hide from the public page)</label>

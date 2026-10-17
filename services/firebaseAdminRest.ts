@@ -131,6 +131,9 @@ async function secureTokenCerts(): Promise<Record<string, string>> {
 export interface DecodedAuthToken {
   uid: string;
   isAnonymous: boolean;
+  /** Account email (lower-cased) when the token carries one; `emailVerified` is false when unknown. */
+  email?: string;
+  emailVerified?: boolean;
 }
 
 export async function verifyIdTokenDetailed(idToken: string): Promise<DecodedAuthToken | null> {
@@ -146,7 +149,8 @@ export async function verifyIdTokenDetailed(idToken: string): Promise<DecodedAut
         const user = data.users?.[0];
         if (user?.localId) {
           const isAnonymous = !user.providerUserInfo || user.providerUserInfo.length === 0;
-          return { uid: user.localId, isAnonymous };
+          const email = typeof user.email === 'string' ? user.email.toLowerCase() : undefined;
+          return { uid: user.localId, isAnonymous, email, emailVerified: !!user.emailVerified };
         }
       }
     } catch { /* fall through to cert verification */ }
@@ -168,7 +172,8 @@ export async function verifyIdTokenDetailed(idToken: string): Promise<DecodedAut
     const ok = nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
     if (!ok) return null;
     const isAnonymous = payload.firebase?.sign_in_provider === 'anonymous';
-    return { uid: payload.sub, isAnonymous };
+    const email = typeof payload.email === 'string' ? payload.email.toLowerCase() : undefined;
+    return { uid: payload.sub, isAnonymous, email, emailVerified: !!payload.email_verified };
   } catch { return null; }
 }
 
@@ -328,6 +333,30 @@ export async function fsList(
     } while (pageToken);
   } catch { /* return whatever we got */ }
   return out;
+}
+
+/** Run a simple equality query on one collection (server-side only; bypasses rules). Up to 3 field
+ *  filters are AND-ed. Returns id + data, max `limit` docs. */
+export async function fsQuery(
+  collection: string,
+  filters: { field: string; value: string | number | boolean }[],
+  limit = 50,
+): Promise<Array<{ id: string; data: Record<string, any> }>> {
+  const fieldFilter = (f: { field: string; value: string | number | boolean }) => ({
+    fieldFilter: {
+      field: { fieldPath: f.field },
+      op: 'EQUAL',
+      value: typeof f.value === 'string' ? { stringValue: f.value } : typeof f.value === 'boolean' ? { booleanValue: f.value } : Number.isInteger(f.value) ? { integerValue: String(f.value) } : { doubleValue: f.value },
+    },
+  });
+  const where = filters.length === 1 ? fieldFilter(filters[0]) : { compositeFilter: { op: 'AND', filters: filters.map(fieldFilter) } };
+  const body = { structuredQuery: { from: [{ collectionId: collection }], where, limit } };
+  try {
+    const res = await fetch(`${FS_BASE}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) return [];
+    const rows = await res.json() as any[];
+    return rows.filter(r => r.document).map(r => ({ id: String(r.document.name).split('/').pop()!, data: r.document.fields ? fromFields(r.document.fields) : {} }));
+  } catch { return []; }
 }
 
 // ── Custom auth claims (Identity Toolkit) ────────────────────────────────────────

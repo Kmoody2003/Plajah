@@ -16,6 +16,7 @@ import { createOrganization, updateOrganization, fetchOrganization, fetchOrgMemb
 import { elevatePermissions, getElevateRole, canAssignRole } from './elevateRoles';
 import { defaultMinistries, leadTitleFor } from './elevateTemplates';
 import { isOrgOwner } from './orgPermissions';
+import { provisionOrgChat, resyncOrgChatIfProvisioned, withDefaultRooms } from './orgChatService';
 import type {
   Organization, OrgMembership, OrgType, Ministry, OrgInvite, OrgAffiliation, RosterGroup, AccountType,
 } from '../types';
@@ -54,7 +55,8 @@ export interface SetupElevateOptions {
 export async function setupElevateOrg(opts: SetupElevateOptions): Promise<Organization | null> {
   const u = auth.currentUser;
   if (!u) return null;
-  const ministries = opts.ministries ? opts.ministries.map(m => strip(m) as Ministry) : opts.seedDepartments === false ? [] : defaultMinistries(opts.orgType);
+  // Every department is born with its chat space + default rooms (sub-chats) and its own social feed.
+  const ministries = withDefaultRooms(opts.ministries ? opts.ministries.map(m => strip(m) as Ministry) : opts.seedDepartments === false ? [] : defaultMinistries(opts.orgType)).map(m => strip(m) as Ministry);
   const org = await createOrganization({
     orgType: opts.orgType,
     name: opts.name,
@@ -86,6 +88,12 @@ export async function setupElevateOrg(opts: SetupElevateOptions): Promise<Organi
     await syncMembershipToProfile(org.id, u.uid).catch(() => {});
   }
   if (opts.linkAccount) await linkAccountToOrg(org.id).catch(() => {});
+  // Auto-configure chat: #announcements, #general, one space per department with its rooms. Idempotent.
+  try {
+    const members = await fetchOrgMembers(org.id);
+    await provisionOrgChat({ ...org, ministries } as Organization, members, u.uid);
+    org.chatProvisionedAt = Date.now();
+  } catch { /* the owner can still press "Set up channels" in Chat */ }
   return org;
 }
 
@@ -140,8 +148,15 @@ export async function updateOrgIdentity(orgId: string, patch: { logoUrl?: string
 // ── Departments / sub-ministries ─────────────────────────────────────────────
 
 export async function saveMinistries(orgId: string, ministries: Ministry[]): Promise<void> {
-  await updateOrganization(orgId, { ministries: ministries.map(m => strip(m) as Ministry) });
+  const cleaned = ministries.map(m => strip({ ...m, rooms: m.rooms?.map(r => strip(r)) }) as Ministry);
+  await updateOrganization(orgId, { ministries: cleaned });
   await recomputeOrgRoleIndex(orgId);
+  // Keep chat in step: new departments / rooms get channels, renamed ones re-merge, seats re-derive.
+  try {
+    const u = auth.currentUser;
+    const org = await fetchOrganization(orgId);
+    if (u && org) await resyncOrgChatIfProvisioned(org, await fetchOrgMembers(orgId), u.uid);
+  } catch { /* best effort */ }
 }
 
 export const newMinistry = (name: string, kind: Ministry['kind'] = 'MINISTRY', extra?: Partial<Ministry>): Ministry =>
@@ -314,6 +329,8 @@ export function setupChecklist(org: Organization, members: OrgMembership[]) {
     { key: 'departments', label: 'Departments & ministries named', done: (org.ministries?.length || 0) > 0 },
     { key: 'pastoral', label: 'Pastoral / lead roster filled', done: members.some(m => m.rosterGroup === 'PASTORAL' && m.userId !== org.creatorId) },
     { key: 'leaders', label: 'Department heads assigned', done: (org.ministries || []).some(m => m.headUids?.length) },
+    { key: 'chat', label: 'Department chat & feeds configured', done: !!org.chatProvisionedAt },
+    { key: 'accounts', label: 'Member accounts provisioned (import or Accounts & Access)', done: !!org.accountProvisioning?.lastRunAt },
     { key: 'giving', label: 'Giving connected (Stripe)', done: !!org.stripeAccountId || !!org.givingUrl },
     { key: 'brand', label: 'Logo & cover set', done: !!org.logoUrl && !!org.coverUrl },
   ];

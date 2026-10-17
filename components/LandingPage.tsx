@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, fetchRandomActiveUser, fetchLandingBgConfig, auth } from '../services/backendService';
-import { ArrowRight, Sparkles, Mail, GraduationCap, User as UserIcon, Rocket, Loader2, AlertCircle, LogIn } from 'lucide-react';
+import { ArrowRight, Sparkles, Mail, GraduationCap, User as UserIcon, Rocket, Loader2, AlertCircle, LogIn, Church, KeyRound, Search } from 'lucide-react';
 import { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon } from './ui/ProviderIcons';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
@@ -10,6 +10,8 @@ const EarthGlobe = lazy(() => import('./EarthGlobe'));
 import Logo from './Logo';
 import SignInPrompt from './SignInPrompt';
 import AuthExperience from './AuthExperience';
+// Lazy: the Elevate door pulls org services; only loaded when someone opens it.
+const ElevateGateway = lazy(() => import('./elevate/ElevateGateway'));
 
 interface LandingPageProps {
   onEnter: () => void;
@@ -138,6 +140,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
   const [leftAdUser, setLeftAdUser] = useState<UserProfile | null>(null);
   const [rightAdUser, setRightAdUser] = useState<UserProfile | null>(null);
   const [showStudent, setShowStudent] = useState(false);
+  // Plajah Elevate door: claim a pre-provisioned church/ministry account, find & join one, or set one up.
+  // A join link / QR (?elevateJoin=<org>[&claim=1&member=ID]) opens the door straight away, targeted at that org.
+  const [elevateLink] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const q = new URLSearchParams(window.location.search);
+    const key = q.get('elevateJoin');
+    return key ? { orgKey: key, mode: (q.get('claim') ? 'claim' : 'join') as 'claim' | 'join', memberNumber: q.get('member') || undefined } : null;
+  });
+  const [elevate, setElevate] = useState<null | 'home' | 'claim' | 'join' | 'create'>(() => elevateLink?.mode || null);
+  // App.tsx also parsed the link; tell it the landing page handled it so it does not open a second door after Enter.
+  const settleElevate = () => { setElevate(null); try { window.dispatchEvent(new CustomEvent('plajah:elevate-gateway-handled')); const u = new URL(window.location.href); ['elevateJoin', 'claim', 'member'].forEach(k => u.searchParams.delete(k)); window.history.replaceState({}, '', u.toString()); } catch { /* */ } };
+  const openElevateOrg = (orgId: string) => { settleElevate(); onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ORG_HUB', params: { orgId, fromElevate: true } } })), 400); };
+  const createElevateOrg = () => { settleElevate(); onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ORG_HUB', params: { create: true, fromElevate: true } } })), 400); };
   const [authMode, setAuthMode] = useState<'REGISTER' | 'SIGN_IN' | null>(null);
   // Someone can legitimately be looking at this page while already signed in — the Back
   // button walks history down to the first entry, which is LANDING. Signing in AGAIN as the
@@ -423,11 +438,53 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           </button>
         </motion.div>
 
+        {/* Plajah Elevate — churches, ministries, nonprofits: claim the account your organization set up, join one, or set one up */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.95 }}
+          className="w-full max-w-2xl rounded-3xl border border-[#8B5CF6]/40 bg-gradient-to-br from-[#160a26]/85 to-black/40 backdrop-blur-md p-5 sm:p-6 shadow-[0_0_40px_rgba(139,92,246,0.12)]"
+        >
+          <div className="flex items-center gap-2 text-[#C4B5FD] mb-1">
+            <Church size={18} /><span className="text-[10px] font-black uppercase tracking-[0.3em]">Plajah Elevate · For churches &amp; ministries</span>
+          </div>
+          <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Members, staff, pastors &amp; volunteers</h3>
+          <p className="text-[12px] text-white/55 leading-snug mt-1">Your organization may have already set up your account — <span className="text-[#C4B5FD] font-bold">claim it with your member ID or email</span>. New here? Find your ministry, or set one up.</p>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+            <button
+              onClick={() => setElevate('claim')}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#6B0099] to-[#8B5CF6] text-white font-black text-[12px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(139,92,246,0.3)]"
+            >
+              <KeyRound size={16} /> Claim your account
+            </button>
+            <button
+              onClick={() => setElevate('join')}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white/10 border border-[#8B5CF6]/40 text-white font-black text-[12px] uppercase tracking-widest hover:bg-white/15 active:scale-95 transition-all"
+            >
+              <Search size={16} /> Find &amp; join a ministry
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
+            <button onClick={() => setElevate('home')} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4B5FD]/80 hover:text-[#C4B5FD] transition-colors">
+              <LogIn size={13} /> Elevate sign in
+            </button>
+            <button onClick={() => setElevate('create')} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4B5FD]/80 hover:text-[#C4B5FD] transition-colors">
+              <Sparkles size={13} /> Set up a ministry (staff) →
+            </button>
+          </div>
+        </motion.div>
+
       </div>
 
       <AnimatePresence>
         {showStudent && <SignInPrompt action="learn" initialMode="STUDENT" onClose={() => setShowStudent(false)} />}
       </AnimatePresence>
+
+      {elevate && (
+        <Suspense fallback={null}>
+          <ElevateGateway initialMode={elevate} orgKey={elevateLink?.orgKey} initialMemberNumber={elevateLink?.memberNumber} signedIn={!!signedIn} onClose={settleElevate} onOpenOrg={openElevateOrg} onCreate={createElevateOrg} />
+        </Suspense>
+      )}
 
       <AnimatePresence>
         {authMode && <AuthExperience initialMode={authMode} onClose={() => setAuthMode(null)} onAuthenticated={onEnter} />}

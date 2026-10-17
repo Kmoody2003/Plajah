@@ -50,6 +50,8 @@ import { createMusicLabRouter } from './routes/musicLab';
 import { createAdminFilmIngestRouter } from './routes/adminFilmIngest';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
+import { elevateAccountsRouter } from './routes/elevateAccounts';
+import { payrollConnectRouter } from './routes/payrollConnect';
 import { postmanRouter } from './routes/postman';
 import { articleFeedsRouter } from './routes/articleFeeds';
 import { socialConnectRouter,publishToSocialAccounts, socialAccountIds, parseScope } from './routes/socialConnect';
@@ -12880,6 +12882,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // Emergent-school backend — resolve/create schools, confirm colleagues, claim, provision.
   app.use('/api/schools', express.json({ limit: '16kb' }), schoolsRouter);
+
+  // Elevate: claim a pre-provisioned member / staff account (member ID + last name, or own email). Rate-limited.
+  app.use('/api/elevate/claim', authLimiter);
+  app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter);
+  // Elevate: read-only staff directory from payroll (Paychex Flex API; file exports are handled client-side).
+  app.use('/api/payroll', express.json({ limit: '8kb' }), payrollConnectRouter);
 
   // ── The Post Man (native mail client — per-user, per-account Gmail) ───────────
   app.use('/api/postman', express.json({ limit: '1mb' }), postmanRouter);

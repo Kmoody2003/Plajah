@@ -186,6 +186,8 @@ export const FIELD_DEFS: Record<ChmsFileKind, FieldDef[]> = {
     F('baptismDate', 'Baptism date', ['baptism date', 'date baptized', 'baptized', 'baptism', 'baptized date', 'date of baptism']),
     F('tags', 'Tags / groups', ['tags', 'tag', 'categories', 'category', 'labels', 'groups', 'group']),
     F('skills', 'Skills / gifts', ['skills', 'spiritual gifts', 'gifts', 'talents', 'volunteer skills', 'abilities']),
+    F('role', 'Role / position / job title', ['role', 'position', 'job title', 'title', 'job', 'occupation', 'church role', 'ministry role', 'staff role', 'office', 'job title description', 'position title']),
+    F('department', 'Department / ministry', ['department', 'ministry', 'dept', 'team', 'home department', 'home department description', 'ministry area', 'department name', 'division']),
   ],
   households: [
     F('sourceId', 'Family ID', ['family id', 'family no', 'family number', 'household id', 'household no', 'id', 'family code', 'famid', 'record id', 'family key']),

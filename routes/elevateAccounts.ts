@@ -1,0 +1,153 @@
+// elevateAccounts router — the member's side of pre-provisioned Plajah accounts (services/elevateAccounts.ts).
+//
+// A church imports its people; each one gets a managed `users/prov_…` profile + an orgMemberships seat that
+// already carries their role and departments. The real person then CLAIMS the seat here:
+//   POST /lookup  { org, memberNumber + lastName | email }  → masked preview ("J••• S••••, Member, Youth")
+//   POST /redeem  { org, memberNumber + lastName | email }  → seat.userId := caller; chmsPeople.linkedUid := caller;
+//                                                             orgMemberIndex written; org chat rooms re-pointed.
+// Runs server-side (SA-signed REST, like routes/schools.ts) so nobody can enumerate a congregation from the
+// client: a member ID alone is never enough (last name must match), and an email claim only works when it is
+// the signed-in account's own email. Rate-limited in server.ts with authLimiter.
+//
+// Mounted in server.ts as:  app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter)
+
+import { Router, Request, Response } from 'express';
+import { verifyIdTokenDetailed, fsGet, fsPatch, fsSet, fsCreate, fsQuery, fsDelete, adminConfig } from '../services/firebaseAdminRest';
+
+export const elevateAccountsRouter = Router();
+
+const normMember = (s: string) => (s || '').trim().toUpperCase().replace(/\s+/g, '');
+const normName = (s: string) => (s || '').trim().toLowerCase().replace(/[^a-zÀ-ɏ' -]/g, '').replace(/\s+/g, ' ');
+const normEmail = (s: string) => (s || '').trim().toLowerCase();
+const mask = (s: string) => { const t = (s || '').trim(); return t ? t[0] + '•'.repeat(Math.max(2, Math.min(6, t.length - 1))) : ''; };
+
+const ROLE_LABELS: Record<string, string> = {
+  SENIOR_PASTOR: 'Senior Pastor', PASTOR: 'Pastor', MINISTER: 'Minister', ELDER: 'Elder', DEACON: 'Deacon', DEPARTMENT_HEAD: 'Department Head',
+  FINANCE_DIRECTOR: 'Finance Director', TREASURER: 'Treasurer', TRUSTEE: 'Trustee', BOOKKEEPER: 'Bookkeeper', ACCOUNTANT: 'Accountant / Auditor',
+  MEDIA_TEAM: 'Media Team', STAFF: 'Staff', PRAYER_WARRIOR: 'Prayer Warrior', VOLUNTEER: 'Volunteer', MEMBER: 'Member',
+};
+
+async function caller(req: Request) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return null;
+  const t = await verifyIdTokenDetailed(auth.slice(7));
+  return t && !t.isAnonymous ? t : null;
+}
+
+/** Resolve the org from an id or @handle. */
+async function resolveOrg(key: string): Promise<{ id: string; data: Record<string, any> } | null> {
+  const k = (key || '').trim().replace(/^@/, '');
+  if (!k || k.length > 120) return null;
+  const direct = await fsGet(`organizations/${k}`);
+  if (direct) return { id: k, data: direct };
+  const byHandle = await fsQuery('organizations', [{ field: 'handle', value: k.toLowerCase() }], 1);
+  return byHandle[0] || null;
+}
+
+interface Seat { id: string; data: Record<string, any> }
+/** Find the unclaimed seat behind the identifiers. Returns a reason when the match is refused. */
+async function findSeat(orgId: string, body: any, callerEmail?: string): Promise<{ seat?: Seat; reason?: string; alreadyClaimed?: boolean }> {
+  const memberNumber = normMember(body.memberNumber || '');
+  const lastName = normName(body.lastName || '');
+  const email = normEmail(body.email || '');
+  if (memberNumber) {
+    if (!lastName) return { reason: 'Enter the last name on file with your member ID.' };
+    const seats = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'memberNumber', value: memberNumber }], 5);
+    const seat = seats.find(s => normName(String(s.data.displayName || '')).endsWith(lastName) || normName(String(s.data.displayName || '')).includes(` ${lastName}`));
+    if (!seat) return seats.length ? { reason: 'That member ID and last name do not match our records.' } : { reason: 'No account is waiting for that member ID. Ask the office, or join as a new member.' };
+    if (!seat.data.isProvisioned) return { alreadyClaimed: true, reason: 'This account has already been claimed. Sign in with the account you used, or ask the office to reset it.' };
+    return { seat };
+  }
+  if (email) {
+    if (!callerEmail || callerEmail !== email) return { reason: `To claim by email, sign in to Plajah with ${email} (the address your organization has on file).` };
+    const seats = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'claimEmailLower', value: email }], 5);
+    const seat = seats.find(s => s.data.isProvisioned) || seats[0];
+    if (!seat) return { reason: 'No account is waiting for that email. Try your member ID, or join as a new member.' };
+    if (!seat.data.isProvisioned) return { alreadyClaimed: true, reason: 'This account has already been claimed.' };
+    return { seat };
+  }
+  return { reason: 'Enter your member ID and last name, or the email your organization has on file.' };
+}
+
+const deptNames = (org: Record<string, any>, ids: string[] = []) =>
+  ids.map(id => (org.ministries || []).find((m: any) => m.id === id)?.name).filter(Boolean) as string[];
+
+// ── POST /lookup ───────────────────────────────────────────────────────────────
+elevateAccountsRouter.post('/lookup', async (req: Request, res: Response) => {
+  if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Server not configured for account claims.' });
+  const who = await caller(req);
+  if (!who) return res.status(401).json({ error: 'Sign in to claim your account.' });
+  const org = await resolveOrg(String(req.body?.org || ''));
+  if (!org) return res.status(404).json({ found: false, reason: 'We could not find that organization.' });
+  const r = await findSeat(org.id, req.body || {}, who.email);
+  if (!r.seat) return res.json({ found: false, orgId: org.id, orgName: org.data.name, orgLogoUrl: org.data.logoUrl, reason: r.reason, alreadyClaimed: !!r.alreadyClaimed });
+  const d = r.seat.data;
+  const [first = '', ...rest] = String(d.displayName || '').split(' ');
+  return res.json({
+    found: true, orgId: org.id, orgName: org.data.name, orgLogoUrl: org.data.logoUrl,
+    maskedName: `${mask(first)} ${mask(rest.join(' '))}`.trim(),
+    roleLabel: d.title || ROLE_LABELS[d.roleKey] || 'Member',
+    departments: deptNames(org.data, d.ministryIds || (d.ministryRoles || []).map((x: any) => x.ministryId)),
+  });
+});
+
+// ── POST /redeem ───────────────────────────────────────────────────────────────
+elevateAccountsRouter.post('/redeem', async (req: Request, res: Response) => {
+  if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Server not configured for account claims.' });
+  const who = await caller(req);
+  if (!who) return res.status(401).json({ error: 'Sign in to claim your account.' });
+  const org = await resolveOrg(String(req.body?.org || ''));
+  if (!org) return res.status(404).json({ error: 'We could not find that organization.' });
+  const r = await findSeat(org.id, req.body || {}, who.email);
+  if (!r.seat) return res.status(r.alreadyClaimed ? 409 : 404).json({ error: r.reason });
+  const seat = r.seat; const d = seat.data; const uid = who.uid; const now = Date.now();
+  const provUid = String(d.userId || '');
+  if (!provUid.startsWith('prov_')) return res.status(409).json({ error: 'This seat is not claimable.' });
+
+  // The caller may already be in the org (self-joined, or claimed another seat): fold the seat into their row.
+  const mine = await fsQuery('orgMemberships', [{ field: 'orgId', value: org.id }, { field: 'userId', value: uid }], 3);
+  const profile = await fsGet(`users/${uid}`);
+  const displayName = String(profile?.displayName || d.displayName || 'Member');
+  const photoUrl = String(profile?.photoURL || '');
+  const claimedFields = {
+    isProvisioned: false, claimedAt: now, userId: uid, displayName, photoUrl, status: 'ACTIVE', acceptedAt: now,
+    employeeProfileUid: null, claimEmailLower: null,
+  };
+  let membershipId = seat.id;
+  if (mine[0] && mine[0].id !== seat.id) {
+    // Merge: keep their existing row id, lift the seat's role/departments onto it, retire the seat.
+    membershipId = mine[0].id;
+    await fsPatch(`orgMemberships/${membershipId}`, {
+      ...claimedFields, role: d.role, roleKey: d.roleKey, title: d.title, rosterGroup: d.rosterGroup, isEmployee: !!d.isEmployee,
+      ministryIds: d.ministryIds || [], ministryRoles: d.ministryRoles || [], memberNumber: d.memberNumber, provisionedPersonId: d.provisionedPersonId,
+      joinedAt: Math.min(Number(mine[0].data.joinedAt || now), Number(d.joinedAt || now)),
+    });
+    await fsDelete(`orgMemberships/${seat.id}`);
+  } else {
+    await fsPatch(`orgMemberships/${seat.id}`, claimedFields);
+  }
+  // Retire the managed profile (kept for audit; claimedByUid links it, like business employee profiles).
+  await fsPatch(`users/${provUid}`, { claimedByUid: uid, claimedAt: now });
+  // Link the congregation record.
+  if (d.provisionedPersonId) {
+    const person = await fsGet(`chmsPeople/${d.provisionedPersonId}`);
+    if (person && (!person.linkedUid || person.linkedUid === uid)) await fsPatch(`chmsPeople/${d.provisionedPersonId}`, { linkedUid: uid, provisionedUid: null, updatedAt: now });
+  }
+  // Member index (rules use it for department feeds / comments).
+  const ministryIds: string[] = Array.from(new Set([...(d.ministryIds || []), ...((d.ministryRoles || []) as any[]).map(x => x.ministryId)].filter(Boolean)));
+  await fsSet(`orgMemberIndex/${org.id}_${uid}`, { orgId: org.id, userId: uid, ministryIds, updatedAt: now });
+  // Chat: every org room the seat sat in now seats the real person.
+  const rooms = await fsQuery('chat_rooms', [{ field: 'orgId', value: org.id }, { field: 'workspaceType', value: 'ORGANIZATION' }], 300);
+  for (const room of rooms) {
+    const parts: string[] = Array.isArray(room.data.participants) ? room.data.participants : [];
+    if (!parts.includes(provUid) && !(['announcements', 'general'].includes(String(room.data.orgChannelKey || '')))) continue;
+    const next = Array.from(new Set(parts.filter(p => p !== provUid).concat(uid)));
+    if (next.length !== parts.length || !parts.includes(uid)) await fsPatch(`chat_rooms/${room.id}`, { participants: next, updatedAt: now });
+  }
+  // Mirror the role on their profile (same shape as elevateService.syncMembershipToProfile).
+  const aff = { orgId: org.id, orgName: org.data.name, orgLogoUrl: org.data.logoUrl || null, roleKey: d.roleKey || 'MEMBER', title: d.title || ROLE_LABELS[d.roleKey] || 'Member', since: now };
+  const cur: any[] = Array.isArray(profile?.orgAffiliations) ? profile!.orgAffiliations : [];
+  await fsPatch(`users/${uid}`, { orgAffiliations: [...cur.filter(a => a?.orgId !== org.id), aff] });
+  await fsCreate(`organizations/${org.id}/audit`, { orgId: org.id, action: 'ELEVATE_ACCOUNT_CLAIMED', actorUid: uid, actorName: displayName, targetId: d.provisionedPersonId || seat.id, targetName: d.displayName, timestamp: now, meta: { memberNumber: d.memberNumber || null, via: req.body?.memberNumber ? 'memberNumber' : 'email' } });
+  return res.json({ orgId: org.id, orgName: org.data.name, roleLabel: d.title || ROLE_LABELS[d.roleKey] || 'Member', membershipId });
+});

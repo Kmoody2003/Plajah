@@ -38,7 +38,7 @@ const PeopleDirectory: React.FC<{ initialPersonId?: string | null }> = ({ initia
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const f = people.filter(p => {
-      if (needle && !`${fullName(p)} ${p.firstName} ${p.email || ''} ${p.phone || ''} ${(p.tags || []).join(' ')} ${p.address?.city || ''}`.toLowerCase().includes(needle)) return false;
+      if (needle && !`${fullName(p)} ${p.firstName} ${p.email || ''} ${p.phone || ''} ${p.memberNumber || ''} ${(p.tags || []).join(' ')} ${p.address?.city || ''}`.toLowerCase().includes(needle)) return false;
       if (status && p.status !== status) return false;
       if (tag && !(p.tags || []).includes(tag)) return false;
       if (band && ageBand(p) !== band) return false;
@@ -130,6 +130,7 @@ const PeopleDirectory: React.FC<{ initialPersonId?: string | null }> = ({ initia
             <thead className="border-b border-white/10"><tr>
               <th className="px-3 py-2 w-8"><input type="checkbox" checked={selected.length === rows.length && rows.length > 0} onChange={e => setSel(e.target.checked ? new Set(rows.map(r => r.id)) : new Set())} /></th>
               {th('name', 'Name')}{th('status', 'Status')}{th('age', 'Age', 'hidden sm:table-cell')}
+              <th className="px-3 py-2 text-left hidden md:table-cell"><span className={label}>Account</span></th>
               <th className="px-3 py-2 text-left hidden md:table-cell"><span className={label}>Contact</span></th>
               {th('since', 'Member since', 'hidden lg:table-cell')}{th('last', 'Last seen', 'hidden sm:table-cell')}
             </tr></thead>
@@ -142,6 +143,11 @@ const PeopleDirectory: React.FC<{ initialPersonId?: string | null }> = ({ initia
                     <td className="px-3 py-2 font-bold text-white">{fullName(p)}{p.linkedUid && <span title="Linked Plajah account" className="ml-1.5 text-[8px] text-emerald-400">●</span>}{gaveFlags?.has(p.id) && <span title="Gave in last 12 months" className="ml-1 text-[8px] text-amber-300">$</span>}</td>
                     <td className="px-3 py-2"><StatusPill s={p.status} /></td>
                     <td className="px-3 py-2 text-white/50 hidden sm:table-cell">{ageOf(p) ?? ''}</td>
+                    <td className="px-3 py-2 hidden md:table-cell whitespace-nowrap">
+                      {p.linkedUid ? <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300">Claimed</span>
+                        : p.provisionedUid ? <span className="text-[9px] font-black uppercase tracking-widest text-sky-300">Ready · <span className="font-mono normal-case tracking-normal">{p.memberNumber}</span></span>
+                        : <span className="text-[9px] font-black uppercase tracking-widest text-white/25">None</span>}
+                    </td>
                     <td className="px-3 py-2 text-white/50 hidden md:table-cell truncate max-w-[220px]">{p.email || p.phone || ''}</td>
                     <td className="px-3 py-2 text-white/50 hidden lg:table-cell">{p.memberSince || ''}</td>
                     <td className={`px-3 py-2 hidden sm:table-cell ${w !== null && w >= 4 ? 'text-amber-300' : 'text-white/50'}`}>{w === null ? '—' : w === 0 ? 'This week' : `${w} wk ago`}</td>

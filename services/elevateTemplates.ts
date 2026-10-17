@@ -55,10 +55,19 @@ export const isElevateOrg = (t?: OrgType) => t === 'CHURCH' || t === 'RELIGIOUS'
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 
-/** Seed list for an org type, with fresh ids and stable order. */
+/** Seed list for an org type, with fresh ids and stable order. Every department is born with its social feed:
+ *  public-facing ministries (followable, not internal) post to a PUBLIC feed; internal departments keep theirs
+ *  DEPARTMENT-only; everything else is org-wide. Chat rooms per department are seeded by orgChatService. */
 export function defaultMinistries(orgType: OrgType): Ministry[] {
   const seeds = isFaithOrg(orgType) ? CHURCH_SEEDS : orgType === 'CULTURAL' ? CULTURAL_SEEDS : orgType === 'NONPROFIT' ? NONPROFIT_SEEDS : OTHER_SEEDS;
-  return seeds.map((s, i) => ({ ...s, id: newId(), order: i, headUids: [] }));
+  return seeds.map((s, i) => ({ ...s, id: newId(), order: i, headUids: [], threadAudience: feedAudienceFor(s) }));
+}
+
+/** Default feed audience for a department: public-facing ministry → PUBLIC, internal → DEPARTMENT, else ORG. */
+export function feedAudienceFor(m: Pick<Ministry, 'allowFollowers' | 'isInternal' | 'kind' | 'threadAudience'>): NonNullable<Ministry['threadAudience']> {
+  if (m.isInternal) return 'DEPARTMENT';
+  if (m.allowFollowers && m.kind !== 'DEPARTMENT') return 'PUBLIC';
+  return m.threadAudience || 'ORG';
 }
 
 /** Role keys that make sense to offer for an org type (cultural/nonprofit drop faith-only roles). */
