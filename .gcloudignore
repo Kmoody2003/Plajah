@@ -15,3 +15,18 @@ capacitor.config.ts
 **/*.test.ts
 tests
 fabula-project
+
+# ── Not used by the API server in production (it serves the prebuilt dist/) ──
+# Shipping these pushed the Cloud Build upload past ~1.75 GB and the container build past
+# its deadline (DEADLINE_EXCEEDED, 2026-10-17). Audit: server.ts only reads public/ in the
+# Vite dev branch, except the server-side Whisper model under public/models/onnx-community/
+# (fetched by `npm run build` → scripts/fetch-local-models.mjs), which is kept below.
+docs/
+tizen/
+roku/
+windows-native/
+Plajah_Package_*/
+public/*
+!public/models/
+public/models/*
+!public/models/onnx-community/
